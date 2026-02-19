@@ -6,7 +6,11 @@ import { cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 8;
 
-export function EnderecosPage() {
+interface EnderecosPageProps {
+  onNavigate?: (path: string) => void;
+}
+
+export function EnderecosPage({ onNavigate }: EnderecosPageProps) {
   const [search, setSearch] = useState("");
   const [filterSituacao, setFilterSituacao] = useState<string>("all");
   const [filterTipo, setFilterTipo] = useState<string>("all");
@@ -47,7 +51,10 @@ export function EnderecosPage() {
           <h1 className="text-xl font-bold text-foreground">Localizações / Endereços</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} endereços encontrados</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+        <button
+          onClick={() => onNavigate?.("/armazem/enderecos/novo")}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
           <Plus size={16} />
           Novo Endereço
         </button>

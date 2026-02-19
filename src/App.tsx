@@ -8,6 +8,7 @@ import { VeiculosPage } from "./pages/VeiculosPage";
 import { ProdutosPage } from "./pages/ProdutosPage";
 import { ArmazemPage } from "./pages/ArmazemPage";
 import { RastreabilidadePage } from "./pages/RastreabilidadePage";
+import { NovoEnderecoPage } from "./pages/NovoEnderecoPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -16,6 +17,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/armazem/setores": [{ label: "CORE LogiTrack" }, { label: "Armazém", path: "/armazem/armazens" }, { label: "Setores" }],
   "/armazem/tipos-estoque": [{ label: "CORE LogiTrack" }, { label: "Armazém", path: "/armazem/armazens" }, { label: "Tipos de Estoque" }],
   "/armazem/enderecos": [{ label: "CORE LogiTrack" }, { label: "Armazém", path: "/armazem/armazens" }, { label: "Endereços" }],
+  "/armazem/enderecos/novo": [{ label: "CORE LogiTrack" }, { label: "Armazém", path: "/armazem/armazens" }, { label: "Endereços", path: "/armazem/enderecos" }, { label: "Novo Endereço" }],
   "/armazem/veiculos": [{ label: "CORE LogiTrack" }, { label: "Armazém", path: "/armazem/armazens" }, { label: "Veículos" }],
   "/atividades/hus": [{ label: "CORE LogiTrack" }, { label: "Atividades", path: "/atividades/hus" }, { label: "HUs" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades", path: "/atividades/hus" }, { label: "Volumes Expedição" }],
@@ -35,7 +37,9 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/tipos-estoque":
       return <ArmazemPage sub="tipos" />;
     case "/armazem/enderecos":
-      return <EnderecosPage />;
+      return <EnderecosPage onNavigate={onNavigate} />;
+    case "/armazem/enderecos/novo":
+      return <NovoEnderecoPage onBack={() => onNavigate("/armazem/enderecos")} />;
     case "/armazem/veiculos":
       return <VeiculosPage />;
     case "/atividades/hus":
