@@ -19,7 +19,8 @@ const MM = 3.7795;
 function BarcodeH({ text, width, height }: { text: string; width: number; height: number }) {
   const bars = generateCode128(text);
   const totalBarWidth = getTotalWidth(bars);
-  const scale = (width - 10) / totalBarWidth;
+  const quietZone = 8;
+  const scale = (width - quietZone * 2) / totalBarWidth;
 
   return (
     <svg
@@ -34,9 +35,9 @@ function BarcodeH({ text, width, height }: { text: string; width: number; height
         .map((bar, i) => (
           <rect
             key={i}
-            x={5 + bar.x * scale}
+            x={quietZone + bar.x * scale}
             y={0}
-            width={Math.max(bar.width * scale, 1)}
+            width={Math.max(bar.width * scale, 0.8)}
             height={height}
             fill="#000000"
           />
@@ -46,36 +47,37 @@ function BarcodeH({ text, width, height }: { text: string; width: number; height
 }
 
 // ─── Barcode rotacionado 90° (vertical) ────────────────────────────────────
-// bars são desenhados horizontalmente depois o SVG é girado via transform
-function BarcodeV({ text, barcodeW, barcodeH }: { text: string; barcodeW: number; barcodeH: number }) {
+// svgW = comprimento do barcode (ao longo do eixo Y da etiqueta vertical, ou seja, a altura)
+// svgH = largura/altura das barras (ao longo do eixo X, ou seja, a largura da etiqueta)
+// Após rotate(90deg) no DOM: container ocupa width=svgH, height=svgW
+function BarcodeV({ text, svgW, svgH }: { text: string; svgW: number; svgH: number }) {
   const bars = generateCode128(text);
   const totalBarWidth = getTotalWidth(bars);
-  // barcodeW = comprimento do barcode (ao longo da etiqueta vertical)
-  // barcodeH = altura das barras (através da largura da etiqueta)
-  const scale = (barcodeW - 10) / totalBarWidth;
+  const quietZone = 8;
+  const scale = (svgW - quietZone * 2) / totalBarWidth;
 
   return (
-    // Container com tamanho final APÓS rotação
     <div
       style={{
-        width: `${barcodeH}px`,
-        height: `${barcodeW}px`,
+        width: `${svgH}px`,
+        height: `${svgW}px`,
         position: "relative",
         flexShrink: 0,
       }}
     >
       <svg
-        width={barcodeW}
-        height={barcodeH}
-        viewBox={`0 0 ${barcodeW} ${barcodeH}`}
+        width={svgW}
+        height={svgH}
+        viewBox={`0 0 ${svgW} ${svgH}`}
         xmlns="http://www.w3.org/2000/svg"
         style={{
           display: "block",
-          transformOrigin: "top left",
-          transform: `rotate(90deg) translateY(-${barcodeH}px)`,
           position: "absolute",
           top: 0,
           left: 0,
+          transformOrigin: "0 0",
+          // Rotaciona 90° e ajusta posição para ficar dentro do container
+          transform: `rotate(90deg) translateX(0px) translateY(-${svgH}px)`,
         }}
       >
         {bars
@@ -83,10 +85,10 @@ function BarcodeV({ text, barcodeW, barcodeH }: { text: string; barcodeW: number
           .map((bar, i) => (
             <rect
               key={i}
-              x={5 + bar.x * scale}
+              x={quietZone + bar.x * scale}
               y={0}
-              width={Math.max(bar.width * scale, 1)}
-              height={barcodeH}
+              width={Math.max(bar.width * scale, 0.8)}
+              height={svgH}
               fill="#000000"
             />
           ))}
@@ -99,7 +101,6 @@ function BarcodeV({ text, barcodeW, barcodeH }: { text: string; barcodeW: number
 interface EtiquetaDimensoes {
   widthMm: number;
   heightMm: number;
-  /** Modo de layout real (independente de tamanho) */
   isVertical: boolean;
   is100x40: boolean;
   headerHeightMm: number;
@@ -115,7 +116,6 @@ function getDimensoes(tamanho: TamanhoEtiqueta, orientacao: OrientacaoEtiqueta):
     return { widthMm: 100, heightMm: 40, isVertical: false, is100x40: true, headerHeightMm: 7, codeFontSize: 22, setorFontSize: 12 };
   }
   if (is100x40 && isVertical) {
-    // etiqueta física 40mm × 100mm
     return { widthMm: 40, heightMm: 100, isVertical: true, is100x40: true, headerHeightMm: 8, codeFontSize: 22, setorFontSize: 11 };
   }
   if (!is100x40 && !isVertical) {
@@ -218,19 +218,24 @@ function EtiquetaHorizontal({ endereco, dim, isPrint }: { endereco: Endereco; di
   );
 }
 
-// ─── Layout Vertical redesenhado ────────────────────────────────────────────
+// ─── Layout Vertical ────────────────────────────────────────────────────────
+// Etiqueta física: widthMm (ex: 40mm) × heightMm (ex: 100mm)
+// Layout: header topo → barcode rotacionado 90° centralizado → texto vertical
 function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim: EtiquetaDimensoes; isPrint: boolean }) {
-  const wPx = dim.widthMm * MM;   // largura física da etiqueta (ex: 40mm)
-  const hPx = dim.heightMm * MM;  // altura física da etiqueta  (ex: 100mm)
+  const wPx = dim.widthMm * MM;   // ex: 40mm → ~151px
+  const hPx = dim.heightMm * MM;  // ex: 100mm → ~378px
   const headerPx = dim.headerHeightMm * MM;
 
-  // Barcode: ocupa 65% da altura restante
+  // Margens internas laterais do barcode (quiet zone + padding)
+  const marginSidePx = 5 * MM; // 5mm cada lado
+  // O barcode vai ao longo da altura (Y), usando a largura disponível como altura das barras
+  const barHeight = wPx - marginSidePx * 2; // altura das barras = largura disponível da etiqueta
+  // O comprimento do barcode (ao longo do Y) = 65% da área útil
   const bodyH = hPx - headerPx;
-  const barcodeLen = bodyH * 0.65;     // comprimento do barcode ao longo da etiqueta
-  const barcodeBarH = wPx - 10 * MM;  // altura das barras = largura da etiqueta - margens laterais
+  const barcodeLength = bodyH * 0.65;
 
-  // Espaço para o texto = resto
-  const textAreaH = bodyH - barcodeLen;
+  // Área de texto = resto
+  const textAreaH = bodyH - barcodeLength;
 
   return (
     <div
@@ -271,35 +276,39 @@ function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim:
         </span>
       </div>
 
-      {/* Barcode rotacionado 90° */}
+      {/* Barcode rotacionado 90° — ocupa barcodeLength de altura no layout */}
+      {/* BarcodeV: svgW = comprimento do barcode, svgH = altura das barras */}
+      {/* O container real no DOM: width=svgH (=barHeight), height=svgW (=barcodeLength) */}
       <div style={{
         flex: "0 0 auto",
+        height: `${barcodeLength}px`,
+        width: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        height: `${barcodeLen}px`,
-        width: "100%",
         paddingTop: "2mm",
         paddingBottom: "1mm",
       }}>
         <BarcodeV
           text={endereco.codigo}
-          barcodeW={barcodeLen - 4 * MM}
-          barcodeH={barcodeBarH}
+          svgW={barcodeLength - 3 * MM}
+          svgH={barHeight}
         />
       </div>
 
-      {/* Código textual vertical + setor */}
+      {/* Área de texto: código e setor na vertical */}
       <div style={{
         flex: 1,
+        height: `${textAreaH}px`,
+        width: "100%",
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        width: "100%",
         paddingBottom: "2mm",
-        gap: "1mm",
+        gap: "2mm",
       }}>
+        {/* Código na vertical: writing-mode vertical, rotacionado para ler de baixo pra cima */}
         <div style={{
           writingMode: "vertical-rl" as const,
           textOrientation: "mixed" as const,
@@ -310,7 +319,7 @@ function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim:
           color: "#000000",
           textTransform: "uppercase",
           lineHeight: 1,
-          textAlign: "center",
+          whiteSpace: "nowrap",
         }}>
           {endereco.codigo}
         </div>
@@ -323,8 +332,9 @@ function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim:
             fontSize: `${dim.setorFontSize * 0.85}px`,
             fontWeight: 600,
             letterSpacing: "1px",
-            color: "#555555",
+            color: "#666666",
             textTransform: "uppercase",
+            whiteSpace: "nowrap",
           }}>
             {endereco.setor}
           </div>
@@ -370,4 +380,3 @@ export function EtiquetaEnderecoPreview({
     </>
   );
 }
-
