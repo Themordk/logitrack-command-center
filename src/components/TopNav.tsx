@@ -45,7 +45,7 @@ const navItems: NavItem[] = [
       { label: "Cadastro de Armazém", path: "/armazem/armazens" },
       { label: "Tipos de Estoque", path: "/armazem/tipos-estoque" },
       { label: "Setores", path: "/armazem/setores" },
-      { label: "Estruturas de Armazenagem", path: "/armazem/estruturas" },
+      
       { label: "Localizações / Endereços", path: "/armazem/enderecos" },
       { label: "Box", path: "/armazem/box" },
       { label: "Turnos", path: "/armazem/turnos" },
