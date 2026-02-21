@@ -1,89 +1,90 @@
-import { useState } from "react";
-import { mockProdutos } from "@/data/mockData";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Search, Plus, Eye, Edit2, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { useTenant } from "@/contexts/TenantContext";
+import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
+import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
+import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function ProdutosPage() {
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const { tenantId } = useTenant();
+  const crud = useCrud({ table: "produto", tenantId, orderBy: "descricao" });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
+  const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
+  const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
+  const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
 
-  const filtered = mockProdutos.filter((p) => {
-    const matchSearch =
-      p.sku.toLowerCase().includes(search.toLowerCase()) ||
-      p.descricao.toLowerCase().includes(search.toLowerCase()) ||
-      p.grupo.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === "all" || p.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  useEffect(() => {
+    if (tenantId) {
+      fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
+      fetchOptions("grupo_produto", tenantId).then(setGrupoOptions);
+      fetchOptions("subgrupo_produto", tenantId).then(setSubgrupoOptions);
+      fetchOptions("parceiro", tenantId, "razaosocial").then(setParceiroOptions);
+    }
+  }, [tenantId]);
+
+  const columns: ColumnSpec[] = [
+    { key: "sku", label: "SKU", type: "mono" },
+    { key: "descricao", label: "Descrição" },
+    { key: "referencia", label: "Referência" },
+    { key: "marca", label: "Marca" },
+    { key: "tipo_controle", label: "Controle" },
+    { key: "tipo_separacao", label: "Separação" },
+    { key: "ativo", label: "Status", type: "badge" },
+  ];
+
+  const fields: FieldSpec[] = [
+    { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
+    { name: "parceiro_id", label: "Parceiro (Fornecedor)", type: "select", required: true, options: parceiroOptions },
+    { name: "sku", label: "SKU", type: "text", required: true, placeholder: "Ex: ELT-001" },
+    { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do produto" },
+    { name: "referencia", label: "Referência", type: "text", required: true, placeholder: "Referência" },
+    { name: "marca", label: "Marca", type: "text", placeholder: "Marca" },
+    { name: "grupo_id", label: "Grupo", type: "select", options: grupoOptions },
+    { name: "subgrupo_id", label: "Subgrupo", type: "select", options: subgrupoOptions },
+    { name: "preco_custo", label: "Preço de Custo", type: "number", placeholder: "0.00", step: "0.01" },
+    { name: "tipo_controle", label: "Tipo de Controle", type: "enum", required: true, enumValues: ["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"] },
+    { name: "tipo_separacao", label: "Tipo de Separação", type: "enum", required: true, enumValues: ["FRACIONADO", "EMBALAGEM_TOTAL", "CAIXARIA"] },
+    { name: "usa_picking", label: "Usa Picking", type: "switch", defaultValue: true },
+    { name: "varios_pickings", label: "Vários Pickings", type: "switch", defaultValue: false },
+    { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
+  ];
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Produtos</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} produtos cadastrados</p>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus size={16} />
-          Novo Produto
-        </button>
-      </div>
-
-      <div className="card-surface p-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-secondary rounded-lg px-3 py-2">
-          <Search size={14} className="text-muted-foreground shrink-0" />
-          <input
-            type="text"
-            placeholder="Buscar por SKU, descrição ou grupo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="bg-secondary text-sm text-foreground rounded-lg px-3 py-2 border-none outline-none cursor-pointer"
-        >
-          <option value="all">Todos os Status</option>
-          <option value="ativo">Ativo</option>
-          <option value="inativo">Inativo</option>
-        </select>
-      </div>
-
-      <div className="card-surface overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-secondary/30">
-              {["SKU", "Descrição", "Grupo", "Subgrupo", "Unidade", "Peso Bruto", "M³", "Status", "Ações"].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((prod, idx) => (
-              <tr key={prod.id} className={cn("border-b border-border/50 table-row-hover", idx % 2 === 0 ? "" : "bg-secondary/10")}>
-                <td className="px-4 py-3 font-mono text-sm font-semibold text-primary">{prod.sku}</td>
-                <td className="px-4 py-3 text-sm text-foreground">{prod.descricao}</td>
-                <td className="px-4 py-3 text-sm text-muted-foreground">{prod.grupo}</td>
-                <td className="px-4 py-3 text-sm text-muted-foreground">{prod.subgrupo}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">{prod.unidade}</td>
-                <td className="px-4 py-3 text-sm text-muted-foreground">{prod.pesoBruto} kg</td>
-                <td className="px-4 py-3 text-sm text-muted-foreground">{prod.m3}</td>
-                <td className="px-4 py-3"><StatusBadge status={prod.status} type="generic" /></td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    {[<Eye size={13} />, <Edit2 size={13} />, <Trash2 size={13} />].map((icon, i) => (
-                      <button key={i} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center">{icon}</button>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <>
+      <CrudTable
+        title="Produtos"
+        columns={columns}
+        data={crud.data}
+        loading={crud.loading}
+        search={crud.search}
+        onSearchChange={crud.setSearch}
+        page={crud.page}
+        totalPages={crud.totalPages}
+        total={crud.total}
+        pageSize={crud.pageSize}
+        onPageChange={crud.setPage}
+        onNew={() => { setEditItem(null); setModalOpen(true); }}
+        onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
+        onDelete={(row) => setDeleteItem(row)}
+        newLabel="Novo Produto"
+        searchPlaceholder="Buscar por SKU ou descrição..."
+      />
+      <CrudModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editItem ? "Editar Produto" : "Novo Produto"}
+        fields={fields}
+        initialData={editItem}
+        onSave={async (data) => editItem ? crud.update(editItem.id, data) : crud.create(data)}
+      />
+      <DeleteConfirmDialog
+        open={!!deleteItem}
+        onClose={() => setDeleteItem(null)}
+        onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
+      />
+    </>
   );
 }

@@ -5,45 +5,49 @@ import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
-export function VeiculosPage() {
+export function ParceirosPage() {
   const { tenantId } = useTenant();
-  const crud = useCrud({ table: "veiculos", tenantId, orderBy: "descricao" });
+  const crud = useCrud({ table: "parceiro", tenantId, orderBy: "razaosocial" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
+  const [rotaOptions, setRotaOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    if (tenantId) fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
+    if (tenantId) {
+      fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
+      fetchOptions("rotas", tenantId).then(setRotaOptions);
+    }
   }, [tenantId]);
 
   const columns: ColumnSpec[] = [
-    { key: "placa", label: "Placa", type: "mono" },
-    { key: "descricao", label: "Descrição" },
-    { key: "tipo_veiculo", label: "Tipo" },
-    { key: "ano", label: "Ano" },
-    { key: "peso_total", label: "Peso Total", type: "number" },
-    { key: "m3", label: "M³", type: "number" },
-    { key: "total_pallet", label: "Pallets", type: "number" },
+    { key: "razaosocial", label: "Razão Social" },
+    { key: "cnpj", label: "CNPJ" },
+    { key: "tipo_parceiro", label: "Tipo" },
+    { key: "cidade", label: "Cidade" },
+    { key: "estado", label: "UF" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
   const fields: FieldSpec[] = [
     { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
-    { name: "placa", label: "Placa", type: "text", required: true, placeholder: "ABC-1234" },
-    { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do veículo" },
-    { name: "tipo_veiculo", label: "Tipo de Veículo", type: "enum", required: true, enumValues: ["VUC", "3/4", "TOCO", "TRUCK", "BITRUCK", "BITREM", "RODOTREM", "OUTROS"] },
-    { name: "ano", label: "Ano", type: "number", required: true, placeholder: "2024" },
-    { name: "peso_total", label: "Peso Total (kg)", type: "number", placeholder: "25000" },
-    { name: "m3", label: "Capacidade M³", type: "number", placeholder: "90" },
-    { name: "total_pallet", label: "Total Pallets", type: "number", placeholder: "30" },
+    { name: "razaosocial", label: "Razão Social", type: "text", required: true, placeholder: "Razão Social" },
+    { name: "cnpj", label: "CNPJ", type: "text", required: true, placeholder: "00.000.000/0001-00" },
+    { name: "tipo_parceiro", label: "Tipo de Parceiro", type: "enum", required: true, enumValues: ["CLIENTE", "FORNECEDOR", "TRANSPORTADOR"] },
+    { name: "endereco", label: "Endereço", type: "text", required: true, placeholder: "Rua, número" },
+    { name: "bairro", label: "Bairro", type: "text", required: true, placeholder: "Bairro" },
+    { name: "cidade", label: "Cidade", type: "text", required: true, placeholder: "Cidade" },
+    { name: "estado", label: "Estado", type: "text", required: true, placeholder: "UF" },
+    { name: "rota_id", label: "Rota", type: "select", options: rotaOptions, placeholder: "Opcional" },
+    { name: "dias_shelf", label: "Dias Shelf", type: "number", placeholder: "Ex: 30" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
   return (
     <>
       <CrudTable
-        title="Veículos"
+        title="Parceiros"
         columns={columns}
         data={crud.data}
         loading={crud.loading}
@@ -57,13 +61,13 @@ export function VeiculosPage() {
         onNew={() => { setEditItem(null); setModalOpen(true); }}
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
-        newLabel="Novo Veículo"
-        searchPlaceholder="Buscar por placa ou descrição..."
+        newLabel="Novo Parceiro"
+        searchPlaceholder="Buscar por razão social..."
       />
       <CrudModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editItem ? "Editar Veículo" : "Novo Veículo"}
+        title={editItem ? "Editar Parceiro" : "Novo Parceiro"}
         fields={fields}
         initialData={editItem}
         onSave={async (data) => editItem ? crud.update(editItem.id, data) : crud.create(data)}
