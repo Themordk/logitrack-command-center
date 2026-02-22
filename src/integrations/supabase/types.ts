@@ -114,6 +114,129 @@ export type Database = {
           },
         ]
       }
+      documento_entrada: {
+        Row: {
+          armazem_id: string
+          created_at: string | null
+          data_emissao: string
+          data_entrada: string
+          id: string
+          numero_nota: string
+          parceiro_id: string
+          status: number
+          tipo_entrada_id: string
+          valor_total_nota: number
+          valor_total_produtos: number
+        }
+        Insert: {
+          armazem_id: string
+          created_at?: string | null
+          data_emissao: string
+          data_entrada: string
+          id?: string
+          numero_nota: string
+          parceiro_id: string
+          status: number
+          tipo_entrada_id: string
+          valor_total_nota: number
+          valor_total_produtos: number
+        }
+        Update: {
+          armazem_id?: string
+          created_at?: string | null
+          data_emissao?: string
+          data_entrada?: string
+          id?: string
+          numero_nota?: string
+          parceiro_id?: string
+          status?: number
+          tipo_entrada_id?: string
+          valor_total_nota?: number
+          valor_total_produtos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_entrada_tipo_entrada_id_fkey"
+            columns: ["tipo_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_entrada_item: {
+        Row: {
+          documento_entrada_id: string
+          id: string
+          produto_id: string
+          quantidade: number
+          valor_total: number
+          valor_unidade: number
+        }
+        Insert: {
+          documento_entrada_id: string
+          id?: string
+          produto_id: string
+          quantidade: number
+          valor_total: number
+          valor_unidade: number
+        }
+        Update: {
+          documento_entrada_id?: string
+          id?: string
+          produto_id?: string
+          quantidade?: number
+          valor_total?: number
+          valor_unidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_entrada_item_documento_entrada_id_fkey"
+            columns: ["documento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_entrada_item_lote: {
+        Row: {
+          documento_entrada_item_id: string
+          fabricacao: string
+          id: string
+          lote: string
+          quantidade: number
+          serie: string | null
+          validade: string
+        }
+        Insert: {
+          documento_entrada_item_id: string
+          fabricacao: string
+          id?: string
+          lote: string
+          quantidade: number
+          serie?: string | null
+          validade: string
+        }
+        Update: {
+          documento_entrada_item_id?: string
+          fabricacao?: string
+          id?: string
+          lote?: string
+          quantidade?: number
+          serie?: string | null
+          validade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_entrada_item_lote_documento_entrada_item_id_fkey"
+            columns: ["documento_entrada_item_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada_item"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresa: {
         Row: {
           ativo: boolean
@@ -425,6 +548,126 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimento_entrada: {
+        Row: {
+          armazem_id: string
+          box_id: string
+          confirma_volume: boolean
+          created_at: string | null
+          created_by: string | null
+          crossdocking: boolean
+          finalizado_em: string | null
+          id: string
+          observacao: string | null
+          placa_veiculo: string | null
+          status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+          valor_descarga: number | null
+        }
+        Insert: {
+          armazem_id: string
+          box_id: string
+          confirma_volume?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          crossdocking?: boolean
+          finalizado_em?: string | null
+          id?: string
+          observacao?: string | null
+          placa_veiculo?: string | null
+          status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+          valor_descarga?: number | null
+        }
+        Update: {
+          armazem_id?: string
+          box_id?: string
+          confirma_volume?: boolean
+          created_at?: string | null
+          created_by?: string | null
+          crossdocking?: boolean
+          finalizado_em?: string | null
+          id?: string
+          observacao?: string | null
+          placa_veiculo?: string | null
+          status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+          valor_descarga?: number | null
+        }
+        Relationships: []
+      }
+      movimento_entrada_documento: {
+        Row: {
+          documento_entrada_id: string
+          id: string
+          movimento_entrada_id: string
+        }
+        Insert: {
+          documento_entrada_id: string
+          id?: string
+          movimento_entrada_id: string
+        }
+        Update: {
+          documento_entrada_id?: string
+          id?: string
+          movimento_entrada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimento_entrada_documento_documento_entrada_id_fkey"
+            columns: ["documento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimento_entrada_item: {
+        Row: {
+          documento_entrada_item_id: string
+          id: string
+          movimento_entrada_id: string
+          produto_id: string
+          qtd_conferida: number
+          qtd_esperada: number
+        }
+        Insert: {
+          documento_entrada_item_id: string
+          id?: string
+          movimento_entrada_id: string
+          produto_id: string
+          qtd_conferida?: number
+          qtd_esperada: number
+        }
+        Update: {
+          documento_entrada_item_id?: string
+          id?: string
+          movimento_entrada_id?: string
+          produto_id?: string
+          qtd_conferida?: number
+          qtd_esperada?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimento_entrada_item_documento_entrada_item_id_fkey"
+            columns: ["documento_entrada_item_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_entrada"
             referencedColumns: ["id"]
           },
         ]
@@ -956,6 +1199,30 @@ export type Database = {
           },
         ]
       }
+      tipo_entrada: {
+        Row: {
+          ativo: boolean
+          coderp: string | null
+          descricao: string
+          empresa_id: string
+          id: string
+        }
+        Insert: {
+          ativo?: boolean
+          coderp?: string | null
+          descricao: string
+          empresa_id: string
+          id?: string
+        }
+        Update: {
+          ativo?: boolean
+          coderp?: string | null
+          descricao?: string
+          empresa_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       tipo_estoque: {
         Row: {
           armazem_id: string
@@ -1291,7 +1558,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_tenant: { Args: never; Returns: string }
     }
     Enums: {
       enum_curva: "A" | "B" | "C" | "D"
@@ -1311,6 +1578,14 @@ export type Database = {
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
       enum_situacao_endereco: "LIVRE" | "OCUPADO" | "BLOQUEADO"
+      enum_status_mov_entrada:
+        | "GERADO"
+        | "LIBERADO"
+        | "EM CONFERENCIA"
+        | "CONFERIDO"
+        | "DIVERGENCIA"
+        | "LIB. ARMAZENAGEM"
+        | "ARMAZENADO"
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
@@ -1498,6 +1773,15 @@ export const Constants = {
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
       enum_lado: ["PAR", "IMPAR"],
       enum_situacao_endereco: ["LIVRE", "OCUPADO", "BLOQUEADO"],
+      enum_status_mov_entrada: [
+        "GERADO",
+        "LIBERADO",
+        "EM CONFERENCIA",
+        "CONFERIDO",
+        "DIVERGENCIA",
+        "LIB. ARMAZENAGEM",
+        "ARMAZENADO",
+      ],
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],

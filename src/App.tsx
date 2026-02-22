@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
-import { SetupTenant } from "./components/SetupTenant";
+import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { ArmazensPage } from "./pages/ArmazensPage";
@@ -18,6 +18,8 @@ import { VolumesPage } from "./pages/VolumesPage";
 import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
 import { RastreabilidadePage } from "./pages/RastreabilidadePage";
+import { EntradasPage } from "./pages/EntradasPage";
+import { MovimentoEntradaPage } from "./pages/MovimentoEntradaPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -29,6 +31,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/armazem/veiculos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Veículos" }],
   "/armazem/zonas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Zonas de Atividade" }],
   "/atividades/hus": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "HUs" }],
+  "/atividades/entradas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Entradas" }],
+  "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
@@ -49,6 +53,8 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/veiculos": return <VeiculosPage />;
     case "/armazem/zonas": return <ZonasAtividadePage />;
     case "/atividades/hus": return <HUsPage />;
+    case "/atividades/entradas": return <EntradasPage />;
+    case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
@@ -75,11 +81,11 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
 }
 
 function AppContent() {
-  const { tenantId, empresaId, loading } = useTenant();
+  const { tenantId, empresaId, loading, authenticated, login } = useTenant();
   const [currentPath, setCurrentPath] = useState("/");
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground">Carregando...</span></div>;
-  if (!tenantId || !empresaId) return <SetupTenant />;
+  if (!authenticated) return <LoginPage onLogin={login} />;
 
   const bc = breadcrumbs[currentPath] ?? [
     { label: "CORE LogiTrack" },

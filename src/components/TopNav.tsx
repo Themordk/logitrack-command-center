@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/contexts/TenantContext";
 import {
   Building2,
   Package,
@@ -12,12 +13,9 @@ import {
   Search,
   MapPin,
   Boxes,
-  Route,
-  Users,
-  Truck,
-  ClipboardList,
   LayoutDashboard,
   Scan,
+  LogOut,
 } from "lucide-react";
 
 interface NavItem {
@@ -106,6 +104,7 @@ interface TopNavProps {
 export function TopNav({ currentPath, onNavigate }: TopNavProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { usuarioNome, logout } = useTenant();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -224,12 +223,16 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
           {/* User */}
           <button className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-secondary transition-colors">
             <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-semibold text-primary">
-              AL
+              {(usuarioNome || "U").slice(0, 2).toUpperCase()}
             </div>
             <div className="text-left hidden md:block">
-              <div className="text-xs font-medium text-foreground leading-none">Ana Lima</div>
-              <div className="text-xs text-muted-foreground leading-none mt-0.5">Admin</div>
+              <div className="text-xs font-medium text-foreground leading-none">{usuarioNome || "Usuário"}</div>
             </div>
+          </button>
+
+          {/* Logout */}
+          <button onClick={logout} className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors" title="Sair">
+            <LogOut size={15} className="text-muted-foreground" />
           </button>
         </div>
       </div>
