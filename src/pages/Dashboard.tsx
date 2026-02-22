@@ -36,7 +36,7 @@ function KPICard({ title, value, subtitle, icon, color }: {
 }
 
 export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
-  const { tenantId } = useTenant();
+  const { tenantId, armazemId } = useTenant();
   const [stats, setStats] = useState<Stats>({ totalEnderecos: 0, enderecosLivres: 0, enderecosOcupados: 0, enderecosBloqueados: 0, totalHUs: 0, ocupacaoPercent: 0 });
 
   useEffect(() => {
@@ -82,12 +82,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
         </div>
       </div>
 
-      {!tenantId && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-yellow-500/30 bg-yellow-500/8">
-          <AlertTriangle size={16} className="text-yellow-400 shrink-0" />
-          <span className="text-sm text-yellow-300">Configure o tenant e empresa para começar a usar o sistema.</span>
-        </div>
-      )}
+      {/* removed setup warning - login handles this now */}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Total de HUs" value={stats.totalHUs.toLocaleString()} icon={<Boxes size={20} className="text-blue-400" />} color="bg-blue-500/15" />
