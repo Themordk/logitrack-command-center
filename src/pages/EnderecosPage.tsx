@@ -18,9 +18,22 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
   const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
 
-  // Print
+  // Selection & Print
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
+
+  const handlePrintSelected = () => {
+    const selected = crud.data.filter((r) => selectedIds.has(r.id));
+    if (selected.length === 0) return;
+    setPrintEnderecos(selected);
+    setPrintOpen(true);
+  };
+
+  const handlePrintSingle = (row: any) => {
+    setPrintEnderecos([row]);
+    setPrintOpen(true);
+  };
 
   useEffect(() => {
     if (tenantId) {
@@ -103,6 +116,29 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Endereço"
         searchPlaceholder="Buscar por endereço..."
+        selectable
+        selectedIds={selectedIds}
+        onSelectChange={setSelectedIds}
+        headerActions={
+          selectedIds.size > 0 ? (
+            <button
+              onClick={handlePrintSelected}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+            >
+              <Printer size={15} />
+              Imprimir Selecionados ({selectedIds.size})
+            </button>
+          ) : undefined
+        }
+        extraRowActions={(row) => (
+          <button
+            onClick={() => handlePrintSingle(row)}
+            className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+            title="Imprimir etiqueta"
+          >
+            <Printer size={13} />
+          </button>
+        )}
       />
       <CrudModal
         open={modalOpen}
