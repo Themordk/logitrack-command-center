@@ -124,6 +124,7 @@ export type Database = {
           numero_nota: string
           parceiro_id: string
           status: number
+          tenant_id: string
           tipo_entrada_id: string
           valor_total_nota: number
           valor_total_produtos: number
@@ -137,6 +138,7 @@ export type Database = {
           numero_nota: string
           parceiro_id: string
           status: number
+          tenant_id: string
           tipo_entrada_id: string
           valor_total_nota: number
           valor_total_produtos: number
@@ -150,11 +152,33 @@ export type Database = {
           numero_nota?: string
           parceiro_id?: string
           status?: number
+          tenant_id?: string
           tipo_entrada_id?: string
           valor_total_nota?: number
           valor_total_produtos?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "documento_entrada_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documento_entrada_tipo_entrada_id_fkey"
             columns: ["tipo_entrada_id"]
@@ -170,6 +194,7 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          tenant_id: string
           valor_total: number
           valor_unidade: number
         }
@@ -178,6 +203,7 @@ export type Database = {
           id?: string
           produto_id: string
           quantidade: number
+          tenant_id: string
           valor_total: number
           valor_unidade: number
         }
@@ -186,6 +212,7 @@ export type Database = {
           id?: string
           produto_id?: string
           quantidade?: number
+          tenant_id?: string
           valor_total?: number
           valor_unidade?: number
         }
@@ -195,6 +222,20 @@ export type Database = {
             columns: ["documento_entrada_id"]
             isOneToOne: false
             referencedRelation: "documento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_item_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
         ]
@@ -207,6 +248,7 @@ export type Database = {
           lote: string
           quantidade: number
           serie: string | null
+          tenant_id: string
           validade: string
         }
         Insert: {
@@ -216,6 +258,7 @@ export type Database = {
           lote: string
           quantidade: number
           serie?: string | null
+          tenant_id: string
           validade: string
         }
         Update: {
@@ -225,6 +268,7 @@ export type Database = {
           lote?: string
           quantidade?: number
           serie?: string | null
+          tenant_id?: string
           validade?: string
         }
         Relationships: [
@@ -233,6 +277,13 @@ export type Database = {
             columns: ["documento_entrada_item_id"]
             isOneToOne: false
             referencedRelation: "documento_entrada_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_item_lote_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
         ]
@@ -294,7 +345,7 @@ export type Database = {
           tipo_estrutura:
             | Database["public"]["Enums"]["tipo_estrutura_armazem"]
             | null
-          total_pallet: number
+          total_pallet: number | null
         }
         Insert: {
           altura?: number | null
@@ -320,7 +371,7 @@ export type Database = {
           tipo_estrutura?:
             | Database["public"]["Enums"]["tipo_estrutura_armazem"]
             | null
-          total_pallet: number
+          total_pallet?: number | null
         }
         Update: {
           altura?: number | null
@@ -346,7 +397,7 @@ export type Database = {
           tipo_estrutura?:
             | Database["public"]["Enums"]["tipo_estrutura_armazem"]
             | null
-          total_pallet?: number
+          total_pallet?: number | null
         }
         Relationships: [
           {
@@ -565,6 +616,7 @@ export type Database = {
           observacao: string | null
           placa_veiculo: string | null
           status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+          tenant_id: string
           valor_descarga: number | null
         }
         Insert: {
@@ -579,6 +631,7 @@ export type Database = {
           observacao?: string | null
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+          tenant_id: string
           valor_descarga?: number | null
         }
         Update: {
@@ -593,25 +646,51 @@ export type Database = {
           observacao?: string | null
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+          tenant_id?: string
           valor_descarga?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimento_entrada_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "box"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       movimento_entrada_documento: {
         Row: {
           documento_entrada_id: string
           id: string
           movimento_entrada_id: string
+          tenant_id: string
         }
         Insert: {
           documento_entrada_id: string
           id?: string
           movimento_entrada_id: string
+          tenant_id: string
         }
         Update: {
           documento_entrada_id?: string
           id?: string
           movimento_entrada_id?: string
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -628,6 +707,13 @@ export type Database = {
             referencedRelation: "movimento_entrada"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "movimento_entrada_documento_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
         ]
       }
       movimento_entrada_item: {
@@ -638,6 +724,7 @@ export type Database = {
           produto_id: string
           qtd_conferida: number
           qtd_esperada: number
+          tenant_id: string
         }
         Insert: {
           documento_entrada_item_id: string
@@ -646,6 +733,7 @@ export type Database = {
           produto_id: string
           qtd_conferida?: number
           qtd_esperada: number
+          tenant_id: string
         }
         Update: {
           documento_entrada_item_id?: string
@@ -654,6 +742,7 @@ export type Database = {
           produto_id?: string
           qtd_conferida?: number
           qtd_esperada?: number
+          tenant_id?: string
         }
         Relationships: [
           {
@@ -668,6 +757,20 @@ export type Database = {
             columns: ["movimento_entrada_id"]
             isOneToOne: false
             referencedRelation: "movimento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
         ]
@@ -1206,6 +1309,7 @@ export type Database = {
           descricao: string
           empresa_id: string
           id: string
+          tenant_id: string
         }
         Insert: {
           ativo?: boolean
@@ -1213,6 +1317,7 @@ export type Database = {
           descricao: string
           empresa_id: string
           id?: string
+          tenant_id: string
         }
         Update: {
           ativo?: boolean
@@ -1220,8 +1325,24 @@ export type Database = {
           descricao?: string
           empresa_id?: string
           id?: string
+          tenant_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tipo_entrada_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tipo_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tipo_estoque: {
         Row: {
@@ -1620,13 +1741,13 @@ export type Database = {
         | "RODOTREM"
         | "OUTROS"
       tipo_estrutura_armazem:
-        | "porta_palete"
-        | "blocado"
-        | "prateleira"
-        | "flow_rack"
-        | "drive_in"
-        | "mezanino"
-        | "doca"
+        | "PORTA PALLET"
+        | "BLOCADO"
+        | "PRATELEIRA"
+        | "FLOW RACK"
+        | "DRIVE IN"
+        | "MEZANINO"
+        | "DOCA"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1819,13 +1940,13 @@ export const Constants = {
         "OUTROS",
       ],
       tipo_estrutura_armazem: [
-        "porta_palete",
-        "blocado",
-        "prateleira",
-        "flow_rack",
-        "drive_in",
-        "mezanino",
-        "doca",
+        "PORTA PALLET",
+        "BLOCADO",
+        "PRATELEIRA",
+        "FLOW RACK",
+        "DRIVE IN",
+        "MEZANINO",
+        "DOCA",
       ],
     },
   },

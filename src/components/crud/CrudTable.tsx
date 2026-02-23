@@ -30,6 +30,12 @@ interface CrudTableProps {
   newLabel?: string;
   searchPlaceholder?: string;
   extraFilters?: React.ReactNode;
+  // Selection support
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onSelectChange?: (ids: Set<string>) => void;
+  headerActions?: React.ReactNode;
+  extraRowActions?: (row: any) => React.ReactNode;
 }
 
 export function CrudTable({
@@ -38,7 +44,31 @@ export function CrudTable({
   onPageChange, onNew, onEdit, onDelete,
   newLabel = "Novo", searchPlaceholder = "Buscar...",
   extraFilters,
+  selectable, selectedIds, onSelectChange, headerActions, extraRowActions,
 }: CrudTableProps) {
+  const allSelected = selectable && data.length > 0 && data.every((r) => selectedIds?.has(r.id));
+  const someSelected = selectable && data.some((r) => selectedIds?.has(r.id));
+
+  const toggleAll = () => {
+    if (!onSelectChange) return;
+    if (allSelected) {
+      const next = new Set(selectedIds);
+      data.forEach((r) => next.delete(r.id));
+      onSelectChange(next);
+    } else {
+      const next = new Set(selectedIds);
+      data.forEach((r) => next.add(r.id));
+      onSelectChange(next);
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    if (!onSelectChange) return;
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onSelectChange(next);
+  };
   const renderCell = (row: any, col: ColumnSpec) => {
     if (col.render) return col.render(row);
     const val = row[col.key];
@@ -58,13 +88,16 @@ export function CrudTable({
           <h1 className="text-xl font-bold text-foreground">{title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{subtitle || `${total} registros`}</p>
         </div>
-        <button
-          onClick={onNew}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus size={16} />
-          {newLabel}
-        </button>
+        <div className="flex items-center gap-2">
+          {headerActions}
+          <button
+            onClick={onNew}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus size={16} />
+            {newLabel}
+          </button>
+        </div>
       </div>
 
       <div className="card-surface p-4 flex flex-wrap items-center gap-3">
@@ -92,6 +125,17 @@ export function CrudTable({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
+                  {selectable && (
+                    <th className="px-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={!!allSelected}
+                        ref={(el) => { if (el) el.indeterminate = !!someSelected && !allSelected; }}
+                        onChange={toggleAll}
+                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                      />
+                    </th>
+                  )}
                   {columns.map((col) => (
                     <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       {col.label}
@@ -103,13 +147,23 @@ export function CrudTable({
               <tbody>
                 {data.length === 0 ? (
                   <tr>
-                    <td colSpan={columns.length + 1} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={columns.length + 1 + (selectable ? 1 : 0)} className="px-4 py-12 text-center text-sm text-muted-foreground">
                       Nenhum registro encontrado.
                     </td>
                   </tr>
                 ) : (
                   data.map((row, idx) => (
-                    <tr key={row.id} className={cn("border-b border-border/50 table-row-hover", idx % 2 !== 0 && "bg-secondary/10")}>
+                    <tr key={row.id} className={cn("border-b border-border/50 table-row-hover", idx % 2 !== 0 && "bg-secondary/10", selectable && selectedIds?.has(row.id) && "bg-primary/5")}>
+                      {selectable && (
+                        <td className="px-4 py-3 w-10">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds?.has(row.id) || false}
+                            onChange={() => toggleOne(row.id)}
+                            className="w-4 h-4 rounded border-border accent-primary cursor-pointer"
+                          />
+                        </td>
+                      )}
                       {columns.map((col) => (
                         <td key={col.key} className={cn("px-4 py-3", col.className)}>
                           {renderCell(row, col)}
@@ -117,6 +171,7 @@ export function CrudTable({
                       ))}
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          {extraRowActions?.(row)}
                           <button onClick={() => onEdit(row)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Editar">
                             <Edit2 size={13} />
                           </button>
@@ -133,9 +188,14 @@ export function CrudTable({
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                <span className="text-xs text-muted-foreground">
-                  Mostrando {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} de {total}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    Mostrando {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} de {total}
+                  </span>
+                  {selectable && selectedIds && selectedIds.size > 0 && (
+                    <span className="text-xs font-medium text-primary">{selectedIds.size} selecionado{selectedIds.size > 1 ? "s" : ""}</span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => onPageChange(page - 1)}
