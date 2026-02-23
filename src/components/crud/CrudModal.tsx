@@ -15,6 +15,8 @@ export interface FieldSpec {
   step?: string;
   defaultValue?: any;
   hidden?: boolean;
+  visibleWhen?: (form: Record<string, any>) => boolean;
+  requiredWhen?: (form: Record<string, any>) => boolean;
 }
 
 interface CrudModalProps {
@@ -58,7 +60,9 @@ export function CrudModal({ open, onClose, title, fields, initialData, onSave }:
   const validate = () => {
     const errs: Record<string, string> = {};
     fields.forEach((f) => {
-      if (f.required && !f.hidden && (form[f.name] === "" || form[f.name] === undefined || form[f.name] === null)) {
+      const isVisible = !f.hidden && (!f.visibleWhen || f.visibleWhen(form));
+      const isRequired = f.requiredWhen ? f.requiredWhen(form) : f.required;
+      if (isRequired && isVisible && (form[f.name] === "" || form[f.name] === undefined || form[f.name] === null)) {
         errs[f.name] = "Campo obrigatório";
       }
     });
@@ -94,7 +98,7 @@ export function CrudModal({ open, onClose, title, fields, initialData, onSave }:
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-          {fields.filter(f => !f.hidden).map((f) => (
+          {fields.filter(f => !f.hidden && (!f.visibleWhen || f.visibleWhen(form))).map((f) => (
             <div key={f.name} className={f.type === "switch" ? "flex items-center gap-3 md:col-span-2" : ""}>
               {f.type !== "switch" && (
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
