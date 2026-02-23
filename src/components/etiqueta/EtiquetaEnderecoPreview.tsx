@@ -1,12 +1,19 @@
 import React from "react";
 import { generateCode128, getTotalWidth } from "./generateCode128";
-import type { Endereco } from "@/data/mockData";
+// Accepts both mock Endereco and real DB rows
+interface EnderecoLike {
+  id: string | number;
+  codigo?: string;
+  descricao?: string;
+  setor?: string;
+  setor_id?: string;
+}
 
 export type TamanhoEtiqueta = "100x40" | "50x20";
 export type OrientacaoEtiqueta = "horizontal" | "vertical";
 
 interface EtiquetaEnderecoPreviewProps {
-  enderecos: Endereco[];
+  enderecos: EnderecoLike[];
   tamanho: TamanhoEtiqueta;
   orientacao: OrientacaoEtiqueta;
   isPrint?: boolean;
@@ -126,7 +133,9 @@ function getDimensoes(tamanho: TamanhoEtiqueta, orientacao: OrientacaoEtiqueta):
 }
 
 // ─── Layout Horizontal ──────────────────────────────────────────────────────
-function EtiquetaHorizontal({ endereco, dim, isPrint }: { endereco: Endereco; dim: EtiquetaDimensoes; isPrint: boolean }) {
+function EtiquetaHorizontal({ endereco, dim, isPrint }: { endereco: EnderecoLike; dim: EtiquetaDimensoes; isPrint: boolean }) {
+  const label = endereco.codigo || endereco.descricao || "";
+  const setor = endereco.setor || endereco.setor_id || "";
   const wPx = dim.widthMm * MM;
   const hPx = dim.heightMm * MM;
   const headerPx = dim.headerHeightMm * MM;
@@ -181,7 +190,7 @@ function EtiquetaHorizontal({ endereco, dim, isPrint }: { endereco: Endereco; di
         paddingTop: "1mm",
         paddingBottom: "0.5mm",
       }}>
-        <BarcodeH text={endereco.codigo} width={wPx - 6 * MM} height={barAreaH - 2} />
+        <BarcodeH text={label} width={wPx - 6 * MM} height={barAreaH - 2} />
       </div>
 
       {/* Código textual */}
@@ -196,7 +205,7 @@ function EtiquetaHorizontal({ endereco, dim, isPrint }: { endereco: Endereco; di
         paddingBottom: dim.is100x40 ? "1mm" : "0.5mm",
         flexShrink: 0,
       }}>
-        {endereco.codigo}
+        {label}
       </div>
 
       {/* Setor (só 100x40) */}
@@ -211,7 +220,7 @@ function EtiquetaHorizontal({ endereco, dim, isPrint }: { endereco: Endereco; di
           paddingBottom: "1.5mm",
           flexShrink: 0,
         }}>
-          SETOR: {endereco.setor}
+          SETOR: {setor}
         </div>
       )}
     </div>
@@ -221,7 +230,9 @@ function EtiquetaHorizontal({ endereco, dim, isPrint }: { endereco: Endereco; di
 // ─── Layout Vertical ────────────────────────────────────────────────────────
 // Etiqueta física: widthMm (ex: 40mm) × heightMm (ex: 100mm)
 // Layout: header topo → barcode rotacionado 90° centralizado → texto vertical
-function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim: EtiquetaDimensoes; isPrint: boolean }) {
+function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: EnderecoLike; dim: EtiquetaDimensoes; isPrint: boolean }) {
+  const label = endereco.codigo || endereco.descricao || "";
+  const setor = endereco.setor || endereco.setor_id || "";
   const wPx = dim.widthMm * MM;   // ex: 40mm → ~151px
   const hPx = dim.heightMm * MM;  // ex: 100mm → ~378px
   const headerPx = dim.headerHeightMm * MM;
@@ -290,7 +301,7 @@ function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim:
         paddingBottom: "1mm",
       }}>
         <BarcodeV
-          text={endereco.codigo}
+          text={label}
           svgW={barcodeLength - 3 * MM}
           svgH={barHeight}
         />
@@ -321,7 +332,7 @@ function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim:
           lineHeight: 1,
           whiteSpace: "nowrap",
         }}>
-          {endereco.codigo}
+          {label}
         </div>
 
         {dim.is100x40 && (
@@ -336,7 +347,7 @@ function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim:
             textTransform: "uppercase",
             whiteSpace: "nowrap",
           }}>
-            {endereco.setor}
+            {setor}
           </div>
         )}
       </div>
@@ -345,7 +356,7 @@ function EtiquetaVertical({ endereco, dim, isPrint }: { endereco: Endereco; dim:
 }
 
 // ─── Dispatcher ─────────────────────────────────────────────────────────────
-function EtiquetaSingle({ endereco, dim, isPrint }: { endereco: Endereco; dim: EtiquetaDimensoes; isPrint: boolean }) {
+function EtiquetaSingle({ endereco, dim, isPrint }: { endereco: EnderecoLike; dim: EtiquetaDimensoes; isPrint: boolean }) {
   if (dim.isVertical) {
     return <EtiquetaVertical endereco={endereco} dim={dim} isPrint={isPrint} />;
   }

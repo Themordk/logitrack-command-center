@@ -54,6 +54,7 @@ export interface BarcodeBar {
 }
 
 export function generateCode128(text: string): BarcodeBar[] {
+  if (!text || text.length === 0) return [];
   const moduleWidth = 2; // pixels per module
   const bars: BarcodeBar[] = [];
   let x = 0;
