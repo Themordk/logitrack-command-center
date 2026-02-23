@@ -2,13 +2,13 @@ import { useState, useRef } from "react";
 import { Printer, X, Eye, Settings2, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaEnderecoPreview, TamanhoEtiqueta, OrientacaoEtiqueta } from "./EtiquetaEnderecoPreview";
-import type { Endereco } from "@/data/mockData";
+// Uses EnderecoLike from EtiquetaEnderecoPreview - no mock import needed
 import { cn } from "@/lib/utils";
 
 interface PrintEtiquetaEnderecoModalProps {
   open: boolean;
   onClose: () => void;
-  enderecos: Endereco[];
+  enderecos: Array<{ id: string | number; codigo?: string; descricao?: string; setor?: string; setor_id?: string }>;
 }
 
 type Saida = "preview" | "imprimir";
