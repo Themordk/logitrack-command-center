@@ -70,7 +70,7 @@ const navItems: NavItem[] = [
     children: [
       { label: "HUs", path: "/atividades/hus" },
       { label: "Entradas", path: "/atividades/entradas" },
-      { label: "Saídas", path: "/atividades/entradas" },
+      { label: "Saídas", path: "/atividades/saidas" },
       { label: "Movimento de Entrada", path: "/atividades/movimentos" },
       { label: "Movimento de Saída", path: "/atividades/volumes" },
       { label: "Inventário", path: "/atividades/inventario" },
