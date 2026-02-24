@@ -90,6 +90,7 @@ const navItems: NavItem[] = [
     children: [
       { label: "Empresas", path: "/config/empresas" },
       { label: "Usuários", path: "/config/usuarios" },
+      { label: "Integração ERP", path: "/config/integracao" },
       { label: "Grupos Operacionais", path: "/config/grupos" },
       { label: "Perfis de Acesso", path: "/config/perfis" },
     ],

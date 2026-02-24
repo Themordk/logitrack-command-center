@@ -45,8 +45,12 @@ export function useCrud<T extends Record<string, any>>({
       });
 
       if (search) {
-        // Search across text columns - use ilike on descricao or common fields
-        query = query.or(`descricao.ilike.%${search}%`);
+        // Search across common text columns
+        const searchFields = ["descricao"];
+        if (table === "hu") searchFields.push("codigo_hu");
+        if (table === "volume_expedicao") searchFields.push("codigo_volume");
+        const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
+        query = query.or(orClause);
       }
 
       const from = (page - 1) * pageSize;

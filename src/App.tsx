@@ -20,6 +20,11 @@ import { UsuariosPage } from "./pages/UsuariosPage";
 import { RastreabilidadePage } from "./pages/RastreabilidadePage";
 import { EntradasPage } from "./pages/EntradasPage";
 import { MovimentoEntradaPage } from "./pages/MovimentoEntradaPage";
+import { BoxPage } from "./pages/BoxPage";
+import { TurnosPage } from "./pages/TurnosPage";
+import { MotivosOcorrenciaPage } from "./pages/MotivosOcorrenciaPage";
+import { SubgruposPage } from "./pages/SubgruposPage";
+import { IntegracaoPage } from "./pages/IntegracaoPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -30,16 +35,21 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/armazem/enderecos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Endereços" }],
   "/armazem/veiculos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Veículos" }],
   "/armazem/zonas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Zonas de Atividade" }],
+  "/armazem/box": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Box" }],
+  "/armazem/turnos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Turnos" }],
+  "/armazem/motivos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Motivos de Ocorrência" }],
   "/atividades/hus": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "HUs" }],
   "/atividades/entradas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Entradas" }],
   "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
+  "/dados-mestres/subgrupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Subgrupos" }],
   "/dados-mestres/parceiros": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Parceiros" }],
   "/dados-mestres/rotas": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Rotas" }],
   "/config/empresas": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Empresas" }],
   "/config/usuarios": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Usuários" }],
+  "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
 };
 
 function renderPage(path: string, onNavigate: (p: string) => void) {
@@ -52,16 +62,21 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/enderecos": return <EnderecosPage onNavigate={onNavigate} />;
     case "/armazem/veiculos": return <VeiculosPage />;
     case "/armazem/zonas": return <ZonasAtividadePage />;
+    case "/armazem/box": return <BoxPage />;
+    case "/armazem/turnos": return <TurnosPage />;
+    case "/armazem/motivos": return <MotivosOcorrenciaPage />;
     case "/atividades/hus": return <HUsPage />;
     case "/atividades/entradas": return <EntradasPage />;
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
+    case "/dados-mestres/subgrupos": return <SubgruposPage />;
     case "/dados-mestres/parceiros": return <ParceirosPage />;
     case "/dados-mestres/rotas": return <RotasPage />;
     case "/config/empresas": return <EmpresasPage />;
     case "/config/usuarios": return <UsuariosPage />;
+    case "/config/integracao": return <IntegracaoPage />;
     default: {
       const label = path.split("/").pop()?.replace(/-/g, " ") ?? path;
       return (
