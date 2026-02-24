@@ -43,7 +43,7 @@ const navItems: NavItem[] = [
       { label: "Cadastro de Armazém", path: "/armazem/armazens" },
       { label: "Tipos de Estoque", path: "/armazem/tipos-estoque" },
       { label: "Setores", path: "/armazem/setores" },
-      
+
       { label: "Localizações / Endereços", path: "/armazem/enderecos" },
       { label: "Box", path: "/armazem/box" },
       { label: "Turnos", path: "/armazem/turnos" },
@@ -148,9 +148,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
         {/* Nav items */}
         <nav ref={menuRef} className="flex items-center gap-0.5 flex-1">
           {navItems.map((item) => {
-            const isActive = item.path
-              ? currentPath === item.path
-              : item.children?.some((c) => c.path === currentPath);
+            const isActive = item.path ? currentPath === item.path : item.children?.some((c) => c.path === currentPath);
             const isOpen = openMenu === item.label;
 
             if (!item.children) {
@@ -174,10 +172,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
                 >
                   {item.icon}
                   {item.label}
-                  <ChevronDown
-                    size={12}
-                    className={cn("transition-transform duration-200", isOpen && "rotate-180")}
-                  />
+                  <ChevronDown size={12} className={cn("transition-transform duration-200", isOpen && "rotate-180")} />
                 </button>
 
                 {isOpen && (
@@ -191,7 +186,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
                             "w-full flex items-center gap-2 px-3 py-2 text-xs rounded-md transition-colors",
                             currentPath === child.path
                               ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                              : "text-muted-foreground hover:text-foreground hover:bg-secondary",
                           )}
                         >
                           <ChevronRight size={11} className="opacity-40" />
@@ -208,12 +203,12 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
-          {/* Search */}
+          {/* Search 
           <button className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-secondary/50 text-xs text-muted-foreground hover:text-foreground transition-colors">
             <Search size={13} />
             <span>Buscar...</span>
             <kbd className="text-xs bg-muted px-1 rounded">⌘K</kbd>
-          </button>
+          </button> */}
 
           {/* Notifications */}
           <button className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors">
@@ -232,7 +227,11 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
           </button>
 
           {/* Logout */}
-          <button onClick={logout} className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors" title="Sair">
+          <button
+            onClick={logout}
+            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors"
+            title="Sair"
+          >
             <LogOut size={15} className="text-muted-foreground" />
           </button>
         </div>
