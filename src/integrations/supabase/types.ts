@@ -558,6 +558,111 @@ export type Database = {
           },
         ]
       }
+      integracao_config: {
+        Row: {
+          armazem_id: string
+          banco: string
+          created_at: string
+          host: string
+          id: string
+          senha_criptografada: string
+          tenant_id: string
+          tipo_banco: string
+          updated_at: string
+          usuario_bd: string
+        }
+        Insert: {
+          armazem_id: string
+          banco: string
+          created_at?: string
+          host: string
+          id?: string
+          senha_criptografada: string
+          tenant_id: string
+          tipo_banco: string
+          updated_at?: string
+          usuario_bd: string
+        }
+        Update: {
+          armazem_id?: string
+          banco?: string
+          created_at?: string
+          host?: string
+          id?: string
+          senha_criptografada?: string
+          tenant_id?: string
+          tipo_banco?: string
+          updated_at?: string
+          usuario_bd?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integracao_config_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integracao_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integracao_objetos: {
+        Row: {
+          armazem_id: string
+          campo_atualizacao: string | null
+          campo_chave: string | null
+          created_at: string
+          id: string
+          objeto_sistema: string
+          tabela_erp: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          armazem_id: string
+          campo_atualizacao?: string | null
+          campo_chave?: string | null
+          created_at?: string
+          id?: string
+          objeto_sistema: string
+          tabela_erp?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          armazem_id?: string
+          campo_atualizacao?: string | null
+          campo_chave?: string | null
+          created_at?: string
+          id?: string
+          objeto_sistema?: string
+          tabela_erp?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integracao_objetos_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integracao_objetos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motivo_ocorrencia: {
         Row: {
           armazem_id: string
