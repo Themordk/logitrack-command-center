@@ -73,10 +73,10 @@ const navItems: NavItem[] = [
     icon: <Activity size={15} />,
     children: [
       { label: "HUs", path: "/atividades/hus" },
-      { label: "Entradas", path: "/atividades/entradas" },
-      { label: "Saídas", path: "/atividades/saidas" },
       { label: "Movimento de Entrada", path: "/atividades/movimentos" },
+      { label: "Abastecimento", path: "/atividades/Abastecimento" },
       { label: "Movimento de Saída", path: "/atividades/volumes" },
+      { label: "Embarque", path: "/atividades/embarque" },
       { label: "Inventário", path: "/atividades/inventario" },
     ],
   },
