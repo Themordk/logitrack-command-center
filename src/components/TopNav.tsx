@@ -62,6 +62,10 @@ const navItems: NavItem[] = [
       { label: "Subgrupos de Produtos", path: "/dados-mestres/subgrupos" },
       { label: "Parceiros", path: "/dados-mestres/parceiros" },
       { label: "Rotas", path: "/dados-mestres/rotas" },
+      { label: "Tipos de Entrada", path: "/dados-mestres/TiposEntradas" },
+      { label: "Tipos de Saída", path: "/dados-mestres/TiposSaida" },
+      { label: "Entradas", path: "/atividades/entradas" },
+      { label: "Saídas", path: "/atividades/saidas" },
     ],
   },
   {
