@@ -613,6 +613,7 @@ export type Database = {
           crossdocking: boolean
           finalizado_em: string | null
           id: string
+          numero_movimento: number | null
           observacao: string | null
           placa_veiculo: string | null
           status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
@@ -628,6 +629,7 @@ export type Database = {
           crossdocking?: boolean
           finalizado_em?: string | null
           id?: string
+          numero_movimento?: number | null
           observacao?: string | null
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
@@ -643,6 +645,7 @@ export type Database = {
           crossdocking?: boolean
           finalizado_em?: string | null
           id?: string
+          numero_movimento?: number | null
           observacao?: string | null
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
