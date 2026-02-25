@@ -49,6 +49,8 @@ export function useCrud<T extends Record<string, any>>({
         const searchFields = ["descricao"];
         if (table === "hu") searchFields.push("codigo_hu");
         if (table === "volume_expedicao") searchFields.push("codigo_volume");
+        if (table === "produto") searchFields.push("sku");
+        if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("coderp");
         const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
         query = query.or(orClause);
       }

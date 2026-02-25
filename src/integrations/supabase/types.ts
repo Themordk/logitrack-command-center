@@ -120,6 +120,7 @@ export type Database = {
           created_at: string | null
           data_emissao: string
           data_entrada: string
+          empresa_id: string | null
           id: string
           numero_nota: string
           parceiro_id: string
@@ -134,6 +135,7 @@ export type Database = {
           created_at?: string | null
           data_emissao: string
           data_entrada: string
+          empresa_id?: string | null
           id?: string
           numero_nota: string
           parceiro_id: string
@@ -148,6 +150,7 @@ export type Database = {
           created_at?: string | null
           data_emissao?: string
           data_entrada?: string
+          empresa_id?: string | null
           id?: string
           numero_nota?: string
           parceiro_id?: string
@@ -163,6 +166,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
@@ -281,6 +291,190 @@ export type Database = {
           },
           {
             foreignKeyName: "documento_entrada_item_lote_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_saida: {
+        Row: {
+          data_emissao: string
+          empresa_id: string
+          id: string
+          numero_pedido: number
+          observacao: string | null
+          parceiro_id: string
+          rota_id: string | null
+          status: number
+          tenant_id: string
+          tipo_pedido_id: string
+          transportador: string | null
+          valor_pedido: number
+          vendedor: string | null
+        }
+        Insert: {
+          data_emissao: string
+          empresa_id: string
+          id?: string
+          numero_pedido: number
+          observacao?: string | null
+          parceiro_id: string
+          rota_id?: string | null
+          status: number
+          tenant_id: string
+          tipo_pedido_id: string
+          transportador?: string | null
+          valor_pedido: number
+          vendedor?: string | null
+        }
+        Update: {
+          data_emissao?: string
+          empresa_id?: string
+          id?: string
+          numero_pedido?: number
+          observacao?: string | null
+          parceiro_id?: string
+          rota_id?: string | null
+          status?: number
+          tenant_id?: string
+          tipo_pedido_id?: string
+          transportador?: string | null
+          valor_pedido?: number
+          vendedor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_doc_saida_empresa"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_parceiro"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_rota"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "rotas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_tipo"
+            columns: ["tipo_pedido_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_saida"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_saida_item: {
+        Row: {
+          documento_saida_id: string
+          id: string
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+          valor_total: number
+          valor_unit: number
+        }
+        Insert: {
+          documento_saida_id: string
+          id?: string
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+          valor_total: number
+          valor_unit: number
+        }
+        Update: {
+          documento_saida_id?: string
+          id?: string
+          produto_id?: string
+          quantidade?: number
+          tenant_id?: string
+          valor_total?: number
+          valor_unit?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_doc_saida_item_doc"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_item_prod"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_item_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_saida_item_lote: {
+        Row: {
+          documento_saida_item_id: string
+          fabricacao: string
+          id: string
+          lote: string
+          quantidade: number
+          serie: string
+          tenant_id: string
+          validade: string
+        }
+        Insert: {
+          documento_saida_item_id: string
+          fabricacao: string
+          id?: string
+          lote: string
+          quantidade: number
+          serie: string
+          tenant_id: string
+          validade: string
+        }
+        Update: {
+          documento_saida_item_id?: string
+          fabricacao?: string
+          id?: string
+          lote?: string
+          quantidade?: number
+          serie?: string
+          tenant_id?: string
+          validade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_doc_saida_item_lote"
+            columns: ["documento_saida_item_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_item_lote_tenant"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
@@ -716,6 +910,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           crossdocking: boolean
+          empresa_id: string | null
           finalizado_em: string | null
           id: string
           numero_movimento: number | null
@@ -732,6 +927,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           crossdocking?: boolean
+          empresa_id?: string | null
           finalizado_em?: string | null
           id?: string
           numero_movimento?: number | null
@@ -748,6 +944,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           crossdocking?: boolean
+          empresa_id?: string | null
           finalizado_em?: string | null
           id?: string
           numero_movimento?: number | null
@@ -770,6 +967,13 @@ export type Database = {
             columns: ["box_id"]
             isOneToOne: false
             referencedRelation: "box"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
@@ -876,6 +1080,220 @@ export type Database = {
           },
           {
             foreignKeyName: "movimento_entrada_item_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onda_carregamento: {
+        Row: {
+          box_id: string
+          data_emissao: string
+          destino_carga: string
+          empresa_id: string
+          id: string
+          m3: number | null
+          motorista: string
+          numero_onda: number
+          observacao: string | null
+          parceiro_id: string | null
+          peso_total: number | null
+          prioridade: Database["public"]["Enums"]["enum_prioridade_onda"] | null
+          regra_agrupamento:
+            | Database["public"]["Enums"]["enum_agrupar_sep_por"]
+            | null
+          rota_id: string | null
+          status: number
+          tenant_id: string
+          total_pedidos: number | null
+          veiculo_id: string | null
+        }
+        Insert: {
+          box_id: string
+          data_emissao: string
+          destino_carga: string
+          empresa_id: string
+          id?: string
+          m3?: number | null
+          motorista: string
+          numero_onda?: number
+          observacao?: string | null
+          parceiro_id?: string | null
+          peso_total?: number | null
+          prioridade?:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
+          regra_agrupamento?:
+            | Database["public"]["Enums"]["enum_agrupar_sep_por"]
+            | null
+          rota_id?: string | null
+          status: number
+          tenant_id: string
+          total_pedidos?: number | null
+          veiculo_id?: string | null
+        }
+        Update: {
+          box_id?: string
+          data_emissao?: string
+          destino_carga?: string
+          empresa_id?: string
+          id?: string
+          m3?: number | null
+          motorista?: string
+          numero_onda?: number
+          observacao?: string | null
+          parceiro_id?: string | null
+          peso_total?: number | null
+          prioridade?:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
+          regra_agrupamento?:
+            | Database["public"]["Enums"]["enum_agrupar_sep_por"]
+            | null
+          rota_id?: string | null
+          status?: number
+          tenant_id?: string
+          total_pedidos?: number | null
+          veiculo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_onda_box"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "box"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_empresa"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_parceiro"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_rota"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "rotas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_veiculo"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "veiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onda_carregamento_documento: {
+        Row: {
+          documento_saida_id: string
+          id: string
+          onda_carregamento_id: string
+          ordem: number
+          tenant_id: string
+        }
+        Insert: {
+          documento_saida_id: string
+          id?: string
+          onda_carregamento_id: string
+          ordem: number
+          tenant_id: string
+        }
+        Update: {
+          documento_saida_id?: string
+          id?: string
+          onda_carregamento_id?: string
+          ordem?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_onda_doc_doc"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["onda_carregamento_id"]
+            isOneToOne: false
+            referencedRelation: "onda_carregamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onda_carregamento_item: {
+        Row: {
+          id: string
+          onda_carregamento_id: string
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+          valor_total: number
+          valor_unit: number
+        }
+        Insert: {
+          id?: string
+          onda_carregamento_id: string
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+          valor_total: number
+          valor_unit: number
+        }
+        Update: {
+          id?: string
+          onda_carregamento_id?: string
+          produto_id?: string
+          quantidade?: number
+          tenant_id?: string
+          valor_total?: number
+          valor_unit?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["onda_carregamento_id"]
+            isOneToOne: false
+            referencedRelation: "onda_carregamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_prod"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_tenant"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
@@ -1497,6 +1915,51 @@ export type Database = {
           },
         ]
       }
+      tipo_saida: {
+        Row: {
+          ativo: boolean
+          caderp: string | null
+          descricao: string
+          empresa_id: string
+          id: string
+          realiza_conferencia: boolean
+          tenant_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          caderp?: string | null
+          descricao: string
+          empresa_id: string
+          id?: string
+          realiza_conferencia?: boolean
+          tenant_id: string
+        }
+        Update: {
+          ativo?: boolean
+          caderp?: string | null
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          realiza_conferencia?: boolean
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_tipo_saida_empresa"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_tipo_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       turnos: {
         Row: {
           armazem_id: string
@@ -1787,9 +2250,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      gerar_onda_carregamento: {
+        Args: {
+          p_box_id?: string
+          p_destino_carga?: string
+          p_documentos_saida: string[]
+          p_empresa_id: string
+          p_motorista?: string
+          p_observacao?: string
+          p_prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
+          p_regra_agrupamento: Database["public"]["Enums"]["enum_agrupar_sep_por"]
+          p_rota_id?: string
+          p_status: number
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       get_current_tenant: { Args: never; Returns: string }
     }
     Enums: {
+      enum_agrupar_sep_por:
+        | "ZONA_ATIVIDADE"
+        | "TIPO_POSICAO"
+        | "TIPO_SEP_SKU"
+        | "CAPACDADE_HU"
+        | "QUANTIDADE_MAX_SKU"
       enum_curva: "A" | "B" | "C" | "D"
       enum_disponibilidade_hu:
         | "DISPONIVEL"
@@ -1806,6 +2291,7 @@ export type Database = {
         | "EXPEDICAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
+      enum_prioridade_onda: "CRITICA" | "ALTA" | "NORMAL"
       enum_situacao_endereco: "LIVRE" | "OCUPADO" | "BLOQUEADO"
       enum_status_mov_entrada:
         | "GERADO"
@@ -1983,6 +2469,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      enum_agrupar_sep_por: [
+        "ZONA_ATIVIDADE",
+        "TIPO_POSICAO",
+        "TIPO_SEP_SKU",
+        "CAPACDADE_HU",
+        "QUANTIDADE_MAX_SKU",
+      ],
       enum_curva: ["A", "B", "C", "D"],
       enum_disponibilidade_hu: [
         "DISPONIVEL",
@@ -2001,6 +2494,7 @@ export const Constants = {
       ],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
       enum_lado: ["PAR", "IMPAR"],
+      enum_prioridade_onda: ["CRITICA", "ALTA", "NORMAL"],
       enum_situacao_endereco: ["LIVRE", "OCUPADO", "BLOQUEADO"],
       enum_status_mov_entrada: [
         "GERADO",
