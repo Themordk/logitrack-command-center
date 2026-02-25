@@ -64,7 +64,7 @@ const navItems: NavItem[] = [
       { label: "Rotas", path: "/dados-mestres/rotas" },
       { label: "Tipos de Entrada", path: "/dados-mestres/tipos-entrada" },
       { label: "Tipos de Saída", path: "/dados-mestres/tipos-saida" },
-      { label: "Documentos de Entrada", path: "/atividades/entradas" },
+      { label: "Documentos de Entrada", path: "/dados-mestres/entradas" },
       { label: "Documentos de Saída", path: "/atividades/saidas" },
     ],
   },
