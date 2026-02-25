@@ -64,15 +64,15 @@ const navItems: NavItem[] = [
       { label: "Rotas", path: "/dados-mestres/rotas" },
       { label: "Tipos de Entrada", path: "/dados-mestres/tipos-entrada" },
       { label: "Tipos de Saída", path: "/dados-mestres/tipos-saida" },
-      { label: "Documentos de Entrada", path: "/atividades/entradas" },
-      { label: "Documentos de Saída", path: "/atividades/saidas" },
     ],
   },
   {
     label: "Atividades",
     icon: <Activity size={15} />,
     children: [
-      { label: "HUs", path: "/atividades/hus" },
+      { label: "Gerar HU", path: "/atividades/hus" },
+      { label: "Gerar Entradas", path: "/atividades/entradas" },
+      { label: "Gerar Saída", path: "/atividades/saidas" },
       { label: "Movimento de Entrada", path: "/atividades/movimentos" },
       { label: "Abastecimento", path: "/atividades/Abastecimento" },
       { label: "Ondas de Carregamento", path: "/atividades/mov-saida" },
