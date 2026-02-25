@@ -73,12 +73,10 @@ const navItems: NavItem[] = [
     icon: <Activity size={15} />,
     children: [
       { label: "HUs", path: "/atividades/hus" },
-      { label: "Documentos de Entrada", path: "/atividades/entradas" },
       { label: "Movimento de Entrada", path: "/atividades/movimentos" },
-      { label: "Documentos de Saída", path: "/atividades/saidas" },
+      { label: "Abastecimento", path: "/atividades/Abastecimento" },
       { label: "Ondas de Carregamento", path: "/atividades/mov-saida" },
       { label: "Volumes", path: "/atividades/volumes" },
-      { label: "Abastecimento", path: "/atividades/Abastecimento" },
       { label: "Embarque", path: "/atividades/embarque" },
       { label: "Inventário", path: "/atividades/inventario" },
     ],
