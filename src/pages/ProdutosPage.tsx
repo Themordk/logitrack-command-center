@@ -1,24 +1,525 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package } from "lucide-react";
 
+// ─── Produto Detail Modal with Tabs ────────────────────────────────
+function ProdutoDetailModal({
+  open, onClose, produto, tenantId, armazemId, empresaId, onSaved,
+  grupoOptions, subgrupoOptions, parceiroOptions,
+}: {
+  open: boolean; onClose: () => void; produto: any | null;
+  tenantId: string; armazemId: string | null; empresaId: string | null;
+  onSaved: () => void;
+  grupoOptions: { value: string; label: string }[];
+  subgrupoOptions: { value: string; label: string }[];
+  parceiroOptions: { value: string; label: string }[];
+}) {
+  const [tab, setTab] = useState("cadastro");
+  const [form, setForm] = useState<Record<string, any>>({});
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const isEdit = !!produto;
+
+  // Embalagens state
+  const [embalagens, setEmbalagens] = useState<any[]>([]);
+  const [embLoading, setEmbLoading] = useState(false);
+  const [embModalOpen, setEmbModalOpen] = useState(false);
+  const [editEmb, setEditEmb] = useState<any>(null);
+  const [embForm, setEmbForm] = useState<Record<string, any>>({});
+  const [embSaving, setEmbSaving] = useState(false);
+
+  // Picking state
+  const [pickings, setPickings] = useState<any[]>([]);
+  const [pickLoading, setPickLoading] = useState(false);
+  const [pickModalOpen, setPickModalOpen] = useState(false);
+  const [editPick, setEditPick] = useState<any>(null);
+  const [pickForm, setPickForm] = useState<Record<string, any>>({});
+  const [pickSaving, setPickSaving] = useState(false);
+  const [enderecoOptions, setEnderecoOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      setTab("cadastro");
+      if (produto) {
+        setForm({ ...produto });
+      } else {
+        setForm({
+          sku: "", descricao: "", referencia: "", marca: "", parceiro_id: "",
+          grupo_id: "", subgrupo_id: "", curva_venda: "", curva_acesso: "",
+          preco_custo: "", ativo: true, tipo_controle: "", peso_variavel: false,
+          tolerancia: "", dias_shelf: "", shelf_entrada: "", shelf_devolucao: "",
+          lastro: "", camada: "", fator_caixa: "", usa_picking: true,
+          tipo_separacao: "", varios_pickings: false, foto: "",
+        });
+      }
+      setErrors({});
+    }
+  }, [open, produto]);
+
+  // Load embalagens when tab changes
+  useEffect(() => {
+    if (tab === "embalagens" && produto?.id) loadEmbalagens();
+    if (tab === "picking" && produto?.id) { loadPickings(); loadEnderecos(); }
+  }, [tab, produto?.id]);
+
+  const loadEmbalagens = async () => {
+    if (!produto?.id) return;
+    setEmbLoading(true);
+    const { data } = await (supabase as any).from("produto_embalagem")
+      .select("*").eq("produto_id", produto.id).eq("tenant_id", tenantId).order("embalagem");
+    setEmbalagens(data || []);
+    setEmbLoading(false);
+  };
+
+  const loadPickings = async () => {
+    if (!produto?.id) return;
+    setPickLoading(true);
+    const { data } = await (supabase as any).from("picking_produto")
+      .select("*, endereco:endereco_id(descricao)")
+      .eq("produto_id", produto.id).eq("tenant_id", tenantId).order("tipo_picking");
+    setPickings(data || []);
+    setPickLoading(false);
+  };
+
+  const loadEnderecos = async () => {
+    if (!tenantId || !armazemId) return;
+    const { data } = await (supabase as any).from("endereco").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true).order("descricao");
+    setEnderecoOptions((data || []).map((e: any) => ({ value: e.id, label: e.descricao })));
+  };
+
+  const set = (name: string, value: any) => {
+    setForm((p) => ({ ...p, [name]: value }));
+    setErrors((e) => { const n = { ...e }; delete n[name]; return n; });
+  };
+
+  const handleSaveProduto = async () => {
+    const requiredFields = ["sku", "descricao", "referencia", "parceiro_id", "tipo_controle", "tipo_separacao"];
+    const errs: Record<string, string> = {};
+    requiredFields.forEach((f) => {
+      if (!form[f]) errs[f] = "Campo obrigatório";
+    });
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setSaving(true);
+
+    const cleanData: Record<string, any> = { ...form };
+    // Remove read-only / computed fields
+    delete cleanData.id;
+    delete cleanData.tenant_id;
+    // Ensure empresa_id
+    cleanData.empresa_id = empresaId;
+    // Number conversions
+    ["preco_custo", "tolerancia", "dias_shelf", "shelf_entrada", "shelf_devolucao", "lastro", "camada", "fator_caixa"]
+      .forEach((f) => { cleanData[f] = cleanData[f] ? Number(cleanData[f]) : null; });
+    // Null out empty selects
+    ["grupo_id", "subgrupo_id", "curva_venda", "curva_acesso"].forEach((f) => {
+      if (!cleanData[f]) cleanData[f] = null;
+    });
+
+    try {
+      if (isEdit) {
+        const { error } = await (supabase as any).from("produto").update(cleanData).eq("id", produto.id);
+        if (error) throw error;
+        toast.success("Produto atualizado!");
+      } else {
+        cleanData.tenant_id = tenantId;
+        const { error } = await (supabase as any).from("produto").insert(cleanData);
+        if (error) throw error;
+        toast.success("Produto criado!");
+      }
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      toast.error(`Erro: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Embalagem CRUD ──
+  const openEmbModal = (emb?: any) => {
+    setEditEmb(emb || null);
+    setEmbForm(emb ? { ...emb } : { ean: "", fator: 1, embalagem: "", altura: "", largura: "", comprimento: "", peso_bruto: "", peso_liquido: "", m3: "", ativo: true });
+    setEmbModalOpen(true);
+  };
+  const saveEmb = async () => {
+    if (!embForm.ean || !embForm.embalagem) { toast.error("EAN e Embalagem são obrigatórios."); return; }
+    setEmbSaving(true);
+    const data: any = { ...embForm };
+    delete data.id; delete data.tenant_id; delete data.produto_id; delete data.empresa_id;
+    ["fator", "altura", "largura", "comprimento", "peso_bruto", "peso_liquido", "m3"].forEach((f) => { data[f] = data[f] ? Number(data[f]) : null; });
+    data.fator = data.fator || 1;
+    try {
+      if (editEmb) {
+        const { error } = await (supabase as any).from("produto_embalagem").update(data).eq("id", editEmb.id);
+        if (error) throw error;
+      } else {
+        data.produto_id = produto.id; data.tenant_id = tenantId; data.empresa_id = empresaId;
+        const { error } = await (supabase as any).from("produto_embalagem").insert(data);
+        if (error) throw error;
+      }
+      toast.success("Embalagem salva!");
+      setEmbModalOpen(false);
+      loadEmbalagens();
+    } catch (err: any) { toast.error(err.message); } finally { setEmbSaving(false); }
+  };
+  const deleteEmb = async (id: string) => {
+    const { error } = await (supabase as any).from("produto_embalagem").update({ ativo: false }).eq("id", id);
+    if (error) toast.error(error.message); else { toast.success("Removido!"); loadEmbalagens(); }
+  };
+
+  // ── Picking CRUD ──
+  const openPickModal = (pick?: any) => {
+    setEditPick(pick || null);
+    setPickForm(pick ? { ...pick } : { armazem_id: armazemId || "", endereco_id: "", tipo_picking: "", est_minimo: 0, est_maximo: 0, ativo: true });
+    setPickModalOpen(true);
+  };
+  const savePick = async () => {
+    if (!pickForm.endereco_id || !pickForm.tipo_picking) { toast.error("Endereço e Tipo são obrigatórios."); return; }
+    setPickSaving(true);
+    const data: any = { ...pickForm };
+    delete data.id; delete data.tenant_id; delete data.produto_id; delete data.endereco;
+    data.est_minimo = Number(data.est_minimo) || 0;
+    data.est_maximo = Number(data.est_maximo) || 0;
+    try {
+      if (editPick) {
+        const { error } = await (supabase as any).from("picking_produto").update(data).eq("id", editPick.id);
+        if (error) throw error;
+      } else {
+        data.produto_id = produto.id; data.tenant_id = tenantId; data.armazem_id = armazemId;
+        const { error } = await (supabase as any).from("picking_produto").insert(data);
+        if (error) throw error;
+      }
+      toast.success("Picking salvo!");
+      setPickModalOpen(false);
+      loadPickings();
+    } catch (err: any) { toast.error(err.message); } finally { setPickSaving(false); }
+  };
+  const deletePick = async (id: string) => {
+    const { error } = await (supabase as any).from("picking_produto").update({ ativo: false }).eq("id", id);
+    if (error) toast.error(error.message); else { toast.success("Removido!"); loadPickings(); }
+  };
+
+  const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30";
+  const labelClass = "block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide";
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? `Editar Produto – ${produto?.sku}` : "Novo Produto"}</DialogTitle>
+        </DialogHeader>
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="w-full">
+            <TabsTrigger value="cadastro" className="flex-1">Cadastro</TabsTrigger>
+            <TabsTrigger value="embalagens" className="flex-1" disabled={!isEdit}>Embalagens</TabsTrigger>
+            <TabsTrigger value="picking" className="flex-1" disabled={!isEdit}>Picking</TabsTrigger>
+          </TabsList>
+
+          {/* ── ABA CADASTRO ── */}
+          <TabsContent value="cadastro" className="space-y-6 py-4">
+            {/* Seção 1 — Informações Básicas */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Informações Básicas</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label className={labelClass}>SKU *</label><input value={form.sku || ""} onChange={(e) => set("sku", e.target.value)} className={inputClass} placeholder="ELT-001" /></div>
+                <div className="md:col-span-2"><label className={labelClass}>Descrição *</label><input value={form.descricao || ""} onChange={(e) => set("descricao", e.target.value)} className={inputClass} placeholder="Descrição do produto" /></div>
+                <div><label className={labelClass}>Referência *</label><input value={form.referencia || ""} onChange={(e) => set("referencia", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Marca</label><input value={form.marca || ""} onChange={(e) => set("marca", e.target.value)} className={inputClass} /></div>
+                <div>
+                  <label className={labelClass}>Parceiro (Fornecedor) *</label>
+                  <select value={form.parceiro_id || ""} onChange={(e) => set("parceiro_id", e.target.value)} className={inputClass}>
+                    <option value="">Selecionar...</option>
+                    {parceiroOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Grupo</label>
+                  <select value={form.grupo_id || ""} onChange={(e) => set("grupo_id", e.target.value)} className={inputClass}>
+                    <option value="">Selecionar...</option>
+                    {grupoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Subgrupo</label>
+                  <select value={form.subgrupo_id || ""} onChange={(e) => set("subgrupo_id", e.target.value)} className={inputClass}>
+                    <option value="">Selecionar...</option>
+                    {subgrupoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Curva Venda</label>
+                  <select value={form.curva_venda || ""} onChange={(e) => set("curva_venda", e.target.value)} className={inputClass}>
+                    <option value="">Selecionar...</option>
+                    {["A", "B", "C", "D"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Curva Acesso</label>
+                  <select value={form.curva_acesso || ""} onChange={(e) => set("curva_acesso", e.target.value)} className={inputClass}>
+                    <option value="">Selecionar...</option>
+                    {["A", "B", "C", "D"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div><label className={labelClass}>Preço de Custo</label><input type="number" step="0.01" value={form.preco_custo ?? ""} onChange={(e) => set("preco_custo", e.target.value)} className={inputClass} /></div>
+                <div className="flex items-center gap-3 md:col-span-3">
+                  <Switch checked={!!form.ativo} onCheckedChange={(v) => set("ativo", v)} />
+                  <label className="text-sm text-foreground">Ativo</label>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 2 — Controle de Estoque */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Controle de Estoque</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelClass}>Tipo de Controle *</label>
+                  <select value={form.tipo_controle || ""} onChange={(e) => set("tipo_controle", e.target.value)} className={inputClass}>
+                    <option value="">Selecionar...</option>
+                    {["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={!!form.peso_variavel} onCheckedChange={(v) => set("peso_variavel", v)} />
+                  <label className="text-sm text-foreground">Peso Variável</label>
+                </div>
+                <div><label className={labelClass}>Tolerância</label><input type="number" step="0.01" value={form.tolerancia ?? ""} onChange={(e) => set("tolerancia", e.target.value)} className={inputClass} /></div>
+              </div>
+            </div>
+
+            {/* Seção 3 — Controle de Vencimento */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Controle de Vencimento</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label className={labelClass}>Dias Shelf</label><input type="number" value={form.dias_shelf ?? ""} onChange={(e) => set("dias_shelf", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Shelf Entrada</label><input type="number" step="0.01" value={form.shelf_entrada ?? ""} onChange={(e) => set("shelf_entrada", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Shelf Devolução</label><input type="number" step="0.01" value={form.shelf_devolucao ?? ""} onChange={(e) => set("shelf_devolucao", e.target.value)} className={inputClass} /></div>
+              </div>
+            </div>
+
+            {/* Seção 4 — Empilhamento */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Empilhamento</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><label className={labelClass}>Lastro</label><input type="number" value={form.lastro ?? ""} onChange={(e) => set("lastro", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Camada</label><input type="number" value={form.camada ?? ""} onChange={(e) => set("camada", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Fator Caixa</label><input type="number" value={form.fator_caixa ?? ""} onChange={(e) => set("fator_caixa", e.target.value)} className={inputClass} /></div>
+              </div>
+            </div>
+
+            {/* Seção 5 — Expedição */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Expedição</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3">
+                  <Switch checked={!!form.usa_picking} onCheckedChange={(v) => set("usa_picking", v)} />
+                  <label className="text-sm text-foreground">Usa Picking</label>
+                </div>
+                <div>
+                  <label className={labelClass}>Tipo de Separação *</label>
+                  <select value={form.tipo_separacao || ""} onChange={(e) => set("tipo_separacao", e.target.value)} className={inputClass}>
+                    <option value="">Selecionar...</option>
+                    {["FRACIONADO", "EMBALAGEM_TOTAL", "CAIXARIA"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={!!form.varios_pickings} onCheckedChange={(v) => set("varios_pickings", v)} />
+                  <label className="text-sm text-foreground">Vários Pickings</label>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ── ABA EMBALAGENS ── */}
+          <TabsContent value="embalagens" className="py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">Embalagens do Produto</h3>
+              <button onClick={() => openEmbModal()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+                <Plus size={12} /> Nova Embalagem
+              </button>
+            </div>
+            {embLoading ? (
+              <div className="flex justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
+            ) : embalagens.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma embalagem cadastrada.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/30">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">EAN</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Embalagem</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Fator</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Peso Bruto</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">M³</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {embalagens.map((e) => (
+                    <tr key={e.id} className="border-b border-border/50 table-row-hover">
+                      <td className="px-3 py-2 font-mono text-xs">{e.ean}</td>
+                      <td className="px-3 py-2 text-xs">{e.embalagem}</td>
+                      <td className="px-3 py-2 text-center text-xs">{e.fator}</td>
+                      <td className="px-3 py-2 text-center text-xs">{e.peso_bruto ?? "—"}</td>
+                      <td className="px-3 py-2 text-center text-xs">{e.m3 ?? "—"}</td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openEmbModal(e)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"><Edit2 size={12} /></button>
+                          <button onClick={() => deleteEmb(e.id)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-destructive flex items-center justify-center"><Trash2 size={12} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </TabsContent>
+
+          {/* ── ABA PICKING ── */}
+          <TabsContent value="picking" className="py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">Picking do Produto</h3>
+              <button onClick={() => openPickModal()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+                <Plus size={12} /> Novo Picking
+              </button>
+            </div>
+            {pickLoading ? (
+              <div className="flex justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
+            ) : pickings.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum picking cadastrado.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/30">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereço</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Tipo</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Mínimo</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Máximo</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pickings.map((p) => (
+                    <tr key={p.id} className="border-b border-border/50 table-row-hover">
+                      <td className="px-3 py-2 font-mono text-xs">{p.endereco?.descricao ?? "—"}</td>
+                      <td className="px-3 py-2 text-center text-xs">{p.tipo_picking}</td>
+                      <td className="px-3 py-2 text-center text-xs">{p.est_minimo}</td>
+                      <td className="px-3 py-2 text-center text-xs">{p.est_maximo}</td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openPickModal(p)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"><Edit2 size={12} /></button>
+                          <button onClick={() => deletePick(p.id)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-destructive flex items-center justify-center"><Trash2 size={12} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {tab === "cadastro" && (
+          <DialogFooter>
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button onClick={handleSaveProduto} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? "Salvando..." : "Salvar"}
+            </button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+
+      {/* Embalagem sub-modal */}
+      <Dialog open={embModalOpen} onOpenChange={(v) => !v && setEmbModalOpen(false)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editEmb ? "Editar Embalagem" : "Nova Embalagem"}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div><label className={labelClass}>EAN *</label><input value={embForm.ean || ""} onChange={(e) => setEmbForm({ ...embForm, ean: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>Embalagem *</label><input value={embForm.embalagem || ""} onChange={(e) => setEmbForm({ ...embForm, embalagem: e.target.value })} className={inputClass} placeholder="CX, UN, PCT..." /></div>
+            <div><label className={labelClass}>Fator</label><input type="number" value={embForm.fator ?? 1} onChange={(e) => setEmbForm({ ...embForm, fator: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>Altura</label><input type="number" step="0.01" value={embForm.altura ?? ""} onChange={(e) => setEmbForm({ ...embForm, altura: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>Largura</label><input type="number" step="0.01" value={embForm.largura ?? ""} onChange={(e) => setEmbForm({ ...embForm, largura: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>Comprimento</label><input type="number" step="0.01" value={embForm.comprimento ?? ""} onChange={(e) => setEmbForm({ ...embForm, comprimento: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>Peso Bruto</label><input type="number" step="0.01" value={embForm.peso_bruto ?? ""} onChange={(e) => setEmbForm({ ...embForm, peso_bruto: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>Peso Líquido</label><input type="number" step="0.01" value={embForm.peso_liquido ?? ""} onChange={(e) => setEmbForm({ ...embForm, peso_liquido: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>M³</label><input type="number" step="0.001" value={embForm.m3 ?? ""} onChange={(e) => setEmbForm({ ...embForm, m3: e.target.value })} className={inputClass} /></div>
+            <div className="flex items-center gap-3">
+              <Switch checked={!!embForm.ativo} onCheckedChange={(v) => setEmbForm({ ...embForm, ativo: v })} />
+              <label className="text-sm text-foreground">Ativo</label>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setEmbModalOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
+            <button onClick={saveEmb} disabled={embSaving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {embSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Picking sub-modal */}
+      <Dialog open={pickModalOpen} onOpenChange={(v) => !v && setPickModalOpen(false)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editPick ? "Editar Picking" : "Novo Picking"}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div className="col-span-2">
+              <label className={labelClass}>Endereço *</label>
+              <select value={pickForm.endereco_id || ""} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass}>
+                <option value="">Selecionar...</option>
+                {enderecoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Tipo Picking *</label>
+              <select value={pickForm.tipo_picking || ""} onChange={(e) => setPickForm({ ...pickForm, tipo_picking: e.target.value })} className={inputClass}>
+                <option value="">Selecionar...</option>
+                {["PRINCIPAL", "SECUNDARIO", "RESERVA"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div><label className={labelClass}>Est. Mínimo</label><input type="number" value={pickForm.est_minimo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} /></div>
+            <div><label className={labelClass}>Est. Máximo</label><input type="number" value={pickForm.est_maximo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_maximo: e.target.value })} className={inputClass} /></div>
+            <div className="flex items-center gap-3">
+              <Switch checked={!!pickForm.ativo} onCheckedChange={(v) => setPickForm({ ...pickForm, ativo: v })} />
+              <label className="text-sm text-foreground">Ativo</label>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setPickModalOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
+            <button onClick={savePick} disabled={pickSaving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {pickSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Dialog>
+  );
+}
+
+// ─── Main Produtos Page ────────────────────────────────────────────
 export function ProdutosPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId, armazemId } = useTenant();
   const crud = useCrud({ table: "produto", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     if (tenantId) {
-      fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
       fetchOptions("grupo_produto", tenantId).then(setGrupoOptions);
       fetchOptions("subgrupo_produto", tenantId).then(setSubgrupoOptions);
       fetchOptions("parceiro", tenantId, "razaosocial").then(setParceiroOptions);
@@ -33,23 +534,6 @@ export function ProdutosPage() {
     { key: "tipo_controle", label: "Controle" },
     { key: "tipo_separacao", label: "Separação" },
     { key: "ativo", label: "Status", type: "badge" },
-  ];
-
-  const fields: FieldSpec[] = [
-    { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
-    { name: "parceiro_id", label: "Parceiro (Fornecedor)", type: "select", required: true, options: parceiroOptions },
-    { name: "sku", label: "SKU", type: "text", required: true, placeholder: "Ex: ELT-001" },
-    { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do produto" },
-    { name: "referencia", label: "Referência", type: "text", required: true, placeholder: "Referência" },
-    { name: "marca", label: "Marca", type: "text", placeholder: "Marca" },
-    { name: "grupo_id", label: "Grupo", type: "select", options: grupoOptions },
-    { name: "subgrupo_id", label: "Subgrupo", type: "select", options: subgrupoOptions },
-    { name: "preco_custo", label: "Preço de Custo", type: "number", placeholder: "0.00", step: "0.01" },
-    { name: "tipo_controle", label: "Tipo de Controle", type: "enum", required: true, enumValues: ["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"] },
-    { name: "tipo_separacao", label: "Tipo de Separação", type: "enum", required: true, enumValues: ["FRACIONADO", "EMBALAGEM_TOTAL", "CAIXARIA"] },
-    { name: "usa_picking", label: "Usa Picking", type: "switch", defaultValue: true },
-    { name: "varios_pickings", label: "Vários Pickings", type: "switch", defaultValue: false },
-    { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
   return (
@@ -72,14 +556,20 @@ export function ProdutosPage() {
         newLabel="Novo Produto"
         searchPlaceholder="Buscar por SKU ou descrição..."
       />
-      <CrudModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editItem ? "Editar Produto" : "Novo Produto"}
-        fields={fields}
-        initialData={editItem}
-        onSave={async (data) => editItem ? crud.update(editItem.id, data) : crud.create(data)}
-      />
+      {tenantId && (
+        <ProdutoDetailModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          produto={editItem}
+          tenantId={tenantId}
+          armazemId={armazemId}
+          empresaId={empresaId}
+          onSaved={crud.refresh}
+          grupoOptions={grupoOptions}
+          subgrupoOptions={subgrupoOptions}
+          parceiroOptions={parceiroOptions}
+        />
+      )}
       <DeleteConfirmDialog
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}

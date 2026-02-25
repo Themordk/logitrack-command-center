@@ -7,11 +7,11 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, Link2 } from "lucide-react";
 
 export function ZonasAtividadePage() {
-  const { tenantId } = useTenant();
-  const crud = useCrud({ table: "zona_atividade", tenantId, orderBy: "descricao" });
+  const { tenantId, armazemId } = useTenant();
+  const crud = useCrud({ table: "zona_atividade", tenantId, orderBy: "descricao", filters: { armazem_id: armazemId } });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -46,8 +46,8 @@ export function ZonasAtividadePage() {
   };
 
   const loadEnderecoOptions = async () => {
-    if (!tenantId) return;
-    const { data } = await (supabase as any).from("endereco").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    if (!tenantId || !armazemId) return;
+    const { data } = await (supabase as any).from("endereco").select("id, descricao").eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true).order("descricao");
     const existingIds = new Set(vinculos.map((v: any) => v.endereco_id));
     setEnderecoOptions((data || []).filter((e: any) => !existingIds.has(e.id)).map((e: any) => ({ value: e.id, label: e.descricao })));
   };
@@ -105,19 +105,17 @@ export function ZonasAtividadePage() {
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Nova Zona"
-        extraFilters={
+        extraRowActions={(row) => (
           <button
-            onClick={() => {
-              if (crud.data.length > 0) openVinculos(crud.data[0]);
-            }}
-            className="text-xs text-primary hover:underline"
+            onClick={() => openVinculos(row)}
+            className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors flex items-center justify-center"
+            title="Gerenciar Vínculos"
           >
-            Gerenciar Vínculos
+            <Link2 size={13} />
           </button>
-        }
+        )}
       />
 
-      {/* Custom: show vinculos button per row */}
       <CrudModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

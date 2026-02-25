@@ -25,6 +25,10 @@ import { TurnosPage } from "./pages/TurnosPage";
 import { MotivosOcorrenciaPage } from "./pages/MotivosOcorrenciaPage";
 import { SubgruposPage } from "./pages/SubgruposPage";
 import { IntegracaoPage } from "./pages/IntegracaoPage";
+import { TiposEntradaPage } from "./pages/TiposEntradaPage";
+import { TiposSaidaPage } from "./pages/TiposSaidaPage";
+import { SaidasPage } from "./pages/SaidasPage";
+import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -41,12 +45,16 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/hus": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "HUs" }],
   "/atividades/entradas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Entradas" }],
   "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
+  "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
+  "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
   "/dados-mestres/subgrupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Subgrupos" }],
   "/dados-mestres/parceiros": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Parceiros" }],
   "/dados-mestres/rotas": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Rotas" }],
+  "/dados-mestres/tipos-entrada": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Tipos de Entrada" }],
+  "/dados-mestres/tipos-saida": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Tipos de Saída" }],
   "/config/empresas": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Empresas" }],
   "/config/usuarios": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Usuários" }],
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
@@ -68,12 +76,16 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/hus": return <HUsPage />;
     case "/atividades/entradas": return <EntradasPage />;
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
+    case "/atividades/saidas": return <SaidasPage />;
+    case "/atividades/mov-saida": return <MovimentoSaidaPage />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
     case "/dados-mestres/subgrupos": return <SubgruposPage />;
     case "/dados-mestres/parceiros": return <ParceirosPage />;
     case "/dados-mestres/rotas": return <RotasPage />;
+    case "/dados-mestres/tipos-entrada": return <TiposEntradaPage />;
+    case "/dados-mestres/tipos-saida": return <TiposSaidaPage />;
     case "/config/empresas": return <EmpresasPage />;
     case "/config/usuarios": return <UsuariosPage />;
     case "/config/integracao": return <IntegracaoPage />;
