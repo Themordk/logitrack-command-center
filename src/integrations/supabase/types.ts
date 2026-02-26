@@ -520,6 +520,7 @@ export type Database = {
           apto: number
           armazem_id: string
           ativo: boolean
+          codigo_endereco: number | null
           comprimento: number | null
           curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
@@ -546,6 +547,7 @@ export type Database = {
           apto: number
           armazem_id: string
           ativo?: boolean
+          codigo_endereco?: number | null
           comprimento?: number | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
@@ -572,6 +574,7 @@ export type Database = {
           apto?: number
           armazem_id?: string
           ativo?: boolean
+          codigo_endereco?: number | null
           comprimento?: number | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           descricao?: string
@@ -656,6 +659,7 @@ export type Database = {
       grupo_produto: {
         Row: {
           ativo: boolean
+          codigo_erp: string | null
           descricao: string
           empresa_id: string
           id: string
@@ -663,6 +667,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          codigo_erp?: string | null
           descricao: string
           empresa_id: string
           id?: string
@@ -670,6 +675,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          codigo_erp?: string | null
           descricao?: string
           empresa_id?: string
           id?: string
@@ -1034,8 +1040,11 @@ export type Database = {
           id: string
           movimento_entrada_id: string
           produto_id: string
+          qtd_armazenada: number | null
           qtd_conferida: number
           qtd_esperada: number
+          qtd_ocorrencia: number | null
+          status_item_movimento: Database["public"]["Enums"]["enum_status_item_movimento"]
           tenant_id: string
         }
         Insert: {
@@ -1043,8 +1052,11 @@ export type Database = {
           id?: string
           movimento_entrada_id: string
           produto_id: string
+          qtd_armazenada?: number | null
           qtd_conferida?: number
           qtd_esperada: number
+          qtd_ocorrencia?: number | null
+          status_item_movimento?: Database["public"]["Enums"]["enum_status_item_movimento"]
           tenant_id: string
         }
         Update: {
@@ -1052,8 +1064,11 @@ export type Database = {
           id?: string
           movimento_entrada_id?: string
           produto_id?: string
+          qtd_armazenada?: number | null
           qtd_conferida?: number
           qtd_esperada?: number
+          qtd_ocorrencia?: number | null
+          status_item_movimento?: Database["public"]["Enums"]["enum_status_item_movimento"]
           tenant_id?: string
         }
         Relationships: [
@@ -1307,6 +1322,7 @@ export type Database = {
           bairro: string
           cidade: string
           cnpj: string
+          codigo_erp: string | null
           dias_shelf: number | null
           empresa_id: string
           endereco: string
@@ -1322,6 +1338,7 @@ export type Database = {
           bairro: string
           cidade: string
           cnpj: string
+          codigo_erp?: string | null
           dias_shelf?: number | null
           empresa_id: string
           endereco: string
@@ -1337,6 +1354,7 @@ export type Database = {
           bairro?: string
           cidade?: string
           cnpj?: string
+          codigo_erp?: string | null
           dias_shelf?: number | null
           empresa_id?: string
           endereco?: string
@@ -1674,6 +1692,45 @@ export type Database = {
           },
         ]
       }
+      sequencia: {
+        Row: {
+          created_at: string
+          endereco: number | null
+          hu: number | null
+          id: number
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          endereco?: number | null
+          hu?: number | null
+          id?: number
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          endereco?: number | null
+          hu?: number | null
+          id?: number
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sequencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sequencia_tenant_id_fkey1"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       setor: {
         Row: {
           armazem_id: string
@@ -1719,6 +1776,7 @@ export type Database = {
       subgrupo_produto: {
         Row: {
           ativo: boolean
+          codigo_erp: string | null
           descricao: string
           empresa_id: string
           grupo_id: string
@@ -1727,6 +1785,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          codigo_erp?: string | null
           descricao: string
           empresa_id: string
           grupo_id: string
@@ -1735,6 +1794,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          codigo_erp?: string | null
           descricao?: string
           empresa_id?: string
           grupo_id?: string
@@ -2293,6 +2353,17 @@ export type Database = {
       enum_lado: "PAR" | "IMPAR"
       enum_prioridade_onda: "CRITICA" | "ALTA" | "NORMAL"
       enum_situacao_endereco: "LIVRE" | "OCUPADO" | "BLOQUEADO"
+      enum_status_item_movimento:
+        | "PENDENTE"
+        | "EM_ANDAMENTO"
+        | "CONCLUIDO"
+        | "CANCELADO"
+      enum_status_item_onda:
+        | "PENDENTE"
+        | "EM_PICKING"
+        | "EM_CONFERENCIA"
+        | "CONCLUIDO"
+        | "CANCELADO"
       enum_status_mov_entrada:
         | "GERADO"
         | "LIBERADO"
@@ -2301,6 +2372,14 @@ export type Database = {
         | "DIVERGENCIA"
         | "LIB. ARMAZENAGEM"
         | "ARMAZENADO"
+      enum_status_onda_carregamento:
+        | "CRIADA"
+        | "LIBERADA"
+        | "EM_PICKING"
+        | "EM_CONFERENCIA"
+        | "EM_CARREGAMENTO"
+        | "CONCLUIDA"
+        | "CANCELADA"
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
@@ -2496,6 +2575,19 @@ export const Constants = {
       enum_lado: ["PAR", "IMPAR"],
       enum_prioridade_onda: ["CRITICA", "ALTA", "NORMAL"],
       enum_situacao_endereco: ["LIVRE", "OCUPADO", "BLOQUEADO"],
+      enum_status_item_movimento: [
+        "PENDENTE",
+        "EM_ANDAMENTO",
+        "CONCLUIDO",
+        "CANCELADO",
+      ],
+      enum_status_item_onda: [
+        "PENDENTE",
+        "EM_PICKING",
+        "EM_CONFERENCIA",
+        "CONCLUIDO",
+        "CANCELADO",
+      ],
       enum_status_mov_entrada: [
         "GERADO",
         "LIBERADO",
@@ -2504,6 +2596,15 @@ export const Constants = {
         "DIVERGENCIA",
         "LIB. ARMAZENAGEM",
         "ARMAZENADO",
+      ],
+      enum_status_onda_carregamento: [
+        "CRIADA",
+        "LIBERADA",
+        "EM_PICKING",
+        "EM_CONFERENCIA",
+        "EM_CARREGAMENTO",
+        "CONCLUIDA",
+        "CANCELADA",
       ],
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],

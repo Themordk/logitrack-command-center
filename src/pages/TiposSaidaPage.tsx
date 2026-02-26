@@ -6,7 +6,7 @@ import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function TiposSaidaPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId } = useTenant();
   const crud = useCrud({ table: "tipo_saida", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -51,7 +51,7 @@ export function TiposSaidaPage() {
         fields={fields}
         initialData={editItem}
         onSave={async (data) => {
-          const payload = { ...data, empresa_id: crud.data[0]?.empresa_id };
+          const payload = { ...data, empresa_id: empresaId };
           return editItem ? crud.update(editItem.id, payload) : crud.create(payload);
         }}
       />
