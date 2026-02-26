@@ -50,6 +50,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Endereço", type: "mono" },
+    { key: "codigo_endereco", label: "Código" },
     { key: "tipo_endereco", label: "Tipo", render: (row) => <StatusBadge status={row.tipo_endereco === "PULMAO" ? 0 : 1} type="endereco-tipo" /> },
     { key: "situacao", label: "Situação", render: (row) => {
       const map: Record<string, number> = { LIVRE: 0, OCUPADO: 1, BLOQUEADO: 2 };

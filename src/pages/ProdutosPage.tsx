@@ -485,7 +485,7 @@ function ProdutoDetailModal({
               <label className={labelClass}>Tipo Picking *</label>
               <select value={pickForm.tipo_picking || ""} onChange={(e) => setPickForm({ ...pickForm, tipo_picking: e.target.value })} className={inputClass}>
                 <option value="">Selecionar...</option>
-                {["PRINCIPAL", "SECUNDARIO", "RESERVA"].map((v) => <option key={v} value={v}>{v}</option>)}
+                {[{ value: "MASTER", label: "Principal" }, { value: "FRACIONADO", label: "Fracionado" }, { value: "PDV", label: "PDV" }].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div><label className={labelClass}>Est. Mínimo</label><input type="number" value={pickForm.est_minimo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} /></div>
