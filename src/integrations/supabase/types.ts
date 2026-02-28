@@ -656,6 +656,190 @@ export type Database = {
           },
         ]
       }
+      estoque_geral: {
+        Row: {
+          atualizado_em: string | null
+          data_validade: string | null
+          empresa_id: string
+          endereco_id: string | null
+          hu_id: string | null
+          id: string
+          lote: string | null
+          numero_serie: string | null
+          produto_id: string
+          quantidade_bloqueada: number
+          quantidade_disponivel: number
+          quantidade_total: number
+          tenant_id: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          data_validade?: string | null
+          empresa_id: string
+          endereco_id?: string | null
+          hu_id?: string | null
+          id?: string
+          lote?: string | null
+          numero_serie?: string | null
+          produto_id: string
+          quantidade_bloqueada?: number
+          quantidade_disponivel?: number
+          quantidade_total?: number
+          tenant_id: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          data_validade?: string | null
+          empresa_id?: string
+          endereco_id?: string | null
+          hu_id?: string | null
+          id?: string
+          lote?: string | null
+          numero_serie?: string | null
+          produto_id?: string
+          quantidade_bloqueada?: number
+          quantidade_disponivel?: number
+          quantidade_total?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_geral_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_geral_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_geral_hu_id_fkey"
+            columns: ["hu_id"]
+            isOneToOne: false
+            referencedRelation: "hu"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_geral_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_movimento: {
+        Row: {
+          criado_em: string | null
+          data_validade: string | null
+          documento_origem_id: string | null
+          empresa_id: string
+          endereco_destino_id: string | null
+          endereco_origem_id: string | null
+          hu_id: string | null
+          id: string
+          lote: string | null
+          numero_serie: string | null
+          produto_id: string
+          quantidade: number
+          tarefa_id: string | null
+          tenant_id: string
+          tipo_movimento: number
+          usuario_id: string | null
+        }
+        Insert: {
+          criado_em?: string | null
+          data_validade?: string | null
+          documento_origem_id?: string | null
+          empresa_id: string
+          endereco_destino_id?: string | null
+          endereco_origem_id?: string | null
+          hu_id?: string | null
+          id?: string
+          lote?: string | null
+          numero_serie?: string | null
+          produto_id: string
+          quantidade: number
+          tarefa_id?: string | null
+          tenant_id: string
+          tipo_movimento: number
+          usuario_id?: string | null
+        }
+        Update: {
+          criado_em?: string | null
+          data_validade?: string | null
+          documento_origem_id?: string | null
+          empresa_id?: string
+          endereco_destino_id?: string | null
+          endereco_origem_id?: string | null
+          hu_id?: string | null
+          id?: string
+          lote?: string | null
+          numero_serie?: string | null
+          produto_id?: string
+          quantidade?: number
+          tarefa_id?: string | null
+          tenant_id?: string
+          tipo_movimento?: number
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_movimento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_endereco_destino_id_fkey"
+            columns: ["endereco_destino_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_endereco_origem_id_fkey"
+            columns: ["endereco_origem_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_hu_id_fkey"
+            columns: ["hu_id"]
+            isOneToOne: false
+            referencedRelation: "hu"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grupo_produto: {
         Row: {
           ativo: boolean
@@ -863,6 +1047,48 @@ export type Database = {
           },
         ]
       }
+      log_sessao_usuario: {
+        Row: {
+          fim_sessao: string | null
+          id: string
+          inicio_sessao: string
+          tenant_id: string
+          ultimo_heartbeat: string
+          usuario_id: string
+        }
+        Insert: {
+          fim_sessao?: string | null
+          id?: string
+          inicio_sessao?: string
+          tenant_id: string
+          ultimo_heartbeat?: string
+          usuario_id: string
+        }
+        Update: {
+          fim_sessao?: string | null
+          id?: string
+          inicio_sessao?: string
+          tenant_id?: string
+          ultimo_heartbeat?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_sessao_usuario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sessao_usuario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motivo_ocorrencia: {
         Row: {
           armazem_id: string
@@ -1026,6 +1252,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_armazenagem_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
             foreignKeyName: "movimento_entrada_documento_tenant_fk"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1087,6 +1334,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_armazenagem_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
             foreignKeyName: "movimento_entrada_item_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
@@ -1120,7 +1388,9 @@ export type Database = {
             | Database["public"]["Enums"]["enum_agrupar_sep_por"]
             | null
           rota_id: string | null
-          status: number
+          status:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
           tenant_id: string
           total_pedidos: number | null
           veiculo_id: string | null
@@ -1144,7 +1414,9 @@ export type Database = {
             | Database["public"]["Enums"]["enum_agrupar_sep_por"]
             | null
           rota_id?: string | null
-          status: number
+          status?:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
           tenant_id: string
           total_pedidos?: number | null
           veiculo_id?: string | null
@@ -1168,7 +1440,9 @@ export type Database = {
             | Database["public"]["Enums"]["enum_agrupar_sep_por"]
             | null
           rota_id?: string | null
-          status?: number
+          status?:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
           tenant_id?: string
           total_pedidos?: number | null
           veiculo_id?: string | null
@@ -1270,6 +1544,7 @@ export type Database = {
           onda_carregamento_id: string
           produto_id: string
           quantidade: number
+          status: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
           valor_total: number
           valor_unit: number
@@ -1279,6 +1554,7 @@ export type Database = {
           onda_carregamento_id: string
           produto_id: string
           quantidade: number
+          status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
           valor_total: number
           valor_unit: number
@@ -1288,6 +1564,7 @@ export type Database = {
           onda_carregamento_id?: string
           produto_id?: string
           quantidade?: number
+          status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id?: string
           valor_total?: number
           valor_unit?: number
@@ -1825,6 +2102,232 @@ export type Database = {
           },
         ]
       }
+      tarefa: {
+        Row: {
+          armazem_id: string | null
+          criado_em: string
+          empresa_id: string
+          id: string
+          id_documento_origem: string | null
+          id_local_destino: string | null
+          id_local_origem: string | null
+          ordem_tarefa: number | null
+          prioridade: number
+          produto_id: string | null
+          quantidade_requerida: number | null
+          status: Database["public"]["Enums"]["enum_status_tarefa"]
+          tenant_id: string
+          tipo_documento_origem: string | null
+          tipo_tarefa_id: string
+        }
+        Insert: {
+          armazem_id?: string | null
+          criado_em?: string
+          empresa_id: string
+          id?: string
+          id_documento_origem?: string | null
+          id_local_destino?: string | null
+          id_local_origem?: string | null
+          ordem_tarefa?: number | null
+          prioridade?: number
+          produto_id?: string | null
+          quantidade_requerida?: number | null
+          status?: Database["public"]["Enums"]["enum_status_tarefa"]
+          tenant_id: string
+          tipo_documento_origem?: string | null
+          tipo_tarefa_id: string
+        }
+        Update: {
+          armazem_id?: string | null
+          criado_em?: string
+          empresa_id?: string
+          id?: string
+          id_documento_origem?: string | null
+          id_local_destino?: string | null
+          id_local_origem?: string | null
+          ordem_tarefa?: number | null
+          prioridade?: number
+          produto_id?: string | null
+          quantidade_requerida?: number | null
+          status?: Database["public"]["Enums"]["enum_status_tarefa"]
+          tenant_id?: string
+          tipo_documento_origem?: string | null
+          tipo_tarefa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_id_local_destino_fkey"
+            columns: ["id_local_destino"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_id_local_origem_fkey"
+            columns: ["id_local_origem"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_tipo_tarefa_id_fkey"
+            columns: ["tipo_tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_tarefa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa_evento_execucao: {
+        Row: {
+          carga_util: Json | null
+          execucao_tarefa_id: string
+          id: number
+          tenant_id: string
+          timestamp_evento: string
+          tipo_evento: Database["public"]["Enums"]["enum_tipo_evento_execucao"]
+        }
+        Insert: {
+          carga_util?: Json | null
+          execucao_tarefa_id: string
+          id?: number
+          tenant_id: string
+          timestamp_evento?: string
+          tipo_evento: Database["public"]["Enums"]["enum_tipo_evento_execucao"]
+        }
+        Update: {
+          carga_util?: Json | null
+          execucao_tarefa_id?: string
+          id?: number
+          tenant_id?: string
+          timestamp_evento?: string
+          tipo_evento?: Database["public"]["Enums"]["enum_tipo_evento_execucao"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evento_execucao_tarefa_execucao_tarefa_id_fkey"
+            columns: ["execucao_tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evento_execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa_execucao: {
+        Row: {
+          atribuido_em: string
+          concluido_em: string | null
+          fabricacao: string | null
+          hu: string | null
+          id: string
+          iniciado_em: string | null
+          lote: string | null
+          quantidade_executada: number | null
+          serie: string | null
+          status: Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+          tarefa_id: string
+          tenant_id: string
+          usuario_id: string
+          validade: string | null
+        }
+        Insert: {
+          atribuido_em?: string
+          concluido_em?: string | null
+          fabricacao?: string | null
+          hu?: string | null
+          id?: string
+          iniciado_em?: string | null
+          lote?: string | null
+          quantidade_executada?: number | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+          tarefa_id: string
+          tenant_id: string
+          usuario_id: string
+          validade?: string | null
+        }
+        Update: {
+          atribuido_em?: string
+          concluido_em?: string | null
+          fabricacao?: string | null
+          hu?: string | null
+          id?: string
+          iniciado_em?: string | null
+          lote?: string | null
+          quantidade_executada?: number | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+          tarefa_id?: string
+          tenant_id?: string
+          usuario_id?: string
+          validade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_hu_fkey"
+            columns: ["hu"]
+            isOneToOne: false
+            referencedRelation: "hu"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant: {
         Row: {
           ativo: boolean
@@ -2013,6 +2516,53 @@ export type Database = {
           },
           {
             foreignKeyName: "fk_tipo_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tipo_tarefa: {
+        Row: {
+          bloqueia_estoque: boolean | null
+          codigo: string
+          descricao: string
+          exige_conferencia: boolean | null
+          gera_movimento_estoque: boolean | null
+          id: string
+          prioridade_padrao: number | null
+          tempo_estimado_segundos: number | null
+          tenant_id: string
+          tipo_movimento: number | null
+        }
+        Insert: {
+          bloqueia_estoque?: boolean | null
+          codigo: string
+          descricao: string
+          exige_conferencia?: boolean | null
+          gera_movimento_estoque?: boolean | null
+          id?: string
+          prioridade_padrao?: number | null
+          tempo_estimado_segundos?: number | null
+          tenant_id: string
+          tipo_movimento?: number | null
+        }
+        Update: {
+          bloqueia_estoque?: boolean | null
+          codigo?: string
+          descricao?: string
+          exige_conferencia?: boolean | null
+          gera_movimento_estoque?: boolean | null
+          id?: string
+          prioridade_padrao?: number | null
+          tempo_estimado_segundos?: number | null
+          tenant_id?: string
+          tipo_movimento?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tipo_tarefa_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
@@ -2307,9 +2857,58 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_movimento_entrada_armazenagem_detalhe: {
+        Row: {
+          codigo_hu: string | null
+          criado_em: string | null
+          descricao: string | null
+          endereco_destino: string | null
+          movimento_id: string | null
+          operador: string | null
+          quantidade: number | null
+          sku: string | null
+        }
+        Relationships: []
+      }
+      vw_movimento_entrada_conferencia_detalhe: {
+        Row: {
+          codigo_hu: string | null
+          concluido_em: string | null
+          descricao: string | null
+          fabricacao: string | null
+          iniciado_em: string | null
+          lote: string | null
+          movimento_id: string | null
+          operador: string | null
+          quantidade_executada: number | null
+          serie: string | null
+          sku: string | null
+          status:
+            | Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+            | null
+          validade: string | null
+        }
+        Relationships: []
+      }
+      vw_movimento_entrada_resumo: {
+        Row: {
+          descricao: string | null
+          movimento_id: string | null
+          movimento_item_id: string | null
+          qtd_armazenada: number | null
+          qtd_conferida: number | null
+          qtd_esperada: number | null
+          sku: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      fn_usuario_tem_empresa: {
+        Args: { p_empresa_id: string }
+        Returns: boolean
+      }
+      fn_usuario_tenant: { Args: never; Returns: string }
       gerar_onda_carregamento: {
         Args: {
           p_box_id?: string
@@ -2326,7 +2925,12 @@ export type Database = {
         }
         Returns: string
       }
+      gerar_tarefas_conferencia_entrada: {
+        Args: { p_movimento_entrada_id: string; p_tenant_id: string }
+        Returns: string
+      }
       get_current_tenant: { Args: never; Returns: string }
+      get_user_tenant_id: { Args: never; Returns: string }
     }
     Enums: {
       enum_agrupar_sep_por:
@@ -2353,6 +2957,12 @@ export type Database = {
       enum_lado: "PAR" | "IMPAR"
       enum_prioridade_onda: "CRITICA" | "ALTA" | "NORMAL"
       enum_situacao_endereco: "LIVRE" | "OCUPADO" | "BLOQUEADO"
+      enum_status_execucao_tarefa:
+        | "ATRIBUIDA"
+        | "EM_ANDAMENTO"
+        | "PAUSADA"
+        | "CONCLUIDA"
+        | "CANCELADA"
       enum_status_item_movimento:
         | "PENDENTE"
         | "EM_ANDAMENTO"
@@ -2380,11 +2990,31 @@ export type Database = {
         | "EM_CARREGAMENTO"
         | "CONCLUIDA"
         | "CANCELADA"
+      enum_status_tarefa:
+        | "CRIADA"
+        | "ATRIBUIDA"
+        | "EM_ANDAMENTO"
+        | "PAUSADA"
+        | "CONCLUIDA"
+        | "CANCELADA"
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
       enum_tipo_controle: "UNIDADE" | "LOTE" | "VALIDADE" | "SERIE" | "METROS"
       enum_tipo_endereco: "PULMAO" | "PICKING"
+      enum_tipo_evento_execucao:
+        | "SCAN"
+        | "PESAGEM"
+        | "CONFIRMACAO_LOCAL"
+        | "PAUSE"
+        | "RESUME"
+        | "ERRO"
+        | "DIVERGENCIA"
+        | "INICIO_EXECUCAO"
+        | "FIM_EXECUCAO"
+        | "ATRIBUICAO"
+        | "SCAN_LOTE"
+        | "CONFIRMACAO_LOTE"
       enum_tipo_grupo: "PICKING" | "ARMAZENAGEM" | "INVENTARIO"
       enum_tipo_hu: "PALLET" | "CAIXA" | "VOLUME" | "OUTRO"
       enum_tipo_operacao:
@@ -2575,6 +3205,13 @@ export const Constants = {
       enum_lado: ["PAR", "IMPAR"],
       enum_prioridade_onda: ["CRITICA", "ALTA", "NORMAL"],
       enum_situacao_endereco: ["LIVRE", "OCUPADO", "BLOQUEADO"],
+      enum_status_execucao_tarefa: [
+        "ATRIBUIDA",
+        "EM_ANDAMENTO",
+        "PAUSADA",
+        "CONCLUIDA",
+        "CANCELADA",
+      ],
       enum_status_item_movimento: [
         "PENDENTE",
         "EM_ANDAMENTO",
@@ -2606,11 +3243,33 @@ export const Constants = {
         "CONCLUIDA",
         "CANCELADA",
       ],
+      enum_status_tarefa: [
+        "CRIADA",
+        "ATRIBUIDA",
+        "EM_ANDAMENTO",
+        "PAUSADA",
+        "CONCLUIDA",
+        "CANCELADA",
+      ],
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],
       enum_tipo_controle: ["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"],
       enum_tipo_endereco: ["PULMAO", "PICKING"],
+      enum_tipo_evento_execucao: [
+        "SCAN",
+        "PESAGEM",
+        "CONFIRMACAO_LOCAL",
+        "PAUSE",
+        "RESUME",
+        "ERRO",
+        "DIVERGENCIA",
+        "INICIO_EXECUCAO",
+        "FIM_EXECUCAO",
+        "ATRIBUICAO",
+        "SCAN_LOTE",
+        "CONFIRMACAO_LOTE",
+      ],
       enum_tipo_grupo: ["PICKING", "ARMAZENAGEM", "INVENTARIO"],
       enum_tipo_hu: ["PALLET", "CAIXA", "VOLUME", "OUTRO"],
       enum_tipo_operacao: [

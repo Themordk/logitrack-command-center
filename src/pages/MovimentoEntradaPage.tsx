@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, Eye, Filter, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, Filter, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -18,13 +17,6 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
   ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
 };
 
-const ITEM_STATUS_MAP: Record<string, { label: string; class: string }> = {
-  PENDENTE: { label: "Pendente", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  CONFERIDO: { label: "Conferido", class: "bg-green-500/15 text-green-400 border-green-500/30" },
-  DIVERGENTE: { label: "Divergente", class: "bg-red-500/15 text-red-400 border-red-500/30" },
-  ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
-};
-
 interface MovEntry {
   id: string;
   numero_movimento: number | null;
@@ -34,17 +26,41 @@ interface MovEntry {
   parceiro_nome?: string;
 }
 
-interface MovItem {
-  id: string;
-  produto_id: string;
+interface ResumoItem {
+  movimento_id: string;
+  movimento_item_id: string;
+  sku: string;
+  descricao: string;
   qtd_esperada: number;
   qtd_conferida: number;
-  qtd_armazenada: number | null;
-  qtd_ocorrencia: number | null;
-  status_item_movimento: string;
-  sku?: string;
-  referencia?: string;
-  descricao?: string;
+  qtd_armazenada: number;
+}
+
+interface ConferenciaItem {
+  movimento_id: string;
+  sku: string;
+  descricao: string;
+  operador: string;
+  codigo_hu: string;
+  validade: string | null;
+  fabricacao: string | null;
+  serie: string | null;
+  quantidade_executada: number;
+  iniciado_em: string | null;
+  concluido_em: string | null;
+  status: string;
+  lote: string | null;
+}
+
+interface ArmazenagemItem {
+  movimento_id: string;
+  sku: string;
+  descricao: string;
+  operador: string;
+  codigo_hu: string;
+  endereco_destino: string;
+  quantidade: number;
+  criado_em: string | null;
 }
 
 export function MovimentoEntradaPage() {
@@ -53,17 +69,20 @@ export function MovimentoEntradaPage() {
   const [movements, setMovements] = useState<MovEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMov, setSelectedMov] = useState<string | null>(null);
-  const [items, setItems] = useState<MovItem[]>([]);
-  const [itemsLoading, setItemsLoading] = useState(false);
-  const [detailItem, setDetailItem] = useState<MovItem | null>(null);
+  const [selectedMovStatus, setSelectedMovStatus] = useState<string | null>(null);
   const [itemTab, setItemTab] = useState("itens");
+
+  // View data
+  const [resumoItems, setResumoItems] = useState<ResumoItem[]>([]);
+  const [conferenciaItems, setConferenciaItems] = useState<ConferenciaItem[]>([]);
+  const [armazenagemItems, setArmazenagemItems] = useState<ArmazenagemItem[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterData, setFilterData] = useState("");
   const [filterParceiro, setFilterParceiro] = useState("");
-  const [filterSku, setFilterSku] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -112,7 +131,6 @@ export function MovimentoEntradaPage() {
         })
       );
 
-      // Client-side filter for parceiro name
       let filtered = enriched;
       if (filterParceiro) {
         filtered = filtered.filter((m: any) => m.parceiro_nome?.toLowerCase().includes(filterParceiro.toLowerCase()));
@@ -130,53 +148,72 @@ export function MovimentoEntradaPage() {
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 
-  const loadItems = async (movId: string) => {
+  const loadDetails = async (movId: string, movStatus: string) => {
     setSelectedMov(movId);
-    setItemsLoading(true);
+    setSelectedMovStatus(movStatus);
     setItemTab("itens");
+    setDetailLoading(true);
     try {
-      const { data, error } = await (supabase as any)
-        .from("movimento_entrada_item")
-        .select("id, produto_id, qtd_esperada, qtd_conferida, qtd_armazenada, qtd_ocorrencia, status_item_movimento")
-        .eq("movimento_entrada_id", movId);
-      if (error) throw error;
-
-      const enriched = await Promise.all(
-        (data || []).map(async (item: any) => {
-          const { data: prod } = await (supabase as any).from("produto").select("sku, referencia, descricao").eq("id", item.produto_id).single();
-          return { ...item, sku: prod?.sku || "—", referencia: prod?.referencia || "—", descricao: prod?.descricao || "—" };
-        })
-      );
-
-      // Client-side filter by SKU
-      let filtered = enriched;
-      if (filterSku) {
-        filtered = filtered.filter((i: any) => i.sku?.toLowerCase().includes(filterSku.toLowerCase()));
-      }
-
-      setItems(filtered);
+      const [r1, r2, r3] = await Promise.all([
+        (supabase as any).from("vw_movimento_entrada_resumo").select("*").eq("movimento_id", movId),
+        (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId),
+        (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_id", movId),
+      ]);
+      setResumoItems(r1.data || []);
+      setConferenciaItems(r2.data || []);
+      setArmazenagemItems(r3.data || []);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setItemsLoading(false);
+      setDetailLoading(false);
     }
   };
 
-  // Context menu handlers (UI only for now)
-  const handleMenuAction = (action: string, movId: string) => {
+  const handleLiberarConferencia = async (movId: string, status: string) => {
+    if (status !== "GERADO") {
+      toast.warning("Apenas movimentos com status 'Gerado' podem ser liberados para conferência.");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.rpc("gerar_tarefas_conferencia_entrada" as any, {
+        p_movimento_entrada_id: movId,
+        p_tenant_id: tenantId,
+      });
+      if (error) throw error;
+      const msg = String(data || "");
+      if (msg.startsWith("Erro")) {
+        toast.error(msg);
+      } else {
+        toast.success(msg || "Movimento liberado para conferência.");
+        fetchMovements();
+        fetchCounts();
+        if (selectedMov === movId) loadDetails(movId, "LIBERADO");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleMenuAction = (action: string, movId: string, status: string) => {
+    if (action === "liberar_conferencia") {
+      handleLiberarConferencia(movId, status);
+      return;
+    }
     toast.info(`Ação "${action}" será implementada em breve.`);
   };
 
   const clearFilters = () => {
-    setFilterStatus(""); setFilterNumero(""); setFilterData(""); setFilterParceiro(""); setFilterSku("");
+    setFilterStatus(""); setFilterNumero(""); setFilterData(""); setFilterParceiro("");
     setPage(1);
   };
 
-  const hasFilters = filterStatus || filterNumero || filterData || filterParceiro || filterSku;
+  const hasFilters = filterStatus || filterNumero || filterData || filterParceiro;
   const totalPages = Math.ceil(total / pageSize);
   const statusCards = ["GERADO", "EM CONFERENCIA", "ARMAZENADO", "DIVERGENCIA"];
-
   const inputClass = "w-full h-8 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
+
+  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+  const fmtDateTime = (d: string | null) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -209,7 +246,7 @@ export function MovimentoEntradaPage() {
           )}
         </div>
         {showFilters && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Nº Movimento</label>
               <input value={filterNumero} onChange={(e) => { setFilterNumero(e.target.value); setPage(1); }} placeholder="Ex: 1001" className={inputClass} />
@@ -228,10 +265,6 @@ export function MovimentoEntradaPage() {
                 <option value="">Todos</option>
                 {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">SKU</label>
-              <input value={filterSku} onChange={(e) => setFilterSku(e.target.value)} placeholder="SKU..." className={inputClass} />
             </div>
           </div>
         )}
@@ -257,26 +290,26 @@ export function MovimentoEntradaPage() {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
                 return (
                   <div key={mov.id} className={cn("w-full text-left px-3 py-3 border-b border-border/50 hover:bg-secondary/50 transition-colors flex items-start gap-2", selectedMov === mov.id && "bg-secondary/70")}>
-                    <button onClick={() => loadItems(mov.id)} className="flex-1 text-left">
+                    <button onClick={() => loadDetails(mov.id, mov.status)} className="flex-1 text-left">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-mono font-bold text-foreground">
-                          MOV-{mov.numero_movimento ?? mov.id.slice(0, 6).toUpperCase()}
+                          MOV-{mov.numero_movimento ?? "—"}
                         </span>
                         <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(mov.created_at).toLocaleDateString("pt-BR")}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</p>
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="p-1 rounded hover:bg-secondary text-muted-foreground mt-0.5"><MoreVertical size={14} /></button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id)}>Liberar para conferência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id)}>Retirar de conferência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id)}>Liberar armazenagem</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id)}>Liberar armazenagem c/ divergência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("abrir_ocorrencias", mov.id)}>Abrir ocorrências do movimento</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id, mov.status)}>Liberar para conferência</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, mov.status)}>Retirar de conferência</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>Liberar armazenagem</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>Liberar armazenagem c/ divergência</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("abrir_ocorrencias", mov.id, mov.status)}>Abrir ocorrências do movimento</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -304,13 +337,13 @@ export function MovimentoEntradaPage() {
             <Tabs value={itemTab} onValueChange={setItemTab} className="flex flex-col flex-1">
               <TabsList className="w-full shrink-0 border-b border-border rounded-none bg-transparent px-3 pt-2">
                 <TabsTrigger value="itens" className="flex-1">Itens</TabsTrigger>
-                <TabsTrigger value="hu" className="flex-1">HU</TabsTrigger>
-                <TabsTrigger value="ocorrencias" className="flex-1">Ocorrências</TabsTrigger>
+                <TabsTrigger value="conferencia" className="flex-1">Conferência</TabsTrigger>
+                <TabsTrigger value="armazenagem" className="flex-1">Armazenagem</TabsTrigger>
               </TabsList>
 
-              {/* Aba Itens */}
+              {/* Aba Itens — vw_movimento_entrada_resumo */}
               <TabsContent value="itens" className="flex-1 overflow-auto m-0">
-                {itemsLoading ? (
+                {detailLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : (
                   <table className="w-full text-sm">
@@ -321,100 +354,115 @@ export function MovimentoEntradaPage() {
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Armazenada</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Ocorrência</th>
-                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Status</th>
-                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Det.</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((item) => {
-                        const si = ITEM_STATUS_MAP[item.status_item_movimento] || { label: item.status_item_movimento, class: "" };
-                        return (
-                          <tr key={item.id} className="border-b border-border/50 table-row-hover">
-                            <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
-                            <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[200px]">{item.descricao}</td>
-                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_esperada}</td>
-                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_conferida}</td>
-                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_armazenada ?? "—"}</td>
-                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_ocorrencia ?? "—"}</td>
-                            <td className="px-3 py-2.5 text-center">
-                              <span className={cn("text-xs px-2 py-0.5 rounded-full border", si.class)}>{si.label}</span>
-                            </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <button onClick={() => setDetailItem(item)} className="p-1 rounded hover:bg-secondary transition-colors"><Eye size={14} className="text-muted-foreground" /></button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {items.length === 0 && (
-                        <tr><td colSpan={8} className="text-center py-8 text-xs text-muted-foreground">Nenhum item encontrado.</td></tr>
+                      {resumoItems.map((item) => (
+                        <tr key={item.movimento_item_id} className="border-b border-border/50 hover:bg-secondary/30">
+                          <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[200px]">{item.descricao}</td>
+                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_esperada}</td>
+                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_conferida}</td>
+                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_armazenada ?? "—"}</td>
+                        </tr>
+                      ))}
+                      {resumoItems.length === 0 && (
+                        <tr><td colSpan={5} className="text-center py-8 text-xs text-muted-foreground">Nenhum item encontrado.</td></tr>
                       )}
                     </tbody>
                   </table>
                 )}
               </TabsContent>
 
-              {/* Aba HU (UI only) */}
-              <TabsContent value="hu" className="flex-1 overflow-auto m-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-secondary/30 sticky top-0">
-                      <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Número HU</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Geração</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Usuário</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Status HU</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td colSpan={4} className="text-center py-8 text-xs text-muted-foreground">Em desenvolvimento — dados serão conectados em breve.</td></tr>
-                  </tbody>
-                </table>
+              {/* Aba Conferência — vw_movimento_entrada_conferencia_detalhe */}
+              <TabsContent value="conferencia" className="flex-1 overflow-auto m-0">
+                {detailLoading ? (
+                  <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-secondary/30 sticky top-0">
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Operador</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Qtd</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">HU</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Lote</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Fabricação</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Validade</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Série</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Status</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Início</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Término</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {conferenciaItems.map((item, idx) => (
+                        <tr key={idx} className="border-b border-border/50 hover:bg-secondary/30">
+                          <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.operador || "—"}</td>
+                          <td className="px-3 py-2.5 text-right text-foreground">{item.quantidade_executada ?? "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.codigo_hu || "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.lote || "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{fmtDate(item.fabricacao)}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{fmtDate(item.validade)}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.serie || "—"}</td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className="text-xs px-2 py-0.5 rounded-full border border-border bg-secondary/50 text-foreground">{item.status || "—"}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{fmtDateTime(item.iniciado_em)}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{fmtDateTime(item.concluido_em)}</td>
+                        </tr>
+                      ))}
+                      {conferenciaItems.length === 0 && (
+                        <tr><td colSpan={12} className="text-center py-8 text-xs text-muted-foreground">Nenhum registro de conferência encontrado.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </TabsContent>
 
-              {/* Aba Ocorrências (UI only) */}
-              <TabsContent value="ocorrencias" className="flex-1 overflow-auto m-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-secondary/30 sticky top-0">
-                      <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Quantidade</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Motivo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td colSpan={4} className="text-center py-8 text-xs text-muted-foreground">Em desenvolvimento — dados serão conectados em breve.</td></tr>
-                  </tbody>
-                </table>
+              {/* Aba Armazenagem — vw_movimento_entrada_armazenagem_detalhe */}
+              <TabsContent value="armazenagem" className="flex-1 overflow-auto m-0">
+                {detailLoading ? (
+                  <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-secondary/30 sticky top-0">
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">HU</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Endereço Destino</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Quantidade</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Operador</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Data Execução</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {armazenagemItems.map((item, idx) => (
+                        <tr key={idx} className="border-b border-border/50 hover:bg-secondary/30">
+                          <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.codigo_hu || "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.endereco_destino || "—"}</td>
+                          <td className="px-3 py-2.5 text-right text-foreground">{item.quantidade ?? "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.operador || "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{fmtDateTime(item.criado_em)}</td>
+                        </tr>
+                      ))}
+                      {armazenagemItems.length === 0 && (
+                        <tr><td colSpan={7} className="text-center py-8 text-xs text-muted-foreground">Nenhum registro de armazenagem encontrado.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </TabsContent>
             </Tabs>
           )}
         </div>
       </div>
-
-      {/* Detail dialog */}
-      <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Detalhes de Conferência</DialogTitle></DialogHeader>
-          {detailItem && (
-            <div className="space-y-3 py-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-xs text-muted-foreground">SKU</p><p className="text-sm font-mono text-foreground">{detailItem.sku}</p></div>
-                <div><p className="text-xs text-muted-foreground">Descrição</p><p className="text-sm text-foreground">{detailItem.descricao}</p></div>
-                <div><p className="text-xs text-muted-foreground">Qtd Esperada</p><p className="text-sm font-bold text-foreground">{detailItem.qtd_esperada}</p></div>
-                <div><p className="text-xs text-muted-foreground">Qtd Conferida</p><p className="text-sm font-bold text-foreground">{detailItem.qtd_conferida}</p></div>
-                <div><p className="text-xs text-muted-foreground">Qtd Armazenada</p><p className="text-sm font-bold text-foreground">{detailItem.qtd_armazenada ?? "—"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Qtd Ocorrência</p><p className="text-sm font-bold text-foreground">{detailItem.qtd_ocorrencia ?? "—"}</p></div>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary/50 border border-border">
-                <p className="text-xs text-muted-foreground">
-                  ⚠️ Detalhes de conferência por lote (HU, Fabricação, Lote, Validade, Quantidade, Usuário, Data/Hora) serão exibidos quando a tabela de conferência estiver disponível.
-                </p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
