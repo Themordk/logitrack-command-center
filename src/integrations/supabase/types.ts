@@ -2632,6 +2632,7 @@ export type Database = {
           nome: string
           tenant_id: string
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
+          tipo_usuario: Database["public"]["Enums"]["enum_tipo_usuario"] | null
           turno_id: string
         }
         Insert: {
@@ -2647,6 +2648,7 @@ export type Database = {
           nome: string
           tenant_id: string
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
+          tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
           turno_id: string
         }
         Update: {
@@ -2662,6 +2664,7 @@ export type Database = {
           nome?: string
           tenant_id?: string
           tipo_operacao?: Database["public"]["Enums"]["enum_tipo_operacao"]
+          tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
           turno_id?: string
         }
         Relationships: [
@@ -3034,6 +3037,7 @@ export type Database = {
         | "RECEBIMENTO"
         | "QUARENTENA"
         | "EXPEDICAO"
+      enum_tipo_usuario: "ADMINISTRADOR" | "GESTOR" | "OPERADOR"
       enum_tipo_veiculo:
         | "VUC"
         | "3/4"
@@ -3291,6 +3295,7 @@ export const Constants = {
         "QUARENTENA",
         "EXPEDICAO",
       ],
+      enum_tipo_usuario: ["ADMINISTRADOR", "GESTOR", "OPERADOR"],
       enum_tipo_veiculo: [
         "VUC",
         "3/4",

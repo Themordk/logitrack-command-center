@@ -30,6 +30,15 @@ import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 
+// Coletor pages
+import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
+import { ColetorHomePage } from "./pages/coletor/ColetorHomePage";
+import { RecebimentoMenuPage } from "./pages/coletor/RecebimentoMenuPage";
+import { RecebimentoIniciarPage } from "./pages/coletor/RecebimentoIniciarPage";
+import { RecebimentoExecucaoPage } from "./pages/coletor/RecebimentoExecucaoPage";
+import { RecebimentoConferenciaPage } from "./pages/coletor/RecebimentoConferenciaPage";
+import { RecebimentoConcluidoPage } from "./pages/coletor/RecebimentoConcluidoPage";
+
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
   "/rastreabilidade": [{ label: "CORE LogiTrack" }, { label: "Rastreabilidade" }],
@@ -107,11 +116,33 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
   }
 }
 
+function renderColetorPage(path: string, onNavigate: (p: string) => void) {
+  switch (path) {
+    case "/coletor/login": return <ColetorLoginPage onNavigate={onNavigate} />;
+    case "/coletor/home": return <ColetorHomePage onNavigate={onNavigate} />;
+    case "/coletor/recebimento": return <RecebimentoMenuPage onNavigate={onNavigate} />;
+    case "/coletor/recebimento/iniciar": return <RecebimentoIniciarPage onNavigate={onNavigate} />;
+    case "/coletor/recebimento/execucao": return <RecebimentoExecucaoPage onNavigate={onNavigate} />;
+    case "/coletor/recebimento/conferencia": return <RecebimentoConferenciaPage onNavigate={onNavigate} />;
+    case "/coletor/recebimento/concluido": return <RecebimentoConcluidoPage onNavigate={onNavigate} />;
+    default: return <ColetorLoginPage onNavigate={onNavigate} />;
+  }
+}
+
 function AppContent() {
   const { tenantId, empresaId, loading, authenticated, login } = useTenant();
   const [currentPath, setCurrentPath] = useState("/");
 
+  // Detect if we're in coletor mode
+  const isColetor = currentPath.startsWith("/coletor");
+
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground">Carregando...</span></div>;
+
+  // Coletor routes handle their own auth
+  if (isColetor) {
+    return renderColetorPage(currentPath, setCurrentPath);
+  }
+
   if (!authenticated) return <LoginPage onLogin={login} />;
 
   const bc = breadcrumbs[currentPath] ?? [
