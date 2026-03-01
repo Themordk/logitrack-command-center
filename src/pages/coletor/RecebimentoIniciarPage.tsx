@@ -8,14 +8,11 @@ import { toast } from "sonner";
 interface Props { onNavigate: (path: string) => void; }
 
 interface MovimentoResumo {
-  movimento_id: string;
+  id: string;
   numero_movimento: number;
   status: string;
   parceiro: string;
-  data_movimento: string;
-  total_itens: number;
-  total_quantidade_esperada: number;
-  total_quantidade_conferida: number;
+  box: string;
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
@@ -35,10 +32,8 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     setLoading(true);
     try {
       const { data, error } = await (supabase as any)
-        .from("vw_movimento_entrada_resumo")
-        .select("*")
-        .in("status", ["LIBERADO", "EM_CONFERENCIA", "DIVERGENCIA"]);
-
+        .from("v_recebimento_iniciar")
+        .select("*");
       if (error) throw error;
       setMovimentos(data || []);
     } catch (err: any) {
@@ -105,10 +100,10 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
           <div className="space-y-2 flex-1 overflow-y-auto">
             {movimentos.map((m) => (
               <button
-                key={m.movimento_id}
-                onClick={() => setSelectedId(m.movimento_id === selectedId ? null : m.movimento_id)}
+                key={m.id}
+                onClick={() => setSelectedId(m.id === selectedId ? null : m.id)}
                 className={`w-full text-left p-3 rounded-xl border transition-all ${
-                  selectedId === m.movimento_id
+                  selectedId === m.id
                     ? "bg-[hsl(217,91%,50%)]/15 border-[hsl(217,91%,50%)]"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
@@ -119,8 +114,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
                 </div>
                 <p className="text-sm text-[hsl(213,31%,70%)] truncate">{m.parceiro || "—"}</p>
                 <div className="flex items-center gap-3 mt-1 text-xs text-[hsl(213,31%,50%)]">
-                  <span>{m.total_itens} itens</span>
-                  <span>{m.total_quantidade_conferida}/{m.total_quantidade_esperada} conf.</span>
+                  <span>Box: {m.box || "—"}</span>
                 </div>
               </button>
             ))}
