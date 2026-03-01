@@ -4,7 +4,7 @@ import { Boxes, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 
 interface LoginPageProps {
-  onLogin: () => void;
+  onLogin: (tipoUsuario?: string) => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -26,7 +26,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       // Validate usuario record
       const { data: usuario, error: userError } = await (supabase as any)
         .from("usuario")
-        .select("id, tenant_id, empresa_id, armazem_id, ativo, nome")
+        .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario")
         .eq("id", userId)
         .single();
 
@@ -46,9 +46,24 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       localStorage.setItem("core_armazem_id", usuario.armazem_id);
       localStorage.setItem("core_usuario_id", usuario.id);
       localStorage.setItem("core_usuario_nome", usuario.nome);
+      localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");
 
       toast.success(`Bem-vindo, ${usuario.nome}!`);
-      onLogin();
+
+      // If OPERADOR, redirect to collector home
+      if (usuario.tipo_usuario === "OPERADOR") {
+        // Create session log for collector
+        const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
+          tenant_id: usuario.tenant_id,
+          usuario_id: usuario.id,
+          inicio_sessao: new Date().toISOString(),
+          ultimo_heartbeat: new Date().toISOString(),
+        }).select("id").single();
+        if (sessao?.id) localStorage.setItem("coletor_session_id", sessao.id);
+        onLogin("OPERADOR");
+      } else {
+        onLogin();
+      }
     } catch (err: any) {
       toast.error(err.message || "Erro ao fazer login.");
     } finally {
