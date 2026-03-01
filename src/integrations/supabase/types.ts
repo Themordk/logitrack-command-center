@@ -1255,6 +1255,13 @@ export type Database = {
             foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
             columns: ["movimento_entrada_id"]
             isOneToOne: false
+            referencedRelation: "v_recebimento_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_entrada_armazenagem_detalhe"
             referencedColumns: ["movimento_id"]
           },
@@ -1331,6 +1338,13 @@ export type Database = {
             columns: ["movimento_entrada_id"]
             isOneToOne: false
             referencedRelation: "movimento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "v_recebimento_iniciar"
             referencedColumns: ["id"]
           },
           {
@@ -2860,6 +2874,16 @@ export type Database = {
       }
     }
     Views: {
+      v_recebimento_iniciar: {
+        Row: {
+          box: string | null
+          id: string | null
+          numero_movimento: number | null
+          parceiro: string | null
+          status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+        }
+        Relationships: []
+      }
       vw_movimento_entrada_armazenagem_detalhe: {
         Row: {
           codigo_hu: string | null
