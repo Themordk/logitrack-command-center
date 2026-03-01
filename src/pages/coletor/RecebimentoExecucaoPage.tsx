@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
@@ -9,6 +9,19 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
+
+interface ProdutoInfo {
+  ean: string;
+  fator: number;
+  descricao: string;
+  sku: string;
+  referencia: string;
+  lastro: number | null;
+  camada: number | null;
+  tipo_controle: string;
+  produto_id: string;
+  qtd_recebida: number;
+}
 
 interface ConferenciaItem {
   sku: string;
@@ -22,23 +35,8 @@ interface ConferenciaItem {
   status: string;
 }
 
-interface ProdutoInfo {
-  id: string;
-  sku: string;
-  descricao: string;
-  tipo_controle: string;
-  lastro: number | null;
-  camada: number | null;
-  fator_caixa: number | null;
-}
-
 export function RecebimentoExecucaoPage({ onNavigate }: Props) {
-  const params = new URLSearchParams(window.location.search.replace(/.*\?/, ""));
-  // Extract movimento_id from the path-based state
-  const [movimentoId] = useState(() => {
-    const stored = sessionStorage.getItem("coletor_movimento_id");
-    return stored || "";
-  });
+  const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
@@ -59,22 +57,17 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [validade, setValidade] = useState("");
 
   useEffect(() => {
-    // Get movimentoId from navigation state
-    const pathParts = window.location.pathname.split("movimento_id=");
-    const searchParams = window.location.href.split("movimento_id=")[1];
-    if (searchParams) sessionStorage.setItem("coletor_movimento_id", searchParams);
-    loadConferencia();
+    if (movimentoId) loadConferencia();
   }, []);
 
   const loadConferencia = async () => {
-    const mid = sessionStorage.getItem("coletor_movimento_id");
-    if (!mid) return;
+    if (!movimentoId) return;
     setLoading(true);
     try {
       const { data, error } = await (supabase as any)
         .from("vw_movimento_entrada_conferencia_detalhe")
         .select("*")
-        .eq("movimento_id", mid);
+        .eq("movimento_id", movimentoId);
       if (error) throw error;
       setItems(data || []);
     } catch {
@@ -89,41 +82,65 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     setCurrentProduct(null);
     setQuantidade("");
 
+    if (!movimentoId || !tenantId) {
+      showOverlayMsg("error", "Movimento não identificado");
+      return;
+    }
+
     try {
-      // Look up product by SKU or EAN
-      const { data: produto, error } = await (supabase as any)
-        .from("produto")
-        .select("id, sku, descricao, tipo_controle, lastro, camada, fator_caixa")
-        .eq("tenant_id", tenantId)
-        .or(`sku.eq.${code}`)
-        .single();
+      // Query: join movimento_entrada_item + produto_embalagem + produto
+      // filtered by movimento_entrada_id and ean
+      const { data, error } = await (supabase as any)
+        .from("movimento_entrada_item")
+        .select(`
+          produto_id,
+          produto_embalagem!inner(ean, fator),
+          produto:produto_id(id, sku, descricao, referencia, lastro, camada, tipo_controle)
+        `)
+        .eq("movimento_entrada_id", movimentoId)
+        .eq("produto_embalagem.ean", code)
+        .limit(1);
 
-      if (error || !produto) {
-        // Try EAN in produto_embalagem
-        const { data: emb } = await (supabase as any)
-          .from("produto_embalagem")
-          .select("produto_id, produto:produto_id(id, sku, descricao, tipo_controle, lastro, camada, fator_caixa)")
-          .eq("tenant_id", tenantId)
-          .eq("ean", code)
-          .single();
+      if (error) throw error;
 
-        if (emb?.produto) {
-          setCurrentProduct(emb.produto as ProdutoInfo);
-          showOverlay("success", `Produto: ${(emb.produto as ProdutoInfo).sku}`);
-        } else {
-          showOverlay("error", "Produto não encontrado");
-        }
+      if (!data || data.length === 0) {
+        showOverlayMsg("error", "Produto não pertence a este recebimento");
         return;
       }
 
-      setCurrentProduct(produto);
-      showOverlay("success", `Produto: ${produto.sku}`);
-    } catch {
-      showOverlay("error", "Erro ao buscar produto");
+      const row = data[0];
+      const produto = row.produto;
+      const embalagem = Array.isArray(row.produto_embalagem) ? row.produto_embalagem[0] : row.produto_embalagem;
+
+      // Get qtd_recebida from conferencia view
+      const { data: confData } = await (supabase as any)
+        .from("vw_movimento_entrada_conferencia_detalhe")
+        .select("quantidade_executada")
+        .eq("movimento_id", movimentoId)
+        .eq("sku", produto.sku);
+
+      const qtdRecebida = confData?.reduce((sum: number, r: any) => sum + (r.quantidade_executada || 0), 0) || 0;
+
+      setCurrentProduct({
+        ean: embalagem.ean,
+        fator: embalagem.fator,
+        descricao: produto.descricao,
+        sku: produto.sku,
+        referencia: produto.referencia,
+        lastro: produto.lastro,
+        camada: produto.camada,
+        tipo_controle: produto.tipo_controle,
+        produto_id: produto.id,
+        qtd_recebida: qtdRecebida,
+      });
+      showOverlayMsg("success", `Produto: ${produto.sku}`);
+    } catch (err: any) {
+      console.error(err);
+      showOverlayMsg("error", "Erro ao buscar produto");
     }
   };
 
-  const showOverlay = (type: OverlayType, msg: string) => {
+  const showOverlayMsg = (type: OverlayType, msg: string) => {
     setOverlay(type);
     setOverlayMsg(msg);
   };
@@ -140,19 +157,18 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
   const doConfirm = async () => {
     if (!currentProduct || !quantidade) return;
-    const mid = sessionStorage.getItem("coletor_movimento_id");
-    if (!mid || !tenantId || !usuarioId) return;
+    if (!movimentoId || !tenantId || !usuarioId) return;
     setSaving(true);
 
     try {
-      // Find the tarefa_execucao for this movement/product
+      // Find tarefa for this movement/product
       const { data: tarefas } = await (supabase as any)
         .from("tarefa")
         .select("id")
         .eq("tenant_id", tenantId)
-        .eq("id_documento_origem", mid)
+        .eq("id_documento_origem", movimentoId)
         .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
-        .eq("produto_id", currentProduct.id)
+        .eq("produto_id", currentProduct.produto_id)
         .limit(1);
 
       if (!tarefas || tarefas.length === 0) {
@@ -192,7 +208,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         execId = newExec.id;
       }
 
-      // Update tarefa_execucao with qty and lote data
+      // Update tarefa_execucao
       const updatePayload: any = {
         quantidade_executada: Number(quantidade),
         status: "CONCLUIDA",
@@ -215,10 +231,10 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         tenant_id: tenantId,
         execucao_tarefa_id: execId,
         tipo_evento: "CONFERENCIA",
-        carga_util: { produto_id: currentProduct.id, sku: currentProduct.sku, quantidade: Number(quantidade), lote, serie },
+        carga_util: { produto_id: currentProduct.produto_id, sku: currentProduct.sku, quantidade: Number(quantidade), lote, serie },
       });
 
-      showOverlay("success", `✔ ${quantidade} un. confirmadas`);
+      showOverlayMsg("success", `✔ ${quantidade} un. confirmadas`);
 
       // Reset
       setCurrentProduct(null);
@@ -229,11 +245,10 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       setValidade("");
       setShowLoteModal(false);
 
-      // Reload items
       setTimeout(loadConferencia, 1000);
     } catch (err: any) {
       toast.error(err.message || "Erro ao confirmar.");
-      showOverlay("error", "Erro ao confirmar");
+      showOverlayMsg("error", "Erro ao confirmar");
     } finally {
       setSaving(false);
     }
@@ -244,7 +259,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       {/* Scanner */}
-      <ScanField label="Escanear produto" lastScanned={lastScanned} onScan={handleScan} />
+      <ScanField label="Escanear EAN do produto" lastScanned={lastScanned} onScan={handleScan} />
 
       {/* Current product info */}
       {currentProduct && (
@@ -253,8 +268,14 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
           descricao={currentProduct.descricao}
           lastro={currentProduct.lastro ?? undefined}
           camada={currentProduct.camada ?? undefined}
-          fatorCaixa={currentProduct.fator_caixa ?? undefined}
-        />
+          fatorCaixa={currentProduct.fator}
+        >
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(213,31%,55%)]">
+            <span>Ref: <b className="text-[hsl(213,31%,80%)]">{currentProduct.referencia}</b></span>
+            <span>EAN: <b className="text-[hsl(213,31%,80%)]">{currentProduct.ean}</b></span>
+            <span>Qtd Recebida: <b className="text-[#22C55E]">{currentProduct.qtd_recebida}</b></span>
+          </div>
+        </InfoCard>
       )}
 
       {/* Quantity input */}
@@ -303,9 +324,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Footer action when no product selected */}
+      {/* Footer action */}
       {!currentProduct && items.length > 0 && (
-        <ActionButton onClick={() => onNavigate(`/coletor/recebimento/conferencia`)} variant="primary">
+        <ActionButton onClick={() => onNavigate("/coletor/recebimento/conferencia")} variant="primary">
           VER RESUMO / FINALIZAR
         </ActionButton>
       )}
