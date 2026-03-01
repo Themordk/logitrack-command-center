@@ -9,7 +9,7 @@ interface TenantContextType {
   usuarioNome: string | null;
   loading: boolean;
   authenticated: boolean;
-  login: () => void;
+  login: (tipoUsuario?: string) => void;
   logout: () => void;
 }
 
@@ -78,9 +78,10 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setUsuarioNome(null);
   };
 
-  const login = () => {
+  const login = (tipoUsuario?: string) => {
     loadFromStorage();
     setAuthenticated(true);
+    if (tipoUsuario) localStorage.setItem("core_tipo_usuario", tipoUsuario);
   };
 
   const logout = async () => {

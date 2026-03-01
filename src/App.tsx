@@ -143,7 +143,15 @@ function AppContent() {
     return renderColetorPage(currentPath, setCurrentPath);
   }
 
-  if (!authenticated) return <LoginPage onLogin={login} />;
+  if (!authenticated) {
+    const handleLogin = (tipoUsuario?: string) => {
+      login(tipoUsuario);
+      if (tipoUsuario === "OPERADOR") {
+        setCurrentPath("/coletor/home");
+      }
+    };
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   const bc = breadcrumbs[currentPath] ?? [
     { label: "CORE LogiTrack" },
