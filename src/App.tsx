@@ -116,7 +116,16 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
   }
 }
 
-function renderColetorPage(path: string, onNavigate: (p: string) => void) {
+function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
+  // Separate path from query string
+  const [path, queryString] = fullPath.split("?");
+  const params = new URLSearchParams(queryString || "");
+
+  // Store movimento_id when navigating to execucao
+  if (path === "/coletor/recebimento/execucao" && params.get("movimento_id")) {
+    sessionStorage.setItem("coletor_movimento_id", params.get("movimento_id")!);
+  }
+
   switch (path) {
     case "/coletor/login": return <ColetorLoginPage onNavigate={onNavigate} />;
     case "/coletor/home": return <ColetorHomePage onNavigate={onNavigate} />;
