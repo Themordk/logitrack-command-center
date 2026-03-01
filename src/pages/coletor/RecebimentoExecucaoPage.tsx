@@ -88,29 +88,44 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
 
     try {
-      // Query: join movimento_entrada_item + produto_embalagem + produto
-      // filtered by movimento_entrada_id and ean
-      const { data, error } = await (supabase as any)
-        .from("movimento_entrada_item")
-        .select(`
-          produto_id,
-          produto_embalagem!inner(ean, fator),
-          produto:produto_id(id, sku, descricao, referencia, lastro, camada, tipo_controle)
-        `)
-        .eq("movimento_entrada_id", movimentoId)
-        .eq("produto_embalagem.ean", code)
+      // Step 1: Find produto_embalagem by EAN
+      const { data: embData, error: embErr } = await (supabase as any)
+        .from("produto_embalagem")
+        .select("produto_id, ean, fator")
+        .eq("ean", code)
         .limit(1);
 
-      if (error) throw error;
+      if (embErr) throw embErr;
+      if (!embData || embData.length === 0) {
+        showOverlayMsg("error", "EAN não encontrado");
+        return;
+      }
 
-      if (!data || data.length === 0) {
+      const embalagem = embData[0];
+
+      // Step 2: Check if produto belongs to this movimento
+      const { data: meiData, error: meiErr } = await (supabase as any)
+        .from("movimento_entrada_item")
+        .select("id")
+        .eq("movimento_entrada_id", movimentoId)
+        .eq("produto_id", embalagem.produto_id)
+        .limit(1);
+
+      if (meiErr) throw meiErr;
+      if (!meiData || meiData.length === 0) {
         showOverlayMsg("error", "Produto não pertence a este recebimento");
         return;
       }
 
-      const row = data[0];
-      const produto = row.produto;
-      const embalagem = Array.isArray(row.produto_embalagem) ? row.produto_embalagem[0] : row.produto_embalagem;
+      // Step 3: Get produto details
+      const { data: prodData, error: prodErr } = await (supabase as any)
+        .from("produto")
+        .select("id, sku, descricao, referencia, lastro, camada, tipo_controle")
+        .eq("id", embalagem.produto_id)
+        .single();
+
+      if (prodErr) throw prodErr;
+      const produto = prodData;
 
       // Get qtd_recebida from conferencia view
       const { data: confData } = await (supabase as any)
