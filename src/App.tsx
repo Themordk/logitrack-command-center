@@ -153,13 +153,12 @@ function AppContent() {
   }
 
   if (!authenticated) {
-    const handleLogin = (tipoUsuario?: string) => {
-      login(tipoUsuario);
-      if (tipoUsuario === "OPERADOR") {
-        setCurrentPath("/coletor/home");
-      }
-    };
-    return <LoginPage onLogin={handleLogin} />;
+    return (
+      <LoginPage
+        onLogin={() => login()}
+        onNavigateColetor={() => setCurrentPath("/coletor/login")}
+      />
+    );
   }
 
   const bc = breadcrumbs[currentPath] ?? [

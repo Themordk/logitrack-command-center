@@ -4,10 +4,11 @@ import { Boxes, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 
 interface LoginPageProps {
-  onLogin: (tipoUsuario?: string) => void;
+  onLogin: () => void;
+  onNavigateColetor: () => void;
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,21 +50,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");
 
       toast.success(`Bem-vindo, ${usuario.nome}!`);
-
-      // If OPERADOR, redirect to collector home
-      if (usuario.tipo_usuario === "OPERADOR") {
-        // Create session log for collector
-        const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
-          tenant_id: usuario.tenant_id,
-          usuario_id: usuario.id,
-          inicio_sessao: new Date().toISOString(),
-          ultimo_heartbeat: new Date().toISOString(),
-        }).select("id").single();
-        if (sessao?.id) localStorage.setItem("coletor_session_id", sessao.id);
-        onLogin("OPERADOR");
-      } else {
-        onLogin();
-      }
+      onLogin();
     } catch (err: any) {
       toast.error(err.message || "Erro ao fazer login.");
     } finally {
@@ -118,6 +105,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             Entrar
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={onNavigateColetor}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
+          >
+            Acessar Coletor de Dados
+          </button>
+        </div>
       </div>
     </div>
   );
