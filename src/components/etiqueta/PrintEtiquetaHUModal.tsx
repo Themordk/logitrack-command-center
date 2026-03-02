@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Printer, X, Eye, Settings2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaHUPreview } from "./EtiquetaHUPreview";
+import { getPrintCSS, TEMPLATES } from "./thermalEngine";
 
 interface PrintEtiquetaHUModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const [showPreview, setShowPreview] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const plural = hus.length > 1;
+  const template = TEMPLATES.ARMAZEM_100x40_H;
 
   const handleGerar = () => {
     if (saida === "preview") setShowPreview(true);
@@ -25,11 +27,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
+    const css = getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas HU – CORE LogiTrack</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}@page{size:100mm 40mm;margin:0}body{background:white;font-family:Arial,Helvetica,sans-serif}.etiqueta-core{page-break-after:always;break-after:page}</style>
-</head><body>${printContent.innerHTML}</body></html>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas HU – CORE LogiTrack</title><style>${css}</style></head><body>${printContent.innerHTML}</body></html>`;
     win.document.open();
     win.document.write(html);
     win.document.close();
@@ -57,7 +58,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
           <div className="space-y-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tamanho</label>
-              <div className="text-sm text-foreground bg-secondary rounded-lg px-3 py-2.5 border border-border">100mm × 40mm (Padrão Industrial)</div>
+              <div className="text-sm text-foreground bg-secondary rounded-lg px-3 py-2.5 border border-border">100mm × 40mm · 800×320px (203 DPI)</div>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🖨️ Saída</label>
@@ -69,6 +70,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
                 <option value="preview">Visualizar (Preview)</option>
                 <option value="imprimir">Imprimir Diretamente</option>
               </select>
+            </div>
+
+            <div className="text-[10px] text-muted-foreground bg-secondary/50 rounded px-2 py-1.5">
+              Otimizado para Elgin L42PRO · 203 DPI · Code128 · Dimensões fixas
             </div>
           </div>
 
@@ -88,7 +93,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
               <Eye size={18} className="text-primary" />
               <div>
                 <p className="text-sm font-semibold text-foreground">Preview – {hus.length} {plural ? "etiquetas" : "etiqueta"}</p>
-                <p className="text-xs text-muted-foreground">100x40 · Horizontal · Padrão CORE HU</p>
+                <p className="text-xs text-muted-foreground">100×40mm · 800×320px · Padrão CORE HU</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
