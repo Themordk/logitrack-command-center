@@ -21,7 +21,6 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const tenantId = localStorage.getItem("core_tenant_id");
-  const armazemId = localStorage.getItem("core_armazem_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
   useEffect(() => {
@@ -36,7 +35,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
         .select("*");
       if (error) throw error;
       setMovimentos(data || []);
-    } catch (err: any) {
+    } catch {
       toast.error("Erro ao carregar movimentos.");
     } finally {
       setLoading(false);
@@ -47,32 +46,23 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     if (!selectedId || !tenantId || !usuarioId) return;
     setConfirming(true);
     try {
-      // Find tarefa for this movement
-      const { data: tarefas, error: tErr } = await (supabase as any)
-        .from("tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("id_documento_origem", selectedId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
-        .eq("status", "CRIADA")
-        .limit(1);
+      // Update movimento_entrada: set conferencia_iniciada
+      const { error: updErr } = await (supabase as any)
+        .from("movimento_entrada")
+        .update({
+          conferencia_iniciada_em: new Date().toISOString(),
+          conferencia_iniciada_por: usuarioId,
+          status: "EM_CONFERENCIA",
+        })
+        .eq("id", selectedId);
 
-      if (tErr) throw tErr;
+      if (updErr) throw updErr;
 
-      if (tarefas && tarefas.length > 0) {
-        // Create tarefa_execucao
-        const { error: execErr } = await (supabase as any).from("tarefa_execucao").insert({
-          tenant_id: tenantId,
-          tarefa_id: tarefas[0].id,
-          usuario_id: usuarioId,
-          status: "ATRIBUIDA",
-          atribuido_em: new Date().toISOString(),
-        });
-        if (execErr) throw execErr;
-      }
+      // Store selected movimento in session
+      sessionStorage.setItem("coletor_movimento_id", selectedId);
 
       toast.success("Conferência iniciada!");
-      onNavigate(`/coletor/recebimento/execucao?movimento_id=${selectedId}`);
+      onNavigate("/coletor/recebimento/execucao");
     } catch (err: any) {
       toast.error(err.message || "Erro ao iniciar conferência.");
     } finally {
@@ -120,7 +110,6 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
             ))}
           </div>
 
-          {/* Confirm modal inline */}
           {selectedId && (
             <div className="pt-2 space-y-2">
               <ActionButton onClick={handleConfirmStart} loading={confirming} variant="success">

@@ -1138,6 +1138,10 @@ export type Database = {
         Row: {
           armazem_id: string
           box_id: string
+          conferencia_finalizada_em: string | null
+          conferencia_finalizada_por: string | null
+          conferencia_iniciada_em: string | null
+          conferencia_iniciada_por: string | null
           confirma_volume: boolean
           created_at: string | null
           created_by: string | null
@@ -1155,6 +1159,10 @@ export type Database = {
         Insert: {
           armazem_id: string
           box_id: string
+          conferencia_finalizada_em?: string | null
+          conferencia_finalizada_por?: string | null
+          conferencia_iniciada_em?: string | null
+          conferencia_iniciada_por?: string | null
           confirma_volume?: boolean
           created_at?: string | null
           created_by?: string | null
@@ -1172,6 +1180,10 @@ export type Database = {
         Update: {
           armazem_id?: string
           box_id?: string
+          conferencia_finalizada_em?: string | null
+          conferencia_finalizada_por?: string | null
+          conferencia_iniciada_em?: string | null
+          conferencia_iniciada_por?: string | null
           confirma_volume?: boolean
           created_at?: string | null
           created_by?: string | null
@@ -1199,6 +1211,20 @@ export type Database = {
             columns: ["box_id"]
             isOneToOne: false
             referencedRelation: "box"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_conferencia_finalizada_por_fkey"
+            columns: ["conferencia_finalizada_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_conferencia_iniciada_por_fkey"
+            columns: ["conferencia_iniciada_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
           {
@@ -2225,6 +2251,7 @@ export type Database = {
           carga_util: Json | null
           execucao_tarefa_id: string
           id: number
+          tarefa_id: string | null
           tenant_id: string
           timestamp_evento: string
           tipo_evento: Database["public"]["Enums"]["enum_tipo_evento_execucao"]
@@ -2233,6 +2260,7 @@ export type Database = {
           carga_util?: Json | null
           execucao_tarefa_id: string
           id?: number
+          tarefa_id?: string | null
           tenant_id: string
           timestamp_evento?: string
           tipo_evento: Database["public"]["Enums"]["enum_tipo_evento_execucao"]
@@ -2241,6 +2269,7 @@ export type Database = {
           carga_util?: Json | null
           execucao_tarefa_id?: string
           id?: number
+          tarefa_id?: string | null
           tenant_id?: string
           timestamp_evento?: string
           tipo_evento?: Database["public"]["Enums"]["enum_tipo_evento_execucao"]
@@ -2258,6 +2287,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_evento_execucao_tarefa_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
             referencedColumns: ["id"]
           },
         ]
@@ -3004,10 +3040,10 @@ export type Database = {
       enum_status_mov_entrada:
         | "GERADO"
         | "LIBERADO"
-        | "EM CONFERENCIA"
+        | "EM_CONFERENCIA"
         | "CONFERIDO"
         | "DIVERGENCIA"
-        | "LIB. ARMAZENAGEM"
+        | "LIB_ARMAZENAGEM"
         | "ARMAZENADO"
       enum_status_onda_carregamento:
         | "CRIADA"
@@ -3256,10 +3292,10 @@ export const Constants = {
       enum_status_mov_entrada: [
         "GERADO",
         "LIBERADO",
-        "EM CONFERENCIA",
+        "EM_CONFERENCIA",
         "CONFERIDO",
         "DIVERGENCIA",
-        "LIB. ARMAZENAGEM",
+        "LIB_ARMAZENAGEM",
         "ARMAZENADO",
       ],
       enum_status_onda_carregamento: [
