@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
+import { nowBrasilia } from "@/lib/dateUtils";
 import { Loader2, CheckCircle, AlertTriangle, Package } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -61,7 +62,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       const { error } = await (supabase as any)
         .from("movimento_entrada")
         .update({
-          conferencia_finalizada_em: new Date().toISOString(),
+          conferencia_finalizada_em: nowBrasilia(),
           conferencia_finalizada_por: usuarioId,
           status: "CONFERIDO",
         })

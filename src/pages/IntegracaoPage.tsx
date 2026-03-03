@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { nowBrasilia } from "@/lib/dateUtils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Save, Loader2, Database, Settings2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -97,7 +98,7 @@ export function IntegracaoPage() {
         banco: config.banco,
         usuario_bd: config.usuario_bd,
         tipo_banco: config.tipo_banco,
-        updated_at: new Date().toISOString(),
+        updated_at: nowBrasilia(),
       };
       // Only update password if user typed a new one
       if (config.senha) {
@@ -137,7 +138,7 @@ export function IntegracaoPage() {
           tabela_erp: val.tabela_erp || null,
           campo_chave: val.campo_chave || null,
           campo_atualizacao: val.campo_atualizacao || null,
-          updated_at: new Date().toISOString(),
+          updated_at: nowBrasilia(),
         };
         await (supabase as any).from("integracao_objetos").upsert(payload, {
           onConflict: "tenant_id,armazem_id,objeto_sistema",

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { nowBrasilia } from "@/lib/dateUtils";
 import { Wifi, WifiOff, LogOut } from "lucide-react";
 
 interface ColetorLayoutProps {
@@ -28,7 +29,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", onNavigate, sh
     const sid = sessionIdRef.current;
     if (!sid) return;
     const iv = setInterval(async () => {
-      await (supabase as any).from("log_sessao_usuario").update({ ultimo_heartbeat: new Date().toISOString() }).eq("id", sid);
+      await (supabase as any).from("log_sessao_usuario").update({ ultimo_heartbeat: nowBrasilia() }).eq("id", sid);
     }, 30000);
     return () => clearInterval(iv);
   }, []);
@@ -36,7 +37,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", onNavigate, sh
   const handleLogout = async () => {
     const sid = sessionIdRef.current;
     if (sid) {
-      await (supabase as any).from("log_sessao_usuario").update({ fim_sessao: new Date().toISOString() }).eq("id", sid);
+      await (supabase as any).from("log_sessao_usuario").update({ fim_sessao: nowBrasilia() }).eq("id", sid);
       localStorage.removeItem("coletor_session_id");
     }
     await supabase.auth.signOut();

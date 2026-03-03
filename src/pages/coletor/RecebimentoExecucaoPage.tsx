@@ -6,6 +6,7 @@ import { InfoCard } from "@/components/coletor/InfoCard";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
+import { nowBrasilia } from "@/lib/dateUtils";
 import { Loader2, Trash2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -263,7 +264,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     setSaving(true);
 
     try {
-      const now = new Date().toISOString();
+      const now = nowBrasilia();
 
       // Insert tarefa_execucao with status CONCLUIDA
       const insertPayload: any = {
