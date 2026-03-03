@@ -2988,12 +2988,50 @@ export type Database = {
         }
         Returns: string
       }
+      gerar_tarefas_armazenagem_s_divergencia: {
+        Args: { p_movimento_entrada_id: string; p_tenant_id: string }
+        Returns: string
+      }
       gerar_tarefas_conferencia_entrada: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
         Returns: string
       }
       get_current_tenant: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
+      rpc_coletor_armazenagem_buscar_tarefa: {
+        Args: {
+          p_codigo_scan: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          produto_descricao: string
+          produto_id: string
+          quantidade_armazenada: number
+          quantidade_requerida: number
+          quantidade_restante: number
+          tarefa_id: string
+        }[]
+      }
+      rpc_coletor_armazenagem_dashboard: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          documentos_pendentes: number
+          percentual_concluido: number
+          produtos_pendentes: number
+          total_a_armazenar: number
+          total_armazenado: number
+        }[]
+      }
+      rpc_coletor_armazenagem_execucao: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          estoque_picking: number
+          estoque_pulmao: number
+          total_a_armazenar: number
+          total_armazenado: number
+        }[]
+      }
     }
     Enums: {
       enum_agrupar_sep_por:

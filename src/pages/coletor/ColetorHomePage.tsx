@@ -15,8 +15,8 @@ interface ModuleCard {
 
 const modules: ModuleCard[] = [
   { label: "Recebimento", icon: <ArrowDownToLine size={32} />, path: "/coletor/recebimento", color: "hsl(217,91%,50%)" },
-  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/home", color: "hsl(142,76%,36%)" },
-  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/home", color: "hsl(45,93%,47%)" },
+  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/armazenagem", color: "hsl(142,76%,36%)" },
+  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)" },
   { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/home", color: "hsl(280,70%,55%)" },
   { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/home", color: "hsl(200,80%,50%)" },
   { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/home", color: "hsl(0,84%,60%)" },
