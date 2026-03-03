@@ -194,9 +194,63 @@ export function MovimentoEntradaPage() {
     }
   };
 
+  const handleRetirarConferencia = async (movId: string, status: string) => {
+    if (status !== "LIBERADO") {
+      toast.warning("Apenas movimentos com status 'Liberado' podem ser retirados da conferência.");
+      return;
+    }
+    try {
+      const { error } = await (supabase as any)
+        .from("movimento_entrada")
+        .update({ status: "GERADO" })
+        .eq("id", movId)
+        .eq("status", "LIBERADO");
+      if (error) throw error;
+      toast.success("Movimento retirado da conferência com sucesso.");
+      fetchMovements();
+      fetchCounts();
+      if (selectedMov === movId) loadDetails(movId, "GERADO");
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleLiberarArmazenagem = async (movId: string, status: string) => {
+    if (status !== "CONFERIDO" && status !== "DIVERGENCIA") {
+      toast.warning("Apenas movimentos conferidos podem ser liberados para armazenagem.");
+      return;
+    }
+    try {
+      const { data, error } = await supabase.rpc("gerar_tarefas_armazenagem_s_divergencia" as any, {
+        p_movimento_entrada_id: movId,
+        p_tenant_id: tenantId,
+      });
+      if (error) throw error;
+      const msg = String(data || "");
+      if (msg.toLowerCase().includes("erro")) {
+        toast.error(msg);
+      } else {
+        toast.success(msg || "Armazenagem liberada com sucesso.");
+        fetchMovements();
+        fetchCounts();
+        if (selectedMov === movId) loadDetails(movId, "LIB_ARMAZENAGEM");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleMenuAction = (action: string, movId: string, status: string) => {
     if (action === "liberar_conferencia") {
       handleLiberarConferencia(movId, status);
+      return;
+    }
+    if (action === "retirar_conferencia") {
+      handleRetirarConferencia(movId, status);
+      return;
+    }
+    if (action === "liberar_armazenagem") {
+      handleLiberarArmazenagem(movId, status);
       return;
     }
     toast.info(`Ação "${action}" será implementada em breve.`);
