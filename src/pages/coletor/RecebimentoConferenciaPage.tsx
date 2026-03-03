@@ -129,8 +129,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
                 </div>
                 <p className="text-xs text-[hsl(213,31%,50%)] mb-1">SKU: {item.sku}</p>
                 <div className="flex gap-4 text-xs">
-                  <span className="text-[hsl(213,31%,60%)]">Esperado: <strong className="text-white">{item.qtd_esperada}</strong></span>
-                  <span className={diverge ? "text-[#F59E0B]" : "text-[#22C55E]"}>Conferido: <strong>{item.qtd_conferida}</strong></span>
+                  <span className="text-[#22C55E]">Conferido: <strong>{item.qtd_conferida}</strong></span>
                 </div>
               </div>
             );
