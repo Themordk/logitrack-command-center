@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
@@ -6,7 +6,7 @@ import { InfoCard } from "@/components/coletor/InfoCard";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -20,18 +20,16 @@ interface ProdutoInfo {
   camada: number | null;
   tipo_controle: string;
   produto_id: string;
-  qtd_recebida: number;
+  tarefa_id: string;
+  peso_variavel: boolean;
 }
 
 interface ConferenciaItem {
+  id: string; // tarefa_execucao id
   sku: string;
   descricao: string;
   quantidade_executada: number;
-  hu: string;
   lote: string;
-  serie: string;
-  fabricacao: string;
-  validade: string;
   status: string;
 }
 
@@ -48,34 +46,119 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Lote/serie modal
+  // Lote/validade modal
   const [showLoteModal, setShowLoteModal] = useState(false);
   const [lote, setLote] = useState("");
-  const [serie, setSerie] = useState("");
   const [fabricacao, setFabricacao] = useState("");
   const [validade, setValidade] = useState("");
 
-  useEffect(() => {
-    if (movimentoId) loadConferencia();
-  }, []);
-
-  const loadConferencia = async () => {
-    if (!movimentoId) return;
+  const loadConferencia = useCallback(async () => {
+    if (!movimentoId || !tenantId) return;
     setLoading(true);
     try {
+      // Get executed items via tarefa_execucao joined with tarefa
       const { data, error } = await (supabase as any)
-        .from("vw_movimento_entrada_conferencia_detalhe")
-        .select("*")
-        .eq("movimento_id", movimentoId);
+        .from("tarefa_execucao")
+        .select(`
+          id,
+          quantidade_executada,
+          lote,
+          status,
+          tarefa:tarefa_id (
+            produto:produto_id ( sku, descricao )
+          )
+        `)
+        .eq("tenant_id", tenantId)
+        .eq("status", "CONCLUIDA");
+
       if (error) throw error;
-      setItems(data || []);
+
+      // Filter by movimento - need to cross-reference tarefa
+      const { data: tarefaIds } = await (supabase as any)
+        .from("tarefa")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
+        .in("id_documento_origem", [movimentoId]);
+
+      // Actually tarefa.id_documento_origem points to movimento_entrada_item.id
+      // Let's get all movimento_entrada_item ids for this movement
+      const { data: meiIds } = await (supabase as any)
+        .from("movimento_entrada_item")
+        .select("id")
+        .eq("movimento_entrada_id", movimentoId);
+
+      if (!meiIds) { setItems([]); setLoading(false); return; }
+      const meiIdSet = new Set(meiIds.map((m: any) => m.id));
+
+      // Get tarefas for these items
+      const { data: tarefas } = await (supabase as any)
+        .from("tarefa")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
+        .in("id_documento_origem", meiIds.map((m: any) => m.id));
+
+      if (!tarefas) { setItems([]); setLoading(false); return; }
+      const tarefaIdSet = new Set(tarefas.map((t: any) => t.id));
+
+      // Get execucoes for these tarefas
+      const { data: execucoes } = await (supabase as any)
+        .from("tarefa_execucao")
+        .select("id, quantidade_executada, lote, status, tarefa_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "CONCLUIDA")
+        .in("tarefa_id", tarefas.map((t: any) => t.id));
+
+      if (!execucoes) { setItems([]); setLoading(false); return; }
+
+      // Get product info for tarefas
+      const tarefaProdMap: Record<string, string> = {};
+      for (const t of tarefas) { tarefaProdMap[t.id] = t.id; }
+
+      const { data: tarefasWithProd } = await (supabase as any)
+        .from("tarefa")
+        .select("id, produto_id")
+        .in("id", tarefas.map((t: any) => t.id));
+
+      const prodIds = [...new Set((tarefasWithProd || []).map((t: any) => t.produto_id))];
+      const { data: produtos } = await (supabase as any)
+        .from("produto")
+        .select("id, sku, descricao")
+        .in("id", prodIds);
+
+      const prodMap: Record<string, any> = {};
+      (produtos || []).forEach((p: any) => { prodMap[p.id] = p; });
+
+      const tarefaProdIdMap: Record<string, string> = {};
+      (tarefasWithProd || []).forEach((t: any) => { tarefaProdIdMap[t.id] = t.produto_id; });
+
+      const mapped: ConferenciaItem[] = execucoes.map((e: any) => {
+        const prodId = tarefaProdIdMap[e.tarefa_id];
+        const prod = prodMap[prodId] || {};
+        return {
+          id: e.id,
+          sku: prod.sku || "",
+          descricao: prod.descricao || "",
+          quantidade_executada: e.quantidade_executada || 0,
+          lote: e.lote || "",
+          status: e.status,
+        };
+      });
+
+      setItems(mapped);
     } catch {
       toast.error("Erro ao carregar itens.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [movimentoId, tenantId]);
+
+  useEffect(() => {
+    if (movimentoId) loadConferencia();
+  }, [movimentoId, loadConferencia]);
 
   const handleScan = async (code: string) => {
     setLastScanned(code);
@@ -103,52 +186,55 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       const embalagem = embData[0];
 
-      // Step 2: Check if produto belongs to this movimento
-      const { data: meiData, error: meiErr } = await (supabase as any)
+      // Step 2: Get movimento_entrada_item ids for this movement
+      const { data: meiData } = await (supabase as any)
         .from("movimento_entrada_item")
         .select("id")
         .eq("movimento_entrada_id", movimentoId)
-        .eq("produto_id", embalagem.produto_id)
-        .limit(1);
+        .eq("produto_id", embalagem.produto_id);
 
-      if (meiErr) throw meiErr;
       if (!meiData || meiData.length === 0) {
         showOverlayMsg("error", "Produto não pertence a este recebimento");
         return;
       }
 
-      // Step 3: Get produto details
+      // Step 3: Find tarefa for this item (via id_documento_origem = mei.id)
+      const { data: tarefaData } = await (supabase as any)
+        .from("tarefa")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
+        .in("id_documento_origem", meiData.map((m: any) => m.id))
+        .limit(1);
+
+      if (!tarefaData || tarefaData.length === 0) {
+        showOverlayMsg("error", "Tarefa não encontrada para este produto");
+        return;
+      }
+
+      // Step 4: Get produto details
       const { data: prodData, error: prodErr } = await (supabase as any)
         .from("produto")
-        .select("id, sku, descricao, referencia, lastro, camada, tipo_controle")
+        .select("id, sku, descricao, referencia, lastro, camada, tipo_controle, peso_variavel")
         .eq("id", embalagem.produto_id)
         .single();
 
       if (prodErr) throw prodErr;
-      const produto = prodData;
-
-      // Get qtd_recebida from conferencia view
-      const { data: confData } = await (supabase as any)
-        .from("vw_movimento_entrada_conferencia_detalhe")
-        .select("quantidade_executada")
-        .eq("movimento_id", movimentoId)
-        .eq("sku", produto.sku);
-
-      const qtdRecebida = confData?.reduce((sum: number, r: any) => sum + (r.quantidade_executada || 0), 0) || 0;
 
       setCurrentProduct({
         ean: embalagem.ean,
         fator: embalagem.fator,
-        descricao: produto.descricao,
-        sku: produto.sku,
-        referencia: produto.referencia,
-        lastro: produto.lastro,
-        camada: produto.camada,
-        tipo_controle: produto.tipo_controle,
-        produto_id: produto.id,
-        qtd_recebida: qtdRecebida,
+        descricao: prodData.descricao,
+        sku: prodData.sku,
+        referencia: prodData.referencia,
+        lastro: prodData.lastro,
+        camada: prodData.camada,
+        tipo_controle: prodData.tipo_controle,
+        produto_id: prodData.id,
+        tarefa_id: tarefaData[0].id,
+        peso_variavel: prodData.peso_variavel,
       });
-      showOverlayMsg("success", `Produto: ${produto.sku}`);
+      showOverlayMsg("success", `Produto: ${prodData.sku}`);
     } catch (err: any) {
       console.error(err);
       showOverlayMsg("error", "Erro ao buscar produto");
@@ -163,9 +249,10 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const handleConfirmQty = () => {
     if (!currentProduct) return;
     const ctrl = currentProduct.tipo_controle;
-    if (ctrl === "LOTE" || ctrl === "LOTE_SERIE" || ctrl === "SERIE") {
+    if (ctrl === "LOTE" || ctrl === "VALIDADE" || ctrl === "LOTE_SERIE") {
       setShowLoteModal(true);
     } else {
+      // UNIDADE, METROS - confirm directly
       doConfirm();
     }
   };
@@ -176,77 +263,44 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     setSaving(true);
 
     try {
-      // Find tarefa for this movement/product
-      const { data: tarefas } = await (supabase as any)
-        .from("tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("id_documento_origem", movimentoId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
-        .eq("produto_id", currentProduct.produto_id)
-        .limit(1);
+      const now = new Date().toISOString();
 
-      if (!tarefas || tarefas.length === 0) {
-        toast.error("Tarefa não encontrada para este produto.");
-        setSaving(false);
-        return;
-      }
-
-      const tarefaId = tarefas[0].id;
-
-      // Find or create tarefa_execucao
-      const { data: execExisting } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("tarefa_id", tarefaId)
-        .eq("usuario_id", usuarioId)
-        .eq("status", "ATRIBUIDA")
-        .limit(1);
-
-      let execId: string;
-      if (execExisting && execExisting.length > 0) {
-        execId = execExisting[0].id;
-      } else {
-        const { data: newExec, error: insertErr } = await (supabase as any)
-          .from("tarefa_execucao")
-          .insert({
-            tenant_id: tenantId,
-            tarefa_id: tarefaId,
-            usuario_id: usuarioId,
-            status: "ATRIBUIDA",
-            atribuido_em: new Date().toISOString(),
-          })
-          .select("id")
-          .single();
-        if (insertErr) throw insertErr;
-        execId = newExec.id;
-      }
-
-      // Update tarefa_execucao
-      const updatePayload: any = {
-        quantidade_executada: Number(quantidade),
+      // Insert tarefa_execucao with status CONCLUIDA
+      const insertPayload: any = {
+        tenant_id: tenantId,
+        tarefa_id: currentProduct.tarefa_id,
+        usuario_id: usuarioId,
         status: "CONCLUIDA",
-        concluido_em: new Date().toISOString(),
-        iniciado_em: new Date().toISOString(),
+        atribuido_em: now,
+        iniciado_em: now,
+        concluido_em: now,
+        quantidade_executada: Number(quantidade),
       };
-      if (lote) updatePayload.lote = lote;
-      if (serie) updatePayload.serie = serie;
-      if (validade) updatePayload.validade = validade;
-      if (fabricacao) updatePayload.fabricacao = fabricacao;
+      if (lote) insertPayload.lote = lote;
+      if (validade) insertPayload.validade = validade;
+      if (fabricacao) insertPayload.fabricacao = fabricacao;
 
-      const { error: updErr } = await (supabase as any)
+      const { data: execData, error: execErr } = await (supabase as any)
         .from("tarefa_execucao")
-        .update(updatePayload)
-        .eq("id", execId);
-      if (updErr) throw updErr;
+        .insert(insertPayload)
+        .select("id")
+        .single();
 
-      // Log event
+      if (execErr) throw execErr;
+
+      // Log event in tarefa_evento_execucao
       await (supabase as any).from("tarefa_evento_execucao").insert({
         tenant_id: tenantId,
-        execucao_tarefa_id: execId,
+        execucao_tarefa_id: execData.id,
         tipo_evento: "CONFERENCIA",
-        carga_util: { produto_id: currentProduct.produto_id, sku: currentProduct.sku, quantidade: Number(quantidade), lote, serie },
+        carga_util: {
+          produto_id: currentProduct.produto_id,
+          sku: currentProduct.sku,
+          quantidade: Number(quantidade),
+          lote,
+          validade,
+          fabricacao,
+        },
       });
 
       showOverlayMsg("success", `✔ ${quantidade} un. confirmadas`);
@@ -255,18 +309,49 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       setCurrentProduct(null);
       setQuantidade("");
       setLote("");
-      setSerie("");
       setFabricacao("");
       setValidade("");
       setShowLoteModal(false);
 
-      setTimeout(loadConferencia, 1000);
+      setTimeout(loadConferencia, 800);
     } catch (err: any) {
       toast.error(err.message || "Erro ao confirmar.");
       showOverlayMsg("error", "Erro ao confirmar");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDeleteExecucao = async (execId: string) => {
+    if (!tenantId) return;
+    setDeleting(execId);
+    try {
+      const { error } = await (supabase as any)
+        .from("tarefa_execucao")
+        .delete()
+        .eq("id", execId)
+        .eq("tenant_id", tenantId);
+      if (error) throw error;
+      toast.success("Conferência removida.");
+      loadConferencia();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir.");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // Date scroll helper - generate month options
+  const generateDateOptions = (type: "validade" | "fabricacao") => {
+    const months: string[] = [];
+    const now = new Date();
+    const start = type === "fabricacao" ? -24 : 0;
+    const end = type === "fabricacao" ? 1 : 60;
+    for (let i = start; i < end; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      months.push(d.toISOString().split("T")[0]);
+    }
+    return months;
   };
 
   return (
@@ -288,13 +373,13 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(213,31%,55%)]">
             <span>Ref: <b className="text-[hsl(213,31%,80%)]">{currentProduct.referencia}</b></span>
             <span>EAN: <b className="text-[hsl(213,31%,80%)]">{currentProduct.ean}</b></span>
-            <span>Qtd Recebida: <b className="text-[#22C55E]">{currentProduct.qtd_recebida}</b></span>
+            <span>Controle: <b className="text-[hsl(213,31%,80%)]">{currentProduct.tipo_controle}</b></span>
           </div>
         </InfoCard>
       )}
 
       {/* Quantity input */}
-      {currentProduct && (
+      {currentProduct && !showLoteModal && (
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-semibold text-[hsl(213,31%,65%)] mb-1 uppercase">Quantidade</label>
@@ -324,14 +409,23 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
             <p className="text-sm text-[hsl(213,31%,45%)] text-center py-4">Nenhum item conferido ainda</p>
           ) : (
             <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-              {items.map((item, i) => (
-                <div key={i} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)]">
-                  <div className="flex justify-between items-baseline">
-                    <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
-                    <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
+              {items.map((item) => (
+                <div key={item.id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-baseline">
+                      <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
+                      <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
+                    </div>
+                    <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
+                    {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
                   </div>
-                  <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
-                  {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
+                  <button
+                    onClick={() => handleDeleteExecucao(item.id)}
+                    disabled={deleting === item.id}
+                    className="shrink-0 w-9 h-9 rounded-lg bg-[#E02424]/15 flex items-center justify-center text-[#E02424] active:bg-[#E02424]/30 disabled:opacity-40"
+                  >
+                    {deleting === item.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  </button>
                 </div>
               ))}
             </div>
@@ -346,34 +440,61 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         </ActionButton>
       )}
 
-      {/* Lote/Serie Modal */}
-      {showLoteModal && (
+      {/* Lote/Validade Modal */}
+      {showLoteModal && currentProduct && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center p-4">
           <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-3 animate-in slide-in-from-bottom duration-200">
-            <h3 className="text-lg font-bold text-white">Informações do Lote</h3>
-            {(currentProduct?.tipo_controle === "LOTE" || currentProduct?.tipo_controle === "LOTE_SERIE") && (
-              <div>
-                <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Lote</label>
-                <input value={lote} onChange={(e) => setLote(e.target.value)} className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)]" />
-              </div>
-            )}
-            {(currentProduct?.tipo_controle === "SERIE" || currentProduct?.tipo_controle === "LOTE_SERIE") && (
-              <div>
-                <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Série</label>
-                <input value={serie} onChange={(e) => setSerie(e.target.value)} className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)]" />
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Fabricação</label>
-                <input type="date" value={fabricacao} onChange={(e) => setFabricacao(e.target.value)} className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Validade</label>
-                <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]" />
-              </div>
+            <h3 className="text-lg font-bold text-white">
+              {currentProduct.tipo_controle === "VALIDADE" ? "Informações de Validade" : "Informações do Lote"}
+            </h3>
+
+            {/* Quantidade display */}
+            <div className="rounded-lg bg-[hsl(222,40%,14%)] p-2 text-center">
+              <span className="text-xs text-[hsl(213,31%,55%)] uppercase">Quantidade</span>
+              <p className="text-2xl font-bold text-white">{quantidade}</p>
             </div>
-            <ActionButton onClick={doConfirm} loading={saving} variant="success">CONFIRMAR COM LOTE</ActionButton>
+
+            {(currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && (
+              <div>
+                <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Lote *</label>
+                <input value={lote} onChange={(e) => setLote(e.target.value)} className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)]" autoFocus />
+              </div>
+            )}
+
+            {(currentProduct.tipo_controle === "VALIDADE" || currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Fabricação *</label>
+                  <input
+                    type="date"
+                    value={fabricacao}
+                    onChange={(e) => setFabricacao(e.target.value)}
+                    className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Validade *</label>
+                  <input
+                    type="date"
+                    value={validade}
+                    onChange={(e) => setValidade(e.target.value)}
+                    className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  />
+                </div>
+              </>
+            )}
+
+            <ActionButton
+              onClick={doConfirm}
+              loading={saving}
+              variant="success"
+              disabled={
+                ((currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && !lote) ||
+                ((currentProduct.tipo_controle === "VALIDADE" || currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && (!fabricacao || !validade))
+              }
+            >
+              CONFIRMAR
+            </ActionButton>
             <ActionButton onClick={() => setShowLoteModal(false)} variant="secondary">CANCELAR</ActionButton>
           </div>
         </div>
