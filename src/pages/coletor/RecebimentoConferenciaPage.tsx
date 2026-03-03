@@ -8,22 +8,20 @@ import { Loader2, CheckCircle, AlertTriangle, Package } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
-interface ResumoData {
+interface ItemResumo {
   movimento_id: string;
-  numero_movimento: number;
-  status: string;
-  parceiro: string;
-  total_itens: number;
-  total_quantidade_esperada: number;
-  total_quantidade_conferida: number;
-  total_quantidade_armazenada: number;
-  possui_divergencia: boolean;
+  movimento_item_id: string;
+  sku: string;
+  descricao: string;
+  qtd_esperada: number;
+  qtd_conferida: number;
+  qtd_armazenada: number;
 }
 
 export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
   const usuarioId = localStorage.getItem("core_usuario_id");
-  const [resumo, setResumo] = useState<ResumoData | null>(null);
+  const [itens, setItens] = useState<ItemResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
@@ -34,19 +32,15 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   }, []);
 
   const loadResumo = async () => {
-    if (!movimentoId) {
-      setLoading(false);
-      return;
-    }
+    if (!movimentoId) { setLoading(false); return; }
     setLoading(true);
     try {
       const { data, error } = await (supabase as any)
         .from("vw_movimento_entrada_resumo")
         .select("*")
-        .eq("movimento_id", movimentoId)
-        .maybeSingle();
+        .eq("movimento_id", movimentoId);
       if (error) throw error;
-      setResumo(data);
+      setItens(data || []);
     } catch (err: any) {
       console.error("Erro resumo:", err);
       toast.error("Erro ao carregar resumo.");
@@ -54,6 +48,11 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       setLoading(false);
     }
   };
+
+  const totalItens = itens.length;
+  const totalEsperada = itens.reduce((s, i) => s + Number(i.qtd_esperada || 0), 0);
+  const totalConferida = itens.reduce((s, i) => s + Number(i.qtd_conferida || 0), 0);
+  const possuiDivergencia = itens.some(i => Number(i.qtd_conferida || 0) !== Number(i.qtd_esperada || 0));
 
   const handleFinalizar = async () => {
     if (!movimentoId || !usuarioId) return;
@@ -85,7 +84,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     </ColetorLayout>
   );
 
-  if (!resumo) return (
+  if (itens.length === 0) return (
     <ColetorLayout title="Resumo" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/execucao">
       <div className="flex-1 flex flex-col items-center justify-center text-center gap-3">
         <AlertTriangle size={40} className="text-[#F59E0B]" />
@@ -102,26 +101,14 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       <div className="space-y-4">
-        {/* Movement header */}
-        <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-4 space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="font-mono text-xl font-bold text-white">Mov. #{resumo.numero_movimento}</span>
-            <span className={`text-xs font-bold uppercase px-2 py-1 rounded-lg ${
-              resumo.possui_divergencia ? "bg-[#F59E0B]/20 text-[#F59E0B]" : "bg-[#22C55E]/20 text-[#22C55E]"
-            }`}>{resumo.possui_divergencia ? "DIVERGÊNCIA" : "OK"}</span>
-          </div>
-          <p className="text-sm text-[hsl(213,31%,60%)]">{resumo.parceiro}</p>
-          <p className="text-xs text-[hsl(213,31%,45%)]">Status: {resumo.status?.replace(/_/g, " ")}</p>
-        </div>
-
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
-          <StatCard icon={<Package size={20} />} label="Itens" value={resumo.total_itens} color="#3b82f6" />
-          <StatCard icon={<CheckCircle size={20} />} label="Esperado" value={resumo.total_quantidade_esperada} color="#22C55E" />
-          <StatCard icon={resumo.possui_divergencia ? <AlertTriangle size={20} /> : <CheckCircle size={20} />} label="Conferido" value={resumo.total_quantidade_conferida} color={resumo.possui_divergencia ? "#F59E0B" : "#22C55E"} />
+          <StatCard icon={<Package size={20} />} label="Itens" value={totalItens} color="#3b82f6" />
+          <StatCard icon={<CheckCircle size={20} />} label="Esperado" value={totalEsperada} color="#22C55E" />
+          <StatCard icon={possuiDivergencia ? <AlertTriangle size={20} /> : <CheckCircle size={20} />} label="Conferido" value={totalConferida} color={possuiDivergencia ? "#F59E0B" : "#22C55E"} />
         </div>
 
-        {resumo.possui_divergencia && (
+        {possuiDivergencia && (
           <div className="rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 p-3 flex items-start gap-2">
             <AlertTriangle size={20} className="text-[#F59E0B] shrink-0 mt-0.5" />
             <span className="text-sm text-[#F59E0B]">
@@ -129,6 +116,26 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
             </span>
           </div>
         )}
+
+        {/* Item list */}
+        <div className="space-y-2">
+          {itens.map((item) => {
+            const diverge = Number(item.qtd_conferida || 0) !== Number(item.qtd_esperada || 0);
+            return (
+              <div key={item.movimento_item_id} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
+                  {diverge && <AlertTriangle size={16} className="text-[#F59E0B] shrink-0 ml-2" />}
+                </div>
+                <p className="text-xs text-[hsl(213,31%,50%)] mb-1">SKU: {item.sku}</p>
+                <div className="flex gap-4 text-xs">
+                  <span className="text-[hsl(213,31%,60%)]">Esperado: <strong className="text-white">{item.qtd_esperada}</strong></span>
+                  <span className={diverge ? "text-[#F59E0B]" : "text-[#22C55E]"}>Conferido: <strong>{item.qtd_conferida}</strong></span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         <ActionButton onClick={handleFinalizar} loading={finalizing} variant="success">
           FINALIZAR CONFERÊNCIA
