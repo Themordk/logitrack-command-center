@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Boxes, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { nowBrasilia } from "@/lib/dateUtils";
 import { ActionButton } from "@/components/coletor/ActionButton";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -48,8 +49,8 @@ export function ColetorLoginPage({ onNavigate }: Props) {
       const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
         tenant_id: usuario.tenant_id,
         usuario_id: usuario.id,
-        inicio_sessao: new Date().toISOString(),
-        ultimo_heartbeat: new Date().toISOString(),
+        inicio_sessao: nowBrasilia(),
+        ultimo_heartbeat: nowBrasilia(),
       }).select("id").single();
 
       if (sessao?.id) localStorage.setItem("coletor_session_id", sessao.id);
