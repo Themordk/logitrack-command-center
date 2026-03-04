@@ -659,12 +659,13 @@ export type Database = {
       estoque_geral: {
         Row: {
           atualizado_em: string | null
-          data_validade: string | null
+          data_fabricacao: string
+          data_validade: string
           empresa_id: string
           endereco_id: string | null
-          hu_id: string | null
+          hu_id: string
           id: string
-          lote: string | null
+          lote: string
           numero_serie: string | null
           produto_id: string
           quantidade_bloqueada: number
@@ -674,12 +675,13 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string | null
-          data_validade?: string | null
+          data_fabricacao?: string
+          data_validade?: string
           empresa_id: string
           endereco_id?: string | null
-          hu_id?: string | null
+          hu_id?: string
           id?: string
-          lote?: string | null
+          lote?: string
           numero_serie?: string | null
           produto_id: string
           quantidade_bloqueada?: number
@@ -689,12 +691,13 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string | null
-          data_validade?: string | null
+          data_fabricacao?: string
+          data_validade?: string
           empresa_id?: string
           endereco_id?: string | null
-          hu_id?: string | null
+          hu_id?: string
           id?: string
-          lote?: string | null
+          lote?: string
           numero_serie?: string | null
           produto_id?: string
           quantidade_bloqueada?: number
@@ -736,6 +739,7 @@ export type Database = {
       estoque_movimento: {
         Row: {
           criado_em: string | null
+          data_fabricacao: string | null
           data_validade: string | null
           documento_origem_id: string | null
           empresa_id: string
@@ -747,13 +751,14 @@ export type Database = {
           numero_serie: string | null
           produto_id: string
           quantidade: number
-          tarefa_id: string | null
+          tarefa_execucao_id: string | null
           tenant_id: string
           tipo_movimento: number
           usuario_id: string | null
         }
         Insert: {
           criado_em?: string | null
+          data_fabricacao?: string | null
           data_validade?: string | null
           documento_origem_id?: string | null
           empresa_id: string
@@ -765,13 +770,14 @@ export type Database = {
           numero_serie?: string | null
           produto_id: string
           quantidade: number
-          tarefa_id?: string | null
+          tarefa_execucao_id?: string | null
           tenant_id: string
           tipo_movimento: number
           usuario_id?: string | null
         }
         Update: {
           criado_em?: string | null
+          data_fabricacao?: string | null
           data_validade?: string | null
           documento_origem_id?: string | null
           empresa_id?: string
@@ -783,7 +789,7 @@ export type Database = {
           numero_serie?: string | null
           produto_id?: string
           quantidade?: number
-          tarefa_id?: string | null
+          tarefa_execucao_id?: string | null
           tenant_id?: string
           tipo_movimento?: number
           usuario_id?: string | null
@@ -822,6 +828,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_execucao"
             referencedColumns: ["id"]
           },
           {
@@ -885,11 +898,11 @@ export type Database = {
       hu: {
         Row: {
           altura: number | null
-          armazem_id: string
           codigo_hu: string | null
           disponibilidade:
             | Database["public"]["Enums"]["enum_disponibilidade_hu"]
             | null
+          empresa_id: string | null
           id: string
           m3: number | null
           peso_bruto: number | null
@@ -899,11 +912,11 @@ export type Database = {
         }
         Insert: {
           altura?: number | null
-          armazem_id: string
           codigo_hu?: string | null
           disponibilidade?:
             | Database["public"]["Enums"]["enum_disponibilidade_hu"]
             | null
+          empresa_id?: string | null
           id?: string
           m3?: number | null
           peso_bruto?: number | null
@@ -913,11 +926,11 @@ export type Database = {
         }
         Update: {
           altura?: number | null
-          armazem_id?: string
           codigo_hu?: string | null
           disponibilidade?:
             | Database["public"]["Enums"]["enum_disponibilidade_hu"]
             | null
+          empresa_id?: string | null
           id?: string
           m3?: number | null
           peso_bruto?: number | null
@@ -927,10 +940,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "hu_armazem_id_fkey"
-            columns: ["armazem_id"]
+            foreignKeyName: "hu_empresa_id_fkey"
+            columns: ["empresa_id"]
             isOneToOne: false
-            referencedRelation: "armazem"
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
@@ -2302,6 +2315,8 @@ export type Database = {
         Row: {
           atribuido_em: string
           concluido_em: string | null
+          endereco_destino_id: string | null
+          endereco_origem_id: string | null
           fabricacao: string | null
           hu: string | null
           id: string
@@ -2318,6 +2333,8 @@ export type Database = {
         Insert: {
           atribuido_em?: string
           concluido_em?: string | null
+          endereco_destino_id?: string | null
+          endereco_origem_id?: string | null
           fabricacao?: string | null
           hu?: string | null
           id?: string
@@ -2334,6 +2351,8 @@ export type Database = {
         Update: {
           atribuido_em?: string
           concluido_em?: string | null
+          endereco_destino_id?: string | null
+          endereco_origem_id?: string | null
           fabricacao?: string | null
           hu?: string | null
           id?: string
@@ -2367,6 +2386,20 @@ export type Database = {
             columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_endereco_destino_id_fkey"
+            columns: ["endereco_destino_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_endereco_origem_id_fkey"
+            columns: ["endereco_origem_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
             referencedColumns: ["id"]
           },
           {
@@ -2748,6 +2781,57 @@ export type Database = {
           },
         ]
       }
+      v_reg: {
+        Row: {
+          empresa_id: string | null
+          endereco_destino_id: string | null
+          endereco_origem_id: string | null
+          fabricacao: string | null
+          gera_movimento_estoque: boolean | null
+          hu: string | null
+          id: string | null
+          lote: string | null
+          produto_id: string | null
+          quantidade_executada: number | null
+          tenant_id: string | null
+          tipo_movimento: number | null
+          usuario_id: string | null
+          validade: string | null
+        }
+        Insert: {
+          empresa_id?: string | null
+          endereco_destino_id?: string | null
+          endereco_origem_id?: string | null
+          fabricacao?: string | null
+          gera_movimento_estoque?: boolean | null
+          hu?: string | null
+          id?: string | null
+          lote?: string | null
+          produto_id?: string | null
+          quantidade_executada?: number | null
+          tenant_id?: string | null
+          tipo_movimento?: number | null
+          usuario_id?: string | null
+          validade?: string | null
+        }
+        Update: {
+          empresa_id?: string | null
+          endereco_destino_id?: string | null
+          endereco_origem_id?: string | null
+          fabricacao?: string | null
+          gera_movimento_estoque?: boolean | null
+          hu?: string | null
+          id?: string | null
+          lote?: string | null
+          produto_id?: string | null
+          quantidade_executada?: number | null
+          tenant_id?: string | null
+          tipo_movimento?: number | null
+          usuario_id?: string | null
+          validade?: string | null
+        }
+        Relationships: []
+      }
       veiculos: {
         Row: {
           ano: number
@@ -2998,6 +3082,11 @@ export type Database = {
       }
       get_current_tenant: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
+      hu_padrao: { Args: never; Returns: string }
+      processar_movimento_estoque: {
+        Args: { p_tarefa_execucao_id: string }
+        Returns: undefined
+      }
       rpc_coletor_armazenagem_buscar_tarefa: {
         Args: {
           p_codigo_scan: string
