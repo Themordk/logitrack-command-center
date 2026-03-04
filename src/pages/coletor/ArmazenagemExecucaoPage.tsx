@@ -5,7 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { nowBrasilia } from "@/lib/dateUtils";
-import { Loader2, Archive, LayoutGrid, ArrowUp } from "lucide-react";
+import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -24,6 +24,9 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [totalArmazenado, setTotalArmazenado] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
 
+  const [pickingEndereco, setPickingEndereco] = useState<string | null>(null);
+  const [loadingPicking, setLoadingPicking] = useState(true);
+
   const [quantidade, setQuantidade] = useState("");
   const [enderecoScan, setEnderecoScan] = useState("");
   const [enderecoId, setEnderecoId] = useState<string | null>(null);
@@ -32,6 +35,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
 
+  // Fetch stats
   useEffect(() => {
     if (!tenantId || !empresaId) return;
     (async () => {
@@ -55,6 +59,33 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       }
     })();
   }, [tenantId, empresaId]);
+
+  // Fetch picking address for product
+  useEffect(() => {
+    if (!tenantId || !produtoId) { setLoadingPicking(false); return; }
+    (async () => {
+      setLoadingPicking(true);
+      try {
+        const { data, error } = await (supabase as any)
+          .from("picking_produto")
+          .select("endereco_id, endereco:endereco_id(descricao)")
+          .eq("tenant_id", tenantId)
+          .eq("produto_id", produtoId)
+          .eq("ativo", true)
+          .limit(1);
+        if (error) throw error;
+        if (data && data.length > 0 && data[0].endereco) {
+          setPickingEndereco(data[0].endereco.descricao);
+        } else {
+          setPickingEndereco(null);
+        }
+      } catch {
+        setPickingEndereco(null);
+      } finally {
+        setLoadingPicking(false);
+      }
+    })();
+  }, [tenantId, produtoId]);
 
   const handleScanEndereco = async (code: string) => {
     setEnderecoScan(code);
@@ -99,6 +130,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           iniciado_em: now,
           concluido_em: now,
           quantidade_executada: Number(quantidade),
+          endereco_destino_id: enderecoId,
         })
         .select("id")
         .single();
@@ -163,11 +195,21 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Product info */}
-      <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+      {/* Product info + picking */}
+      <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 space-y-1">
         <p className="text-sm text-[hsl(213,31%,55%)]">Produto</p>
         <p className="text-base font-bold text-white">{produtoDesc}</p>
         <p className="text-xs text-[hsl(213,31%,55%)]">Restante: <b className="text-[hsl(45,93%,47%)]">{qtdRestante}</b></p>
+        <div className="flex items-center gap-1.5 pt-1 border-t border-[hsl(222,35%,22%)] mt-1">
+          <MapPin size={14} className="text-[hsl(280,70%,55%)] shrink-0" />
+          {loadingPicking ? (
+            <Loader2 size={14} className="animate-spin text-[hsl(213,31%,55%)]" />
+          ) : pickingEndereco ? (
+            <span className="text-xs text-[hsl(213,31%,80%)]">Picking: <b className="text-[hsl(280,70%,65%)]">{pickingEndereco}</b></span>
+          ) : (
+            <span className="text-xs text-[hsl(45,93%,47%)]">Sem picking cadastrado</span>
+          )}
+        </div>
       </div>
 
       {/* Quantity */}
