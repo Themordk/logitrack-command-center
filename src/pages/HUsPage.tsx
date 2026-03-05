@@ -1,20 +1,24 @@
 import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
+import { supabase } from "@/integrations/supabase/client";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
-import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Printer } from "lucide-react";
+import { Printer, Save, Loader2, AlertCircle } from "lucide-react";
 import { PrintEtiquetaHUModal } from "@/components/etiqueta/PrintEtiquetaHUModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function HUsPage() {
-  const { tenantId, armazemId } = useTenant();
+  const { tenantId, empresaId } = useTenant();
   const crud = useCrud({
     table: "hu",
     tenantId,
     orderBy: "codigo_hu",
-    filters: armazemId ? { armazem_id: armazemId } : {},
+    filters: empresaId ? { empresa_id: empresaId } : {},
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -24,6 +28,11 @@ export function HUsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printHUs, setPrintHUs] = useState<any[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
+
+  // Form state
+  const [form, setForm] = useState<Record<string, any>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   const handlePrintSelected = () => {
     const selected = crud.data.filter((r) => selectedIds.has(r.id));
@@ -50,19 +59,43 @@ export function HUsPage() {
     }},
   ];
 
-  const fields: FieldSpec[] = [
-    { name: "codigo_hu", label: "Código HU", type: "text", placeholder: "Gerado automaticamente se vazio" },
-    { name: "tipo_hu", label: "Tipo HU", type: "enum", required: true, enumValues: ["PALLET", "CAIXA", "VOLUME", "OUTRO"] },
-    { name: "tamanho", label: "Tamanho", type: "enum", required: true, enumValues: ["P", "M", "G", "GG", "EG"] },
-    { name: "altura", label: "Altura", type: "number", placeholder: "cm" },
-    { name: "peso_bruto", label: "Peso Bruto", type: "number", placeholder: "kg" },
-    { name: "m3", label: "M³", type: "number", placeholder: "m³" },
-    { name: "disponibilidade", label: "Disponibilidade", type: "enum", enumValues: ["DISPONIVEL", "RESERVADA", "BLOQUEADA", "EM_MOVIMENTO", "DESCARTADA"], defaultValue: "DISPONIVEL" },
-  ];
+  const openNewModal = () => {
+    setEditItem(null);
+    setForm({
+      tipo_hu: "",
+      tamanho: "",
+      altura: "",
+      peso_bruto: "",
+      m3: "",
+      disponibilidade: "DISPONIVEL",
+      quantidade: 1,
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
 
-  const generateCodigoHU = async (): Promise<string> => {
-    // Get current max codigo_hu to generate next
-    const { data } = await (await import("@/integrations/supabase/client")).supabase
+  const openEditModal = (row: any) => {
+    setEditItem(row);
+    setForm({
+      tipo_hu: row.tipo_hu || "",
+      tamanho: row.tamanho || "",
+      altura: row.altura ?? "",
+      peso_bruto: row.peso_bruto ?? "",
+      m3: row.m3 ?? "",
+      disponibilidade: row.disponibilidade || "DISPONIVEL",
+      quantidade: 1,
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
+
+  const set = (name: string, value: any) => {
+    setForm((p) => ({ ...p, [name]: value }));
+    setErrors((e) => { const n = { ...e }; delete n[name]; return n; });
+  };
+
+  const generateCodigoHU = async (count: number): Promise<string[]> => {
+    const { data } = await (supabase as any)
       .from("hu")
       .select("codigo_hu")
       .eq("tenant_id", tenantId!)
@@ -75,18 +108,64 @@ export function HUsPage() {
       const match = data[0].codigo_hu.match(/HU-(\d+)/);
       if (match) nextNum = parseInt(match[1], 10) + 1;
     }
-    return `HU-${String(nextNum).padStart(9, "0")}`;
+    return Array.from({ length: count }, (_, i) =>
+      `HU-${String(nextNum + i).padStart(9, "0")}`
+    );
   };
 
-  const handleSave = async (data: Record<string, any>) => {
-    if (armazemId) data.armazem_id = armazemId;
-    if (!data.codigo_hu || data.codigo_hu.trim() === "") {
-      data.codigo_hu = await generateCodigoHU();
+  const handleSave = async () => {
+    const errs: Record<string, string> = {};
+    if (!form.tipo_hu) errs.tipo_hu = "Campo obrigatório";
+    if (!form.tamanho) errs.tamanho = "Campo obrigatório";
+    if (!editItem) {
+      const qty = parseInt(form.quantidade, 10);
+      if (!qty || qty < 1) errs.quantidade = "Mínimo 1";
+      if (qty > 500) errs.quantidade = "Máximo 500";
     }
-    if (!data.disponibilidade) data.disponibilidade = "DISPONIVEL";
-    if (editItem) return crud.update(editItem.id, data);
-    return crud.create(data);
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    setSaving(true);
+    try {
+      const baseData: Record<string, any> = {
+        tipo_hu: form.tipo_hu,
+        tamanho: form.tamanho,
+        disponibilidade: form.disponibilidade || "DISPONIVEL",
+        altura: form.altura !== "" ? Number(form.altura) : null,
+        peso_bruto: form.peso_bruto !== "" ? Number(form.peso_bruto) : null,
+        m3: form.m3 !== "" ? Number(form.m3) : null,
+      };
+
+      if (editItem) {
+        const { error } = await (supabase as any).from("hu").update(baseData).eq("id", editItem.id);
+        if (error) throw error;
+        toast.success("HU atualizada com sucesso!");
+      } else {
+        const qty = parseInt(form.quantidade, 10) || 1;
+        const codigos = await generateCodigoHU(qty);
+        const records = codigos.map((codigo) => ({
+          ...baseData,
+          codigo_hu: codigo,
+          tenant_id: tenantId,
+          empresa_id: empresaId,
+        }));
+        const { error } = await (supabase as any).from("hu").insert(records);
+        if (error) throw error;
+        toast.success(`${qty} HU(s) gerada(s) com sucesso!`);
+      }
+      await crud.refresh();
+      setModalOpen(false);
+    } catch (err: any) {
+      toast.error(`Erro: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const fieldClass = (name: string) => cn(
+    "w-full h-10 px-3 rounded-lg border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors",
+    errors[name] ? "border-destructive" : "border-border",
+    "focus:border-primary focus:ring-1 focus:ring-primary/30"
+  );
 
   return (
     <>
@@ -102,8 +181,8 @@ export function HUsPage() {
         total={crud.total}
         pageSize={crud.pageSize}
         onPageChange={crud.setPage}
-        onNew={() => { setEditItem(null); setModalOpen(true); }}
-        onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
+        onNew={openNewModal}
+        onEdit={openEditModal}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Nova HU"
         searchPlaceholder="Buscar HU..."
@@ -131,14 +210,97 @@ export function HUsPage() {
           </button>
         )}
       />
-      <CrudModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editItem ? "Editar HU" : "Nova HU"}
-        fields={fields}
-        initialData={editItem}
-        onSave={handleSave}
-      />
+
+      {/* Custom Modal */}
+      <Dialog open={modalOpen} onOpenChange={(v) => !v && setModalOpen(false)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editItem ? "Editar HU" : "Gerar HU"}</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {/* Tipo HU */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                Tipo HU<span className="text-destructive ml-0.5">*</span>
+              </label>
+              <select value={form.tipo_hu || ""} onChange={(e) => set("tipo_hu", e.target.value)}
+                className={cn(fieldClass("tipo_hu"), "cursor-pointer", !form.tipo_hu && "text-muted-foreground")}>
+                <option value="">Selecionar...</option>
+                {["PALLET", "CAIXA", "VOLUME", "OUTRO"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+              {errors.tipo_hu && <p className="flex items-center gap-1 mt-1 text-xs text-destructive"><AlertCircle size={11} /> {errors.tipo_hu}</p>}
+            </div>
+
+            {/* Tamanho */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                Tamanho<span className="text-destructive ml-0.5">*</span>
+              </label>
+              <select value={form.tamanho || ""} onChange={(e) => set("tamanho", e.target.value)}
+                className={cn(fieldClass("tamanho"), "cursor-pointer", !form.tamanho && "text-muted-foreground")}>
+                <option value="">Selecionar...</option>
+                {["P", "M", "G", "GG", "EG"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+              {errors.tamanho && <p className="flex items-center gap-1 mt-1 text-xs text-destructive"><AlertCircle size={11} /> {errors.tamanho}</p>}
+            </div>
+
+            {/* Altura */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Altura</label>
+              <input type="number" step="any" value={form.altura ?? ""} onChange={(e) => set("altura", e.target.value)} placeholder="cm" className={fieldClass("altura")} />
+            </div>
+
+            {/* Peso Bruto */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Peso Bruto</label>
+              <input type="number" step="any" value={form.peso_bruto ?? ""} onChange={(e) => set("peso_bruto", e.target.value)} placeholder="kg" className={fieldClass("peso_bruto")} />
+            </div>
+
+            {/* M³ */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">M³</label>
+              <input type="number" step="any" value={form.m3 ?? ""} onChange={(e) => set("m3", e.target.value)} placeholder="m³" className={fieldClass("m3")} />
+            </div>
+
+            {/* Disponibilidade */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Disponibilidade</label>
+              <select value={form.disponibilidade || "DISPONIVEL"} onChange={(e) => set("disponibilidade", e.target.value)}
+                className={cn(fieldClass("disponibilidade"), "cursor-pointer")}>
+                {["DISPONIVEL", "RESERVADA", "BLOQUEADA", "EM_MOVIMENTO", "DESCARTADA"].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+
+            {/* Quantidade - only for new */}
+            {!editItem && (
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                  Quantidade a gerar<span className="text-destructive ml-0.5">*</span>
+                </label>
+                <input type="number" min={1} max={500} step={1} value={form.quantidade ?? 1}
+                  onChange={(e) => set("quantidade", e.target.value)} placeholder="Quantidade de HUs a gerar"
+                  className={fieldClass("quantidade")} />
+                {errors.quantidade && <p className="flex items-center gap-1 mt-1 text-xs text-destructive"><AlertCircle size={11} /> {errors.quantidade}</p>}
+                <p className="text-xs text-muted-foreground mt-1">Códigos HU serão gerados automaticamente pelo sistema.</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button onClick={() => setModalOpen(false)}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              Cancelar
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? "Salvando..." : editItem ? "Salvar" : "Gerar"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <DeleteConfirmDialog
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}
