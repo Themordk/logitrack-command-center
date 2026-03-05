@@ -53,14 +53,18 @@ interface ConferenciaItem {
 }
 
 interface ArmazenagemItem {
-  movimento_id: string;
+  movimento_entrada_id: string;
   sku: string;
-  descricao: string;
-  operador: string;
+  descricao_sku: string;
+  login: string;
   codigo_hu: string;
-  endereco_destino: string;
-  quantidade: number;
-  criado_em: string | null;
+  endereco: string;
+  quantidade_executada: number;
+  lote: string | null;
+  fabricacao: string | null;
+  validade: string | null;
+  iniciado_em: string | null;
+  concluido_em: string | null;
 }
 
 export function MovimentoEntradaPage() {
@@ -157,7 +161,7 @@ export function MovimentoEntradaPage() {
       const [r1, r2, r3] = await Promise.all([
         (supabase as any).from("vw_movimento_entrada_resumo").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId),
-        (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_id", movId),
+        (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId),
       ]);
       setResumoItems(r1.data || []);
       setConferenciaItems(r2.data || []);
@@ -484,7 +488,7 @@ export function MovimentoEntradaPage() {
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border bg-secondary/30 sticky top-0">
+                     <tr className="border-b border-border bg-secondary/30 sticky top-0">
                         <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
                         <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
                         <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">HU</th>
@@ -498,12 +502,12 @@ export function MovimentoEntradaPage() {
                       {armazenagemItems.map((item, idx) => (
                         <tr key={idx} className="border-b border-border/50 hover:bg-secondary/30">
                           <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
-                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao_sku}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground">{item.codigo_hu || "—"}</td>
-                          <td className="px-3 py-2.5 text-xs text-foreground">{item.endereco_destino || "—"}</td>
-                          <td className="px-3 py-2.5 text-right text-foreground">{item.quantidade ?? "—"}</td>
-                          <td className="px-3 py-2.5 text-xs text-foreground">{item.operador || "—"}</td>
-                          <td className="px-3 py-2.5 text-xs text-foreground">{fmtDateTime(item.criado_em)}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.endereco || "—"}</td>
+                          <td className="px-3 py-2.5 text-right text-foreground">{item.quantidade_executada ?? "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{item.login || "—"}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground">{fmtDateTime(item.concluido_em)}</td>
                         </tr>
                       ))}
                       {armazenagemItems.length === 0 && (

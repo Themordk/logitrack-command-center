@@ -1301,13 +1301,6 @@ export type Database = {
             foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
             columns: ["movimento_entrada_id"]
             isOneToOne: false
-            referencedRelation: "vw_movimento_entrada_armazenagem_detalhe"
-            referencedColumns: ["movimento_id"]
-          },
-          {
-            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
-            columns: ["movimento_entrada_id"]
-            isOneToOne: false
             referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
             referencedColumns: ["movimento_id"]
           },
@@ -1385,13 +1378,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_recebimento_iniciar"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
-            columns: ["movimento_entrada_id"]
-            isOneToOne: false
-            referencedRelation: "vw_movimento_entrada_armazenagem_detalhe"
-            referencedColumns: ["movimento_id"]
           },
           {
             foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
@@ -3007,15 +2993,64 @@ export type Database = {
       vw_movimento_entrada_armazenagem_detalhe: {
         Row: {
           codigo_hu: string | null
-          criado_em: string | null
-          descricao: string | null
-          endereco_destino: string | null
-          movimento_id: string | null
-          operador: string | null
-          quantidade: number | null
+          concluido_em: string | null
+          descricao_sku: string | null
+          empresa_id: string | null
+          endereco: string | null
+          fabricacao: string | null
+          iniciado_em: string | null
+          login: string | null
+          lote: string | null
+          movimento_entrada_id: string | null
+          quantidade_executada: number | null
           sku: string | null
+          tenant_id: string | null
+          validade: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "v_recebimento_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "tarefa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_movimento_entrada_conferencia_detalhe: {
         Row: {
