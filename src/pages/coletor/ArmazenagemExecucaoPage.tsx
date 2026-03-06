@@ -44,6 +44,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_execucao" as any, {
           p_tenant_id: tenantId,
           p_empresa_id: empresaId,
+          p_produto_id: produtoId,
         });
         if (error) throw error;
         if (data && data.length > 0) {
