@@ -42,6 +42,19 @@ import { ArmazenagemDashboardPage } from "./pages/coletor/ArmazenagemDashboardPa
 import { ArmazenagemIniciarPage } from "./pages/coletor/ArmazenagemIniciarPage";
 import { ArmazenagemExecucaoPage } from "./pages/coletor/ArmazenagemExecucaoPage";
 import { ArmazenagemConcluidoPage } from "./pages/coletor/ArmazenagemConcluidoPage";
+import { ConsultaMenuPage } from "./pages/coletor/ConsultaMenuPage";
+import { ConsultaProdutoPage } from "./pages/coletor/ConsultaProdutoPage";
+import { ConsultaEnderecoPage } from "./pages/coletor/ConsultaEnderecoPage";
+import { ConsultaHUPage } from "./pages/coletor/ConsultaHUPage";
+import { MetasPage } from "./pages/coletor/MetasPage";
+import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
+import { MovimentosMenuPage } from "./pages/coletor/MovimentosMenuPage";
+import { TransferenciaOrigemPage } from "./pages/coletor/TransferenciaOrigemPage";
+import { TransferenciaProdutoPage } from "./pages/coletor/TransferenciaProdutoPage";
+import { TransferenciaDetalhePage } from "./pages/coletor/TransferenciaDetalhePage";
+import { TransferenciaDestinoPage } from "./pages/coletor/TransferenciaDestinoPage";
+import { TransferenciaConcluidoPage } from "./pages/coletor/TransferenciaConcluidoPage";
+import { AbastecimentoListPage } from "./pages/coletor/AbastecimentoListPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -142,6 +155,19 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/armazenagem/iniciar": return <ArmazenagemIniciarPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/execucao": return <ArmazenagemExecucaoPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/concluido": return <ArmazenagemConcluidoPage onNavigate={onNavigate} />;
+    case "/coletor/consulta": return <ConsultaMenuPage onNavigate={onNavigate} />;
+    case "/coletor/consulta/produto": return <ConsultaProdutoPage onNavigate={onNavigate} />;
+    case "/coletor/consulta/endereco": return <ConsultaEnderecoPage onNavigate={onNavigate} />;
+    case "/coletor/consulta/hu": return <ConsultaHUPage onNavigate={onNavigate} />;
+    case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
+    case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos": return <MovimentosMenuPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/transferencia/origem": return <TransferenciaOrigemPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/transferencia/produto": return <TransferenciaProdutoPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/transferencia/detalhe": return <TransferenciaDetalhePage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/transferencia/destino": return <TransferenciaDestinoPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/transferencia/concluido": return <TransferenciaConcluidoPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/abastecimento": return <AbastecimentoListPage onNavigate={onNavigate} />;
     default: return <ColetorLoginPage onNavigate={onNavigate} />;
   }
 }

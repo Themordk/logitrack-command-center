@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3 } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -30,7 +30,6 @@ export function ColetorHomePage({ onNavigate }: Props) {
 
   useEffect(() => {
     if (!tenantId || !armazemId) return;
-    // Count pending tasks for recebimento
     (async () => {
       const { count } = await (supabase as any)
         .from("tarefa")
@@ -49,7 +48,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
         <span className="text-lg font-bold text-white">{userName}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 flex-1">
         {modules.map((m) => {
           const count = pendingCounts[m.label];
           const isActive = m.path !== "/coletor/home";
@@ -75,6 +74,33 @@ export function ColetorHomePage({ onNavigate }: Props) {
             </button>
           );
         })}
+      </div>
+
+      {/* Footer Navigation */}
+      <div className="mt-auto pt-4 border-t border-[hsl(222,35%,18%)]">
+        <div className="flex justify-around items-center">
+          <button
+            onClick={() => onNavigate("/coletor/consulta")}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
+          >
+            <Search size={24} className="text-[hsl(217,91%,60%)]" />
+            <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Consultas</span>
+          </button>
+          <button
+            onClick={() => onNavigate("/coletor/metas")}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
+          >
+            <BarChart3 size={24} className="text-[hsl(280,70%,55%)]" />
+            <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Metas</span>
+          </button>
+          <button
+            onClick={() => onNavigate("/coletor/configuracoes")}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
+          >
+            <Settings size={24} className="text-[hsl(213,31%,55%)]" />
+            <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Config</span>
+          </button>
+        </div>
       </div>
     </ColetorLayout>
   );
