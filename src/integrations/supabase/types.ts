@@ -3148,7 +3148,11 @@ export type Database = {
         }[]
       }
       rpc_coletor_armazenagem_execucao: {
-        Args: { p_empresa_id: string; p_tenant_id: string }
+        Args: {
+          p_empresa_id: string
+          p_produto_id: string
+          p_tenant_id: string
+        }
         Returns: {
           estoque_picking: number
           estoque_pulmao: number
