@@ -48,10 +48,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         });
         if (error) throw error;
         if (data && data.length > 0) {
-          setEstoquePulmao(data[0].estoque_pulmao || 0);
-          setEstoquePicking(data[0].estoque_picking || 0);
-          setTotalArmazenar(data[0].total_a_armazenar || 0);
-          setTotalArmazenado(data[0].total_armazenado || 0);
+          setEstoquePulmao(Number(data[0].estoque_pulmao) || 0);
+          setEstoquePicking(Number(data[0].estoque_picking) || 0);
+          setTotalArmazenar(Number(data[0].total_a_armazenar) || 0);
+          setTotalArmazenado(Number(data[0].total_armazenado) || 0);
         }
       } catch (err: any) {
         console.error(err);
@@ -59,7 +59,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         setLoadingStats(false);
       }
     })();
-  }, [tenantId, empresaId]);
+  }, [tenantId, empresaId, produtoId]);
 
   // Fetch picking address for product
   useEffect(() => {
