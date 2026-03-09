@@ -125,12 +125,9 @@ export function RecebimentoVolumesPage({ onNavigate }: Props) {
         <div className="rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-4">
           <div className="flex items-center gap-3 mb-3">
             <PackageCheck size={24} className="text-[hsl(217,91%,60%)]" />
-            <h3 className="text-sm font-bold text-white">Volumes Esperados</h3>
+            <h3 className="text-sm font-bold text-white">Conferência de Volumes</h3>
           </div>
-          <p className="text-4xl font-mono font-bold text-white text-center py-4">
-            {totalVolume ?? 0}
-          </p>
-          <p className="text-xs text-[hsl(213,31%,55%)] text-center">
+          <p className="text-xs text-[hsl(213,31%,55%)] text-center py-4">
             Informe abaixo a quantidade de volumes recebidos fisicamente
           </p>
         </div>
