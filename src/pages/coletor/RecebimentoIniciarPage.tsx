@@ -14,6 +14,7 @@ interface MovimentoResumo {
   status: string;
   parceiro: string;
   box: string;
+  confirma_volume?: boolean;
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
@@ -35,7 +36,20 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
         .from("v_recebimento_iniciar")
         .select("*");
       if (error) throw error;
-      setMovimentos(data || []);
+
+      // For each movimento, fetch confirma_volume from movimento_entrada
+      const enriched = await Promise.all(
+        (data || []).map(async (m: any) => {
+          const { data: movData } = await (supabase as any)
+            .from("movimento_entrada")
+            .select("confirma_volume")
+            .eq("id", m.id)
+            .single();
+          return { ...m, confirma_volume: movData?.confirma_volume ?? false };
+        })
+      );
+
+      setMovimentos(enriched);
     } catch {
       toast.error("Erro ao carregar movimentos.");
     } finally {
@@ -62,8 +76,15 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
       // Store selected movimento in session
       sessionStorage.setItem("coletor_movimento_id", selectedId);
 
-      toast.success("Conferência iniciada!");
-      onNavigate("/coletor/recebimento/execucao");
+      // Check if confirma_volume is true
+      const selectedMov = movimentos.find((m) => m.id === selectedId);
+      if (selectedMov?.confirma_volume) {
+        toast.success("Conferência iniciada! Confirme os volumes.");
+        onNavigate("/coletor/recebimento/volumes");
+      } else {
+        toast.success("Conferência iniciada!");
+        onNavigate("/coletor/recebimento/execucao");
+      }
     } catch (err: any) {
       toast.error(err.message || "Erro ao iniciar conferência.");
     } finally {

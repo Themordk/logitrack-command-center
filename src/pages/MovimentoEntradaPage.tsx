@@ -5,14 +5,18 @@ import { toast } from "sonner";
 import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, Filter, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
   LIBERADO: { label: "Liberado", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  ERRO_TRANSPORTADOR: { label: "Erro Transporte", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
   "EM CONFERENCIA": { label: "Em Conferência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  EM_CONFERENCIA: { label: "Em Conferência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   CONFERIDO: { label: "Conferido", class: "bg-green-500/15 text-green-400 border-green-500/30" },
   DIVERGENCIA: { label: "Divergência", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+  LIB_ARMAZENAGEM: { label: "Lib. Armazenagem", class: "bg-green-500/15 text-green-400 border-green-500/30" },
   "LIB. ARMAZENAGEM": { label: "Lib. Armazenagem", class: "bg-green-500/15 text-green-400 border-green-500/30" },
   ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
 };
@@ -67,8 +71,28 @@ interface ArmazenagemItem {
   concluido_em: string | null;
 }
 
+interface MovimentoInfo {
+  confirma_volume: boolean;
+  total_volume: number | null;
+  total_volume_conferido: number | null;
+  armazem_descricao: string;
+  box_descricao: string;
+  placa_veiculo: string | null;
+  valor_descarga: number | null;
+  crossdocking: boolean;
+  observacao: string | null;
+}
+
+interface DocVinculado {
+  numero_nota: string;
+  razaosocial: string;
+  total_skus: number;
+  valor_total_nota: number;
+  qtd_volume: number | null;
+}
+
 export function MovimentoEntradaPage() {
-  const { armazemId, tenantId } = useTenant();
+  const { armazemId, tenantId, empresaId, usuarioId } = useTenant();
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [movements, setMovements] = useState<MovEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +104,16 @@ export function MovimentoEntradaPage() {
   const [resumoItems, setResumoItems] = useState<ResumoItem[]>([]);
   const [conferenciaItems, setConferenciaItems] = useState<ConferenciaItem[]>([]);
   const [armazenagemItems, setArmazenagemItems] = useState<ArmazenagemItem[]>([]);
+  const [movimentoInfo, setMovimentoInfo] = useState<MovimentoInfo | null>(null);
+  const [docsVinculados, setDocsVinculados] = useState<DocVinculado[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Liberar erro transporte modal
+  const [showErroModal, setShowErroModal] = useState(false);
+  const [erroMovId, setErroMovId] = useState<string | null>(null);
+  const [motivos, setMotivos] = useState<{ id: string; descricao: string }[]>([]);
+  const [selectedMotivo, setSelectedMotivo] = useState("");
+  const [erroSubmitting, setErroSubmitting] = useState(false);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
@@ -93,15 +126,17 @@ export function MovimentoEntradaPage() {
   const pageSize = 20;
 
   const fetchCounts = useCallback(async () => {
-    if (!armazemId) return;
-    const { data } = await (supabase as any).from("movimento_entrada").select("status").eq("armazem_id", armazemId);
+    if (!tenantId) return;
+    let q = (supabase as any).from("movimento_entrada").select("status").eq("tenant_id", tenantId);
+    if (armazemId) q = q.eq("armazem_id", armazemId);
+    const { data } = await q;
     const counts: Record<string, number> = {};
     (data || []).forEach((m: any) => { counts[m.status] = (counts[m.status] || 0) + 1; });
     setStatusCounts(counts);
-  }, [armazemId]);
+  }, [tenantId, armazemId]);
 
   const fetchMovements = useCallback(async () => {
-    if (!armazemId) return;
+    if (!tenantId) return;
     setLoading(true);
     try {
       const from = (page - 1) * pageSize;
@@ -109,10 +144,11 @@ export function MovimentoEntradaPage() {
       let query = (supabase as any)
         .from("movimento_entrada")
         .select("id, numero_movimento, status, created_at, placa_veiculo", { count: "exact" })
-        .eq("armazem_id", armazemId)
+        .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .range(from, to);
 
+      if (armazemId) query = query.eq("armazem_id", armazemId);
       if (filterStatus) query = query.eq("status", filterStatus);
       if (filterNumero) query = query.eq("numero_movimento", Number(filterNumero));
       if (filterData) query = query.gte("created_at", filterData + "T00:00:00").lte("created_at", filterData + "T23:59:59");
@@ -147,7 +183,7 @@ export function MovimentoEntradaPage() {
     } finally {
       setLoading(false);
     }
-  }, [armazemId, page, filterStatus, filterNumero, filterData, filterParceiro]);
+  }, [tenantId, armazemId, page, filterStatus, filterNumero, filterData, filterParceiro]);
 
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
@@ -166,6 +202,63 @@ export function MovimentoEntradaPage() {
       setResumoItems(r1.data || []);
       setConferenciaItems(r2.data || []);
       setArmazenagemItems(r3.data || []);
+
+      // Load info tab data
+      const { data: movData } = await (supabase as any)
+        .from("movimento_entrada")
+        .select("confirma_volume, total_volume, total_volume_conferido, placa_veiculo, valor_descarga, crossdocking, observacao, box_id, armazem_id")
+        .eq("id", movId)
+        .single();
+
+      if (movData) {
+        const [boxRes, armRes] = await Promise.all([
+          (supabase as any).from("box").select("descricao").eq("id", movData.box_id).single(),
+          movData.armazem_id ? (supabase as any).from("armazem").select("descricao").eq("id", movData.armazem_id).single() : Promise.resolve({ data: null }),
+        ]);
+        setMovimentoInfo({
+          confirma_volume: movData.confirma_volume,
+          total_volume: movData.total_volume,
+          total_volume_conferido: movData.total_volume_conferido,
+          armazem_descricao: armRes.data?.descricao || "—",
+          box_descricao: boxRes.data?.descricao || "—",
+          placa_veiculo: movData.placa_veiculo,
+          valor_descarga: movData.valor_descarga,
+          crossdocking: movData.crossdocking,
+          observacao: movData.observacao,
+        });
+      }
+
+      // Load linked documents
+      const { data: links } = await (supabase as any)
+        .from("movimento_entrada_documento")
+        .select("documento_entrada_id")
+        .eq("movimento_entrada_id", movId);
+
+      if (links && links.length > 0) {
+        const docIds = links.map((l: any) => l.documento_entrada_id);
+        const docsArr: DocVinculado[] = [];
+        for (const docId of docIds) {
+          const { data: doc } = await (supabase as any)
+            .from("documento_entrada")
+            .select("numero_nota, parceiro_id, valor_total_nota, qtd_volume")
+            .eq("id", docId)
+            .single();
+          if (doc) {
+            const { data: parceiro } = await (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single();
+            const { count: skuCount } = await (supabase as any).from("documento_entrada_item").select("id", { count: "exact" }).eq("documento_entrada_id", docId);
+            docsArr.push({
+              numero_nota: doc.numero_nota,
+              razaosocial: parceiro?.razaosocial || "—",
+              total_skus: skuCount || 0,
+              valor_total_nota: doc.valor_total_nota,
+              qtd_volume: doc.qtd_volume,
+            });
+          }
+        }
+        setDocsVinculados(docsArr);
+      } else {
+        setDocsVinculados([]);
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -244,6 +337,48 @@ export function MovimentoEntradaPage() {
     }
   };
 
+  const openErroTransporteModal = async (movId: string) => {
+    setErroMovId(movId);
+    setSelectedMotivo("");
+    const { data } = await (supabase as any)
+      .from("motivo_ocorrencia")
+      .select("id, descricao")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .order("descricao");
+    setMotivos(data || []);
+    setShowErroModal(true);
+  };
+
+  const handleConfirmarErroTransporte = async () => {
+    if (!selectedMotivo || !erroMovId) {
+      toast.error("Selecione um motivo de ocorrência.");
+      return;
+    }
+    setErroSubmitting(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("movimento_entrada")
+        .update({
+          usuario_autorizou: usuarioId,
+          motivo_ocorrencia: selectedMotivo,
+          autorizado_em: new Date().toISOString().split("T")[0],
+          status: "LIBERADO",
+        })
+        .eq("id", erroMovId);
+      if (error) throw error;
+      toast.success("Recebimento liberado com erro no transporte.");
+      setShowErroModal(false);
+      fetchMovements();
+      fetchCounts();
+      if (selectedMov === erroMovId) loadDetails(erroMovId, "LIBERADO");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setErroSubmitting(false);
+    }
+  };
+
   const handleMenuAction = (action: string, movId: string, status: string) => {
     if (action === "liberar_conferencia") {
       handleLiberarConferencia(movId, status);
@@ -255,6 +390,14 @@ export function MovimentoEntradaPage() {
     }
     if (action === "liberar_armazenagem") {
       handleLiberarArmazenagem(movId, status);
+      return;
+    }
+    if (action === "liberar_erro_transporte") {
+      openErroTransporteModal(movId);
+      return;
+    }
+    if (action === "atualizar_erp") {
+      toast.info("Funcionalidade de atualização ERP será implementada em breve.");
       return;
     }
     toast.info(`Ação "${action}" será implementada em breve.`);
@@ -367,6 +510,8 @@ export function MovimentoEntradaPage() {
                         <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, mov.status)}>Retirar de conferência</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>Liberar armazenagem</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>Liberar armazenagem c/ divergência</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>Liberar recebimento com erro no transporte</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>Atualizar ERP</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("abrir_ocorrencias", mov.id, mov.status)}>Abrir ocorrências do movimento</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -397,9 +542,10 @@ export function MovimentoEntradaPage() {
                 <TabsTrigger value="itens" className="flex-1">Itens</TabsTrigger>
                 <TabsTrigger value="conferencia" className="flex-1">Conferência</TabsTrigger>
                 <TabsTrigger value="armazenagem" className="flex-1">Armazenagem</TabsTrigger>
+                <TabsTrigger value="informacoes" className="flex-1">Informações</TabsTrigger>
               </TabsList>
 
-              {/* Aba Itens — vw_movimento_entrada_resumo */}
+              {/* Aba Itens */}
               <TabsContent value="itens" className="flex-1 overflow-auto m-0">
                 {detailLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
@@ -432,7 +578,7 @@ export function MovimentoEntradaPage() {
                 )}
               </TabsContent>
 
-              {/* Aba Conferência — vw_movimento_entrada_conferencia_detalhe */}
+              {/* Aba Conferência */}
               <TabsContent value="conferencia" className="flex-1 overflow-auto m-0">
                 {detailLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
@@ -481,7 +627,7 @@ export function MovimentoEntradaPage() {
                 )}
               </TabsContent>
 
-              {/* Aba Armazenagem — vw_movimento_entrada_armazenagem_detalhe */}
+              {/* Aba Armazenagem */}
               <TabsContent value="armazenagem" className="flex-1 overflow-auto m-0">
                 {detailLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
@@ -517,10 +663,143 @@ export function MovimentoEntradaPage() {
                   </table>
                 )}
               </TabsContent>
+
+              {/* Aba Informações */}
+              <TabsContent value="informacoes" className="flex-1 overflow-auto m-0 p-4">
+                {detailLoading ? (
+                  <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : movimentoInfo ? (
+                  <div className="space-y-6">
+                    {/* Volumes */}
+                    <div className="rounded-lg border border-border p-4 bg-secondary/20">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase mb-3">Volumes</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Confirma Volume</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.confirma_volume ? "Sim" : "Não"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Volumes Recebidos</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.total_volume ?? "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Volumes Confirmados</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.total_volume_conferido ?? "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Dados do movimento */}
+                    <div className="rounded-lg border border-border p-4 bg-secondary/20">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase mb-3">Dados do Movimento</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Armazém</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.armazem_descricao}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Box</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.box_descricao}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Placa do Veículo</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.placa_veiculo || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Valor Descarga</p>
+                          <p className="text-sm font-medium text-foreground">
+                            {movimentoInfo.valor_descarga != null
+                              ? Number(movimentoInfo.valor_descarga).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                              : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Crossdocking</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.crossdocking ? "Sim" : "Não"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Observação</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.observacao || "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Documentos vinculados */}
+                    <div className="rounded-lg border border-border p-4 bg-secondary/20">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase mb-3">Documentos Vinculados</h3>
+                      {docsVinculados.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhum documento vinculado.</p>
+                      ) : (
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border">
+                              <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nº NF</th>
+                              <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
+                              <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
+                              <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
+                              <th className="px-2 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {docsVinculados.map((doc, idx) => (
+                              <tr key={idx} className="border-b border-border/50">
+                                <td className="px-2 py-2 font-mono text-xs text-foreground">{doc.numero_nota}</td>
+                                <td className="px-2 py-2 text-xs text-foreground truncate max-w-[200px]">{doc.razaosocial}</td>
+                                <td className="px-2 py-2 text-center text-xs text-muted-foreground">{doc.total_skus}</td>
+                                <td className="px-2 py-2 text-center text-xs text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
+                                <td className="px-2 py-2 text-right font-mono text-xs text-foreground">
+                                  {Number(doc.valor_total_nota).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-8">Informações não disponíveis.</p>
+                )}
+              </TabsContent>
             </Tabs>
           )}
         </div>
       </div>
+
+      {/* Modal Liberar com erro no transporte */}
+      <Dialog open={showErroModal} onOpenChange={setShowErroModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Liberar Recebimento com Erro no Transporte</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motivo de Ocorrência *</label>
+              <select
+                value={selectedMotivo}
+                onChange={(e) => setSelectedMotivo(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="">Selecione o motivo...</option>
+                {motivos.map((m) => <option key={m.id} value={m.id}>{m.descricao}</option>)}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setShowErroModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmarErroTransporte}
+              disabled={erroSubmitting || !selectedMotivo}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {erroSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
