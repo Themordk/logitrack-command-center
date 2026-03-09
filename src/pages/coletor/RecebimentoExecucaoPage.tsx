@@ -351,21 +351,26 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
           ) : (
             <div className="space-y-2 max-h-[40vh] overflow-y-auto">
               {items.map((item) => (
-                <div key={item.id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2">
+                <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
                       <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
                       <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
                     </div>
                     <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
-                    {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                      {item.operador && <span className="text-[10px] text-[hsl(213,31%,45%)]">Op: {item.operador}</span>}
+                      {item.codigo_hu && <span className="text-[10px] text-[hsl(213,31%,45%)]">HU: {item.codigo_hu}</span>}
+                      {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
+                      {item.concluido_em && <span className="text-[10px] text-[hsl(213,31%,45%)]">{new Date(item.concluido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                    </div>
                   </div>
                   <button
-                    onClick={() => handleDeleteExecucao(item.id)}
-                    disabled={deleting === item.id}
+                    onClick={() => handleDeleteExecucao(item)}
+                    disabled={deleting === item.tarefa_execucao_id}
                     className="shrink-0 w-9 h-9 rounded-lg bg-[#E02424]/15 flex items-center justify-center text-[#E02424] active:bg-[#E02424]/30 disabled:opacity-40"
                   >
-                    {deleting === item.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    {deleting === item.tarefa_execucao_id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                   </button>
                 </div>
               ))}
