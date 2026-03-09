@@ -61,98 +61,29 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [validade, setValidade] = useState("");
 
   const loadConferencia = useCallback(async () => {
-    if (!movimentoId || !tenantId) return;
+    if (!movimentoId) return;
     setLoading(true);
     try {
-      // Get executed items via tarefa_execucao joined with tarefa
       const { data, error } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select(`
-          id,
-          quantidade_executada,
-          lote,
-          status,
-          tarefa:tarefa_id (
-            produto:produto_id ( sku, descricao )
-          )
-        `)
-        .eq("tenant_id", tenantId)
-        .eq("status", "CONCLUIDA");
+        .from("vw_movimento_entrada_conferencia_detalhe")
+        .select("tarefa_execucao_id, tarefa_id, tarefa_status, sku, descricao, operador, codigo_hu, quantidade_executada, concluido_em, lote, status")
+        .eq("movimento_id", movimentoId);
 
       if (error) throw error;
 
-      // Filter by movimento - need to cross-reference tarefa
-      const { data: tarefaIds } = await (supabase as any)
-        .from("tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
-        .in("id_documento_origem", [movimentoId]);
-
-      // Actually tarefa.id_documento_origem points to movimento_entrada_item.id
-      // Let's get all movimento_entrada_item ids for this movement
-      const { data: meiIds } = await (supabase as any)
-        .from("movimento_entrada_item")
-        .select("id")
-        .eq("movimento_entrada_id", movimentoId);
-
-      if (!meiIds) { setItems([]); setLoading(false); return; }
-      const meiIdSet = new Set(meiIds.map((m: any) => m.id));
-
-      // Get tarefas for these items
-      const { data: tarefas } = await (supabase as any)
-        .from("tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
-        .in("id_documento_origem", meiIds.map((m: any) => m.id));
-
-      if (!tarefas) { setItems([]); setLoading(false); return; }
-      const tarefaIdSet = new Set(tarefas.map((t: any) => t.id));
-
-      // Get execucoes for these tarefas
-      const { data: execucoes } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select("id, quantidade_executada, lote, status, tarefa_id")
-        .eq("tenant_id", tenantId)
-        .eq("status", "CONCLUIDA")
-        .in("tarefa_id", tarefas.map((t: any) => t.id));
-
-      if (!execucoes) { setItems([]); setLoading(false); return; }
-
-      // Get product info for tarefas
-      const tarefaProdMap: Record<string, string> = {};
-      for (const t of tarefas) { tarefaProdMap[t.id] = t.id; }
-
-      const { data: tarefasWithProd } = await (supabase as any)
-        .from("tarefa")
-        .select("id, produto_id")
-        .in("id", tarefas.map((t: any) => t.id));
-
-      const prodIds = [...new Set((tarefasWithProd || []).map((t: any) => t.produto_id))];
-      const { data: produtos } = await (supabase as any)
-        .from("produto")
-        .select("id, sku, descricao")
-        .in("id", prodIds);
-
-      const prodMap: Record<string, any> = {};
-      (produtos || []).forEach((p: any) => { prodMap[p.id] = p; });
-
-      const tarefaProdIdMap: Record<string, string> = {};
-      (tarefasWithProd || []).forEach((t: any) => { tarefaProdIdMap[t.id] = t.produto_id; });
-
-      const mapped: ConferenciaItem[] = execucoes.map((e: any) => {
-        const prodId = tarefaProdIdMap[e.tarefa_id];
-        const prod = prodMap[prodId] || {};
-        return {
-          id: e.id,
-          sku: prod.sku || "",
-          descricao: prod.descricao || "",
-          quantidade_executada: e.quantidade_executada || 0,
-          lote: e.lote || "",
-          status: e.status,
-        };
-      });
+      const mapped: ConferenciaItem[] = (data || []).map((e: any) => ({
+        tarefa_execucao_id: e.tarefa_execucao_id,
+        tarefa_id: e.tarefa_id,
+        tarefa_status: e.tarefa_status,
+        sku: e.sku || "",
+        descricao: e.descricao || "",
+        operador: e.operador || "",
+        codigo_hu: e.codigo_hu,
+        quantidade_executada: Number(e.quantidade_executada || 0),
+        concluido_em: e.concluido_em,
+        lote: e.lote || "",
+        status: e.status,
+      }));
 
       setItems(mapped);
     } catch {
@@ -160,7 +91,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [movimentoId, tenantId]);
+  }, [movimentoId]);
 
   useEffect(() => {
     if (movimentoId) loadConferencia();
