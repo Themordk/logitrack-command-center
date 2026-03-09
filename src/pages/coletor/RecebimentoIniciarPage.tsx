@@ -43,10 +43,10 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
         (data || []).map(async (m: any) => {
           const { data: movData } = await (supabase as any)
             .from("movimento_entrada")
-            .select("confirma_volume")
+            .select("confirma_volume, total_volume_conferido")
             .eq("id", m.id)
             .single();
-          return { ...m, confirma_volume: movData?.confirma_volume ?? false };
+          return { ...m, confirma_volume: movData?.confirma_volume ?? false, total_volume_conferido: movData?.total_volume_conferido ?? null };
         })
       );
 
