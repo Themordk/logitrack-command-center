@@ -838,6 +838,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
             foreignKeyName: "estoque_movimento_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2282,6 +2289,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "evento_execucao_tarefa_execucao_tarefa_id_fkey"
+            columns: ["execucao_tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
             foreignKeyName: "evento_execucao_tarefa_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2294,6 +2308,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tarefa"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_evento_execucao_tarefa_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
           },
         ]
       }
@@ -2359,6 +2380,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tarefa"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
           },
           {
             foreignKeyName: "execucao_tarefa_tenant_id_fkey"
@@ -3067,6 +3095,11 @@ export type Database = {
           sku: string | null
           status:
             | Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+            | null
+          tarefa_execucao_id: string | null
+          tarefa_id: string | null
+          tarefa_status:
+            | Database["public"]["Enums"]["enum_status_tarefa"]
             | null
           validade: string | null
         }
