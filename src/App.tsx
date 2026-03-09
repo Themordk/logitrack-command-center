@@ -59,6 +59,7 @@ import { TransferenciaDetalhePage } from "./pages/coletor/TransferenciaDetalhePa
 import { TransferenciaDestinoPage } from "./pages/coletor/TransferenciaDestinoPage";
 import { TransferenciaConcluidoPage } from "./pages/coletor/TransferenciaConcluidoPage";
 import { AbastecimentoListPage } from "./pages/coletor/AbastecimentoListPage";
+import { RecebimentoVolumesPage } from "./pages/coletor/RecebimentoVolumesPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
