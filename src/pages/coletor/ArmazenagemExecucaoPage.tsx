@@ -4,7 +4,6 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { nowBrasilia } from "@/lib/dateUtils";
 import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -27,6 +26,8 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [pickingEndereco, setPickingEndereco] = useState<string | null>(null);
   const [loadingPicking, setLoadingPicking] = useState(true);
 
+  const [movimentoEntradaId, setMovimentoEntradaId] = useState<string | null>(null);
+
   const [quantidade, setQuantidade] = useState("");
   const [enderecoScan, setEnderecoScan] = useState("");
   const [enderecoId, setEnderecoId] = useState<string | null>(null);
@@ -34,6 +35,32 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+
+  // Fetch movimento_entrada_id from tarefa
+  useEffect(() => {
+    if (!tarefaId || !tenantId) return;
+    (async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("tarefa")
+          .select("id_documento_origem")
+          .eq("id", tarefaId)
+          .single();
+        if (error) throw error;
+        if (data?.id_documento_origem) {
+          const { data: meiData, error: meiErr } = await (supabase as any)
+            .from("movimento_entrada_item")
+            .select("movimento_entrada_id")
+            .eq("id", data.id_documento_origem)
+            .single();
+          if (meiErr) throw meiErr;
+          setMovimentoEntradaId(meiData?.movimento_entrada_id || null);
+        }
+      } catch (err: any) {
+        console.error("Erro ao buscar movimento_entrada_id:", err);
+      }
+    })();
+  }, [tarefaId, tenantId]);
 
   // Fetch stats
   useEffect(() => {
@@ -116,49 +143,17 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   };
 
   const handleConfirm = async () => {
-    if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade) return;
+    if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
     setSaving(true);
     try {
-      const now = nowBrasilia();
-      const { data: execData, error: execErr } = await (supabase as any)
-        .from("tarefa_execucao")
-        .insert({
-          tenant_id: tenantId,
-          tarefa_id: tarefaId,
-          usuario_id: usuarioId,
-          status: "CONCLUIDA",
-          atribuido_em: now,
-          iniciado_em: now,
-          concluido_em: now,
-          quantidade_executada: Number(quantidade),
-          endereco_destino_id: enderecoId,
-        })
-        .select("id")
-        .single();
-      if (execErr) throw execErr;
-
-      // Log event
-      await (supabase as any).from("tarefa_evento_execucao").insert({
-        tenant_id: tenantId,
-        execucao_tarefa_id: execData.id,
-        tipo_evento: "ARMAZENAGEM",
-        carga_util: {
-          produto_id: produtoId,
-          endereco_destino_id: enderecoId,
-          endereco_descricao: enderecoDesc,
-          quantidade: Number(quantidade),
-        },
+      const { data, error } = await supabase.rpc("finalizar_armazenagem" as any, {
+        p_movimento_entrada_id: movimentoEntradaId,
+        p_tarefa_id: tarefaId,
+        p_usuario: usuarioId,
+        p_quantidade: Number(quantidade),
+        p_endereco_destino_id: enderecoId,
       });
-
-      // Update tarefa with destination
-      await (supabase as any)
-        .from("tarefa")
-        .update({
-          id_local_destino: enderecoId,
-          status: "CONCLUIDA",
-          usuario_execucao_id: usuarioId,
-        })
-        .eq("id", tarefaId);
+      if (error) throw error;
 
       setOverlay("success");
       setOverlayMsg("Armazenagem registrada com sucesso!");
@@ -237,7 +232,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       {/* Confirm */}
       <ActionButton
         onClick={handleConfirm}
-        disabled={!quantidade || Number(quantidade) <= 0 || !enderecoId}
+        disabled={!quantidade || Number(quantidade) <= 0 || !enderecoId || !movimentoEntradaId}
         loading={saving}
         variant="success"
       >

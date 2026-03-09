@@ -3119,6 +3119,20 @@ export type Database = {
       }
     }
     Functions: {
+      finalizar_armazenagem: {
+        Args: {
+          p_endereco_destino_id: string
+          p_fabricacao?: string
+          p_hu?: string
+          p_lote?: string
+          p_movimento_entrada_id: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_usuario: string
+          p_validade?: string
+        }
+        Returns: string
+      }
       finalizar_conferencia_entrada: {
         Args: { p_movimento_entrada_id: string; p_usuario: string }
         Returns: string
@@ -3247,6 +3261,7 @@ export type Database = {
         | "CONFERIDO"
         | "DIVERGENCIA"
         | "LIB_ARMAZENAGEM"
+        | "ARMAZENAGEM_PARCIAL"
         | "ARMAZENADO"
       enum_status_onda_carregamento:
         | "CRIADA"
@@ -3499,6 +3514,7 @@ export const Constants = {
         "CONFERIDO",
         "DIVERGENCIA",
         "LIB_ARMAZENAGEM",
+        "ARMAZENAGEM_PARCIAL",
         "ARMAZENADO",
       ],
       enum_status_onda_carregamento: [
