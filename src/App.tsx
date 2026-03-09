@@ -172,9 +172,30 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
   }
 }
 
+function getInitialPath() {
+  const hash = window.location.hash.replace("#", "") || "/";
+  return hash;
+}
+
 function AppContent() {
   const { tenantId, empresaId, loading, authenticated, login } = useTenant();
-  const [currentPath, setCurrentPath] = useState("/");
+  const [currentPath, setCurrentPath] = useState(getInitialPath);
+
+  // Sync hash with state
+  const navigate = (path: string) => {
+    window.location.hash = path;
+    setCurrentPath(path);
+  };
+
+  // Listen for browser back/forward
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace("#", "") || "/";
+      setCurrentPath(hash);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   // Detect if we're in coletor mode
   const isColetor = currentPath.startsWith("/coletor");
