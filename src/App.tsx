@@ -30,6 +30,10 @@ import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 
+// Reports
+import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
+import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/MovimentacoesReportPage";
+
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
 import { ColetorHomePage } from "./pages/coletor/ColetorHomePage";
