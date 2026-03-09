@@ -157,6 +157,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/home": return <ColetorHomePage onNavigate={onNavigate} />;
     case "/coletor/recebimento": return <RecebimentoMenuPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/iniciar": return <RecebimentoIniciarPage onNavigate={onNavigate} />;
+    case "/coletor/recebimento/volumes": return <RecebimentoVolumesPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/execucao": return <RecebimentoExecucaoPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/conferencia": return <RecebimentoConferenciaPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/concluido": return <RecebimentoConcluidoPage onNavigate={onNavigate} />;
