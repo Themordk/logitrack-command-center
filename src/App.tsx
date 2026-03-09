@@ -121,6 +121,8 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/empresas": return <EmpresasPage />;
     case "/config/usuarios": return <UsuariosPage />;
     case "/config/integracao": return <IntegracaoPage />;
+    case "/relatorios/estoque": return <EstoqueReportPage />;
+    case "/relatorios/movimentacoes": return <MovimentacoesReportPage />;
     default: {
       const label = path.split("/").pop()?.replace(/-/g, " ") ?? path;
       return (
