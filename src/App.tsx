@@ -30,6 +30,10 @@ import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 
+// Reports
+import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
+import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/MovimentacoesReportPage";
+
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
 import { ColetorHomePage } from "./pages/coletor/ColetorHomePage";
@@ -84,6 +88,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/empresas": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Empresas" }],
   "/config/usuarios": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Usuários" }],
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
+  "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
+  "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
 };
 
 function renderPage(path: string, onNavigate: (p: string) => void) {
@@ -115,6 +121,8 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/empresas": return <EmpresasPage />;
     case "/config/usuarios": return <UsuariosPage />;
     case "/config/integracao": return <IntegracaoPage />;
+    case "/relatorios/estoque": return <EstoqueReportPage />;
+    case "/relatorios/movimentacoes": return <MovimentacoesReportPage />;
     default: {
       const label = path.split("/").pop()?.replace(/-/g, " ") ?? path;
       return (

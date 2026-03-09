@@ -85,8 +85,9 @@ const navItems: NavItem[] = [
     label: "Relatórios",
     icon: <BarChart3 size={15} />,
     children: [
+      { label: "Posição de Estoque", path: "/relatorios/estoque" },
+      { label: "Histórico de Movimentos", path: "/relatorios/movimentacoes" },
       { label: "Ocupação de Endereços", path: "/relatorios/ocupacao" },
-      { label: "Movimentações", path: "/relatorios/movimentacoes" },
       { label: "Expedições", path: "/relatorios/expedicoes" },
       { label: "Inventário", path: "/relatorios/inventario" },
     ],
