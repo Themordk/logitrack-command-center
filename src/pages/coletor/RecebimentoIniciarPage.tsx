@@ -15,6 +15,7 @@ interface MovimentoResumo {
   parceiro: string;
   box: string;
   confirma_volume?: boolean;
+  total_volume_conferido?: number | null;
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
@@ -42,10 +43,10 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
         (data || []).map(async (m: any) => {
           const { data: movData } = await (supabase as any)
             .from("movimento_entrada")
-            .select("confirma_volume")
+            .select("confirma_volume, total_volume_conferido")
             .eq("id", m.id)
             .single();
-          return { ...m, confirma_volume: movData?.confirma_volume ?? false };
+          return { ...m, confirma_volume: movData?.confirma_volume ?? false, total_volume_conferido: movData?.total_volume_conferido ?? null };
         })
       );
 
@@ -76,9 +77,10 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
       // Store selected movimento in session
       sessionStorage.setItem("coletor_movimento_id", selectedId);
 
-      // Check if confirma_volume is true
+      // Check if confirma_volume is true OR total_volume_conferido is null/zero
       const selectedMov = movimentos.find((m) => m.id === selectedId);
-      if (selectedMov?.confirma_volume) {
+      const needsVolumeCheck = selectedMov?.confirma_volume || !selectedMov?.total_volume_conferido;
+      if (needsVolumeCheck) {
         toast.success("Conferência iniciada! Confirme os volumes.");
         onNavigate("/coletor/recebimento/volumes");
       } else {
