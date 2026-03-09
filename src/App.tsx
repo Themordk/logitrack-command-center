@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
 import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
