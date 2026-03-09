@@ -26,10 +26,15 @@ interface ProdutoInfo {
 }
 
 interface ConferenciaItem {
-  id: string; // tarefa_execucao id
+  tarefa_execucao_id: string;
+  tarefa_id: string;
+  tarefa_status: string;
   sku: string;
   descricao: string;
+  operador: string;
+  codigo_hu: string | null;
   quantidade_executada: number;
+  concluido_em: string | null;
   lote: string;
   status: string;
 }
@@ -56,98 +61,29 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [validade, setValidade] = useState("");
 
   const loadConferencia = useCallback(async () => {
-    if (!movimentoId || !tenantId) return;
+    if (!movimentoId) return;
     setLoading(true);
     try {
-      // Get executed items via tarefa_execucao joined with tarefa
       const { data, error } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select(`
-          id,
-          quantidade_executada,
-          lote,
-          status,
-          tarefa:tarefa_id (
-            produto:produto_id ( sku, descricao )
-          )
-        `)
-        .eq("tenant_id", tenantId)
-        .eq("status", "CONCLUIDA");
+        .from("vw_movimento_entrada_conferencia_detalhe")
+        .select("tarefa_execucao_id, tarefa_id, tarefa_status, sku, descricao, operador, codigo_hu, quantidade_executada, concluido_em, lote, status")
+        .eq("movimento_id", movimentoId);
 
       if (error) throw error;
 
-      // Filter by movimento - need to cross-reference tarefa
-      const { data: tarefaIds } = await (supabase as any)
-        .from("tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
-        .in("id_documento_origem", [movimentoId]);
-
-      // Actually tarefa.id_documento_origem points to movimento_entrada_item.id
-      // Let's get all movimento_entrada_item ids for this movement
-      const { data: meiIds } = await (supabase as any)
-        .from("movimento_entrada_item")
-        .select("id")
-        .eq("movimento_entrada_id", movimentoId);
-
-      if (!meiIds) { setItems([]); setLoading(false); return; }
-      const meiIdSet = new Set(meiIds.map((m: any) => m.id));
-
-      // Get tarefas for these items
-      const { data: tarefas } = await (supabase as any)
-        .from("tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
-        .in("id_documento_origem", meiIds.map((m: any) => m.id));
-
-      if (!tarefas) { setItems([]); setLoading(false); return; }
-      const tarefaIdSet = new Set(tarefas.map((t: any) => t.id));
-
-      // Get execucoes for these tarefas
-      const { data: execucoes } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select("id, quantidade_executada, lote, status, tarefa_id")
-        .eq("tenant_id", tenantId)
-        .eq("status", "CONCLUIDA")
-        .in("tarefa_id", tarefas.map((t: any) => t.id));
-
-      if (!execucoes) { setItems([]); setLoading(false); return; }
-
-      // Get product info for tarefas
-      const tarefaProdMap: Record<string, string> = {};
-      for (const t of tarefas) { tarefaProdMap[t.id] = t.id; }
-
-      const { data: tarefasWithProd } = await (supabase as any)
-        .from("tarefa")
-        .select("id, produto_id")
-        .in("id", tarefas.map((t: any) => t.id));
-
-      const prodIds = [...new Set((tarefasWithProd || []).map((t: any) => t.produto_id))];
-      const { data: produtos } = await (supabase as any)
-        .from("produto")
-        .select("id, sku, descricao")
-        .in("id", prodIds);
-
-      const prodMap: Record<string, any> = {};
-      (produtos || []).forEach((p: any) => { prodMap[p.id] = p; });
-
-      const tarefaProdIdMap: Record<string, string> = {};
-      (tarefasWithProd || []).forEach((t: any) => { tarefaProdIdMap[t.id] = t.produto_id; });
-
-      const mapped: ConferenciaItem[] = execucoes.map((e: any) => {
-        const prodId = tarefaProdIdMap[e.tarefa_id];
-        const prod = prodMap[prodId] || {};
-        return {
-          id: e.id,
-          sku: prod.sku || "",
-          descricao: prod.descricao || "",
-          quantidade_executada: e.quantidade_executada || 0,
-          lote: e.lote || "",
-          status: e.status,
-        };
-      });
+      const mapped: ConferenciaItem[] = (data || []).map((e: any) => ({
+        tarefa_execucao_id: e.tarefa_execucao_id,
+        tarefa_id: e.tarefa_id,
+        tarefa_status: e.tarefa_status,
+        sku: e.sku || "",
+        descricao: e.descricao || "",
+        operador: e.operador || "",
+        codigo_hu: e.codigo_hu,
+        quantidade_executada: Number(e.quantidade_executada || 0),
+        concluido_em: e.concluido_em,
+        lote: e.lote || "",
+        status: e.status,
+      }));
 
       setItems(mapped);
     } catch {
@@ -155,7 +91,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [movimentoId, tenantId]);
+  }, [movimentoId]);
 
   useEffect(() => {
     if (movimentoId) loadConferencia();
@@ -323,14 +259,18 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
   };
 
-  const handleDeleteExecucao = async (execId: string) => {
+  const handleDeleteExecucao = async (item: ConferenciaItem) => {
     if (!tenantId) return;
-    setDeleting(execId);
+    if (item.tarefa_status === "CONCLUIDA") {
+      toast.error("Não é possível remover. A conferência deste item já foi concluída.");
+      return;
+    }
+    setDeleting(item.tarefa_execucao_id);
     try {
       const { error } = await (supabase as any)
         .from("tarefa_execucao")
         .delete()
-        .eq("id", execId)
+        .eq("id", item.tarefa_execucao_id)
         .eq("tenant_id", tenantId);
       if (error) throw error;
       toast.success("Conferência removida.");
@@ -411,21 +351,26 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
           ) : (
             <div className="space-y-2 max-h-[40vh] overflow-y-auto">
               {items.map((item) => (
-                <div key={item.id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2">
+                <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
                       <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
                       <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
                     </div>
                     <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
-                    {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                      {item.operador && <span className="text-[10px] text-[hsl(213,31%,45%)]">Op: {item.operador}</span>}
+                      {item.codigo_hu && <span className="text-[10px] text-[hsl(213,31%,45%)]">HU: {item.codigo_hu}</span>}
+                      {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
+                      {item.concluido_em && <span className="text-[10px] text-[hsl(213,31%,45%)]">{new Date(item.concluido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                    </div>
                   </div>
                   <button
-                    onClick={() => handleDeleteExecucao(item.id)}
-                    disabled={deleting === item.id}
+                    onClick={() => handleDeleteExecucao(item)}
+                    disabled={deleting === item.tarefa_execucao_id}
                     className="shrink-0 w-9 h-9 rounded-lg bg-[#E02424]/15 flex items-center justify-center text-[#E02424] active:bg-[#E02424]/30 disabled:opacity-40"
                   >
-                    {deleting === item.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    {deleting === item.tarefa_execucao_id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                   </button>
                 </div>
               ))}
