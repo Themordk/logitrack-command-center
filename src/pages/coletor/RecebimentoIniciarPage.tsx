@@ -15,6 +15,7 @@ interface MovimentoResumo {
   parceiro: string;
   box: string;
   confirma_volume?: boolean;
+  total_volume_conferido?: number | null;
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
