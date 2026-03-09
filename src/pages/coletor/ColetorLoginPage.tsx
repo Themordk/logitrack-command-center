@@ -102,6 +102,14 @@ export function ColetorLoginPage({ onNavigate }: Props) {
             Entrar
           </ActionButton>
         </form>
+
+        <button
+          type="button"
+          onClick={() => onNavigate("/")}
+          className="w-full text-center text-sm text-[hsl(213,31%,55%)] hover:text-[hsl(217,91%,60%)] transition-colors"
+        >
+          Acessar Painel Administrativo
+        </button>
       </div>
     </div>
   );
