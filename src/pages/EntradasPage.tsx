@@ -11,12 +11,13 @@ interface DocEntry {
   data_emissao: string;
   parceiro_id: string;
   valor_total_nota: number;
+  qtd_volume: number | null;
   parceiro_nome?: string;
   total_skus?: number;
 }
 
 export function EntradasPage() {
-  const { tenantId, armazemId, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
   const [docs, setDocs] = useState<DocEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -27,8 +28,10 @@ export function EntradasPage() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [boxes, setBoxes] = useState<{ id: string; descricao: string }[]>([]);
+  const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
   const [formData, setFormData] = useState({
     box_id: "",
+    armazem_id: "",
     placa_veiculo: "",
     valor_descarga: "",
     confirma_volume: true,
@@ -38,19 +41,27 @@ export function EntradasPage() {
   const [generating, setGenerating] = useState(false);
 
   const fetchDocs = useCallback(async () => {
-    if (!armazemId) return;
+    if (!tenantId || !empresaId) return;
     setLoading(true);
     try {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
-      const { data, error, count } = await (supabase as any)
+      let query = (supabase as any)
         .from("documento_entrada")
-        .select("id, numero_nota, data_emissao, parceiro_id, valor_total_nota", { count: "exact" })
-        .eq("armazem_id", armazemId)
+        .select("id, numero_nota, data_emissao, parceiro_id, valor_total_nota, qtd_volume", { count: "exact" })
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
         .eq("status", 0)
         .order("data_emissao", { ascending: false })
         .range(from, to);
+
+      // armazem_id is optional filter
+      if (armazemId) {
+        query = query.eq("armazem_id", armazemId);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
@@ -76,7 +87,7 @@ export function EntradasPage() {
     } finally {
       setLoading(false);
     }
-  }, [armazemId, page]);
+  }, [tenantId, empresaId, armazemId, page]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
@@ -97,15 +108,32 @@ export function EntradasPage() {
   };
 
   const openModal = async () => {
-    // Fetch boxes
-    const { data } = await (supabase as any)
-      .from("box")
-      .select("id, descricao")
-      .eq("armazem_id", armazemId)
-      .eq("ativo", true)
-      .order("descricao");
-    setBoxes(data || []);
-    setFormData({ box_id: "", placa_veiculo: "", valor_descarga: "", confirma_volume: true, crossdocking: false, observacao: "" });
+    // Fetch boxes and armazens in parallel
+    const [boxRes, armRes] = await Promise.all([
+      (supabase as any)
+        .from("box")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .order("descricao"),
+      (supabase as any)
+        .from("armazem")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .order("descricao"),
+    ]);
+    setBoxes(boxRes.data || []);
+    setArmazens(armRes.data || []);
+    setFormData({
+      box_id: "",
+      armazem_id: armazemId || "",
+      placa_veiculo: "",
+      valor_descarga: "",
+      confirma_volume: true,
+      crossdocking: false,
+      observacao: "",
+    });
     setShowModal(true);
   };
 
@@ -113,17 +141,27 @@ export function EntradasPage() {
     if (!formData.box_id) { toast.error("Selecione um Box."); return; }
     setGenerating(true);
     try {
+      const docIds = Array.from(selected);
+
+      // Calculate total_volume from selected documents
+      const totalVolume = docs
+        .filter((d) => selected.has(d.id))
+        .reduce((sum, d) => sum + (Number(d.qtd_volume) || 0), 0);
+
       // 1. Create movimento_entrada
       const { data: mov, error: movError } = await (supabase as any)
         .from("movimento_entrada")
         .insert({
-          armazem_id: armazemId,
+          tenant_id: tenantId,
+          empresa_id: empresaId,
+          armazem_id: formData.armazem_id || armazemId || null,
           box_id: formData.box_id,
           placa_veiculo: formData.placa_veiculo || null,
           valor_descarga: formData.valor_descarga ? parseFloat(formData.valor_descarga) : null,
           confirma_volume: formData.confirma_volume,
           crossdocking: formData.crossdocking,
           observacao: formData.observacao || null,
+          total_volume: totalVolume || null,
           status: "GERADO",
           created_by: usuarioId,
         })
@@ -133,12 +171,12 @@ export function EntradasPage() {
       if (movError) throw movError;
 
       const movId = mov.id;
-      const docIds = Array.from(selected);
 
       // 2. Link documents
       const docLinks = docIds.map((docId) => ({
         movimento_entrada_id: movId,
         documento_entrada_id: docId,
+        tenant_id: tenantId,
       }));
       const { error: linkError } = await (supabase as any).from("movimento_entrada_documento").insert(docLinks);
       if (linkError) throw linkError;
@@ -157,6 +195,7 @@ export function EntradasPage() {
             produto_id: item.produto_id,
             qtd_esperada: item.quantidade,
             qtd_conferida: 0,
+            tenant_id: tenantId,
           }));
           const { error: itemError } = await (supabase as any).from("movimento_entrada_item").insert(movItems);
           if (itemError) throw itemError;
@@ -221,6 +260,7 @@ export function EntradasPage() {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Data Emissão</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
                 <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
+                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Valor Total</th>
               </tr>
             </thead>
@@ -234,6 +274,7 @@ export function EntradasPage() {
                   <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
                   <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
                   <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
+                  <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
                   <td className="px-4 py-2.5 text-right font-mono text-foreground">
                     {doc.valor_total_nota.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </td>
@@ -271,6 +312,17 @@ export function EntradasPage() {
               >
                 <option value="">Selecione...</option>
                 {boxes.map((b) => <option key={b.id} value={b.id}>{b.descricao}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Armazém</label>
+              <select
+                value={formData.armazem_id}
+                onChange={(e) => setFormData({ ...formData, armazem_id: e.target.value })}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="">Selecione...</option>
+                {armazens.map((a) => <option key={a.id} value={a.id}>{a.descricao}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -59,6 +59,7 @@ import { TransferenciaDetalhePage } from "./pages/coletor/TransferenciaDetalhePa
 import { TransferenciaDestinoPage } from "./pages/coletor/TransferenciaDestinoPage";
 import { TransferenciaConcluidoPage } from "./pages/coletor/TransferenciaConcluidoPage";
 import { AbastecimentoListPage } from "./pages/coletor/AbastecimentoListPage";
+import { RecebimentoVolumesPage } from "./pages/coletor/RecebimentoVolumesPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -156,6 +157,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/home": return <ColetorHomePage onNavigate={onNavigate} />;
     case "/coletor/recebimento": return <RecebimentoMenuPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/iniciar": return <RecebimentoIniciarPage onNavigate={onNavigate} />;
+    case "/coletor/recebimento/volumes": return <RecebimentoVolumesPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/execucao": return <RecebimentoExecucaoPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/conferencia": return <RecebimentoConferenciaPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/concluido": return <RecebimentoConcluidoPage onNavigate={onNavigate} />;

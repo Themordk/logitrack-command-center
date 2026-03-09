@@ -116,14 +116,15 @@ export type Database = {
       }
       documento_entrada: {
         Row: {
-          armazem_id: string
+          armazem_id: string | null
           created_at: string | null
           data_emissao: string
           data_entrada: string
-          empresa_id: string | null
+          empresa_id: string
           id: string
           numero_nota: string
           parceiro_id: string
+          qtd_volume: number | null
           status: number
           tenant_id: string
           tipo_entrada_id: string
@@ -131,14 +132,15 @@ export type Database = {
           valor_total_produtos: number
         }
         Insert: {
-          armazem_id: string
+          armazem_id?: string | null
           created_at?: string | null
           data_emissao: string
           data_entrada: string
-          empresa_id?: string | null
+          empresa_id: string
           id?: string
           numero_nota: string
           parceiro_id: string
+          qtd_volume?: number | null
           status: number
           tenant_id: string
           tipo_entrada_id: string
@@ -146,14 +148,15 @@ export type Database = {
           valor_total_produtos: number
         }
         Update: {
-          armazem_id?: string
+          armazem_id?: string | null
           created_at?: string | null
           data_emissao?: string
           data_entrada?: string
-          empresa_id?: string | null
+          empresa_id?: string
           id?: string
           numero_nota?: string
           parceiro_id?: string
+          qtd_volume?: number | null
           status?: number
           tenant_id?: string
           tipo_entrada_id?: string
@@ -1157,6 +1160,7 @@ export type Database = {
       movimento_entrada: {
         Row: {
           armazem_id: string
+          autorizado_em: string | null
           box_id: string
           conferencia_finalizada_em: string | null
           conferencia_finalizada_por: string | null
@@ -1169,15 +1173,20 @@ export type Database = {
           empresa_id: string | null
           finalizado_em: string | null
           id: string
+          motivo_ocorrencia: string | null
           numero_movimento: number | null
           observacao: string | null
           placa_veiculo: string | null
           status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
           tenant_id: string
+          total_volume: number | null
+          total_volume_conferido: number | null
+          usuario_autorizou: string | null
           valor_descarga: number | null
         }
         Insert: {
           armazem_id: string
+          autorizado_em?: string | null
           box_id: string
           conferencia_finalizada_em?: string | null
           conferencia_finalizada_por?: string | null
@@ -1190,15 +1199,20 @@ export type Database = {
           empresa_id?: string | null
           finalizado_em?: string | null
           id?: string
+          motivo_ocorrencia?: string | null
           numero_movimento?: number | null
           observacao?: string | null
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
           tenant_id: string
+          total_volume?: number | null
+          total_volume_conferido?: number | null
+          usuario_autorizou?: string | null
           valor_descarga?: number | null
         }
         Update: {
           armazem_id?: string
+          autorizado_em?: string | null
           box_id?: string
           conferencia_finalizada_em?: string | null
           conferencia_finalizada_por?: string | null
@@ -1211,11 +1225,15 @@ export type Database = {
           empresa_id?: string | null
           finalizado_em?: string | null
           id?: string
+          motivo_ocorrencia?: string | null
           numero_movimento?: number | null
           observacao?: string | null
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
           tenant_id?: string
+          total_volume?: number | null
+          total_volume_conferido?: number | null
+          usuario_autorizou?: string | null
           valor_descarga?: number | null
         }
         Relationships: [
@@ -1255,10 +1273,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimento_entrada_motivo_ocorrencia_fkey"
+            columns: ["motivo_ocorrencia"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimento_entrada_tenant_fk"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_usuario_autorizou_fkey"
+            columns: ["usuario_autorizou"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -3257,6 +3289,7 @@ export type Database = {
       enum_status_mov_entrada:
         | "GERADO"
         | "LIBERADO"
+        | "ERRO_TRANSPORTADOR"
         | "EM_CONFERENCIA"
         | "CONFERIDO"
         | "DIVERGENCIA"
@@ -3511,6 +3544,7 @@ export const Constants = {
       enum_status_mov_entrada: [
         "GERADO",
         "LIBERADO",
+        "ERRO_TRANSPORTADOR",
         "EM_CONFERENCIA",
         "CONFERIDO",
         "DIVERGENCIA",
