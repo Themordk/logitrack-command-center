@@ -26,10 +26,15 @@ interface ProdutoInfo {
 }
 
 interface ConferenciaItem {
-  id: string; // tarefa_execucao id
+  tarefa_execucao_id: string;
+  tarefa_id: string;
+  tarefa_status: string;
   sku: string;
   descricao: string;
+  operador: string;
+  codigo_hu: string | null;
   quantidade_executada: number;
+  concluido_em: string | null;
   lote: string;
   status: string;
 }
