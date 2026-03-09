@@ -259,14 +259,18 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
   };
 
-  const handleDeleteExecucao = async (execId: string) => {
+  const handleDeleteExecucao = async (item: ConferenciaItem) => {
     if (!tenantId) return;
-    setDeleting(execId);
+    if (item.tarefa_status === "CONCLUIDA") {
+      toast.error("Não é possível remover. A conferência deste item já foi concluída.");
+      return;
+    }
+    setDeleting(item.tarefa_execucao_id);
     try {
       const { error } = await (supabase as any)
         .from("tarefa_execucao")
         .delete()
-        .eq("id", execId)
+        .eq("id", item.tarefa_execucao_id)
         .eq("tenant_id", tenantId);
       if (error) throw error;
       toast.success("Conferência removida.");
