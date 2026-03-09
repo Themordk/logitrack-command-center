@@ -204,14 +204,14 @@ function AppContent() {
 
   // Coletor routes handle their own auth
   if (isColetor) {
-    return renderColetorPage(currentPath, setCurrentPath);
+    return renderColetorPage(currentPath, navigate);
   }
 
   if (!authenticated) {
     return (
       <LoginPage
         onLogin={() => login()}
-        onNavigateColetor={() => setCurrentPath("/coletor/login")}
+        onNavigateColetor={() => navigate("/coletor/login")}
       />
     );
   }
@@ -222,8 +222,8 @@ function AppContent() {
   ];
 
   return (
-    <Layout currentPath={currentPath} breadcrumb={bc} onNavigate={setCurrentPath}>
-      {renderPage(currentPath, setCurrentPath)}
+    <Layout currentPath={currentPath} breadcrumb={bc} onNavigate={navigate}>
+      {renderPage(currentPath, navigate)}
     </Layout>
   );
 }
