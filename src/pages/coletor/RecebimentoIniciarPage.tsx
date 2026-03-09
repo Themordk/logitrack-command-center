@@ -79,7 +79,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
 
       // Check if confirma_volume is true OR total_volume_conferido is null/zero
       const selectedMov = movimentos.find((m) => m.id === selectedId);
-      const needsVolumeCheck = selectedMov?.confirma_volume || !selectedMov?.total_volume_conferido;
+      const needsVolumeCheck = !selectedMov?.total_volume_conferido;
       if (needsVolumeCheck) {
         toast.success("Conferência iniciada! Confirme os volumes.");
         onNavigate("/coletor/recebimento/volumes");
