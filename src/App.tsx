@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
 import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
@@ -172,9 +172,30 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
   }
 }
 
+function getInitialPath() {
+  const hash = window.location.hash.replace("#", "") || "/";
+  return hash;
+}
+
 function AppContent() {
   const { tenantId, empresaId, loading, authenticated, login } = useTenant();
-  const [currentPath, setCurrentPath] = useState("/");
+  const [currentPath, setCurrentPath] = useState(getInitialPath);
+
+  // Sync hash with state
+  const navigate = (path: string) => {
+    window.location.hash = path;
+    setCurrentPath(path);
+  };
+
+  // Listen for browser back/forward
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace("#", "") || "/";
+      setCurrentPath(hash);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   // Detect if we're in coletor mode
   const isColetor = currentPath.startsWith("/coletor");
@@ -183,14 +204,14 @@ function AppContent() {
 
   // Coletor routes handle their own auth
   if (isColetor) {
-    return renderColetorPage(currentPath, setCurrentPath);
+    return renderColetorPage(currentPath, navigate);
   }
 
   if (!authenticated) {
     return (
       <LoginPage
         onLogin={() => login()}
-        onNavigateColetor={() => setCurrentPath("/coletor/login")}
+        onNavigateColetor={() => navigate("/coletor/login")}
       />
     );
   }
@@ -201,8 +222,8 @@ function AppContent() {
   ];
 
   return (
-    <Layout currentPath={currentPath} breadcrumb={bc} onNavigate={setCurrentPath}>
-      {renderPage(currentPath, setCurrentPath)}
+    <Layout currentPath={currentPath} breadcrumb={bc} onNavigate={navigate}>
+      {renderPage(currentPath, navigate)}
     </Layout>
   );
 }
