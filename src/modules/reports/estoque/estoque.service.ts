@@ -58,7 +58,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     lote: row.lote || "",
     data_validade: row.data_validade,
     numero_serie: row.numero_serie || "",
-    codigo_endereco: row.endereco?.codigo_endereco ?? "",
+    codigo_endereco: row.endereco?.descricao || "",
     endereco_descricao: row.endereco?.descricao || "",
     tipo_endereco: row.endereco?.tipo_endereco || "",
     armazem_id: row.endereco?.armazem_id || "",
