@@ -3086,6 +3086,10 @@ export type Database = {
       }
     }
     Functions: {
+      finalizar_conferencia_entrada: {
+        Args: { p_movimento_entrada_id: string; p_usuario: string }
+        Returns: string
+      }
       fn_usuario_tem_empresa: {
         Args: { p_empresa_id: string }
         Returns: boolean
