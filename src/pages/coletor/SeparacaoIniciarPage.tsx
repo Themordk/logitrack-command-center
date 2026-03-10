@@ -90,11 +90,9 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
           </div>
         )}
 
-        <ActionButton
-          label="Iniciar Separação"
-          onClick={handleIniciar}
-          disabled={!selectedId}
-        />
+        <ActionButton onClick={handleIniciar} disabled={!selectedId}>
+          Iniciar Separação
+        </ActionButton>
       </div>
     </ColetorLayout>
   );
