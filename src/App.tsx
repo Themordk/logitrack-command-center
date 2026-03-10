@@ -29,6 +29,7 @@ import { TiposEntradaPage } from "./pages/TiposEntradaPage";
 import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
+import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -78,6 +79,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
   "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
+  "/atividades/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Roteiro de Separação" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
@@ -111,6 +113,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
+    case "/atividades/roteiro-separacao": return <RoteiroSeparacaoPage />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;

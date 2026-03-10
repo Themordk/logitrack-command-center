@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, FileText, ChevronLeft, ChevronRight, Truck } from "lucide-react";
+import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus } from "lucide-react";
+import { CadastroDocEntradaPage } from "./CadastroDocEntradaPage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface DocEntry {
@@ -24,6 +25,7 @@ export function EntradasPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 15;
+  const [showCadastro, setShowCadastro] = useState(false);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -222,6 +224,10 @@ export function EntradasPage() {
 
   const totalPages = Math.ceil(total / pageSize);
 
+  if (showCadastro) {
+    return <CadastroDocEntradaPage onBack={() => { setShowCadastro(false); fetchDocs(); }} />;
+  }
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -229,14 +235,23 @@ export function EntradasPage() {
           <h1 className="text-lg font-bold text-foreground">Documentos de Entrada Pendentes</h1>
           <p className="text-xs text-muted-foreground">Selecione documentos para gerar um movimento de entrada</p>
         </div>
-        <button
-          onClick={openModal}
-          disabled={selected.size === 0}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <Truck size={14} />
-          Gerar Movimento de Entrada ({selected.size})
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCadastro(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+          >
+            <Plus size={14} />
+            Novo Documento
+          </button>
+          <button
+            onClick={openModal}
+            disabled={selected.size === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Truck size={14} />
+            Gerar Movimento ({selected.size})
+          </button>
+        </div>
       </div>
 
       <div className="card-surface overflow-hidden">
