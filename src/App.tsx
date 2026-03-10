@@ -113,6 +113,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
+    case "/atividades/roteiro-separacao": return <RoteiroSeparacaoPage />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
