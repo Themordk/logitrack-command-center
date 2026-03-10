@@ -896,6 +896,13 @@ export type Database = {
             referencedColumns: ["tarefa_execucao_id"]
           },
           {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
             foreignKeyName: "estoque_movimento_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1557,7 +1564,7 @@ export type Database = {
           },
         ]
       }
-      onda_carregamento: {
+      movimento_saida: {
         Row: {
           box_id: string
           data_emissao: string
@@ -1568,19 +1575,19 @@ export type Database = {
           motorista: string
           numero_onda: number
           observacao: string | null
-          parceiro_id: string | null
           peso_total: number | null
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"] | null
           regra_agrupamento:
             | Database["public"]["Enums"]["enum_agrupar_sep_por"]
             | null
-          rota_id: string | null
+          rota_id: string
           status:
             | Database["public"]["Enums"]["enum_status_onda_carregamento"]
             | null
           tenant_id: string
           total_pedidos: number | null
-          veiculo_id: string | null
+          total_volume: number
+          veiculo_id: string
         }
         Insert: {
           box_id: string
@@ -1592,7 +1599,6 @@ export type Database = {
           motorista: string
           numero_onda?: number
           observacao?: string | null
-          parceiro_id?: string | null
           peso_total?: number | null
           prioridade?:
             | Database["public"]["Enums"]["enum_prioridade_onda"]
@@ -1600,13 +1606,14 @@ export type Database = {
           regra_agrupamento?:
             | Database["public"]["Enums"]["enum_agrupar_sep_por"]
             | null
-          rota_id?: string | null
+          rota_id: string
           status?:
             | Database["public"]["Enums"]["enum_status_onda_carregamento"]
             | null
           tenant_id: string
           total_pedidos?: number | null
-          veiculo_id?: string | null
+          total_volume: number
+          veiculo_id: string
         }
         Update: {
           box_id?: string
@@ -1618,7 +1625,6 @@ export type Database = {
           motorista?: string
           numero_onda?: number
           observacao?: string | null
-          parceiro_id?: string | null
           peso_total?: number | null
           prioridade?:
             | Database["public"]["Enums"]["enum_prioridade_onda"]
@@ -1626,13 +1632,14 @@ export type Database = {
           regra_agrupamento?:
             | Database["public"]["Enums"]["enum_agrupar_sep_por"]
             | null
-          rota_id?: string | null
+          rota_id?: string
           status?:
             | Database["public"]["Enums"]["enum_status_onda_carregamento"]
             | null
           tenant_id?: string
           total_pedidos?: number | null
-          veiculo_id?: string | null
+          total_volume?: number
+          veiculo_id?: string
         }
         Relationships: [
           {
@@ -1647,13 +1654,6 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_onda_parceiro"
-            columns: ["parceiro_id"]
-            isOneToOne: false
-            referencedRelation: "parceiro"
             referencedColumns: ["id"]
           },
           {
@@ -1679,25 +1679,25 @@ export type Database = {
           },
         ]
       }
-      onda_carregamento_documento: {
+      movimento_saida_documento: {
         Row: {
           documento_saida_id: string
           id: string
-          onda_carregamento_id: string
+          movimento_saida_id: string
           ordem: number
           tenant_id: string
         }
         Insert: {
           documento_saida_id: string
           id?: string
-          onda_carregamento_id: string
+          movimento_saida_id: string
           ordem: number
           tenant_id: string
         }
         Update: {
           documento_saida_id?: string
           id?: string
-          onda_carregamento_id?: string
+          movimento_saida_id?: string
           ordem?: number
           tenant_id?: string
         }
@@ -1711,10 +1711,31 @@ export type Database = {
           },
           {
             foreignKeyName: "fk_onda_doc_onda"
-            columns: ["onda_carregamento_id"]
+            columns: ["movimento_saida_id"]
             isOneToOne: false
-            referencedRelation: "onda_carregamento"
+            referencedRelation: "movimento_saida"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
           },
           {
             foreignKeyName: "fk_onda_doc_tenant"
@@ -1723,14 +1744,42 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
         ]
       }
-      onda_carregamento_item: {
+      movimento_saida_item: {
         Row: {
           id: string
-          onda_carregamento_id: string
+          movimento_saida_id: string
           produto_id: string
-          quantidade: number
+          qtd_esperada: number
           status: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
           valor_total: number
@@ -1738,9 +1787,9 @@ export type Database = {
         }
         Insert: {
           id?: string
-          onda_carregamento_id: string
+          movimento_saida_id: string
           produto_id: string
-          quantidade: number
+          qtd_esperada: number
           status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
           valor_total: number
@@ -1748,9 +1797,9 @@ export type Database = {
         }
         Update: {
           id?: string
-          onda_carregamento_id?: string
+          movimento_saida_id?: string
           produto_id?: string
-          quantidade?: number
+          qtd_esperada?: number
           status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id?: string
           valor_total?: number
@@ -1759,10 +1808,31 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fk_onda_item_onda"
-            columns: ["onda_carregamento_id"]
+            columns: ["movimento_saida_id"]
             isOneToOne: false
-            referencedRelation: "onda_carregamento"
+            referencedRelation: "movimento_saida"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
           },
           {
             foreignKeyName: "fk_onda_item_prod"
@@ -1777,6 +1847,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tenant"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
           },
         ]
       }
@@ -2482,6 +2580,13 @@ export type Database = {
             referencedColumns: ["tarefa_execucao_id"]
           },
           {
+            foreignKeyName: "evento_execucao_tarefa_execucao_tarefa_id_fkey"
+            columns: ["execucao_tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
             foreignKeyName: "evento_execucao_tarefa_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2500,6 +2605,13 @@ export type Database = {
             columns: ["tarefa_id"]
             isOneToOne: false
             referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "tarefa_evento_execucao_tarefa_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
             referencedColumns: ["tarefa_id"]
           },
         ]
@@ -2572,6 +2684,13 @@ export type Database = {
             columns: ["tarefa_id"]
             isOneToOne: false
             referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
             referencedColumns: ["tarefa_id"]
           },
           {
@@ -3091,55 +3210,73 @@ export type Database = {
       }
       volume_expedicao: {
         Row: {
-          armazem_id: string
           codigo_volume: string
           created_at: string
-          hu_id: string | null
+          empresa_id: string | null
           id: string
           m3: number | null
-          pedido_id: string
+          movimento_saida_id: string
           peso_bruto: number | null
           status: Database["public"]["Enums"]["enum_status_volume"]
           tenant_id: string
         }
         Insert: {
-          armazem_id: string
           codigo_volume: string
           created_at?: string
-          hu_id?: string | null
+          empresa_id?: string | null
           id?: string
           m3?: number | null
-          pedido_id: string
+          movimento_saida_id: string
           peso_bruto?: number | null
           status?: Database["public"]["Enums"]["enum_status_volume"]
           tenant_id: string
         }
         Update: {
-          armazem_id?: string
           codigo_volume?: string
           created_at?: string
-          hu_id?: string | null
+          empresa_id?: string | null
           id?: string
           m3?: number | null
-          pedido_id?: string
+          movimento_saida_id?: string
           peso_bruto?: number | null
           status?: Database["public"]["Enums"]["enum_status_volume"]
           tenant_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "volume_expedicao_armazem_id_fkey"
-            columns: ["armazem_id"]
+            foreignKeyName: "volume_expedicao_empresa_id_fkey"
+            columns: ["empresa_id"]
             isOneToOne: false
-            referencedRelation: "armazem"
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "volume_expedicao_hu_id_fkey"
-            columns: ["hu_id"]
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
             isOneToOne: false
-            referencedRelation: "hu"
+            referencedRelation: "movimento_saida"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
           },
           {
             foreignKeyName: "volume_expedicao_tenant_id_fkey"
@@ -3201,6 +3338,18 @@ export type Database = {
           numero_movimento: number | null
           parceiro: string | null
           status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+        }
+        Relationships: []
+      }
+      v_separacao_iniciar: {
+        Row: {
+          box: string | null
+          id: string | null
+          numero_onda: number | null
+          parceiro: string | null
+          status:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
         }
         Relationships: []
       }
@@ -3300,6 +3449,133 @@ export type Database = {
           qtd_conferida: number | null
           qtd_esperada: number | null
           sku: string | null
+        }
+        Relationships: []
+      }
+      vw_movimento_saida_conferencia_detalhe: {
+        Row: {
+          codigo_hu: string | null
+          concluido_em: string | null
+          descricao_sku: string | null
+          empresa_id: string | null
+          endereco: string | null
+          fabricacao: string | null
+          iniciado_em: string | null
+          login: string | null
+          lote: string | null
+          movimento_saida_id: string | null
+          quantidade_executada: number | null
+          sku: string | null
+          tenant_id: string | null
+          validade: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "tarefa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_movimento_saida_resumo: {
+        Row: {
+          descricao: string | null
+          movimento_id: string | null
+          movimento_item_id: string | null
+          qtd_conferida: number | null
+          qtd_esperada: number | null
+          qtd_separada: number | null
+          sku: string | null
+        }
+        Relationships: []
+      }
+      vw_movimento_saida_separacao_detalhe: {
+        Row: {
+          codigo_hu: string | null
+          concluido_em: string | null
+          descricao: string | null
+          fabricacao: string | null
+          iniciado_em: string | null
+          lote: string | null
+          movimento_id: string | null
+          operador: string | null
+          quantidade_executada: number | null
+          serie: string | null
+          sku: string | null
+          status:
+            | Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+            | null
+          tarefa_execucao_id: string | null
+          tarefa_id: string | null
+          tarefa_status:
+            | Database["public"]["Enums"]["enum_status_tarefa"]
+            | null
+          validade: string | null
         }
         Relationships: []
       }
@@ -3453,7 +3729,7 @@ export type Database = {
         | "EXPORTADO"
       enum_status_onda_carregamento:
         | "CRIADA"
-        | "LIBERADA"
+        | "LIBERADO"
         | "EM_PICKING"
         | "EM_CONFERENCIA"
         | "EM_CARREGAMENTO"
@@ -3710,7 +3986,7 @@ export const Constants = {
       ],
       enum_status_onda_carregamento: [
         "CRIADA",
-        "LIBERADA",
+        "LIBERADO",
         "EM_PICKING",
         "EM_CONFERENCIA",
         "EM_CARREGAMENTO",

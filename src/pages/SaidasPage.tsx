@@ -27,19 +27,20 @@ export function SaidasPage() {
   const pageSize = 15;
   const [showCadastro, setShowCadastro] = useState(false);
 
-  // Modal state
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [boxOptions, setBoxOptions] = useState<{ value: string; label: string }[]>([]);
   const [rotaOptions, setRotaOptions] = useState<{ value: string; label: string }[]>([]);
+  const [veiculoOptions, setVeiculoOptions] = useState<{ value: string; label: string }[]>([]);
   const [formData, setFormData] = useState({
     box_id: "",
     rota_id: "",
+    veiculo_id: "",
     motorista: "",
     destino_carga: "",
     observacao: "",
     prioridade: "NORMAL",
-    regra_agrupamento: "POR_ROTA",
+    total_volume: "",
   });
 
   const fetchDocs = useCallback(async () => {
@@ -86,40 +87,103 @@ export function SaidasPage() {
 
   const openModal = async () => {
     if (tenantId) {
-      const [bx, rt] = await Promise.all([
+      const [bx, rt, vc] = await Promise.all([
         fetchOptions("box", tenantId, "descricao", { armazem_id: armazemId }),
         fetchOptions("rotas", tenantId, "descricao", { armazem_id: armazemId }),
+        fetchOptions("veiculos", tenantId, "descricao"),
       ]);
       setBoxOptions(bx);
       setRotaOptions(rt);
+      setVeiculoOptions(vc);
     }
-    setFormData({ box_id: "", rota_id: "", motorista: "", destino_carga: "", observacao: "", prioridade: "NORMAL", regra_agrupamento: "POR_ROTA" });
+    setFormData({ box_id: "", rota_id: "", veiculo_id: "", motorista: "", destino_carga: "", observacao: "", prioridade: "NORMAL", total_volume: String(selected.size) });
     setShowModal(true);
   };
 
   const handleGenerate = async () => {
+    if (!formData.box_id || !formData.rota_id || !formData.veiculo_id) {
+      toast.error("Preencha Box, Rota e Veículo.");
+      return;
+    }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.rpc("gerar_onda_carregamento", {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-        p_prioridade: formData.prioridade as any,
-        p_regra_agrupamento: formData.regra_agrupamento as any,
-        p_status: 1,
-        p_documentos_saida: Array.from(selected),
-        p_box_id: formData.box_id || null,
-        p_rota_id: formData.rota_id || null,
-        p_motorista: formData.motorista || null,
-        p_destino_carga: formData.destino_carga || null,
-        p_observacao: formData.observacao || null,
+      // 1. Insert movimento_saida
+      const { data: mov, error: movErr } = await (supabase as any)
+        .from("movimento_saida")
+        .insert({
+          tenant_id: tenantId,
+          empresa_id: empresaId,
+          box_id: formData.box_id,
+          rota_id: formData.rota_id,
+          veiculo_id: formData.veiculo_id,
+          data_emissao: new Date().toISOString(),
+          destino_carga: formData.destino_carga || "A DEFINIR",
+          motorista: formData.motorista || "A DEFINIR",
+          total_volume: Number(formData.total_volume) || selected.size,
+          total_pedidos: selected.size,
+          prioridade: formData.prioridade,
+          status: "CRIADA",
+          observacao: formData.observacao || null,
+        })
+        .select("id")
+        .single();
+      if (movErr) throw movErr;
+
+      // 2. Insert movimento_saida_documento
+      const docInserts = Array.from(selected).map((docId, i) => ({
+        tenant_id: tenantId,
+        movimento_saida_id: mov.id,
+        documento_saida_id: docId,
+        ordem: i + 1,
+      }));
+      const { error: docErr } = await (supabase as any)
+        .from("movimento_saida_documento")
+        .insert(docInserts);
+      if (docErr) throw docErr;
+
+      // 3. Consolidate items from documento_saida_item
+      const { data: items, error: itemsErr } = await (supabase as any)
+        .from("documento_saida_item")
+        .select("produto_id, quantidade, valor_unit, valor_total")
+        .in("documento_saida_id", Array.from(selected));
+      if (itemsErr) throw itemsErr;
+
+      const consolidated = new Map<string, any>();
+      (items || []).forEach((item: any) => {
+        const existing = consolidated.get(item.produto_id);
+        if (existing) {
+          existing.qtd_esperada += Number(item.quantidade);
+          existing.valor_total += Number(item.valor_total);
+        } else {
+          consolidated.set(item.produto_id, {
+            tenant_id: tenantId,
+            movimento_saida_id: mov.id,
+            produto_id: item.produto_id,
+            qtd_esperada: Number(item.quantidade),
+            valor_unit: Number(item.valor_unit),
+            valor_total: Number(item.valor_total),
+          });
+        }
       });
-      if (error) throw error;
+      if (consolidated.size > 0) {
+        const { error: itemInsertErr } = await (supabase as any)
+          .from("movimento_saida_item")
+          .insert(Array.from(consolidated.values()));
+        if (itemInsertErr) throw itemInsertErr;
+      }
+
+      // 4. Update documento_saida status
+      await (supabase as any)
+        .from("documento_saida")
+        .update({ status: 1 })
+        .in("id", Array.from(selected));
+
       toast.success("Onda de carregamento gerada com sucesso!");
       setShowModal(false);
       setSelected(new Set());
       fetchDocs();
     } catch (err: any) {
-      toast.error(`Erro ao gerar onda: ${err.message}`);
+      toast.error(`Erro ao gerar: ${err.message}`);
     } finally {
       setGenerating(false);
     }
@@ -140,20 +204,11 @@ export function SaidasPage() {
           <p className="text-xs text-muted-foreground">Selecione documentos para gerar uma onda de carregamento</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCadastro(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors"
-          >
-            <Plus size={14} />
-            Novo Documento
+          <button onClick={() => setShowCadastro(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors">
+            <Plus size={14} /> Novo Documento
           </button>
-          <button
-            onClick={openModal}
-            disabled={selected.size === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <Truck size={14} />
-            Gerar Onda ({selected.size})
+          <button onClick={openModal} disabled={selected.size === 0} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <Truck size={14} /> Gerar Onda ({selected.size})
           </button>
         </div>
       </div>
@@ -206,21 +261,20 @@ export function SaidasPage() {
         )}
       </div>
 
-      {/* Modal Gerar Onda */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Gerar Onda de Carregamento</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Box</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Box *</label>
                 <select value={formData.box_id} onChange={(e) => setFormData({ ...formData, box_id: e.target.value })} className={inputClass}>
                   <option value="">Selecione...</option>
                   {boxOptions.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rota</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rota *</label>
                 <select value={formData.rota_id} onChange={(e) => setFormData({ ...formData, rota_id: e.target.value })} className={inputClass}>
                   <option value="">Selecione...</option>
                   {rotaOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -229,21 +283,28 @@ export function SaidasPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Veículo *</label>
+                <select value={formData.veiculo_id} onChange={(e) => setFormData({ ...formData, veiculo_id: e.target.value })} className={inputClass}>
+                  <option value="">Selecione...</option>
+                  {veiculoOptions.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Prioridade</label>
                 <select value={formData.prioridade} onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })} className={inputClass}>
                   {["BAIXA", "NORMAL", "ALTA", "URGENTE"].map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Agrupamento</label>
-                <select value={formData.regra_agrupamento} onChange={(e) => setFormData({ ...formData, regra_agrupamento: e.target.value })} className={inputClass}>
-                  {["POR_ROTA", "POR_CLIENTE", "POR_PEDIDO"].map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motorista</label>
-              <input value={formData.motorista} onChange={(e) => setFormData({ ...formData, motorista: e.target.value })} placeholder="Nome do motorista" className={inputClass} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motorista</label>
+                <input value={formData.motorista} onChange={(e) => setFormData({ ...formData, motorista: e.target.value })} placeholder="Nome do motorista" className={inputClass} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Total Volumes</label>
+                <input type="number" value={formData.total_volume} onChange={(e) => setFormData({ ...formData, total_volume: e.target.value })} className={inputClass} />
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Destino da Carga</label>
