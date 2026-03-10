@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, FileText, ChevronLeft, ChevronRight, Truck } from "lucide-react";
+import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fetchOptions } from "@/hooks/useCrud";
+import { CadastroDocSaidaPage } from "./CadastroDocSaidaPage";
 
 interface DocSaida {
   id: string;
