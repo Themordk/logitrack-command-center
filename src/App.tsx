@@ -29,6 +29,7 @@ import { TiposEntradaPage } from "./pages/TiposEntradaPage";
 import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
+import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
