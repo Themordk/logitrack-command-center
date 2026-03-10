@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      agrupamento_separacao: {
+        Row: {
+          created_at: string
+          empresa_id: string | null
+          id: number
+          sequencia: number | null
+          tenant_id: string | null
+          tipo_agrupamento:
+            | Database["public"]["Enums"]["enum_agrupar_sep_por"]
+            | null
+        }
+        Insert: {
+          created_at?: string
+          empresa_id?: string | null
+          id?: number
+          sequencia?: number | null
+          tenant_id?: string | null
+          tipo_agrupamento?:
+            | Database["public"]["Enums"]["enum_agrupar_sep_por"]
+            | null
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string | null
+          id?: number
+          sequencia?: number | null
+          tenant_id?: string | null
+          tipo_agrupamento?:
+            | Database["public"]["Enums"]["enum_agrupar_sep_por"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agrupamento_separacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agrupamento_separacao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       armazem: {
         Row: {
           ativo: boolean
@@ -1070,6 +1118,67 @@ export type Database = {
           },
         ]
       }
+      inventario: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          empresa_id: string
+          fim_em: string | null
+          id: number
+          inicio_em: string | null
+          status: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          tenant_id: string
+          tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          empresa_id: string
+          fim_em?: string | null
+          id?: number
+          inicio_em?: string | null
+          status?: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          tenant_id: string
+          tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          empresa_id?: string
+          fim_em?: string | null
+          id?: number
+          inicio_em?: string | null
+          status?: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          tenant_id?: string
+          tipo_inventario?: Database["public"]["Enums"]["enum_tipo_inventario"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_sessao_usuario: {
         Row: {
           fim_sessao: string | null
@@ -1664,6 +1773,51 @@ export type Database = {
           },
           {
             foreignKeyName: "fk_onda_item_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordem_expedicao: {
+        Row: {
+          created_at: string
+          empresa_id: string | null
+          id: number
+          ordem: string | null
+          rua: number | null
+          sequencia: number | null
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          empresa_id?: string | null
+          id?: number
+          ordem?: string | null
+          rua?: number | null
+          sequencia?: number | null
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string | null
+          id?: number
+          ordem?: string | null
+          rua?: number | null
+          sequencia?: number | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordem_expedixao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordem_expedixao_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
@@ -3332,6 +3486,7 @@ export type Database = {
         | "CONFIRMACAO_LOTE"
       enum_tipo_grupo: "PICKING" | "ARMAZENAGEM" | "INVENTARIO"
       enum_tipo_hu: "PALLET" | "CAIXA" | "VOLUME" | "OUTRO"
+      enum_tipo_inventario: "GERAL" | "CICLICO" | "AUDITORIA"
       enum_tipo_operacao:
         | "RECEBIMENTO"
         | "ARMAZENAGEM"
@@ -3591,6 +3746,7 @@ export const Constants = {
       ],
       enum_tipo_grupo: ["PICKING", "ARMAZENAGEM", "INVENTARIO"],
       enum_tipo_hu: ["PALLET", "CAIXA", "VOLUME", "OUTRO"],
+      enum_tipo_inventario: ["GERAL", "CICLICO", "AUDITORIA"],
       enum_tipo_operacao: [
         "RECEBIMENTO",
         "ARMAZENAGEM",
