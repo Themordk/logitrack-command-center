@@ -98,84 +98,23 @@ export function SaidasPage() {
   };
 
   const handleGenerate = async () => {
-    if (!formData.box_id || !formData.rota_id || !formData.veiculo_id) {
-      toast.error("Preencha Box, Rota e Veículo.");
+    if (!formData.prioridade) {
+      toast.error("Preencha o campo Prioridade.");
       return;
     }
     setGenerating(true);
     try {
-      // 1. Insert movimento_saida
-      const { data: mov, error: movErr } = await (supabase as any)
-        .from("movimento_saida")
-        .insert({
-          tenant_id: tenantId,
-          empresa_id: empresaId,
-          box_id: formData.box_id,
-          rota_id: formData.rota_id,
-          veiculo_id: formData.veiculo_id,
-          data_emissao: new Date().toISOString(),
-          destino_carga: formData.destino_carga || "A DEFINIR",
-          motorista: formData.motorista || "A DEFINIR",
-          total_volume: Number(formData.total_volume) || selected.size,
-          total_pedidos: selected.size,
-          prioridade: formData.prioridade,
-          status: "CRIADA",
-          observacao: formData.observacao || null,
-        })
-        .select("id")
-        .single();
-      if (movErr) throw movErr;
-
-      // 2. Insert movimento_saida_documento
-      const docInserts = Array.from(selected).map((docId, i) => ({
-        tenant_id: tenantId,
-        movimento_saida_id: mov.id,
-        documento_saida_id: docId,
-        ordem: i + 1,
-      }));
-      const { error: docErr } = await (supabase as any)
-        .from("movimento_saida_documento")
-        .insert(docInserts);
-      if (docErr) throw docErr;
-
-      // 3. Consolidate items from documento_saida_item
-      const { data: items, error: itemsErr } = await (supabase as any)
-        .from("documento_saida_item")
-        .select("produto_id, quantidade, valor_unit, valor_total")
-        .in("documento_saida_id", Array.from(selected));
-      if (itemsErr) throw itemsErr;
-
-      const consolidated = new Map<string, any>();
-      (items || []).forEach((item: any) => {
-        const existing = consolidated.get(item.produto_id);
-        if (existing) {
-          existing.qtd_esperada += Number(item.quantidade);
-          existing.valor_total += Number(item.valor_total);
-        } else {
-          consolidated.set(item.produto_id, {
-            tenant_id: tenantId,
-            movimento_saida_id: mov.id,
-            produto_id: item.produto_id,
-            qtd_esperada: Number(item.quantidade),
-            valor_unit: Number(item.valor_unit),
-            valor_total: Number(item.valor_total),
-          });
-        }
+      const { data, error } = await (supabase as any).rpc("gerar_onda_separacao", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_box_id: formData.box_id || null,
+        p_rota_id: formData.rota_id || null,
+        p_veiculo_id: formData.veiculo_id || null,
+        p_prioridade: formData.prioridade,
+        p_documentos: Array.from(selected),
       });
-      if (consolidated.size > 0) {
-        const { error: itemInsertErr } = await (supabase as any)
-          .from("movimento_saida_item")
-          .insert(Array.from(consolidated.values()));
-        if (itemInsertErr) throw itemInsertErr;
-      }
-
-      // 4. Update documento_saida status
-      await (supabase as any)
-        .from("documento_saida")
-        .update({ status: 1 })
-        .in("id", Array.from(selected));
-
-      toast.success("Onda de carregamento gerada com sucesso!");
+      if (error) throw error;
+      toast.success(data || "Onda de carregamento gerada com sucesso!");
       setShowModal(false);
       setSelected(new Set());
       fetchDocs();
