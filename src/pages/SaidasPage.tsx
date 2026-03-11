@@ -93,7 +93,7 @@ export function SaidasPage() {
       setRotaOptions(rt);
       setVeiculoOptions(vc);
     }
-    setFormData({ box_id: "", rota_id: "", veiculo_id: "", motorista: "", destino_carga: "", observacao: "", prioridade: "NORMAL", total_volume: String(selected.size) });
+    setFormData({ box_id: "", rota_id: "", veiculo_id: "", observacao: "", prioridade: "NORMAL" });
     setShowModal(true);
   };
 
