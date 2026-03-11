@@ -36,11 +36,8 @@ export function SaidasPage() {
     box_id: "",
     rota_id: "",
     veiculo_id: "",
-    motorista: "",
-    destino_carga: "",
     observacao: "",
     prioridade: "NORMAL",
-    total_volume: "",
   });
 
   const fetchDocs = useCallback(async () => {
