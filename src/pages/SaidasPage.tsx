@@ -210,7 +210,7 @@ export function SaidasPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rota *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rota</label>
                 <select value={formData.rota_id} onChange={(e) => setFormData({ ...formData, rota_id: e.target.value })} className={inputClass}>
                   <option value="">Selecione...</option>
                   {rotaOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
