@@ -161,15 +161,24 @@ export function MovimentoSaidaPage() {
   const handleAction = async (movId: string, action: "liberar" | "retirar") => {
     setActionMenuId(null);
     try {
-      const newStatus = action === "liberar" ? "LIBERADO" : "CRIADA";
-      const { error } = await (supabase as any)
-        .from("movimento_saida")
-        .update({ status: newStatus })
-        .eq("id", movId);
-      if (error) throw error;
-      toast.success(action === "liberar" ? "Liberado para separação!" : "Retirado da separação!");
+      if (action === "liberar") {
+        const { data, error } = await supabase.rpc("liberar_onda_separacao" as any, {
+          p_movimento_saida_id: movId,
+          p_tenant_id: tenantId,
+        });
+        if (error) throw error;
+        toast.success(typeof data === "string" ? data : "Liberado para separação!");
+      } else {
+        const { error } = await (supabase as any)
+          .from("movimento_saida")
+          .update({ status: "CRIADA" })
+          .eq("id", movId);
+        if (error) throw error;
+        toast.success("Retirado da separação!");
+      }
       fetchMovimentos();
       if (selectedId === movId) {
+        const newStatus = action === "liberar" ? "LIBERADO" : "CRIADA";
         setSelectedMov((prev) => prev ? { ...prev, status: newStatus } : null);
       }
     } catch (err: any) {

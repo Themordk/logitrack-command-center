@@ -1566,74 +1566,64 @@ export type Database = {
       }
       movimento_saida: {
         Row: {
-          box_id: string
-          chave_agrupamento: string | null
+          box_id: string | null
+          chave_agrupamento: string
           data_emissao: string
-          destino_carga: string
+          destino_carga: string | null
           empresa_id: string
           id: string
-          m3: number
-          motorista: string
+          m3: number | null
+          motorista: string | null
           numero_onda: number
-          observacao: string
-          peso_total: number
-          prioridade: Database["public"]["Enums"]["enum_prioridade_onda"] | null
-          rota_id: string
-          status:
-            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
-            | null
+          observacao: string | null
+          peso_total: number | null
+          prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
+          rota_id: string | null
+          status: Database["public"]["Enums"]["enum_status_onda_carregamento"]
           tenant_id: string
-          total_pedidos: number
-          total_volume: number
-          veiculo_id: string
+          total_pedidos: number | null
+          total_volume: number | null
+          veiculo_id: string | null
         }
         Insert: {
-          box_id: string
-          chave_agrupamento?: string | null
+          box_id?: string | null
+          chave_agrupamento: string
           data_emissao: string
-          destino_carga: string
+          destino_carga?: string | null
           empresa_id: string
           id?: string
-          m3: number
-          motorista: string
+          m3?: number | null
+          motorista?: string | null
           numero_onda?: number
-          observacao: string
-          peso_total: number
-          prioridade?:
-            | Database["public"]["Enums"]["enum_prioridade_onda"]
-            | null
-          rota_id: string
-          status?:
-            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
-            | null
+          observacao?: string | null
+          peso_total?: number | null
+          prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
+          rota_id?: string | null
+          status: Database["public"]["Enums"]["enum_status_onda_carregamento"]
           tenant_id: string
-          total_pedidos: number
-          total_volume: number
-          veiculo_id: string
+          total_pedidos?: number | null
+          total_volume?: number | null
+          veiculo_id?: string | null
         }
         Update: {
-          box_id?: string
-          chave_agrupamento?: string | null
+          box_id?: string | null
+          chave_agrupamento?: string
           data_emissao?: string
-          destino_carga?: string
+          destino_carga?: string | null
           empresa_id?: string
           id?: string
-          m3?: number
-          motorista?: string
+          m3?: number | null
+          motorista?: string | null
           numero_onda?: number
-          observacao?: string
-          peso_total?: number
-          prioridade?:
-            | Database["public"]["Enums"]["enum_prioridade_onda"]
-            | null
-          rota_id?: string
-          status?:
-            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
-            | null
+          observacao?: string | null
+          peso_total?: number | null
+          prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
+          rota_id?: string | null
+          status?: Database["public"]["Enums"]["enum_status_onda_carregamento"]
           tenant_id?: string
-          total_pedidos?: number
-          total_volume?: number
-          veiculo_id?: string
+          total_pedidos?: number | null
+          total_volume?: number | null
+          veiculo_id?: string | null
         }
         Relationships: [
           {
@@ -3621,6 +3611,10 @@ export type Database = {
       get_current_tenant: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
       hu_padrao: { Args: never; Returns: string }
+      liberar_onda_separacao: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: string
+      }
       processar_movimento_estoque: {
         Args: { p_tarefa_execucao_id: string }
         Returns: undefined
@@ -3667,6 +3661,7 @@ export type Database = {
     Enums: {
       enum_agrupar_sep_por:
         | "DOCUMENTO"
+        | "PRODUTO"
         | "PARCEIRO"
         | "ROTA"
         | "ZONA_ATIVIDADE"
@@ -3920,6 +3915,7 @@ export const Constants = {
     Enums: {
       enum_agrupar_sep_por: [
         "DOCUMENTO",
+        "PRODUTO",
         "PARCEIRO",
         "ROTA",
         "ZONA_ATIVIDADE",
