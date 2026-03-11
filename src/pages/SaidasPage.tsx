@@ -36,11 +36,8 @@ export function SaidasPage() {
     box_id: "",
     rota_id: "",
     veiculo_id: "",
-    motorista: "",
-    destino_carga: "",
     observacao: "",
     prioridade: "NORMAL",
-    total_volume: "",
   });
 
   const fetchDocs = useCallback(async () => {
@@ -96,89 +93,28 @@ export function SaidasPage() {
       setRotaOptions(rt);
       setVeiculoOptions(vc);
     }
-    setFormData({ box_id: "", rota_id: "", veiculo_id: "", motorista: "", destino_carga: "", observacao: "", prioridade: "NORMAL", total_volume: String(selected.size) });
+    setFormData({ box_id: "", rota_id: "", veiculo_id: "", observacao: "", prioridade: "NORMAL" });
     setShowModal(true);
   };
 
   const handleGenerate = async () => {
-    if (!formData.box_id || !formData.rota_id || !formData.veiculo_id) {
-      toast.error("Preencha Box, Rota e Veículo.");
+    if (!formData.prioridade) {
+      toast.error("Preencha o campo Prioridade.");
       return;
     }
     setGenerating(true);
     try {
-      // 1. Insert movimento_saida
-      const { data: mov, error: movErr } = await (supabase as any)
-        .from("movimento_saida")
-        .insert({
-          tenant_id: tenantId,
-          empresa_id: empresaId,
-          box_id: formData.box_id,
-          rota_id: formData.rota_id,
-          veiculo_id: formData.veiculo_id,
-          data_emissao: new Date().toISOString(),
-          destino_carga: formData.destino_carga || "A DEFINIR",
-          motorista: formData.motorista || "A DEFINIR",
-          total_volume: Number(formData.total_volume) || selected.size,
-          total_pedidos: selected.size,
-          prioridade: formData.prioridade,
-          status: "CRIADA",
-          observacao: formData.observacao || null,
-        })
-        .select("id")
-        .single();
-      if (movErr) throw movErr;
-
-      // 2. Insert movimento_saida_documento
-      const docInserts = Array.from(selected).map((docId, i) => ({
-        tenant_id: tenantId,
-        movimento_saida_id: mov.id,
-        documento_saida_id: docId,
-        ordem: i + 1,
-      }));
-      const { error: docErr } = await (supabase as any)
-        .from("movimento_saida_documento")
-        .insert(docInserts);
-      if (docErr) throw docErr;
-
-      // 3. Consolidate items from documento_saida_item
-      const { data: items, error: itemsErr } = await (supabase as any)
-        .from("documento_saida_item")
-        .select("produto_id, quantidade, valor_unit, valor_total")
-        .in("documento_saida_id", Array.from(selected));
-      if (itemsErr) throw itemsErr;
-
-      const consolidated = new Map<string, any>();
-      (items || []).forEach((item: any) => {
-        const existing = consolidated.get(item.produto_id);
-        if (existing) {
-          existing.qtd_esperada += Number(item.quantidade);
-          existing.valor_total += Number(item.valor_total);
-        } else {
-          consolidated.set(item.produto_id, {
-            tenant_id: tenantId,
-            movimento_saida_id: mov.id,
-            produto_id: item.produto_id,
-            qtd_esperada: Number(item.quantidade),
-            valor_unit: Number(item.valor_unit),
-            valor_total: Number(item.valor_total),
-          });
-        }
+      const { data, error } = await (supabase as any).rpc("gerar_onda_separacao", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_box_id: formData.box_id || null,
+        p_rota_id: formData.rota_id || null,
+        p_veiculo_id: formData.veiculo_id || null,
+        p_prioridade: formData.prioridade,
+        p_documentos: Array.from(selected),
       });
-      if (consolidated.size > 0) {
-        const { error: itemInsertErr } = await (supabase as any)
-          .from("movimento_saida_item")
-          .insert(Array.from(consolidated.values()));
-        if (itemInsertErr) throw itemInsertErr;
-      }
-
-      // 4. Update documento_saida status
-      await (supabase as any)
-        .from("documento_saida")
-        .update({ status: 1 })
-        .in("id", Array.from(selected));
-
-      toast.success("Onda de carregamento gerada com sucesso!");
+      if (error) throw error;
+      toast.success(data || "Onda de carregamento gerada com sucesso!");
       setShowModal(false);
       setSelected(new Set());
       fetchDocs();
@@ -267,14 +203,14 @@ export function SaidasPage() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Box *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Box</label>
                 <select value={formData.box_id} onChange={(e) => setFormData({ ...formData, box_id: e.target.value })} className={inputClass}>
                   <option value="">Selecione...</option>
                   {boxOptions.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rota *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rota</label>
                 <select value={formData.rota_id} onChange={(e) => setFormData({ ...formData, rota_id: e.target.value })} className={inputClass}>
                   <option value="">Selecione...</option>
                   {rotaOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -283,32 +219,18 @@ export function SaidasPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Veículo *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Veículo</label>
                 <select value={formData.veiculo_id} onChange={(e) => setFormData({ ...formData, veiculo_id: e.target.value })} className={inputClass}>
                   <option value="">Selecione...</option>
                   {veiculoOptions.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Prioridade</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Prioridade *</label>
                 <select value={formData.prioridade} onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })} className={inputClass}>
                   {["BAIXA", "NORMAL", "ALTA", "URGENTE"].map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motorista</label>
-                <input value={formData.motorista} onChange={(e) => setFormData({ ...formData, motorista: e.target.value })} placeholder="Nome do motorista" className={inputClass} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Total Volumes</label>
-                <input type="number" value={formData.total_volume} onChange={(e) => setFormData({ ...formData, total_volume: e.target.value })} className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Destino da Carga</label>
-              <input value={formData.destino_carga} onChange={(e) => setFormData({ ...formData, destino_carga: e.target.value })} placeholder="Destino" className={inputClass} />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Observação</label>
