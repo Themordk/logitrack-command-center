@@ -203,7 +203,7 @@ export function SaidasPage() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Box *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Box</label>
                 <select value={formData.box_id} onChange={(e) => setFormData({ ...formData, box_id: e.target.value })} className={inputClass}>
                   <option value="">Selecione...</option>
                   {boxOptions.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
