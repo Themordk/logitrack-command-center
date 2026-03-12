@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, Filter, X } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, Filter, X, AlertTriangle, Trash2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
@@ -19,6 +21,13 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
   LIB_ARMAZENAGEM: { label: "Lib. Armazenagem", class: "bg-green-500/15 text-green-400 border-green-500/30" },
   "LIB. ARMAZENAGEM": { label: "Lib. Armazenagem", class: "bg-green-500/15 text-green-400 border-green-500/30" },
   ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
+};
+
+const STATUS_ITEM_MAP: Record<string, { label: string; class: string }> = {
+  PENDENTE: { label: "Pendente", class: "bg-muted text-muted-foreground border-border" },
+  EM_ANDAMENTO: { label: "Em Andamento", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  CONFERIDO: { label: "Conferido", class: "bg-green-500/15 text-green-400 border-green-500/30" },
+  DIVERGENTE: { label: "Divergente", class: "bg-red-500/15 text-red-400 border-red-500/30" },
 };
 
 interface MovEntry {
@@ -38,6 +47,11 @@ interface ResumoItem {
   qtd_esperada: number;
   qtd_conferida: number;
   qtd_armazenada: number;
+  status_item_movimento: string;
+  // Alert flags (populated client-side)
+  sem_picking?: boolean;
+  sem_ean?: boolean;
+  divergente?: boolean;
 }
 
 interface ConferenciaItem {
@@ -114,6 +128,10 @@ export function MovimentoEntradaPage() {
   const [motivos, setMotivos] = useState<{ id: string; descricao: string }[]>([]);
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [erroSubmitting, setErroSubmitting] = useState(false);
+
+  // Delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteMovId, setDeleteMovId] = useState<string | null>(null);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
@@ -194,12 +212,47 @@ export function MovimentoEntradaPage() {
     setItemTab("itens");
     setDetailLoading(true);
     try {
+      // Fetch resumo + alerts data in parallel
       const [r1, r2, r3] = await Promise.all([
         (supabase as any).from("vw_movimento_entrada_resumo").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId),
       ]);
-      setResumoItems(r1.data || []);
+
+      // Get produto_ids from movimento_entrada_item for alerts
+      const { data: meiData } = await (supabase as any)
+        .from("movimento_entrada_item")
+        .select("id, produto_id")
+        .eq("movimento_entrada_id", movId);
+
+      const produtoIds = (meiData || []).map((m: any) => m.produto_id);
+      const meiMap = new Map((meiData || []).map((m: any) => [m.id, m.produto_id]));
+
+      // Fetch picking and embalagem data for alerts
+      let pickingSet = new Set<string>();
+      let eanSet = new Set<string>();
+      if (produtoIds.length > 0) {
+        const [pickRes, eanRes] = await Promise.all([
+          (supabase as any).from("picking_produto").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
+          (supabase as any).from("produto_embalagem").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
+        ]);
+        pickingSet = new Set((pickRes.data || []).map((p: any) => p.produto_id));
+        eanSet = new Set((eanRes.data || []).map((p: any) => p.produto_id));
+      }
+
+      // Enrich resumo items with alerts
+      const enrichedResumo = (r1.data || []).map((item: any) => {
+        const prodId = meiMap.get(item.movimento_item_id);
+        const statusNaoInicial = !["PENDENTE", "GERADO", "LIBERADO", "EM_CONFERENCIA", "EM CONFERENCIA", "ERRO_TRANSPORTADOR"].includes(item.status_item_movimento || "PENDENTE");
+        return {
+          ...item,
+          sem_picking: prodId ? !pickingSet.has(prodId as string) : false,
+          sem_ean: prodId ? !eanSet.has(prodId as string) : false,
+          divergente: statusNaoInicial && item.qtd_esperada !== item.qtd_conferida,
+        };
+      });
+
+      setResumoItems(enrichedResumo);
       setConferenciaItems(r2.data || []);
       setArmazenagemItems(r3.data || []);
 
@@ -338,6 +391,22 @@ export function MovimentoEntradaPage() {
   };
 
   const openErroTransporteModal = async (movId: string) => {
+    // Check if total_volume differs from total_volume_conferido
+    const { data: movCheck } = await (supabase as any)
+      .from("movimento_entrada")
+      .select("total_volume, total_volume_conferido")
+      .eq("id", movId)
+      .single();
+
+    if (movCheck) {
+      const tv = Number(movCheck.total_volume) || 0;
+      const tvc = Number(movCheck.total_volume_conferido) || 0;
+      if (tv === tvc) {
+        toast.info("A conferência dos volumes está correta. Não é necessário liberar com erro no transporte.");
+        return;
+      }
+    }
+
     setErroMovId(movId);
     setSelectedMotivo("");
     const { data } = await (supabase as any)
@@ -396,11 +465,73 @@ export function MovimentoEntradaPage() {
       openErroTransporteModal(movId);
       return;
     }
+    if (action === "excluir_movimento") {
+      handleExcluirMovimento(movId, status);
+      return;
+    }
     if (action === "atualizar_erp") {
       toast.info("Funcionalidade de atualização ERP será implementada em breve.");
       return;
     }
     toast.info(`Ação "${action}" será implementada em breve.`);
+  };
+
+  const handleExcluirMovimento = async (movId: string, status: string) => {
+    if (status !== "GERADO" && status !== "LIBERADO") {
+      toast.warning("Apenas movimentos com status 'Gerado' ou 'Liberado' podem ser excluídos.");
+      return;
+    }
+    // Check qtd_conferida and qtd_armazenada
+    const { data: items } = await (supabase as any)
+      .from("movimento_entrada_item")
+      .select("qtd_conferida, qtd_armazenada")
+      .eq("movimento_entrada_id", movId);
+
+    const hasActivity = (items || []).some((i: any) =>
+      (Number(i.qtd_conferida) || 0) > 0 || (Number(i.qtd_armazenada) || 0) > 0
+    );
+    if (hasActivity) {
+      toast.error("Não é possível excluir: existem itens com conferência ou armazenagem registrada.");
+      return;
+    }
+
+    setDeleteMovId(movId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteMovimento = async (): Promise<boolean> => {
+    if (!deleteMovId) return false;
+    try {
+      // 1. Get linked document IDs
+      const { data: links } = await (supabase as any)
+        .from("movimento_entrada_documento")
+        .select("documento_entrada_id")
+        .eq("movimento_entrada_id", deleteMovId);
+      const docIds = (links || []).map((l: any) => l.documento_entrada_id);
+
+      // 2. Delete items
+      await (supabase as any).from("movimento_entrada_item").delete().eq("movimento_entrada_id", deleteMovId);
+      // 3. Delete document links
+      await (supabase as any).from("movimento_entrada_documento").delete().eq("movimento_entrada_id", deleteMovId);
+      // 4. Delete movement
+      await (supabase as any).from("movimento_entrada").delete().eq("id", deleteMovId);
+      // 5. Reset document status
+      if (docIds.length > 0) {
+        await (supabase as any).from("documento_entrada").update({ status: 0 }).in("id", docIds);
+      }
+
+      toast.success("Movimento de entrada excluído com sucesso.");
+      if (selectedMov === deleteMovId) {
+        setSelectedMov(null);
+        setSelectedMovStatus(null);
+      }
+      fetchMovements();
+      fetchCounts();
+      return true;
+    } catch (err: any) {
+      toast.error(`Erro ao excluir: ${err.message}`);
+      return false;
+    }
   };
 
   const clearFilters = () => {
@@ -513,6 +644,9 @@ export function MovimentoEntradaPage() {
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>Liberar recebimento com erro no transporte</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>Atualizar ERP</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("abrir_ocorrencias", mov.id, mov.status)}>Abrir ocorrências do movimento</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("excluir_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
+                          <Trash2 size={14} className="mr-2" /> Excluir movimento
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -550,31 +684,59 @@ export function MovimentoEntradaPage() {
                 {detailLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : (
+                  <TooltipProvider>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-secondary/30 sticky top-0">
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-8"></th>
                         <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
                         <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Armazenada</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {resumoItems.map((item) => (
-                        <tr key={item.movimento_item_id} className="border-b border-border/50 hover:bg-secondary/30">
-                          <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
-                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[200px]">{item.descricao}</td>
-                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_esperada}</td>
-                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_conferida}</td>
-                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_armazenada ?? "—"}</td>
-                        </tr>
-                      ))}
+                      {resumoItems.map((item) => {
+                        const alerts: string[] = [];
+                        if (item.sem_picking) alerts.push("Sem endereço de picking cadastrado");
+                        if (item.sem_ean) alerts.push("Sem código de barras cadastrado");
+                        if (item.divergente) alerts.push("Divergência na conferência");
+                        const statusInfo = STATUS_ITEM_MAP[item.status_item_movimento] || { label: item.status_item_movimento || "—", class: "" };
+                        return (
+                          <tr key={item.movimento_item_id} className={cn("border-b border-border/50 hover:bg-secondary/30", alerts.length > 0 && "bg-orange-500/5")}>
+                            <td className="px-3 py-2.5 text-center">
+                              {alerts.length > 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertTriangle size={14} className="text-orange-400 inline-block" />
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="max-w-xs">
+                                    <ul className="text-xs space-y-0.5">
+                                      {alerts.map((a, i) => <li key={i}>⚠ {a}</li>)}
+                                    </ul>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
+                            <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[200px]">{item.descricao}</td>
+                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_esperada}</td>
+                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_conferida}</td>
+                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_armazenada ?? "—"}</td>
+                            <td className="px-3 py-2.5 text-center">
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full border", statusInfo.class)}>{statusInfo.label}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {resumoItems.length === 0 && (
-                        <tr><td colSpan={5} className="text-center py-8 text-xs text-muted-foreground">Nenhum item encontrado.</td></tr>
+                        <tr><td colSpan={7} className="text-center py-8 text-xs text-muted-foreground">Nenhum item encontrado.</td></tr>
                       )}
                     </tbody>
                   </table>
+                  </TooltipProvider>
                 )}
               </TabsContent>
 
@@ -800,6 +962,15 @@ export function MovimentoEntradaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Excluir Movimento */}
+      <DeleteConfirmDialog
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDeleteMovimento}
+        title="Excluir Movimento de Entrada"
+        description="Tem certeza que deseja excluir este movimento? Os documentos vinculados voltarão ao status pendente."
+      />
     </div>
   );
 }
