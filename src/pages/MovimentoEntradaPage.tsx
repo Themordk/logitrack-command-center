@@ -40,6 +40,11 @@ interface ResumoItem {
   qtd_esperada: number;
   qtd_conferida: number;
   qtd_armazenada: number;
+  status_item_movimento: string;
+  // Alert flags (populated client-side)
+  sem_picking?: boolean;
+  sem_ean?: boolean;
+  divergente?: boolean;
 }
 
 interface ConferenciaItem {
