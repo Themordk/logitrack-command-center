@@ -458,11 +458,73 @@ export function MovimentoEntradaPage() {
       openErroTransporteModal(movId);
       return;
     }
+    if (action === "excluir_movimento") {
+      handleExcluirMovimento(movId, status);
+      return;
+    }
     if (action === "atualizar_erp") {
       toast.info("Funcionalidade de atualização ERP será implementada em breve.");
       return;
     }
     toast.info(`Ação "${action}" será implementada em breve.`);
+  };
+
+  const handleExcluirMovimento = async (movId: string, status: string) => {
+    if (status !== "GERADO" && status !== "LIBERADO") {
+      toast.warning("Apenas movimentos com status 'Gerado' ou 'Liberado' podem ser excluídos.");
+      return;
+    }
+    // Check qtd_conferida and qtd_armazenada
+    const { data: items } = await (supabase as any)
+      .from("movimento_entrada_item")
+      .select("qtd_conferida, qtd_armazenada")
+      .eq("movimento_entrada_id", movId);
+
+    const hasActivity = (items || []).some((i: any) =>
+      (Number(i.qtd_conferida) || 0) > 0 || (Number(i.qtd_armazenada) || 0) > 0
+    );
+    if (hasActivity) {
+      toast.error("Não é possível excluir: existem itens com conferência ou armazenagem registrada.");
+      return;
+    }
+
+    setDeleteMovId(movId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteMovimento = async (): Promise<boolean> => {
+    if (!deleteMovId) return false;
+    try {
+      // 1. Get linked document IDs
+      const { data: links } = await (supabase as any)
+        .from("movimento_entrada_documento")
+        .select("documento_entrada_id")
+        .eq("movimento_entrada_id", deleteMovId);
+      const docIds = (links || []).map((l: any) => l.documento_entrada_id);
+
+      // 2. Delete items
+      await (supabase as any).from("movimento_entrada_item").delete().eq("movimento_entrada_id", deleteMovId);
+      // 3. Delete document links
+      await (supabase as any).from("movimento_entrada_documento").delete().eq("movimento_entrada_id", deleteMovId);
+      // 4. Delete movement
+      await (supabase as any).from("movimento_entrada").delete().eq("id", deleteMovId);
+      // 5. Reset document status
+      if (docIds.length > 0) {
+        await (supabase as any).from("documento_entrada").update({ status: 0 }).in("id", docIds);
+      }
+
+      toast.success("Movimento de entrada excluído com sucesso.");
+      if (selectedMov === deleteMovId) {
+        setSelectedMov(null);
+        setSelectedMovStatus(null);
+      }
+      fetchMovements();
+      fetchCounts();
+      return true;
+    } catch (err: any) {
+      toast.error(`Erro ao excluir: ${err.message}`);
+      return false;
+    }
   };
 
   const clearFilters = () => {
