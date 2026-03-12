@@ -677,31 +677,59 @@ export function MovimentoEntradaPage() {
                 {detailLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : (
+                  <TooltipProvider>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-secondary/30 sticky top-0">
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-8"></th>
                         <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
                         <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
                         <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Armazenada</th>
+                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {resumoItems.map((item) => (
-                        <tr key={item.movimento_item_id} className="border-b border-border/50 hover:bg-secondary/30">
-                          <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
-                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[200px]">{item.descricao}</td>
-                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_esperada}</td>
-                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_conferida}</td>
-                          <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_armazenada ?? "—"}</td>
-                        </tr>
-                      ))}
+                      {resumoItems.map((item) => {
+                        const alerts: string[] = [];
+                        if (item.sem_picking) alerts.push("Sem endereço de picking cadastrado");
+                        if (item.sem_ean) alerts.push("Sem código de barras cadastrado");
+                        if (item.divergente) alerts.push("Divergência na conferência");
+                        const statusInfo = STATUS_ITEM_MAP[item.status_item_movimento] || { label: item.status_item_movimento || "—", class: "" };
+                        return (
+                          <tr key={item.movimento_item_id} className={cn("border-b border-border/50 hover:bg-secondary/30", alerts.length > 0 && "bg-orange-500/5")}>
+                            <td className="px-3 py-2.5 text-center">
+                              {alerts.length > 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertTriangle size={14} className="text-orange-400 inline-block" />
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="max-w-xs">
+                                    <ul className="text-xs space-y-0.5">
+                                      {alerts.map((a, i) => <li key={i}>⚠ {a}</li>)}
+                                    </ul>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
+                            <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[200px]">{item.descricao}</td>
+                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_esperada}</td>
+                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_conferida}</td>
+                            <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_armazenada ?? "—"}</td>
+                            <td className="px-3 py-2.5 text-center">
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full border", statusInfo.class)}>{statusInfo.label}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {resumoItems.length === 0 && (
-                        <tr><td colSpan={5} className="text-center py-8 text-xs text-muted-foreground">Nenhum item encontrado.</td></tr>
+                        <tr><td colSpan={7} className="text-center py-8 text-xs text-muted-foreground">Nenhum item encontrado.</td></tr>
                       )}
                     </tbody>
                   </table>
+                  </TooltipProvider>
                 )}
               </TabsContent>
 
