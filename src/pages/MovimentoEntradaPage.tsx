@@ -23,6 +23,13 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
   ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
 };
 
+const STATUS_ITEM_MAP: Record<string, { label: string; class: string }> = {
+  PENDENTE: { label: "Pendente", class: "bg-muted text-muted-foreground border-border" },
+  EM_ANDAMENTO: { label: "Em Andamento", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  CONFERIDO: { label: "Conferido", class: "bg-green-500/15 text-green-400 border-green-500/30" },
+  DIVERGENTE: { label: "Divergente", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+};
+
 interface MovEntry {
   id: string;
   numero_movimento: number | null;
