@@ -637,6 +637,9 @@ export function MovimentoEntradaPage() {
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>Liberar recebimento com erro no transporte</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>Atualizar ERP</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("abrir_ocorrencias", mov.id, mov.status)}>Abrir ocorrências do movimento</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("excluir_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
+                          <Trash2 size={14} className="mr-2" /> Excluir movimento
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
