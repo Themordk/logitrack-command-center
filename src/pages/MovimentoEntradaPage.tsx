@@ -205,12 +205,47 @@ export function MovimentoEntradaPage() {
     setItemTab("itens");
     setDetailLoading(true);
     try {
+      // Fetch resumo + alerts data in parallel
       const [r1, r2, r3] = await Promise.all([
         (supabase as any).from("vw_movimento_entrada_resumo").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId),
       ]);
-      setResumoItems(r1.data || []);
+
+      // Get produto_ids from movimento_entrada_item for alerts
+      const { data: meiData } = await (supabase as any)
+        .from("movimento_entrada_item")
+        .select("id, produto_id")
+        .eq("movimento_entrada_id", movId);
+
+      const produtoIds = (meiData || []).map((m: any) => m.produto_id);
+      const meiMap = new Map((meiData || []).map((m: any) => [m.id, m.produto_id]));
+
+      // Fetch picking and embalagem data for alerts
+      let pickingSet = new Set<string>();
+      let eanSet = new Set<string>();
+      if (produtoIds.length > 0) {
+        const [pickRes, eanRes] = await Promise.all([
+          (supabase as any).from("picking_produto").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
+          (supabase as any).from("produto_embalagem").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
+        ]);
+        pickingSet = new Set((pickRes.data || []).map((p: any) => p.produto_id));
+        eanSet = new Set((eanRes.data || []).map((p: any) => p.produto_id));
+      }
+
+      // Enrich resumo items with alerts
+      const enrichedResumo = (r1.data || []).map((item: any) => {
+        const prodId = meiMap.get(item.movimento_item_id);
+        const statusNaoInicial = !["PENDENTE", "GERADO", "LIBERADO", "EM_CONFERENCIA", "EM CONFERENCIA", "ERRO_TRANSPORTADOR"].includes(item.status_item_movimento || "PENDENTE");
+        return {
+          ...item,
+          sem_picking: prodId ? !pickingSet.has(prodId) : false,
+          sem_ean: prodId ? !eanSet.has(prodId) : false,
+          divergente: statusNaoInicial && item.qtd_esperada !== item.qtd_conferida,
+        };
+      });
+
+      setResumoItems(enrichedResumo);
       setConferenciaItems(r2.data || []);
       setArmazenagemItems(r3.data || []);
 
