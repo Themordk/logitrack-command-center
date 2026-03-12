@@ -962,6 +962,15 @@ export function MovimentoEntradaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Excluir Movimento */}
+      <DeleteConfirmDialog
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDeleteMovimento}
+        title="Excluir Movimento de Entrada"
+        description="Tem certeza que deseja excluir este movimento? Os documentos vinculados voltarão ao status pendente."
+      />
     </div>
   );
 }
