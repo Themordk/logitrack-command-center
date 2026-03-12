@@ -384,6 +384,22 @@ export function MovimentoEntradaPage() {
   };
 
   const openErroTransporteModal = async (movId: string) => {
+    // Check if total_volume differs from total_volume_conferido
+    const { data: movCheck } = await (supabase as any)
+      .from("movimento_entrada")
+      .select("total_volume, total_volume_conferido")
+      .eq("id", movId)
+      .single();
+
+    if (movCheck) {
+      const tv = Number(movCheck.total_volume) || 0;
+      const tvc = Number(movCheck.total_volume_conferido) || 0;
+      if (tv === tvc) {
+        toast.info("A conferência dos volumes está correta. Não é necessário liberar com erro no transporte.");
+        return;
+      }
+    }
+
     setErroMovId(movId);
     setSelectedMotivo("");
     const { data } = await (supabase as any)
