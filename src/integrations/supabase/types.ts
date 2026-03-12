@@ -1477,7 +1477,6 @@ export type Database = {
       }
       movimento_entrada_item: {
         Row: {
-          documento_entrada_item_id: string
           id: string
           movimento_entrada_id: string
           produto_id: string
@@ -1489,7 +1488,6 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
-          documento_entrada_item_id: string
           id?: string
           movimento_entrada_id: string
           produto_id: string
@@ -1501,7 +1499,6 @@ export type Database = {
           tenant_id: string
         }
         Update: {
-          documento_entrada_item_id?: string
           id?: string
           movimento_entrada_id?: string
           produto_id?: string
@@ -1513,13 +1510,6 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "movimento_entrada_item_documento_entrada_item_id_fkey"
-            columns: ["documento_entrada_item_id"]
-            isOneToOne: false
-            referencedRelation: "documento_entrada_item"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
             columns: ["movimento_entrada_id"]
@@ -2611,11 +2601,14 @@ export type Database = {
           id: string
           iniciado_em: string | null
           lote: string | null
+          motivo_ocorrencia: string | null
+          quantidade_cortada: number | null
           quantidade_executada: number | null
           serie: string | null
           status: Database["public"]["Enums"]["enum_status_execucao_tarefa"]
           tarefa_id: string
           tenant_id: string
+          usuario_corte: string | null
           usuario_id: string
           validade: string | null
         }
@@ -2629,11 +2622,14 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           lote?: string | null
+          motivo_ocorrencia?: string | null
+          quantidade_cortada?: number | null
           quantidade_executada?: number | null
           serie?: string | null
           status?: Database["public"]["Enums"]["enum_status_execucao_tarefa"]
           tarefa_id: string
           tenant_id: string
+          usuario_corte?: string | null
           usuario_id: string
           validade?: string | null
         }
@@ -2647,11 +2643,14 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           lote?: string | null
+          motivo_ocorrencia?: string | null
+          quantidade_cortada?: number | null
           quantidade_executada?: number | null
           serie?: string | null
           status?: Database["public"]["Enums"]["enum_status_execucao_tarefa"]
           tarefa_id?: string
           tenant_id?: string
+          usuario_corte?: string | null
           usuario_id?: string
           validade?: string | null
         }
@@ -2710,6 +2709,20 @@ export type Database = {
             columns: ["hu"]
             isOneToOne: false
             referencedRelation: "hu"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_motivo_ocorrencia_fkey"
+            columns: ["motivo_ocorrencia"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_usuario_corte_fkey"
+            columns: ["usuario_corte"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -3433,6 +3446,9 @@ export type Database = {
           qtd_conferida: number | null
           qtd_esperada: number | null
           sku: string | null
+          status_item_movimento:
+            | Database["public"]["Enums"]["enum_status_item_movimento"]
+            | null
         }
         Relationships: []
       }
