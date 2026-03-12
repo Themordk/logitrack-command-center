@@ -183,25 +183,33 @@ export function EntradasPage() {
       const { error: linkError } = await (supabase as any).from("movimento_entrada_documento").insert(docLinks);
       if (linkError) throw linkError;
 
-      // 3. For each document, fetch items and insert movimento_entrada_item
+      // 3. Fetch all items from selected documents, consolidate by produto_id
+      const allItems: { produto_id: string; quantidade: number }[] = [];
       for (const docId of docIds) {
         const { data: items } = await (supabase as any)
           .from("documento_entrada_item")
-          .select("id, produto_id, quantidade")
+          .select("produto_id, quantidade")
           .eq("documento_entrada_id", docId);
+        if (items) allItems.push(...items);
+      }
 
-        if (items && items.length > 0) {
-          const movItems = items.map((item: any) => ({
-            movimento_entrada_id: movId,
-            documento_entrada_item_id: item.id,
-            produto_id: item.produto_id,
-            qtd_esperada: item.quantidade,
-            qtd_conferida: 0,
-            tenant_id: tenantId,
-          }));
-          const { error: itemError } = await (supabase as any).from("movimento_entrada_item").insert(movItems);
-          if (itemError) throw itemError;
-        }
+      // Group by produto_id and sum quantities
+      const grouped = allItems.reduce<Record<string, number>>((acc, item) => {
+        acc[item.produto_id] = (acc[item.produto_id] || 0) + Number(item.quantidade);
+        return acc;
+      }, {});
+
+      const movItems = Object.entries(grouped).map(([produto_id, qtd_esperada]) => ({
+        movimento_entrada_id: movId,
+        produto_id,
+        qtd_esperada,
+        qtd_conferida: 0,
+        tenant_id: tenantId,
+      }));
+
+      if (movItems.length > 0) {
+        const { error: itemError } = await (supabase as any).from("movimento_entrada_item").insert(movItems);
+        if (itemError) throw itemError;
       }
 
       // 4. Update documento_entrada status
