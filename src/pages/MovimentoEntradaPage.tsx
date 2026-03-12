@@ -122,6 +122,10 @@ export function MovimentoEntradaPage() {
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [erroSubmitting, setErroSubmitting] = useState(false);
 
+  // Delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteMovId, setDeleteMovId] = useState<string | null>(null);
+
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
   const [filterNumero, setFilterNumero] = useState("");
