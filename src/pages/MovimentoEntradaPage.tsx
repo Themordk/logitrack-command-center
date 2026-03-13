@@ -51,7 +51,6 @@ interface ResumoItem {
   // Alert flags (populated client-side)
   sem_picking?: boolean;
   sem_ean?: boolean;
-  divergente?: boolean;
 }
 
 interface ConferenciaItem {
