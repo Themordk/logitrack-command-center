@@ -352,16 +352,15 @@ export function MovimentoEntradaPage() {
   };
 
   const handleRetirarConferencia = async (movId: string, status: string) => {
-    if (status !== "LIBERADO") {
-      toast.warning("Apenas movimentos com status 'Liberado' podem ser retirados da conferência.");
+    if (status !== "LIBERADO" && status !== "EM_CONFERENCIA" && status !== "EM CONFERENCIA") {
+      toast.warning("Apenas movimentos com status 'Liberado' ou 'Em Conferência' podem ser retirados da conferência.");
       return;
     }
     try {
       const { error } = await (supabase as any)
         .from("movimento_entrada")
         .update({ status: "GERADO" })
-        .eq("id", movId)
-        .eq("status", "LIBERADO");
+        .eq("id", movId);
       if (error) throw error;
       toast.success("Movimento retirado da conferência com sucesso.");
       fetchMovements();
