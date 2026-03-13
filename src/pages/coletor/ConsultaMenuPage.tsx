@@ -1,5 +1,5 @@
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { Package, MapPin, Archive } from "lucide-react";
+import { Package, MapPin, Archive, Target } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -7,6 +7,7 @@ const options = [
   { label: "Scan Produto", desc: "Saldo por endereço (Pulmão/Picking)", icon: <Package size={28} />, path: "/coletor/consulta/produto", color: "hsl(217,91%,50%)" },
   { label: "Scan Endereço", desc: "Produtos neste endereço com lote/validade", icon: <MapPin size={28} />, path: "/coletor/consulta/endereco", color: "hsl(142,76%,36%)" },
   { label: "Scan HU", desc: "Status da HU e localização", icon: <Archive size={28} />, path: "/coletor/consulta/hu", color: "hsl(45,93%,47%)" },
+  { label: "Mapear Picking", desc: "Vincular endereço de picking ao produto", icon: <Target size={28} />, path: "/coletor/consulta/mapear-picking", color: "hsl(280,70%,55%)" },
 ];
 
 export function ConsultaMenuPage({ onNavigate }: Props) {

@@ -51,6 +51,8 @@ import { ConsultaMenuPage } from "./pages/coletor/ConsultaMenuPage";
 import { ConsultaProdutoPage } from "./pages/coletor/ConsultaProdutoPage";
 import { ConsultaEnderecoPage } from "./pages/coletor/ConsultaEnderecoPage";
 import { ConsultaHUPage } from "./pages/coletor/ConsultaHUPage";
+import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
+import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
 import { MovimentosMenuPage } from "./pages/coletor/MovimentosMenuPage";
@@ -173,6 +175,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/produto": return <ConsultaProdutoPage onNavigate={onNavigate} />;
     case "/coletor/consulta/endereco": return <ConsultaEnderecoPage onNavigate={onNavigate} />;
     case "/coletor/consulta/hu": return <ConsultaHUPage onNavigate={onNavigate} />;
+    case "/coletor/consulta/mapear-picking": return <MapearPickingPage onNavigate={onNavigate} />;
+    case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
     case "/coletor/movimentos": return <MovimentosMenuPage onNavigate={onNavigate} />;

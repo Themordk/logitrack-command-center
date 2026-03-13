@@ -3616,6 +3616,15 @@ export type Database = {
         }
         Returns: string
       }
+      gerar_tarefas_armazenagem_c_divergencia: {
+        Args: {
+          p_motivo_ocorrencia: string
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario: string
+        }
+        Returns: string
+      }
       gerar_tarefas_armazenagem_s_divergencia: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
         Returns: string
@@ -3714,6 +3723,9 @@ export type Database = {
         | "EM_ANDAMENTO"
         | "CONCLUIDO"
         | "CANCELADO"
+        | "CONFERIDO"
+        | "DIVERGENTE"
+        | "ARMAZENADO"
       enum_status_item_onda:
         | "PENDENTE"
         | "EM_PICKING"
@@ -3972,6 +3984,9 @@ export const Constants = {
         "EM_ANDAMENTO",
         "CONCLUIDO",
         "CANCELADO",
+        "CONFERIDO",
+        "DIVERGENTE",
+        "ARMAZENADO",
       ],
       enum_status_item_onda: [
         "PENDENTE",

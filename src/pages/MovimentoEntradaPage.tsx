@@ -51,7 +51,6 @@ interface ResumoItem {
   // Alert flags (populated client-side)
   sem_picking?: boolean;
   sem_ean?: boolean;
-  divergente?: boolean;
 }
 
 interface ConferenciaItem {
@@ -128,6 +127,13 @@ export function MovimentoEntradaPage() {
   const [motivos, setMotivos] = useState<{ id: string; descricao: string }[]>([]);
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [erroSubmitting, setErroSubmitting] = useState(false);
+
+  // Liberar armazenagem c/ divergência modal
+  const [showDivergenciaModal, setShowDivergenciaModal] = useState(false);
+  const [divergenciaMovId, setDivergenciaMovId] = useState<string | null>(null);
+  const [divergenciaMotivos, setDivergenciaMotivos] = useState<{ id: string; descricao: string }[]>([]);
+  const [selectedDivergenciaMotivo, setSelectedDivergenciaMotivo] = useState("");
+  const [divergenciaSubmitting, setDivergenciaSubmitting] = useState(false);
 
   // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -243,12 +249,10 @@ export function MovimentoEntradaPage() {
       // Enrich resumo items with alerts
       const enrichedResumo = (r1.data || []).map((item: any) => {
         const prodId = meiMap.get(item.movimento_item_id);
-        const statusNaoInicial = !["PENDENTE", "GERADO", "LIBERADO", "EM_CONFERENCIA", "EM CONFERENCIA", "ERRO_TRANSPORTADOR"].includes(item.status_item_movimento || "PENDENTE");
         return {
           ...item,
           sem_picking: prodId ? !pickingSet.has(prodId as string) : false,
           sem_ean: prodId ? !eanSet.has(prodId as string) : false,
-          divergente: statusNaoInicial && item.qtd_esperada !== item.qtd_conferida,
         };
       });
 
@@ -345,16 +349,15 @@ export function MovimentoEntradaPage() {
   };
 
   const handleRetirarConferencia = async (movId: string, status: string) => {
-    if (status !== "LIBERADO") {
-      toast.warning("Apenas movimentos com status 'Liberado' podem ser retirados da conferência.");
+    if (status !== "LIBERADO" && status !== "EM_CONFERENCIA" && status !== "EM CONFERENCIA") {
+      toast.warning("Apenas movimentos com status 'Liberado' ou 'Em Conferência' podem ser retirados da conferência.");
       return;
     }
     try {
       const { error } = await (supabase as any)
         .from("movimento_entrada")
         .update({ status: "GERADO" })
-        .eq("id", movId)
-        .eq("status", "LIBERADO");
+        .eq("id", movId);
       if (error) throw error;
       toast.success("Movimento retirado da conferência com sucesso.");
       fetchMovements();
@@ -448,6 +451,55 @@ export function MovimentoEntradaPage() {
     }
   };
 
+  const openDivergenciaModal = async (movId: string, status: string) => {
+    if (status !== "CONFERIDO" && status !== "DIVERGENCIA") {
+      toast.warning("Apenas movimentos conferidos ou com divergência podem ser liberados para armazenagem c/ divergência.");
+      return;
+    }
+    setDivergenciaMovId(movId);
+    setSelectedDivergenciaMotivo("");
+    const { data } = await (supabase as any)
+      .from("motivo_ocorrencia")
+      .select("id, descricao")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .eq("etapa_ocorrencia", "RECEBIMENTO")
+      .order("descricao");
+    setDivergenciaMotivos(data || []);
+    setShowDivergenciaModal(true);
+  };
+
+  const handleConfirmarDivergencia = async () => {
+    if (!selectedDivergenciaMotivo || !divergenciaMovId) {
+      toast.error("Selecione um motivo de ocorrência.");
+      return;
+    }
+    setDivergenciaSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc("gerar_tarefas_armazenagem_c_divergencia" as any, {
+        p_movimento_entrada_id: divergenciaMovId,
+        p_tenant_id: tenantId,
+        p_motivo_ocorrencia: selectedDivergenciaMotivo,
+        p_usuario: usuarioId,
+      });
+      if (error) throw error;
+      const msg = String(data || "");
+      if (msg.toLowerCase().includes("erro")) {
+        toast.error(msg);
+      } else {
+        toast.success(msg || "Armazenagem liberada com divergência.");
+        setShowDivergenciaModal(false);
+        fetchMovements();
+        fetchCounts();
+        if (selectedMov === divergenciaMovId) loadDetails(divergenciaMovId, "LIB_ARMAZENAGEM");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDivergenciaSubmitting(false);
+    }
+  };
+
   const handleMenuAction = (action: string, movId: string, status: string) => {
     if (action === "liberar_conferencia") {
       handleLiberarConferencia(movId, status);
@@ -459,6 +511,10 @@ export function MovimentoEntradaPage() {
     }
     if (action === "liberar_armazenagem") {
       handleLiberarArmazenagem(movId, status);
+      return;
+    }
+    if (action === "liberar_armazenagem_divergencia") {
+      openDivergenciaModal(movId, status);
       return;
     }
     if (action === "liberar_erro_transporte") {
@@ -473,7 +529,6 @@ export function MovimentoEntradaPage() {
       toast.info("Funcionalidade de atualização ERP será implementada em breve.");
       return;
     }
-    toast.info(`Ação "${action}" será implementada em breve.`);
   };
 
   const handleExcluirMovimento = async (movId: string, status: string) => {
@@ -643,7 +698,7 @@ export function MovimentoEntradaPage() {
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>Liberar armazenagem c/ divergência</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>Liberar recebimento com erro no transporte</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>Atualizar ERP</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("abrir_ocorrencias", mov.id, mov.status)}>Abrir ocorrências do movimento</DropdownMenuItem>
+                        
                         <DropdownMenuItem onClick={() => handleMenuAction("excluir_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
                           <Trash2 size={14} className="mr-2" /> Excluir movimento
                         </DropdownMenuItem>
@@ -702,7 +757,7 @@ export function MovimentoEntradaPage() {
                         const alerts: string[] = [];
                         if (item.sem_picking) alerts.push("Sem endereço de picking cadastrado");
                         if (item.sem_ean) alerts.push("Sem código de barras cadastrado");
-                        if (item.divergente) alerts.push("Divergência na conferência");
+                        
                         const statusInfo = STATUS_ITEM_MAP[item.status_item_movimento] || { label: item.status_item_movimento || "—", class: "" };
                         return (
                           <tr key={item.movimento_item_id} className={cn("border-b border-border/50 hover:bg-secondary/30", alerts.length > 0 && "bg-orange-500/5")}>
@@ -957,6 +1012,41 @@ export function MovimentoEntradaPage() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {erroSubmitting && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Liberar armazenagem c/ divergência */}
+      <Dialog open={showDivergenciaModal} onOpenChange={setShowDivergenciaModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Liberar Armazenagem com Divergência</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motivo de Ocorrência *</label>
+              <select
+                value={selectedDivergenciaMotivo}
+                onChange={(e) => setSelectedDivergenciaMotivo(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
+              >
+                <option value="">Selecione o motivo...</option>
+                {divergenciaMotivos.map((m) => <option key={m.id} value={m.id}>{m.descricao}</option>)}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setShowDivergenciaModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmarDivergencia}
+              disabled={divergenciaSubmitting || !selectedDivergenciaMotivo}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {divergenciaSubmitting && <Loader2 size={14} className="animate-spin" />}
               Confirmar
             </button>
           </DialogFooter>
