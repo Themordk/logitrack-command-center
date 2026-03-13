@@ -44,6 +44,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       }
 
       const prodId = emb[0].produto_id;
+      (window as any).__lastProdutoEmb = prodId;
       setProdutoNome(`${emb[0].produto?.sku} - ${emb[0].produto?.descricao}`);
 
       // Fetch stock grouped by address
