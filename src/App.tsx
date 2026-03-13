@@ -51,6 +51,8 @@ import { ConsultaMenuPage } from "./pages/coletor/ConsultaMenuPage";
 import { ConsultaProdutoPage } from "./pages/coletor/ConsultaProdutoPage";
 import { ConsultaEnderecoPage } from "./pages/coletor/ConsultaEnderecoPage";
 import { ConsultaHUPage } from "./pages/coletor/ConsultaHUPage";
+import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
+import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
 import { MovimentosMenuPage } from "./pages/coletor/MovimentosMenuPage";
