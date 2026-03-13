@@ -467,6 +467,10 @@ export function MovimentoEntradaPage() {
       handleLiberarArmazenagem(movId, status);
       return;
     }
+    if (action === "liberar_armazenagem_divergencia") {
+      openDivergenciaModal(movId, status);
+      return;
+    }
     if (action === "liberar_erro_transporte") {
       openErroTransporteModal(movId);
       return;
@@ -479,7 +483,6 @@ export function MovimentoEntradaPage() {
       toast.info("Funcionalidade de atualização ERP será implementada em breve.");
       return;
     }
-    toast.info(`Ação "${action}" será implementada em breve.`);
   };
 
   const handleExcluirMovimento = async (movId: string, status: string) => {
