@@ -250,12 +250,10 @@ export function MovimentoEntradaPage() {
       // Enrich resumo items with alerts
       const enrichedResumo = (r1.data || []).map((item: any) => {
         const prodId = meiMap.get(item.movimento_item_id);
-        const statusNaoInicial = !["PENDENTE", "GERADO", "LIBERADO", "EM_CONFERENCIA", "EM CONFERENCIA", "ERRO_TRANSPORTADOR"].includes(item.status_item_movimento || "PENDENTE");
         return {
           ...item,
           sem_picking: prodId ? !pickingSet.has(prodId as string) : false,
           sem_ean: prodId ? !eanSet.has(prodId as string) : false,
-          divergente: statusNaoInicial && item.qtd_esperada !== item.qtd_conferida,
         };
       });
 
