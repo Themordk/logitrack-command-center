@@ -452,6 +452,55 @@ export function MovimentoEntradaPage() {
     }
   };
 
+  const openDivergenciaModal = async (movId: string, status: string) => {
+    if (status !== "CONFERIDO" && status !== "DIVERGENCIA") {
+      toast.warning("Apenas movimentos conferidos ou com divergência podem ser liberados para armazenagem c/ divergência.");
+      return;
+    }
+    setDivergenciaMovId(movId);
+    setSelectedDivergenciaMotivo("");
+    const { data } = await (supabase as any)
+      .from("motivo_ocorrencia")
+      .select("id, descricao")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .eq("etapa_ocorrencia", "RECEBIMENTO")
+      .order("descricao");
+    setDivergenciaMotivos(data || []);
+    setShowDivergenciaModal(true);
+  };
+
+  const handleConfirmarDivergencia = async () => {
+    if (!selectedDivergenciaMotivo || !divergenciaMovId) {
+      toast.error("Selecione um motivo de ocorrência.");
+      return;
+    }
+    setDivergenciaSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc("gerar_tarefas_armazenagem_c_divergencia" as any, {
+        p_movimento_entrada_id: divergenciaMovId,
+        p_tenant_id: tenantId,
+        p_motivo_ocorrencia: selectedDivergenciaMotivo,
+        p_usuario: usuarioId,
+      });
+      if (error) throw error;
+      const msg = String(data || "");
+      if (msg.toLowerCase().includes("erro")) {
+        toast.error(msg);
+      } else {
+        toast.success(msg || "Armazenagem liberada com divergência.");
+        setShowDivergenciaModal(false);
+        fetchMovements();
+        fetchCounts();
+        if (selectedMov === divergenciaMovId) loadDetails(divergenciaMovId, "LIB_ARMAZENAGEM");
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDivergenciaSubmitting(false);
+    }
+  };
+
   const handleMenuAction = (action: string, movId: string, status: string) => {
     if (action === "liberar_conferencia") {
       handleLiberarConferencia(movId, status);
