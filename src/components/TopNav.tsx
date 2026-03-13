@@ -44,13 +44,13 @@ const navItems: NavItem[] = [
       { label: "Cadastro de Armazém", path: "/armazem/armazens" },
       { label: "Tipos de Estoque", path: "/armazem/tipos-estoque" },
       { label: "Setores", path: "/armazem/setores" },
-
       { label: "Localizações / Endereços", path: "/armazem/enderecos" },
       { label: "Box", path: "/armazem/box" },
       { label: "Turnos", path: "/armazem/turnos" },
       { label: "Motivos de Ocorrência", path: "/armazem/motivos" },
       { label: "Veículos", path: "/armazem/veiculos" },
       { label: "Zonas de Atividade", path: "/armazem/zonas" },
+      { label: "Roteiro de Separação", path: "/atividades/roteiro-separacao" },
     ],
   },
   {
