@@ -129,6 +129,13 @@ export function MovimentoEntradaPage() {
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [erroSubmitting, setErroSubmitting] = useState(false);
 
+  // Liberar armazenagem c/ divergência modal
+  const [showDivergenciaModal, setShowDivergenciaModal] = useState(false);
+  const [divergenciaMovId, setDivergenciaMovId] = useState<string | null>(null);
+  const [divergenciaMotivos, setDivergenciaMotivos] = useState<{ id: string; descricao: string }[]>([]);
+  const [selectedDivergenciaMotivo, setSelectedDivergenciaMotivo] = useState("");
+  const [divergenciaSubmitting, setDivergenciaSubmitting] = useState(false);
+
   // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteMovId, setDeleteMovId] = useState<string | null>(null);
