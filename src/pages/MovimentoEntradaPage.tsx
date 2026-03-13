@@ -758,7 +758,7 @@ export function MovimentoEntradaPage() {
                         const alerts: string[] = [];
                         if (item.sem_picking) alerts.push("Sem endereço de picking cadastrado");
                         if (item.sem_ean) alerts.push("Sem código de barras cadastrado");
-                        if (item.divergente) alerts.push("Divergência na conferência");
+                        
                         const statusInfo = STATUS_ITEM_MAP[item.status_item_movimento] || { label: item.status_item_movimento || "—", class: "" };
                         return (
                           <tr key={item.movimento_item_id} className={cn("border-b border-border/50 hover:bg-secondary/30", alerts.length > 0 && "bg-orange-500/5")}>
