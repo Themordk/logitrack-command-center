@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { InfoCard } from "@/components/coletor/InfoCard";
+
 import { toast } from "sonner";
 import { MapPin, SkipForward } from "lucide-react";
 

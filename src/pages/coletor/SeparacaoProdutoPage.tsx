@@ -124,15 +124,15 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             <Package size={18} className="text-[hsl(217,91%,60%)]" />
             <span className="text-sm font-bold text-white">Produto</span>
           </div>
-          <InfoCard label="SKU" value={tarefa.sku || "—"} />
-          <InfoCard label="Descrição" value={tarefa.descricao || "—"} />
-          <InfoCard label="Endereço" value={tarefa.endereco_descricao || "—"} />
+          <div className="text-xs text-[hsl(213,31%,55%)]">SKU: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.sku || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Descrição: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.descricao || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.endereco_descricao || "—"}</span></div>
           
           {temLote && (
             <>
-              <InfoCard label="Lote" value={tarefa.lote || "—"} />
-              <InfoCard label="Validade" value={tarefa.validade ? new Date(tarefa.validade).toLocaleDateString("pt-BR") : "—"} />
-              <InfoCard label="Fabricação" value={tarefa.fabricacao ? new Date(tarefa.fabricacao).toLocaleDateString("pt-BR") : "—"} />
+              <div className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.lote || "—"}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Validade: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.validade ? new Date(tarefa.validade).toLocaleDateString("pt-BR") : "—"}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Fabricação: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.fabricacao ? new Date(tarefa.fabricacao).toLocaleDateString("pt-BR") : "—"}</span></div>
             </>
           )}
         </div>
