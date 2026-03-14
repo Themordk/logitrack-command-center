@@ -40,6 +40,7 @@ interface MovSaida {
 
 interface OcorrenciaItem {
   sku?: string;
+  tipo?: string;
   descricao?: string;
   produto_id?: string;
   qtd_esperada?: number;
@@ -53,6 +54,7 @@ interface LiberarResult {
   mensagem: string;
   tipo_ocorrencia?: string;
   itens?: OcorrenciaItem[];
+  ocorrencias?: OcorrenciaItem[];
 }
 
 export function MovimentoSaidaPage() {
