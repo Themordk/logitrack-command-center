@@ -3637,8 +3637,12 @@ export type Database = {
       get_user_tenant_id: { Args: never; Returns: string }
       hu_padrao: { Args: never; Returns: string }
       liberar_onda_separacao: {
-        Args: { p_movimento_saida_id: string; p_tenant_id: string }
-        Returns: string
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       processar_movimento_estoque: {
         Args: { p_tarefa_execucao_id: string }
@@ -3681,6 +3685,30 @@ export type Database = {
           total_a_armazenar: number
           total_armazenado: number
         }[]
+      }
+      sepacarao_executar_coleta: {
+        Args: { p_quantidade: number; p_tarefa_id: string; p_usuario: string }
+        Returns: Json
+      }
+      separacao_buscar_tarefas: {
+        Args: { p_movimento_saida_id: string }
+        Returns: {
+          armazem: string
+          endereco: string
+          fator_caixa: number
+          ordem_tarefa: number
+          produto: string
+          quantidade_requerida: number
+          separado: number
+          setor: string
+          sku: string
+          status: string
+          tarefa_id: string
+        }[]
+      }
+      separacao_confirmar_endereco: {
+        Args: { p_endereco_lido: string; p_tarefa_id: string }
+        Returns: Json
       }
     }
     Enums: {

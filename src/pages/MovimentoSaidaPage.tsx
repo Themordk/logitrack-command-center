@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
@@ -32,13 +33,30 @@ interface MovSaida {
   box_id: string;
   rota_id: string;
   veiculo_id: string;
-  // enriched
+  empresa_id: string;
   parceiro_nome?: string;
   box_nome?: string;
 }
 
+interface OcorrenciaItem {
+  sku?: string;
+  descricao?: string;
+  produto_id?: string;
+  qtd_esperada?: number;
+  saldo_picking?: number;
+  endereco_picking?: string;
+  [key: string]: any;
+}
+
+interface LiberarResult {
+  sucesso: boolean;
+  mensagem: string;
+  tipo_ocorrencia?: string;
+  itens?: OcorrenciaItem[];
+}
+
 export function MovimentoSaidaPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId } = useTenant();
   const [movimentos, setMovimentos] = useState<MovSaida[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -47,13 +65,11 @@ export function MovimentoSaidaPage() {
   const [total, setTotal] = useState(0);
   const pageSize = 20;
 
-  // Filters
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  // Tab data
   const [tabItens, setTabItens] = useState<any[]>([]);
   const [tabSeparacao, setTabSeparacao] = useState<any[]>([]);
   const [tabConferencia, setTabConferencia] = useState<any[]>([]);
@@ -61,8 +77,16 @@ export function MovimentoSaidaPage() {
   const [tabLoading, setTabLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("itens");
 
-  // Action menu
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+
+  // Liberar result dialog
+  const [liberarResult, setLiberarResult] = useState<LiberarResult | null>(null);
+  const [liberarDialogOpen, setLiberarDialogOpen] = useState(false);
+  const [liberarMovId, setLiberarMovId] = useState<string | null>(null);
+
+  // Delete confirm
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchMovimentos = useCallback(async () => {
     if (!tenantId) return;
@@ -72,7 +96,7 @@ export function MovimentoSaidaPage() {
       const to = from + pageSize - 1;
       let query = (supabase as any)
         .from("movimento_saida")
-        .select("id, numero_onda, status, data_emissao, destino_carga, motorista, total_pedidos, peso_total, m3, prioridade, total_volume, observacao, box_id, rota_id, veiculo_id", { count: "exact" })
+        .select("id, numero_onda, status, data_emissao, destino_carga, motorista, total_pedidos, peso_total, m3, prioridade, total_volume, observacao, box_id, rota_id, veiculo_id, empresa_id", { count: "exact" })
         .eq("tenant_id", tenantId)
         .order("numero_onda", { ascending: false })
         .range(from, to);
@@ -85,7 +109,6 @@ export function MovimentoSaidaPage() {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      // Enrich with box name and parceiro
       const enriched = await Promise.all(
         (data || []).map(async (mov: any) => {
           const [boxRes, docRes] = await Promise.all([
@@ -128,7 +151,6 @@ export function MovimentoSaidaPage() {
       setTabSeparacao(sepRes.data || []);
       setTabConferencia(confRes.data || []);
 
-      // Enrich docs with parceiro
       if (docsRes.data?.length) {
         const enrichedDocs = await Promise.all(
           docsRes.data.map(async (d: any) => {
@@ -158,29 +180,119 @@ export function MovimentoSaidaPage() {
     loadTabData(mov.id);
   };
 
-  const handleAction = async (movId: string, action: "liberar" | "retirar") => {
+  const handleLiberar = async (movId: string) => {
+    setActionMenuId(null);
+    const mov = movimentos.find(m => m.id === movId);
+    try {
+      const { data, error } = await supabase.rpc("liberar_onda_separacao" as any, {
+        p_movimento_saida_id: movId,
+        p_tenant_id: tenantId,
+        p_empresa_id: mov?.empresa_id || empresaId,
+      });
+      if (error) throw error;
+
+      // Parse the result - could be JSON or string
+      let result: LiberarResult;
+      if (typeof data === "string") {
+        try {
+          result = JSON.parse(data);
+        } catch {
+          result = { sucesso: true, mensagem: data };
+        }
+      } else if (typeof data === "object" && data !== null) {
+        result = data as LiberarResult;
+      } else {
+        result = { sucesso: true, mensagem: "Liberado para separação!" };
+      }
+
+      if (result.sucesso) {
+        toast.success(result.mensagem || "Liberado para separação!");
+        fetchMovimentos();
+        if (selectedId === movId) {
+          setSelectedMov((prev) => prev ? { ...prev, status: "LIBERADO" } : null);
+        }
+      } else {
+        // Show dialog with occurrence details
+        setLiberarResult(result);
+        setLiberarMovId(movId);
+        setLiberarDialogOpen(true);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleRetirar = async (movId: string) => {
     setActionMenuId(null);
     try {
-      if (action === "liberar") {
-        const { data, error } = await supabase.rpc("liberar_onda_separacao" as any, {
-          p_movimento_saida_id: movId,
-          p_tenant_id: tenantId,
-        });
-        if (error) throw error;
-        toast.success(typeof data === "string" ? data : "Liberado para separação!");
-      } else {
-        const { error } = await (supabase as any)
-          .from("movimento_saida")
-          .update({ status: "CRIADA" })
-          .eq("id", movId);
-        if (error) throw error;
-        toast.success("Retirado da separação!");
-      }
+      const { error } = await (supabase as any)
+        .from("movimento_saida")
+        .update({ status: "CRIADA" })
+        .eq("id", movId);
+      if (error) throw error;
+      toast.success("Retirado da separação!");
       fetchMovimentos();
       if (selectedId === movId) {
-        const newStatus = action === "liberar" ? "LIBERADO" : "CRIADA";
-        setSelectedMov((prev) => prev ? { ...prev, status: newStatus } : null);
+        setSelectedMov((prev) => prev ? { ...prev, status: "CRIADA" } : null);
       }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleExcluirOnda = async () => {
+    if (!deleteConfirmId || !tenantId) return;
+    setDeleting(true);
+    try {
+      const mov = movimentos.find(m => m.id === deleteConfirmId);
+      if (!mov) throw new Error("Movimento não encontrado");
+      if (mov.status !== "CRIADA") {
+        toast.error("Só é possível excluir ondas com status CRIADA.");
+        return;
+      }
+
+      // Get linked documents
+      const { data: docs } = await (supabase as any)
+        .from("movimento_saida_documento")
+        .select("documento_saida_id")
+        .eq("movimento_saida_id", deleteConfirmId);
+      const docIds = (docs || []).map((d: any) => d.documento_saida_id);
+
+      // Delete items -> docs -> movement
+      await (supabase as any).from("movimento_saida_item").delete().eq("movimento_saida_id", deleteConfirmId);
+      await (supabase as any).from("movimento_saida_documento").delete().eq("movimento_saida_id", deleteConfirmId);
+      const { error } = await (supabase as any).from("movimento_saida").delete().eq("id", deleteConfirmId);
+      if (error) throw error;
+
+      // Reset doc status to 0
+      if (docIds.length > 0) {
+        await (supabase as any).from("documento_saida").update({ status: 0 }).in("id", docIds);
+      }
+
+      toast.success("Onda excluída com sucesso!");
+      if (selectedId === deleteConfirmId) {
+        setSelectedId(null);
+        setSelectedMov(null);
+      }
+      fetchMovimentos();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const handleGerarAbastecimentoPreventivo = async () => {
+    if (!liberarResult?.itens || !liberarMovId || !tenantId) return;
+    try {
+      const { data, error } = await supabase.rpc("gerar_abastecimento_preventivo" as any, {
+        p_movimento_saida_id: liberarMovId,
+        p_tenant_id: tenantId,
+      });
+      if (error) throw error;
+      toast.success(typeof data === "string" ? data : "Abastecimento preventivo gerado!");
+      setLiberarDialogOpen(false);
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -255,20 +367,35 @@ export function MovimentoSaidaPage() {
                             <MoreVertical size={14} className="text-muted-foreground" />
                           </button>
                           {actionMenuId === mov.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-card shadow-elevated z-50 overflow-hidden animate-fade-in">
+                            <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-card shadow-elevated z-50 overflow-hidden animate-fade-in">
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleAction(mov.id, "liberar"); }}
+                                onClick={(e) => { e.stopPropagation(); handleLiberar(mov.id); }}
                                 disabled={mov.status !== "CRIADA"}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                               >
                                 Liberar para separação
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleAction(mov.id, "retirar"); }}
+                                onClick={(e) => { e.stopPropagation(); handleRetirar(mov.id); }}
                                 disabled={mov.status !== "LIBERADO"}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
                               >
                                 Retirar da separação
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionMenuId(null);
+                                  if (mov.status !== "CRIADA") {
+                                    toast.error("Só é possível excluir ondas com status CRIADA.");
+                                    return;
+                                  }
+                                  setDeleteConfirmId(mov.id);
+                                }}
+                                disabled={mov.status !== "CRIADA"}
+                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                              >
+                                Excluir onda
                               </button>
                             </div>
                           )}
@@ -464,6 +591,117 @@ export function MovimentoSaidaPage() {
           )}
         </div>
       </div>
+
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(v) => !v && setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
+                <AlertTriangle size={20} className="text-destructive" />
+              </div>
+              <div>
+                <DialogTitle>Excluir Onda</DialogTitle>
+                <DialogDescription className="mt-1">
+                  Tem certeza que deseja excluir esta onda de carregamento? Itens, documentos vinculados serão removidos e os documentos de saída terão status resetado.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              Cancelar
+            </button>
+            <button onClick={handleExcluirOnda} disabled={deleting} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
+              {deleting && <Loader2 size={14} className="animate-spin" />}
+              {deleting ? "Excluindo..." : "Excluir"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Liberar result dialog */}
+      <Dialog open={liberarDialogOpen} onOpenChange={setLiberarDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
+                <AlertTriangle size={20} className="text-destructive" />
+              </div>
+              <div>
+                <DialogTitle>Não foi possível liberar</DialogTitle>
+                <DialogDescription className="mt-1">
+                  {liberarResult?.mensagem}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {liberarResult?.itens && liberarResult.itens.length > 0 && (
+            <div className="mt-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/30">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
+                    {liberarResult.tipo_ocorrencia === "saldo_insuficiente_picking" && (
+                      <>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Saldo Picking</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereço</th>
+                      </>
+                    )}
+                    {liberarResult.tipo_ocorrencia === "sem_picking" && (
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Situação</th>
+                    )}
+                    {liberarResult.tipo_ocorrencia === "sem_estoque_pulmao" && (
+                      <>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Situação</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {liberarResult.itens.map((item, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku || "—"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground">{item.descricao || "—"}</td>
+                      {liberarResult.tipo_ocorrencia === "saldo_insuficiente_picking" && (
+                        <>
+                          <td className="px-3 py-2 text-right text-foreground">{item.qtd_esperada ?? "—"}</td>
+                          <td className="px-3 py-2 text-right text-destructive font-semibold">{item.saldo_picking ?? 0}</td>
+                          <td className="px-3 py-2 text-xs text-muted-foreground">{item.endereco_picking || "—"}</td>
+                        </>
+                      )}
+                      {liberarResult.tipo_ocorrencia === "sem_picking" && (
+                        <td className="px-3 py-2 text-xs text-destructive">Sem endereço de picking</td>
+                      )}
+                      {liberarResult.tipo_ocorrencia === "sem_estoque_pulmao" && (
+                        <>
+                          <td className="px-3 py-2 text-right text-foreground">{item.qtd_esperada ?? "—"}</td>
+                          <td className="px-3 py-2 text-xs text-destructive">Sem estoque no pulmão</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {liberarResult.tipo_ocorrencia === "saldo_insuficiente_picking" && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={handleGerarAbastecimentoPreventivo}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Gerar Abastecimento Preventivo
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
