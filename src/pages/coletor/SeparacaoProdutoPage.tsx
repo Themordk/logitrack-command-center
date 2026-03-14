@@ -25,7 +25,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     if (raw) {
       const t = JSON.parse(raw);
       setTarefa(t);
-      setQtdSeparada(Number(t.qtd_separada || 0));
+      setQtdSeparada(Number(t.separado || 0));
     }
   }, []);
 
