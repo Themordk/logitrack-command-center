@@ -19,14 +19,13 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   const [movimentos, setMovimentos] = useState<SeparacaoResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const tenantId = localStorage.getItem("core_tenant_id");
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     loadMovimentos();
   }, []);
 
   const loadMovimentos = async () => {
-    if (!tenantId) return;
     setLoading(true);
     try {
       const { data, error } = await (supabase as any)
@@ -41,15 +40,38 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
     }
   };
 
-  const handleIniciar = () => {
+  const handleIniciar = async () => {
     if (!selectedId) return;
     const mov = movimentos.find((m) => m.id === selectedId);
     if (!mov) return;
-    sessionStorage.setItem("coletor_separacao_movimento_id", selectedId);
-    sessionStorage.setItem("coletor_separacao_numero_onda", String(mov.numero_onda));
-    toast.success(`Separação da Onda #${mov.numero_onda} iniciada!`);
-    // Navigate to separation execution (placeholder for now)
-    onNavigate("/coletor/separacao/execucao");
+
+    setStarting(true);
+    try {
+      // Call RPC to fetch tasks for this wave
+      const { data, error } = await supabase.rpc("separacao_buscar_tarefas" as any, {
+        p_movimento_saida_id: selectedId,
+      });
+      if (error) throw error;
+
+      const tarefas = Array.isArray(data) ? data : typeof data === "string" ? JSON.parse(data) : [];
+      
+      sessionStorage.setItem("coletor_separacao_movimento_id", selectedId);
+      sessionStorage.setItem("coletor_separacao_numero_onda", String(mov.numero_onda));
+      sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(tarefas));
+      sessionStorage.setItem("coletor_separacao_tarefa_idx", "0");
+
+      if (tarefas.length === 0) {
+        toast.info("Nenhuma tarefa pendente para esta onda.");
+        return;
+      }
+
+      toast.success(`Separação da Onda #${mov.numero_onda} iniciada!`);
+      onNavigate("/coletor/separacao/endereco");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setStarting(false);
+    }
   };
 
   return (
@@ -90,7 +112,7 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
           </div>
         )}
 
-        <ActionButton onClick={handleIniciar} disabled={!selectedId}>
+        <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
           Iniciar Separação
         </ActionButton>
       </div>
