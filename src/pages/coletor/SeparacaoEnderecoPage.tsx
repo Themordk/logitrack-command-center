@@ -11,15 +11,17 @@ interface Props { onNavigate: (path: string) => void; }
 
 interface Tarefa {
   tarefa_id: string;
-  produto_id: string;
+  produto_id?: string;
   sku?: string;
-  descricao?: string;
-  endereco_id: string;
-  endereco_descricao?: string;
-  setor_descricao?: string;
-  armazem_descricao?: string;
+  produto?: string;
+  endereco?: string;
+  setor?: string;
+  armazem?: string;
   quantidade_requerida: number;
   ordem_tarefa: number;
+  separado?: number;
+  status?: string;
+  fator_caixa?: number;
   lote?: string;
   validade?: string;
   fabricacao?: string;
