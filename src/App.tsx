@@ -64,6 +64,9 @@ import { TransferenciaConcluidoPage } from "./pages/coletor/TransferenciaConclui
 import { AbastecimentoListPage } from "./pages/coletor/AbastecimentoListPage";
 import { RecebimentoVolumesPage } from "./pages/coletor/RecebimentoVolumesPage";
 import { SeparacaoIniciarPage } from "./pages/coletor/SeparacaoIniciarPage";
+import { SeparacaoEnderecoPage } from "./pages/coletor/SeparacaoEnderecoPage";
+import { SeparacaoProdutoPage } from "./pages/coletor/SeparacaoProdutoPage";
+import { SeparacaoOcorrenciasPage } from "./pages/coletor/SeparacaoOcorrenciasPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
