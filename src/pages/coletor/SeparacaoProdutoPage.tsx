@@ -25,7 +25,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     if (raw) {
       const t = JSON.parse(raw);
       setTarefa(t);
-      setQtdSeparada(Number(t.qtd_separada || 0));
+      setQtdSeparada(Number(t.separado || 0));
     }
   }, []);
 
@@ -125,8 +125,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             <span className="text-sm font-bold text-white">Produto</span>
           </div>
           <div className="text-xs text-[hsl(213,31%,55%)]">SKU: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.sku || "—"}</span></div>
-          <div className="text-xs text-[hsl(213,31%,55%)]">Descrição: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.descricao || "—"}</span></div>
-          <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.endereco_descricao || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Descrição: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.produto || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.endereco || "—"}</span></div>
+          {tarefa.fator_caixa && <div className="text-xs text-[hsl(213,31%,55%)]">Fator Caixa: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.fator_caixa}</span></div>}
           
           {temLote && (
             <>

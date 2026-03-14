@@ -11,15 +11,17 @@ interface Props { onNavigate: (path: string) => void; }
 
 interface Tarefa {
   tarefa_id: string;
-  produto_id: string;
+  produto_id?: string;
   sku?: string;
-  descricao?: string;
-  endereco_id: string;
-  endereco_descricao?: string;
-  setor_descricao?: string;
-  armazem_descricao?: string;
+  produto?: string;
+  endereco?: string;
+  setor?: string;
+  armazem?: string;
   quantidade_requerida: number;
   ordem_tarefa: number;
+  separado?: number;
+  status?: string;
+  fator_caixa?: number;
   lote?: string;
   validade?: string;
   fabricacao?: string;
@@ -125,16 +127,18 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
             <MapPin size={18} className="text-[hsl(217,91%,60%)]" />
             <span className="text-sm font-bold text-white">Endereço para Coleta</span>
           </div>
-          <div className="text-xs text-[hsl(213,31%,55%)]">Armazém: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.armazem_descricao || "—"}</span></div>
-          <div className="text-xs text-[hsl(213,31%,55%)]">Setor: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.setor_descricao || "—"}</span></div>
-          <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.endereco_descricao || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Armazém: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.armazem || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Setor: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.setor || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.endereco || "—"}</span></div>
         </div>
 
         {/* Product preview */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-1">
           <p className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Produto</p>
-          <p className="text-sm font-bold text-white">{tarefa.sku} - {tarefa.descricao}</p>
+          <p className="text-sm font-bold text-white">{tarefa.sku} - {tarefa.produto}</p>
           <p className="text-xs text-[hsl(213,31%,55%)]">Qtd Requerida: <span className="font-bold text-white">{tarefa.quantidade_requerida}</span></p>
+          {tarefa.fator_caixa && <p className="text-xs text-[hsl(213,31%,55%)]">Fator Caixa: <span className="font-bold text-white">{tarefa.fator_caixa}</span></p>}
+          <p className="text-xs text-[hsl(213,31%,55%)]">Separado: <span className="font-bold text-[hsl(142,71%,45%)]">{tarefa.separado || 0}</span></p>
         </div>
 
         {/* Scan field */}
