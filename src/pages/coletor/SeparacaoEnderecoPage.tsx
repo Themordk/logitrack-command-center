@@ -125,9 +125,9 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
             <MapPin size={18} className="text-[hsl(217,91%,60%)]" />
             <span className="text-sm font-bold text-white">Endereço para Coleta</span>
           </div>
-          <InfoCard label="Armazém" value={tarefa.armazem_descricao || "—"} />
-          <InfoCard label="Setor" value={tarefa.setor_descricao || "—"} />
-          <InfoCard label="Endereço" value={tarefa.endereco_descricao || "—"} />
+          <div className="text-xs text-[hsl(213,31%,55%)]">Armazém: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.armazem_descricao || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Setor: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.setor_descricao || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.endereco_descricao || "—"}</span></div>
         </div>
 
         {/* Product preview */}
