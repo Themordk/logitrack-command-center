@@ -40,6 +40,7 @@ interface MovSaida {
 
 interface OcorrenciaItem {
   sku?: string;
+  tipo?: string;
   descricao?: string;
   produto_id?: string;
   qtd_esperada?: number;
@@ -53,6 +54,7 @@ interface LiberarResult {
   mensagem: string;
   tipo_ocorrencia?: string;
   itens?: OcorrenciaItem[];
+  ocorrencias?: OcorrenciaItem[];
 }
 
 export function MovimentoSaidaPage() {
@@ -637,7 +639,39 @@ export function MovimentoSaidaPage() {
             </div>
           </DialogHeader>
 
-          {liberarResult?.itens && liberarResult.itens.length > 0 && (
+          {/* Ocorrências list from new JSON format */}
+          {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Ocorrências ({liberarResult.ocorrencias.length})</p>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-secondary/30">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Tipo</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liberarResult.ocorrencias.map((oc, i) => (
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="px-3 py-2 font-mono text-xs text-foreground">{oc.sku || "—"}</td>
+                        <td className="px-3 py-2 text-xs">
+                          <span className="px-2 py-0.5 rounded bg-destructive/15 text-destructive text-[11px] font-medium">
+                            {oc.tipo?.replace(/_/g, " ") || "—"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-foreground">{oc.descricao || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Legacy itens format fallback */}
+          {(!liberarResult?.ocorrencias || liberarResult.ocorrencias.length === 0) && liberarResult?.itens && liberarResult.itens.length > 0 && (
             <div className="mt-4">
               <table className="w-full text-sm">
                 <thead>
