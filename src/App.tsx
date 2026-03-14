@@ -190,6 +190,9 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/movimentos/transferencia/concluido": return <TransferenciaConcluidoPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/abastecimento": return <AbastecimentoListPage onNavigate={onNavigate} />;
     case "/coletor/separacao/iniciar": return <SeparacaoIniciarPage onNavigate={onNavigate} />;
+    case "/coletor/separacao/endereco": return <SeparacaoEnderecoPage onNavigate={onNavigate} />;
+    case "/coletor/separacao/produto": return <SeparacaoProdutoPage onNavigate={onNavigate} />;
+    case "/coletor/separacao/ocorrencias": return <SeparacaoOcorrenciasPage onNavigate={onNavigate} />;
     default: return <ColetorLoginPage onNavigate={onNavigate} />;
   }
 }
