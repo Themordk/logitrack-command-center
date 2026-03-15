@@ -51,7 +51,7 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
 
   const handleIniciar = async () => {
     if (!selectedId) return;
-    const onda = ondas.find((o) => o.id === selectedId);
+    const onda = ondas.find((o) => o.movimento_saida_id === selectedId);
     if (!onda) return;
 
     setStarting(true);
