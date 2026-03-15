@@ -128,10 +128,10 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
           <div className="flex flex-col gap-2 flex-1 overflow-auto">
             {ondas.map((onda) => (
               <button
-                key={onda.id}
-                onClick={() => setSelectedId(onda.id === selectedId ? null : onda.id)}
+                key={onda.movimento_saida_id}
+                onClick={() => setSelectedId(onda.movimento_saida_id === selectedId ? null : onda.movimento_saida_id)}
                 className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left ${
-                  selectedId === onda.id
+                  selectedId === onda.movimento_saida_id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
