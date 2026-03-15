@@ -8,7 +8,7 @@ import { toast } from "sonner";
 interface Props { onNavigate: (path: string) => void; }
 
 interface OndaResumo {
-  id: string;
+  movimento_saida_id: string;
   numero_onda: number;
   pedidos: string;
   tipo_venda: string;
