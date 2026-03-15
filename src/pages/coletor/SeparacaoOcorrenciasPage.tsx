@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { Scissors, Truck, ClipboardList, Loader2 } from "lucide-react";
+import { Scissors, Truck, ClipboardList, Loader2, CheckCircle, XCircle } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -16,10 +16,11 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
   const [tarefa, setTarefa] = useState<any>(null);
   const [temSaldoPulmao, setTemSaldoPulmao] = useState(false);
   const [checkingPulmao, setCheckingPulmao] = useState(true);
-  const [showMotivoModal, setShowMotivoModal] = useState<string | null>(null); // action type
+  const [showMotivoModal, setShowMotivoModal] = useState<string | null>(null);
   const [motivos, setMotivos] = useState<MotivoOcorrencia[]>([]);
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -38,7 +39,6 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
   const checkPulmaoStock = async (produtoId: string) => {
     setCheckingPulmao(true);
     try {
-      // Check if product has stock in pulmão addresses (tipo_endereco = 'PULMAO')
       const { data, error } = await (supabase as any)
         .from("estoque_geral")
         .select("id, endereco_id")
@@ -48,7 +48,6 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Check if any of these addresses are PULMAO type
         const endIds = data.map((d: any) => d.endereco_id).filter(Boolean);
         if (endIds.length > 0) {
           const { data: enderecos } = await (supabase as any)
@@ -94,52 +93,79 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
     if (!selectedMotivo || !tarefa || !showMotivoModal) return;
     setProcessing(true);
     try {
-      // For now, we register the occurrence via a generic approach
-      // The specific RPC can be called based on the action type
-      const actionLabel = showMotivoModal === "cortar" ? "Corte de saldo" 
-        : showMotivoModal === "abastecimento" ? "Solicitação de abastecimento"
-        : "Solicitação de inventário";
-
-      // Register the occurrence event
-      const payload: any = {
-        tarefa_id: tarefa.tarefa_id,
-        tipo_evento: showMotivoModal === "cortar" ? "CORTE_SALDO" 
-          : showMotivoModal === "abastecimento" ? "SOLICITAR_ABASTECIMENTO"
-          : "SOLICITAR_INVENTARIO",
-        carga_util: JSON.stringify({
-          motivo_ocorrencia_id: selectedMotivo,
-          produto_id: tarefa.produto_id,
-          usuario_id: usuarioId,
-        }),
-        tenant_id: tenantId,
-        execucao_tarefa_id: tarefa.tarefa_execucao_id || tarefa.tarefa_id,
-      };
-
-      const { error } = await (supabase as any)
-        .from("tarefa_evento_execucao")
-        .insert(payload);
-      if (error) throw error;
-
-      toast.success(`${actionLabel} registrada com sucesso!`);
-      setShowMotivoModal(null);
-
-      // If cortar saldo, advance to next
       if (showMotivoModal === "cortar") {
-        const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
-        const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
-        const nextIdx = idx + 1;
-        if (nextIdx >= tarefas.length) {
-          toast.success("Separação concluída para esta onda!");
-          onNavigate("/coletor/separacao/iniciar");
-        } else {
-          sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
-          onNavigate("/coletor/separacao/endereco");
+        // Call cortar_item_separacao RPC
+        const { data, error } = await supabase.rpc("cortar_item_separacao" as any, {
+          p_tarefa_id: tarefa.tarefa_id,
+          p_usuario: usuarioId,
+          p_motivo_ocorrencia: selectedMotivo,
+        });
+        if (error) throw error;
+
+        let result: any = data;
+        if (typeof data === "string") {
+          try { result = JSON.parse(data); } catch { /* keep */ }
         }
+
+        if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
+          setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao cortar saldo" });
+          setShowMotivoModal(null);
+          return;
+        }
+
+        setResultDialog({ sucesso: true, mensagem: result?.mensagem || "Corte de saldo registrado com sucesso!" });
+        setShowMotivoModal(null);
+      } else {
+        // Abastecimento / Inventário - register via event
+        const actionLabel = showMotivoModal === "abastecimento"
+          ? "Solicitação de abastecimento"
+          : "Solicitação de inventário";
+
+        const payload: any = {
+          tarefa_id: tarefa.tarefa_id,
+          tipo_evento: showMotivoModal === "abastecimento" ? "SOLICITAR_ABASTECIMENTO" : "SOLICITAR_INVENTARIO",
+          carga_util: JSON.stringify({
+            motivo_ocorrencia_id: selectedMotivo,
+            produto_id: tarefa.produto_id,
+            usuario_id: usuarioId,
+          }),
+          tenant_id: tenantId,
+          execucao_tarefa_id: tarefa.tarefa_execucao_id || tarefa.tarefa_id,
+        };
+
+        const { error } = await (supabase as any)
+          .from("tarefa_evento_execucao")
+          .insert(payload);
+        if (error) throw error;
+
+        setResultDialog({ sucesso: true, mensagem: `${actionLabel} registrada com sucesso!` });
+        setShowMotivoModal(null);
       }
     } catch (err: any) {
-      toast.error(err.message);
+      setResultDialog({ sucesso: false, mensagem: err.message });
+      setShowMotivoModal(null);
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleDialogClose = () => {
+    const wasSuccess = resultDialog?.sucesso;
+    const wasCortar = wasSuccess && showMotivoModal === null; // cortar already closed modal
+    setResultDialog(null);
+
+    // If cortar was successful, advance to next task
+    if (wasSuccess) {
+      const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
+      const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
+      const nextIdx = idx + 1;
+      if (nextIdx >= tarefas.length) {
+        toast.success("Separação concluída para esta onda!");
+        onNavigate("/coletor/separacao/iniciar");
+      } else {
+        sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
+        onNavigate("/coletor/separacao/endereco");
+      }
     }
   };
 
@@ -151,7 +177,7 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
         {/* Product context */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4">
           <p className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Produto</p>
-          <p className="text-sm font-bold text-white">{tarefa.sku} - {tarefa.descricao}</p>
+          <p className="text-sm font-bold text-white">{tarefa.sku} - {tarefa.produto}</p>
         </div>
 
         {checkingPulmao ? (
@@ -160,7 +186,6 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Cortar saldo - only if NO pulmão stock */}
             <ActionButton
               onClick={() => openMotivoModal("cortar")}
               variant="danger"
@@ -174,7 +199,6 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
               </p>
             )}
 
-            {/* Solicitar abastecimento - only if HAS pulmão stock */}
             <ActionButton
               onClick={() => openMotivoModal("abastecimento")}
               variant="warning"
@@ -188,7 +212,6 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
               </p>
             )}
 
-            {/* Solicitar inventário - always enabled */}
             <ActionButton
               onClick={() => openMotivoModal("inventario")}
               variant="secondary"
@@ -237,6 +260,28 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
                 Confirmar
               </ActionButton>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Result Dialog */}
+      {resultDialog && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+            <div className="flex flex-col items-center gap-3">
+              {resultDialog.sucesso ? (
+                <CheckCircle size={48} className="text-[#22C55E]" />
+              ) : (
+                <XCircle size={48} className="text-[#E02424]" />
+              )}
+              <h3 className="text-base font-bold text-white text-center">
+                {resultDialog.sucesso ? "Sucesso" : "Erro"}
+              </h3>
+              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
+            </div>
+            <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
+              {resultDialog.sucesso ? "Continuar" : "Fechar"}
+            </ActionButton>
           </div>
         </div>
       )}

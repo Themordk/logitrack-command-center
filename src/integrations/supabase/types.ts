@@ -1750,32 +1750,47 @@ export type Database = {
       }
       movimento_saida_item: {
         Row: {
+          autorizado_em: string | null
           id: string
+          motivo_ocorrencia: string | null
           movimento_saida_id: string
           produto_id: string
           qtd_esperada: number
+          qtd_separada: number | null
+          qtde_cortada: number | null
           status: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
+          usuario_autorizou: string | null
           valor_total: number
           valor_unit: number
         }
         Insert: {
+          autorizado_em?: string | null
           id?: string
+          motivo_ocorrencia?: string | null
           movimento_saida_id: string
           produto_id: string
           qtd_esperada: number
+          qtd_separada?: number | null
+          qtde_cortada?: number | null
           status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
+          usuario_autorizou?: string | null
           valor_total: number
           valor_unit: number
         }
         Update: {
+          autorizado_em?: string | null
           id?: string
+          motivo_ocorrencia?: string | null
           movimento_saida_id?: string
           produto_id?: string
           qtd_esperada?: number
+          qtd_separada?: number | null
+          qtde_cortada?: number | null
           status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id?: string
+          usuario_autorizou?: string | null
           valor_total?: number
           valor_unit?: number
         }
@@ -1823,6 +1838,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimento_saida_item_motivo_ocorrencia_fkey"
+            columns: ["motivo_ocorrencia"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
             columns: ["movimento_saida_id"]
             isOneToOne: false
@@ -1849,6 +1871,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_movimento_saida_separacao_detalhe"
             referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_usuario_autorizou_fkey"
+            columns: ["usuario_autorizou"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2510,6 +2539,73 @@ export type Database = {
           },
         ]
       }
+      tarefa_atribuicao: {
+        Row: {
+          atribuido_em: string
+          empresa_id: string
+          id: string
+          liberado_em: string | null
+          observacao: string | null
+          status: string
+          tarefa_id: string
+          tenant_id: string
+          tipo_convocacao:
+            | Database["public"]["Enums"]["enum_tipo_convocacao"]
+            | null
+          usuario_id: string
+        }
+        Insert: {
+          atribuido_em?: string
+          empresa_id: string
+          id?: string
+          liberado_em?: string | null
+          observacao?: string | null
+          status?: string
+          tarefa_id: string
+          tenant_id: string
+          tipo_convocacao?:
+            | Database["public"]["Enums"]["enum_tipo_convocacao"]
+            | null
+          usuario_id: string
+        }
+        Update: {
+          atribuido_em?: string
+          empresa_id?: string
+          id?: string
+          liberado_em?: string | null
+          observacao?: string | null
+          status?: string
+          tarefa_id?: string
+          tenant_id?: string
+          tipo_convocacao?:
+            | Database["public"]["Enums"]["enum_tipo_convocacao"]
+            | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_tarefa_atribuicao_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_tarefa_atribuicao_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "fk_tarefa_atribuicao_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+        ]
+      }
       tarefa_evento_execucao: {
         Row: {
           carga_util: Json | null
@@ -2724,6 +2820,73 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuario"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa_performance: {
+        Row: {
+          data_execucao: string
+          empresa_id: string
+          endereco_id: string | null
+          id: string
+          peso: number | null
+          produto_id: string | null
+          quantidade: number | null
+          tarefa_id: string
+          tempo_execucao_segundos: number | null
+          tenant_id: string
+          tipo_tarefa_id: string
+          usuario_id: string
+        }
+        Insert: {
+          data_execucao?: string
+          empresa_id: string
+          endereco_id?: string | null
+          id?: string
+          peso?: number | null
+          produto_id?: string | null
+          quantidade?: number | null
+          tarefa_id: string
+          tempo_execucao_segundos?: number | null
+          tenant_id: string
+          tipo_tarefa_id: string
+          usuario_id: string
+        }
+        Update: {
+          data_execucao?: string
+          empresa_id?: string
+          endereco_id?: string | null
+          id?: string
+          peso?: number | null
+          produto_id?: string | null
+          quantidade?: number | null
+          tarefa_id?: string
+          tempo_execucao_segundos?: number | null
+          tenant_id?: string
+          tipo_tarefa_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_tarefa_performance_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_tarefa_performance_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "fk_tarefa_performance_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
           },
         ]
       }
@@ -3581,6 +3744,14 @@ export type Database = {
       }
     }
     Functions: {
+      cortar_item_separacao: {
+        Args: {
+          p_motivo_ocorrencia: string
+          p_tarefa_id: string
+          p_usuario: string
+        }
+        Returns: Json
+      }
       finalizar_armazenagem: {
         Args: {
           p_endereco_destino_id: string
@@ -3686,12 +3857,28 @@ export type Database = {
           total_armazenado: number
         }[]
       }
-      sepacarao_executar_coleta: {
-        Args: { p_quantidade: number; p_tarefa_id: string; p_usuario: string }
-        Returns: Json
+      separacao_buscar_ondas: {
+        Args: {
+          p_empresa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          movimento_saida_id: string
+          numero_onda: number
+          pedidos: string
+          prioridade: string
+          status: string
+          tipo_venda: string
+        }[]
       }
       separacao_buscar_tarefas: {
-        Args: { p_movimento_saida_id: string }
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
         Returns: {
           armazem: string
           endereco: string
@@ -3708,6 +3895,10 @@ export type Database = {
       }
       separacao_confirmar_endereco: {
         Args: { p_endereco_lido: string; p_tarefa_id: string }
+        Returns: Json
+      }
+      separacao_executar_coleta: {
+        Args: { p_quantidade: number; p_tarefa_id: string; p_usuario: string }
         Returns: Json
       }
     }
@@ -3757,8 +3948,10 @@ export type Database = {
       enum_status_item_onda:
         | "PENDENTE"
         | "EM_PICKING"
+        | "SEPARADO"
         | "EM_CONFERENCIA"
-        | "CONCLUIDO"
+        | "CONFERIDO"
+        | "EMBARCADO"
         | "CANCELADO"
       enum_status_mov_entrada:
         | "GERADO"
@@ -3790,6 +3983,10 @@ export type Database = {
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
       enum_tipo_controle: "UNIDADE" | "LOTE" | "VALIDADE" | "SERIE" | "METROS"
+      enum_tipo_convocacao:
+        | "AUTO_CONVOCADO"
+        | "CONVOCACAO_GESTOR"
+        | "CONVOCACAO_ATIVA"
       enum_tipo_endereco: "PULMAO" | "PICKING"
       enum_tipo_evento_execucao:
         | "SCAN"
@@ -4019,8 +4216,10 @@ export const Constants = {
       enum_status_item_onda: [
         "PENDENTE",
         "EM_PICKING",
+        "SEPARADO",
         "EM_CONFERENCIA",
-        "CONCLUIDO",
+        "CONFERIDO",
+        "EMBARCADO",
         "CANCELADO",
       ],
       enum_status_mov_entrada: [
@@ -4056,6 +4255,11 @@ export const Constants = {
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],
       enum_tipo_controle: ["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"],
+      enum_tipo_convocacao: [
+        "AUTO_CONVOCADO",
+        "CONVOCACAO_GESTOR",
+        "CONVOCACAO_ATIVA",
+      ],
       enum_tipo_endereco: ["PULMAO", "PICKING"],
       enum_tipo_evento_execucao: [
         "SCAN",
