@@ -157,6 +157,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       return;
     }
 
+    // Multiply by embalagem fator
+    const fator = embalagemInfo?.fator || 1;
+    const qtdFinal = qtd * fator;
+
     setConfirming(true);
     try {
       const resolvedEnderecoId = enderecoId || tarefa.endereco_id || tarefa.endereco_alternativo_id;
@@ -164,7 +168,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       const { data, error } = await supabase.rpc("separacao_executar_coleta" as any, {
         p_tenant_id: tenantId,
         p_tarefa_id: tarefa.tarefa_id,
-        p_quantidade: qtd,
+        p_quantidade: qtdFinal,
         p_endereco_id: resolvedEnderecoId,
         p_usuario_id: usuarioId,
       });
