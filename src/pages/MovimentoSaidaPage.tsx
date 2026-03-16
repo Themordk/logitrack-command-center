@@ -506,6 +506,7 @@ export function MovimentoSaidaPage() {
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Separada</th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-10">Opções</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -516,6 +517,30 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.qtd_esperada)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_separada)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_conferida)}</td>
+                        <td className="px-3 py-2 text-center relative">
+                          <button
+                            onClick={() => setItemActionMenuId(itemActionMenuId === (item.movimento_item_id || i) ? null : (item.movimento_item_id || i))}
+                            className="p-1 rounded hover:bg-secondary"
+                          >
+                            <MoreVertical size={14} className="text-muted-foreground" />
+                          </button>
+                          {itemActionMenuId === (item.movimento_item_id || i) && (
+                            <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-card shadow-elevated z-50 overflow-hidden animate-fade-in">
+                              <button
+                                onClick={() => { setItemActionMenuId(null); setLimparSepItemDialog(item.movimento_item_id || i); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Separação Item
+                              </button>
+                              <button
+                                onClick={() => { setItemActionMenuId(null); setLimparConfItemDialog(item.movimento_item_id || i); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Conferência Item
+                              </button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {tabItens.length === 0 && (
