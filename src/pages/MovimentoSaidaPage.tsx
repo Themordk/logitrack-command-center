@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-const STATUS_MAP: Record<string, { label: string; class: string }> = {
+const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;: Record<string, { label: string; class: string }> = {
   CRIADA: { label: "Criada", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   LIBERADO: { label: "Liberada", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
   EM_PICKING: { label: "Em Separação", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
