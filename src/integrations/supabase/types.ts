@@ -3898,8 +3898,14 @@ export type Database = {
         Returns: Json
       }
       separacao_executar_coleta: {
-        Args: { p_quantidade: number; p_tarefa_id: string; p_usuario: string }
-        Returns: Json
+        Args: {
+          p_endereco_id: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: string
       }
     }
     Enums: {

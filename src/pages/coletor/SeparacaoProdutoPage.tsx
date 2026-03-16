@@ -16,6 +16,9 @@ interface EmbalagemInfo {
 
 export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [tarefa, setTarefa] = useState<any>(null);
+  const [produtoId, setProdutoId] = useState<string | null>(null);
+  const [referencia, setReferencia] = useState<string>("");
+  const [enderecoId, setEnderecoId] = useState<string | null>(null);
   const [eanScanned, setEanScanned] = useState("");
   const [embalagemInfo, setEmbalagemInfo] = useState<EmbalagemInfo | null>(null);
   const [eanConfirmado, setEanConfirmado] = useState(false);
@@ -24,9 +27,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
-  const [eanPendente, setEanPendente] = useState("");
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
+  const tenantId = localStorage.getItem("core_tenant_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
   useEffect(() => {
@@ -35,8 +38,71 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       const t = JSON.parse(raw);
       setTarefa(t);
       setQtdSeparada(Number(t.separado || 0));
+
+      // Use produto_id from tarefa if available
+      if (t.produto_id) {
+        setProdutoId(t.produto_id);
+        // Fetch referencia
+        fetchProdutoDetails(t.produto_id);
+      } else if (t.sku) {
+        // Look up produto by sku
+        fetchProdutoBySku(t.sku);
+      }
+
+      if (t.referencia) {
+        setReferencia(t.referencia);
+      }
+
+      // Resolve endereco_id
+      if (t.endereco_alternativo_id) {
+        setEnderecoId(t.endereco_alternativo_id);
+      } else if (t.endereco_id) {
+        setEnderecoId(t.endereco_id);
+      } else if (t.endereco) {
+        lookupEnderecoId(t.endereco);
+      }
     }
   }, []);
+
+  const fetchProdutoDetails = async (id: string) => {
+    try {
+      const { data } = await (supabase as any)
+        .from("produto")
+        .select("referencia")
+        .eq("id", id)
+        .limit(1);
+      if (data && data.length > 0) {
+        setReferencia(data[0].referencia || "");
+      }
+    } catch { /* non-blocking */ }
+  };
+
+  const fetchProdutoBySku = async (sku: string) => {
+    try {
+      const { data } = await (supabase as any)
+        .from("produto")
+        .select("id, referencia")
+        .eq("sku", sku)
+        .limit(1);
+      if (data && data.length > 0) {
+        setProdutoId(data[0].id);
+        setReferencia(data[0].referencia || "");
+      }
+    } catch { /* non-blocking */ }
+  };
+
+  const lookupEnderecoId = async (descricao: string) => {
+    try {
+      const { data } = await (supabase as any)
+        .from("endereco")
+        .select("id")
+        .eq("descricao", descricao)
+        .limit(1);
+      if (data && data.length > 0) {
+        setEnderecoId(data[0].id);
+      }
+    } catch { /* non-blocking */ }
+  };
 
   const handleScanEan = async (code: string) => {
     if (!tarefa) return;
@@ -59,9 +125,11 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
       const emb = data[0];
 
-      if (emb.produto_id !== tarefa.produto_id) {
-        // EAN belongs to different product - show confirmation dialog
-        setEanPendente(code);
+      // Compare with resolved produto_id
+      const currentProdutoId = produtoId || tarefa.produto_id;
+
+      if (!currentProdutoId || emb.produto_id !== currentProdutoId) {
+        // EAN belongs to different product - show error dialog (no option to confirm)
         setShowEanErroDialog(true);
         return;
       }
@@ -74,16 +142,8 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     }
   };
 
-  const handleConfirmarEanErro = () => {
-    // User says "yes this is the correct product" even though EAN doesn't match
-    setShowEanErroDialog(false);
-    setEanConfirmado(true);
-    toast.info("Produto confirmado manualmente.");
-  };
-
   const handleCancelarEanErro = () => {
     setShowEanErroDialog(false);
-    setEanPendente("");
     setEanScanned("");
   };
 
@@ -97,14 +157,17 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
     setConfirming(true);
     try {
+      const resolvedEnderecoId = enderecoId || tarefa.endereco_id || tarefa.endereco_alternativo_id;
+
       const { data, error } = await supabase.rpc("separacao_executar_coleta" as any, {
+        p_tenant_id: tenantId,
         p_tarefa_id: tarefa.tarefa_id,
         p_quantidade: qtd,
-        p_usuario: usuarioId,
+        p_endereco_id: resolvedEnderecoId,
+        p_usuario_id: usuarioId,
       });
       if (error) throw error;
 
-      // Check if result is error
       let result: any = data;
       if (typeof data === "string") {
         try { result = JSON.parse(data); } catch { /* keep */ }
@@ -169,7 +232,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             <span className="text-sm font-bold text-white">Produto</span>
           </div>
           <div className="text-xs text-[hsl(213,31%,55%)]">SKU: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.sku || "—"}</span></div>
-          <div className="text-xs text-[hsl(213,31%,55%)]">Referência: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.referencia || "—"}</span></div>
+          <div className="text-xs text-[hsl(213,31%,55%)]">Referência: <span className="font-bold text-[hsl(213,31%,91%)]">{referencia || tarefa.referencia || "—"}</span></div>
           <div className="text-xs text-[hsl(213,31%,55%)]">Descrição: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.produto || "—"}</span></div>
           {tarefa.fator_caixa && <div className="text-xs text-[hsl(213,31%,55%)]">Fator Caixa: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.fator_caixa}</span></div>}
 
@@ -206,7 +269,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           placeholder="Escaneie o código de barras"
         />
 
-        {/* Embalagem info stat */}
+        {/* Embalagem info stat - always visible after scan */}
         {embalagemInfo && (
           <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
             <div className="flex items-center gap-2 mb-1">
@@ -246,25 +309,20 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         </ActionButton>
       </div>
 
-      {/* EAN Erro Dialog - produto diferente */}
+      {/* EAN Erro Dialog - produto diferente (only close option, no confirm) */}
       {showEanErroDialog && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
             <div className="flex flex-col items-center gap-3">
-              <AlertTriangle size={48} className="text-[#F59E0B]" />
+              <XCircle size={48} className="text-[#E02424]" />
               <h3 className="text-base font-bold text-white text-center">EAN de outro produto</h3>
               <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN escaneado não pertence ao produto esperado. Este é o produto correto?
+                O EAN escaneado não pertence ao produto esperado. Escaneie o EAN correto do produto.
               </p>
             </div>
-            <div className="flex gap-2">
-              <ActionButton onClick={handleCancelarEanErro} variant="secondary">
-                Não
-              </ActionButton>
-              <ActionButton onClick={handleConfirmarEanErro} variant="success">
-                Sim, é o correto
-              </ActionButton>
-            </div>
+            <ActionButton onClick={handleCancelarEanErro} variant="primary">
+              Fechar
+            </ActionButton>
           </div>
         </div>
       )}

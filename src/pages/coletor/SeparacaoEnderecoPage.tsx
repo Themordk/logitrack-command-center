@@ -4,7 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2 } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, XCircle } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -13,7 +13,9 @@ interface Tarefa {
   produto_id?: string;
   sku?: string;
   produto?: string;
+  referencia?: string;
   endereco?: string;
+  endereco_id?: string;
   setor?: string;
   armazem?: string;
   quantidade_requerida: number;
@@ -45,6 +47,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [outrosEnderecos, setOutrosEnderecos] = useState<EnderecoAlternativo[]>([]);
   const [loadingEnderecos, setLoadingEnderecos] = useState(false);
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
+  const [errorDialog, setErrorDialog] = useState<string | null>(null);
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
 
   useEffect(() => {
@@ -53,10 +56,46 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     if (raw) {
       const parsed = JSON.parse(raw) as Tarefa[];
       parsed.sort((a, b) => (a.ordem_tarefa || 0) - (b.ordem_tarefa || 0));
-      setTarefas(parsed);
-      setCurrentIdx(idx);
+
+      // Enrich tarefas with produto_id if missing (lookup by sku)
+      enrichTarefas(parsed).then((enriched) => {
+        setTarefas(enriched);
+        setCurrentIdx(idx);
+      });
     }
   }, []);
+
+  const enrichTarefas = async (tarefas: Tarefa[]): Promise<Tarefa[]> => {
+    // Check if any tarefa is missing produto_id
+    const missingSkus = tarefas
+      .filter((t) => !t.produto_id && t.sku)
+      .map((t) => t.sku!);
+    
+    if (missingSkus.length === 0) return tarefas;
+
+    try {
+      const uniqueSkus = [...new Set(missingSkus)];
+      const { data } = await (supabase as any)
+        .from("produto")
+        .select("id, sku, referencia")
+        .in("sku", uniqueSkus);
+
+      if (data && data.length > 0) {
+        const skuMap: Record<string, { id: string; referencia: string }> = {};
+        data.forEach((p: any) => { skuMap[p.sku] = { id: p.id, referencia: p.referencia }; });
+
+        return tarefas.map((t) => {
+          if (!t.produto_id && t.sku && skuMap[t.sku]) {
+            return { ...t, produto_id: skuMap[t.sku].id, referencia: skuMap[t.sku].referencia };
+          }
+          return t;
+        });
+      }
+    } catch {
+      // Non-blocking
+    }
+    return tarefas;
+  };
 
   const tarefa = tarefas[currentIdx];
 
@@ -73,22 +112,31 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
       let result: any;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { result = { sucesso: true }; }
+        try { result = JSON.parse(data); } catch { result = data; }
       } else {
-        result = data || { sucesso: true };
+        result = data;
       }
 
-      if (result.sucesso === false) {
-        toast.error(result.mensagem || "Endereço incorreto! Escaneie o endereço informado.");
+      // Handle object result with sucesso field
+      if (result && typeof result === "object" && result.sucesso === false) {
+        setErrorDialog(result.mensagem || "Endereço incorreto! Escaneie o endereço informado.");
         return;
       }
 
+      // Handle string error result
+      if (typeof result === "string" && result.toLowerCase().includes("erro")) {
+        setErrorDialog(result);
+        return;
+      }
+
+      // Update tarefas in session with enriched data
+      sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(tarefas));
       sessionStorage.setItem("coletor_separacao_tarefa_idx", String(currentIdx));
       sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(tarefa));
       toast.success("Endereço confirmado!");
       onNavigate("/coletor/separacao/produto");
     } catch (err: any) {
-      toast.error(err.message);
+      setErrorDialog(err.message || "Erro ao confirmar endereço.");
     }
   };
 
@@ -105,7 +153,37 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   };
 
   const loadOutrosEnderecos = async () => {
-    if (!tarefa?.produto_id) return;
+    if (!tarefa) return;
+    
+    let produtoId = tarefa.produto_id;
+    
+    // If produto_id is missing, look it up by sku
+    if (!produtoId && tarefa.sku) {
+      try {
+        const { data } = await (supabase as any)
+          .from("produto")
+          .select("id")
+          .eq("sku", tarefa.sku)
+          .limit(1);
+        if (data && data.length > 0) {
+          produtoId = data[0].id;
+          // Update tarefa with produto_id
+          const updated = { ...tarefa, produto_id: produtoId };
+          const newTarefas = [...tarefas];
+          newTarefas[currentIdx] = updated;
+          setTarefas(newTarefas);
+        }
+      } catch {
+        toast.error("Erro ao buscar produto.");
+        return;
+      }
+    }
+
+    if (!produtoId) {
+      toast.error("Produto não identificado.");
+      return;
+    }
+
     setLoadingEnderecos(true);
     setShowOutrosEnderecos(true);
     setShowOptions(false);
@@ -113,7 +191,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       const { data, error } = await (supabase as any)
         .from("estoque_geral")
         .select("id, endereco_id, quantidade_disponivel, lote")
-        .eq("produto_id", tarefa.produto_id)
+        .eq("produto_id", produtoId)
         .gt("quantidade_disponivel", 0)
         .limit(50);
       if (error) throw error;
@@ -156,7 +234,6 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     const endAlt = outrosEnderecos.find((e) => e.endereco_id === selectedEnderecoAlt);
     if (!endAlt) return;
 
-    // Save alternative address to be used in tarefa_execucao
     const updatedTarefa = {
       ...tarefa,
       endereco_alternativo_id: selectedEnderecoAlt,
@@ -252,6 +329,22 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
         </ActionButton>
       </div>
 
+      {/* Error Dialog */}
+      {errorDialog && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+            <div className="flex flex-col items-center gap-3">
+              <XCircle size={48} className="text-[#E02424]" />
+              <h3 className="text-base font-bold text-white text-center">Endereço Incorreto</h3>
+              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{errorDialog}</p>
+            </div>
+            <ActionButton onClick={() => { setErrorDialog(null); setLastScanned(""); }} variant="primary">
+              Fechar
+            </ActionButton>
+          </div>
+        </div>
+      )}
+
       {/* Outros Endereços Modal */}
       {showOutrosEnderecos && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center">
@@ -269,7 +362,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
               <div className="flex flex-col gap-2 overflow-auto flex-1">
                 {outrosEnderecos.map((end) => (
                   <button
-                    key={end.endereco_id}
+                    key={`${end.endereco_id}-${end.lote}`}
                     onClick={() => setSelectedEnderecoAlt(end.endereco_id === selectedEnderecoAlt ? null : end.endereco_id)}
                     className={`flex flex-col gap-1 p-3 rounded-xl border transition-all text-left ${
                       selectedEnderecoAlt === end.endereco_id

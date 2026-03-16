@@ -64,13 +64,11 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      // Check if result is an error object
       let result: any = data;
       if (typeof data === "string") {
         try { result = JSON.parse(data); } catch { /* keep as is */ }
       }
 
-      // If result has sucesso: false, show error dialog
       if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
         setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao buscar tarefas" });
         return;
@@ -86,6 +84,16 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
       if (tarefas.length === 0) {
         setResultDialog({ sucesso: false, mensagem: "Nenhuma tarefa pendente para esta onda." });
         return;
+      }
+
+      // Update movimento_saida status to EM_SEPARACAO
+      try {
+        await (supabase as any)
+          .from("movimento_saida")
+          .update({ status: "EM_SEPARACAO" })
+          .eq("id", selectedId);
+      } catch {
+        // Non-blocking: status update is best-effort
       }
 
       setResultDialog({ sucesso: true, mensagem: `Separação da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!` });
