@@ -94,15 +94,7 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
         return;
       }
 
-      // Update movimento_saida status to EM_SEPARACAO
-      try {
-        await (supabase as any)
-          .from("movimento_saida")
-          .update({ status: "EM_SEPARACAO" })
-          .eq("id", selectedId);
-      } catch {
-        // Non-blocking: status update is best-effort
-      }
+      // Status update is handled by the RPC function itself
 
       setResultDialog({ sucesso: true, mensagem: `Separação da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!` });
     } catch (err: any) {

@@ -317,9 +317,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
             <div className="flex flex-col items-center gap-3">
               <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">EAN de outro produto</h3>
+              <h3 className="text-base font-bold text-white text-center">EAN Inválido</h3>
               <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN escaneado não pertence ao produto esperado. Escaneie o EAN correto do produto.
+                O EAN escaneado não foi encontrado ou não pertence ao produto esperado. Escaneie o EAN correto do produto.
               </p>
             </div>
             <ActionButton onClick={handleCancelarEanErro} variant="primary">
