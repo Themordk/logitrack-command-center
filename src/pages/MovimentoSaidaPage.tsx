@@ -820,6 +820,91 @@ export function MovimentoSaidaPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Prioridade Dialog */}
+      <Dialog open={!!prioridadeDialogId} onOpenChange={(v) => !v && setPrioridadeDialogId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Alterar Prioridade</DialogTitle>
+            <DialogDescription>Selecione a nova prioridade para esta onda.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-2">
+            {PRIORIDADE_OPTIONS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPrioridadeValue(p)}
+                className={cn(
+                  "px-4 py-3 rounded-lg border text-sm font-medium text-left transition-colors",
+                  prioridadeValue === p
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-secondary/30 text-foreground hover:bg-secondary"
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setPrioridadeDialogId(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button onClick={handleSavePrioridade} disabled={savingPrioridade} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {savingPrioridade && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Separação Total (UI only) */}
+      <Dialog open={!!limparSepDialog} onOpenChange={(v) => !v && setLimparSepDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Separação Total</DialogTitle>
+            <DialogDescription>Esta ação irá limpar toda a separação desta onda. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparSepDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Conferência Total (UI only) */}
+      <Dialog open={!!limparConfDialog} onOpenChange={(v) => !v && setLimparConfDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Conferência Total</DialogTitle>
+            <DialogDescription>Esta ação irá limpar toda a conferência desta onda. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparConfDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Separação Item (UI only) */}
+      <Dialog open={!!limparSepItemDialog} onOpenChange={(v) => !v && setLimparSepItemDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Separação do Item</DialogTitle>
+            <DialogDescription>Esta ação irá limpar a separação deste item. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparSepItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Conferência Item (UI only) */}
+      <Dialog open={!!limparConfItemDialog} onOpenChange={(v) => !v && setLimparConfItemDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Conferência do Item</DialogTitle>
+            <DialogDescription>Esta ação irá limpar a conferência deste item. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparConfItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
