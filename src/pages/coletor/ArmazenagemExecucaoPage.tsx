@@ -146,12 +146,21 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
     setSaving(true);
     try {
+      const lote = sessionStorage.getItem("coletor_armazenagem_lote") || "";
+      const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
+      const fabricacaoRaw = sessionStorage.getItem("coletor_armazenagem_fabricacao");
+      const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
+
       const { data, error } = await supabase.rpc("finalizar_armazenagem" as any, {
-        p_movimento_entrada_id: movimentoEntradaId,
         p_tarefa_id: tarefaId,
+        p_movimento_entrada_id: movimentoEntradaId,
         p_usuario: usuarioId,
         p_quantidade: Number(quantidade),
         p_endereco_destino_id: enderecoId,
+        p_lote: lote,
+        p_validade: validadeRaw || "1900-01-01",
+        p_fabricacao: fabricacaoRaw || "1900-01-01",
+        p_hu: huId,
       });
       if (error) throw error;
 

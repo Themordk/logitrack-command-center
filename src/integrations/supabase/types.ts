@@ -2438,6 +2438,7 @@ export type Database = {
       tarefa: {
         Row: {
           armazem_id: string | null
+          concluido_em: string | null
           criado_em: string
           empresa_id: string
           id: string
@@ -2445,8 +2446,10 @@ export type Database = {
           id_local_destino: string | null
           id_local_origem: string | null
           ordem_tarefa: number | null
+          percentual_execucao: number | null
           prioridade: number
           produto_id: string | null
+          quantidade_executada: number
           quantidade_requerida: number | null
           status: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
@@ -2455,6 +2458,7 @@ export type Database = {
         }
         Insert: {
           armazem_id?: string | null
+          concluido_em?: string | null
           criado_em?: string
           empresa_id: string
           id?: string
@@ -2462,8 +2466,10 @@ export type Database = {
           id_local_destino?: string | null
           id_local_origem?: string | null
           ordem_tarefa?: number | null
+          percentual_execucao?: number | null
           prioridade?: number
           produto_id?: string | null
+          quantidade_executada?: number
           quantidade_requerida?: number | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
@@ -2472,6 +2478,7 @@ export type Database = {
         }
         Update: {
           armazem_id?: string | null
+          concluido_em?: string | null
           criado_em?: string
           empresa_id?: string
           id?: string
@@ -2479,8 +2486,10 @@ export type Database = {
           id_local_destino?: string | null
           id_local_origem?: string | null
           ordem_tarefa?: number | null
+          percentual_execucao?: number | null
           prioridade?: number
           produto_id?: string | null
+          quantidade_executada?: number
           quantidade_requerida?: number | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id?: string
@@ -3755,14 +3764,14 @@ export type Database = {
       finalizar_armazenagem: {
         Args: {
           p_endereco_destino_id: string
-          p_fabricacao?: string
-          p_hu?: string
-          p_lote?: string
+          p_fabricacao: string
+          p_hu: string
+          p_lote: string
           p_movimento_entrada_id: string
           p_quantidade: number
           p_tarefa_id: string
           p_usuario: string
-          p_validade?: string
+          p_validade: string
         }
         Returns: string
       }
@@ -3974,7 +3983,9 @@ export type Database = {
         | "CRIADA"
         | "LIBERADO"
         | "EM_PICKING"
+        | "SEPARADO"
         | "EM_CONFERENCIA"
+        | "CONFERIDO"
         | "EM_CARREGAMENTO"
         | "CONCLUIDA"
         | "CANCELADA"
@@ -4244,7 +4255,9 @@ export const Constants = {
         "CRIADA",
         "LIBERADO",
         "EM_PICKING",
+        "SEPARADO",
         "EM_CONFERENCIA",
+        "CONFERIDO",
         "EM_CARREGAMENTO",
         "CONCLUIDA",
         "CANCELADA",
