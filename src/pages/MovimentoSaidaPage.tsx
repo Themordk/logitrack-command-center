@@ -80,6 +80,7 @@ export function MovimentoSaidaPage() {
   const [activeTab, setActiveTab] = useState("itens");
 
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const [itemActionMenuId, setItemActionMenuId] = useState<string | null>(null);
 
   // Liberar result dialog
   const [liberarResult, setLiberarResult] = useState<LiberarResult | null>(null);
@@ -89,6 +90,17 @@ export function MovimentoSaidaPage() {
   // Delete confirm
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Priority dialog
+  const [prioridadeDialogId, setPrioridadeDialogId] = useState<string | null>(null);
+  const [prioridadeValue, setPrioridadeValue] = useState("");
+  const [savingPrioridade, setSavingPrioridade] = useState(false);
+
+  // Limpar placeholders
+  const [limparSepDialog, setLimparSepDialog] = useState<string | null>(null);
+  const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
+  const [limparSepItemDialog, setLimparSepItemDialog] = useState<string | null>(null);
+  const [limparConfItemDialog, setLimparConfItemDialog] = useState<string | null>(null);
 
   const fetchMovimentos = useCallback(async () => {
     if (!tenantId) return;
