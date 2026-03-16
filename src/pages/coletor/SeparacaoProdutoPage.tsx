@@ -184,7 +184,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         return;
       }
 
-      const newQtdSeparada = qtdSeparada + qtd;
+      const newQtdSeparada = qtdSeparada + qtdFinal;
       setQtdSeparada(newQtdSeparada);
       setQuantidade("");
 

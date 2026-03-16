@@ -202,6 +202,10 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     try {
       const now = nowBrasilia();
 
+      // Multiply quantity by embalagem fator
+      const fator = currentProduct.fator || 1;
+      const qtdFinal = Number(quantidade) * fator;
+
       // Insert tarefa_execucao with status CONCLUIDA
       const insertPayload: any = {
         tenant_id: tenantId,
@@ -211,7 +215,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         atribuido_em: now,
         iniciado_em: now,
         concluido_em: now,
-        quantidade_executada: Number(quantidade),
+        quantidade_executada: qtdFinal,
       };
       if (lote) insertPayload.lote = lote;
       if (validade) insertPayload.validade = validade;
