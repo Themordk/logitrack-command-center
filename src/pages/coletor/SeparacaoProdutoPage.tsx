@@ -119,7 +119,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        toast.error("EAN não encontrado.");
+        // EAN not found at all - show error dialog
+        setShowEanErroDialog(true);
+        setEanScanned(code);
         return;
       }
 
