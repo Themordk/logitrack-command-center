@@ -3944,7 +3944,7 @@ export type Database = {
         | "EXPEDICAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
-      enum_prioridade_onda: "CRITICA" | "ALTA" | "NORMAL"
+      enum_prioridade_onda: "URGENTE" | "ALTA" | "NORMAL" | "BAIXA"
       enum_situacao_endereco: "LIVRE" | "OCUPADO" | "BLOQUEADO"
       enum_status_execucao_tarefa:
         | "ATRIBUIDA"
@@ -4018,6 +4018,7 @@ export type Database = {
         | "ATRIBUICAO"
         | "SCAN_LOTE"
         | "CONFIRMACAO_LOTE"
+        | "CONFERENCIA"
       enum_tipo_grupo: "PICKING" | "ARMAZENAGEM" | "INVENTARIO"
       enum_tipo_hu: "PALLET" | "CAIXA" | "VOLUME" | "OUTRO"
       enum_tipo_inventario: "GERAL" | "CICLICO" | "AUDITORIA"
@@ -4212,7 +4213,7 @@ export const Constants = {
       ],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
       enum_lado: ["PAR", "IMPAR"],
-      enum_prioridade_onda: ["CRITICA", "ALTA", "NORMAL"],
+      enum_prioridade_onda: ["URGENTE", "ALTA", "NORMAL", "BAIXA"],
       enum_situacao_endereco: ["LIVRE", "OCUPADO", "BLOQUEADO"],
       enum_status_execucao_tarefa: [
         "ATRIBUIDA",
@@ -4293,6 +4294,7 @@ export const Constants = {
         "ATRIBUICAO",
         "SCAN_LOTE",
         "CONFIRMACAO_LOTE",
+        "CONFERENCIA",
       ],
       enum_tipo_grupo: ["PICKING", "ARMAZENAGEM", "INVENTARIO"],
       enum_tipo_hu: ["PALLET", "CAIXA", "VOLUME", "OUTRO"],
