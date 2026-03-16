@@ -312,6 +312,28 @@ export function MovimentoSaidaPage() {
     }
   };
 
+  const handleSavePrioridade = async () => {
+    if (!prioridadeDialogId || !prioridadeValue) return;
+    setSavingPrioridade(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("movimento_saida")
+        .update({ prioridade: prioridadeValue })
+        .eq("id", prioridadeDialogId);
+      if (error) throw error;
+      toast.success("Prioridade atualizada!");
+      setPrioridadeDialogId(null);
+      fetchMovimentos();
+      if (selectedId === prioridadeDialogId) {
+        setSelectedMov((prev) => prev ? { ...prev, prioridade: prioridadeValue } : null);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingPrioridade(false);
+    }
+  };
+
   const handleSearch = () => {
     setPage(1);
     fetchMovimentos();
