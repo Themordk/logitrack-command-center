@@ -119,7 +119,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        toast.error("EAN não encontrado.");
+        // EAN not found at all - show error dialog
+        setShowEanErroDialog(true);
+        setEanScanned(code);
         return;
       }
 
@@ -155,6 +157,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       return;
     }
 
+    // Multiply by embalagem fator
+    const fator = embalagemInfo?.fator || 1;
+    const qtdFinal = qtd * fator;
+
     setConfirming(true);
     try {
       const resolvedEnderecoId = enderecoId || tarefa.endereco_id || tarefa.endereco_alternativo_id;
@@ -162,7 +168,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       const { data, error } = await supabase.rpc("separacao_executar_coleta" as any, {
         p_tenant_id: tenantId,
         p_tarefa_id: tarefa.tarefa_id,
-        p_quantidade: qtd,
+        p_quantidade: qtdFinal,
         p_endereco_id: resolvedEnderecoId,
         p_usuario_id: usuarioId,
       });
@@ -178,7 +184,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         return;
       }
 
-      const newQtdSeparada = qtdSeparada + qtd;
+      const newQtdSeparada = qtdSeparada + qtdFinal;
       setQtdSeparada(newQtdSeparada);
       setQuantidade("");
 
@@ -315,9 +321,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
             <div className="flex flex-col items-center gap-3">
               <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">EAN de outro produto</h3>
+              <h3 className="text-base font-bold text-white text-center">EAN Inválido</h3>
               <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN escaneado não pertence ao produto esperado. Escaneie o EAN correto do produto.
+                O EAN escaneado não foi encontrado ou não pertence ao produto esperado. Escaneie o EAN correto do produto.
               </p>
             </div>
             <ActionButton onClick={handleCancelarEanErro} variant="primary">

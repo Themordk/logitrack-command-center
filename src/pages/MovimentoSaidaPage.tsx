@@ -7,6 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
+
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   CRIADA: { label: "Criada", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   LIBERADO: { label: "Liberada", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
@@ -80,6 +82,7 @@ export function MovimentoSaidaPage() {
   const [activeTab, setActiveTab] = useState("itens");
 
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const [itemActionMenuId, setItemActionMenuId] = useState<string | null>(null);
 
   // Liberar result dialog
   const [liberarResult, setLiberarResult] = useState<LiberarResult | null>(null);
@@ -89,6 +92,17 @@ export function MovimentoSaidaPage() {
   // Delete confirm
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Priority dialog
+  const [prioridadeDialogId, setPrioridadeDialogId] = useState<string | null>(null);
+  const [prioridadeValue, setPrioridadeValue] = useState("");
+  const [savingPrioridade, setSavingPrioridade] = useState(false);
+
+  // Limpar placeholders
+  const [limparSepDialog, setLimparSepDialog] = useState<string | null>(null);
+  const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
+  const [limparSepItemDialog, setLimparSepItemDialog] = useState<string | null>(null);
+  const [limparConfItemDialog, setLimparConfItemDialog] = useState<string | null>(null);
 
   const fetchMovimentos = useCallback(async () => {
     if (!tenantId) return;
@@ -300,6 +314,28 @@ export function MovimentoSaidaPage() {
     }
   };
 
+  const handleSavePrioridade = async () => {
+    if (!prioridadeDialogId || !prioridadeValue) return;
+    setSavingPrioridade(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("movimento_saida")
+        .update({ prioridade: prioridadeValue })
+        .eq("id", prioridadeDialogId);
+      if (error) throw error;
+      toast.success("Prioridade atualizada!");
+      setPrioridadeDialogId(null);
+      fetchMovimentos();
+      if (selectedId === prioridadeDialogId) {
+        setSelectedMov((prev) => prev ? { ...prev, prioridade: prioridadeValue } : null);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingPrioridade(false);
+    }
+  };
+
   const handleSearch = () => {
     setPage(1);
     fetchMovimentos();
@@ -399,6 +435,31 @@ export function MovimentoSaidaPage() {
                               >
                                 Excluir onda
                               </button>
+                              <div className="border-t border-border" />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparSepDialog(mov.id); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Separação Total
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparConfDialog(mov.id); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Conferência Total
+                              </button>
+                              <div className="border-t border-border" />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionMenuId(null);
+                                  setPrioridadeValue(mov.prioridade || "NORMAL");
+                                  setPrioridadeDialogId(mov.id);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Prioridade
+                              </button>
                             </div>
                           )}
                         </div>
@@ -447,6 +508,7 @@ export function MovimentoSaidaPage() {
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Separada</th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-10">Opções</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -457,6 +519,30 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.qtd_esperada)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_separada)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_conferida)}</td>
+                        <td className="px-3 py-2 text-center relative">
+                          <button
+                            onClick={() => setItemActionMenuId(itemActionMenuId === (item.movimento_item_id || i) ? null : (item.movimento_item_id || i))}
+                            className="p-1 rounded hover:bg-secondary"
+                          >
+                            <MoreVertical size={14} className="text-muted-foreground" />
+                          </button>
+                          {itemActionMenuId === (item.movimento_item_id || i) && (
+                            <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-card shadow-elevated z-50 overflow-hidden animate-fade-in">
+                              <button
+                                onClick={() => { setItemActionMenuId(null); setLimparSepItemDialog(item.movimento_item_id || i); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Separação Item
+                              </button>
+                              <button
+                                onClick={() => { setItemActionMenuId(null); setLimparConfItemDialog(item.movimento_item_id || i); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Conferência Item
+                              </button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {tabItens.length === 0 && (
@@ -734,6 +820,91 @@ export function MovimentoSaidaPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Prioridade Dialog */}
+      <Dialog open={!!prioridadeDialogId} onOpenChange={(v) => !v && setPrioridadeDialogId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Alterar Prioridade</DialogTitle>
+            <DialogDescription>Selecione a nova prioridade para esta onda.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-2">
+            {PRIORIDADE_OPTIONS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPrioridadeValue(p)}
+                className={cn(
+                  "px-4 py-3 rounded-lg border text-sm font-medium text-left transition-colors",
+                  prioridadeValue === p
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-secondary/30 text-foreground hover:bg-secondary"
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setPrioridadeDialogId(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button onClick={handleSavePrioridade} disabled={savingPrioridade} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {savingPrioridade && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Separação Total (UI only) */}
+      <Dialog open={!!limparSepDialog} onOpenChange={(v) => !v && setLimparSepDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Separação Total</DialogTitle>
+            <DialogDescription>Esta ação irá limpar toda a separação desta onda. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparSepDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Conferência Total (UI only) */}
+      <Dialog open={!!limparConfDialog} onOpenChange={(v) => !v && setLimparConfDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Conferência Total</DialogTitle>
+            <DialogDescription>Esta ação irá limpar toda a conferência desta onda. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparConfDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Separação Item (UI only) */}
+      <Dialog open={!!limparSepItemDialog} onOpenChange={(v) => !v && setLimparSepItemDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Separação do Item</DialogTitle>
+            <DialogDescription>Esta ação irá limpar a separação deste item. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparSepItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar Conferência Item (UI only) */}
+      <Dialog open={!!limparConfItemDialog} onOpenChange={(v) => !v && setLimparConfItemDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar Conferência do Item</DialogTitle>
+            <DialogDescription>Esta ação irá limpar a conferência deste item. Funcionalidade em desenvolvimento.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setLimparConfItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

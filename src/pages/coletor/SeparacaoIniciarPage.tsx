@@ -41,6 +41,14 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
       });
       if (error) throw error;
       const parsed = Array.isArray(data) ? data : typeof data === "string" ? JSON.parse(data) : [];
+      // Sort by priority (URGENTE > ALTA > NORMAL > BAIXA) then by numero_onda
+      const prioridadeOrdem: Record<string, number> = { URGENTE: 0, ALTA: 1, NORMAL: 2, BAIXA: 3 };
+      parsed.sort((a: any, b: any) => {
+        const pa = prioridadeOrdem[(a.prioridade || "NORMAL").toUpperCase()] ?? 2;
+        const pb = prioridadeOrdem[(b.prioridade || "NORMAL").toUpperCase()] ?? 2;
+        if (pa !== pb) return pa - pb;
+        return (a.numero_onda || 0) - (b.numero_onda || 0);
+      });
       setOndas(parsed);
     } catch (err: any) {
       toast.error(err.message);
@@ -86,15 +94,7 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
         return;
       }
 
-      // Update movimento_saida status to EM_SEPARACAO
-      try {
-        await (supabase as any)
-          .from("movimento_saida")
-          .update({ status: "EM_SEPARACAO" })
-          .eq("id", selectedId);
-      } catch {
-        // Non-blocking: status update is best-effort
-      }
+      // Status update is handled by the RPC function itself
 
       setResultDialog({ sucesso: true, mensagem: `Separação da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!` });
     } catch (err: any) {

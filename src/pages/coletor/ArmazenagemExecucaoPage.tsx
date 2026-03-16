@@ -151,11 +151,16 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const fabricacaoRaw = sessionStorage.getItem("coletor_armazenagem_fabricacao");
       const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
 
+      // Multiply quantity by embalagem fator
+      const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
+      const fator = fatorRaw ? Number(fatorRaw) : 1;
+      const qtdFinal = Number(quantidade) * fator;
+
       const { data, error } = await supabase.rpc("finalizar_armazenagem" as any, {
         p_tarefa_id: tarefaId,
         p_movimento_entrada_id: movimentoEntradaId,
         p_usuario: usuarioId,
-        p_quantidade: Number(quantidade),
+        p_quantidade: qtdFinal,
         p_endereco_destino_id: enderecoId,
         p_lote: lote,
         p_validade: validadeRaw || "1900-01-01",
