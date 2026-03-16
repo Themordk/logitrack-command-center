@@ -433,6 +433,31 @@ export function MovimentoSaidaPage() {
                               >
                                 Excluir onda
                               </button>
+                              <div className="border-t border-border" />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparSepDialog(mov.id); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Separação Total
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparConfDialog(mov.id); }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Limpar Conferência Total
+                              </button>
+                              <div className="border-t border-border" />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionMenuId(null);
+                                  setPrioridadeValue(mov.prioridade || "NORMAL");
+                                  setPrioridadeDialogId(mov.id);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                              >
+                                Prioridade
+                              </button>
                             </div>
                           )}
                         </div>
