@@ -23,7 +23,7 @@ export function EstoqueReportPage() {
   const [filterSku, setFilterSku] = useState("");
   const [filterTipoEndereco, setFilterTipoEndereco] = useState("");
   const [filterArmazemId, setFilterArmazemId] = useState("");
-  const [filterMarca, setFilterMarca] = useState("");
+  const [filterEan, setFilterEan] = useState("");
 
   // Options
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
