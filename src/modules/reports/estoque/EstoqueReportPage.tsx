@@ -61,7 +61,7 @@ export function EstoqueReportPage() {
     setFilterSku("");
     setFilterTipoEndereco("");
     setFilterArmazemId("");
-    setFilterMarca("");
+    setFilterEan("");
   };
 
   const isExpired = (date: string) => {
