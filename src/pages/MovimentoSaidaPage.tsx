@@ -61,7 +61,7 @@ interface LiberarResult {
 }
 
 export function MovimentoSaidaPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, usuarioId } = useTenant();
   const [movimentos, setMovimentos] = useState<MovSaida[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
