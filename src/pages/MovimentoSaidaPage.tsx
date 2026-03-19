@@ -883,15 +883,43 @@ export function MovimentoSaidaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Limpar Separação Item (UI only) */}
+      {/* Limpar Separação Item */}
       <Dialog open={!!limparSepItemDialog} onOpenChange={(v) => !v && setLimparSepItemDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Limpar Separação do Item</DialogTitle>
-            <DialogDescription>Esta ação irá limpar a separação deste item. Funcionalidade em desenvolvimento.</DialogDescription>
+            <DialogDescription>Tem certeza que deseja limpar a separação deste item? Esta ação irá estornar o estoque separado.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setLimparSepItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+            <button onClick={() => setLimparSepItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              disabled={limparSepItemLoading}
+              onClick={async () => {
+                if (!limparSepItemDialog || !tenantId || !usuarioId) return;
+                setLimparSepItemLoading(true);
+                try {
+                  const { error } = await supabase.rpc("separacao_limpar_item" as any, {
+                    p_tenant_id: tenantId,
+                    p_movimento_saida_id: limparSepItemDialog.movId,
+                    p_produto_id: limparSepItemDialog.produtoId,
+                    p_usuario_id: usuarioId,
+                  });
+                  if (error) throw error;
+                  toast.success("Separação do item limpa com sucesso!");
+                  setLimparSepItemDialog(null);
+                  if (selectedId) loadTabData(selectedId);
+                  fetchMovimentos();
+                } catch (err: any) {
+                  toast.error(err.message || "Erro ao limpar separação do item.");
+                } finally {
+                  setLimparSepItemLoading(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+            >
+              {limparSepItemLoading && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
           </div>
         </DialogContent>
       </Dialog>
