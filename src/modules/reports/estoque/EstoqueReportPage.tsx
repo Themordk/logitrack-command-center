@@ -44,7 +44,7 @@ export function EstoqueReportPage() {
         armazem_id: filterArmazemId || undefined,
         tipo_endereco: filterTipoEndereco || undefined,
         sku: filterSku || undefined,
-        marca: filterMarca || undefined,
+        ean: filterEan || undefined,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
