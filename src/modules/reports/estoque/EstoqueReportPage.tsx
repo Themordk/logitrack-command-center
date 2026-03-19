@@ -23,7 +23,7 @@ export function EstoqueReportPage() {
   const [filterSku, setFilterSku] = useState("");
   const [filterTipoEndereco, setFilterTipoEndereco] = useState("");
   const [filterArmazemId, setFilterArmazemId] = useState("");
-  const [filterMarca, setFilterMarca] = useState("");
+  const [filterEan, setFilterEan] = useState("");
 
   // Options
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
@@ -44,7 +44,7 @@ export function EstoqueReportPage() {
         armazem_id: filterArmazemId || undefined,
         tipo_endereco: filterTipoEndereco || undefined,
         sku: filterSku || undefined,
-        marca: filterMarca || undefined,
+        ean: filterEan || undefined,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
@@ -61,7 +61,7 @@ export function EstoqueReportPage() {
     setFilterSku("");
     setFilterTipoEndereco("");
     setFilterArmazemId("");
-    setFilterMarca("");
+    setFilterEan("");
   };
 
   const isExpired = (date: string) => {
@@ -105,7 +105,7 @@ export function EstoqueReportPage() {
   if (filterArmazemId) activeFilters["Armazém"] = armazens.find(a => a.id === filterArmazemId)?.descricao || filterArmazemId;
   if (filterTipoEndereco) activeFilters["Tipo"] = filterTipoEndereco;
   if (filterSku) activeFilters["SKU"] = filterSku;
-  if (filterMarca) activeFilters["Marca"] = filterMarca;
+  if (filterEan) activeFilters["EAN"] = filterEan;
 
   return (
     <div className="space-y-4">
@@ -159,8 +159,8 @@ export function EstoqueReportPage() {
                 <Input className="h-8 text-xs" placeholder="Buscar SKU..." value={filterSku} onChange={e => setFilterSku(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Marca</Label>
-                <Input className="h-8 text-xs" placeholder="Buscar marca..." value={filterMarca} onChange={e => setFilterMarca(e.target.value)} />
+                <Label className="text-xs">EAN</Label>
+                <Input className="h-8 text-xs" placeholder="Buscar por EAN..." value={filterEan} onChange={e => setFilterEan(e.target.value)} />
               </div>
             </div>
             <div className="flex items-center gap-2">

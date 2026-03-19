@@ -158,6 +158,28 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       if (prodErr) throw prodErr;
 
+      // 4.1.1 INSERT tarefa_atribuicao (on conflict do nothing)
+      const tarefaIdResolved = tarefaData[0].id;
+      await (supabase as any)
+        .from("tarefa_atribuicao")
+        .upsert(
+          {
+            tenant_id: tenantId,
+            tarefa_id: tarefaIdResolved,
+            usuario_id: usuarioId,
+            status: "ATIVO",
+            atribuido_em: new Date().toISOString(),
+          },
+          { onConflict: "tarefa_id,usuario_id", ignoreDuplicates: true }
+        );
+
+      // 4.1.2 UPDATE tarefa status to ATRIBUIDA if currently CRIADA
+      await (supabase as any)
+        .from("tarefa")
+        .update({ status: "ATRIBUIDA" })
+        .eq("id", tarefaIdResolved)
+        .eq("status", "CRIADA");
+
       setCurrentProduct({
         ean: embalagem.ean,
         fator: embalagem.fator,
@@ -168,7 +190,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         camada: prodData.camada,
         tipo_controle: prodData.tipo_controle,
         produto_id: prodData.id,
-        tarefa_id: tarefaData[0].id,
+        tarefa_id: tarefaIdResolved,
         peso_variavel: prodData.peso_variavel,
       });
       showOverlayMsg("success", `Produto: ${prodData.sku}`);

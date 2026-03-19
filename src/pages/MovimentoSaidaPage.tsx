@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X } from "lucide-react";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -60,7 +61,7 @@ interface LiberarResult {
 }
 
 export function MovimentoSaidaPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, usuarioId } = useTenant();
   const [movimentos, setMovimentos] = useState<MovSaida[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -101,7 +102,8 @@ export function MovimentoSaidaPage() {
   // Limpar placeholders
   const [limparSepDialog, setLimparSepDialog] = useState<string | null>(null);
   const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
-  const [limparSepItemDialog, setLimparSepItemDialog] = useState<string | null>(null);
+  const [limparSepItemDialog, setLimparSepItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
+  const [limparSepItemLoading, setLimparSepItemLoading] = useState(false);
   const [limparConfItemDialog, setLimparConfItemDialog] = useState<string | null>(null);
 
   const fetchMovimentos = useCallback(async () => {
@@ -529,7 +531,7 @@ export function MovimentoSaidaPage() {
                           {itemActionMenuId === (item.movimento_item_id || i) && (
                             <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-card shadow-elevated z-50 overflow-hidden animate-fade-in">
                               <button
-                                onClick={() => { setItemActionMenuId(null); setLimparSepItemDialog(item.movimento_item_id || i); }}
+                                onClick={() => { setItemActionMenuId(null); setLimparSepItemDialog({ movId: selectedId!, produtoId: item.produto_id }); }}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
                               >
                                 Limpar Separação Item
@@ -882,15 +884,43 @@ export function MovimentoSaidaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Limpar Separação Item (UI only) */}
+      {/* Limpar Separação Item */}
       <Dialog open={!!limparSepItemDialog} onOpenChange={(v) => !v && setLimparSepItemDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Limpar Separação do Item</DialogTitle>
-            <DialogDescription>Esta ação irá limpar a separação deste item. Funcionalidade em desenvolvimento.</DialogDescription>
+            <DialogDescription>Tem certeza que deseja limpar a separação deste item? Esta ação irá estornar o estoque separado.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setLimparSepItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+            <button onClick={() => setLimparSepItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              disabled={limparSepItemLoading}
+              onClick={async () => {
+                if (!limparSepItemDialog || !tenantId || !usuarioId) return;
+                setLimparSepItemLoading(true);
+                try {
+                  const { error } = await supabase.rpc("separacao_limpar_item" as any, {
+                    p_tenant_id: tenantId,
+                    p_movimento_saida_id: limparSepItemDialog.movId,
+                    p_produto_id: limparSepItemDialog.produtoId,
+                    p_usuario_id: usuarioId,
+                  });
+                  if (error) throw error;
+                  toast.success("Separação do item limpa com sucesso!");
+                  setLimparSepItemDialog(null);
+                  if (selectedId) loadTabData(selectedId);
+                  fetchMovimentos();
+                } catch (err: any) {
+                  toast.error(err.message || "Erro ao limpar separação do item.");
+                } finally {
+                  setLimparSepItemLoading(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+            >
+              {limparSepItemLoading && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
           </div>
         </DialogContent>
       </Dialog>
