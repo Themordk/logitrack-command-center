@@ -1571,6 +1571,7 @@ export type Database = {
           rota_id: string | null
           status: Database["public"]["Enums"]["enum_status_onda_carregamento"]
           tenant_id: string
+          tipo_saida: string | null
           total_pedidos: number | null
           total_volume: number | null
           veiculo_id: string | null
@@ -1591,6 +1592,7 @@ export type Database = {
           rota_id?: string | null
           status: Database["public"]["Enums"]["enum_status_onda_carregamento"]
           tenant_id: string
+          tipo_saida?: string | null
           total_pedidos?: number | null
           total_volume?: number | null
           veiculo_id?: string | null
@@ -1611,6 +1613,7 @@ export type Database = {
           rota_id?: string | null
           status?: Database["public"]["Enums"]["enum_status_onda_carregamento"]
           tenant_id?: string
+          tipo_saida?: string | null
           total_pedidos?: number | null
           total_volume?: number | null
           veiculo_id?: string | null
@@ -1649,6 +1652,13 @@ export type Database = {
             columns: ["veiculo_id"]
             isOneToOne: false
             referencedRelation: "veiculos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_tipo_saida_fkey"
+            columns: ["tipo_saida"]
+            isOneToOne: false
+            referencedRelation: "tipo_saida"
             referencedColumns: ["id"]
           },
         ]
@@ -2445,16 +2455,21 @@ export type Database = {
           id_documento_origem: string | null
           id_local_destino: string | null
           id_local_origem: string | null
+          motivo_ocorrencia: string | null
           ordem_tarefa: number | null
           percentual_execucao: number | null
           prioridade: number
           produto_id: string | null
+          quantidade_cortada: number | null
           quantidade_executada: number
+          quantidade_executada2: number | null
+          quantidade_executada3: number | null
           quantidade_requerida: number | null
           status: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
           tipo_documento_origem: string | null
           tipo_tarefa_id: string
+          usuario_cortou: string | null
         }
         Insert: {
           armazem_id?: string | null
@@ -2465,16 +2480,21 @@ export type Database = {
           id_documento_origem?: string | null
           id_local_destino?: string | null
           id_local_origem?: string | null
+          motivo_ocorrencia?: string | null
           ordem_tarefa?: number | null
           percentual_execucao?: number | null
           prioridade?: number
           produto_id?: string | null
+          quantidade_cortada?: number | null
           quantidade_executada?: number
+          quantidade_executada2?: number | null
+          quantidade_executada3?: number | null
           quantidade_requerida?: number | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
           tipo_documento_origem?: string | null
           tipo_tarefa_id: string
+          usuario_cortou?: string | null
         }
         Update: {
           armazem_id?: string | null
@@ -2485,16 +2505,21 @@ export type Database = {
           id_documento_origem?: string | null
           id_local_destino?: string | null
           id_local_origem?: string | null
+          motivo_ocorrencia?: string | null
           ordem_tarefa?: number | null
           percentual_execucao?: number | null
           prioridade?: number
           produto_id?: string | null
+          quantidade_cortada?: number | null
           quantidade_executada?: number
+          quantidade_executada2?: number | null
+          quantidade_executada3?: number | null
           quantidade_requerida?: number | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id?: string
           tipo_documento_origem?: string | null
           tipo_tarefa_id?: string
+          usuario_cortou?: string | null
         }
         Relationships: [
           {
@@ -2526,6 +2551,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tarefa_motivo_ocorrencia_fkey"
+            columns: ["motivo_ocorrencia"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tarefa_produto_id_fkey"
             columns: ["produto_id"]
             isOneToOne: false
@@ -2544,6 +2576,13 @@ export type Database = {
             columns: ["tipo_tarefa_id"]
             isOneToOne: false
             referencedRelation: "tipo_tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_usuario_cortou_fkey"
+            columns: ["usuario_cortou"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -3916,6 +3955,15 @@ export type Database = {
         }
         Returns: string
       }
+      separacao_limpar_item: {
+        Args: {
+          p_movimento_saida_id: string
+          p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       enum_agrupar_sep_por:
@@ -3995,6 +4043,7 @@ export type Database = {
         | "EM_ANDAMENTO"
         | "PAUSADA"
         | "CONCLUIDA"
+        | "AUDITADA"
         | "CANCELADA"
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
@@ -4269,6 +4318,7 @@ export const Constants = {
         "EM_ANDAMENTO",
         "PAUSADA",
         "CONCLUIDA",
+        "AUDITADA",
         "CANCELADA",
       ],
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
