@@ -105,7 +105,7 @@ export function EstoqueReportPage() {
   if (filterArmazemId) activeFilters["Armazém"] = armazens.find(a => a.id === filterArmazemId)?.descricao || filterArmazemId;
   if (filterTipoEndereco) activeFilters["Tipo"] = filterTipoEndereco;
   if (filterSku) activeFilters["SKU"] = filterSku;
-  if (filterMarca) activeFilters["Marca"] = filterMarca;
+  if (filterEan) activeFilters["EAN"] = filterEan;
 
   return (
     <div className="space-y-4">
