@@ -3758,12 +3758,21 @@ export type Database = {
           descricao: string | null
           movimento_id: string | null
           movimento_item_id: string | null
+          produto_id: string | null
           qtd_conferida: number | null
           qtd_esperada: number | null
           qtd_separada: number | null
           sku: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_onda_item_prod"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_movimento_saida_separacao_detalhe: {
         Row: {
