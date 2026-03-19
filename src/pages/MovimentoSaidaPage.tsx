@@ -530,7 +530,7 @@ export function MovimentoSaidaPage() {
                           {itemActionMenuId === (item.movimento_item_id || i) && (
                             <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-card shadow-elevated z-50 overflow-hidden animate-fade-in">
                               <button
-                                onClick={() => { setItemActionMenuId(null); setLimparSepItemDialog(item.movimento_item_id || i); }}
+                                onClick={() => { setItemActionMenuId(null); setLimparSepItemDialog({ movId: selectedId!, produtoId: item.produto_id }); }}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
                               >
                                 Limpar Separação Item
