@@ -184,6 +184,32 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         return;
       }
 
+      // Refresh task data from server to get accurate separado/restante
+      try {
+        const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
+        const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
+        const currentTarefa = tarefas[idx];
+        if (currentTarefa?.tarefa_id) {
+          const { data: tarefaAtualizada } = await (supabase as any)
+            .from("tarefa")
+            .select("quantidade_executada, quantidade_requerida, status")
+            .eq("id", currentTarefa.tarefa_id)
+            .single();
+          if (tarefaAtualizada) {
+            const serverSeparada = Number(tarefaAtualizada.quantidade_executada || 0);
+            setQtdSeparada(serverSeparada);
+            setQuantidade("");
+            if (serverSeparada >= Number(tarefaAtualizada.quantidade_requerida) || tarefaAtualizada.status === "CONCLUIDA") {
+              setResultDialog({ sucesso: true, mensagem: "Quantidade completa! Avançando para próxima tarefa." });
+              return;
+            }
+            toast.success("Quantidade registrada!");
+            return;
+          }
+        }
+      } catch { /* fallback below */ }
+
+      // Fallback: local calculation
       const newQtdSeparada = qtdSeparada + qtdFinal;
       setQtdSeparada(newQtdSeparada);
       setQuantidade("");

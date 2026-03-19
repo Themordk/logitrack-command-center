@@ -159,8 +159,8 @@ export function EstoqueReportPage() {
                 <Input className="h-8 text-xs" placeholder="Buscar SKU..." value={filterSku} onChange={e => setFilterSku(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Marca</Label>
-                <Input className="h-8 text-xs" placeholder="Buscar marca..." value={filterMarca} onChange={e => setFilterMarca(e.target.value)} />
+                <Label className="text-xs">EAN</Label>
+                <Input className="h-8 text-xs" placeholder="Buscar por EAN..." value={filterEan} onChange={e => setFilterEan(e.target.value)} />
               </div>
             </div>
             <div className="flex items-center gap-2">

@@ -9,10 +9,23 @@ export interface EstoqueFilter {
   grupo_id?: string;
   subgrupo_id?: string;
   parceiro_id?: string;
-  marca?: string;
+  ean?: string;
 }
 
 export async function fetchEstoqueReport(filters: EstoqueFilter) {
+  // If EAN filter is provided, first resolve product IDs
+  let eanProductIds: string[] | null = null;
+  if (filters.ean) {
+    const { data: embData } = await (supabase as any)
+      .from("produto_embalagem")
+      .select("produto_id")
+      .eq("ean", filters.ean);
+    eanProductIds = (embData || []).map((e: any) => e.produto_id);
+    if (eanProductIds!.length === 0) {
+      return []; // No products match this EAN
+    }
+  }
+
   let query = supabase
     .from("estoque_geral")
     .select(`
@@ -45,6 +58,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     .limit(500);
 
   if (filters.empresa_id) query = query.eq("empresa_id", filters.empresa_id);
+  if (eanProductIds) query = query.in("produto_id", eanProductIds);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -77,7 +91,6 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
   if (filters.grupo_id) results = results.filter(r => r.grupo_id === filters.grupo_id);
   if (filters.subgrupo_id) results = results.filter(r => r.subgrupo_id === filters.subgrupo_id);
   if (filters.parceiro_id) results = results.filter(r => r.parceiro_id === filters.parceiro_id);
-  if (filters.marca) results = results.filter(r => r.marca?.toLowerCase().includes(filters.marca!.toLowerCase()));
 
   // Sort: sku, descricao, data_validade, quantidade_total DESC
   results.sort((a, b) => {
