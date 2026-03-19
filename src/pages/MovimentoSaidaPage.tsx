@@ -101,7 +101,8 @@ export function MovimentoSaidaPage() {
   // Limpar placeholders
   const [limparSepDialog, setLimparSepDialog] = useState<string | null>(null);
   const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
-  const [limparSepItemDialog, setLimparSepItemDialog] = useState<string | null>(null);
+  const [limparSepItemDialog, setLimparSepItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
+  const [limparSepItemLoading, setLimparSepItemLoading] = useState(false);
   const [limparConfItemDialog, setLimparConfItemDialog] = useState<string | null>(null);
 
   const fetchMovimentos = useCallback(async () => {
