@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
@@ -28,6 +28,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const quantidadeRef = useRef<HTMLInputElement>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_conferencia_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -112,6 +113,11 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
     setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
     setEanConfirmado(true);
+
+    // Focus quantity field after successful scan
+    setTimeout(() => {
+      quantidadeRef.current?.focus();
+    }, 100);
   };
 
   const handleConfirmar = async () => {
@@ -122,12 +128,13 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
     const fator = embalagemInfo?.fator || 1;
     const qtdFinal = Number(quantidade) * fator;
+    const tarefaId = tarefa.id || tarefa.tarefa_id;
 
     setConfirming(true);
     try {
       const { data, error } = await supabase.rpc("conferencia_saida_confirmacao" as any, {
         p_tenant_id: tenantId,
-        p_tarefa_id: tarefa.id || tarefa.tarefa_id,
+        p_tarefa_id: tarefaId,
         p_quantidade: qtdFinal,
         p_usuario_id: usuarioId,
       });
@@ -147,11 +154,14 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       const { data: tarefaAtualizada } = await (supabase as any)
         .from("tarefa")
         .select("quantidade_executada, quantidade_requerida, status")
-        .eq("id", tarefa.tarefa_id)
+        .eq("id", tarefaId)
         .single();
 
+      const newQtdConferida = Number(tarefaAtualizada?.quantidade_executada || qtdConferida + qtdFinal);
+      const newQtdRequerida = Number(tarefaAtualizada?.quantidade_requerida || qtdRequerida);
+
       if (tarefaAtualizada) {
-        setQtdConferida(Number(tarefaAtualizada.quantidade_executada || 0));
+        setQtdConferida(newQtdConferida);
         const newTarefas = [...tarefas];
         newTarefas[tarefaIdx] = { ...newTarefas[tarefaIdx], conferido: tarefaAtualizada.quantidade_executada, status: tarefaAtualizada.status };
         setTarefas(newTarefas);
@@ -164,17 +174,32 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       setEanConfirmado(false);
 
       // Check if task is complete
-      const newQtdConferida = Number(tarefaAtualizada?.quantidade_executada || qtdConferida + qtdFinal);
-      if (newQtdConferida >= qtdRequerida) {
-        // Move to next tarefa
-        const nextIdx = tarefaIdx + 1;
-        if (nextIdx < tarefas.length) {
+      if (newQtdConferida >= newQtdRequerida) {
+        // Check if there are more incomplete tasks
+        const updatedTarefas = [...tarefas];
+        if (tarefaAtualizada) {
+          updatedTarefas[tarefaIdx] = { ...updatedTarefas[tarefaIdx], conferido: tarefaAtualizada.quantidade_executada, status: tarefaAtualizada.status };
+        }
+
+        // Find next incomplete task
+        let nextIdx = -1;
+        for (let i = tarefaIdx + 1; i < updatedTarefas.length; i++) {
+          const t = updatedTarefas[i];
+          if (Number(t.conferido || 0) < Number(t.quantidade_requerida || 0) && t.status !== "CONCLUIDA") {
+            nextIdx = i;
+            break;
+          }
+        }
+
+        if (nextIdx >= 0) {
           setTarefaIdx(nextIdx);
           sessionStorage.setItem("coletor_conferencia_tarefa_idx", String(nextIdx));
-          loadTarefa(tarefas[nextIdx]);
+          loadTarefa(updatedTarefas[nextIdx]);
           toast.success("Item conferido! Próximo item...");
         } else {
-          setResultDialog({ sucesso: true, mensagem: "Conferência da onda finalizada com sucesso!" });
+          // All tasks completed - navigate to list
+          toast.success("Conferência da onda finalizada com sucesso!");
+          onNavigate("/coletor/conferencia/iniciar");
         }
       } else {
         toast.success("Quantidade registrada!");
@@ -187,11 +212,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   };
 
   const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
     setResultDialog(null);
-    if (wasSuccess && restante <= 0) {
-      onNavigate("/coletor/conferencia/iniciar");
-    }
   };
 
   if (!tarefa) {
@@ -288,6 +309,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         <div>
           <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">Quantidade a conferir</label>
           <input
+            ref={quantidadeRef}
             type="number"
             value={quantidade}
             onChange={(e) => setQuantidade(e.target.value)}
@@ -341,7 +363,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
               <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
             </div>
             <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
-              {resultDialog.sucesso ? "Continuar" : "Fechar"}
+              Fechar
             </ActionButton>
           </div>
         </div>
