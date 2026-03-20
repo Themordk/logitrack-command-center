@@ -3921,6 +3921,15 @@ export type Database = {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: undefined
       }
+      fn_limpar_conferencia_entrada: {
+        Args: {
+          p_quantidade: number
+          p_tarefa_execucao_id: string
+          p_tarefa_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       fn_usuario_tem_empresa: {
         Args: { p_empresa_id: string }
         Returns: boolean
