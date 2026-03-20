@@ -603,7 +603,7 @@ export function MovimentoEntradaPage() {
   const fmtDateTime = (d: string | null) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <h1 className="text-lg font-bold text-foreground">Movimentos de Entrada</h1>
 
       {/* Status cards */}
