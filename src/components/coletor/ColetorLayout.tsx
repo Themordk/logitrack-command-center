@@ -50,9 +50,9 @@ export function ColetorLayout({ children, title = "CORE Coletor", onNavigate, sh
   };
 
   return (
-    <div className="min-h-screen bg-[#0f1117] flex flex-col">
+    <div className="h-screen bg-[#0f1117] flex flex-col overflow-hidden">
       {/* Header – 56px fixed */}
-      <header className="h-14 bg-[hsl(217,91%,40%)] flex items-center justify-between px-3 shrink-0 sticky top-0 z-50">
+      <header className="h-14 bg-[hsl(217,91%,40%)] flex items-center justify-between px-3 shrink-0 z-50">
         <div className="flex items-center gap-2">
           {showBack && (
             <button onClick={() => onNavigate(backPath || "/coletor/home")} className="text-white p-1.5">
@@ -77,7 +77,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", onNavigate, sh
       </header>
 
       {/* Body */}
-      <main className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
+      <main className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto min-h-0">
         {children}
       </main>
     </div>
