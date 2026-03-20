@@ -82,8 +82,8 @@ export function CrudTable({
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
+      <div className="shrink-0 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">{title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{subtitle || `${total} registros`}</p>
