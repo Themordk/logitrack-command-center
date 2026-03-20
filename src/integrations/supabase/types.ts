@@ -3872,22 +3872,18 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: {
-          armazem: string
-          endereco: string
+          conferido: number
+          descricao: string
           fator_caixa: number
+          id: string
           ordem_tarefa: number
-          produto: string
           quantidade_requerida: number
-          separado: number
-          setor: string
           sku: string
           status: string
-          tarefa_id: string
         }[]
       }
       conferencia_saida_confirmacao: {
         Args: {
-          p_endereco_id: string
           p_quantidade: number
           p_tarefa_id: string
           p_tenant_id: string
