@@ -188,7 +188,7 @@ export function CrudTable({
             </table>
             </div>
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              <div className="shrink-0 flex items-center justify-between px-4 py-3 border-t border-border">
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground">
                     Mostrando {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} de {total}
