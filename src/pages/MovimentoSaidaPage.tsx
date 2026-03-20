@@ -347,7 +347,7 @@ export function MovimentoSaidaPage() {
   const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
   return (
-    <div className="space-y-3 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
       <h1 className="text-lg font-bold text-foreground">Ondas de Carregamento</h1>
 
       {/* Filters */}
