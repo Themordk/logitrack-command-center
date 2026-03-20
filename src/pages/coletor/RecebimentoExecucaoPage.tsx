@@ -286,11 +286,12 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     if (!cancelConfirm || !tenantId) return;
     setDeleting(cancelConfirm.tarefa_execucao_id);
     try {
-      const { error } = await (supabase as any)
-        .from("tarefa_execucao")
-        .update({ status: "CANCELADA" })
-        .eq("id", cancelConfirm.tarefa_execucao_id)
-        .eq("tenant_id", tenantId);
+      const { error } = await (supabase as any).rpc("fn_limpar_conferencia_entrada", {
+        p_tarefa_execucao_id: cancelConfirm.tarefa_execucao_id,
+        p_tarefa_id: cancelConfirm.tarefa_id,
+        p_quantidade: cancelConfirm.quantidade_executada,
+        p_tenant_id: tenantId,
+      });
       if (error) throw error;
       toast.success("Conferência cancelada.");
       setCancelConfirm(null);
