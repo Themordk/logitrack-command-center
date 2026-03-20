@@ -232,11 +232,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         {/* Scan EAN */}
         <ScanField
           label="Scan EAN Produto"
-          value={eanScanned}
-          onChange={setEanScanned}
+          lastScanned={eanScanned}
           onScan={handleEanScan}
           placeholder="Escanear EAN"
-          icon={<Package size={18} />}
         />
 
         {/* Produto details */}
