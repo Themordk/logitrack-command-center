@@ -657,7 +657,7 @@ export function MovimentoEntradaPage() {
         )}
       </div>
 
-      <div className="flex gap-4" style={{ minHeight: "60vh" }}>
+      <div className="flex gap-4 flex-1 min-h-0">
         {/* Movement list */}
         <div className="w-80 shrink-0 card-surface flex flex-col">
           <div className="p-3 border-b border-border">
