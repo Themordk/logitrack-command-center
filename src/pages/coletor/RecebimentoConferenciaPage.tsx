@@ -42,7 +42,22 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
         .select("movimento_id, tarefa_execucao_id, sku, descricao, operador, codigo_hu, quantidade_executada, concluido_em, lote")
         .eq("movimento_id", movimentoId);
       if (error) throw error;
-      setItens(data || []);
+
+      // Group by SKU and sum quantities
+      const grouped = new Map<string, ItemResumo>();
+      for (const row of (data || [])) {
+        const key = row.sku || row.tarefa_execucao_id;
+        if (grouped.has(key)) {
+          const existing = grouped.get(key)!;
+          existing.quantidade_executada += Number(row.quantidade_executada || 0);
+        } else {
+          grouped.set(key, {
+            ...row,
+            quantidade_executada: Number(row.quantidade_executada || 0),
+          });
+        }
+      }
+      setItens(Array.from(grouped.values()));
     } catch (err: any) {
       console.error("Erro resumo:", err);
       toast.error("Erro ao carregar resumo.");
@@ -100,11 +115,11 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     <ColetorLayout title="Resumo da Conferência" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/execucao">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Item list */}
-        <div className="space-y-2">
-          {itens.map((item) => (
-            <div key={item.tarefa_execucao_id} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+        <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
+          {itens.map((item, idx) => (
+            <div key={item.sku || idx} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 shrink-0">
               <div className="flex justify-between items-start mb-1">
                 <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
               </div>
@@ -114,18 +129,19 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
                 {item.operador && <span className="text-[hsl(213,31%,55%)]">Op: {item.operador}</span>}
                 {item.codigo_hu && <span className="text-[hsl(213,31%,55%)]">HU: {item.codigo_hu}</span>}
                 {item.lote && <span className="text-[hsl(213,31%,55%)]">Lote: {item.lote}</span>}
-                {item.concluido_em && <span className="text-[hsl(213,31%,55%)]">{new Date(item.concluido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
               </div>
             </div>
           ))}
         </div>
 
-        <ActionButton onClick={handleFinalizar} loading={finalizing} variant="success">
-          FINALIZAR CONFERÊNCIA
-        </ActionButton>
-        <ActionButton onClick={() => onNavigate("/coletor/recebimento/execucao")} variant="secondary">
-          VOLTAR À CONFERÊNCIA
-        </ActionButton>
+        <div className="shrink-0 space-y-2">
+          <ActionButton onClick={handleFinalizar} loading={finalizing} variant="success">
+            FINALIZAR CONFERÊNCIA
+          </ActionButton>
+          <ActionButton onClick={() => onNavigate("/coletor/recebimento/execucao")} variant="secondary">
+            VOLTAR À CONFERÊNCIA
+          </ActionButton>
+        </div>
       </div>
     </ColetorLayout>
   );

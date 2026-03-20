@@ -7,7 +7,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { nowBrasilia } from "@/lib/dateUtils";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, AlertTriangle } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -53,6 +53,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [overlayMsg, setOverlayMsg] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<ConferenciaItem | null>(null);
 
   // Lote/validade modal
   const [showLoteModal, setShowLoteModal] = useState(false);
@@ -108,7 +109,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
 
     try {
-      // Step 1: Find produto_embalagem by EAN
       const { data: embData, error: embErr } = await (supabase as any)
         .from("produto_embalagem")
         .select("produto_id, ean, fator")
@@ -123,7 +123,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       const embalagem = embData[0];
 
-      // Step 2: Get movimento_entrada_item ids for this movement
       const { data: meiData } = await (supabase as any)
         .from("movimento_entrada_item")
         .select("id")
@@ -135,7 +134,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         return;
       }
 
-      // Step 3: Find tarefa for this item (via id_documento_origem = mei.id)
       const { data: tarefaData } = await (supabase as any)
         .from("tarefa")
         .select("id")
@@ -149,7 +147,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         return;
       }
 
-      // Step 4: Get produto details
       const { data: prodData, error: prodErr } = await (supabase as any)
         .from("produto")
         .select("id, sku, descricao, referencia, lastro, camada, tipo_controle, peso_variavel")
@@ -158,7 +155,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       if (prodErr) throw prodErr;
 
-      // 4.1.1 INSERT tarefa_atribuicao (on conflict do nothing)
       const tarefaIdResolved = tarefaData[0].id;
       await (supabase as any)
         .from("tarefa_atribuicao")
@@ -173,7 +169,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
           { onConflict: "tarefa_id,usuario_id", ignoreDuplicates: true }
         );
 
-      // 4.1.2 UPDATE tarefa status to ATRIBUIDA if currently CRIADA
       await (supabase as any)
         .from("tarefa")
         .update({ status: "ATRIBUIDA" })
@@ -211,7 +206,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     if (ctrl === "LOTE" || ctrl === "VALIDADE" || ctrl === "LOTE_SERIE") {
       setShowLoteModal(true);
     } else {
-      // UNIDADE, METROS - confirm directly
       doConfirm();
     }
   };
@@ -223,12 +217,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
     try {
       const now = nowBrasilia();
-
-      // Multiply quantity by embalagem fator
       const fator = currentProduct.fator || 1;
       const qtdFinal = Number(quantidade) * fator;
 
-      // Insert tarefa_execucao with status CONCLUIDA
       const insertPayload: any = {
         tenant_id: tenantId,
         tarefa_id: currentProduct.tarefa_id,
@@ -251,7 +242,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       if (execErr) throw execErr;
 
-      // Log event in tarefa_evento_execucao
       await (supabase as any).from("tarefa_evento_execucao").insert({
         tenant_id: tenantId,
         execucao_tarefa_id: execData.id,
@@ -268,7 +258,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       showOverlayMsg("success", `✔ ${quantidade} un. confirmadas`);
 
-      // Reset
       setCurrentProduct(null);
       setQuantidade("");
       setLote("");
@@ -285,30 +274,34 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
   };
 
-  const handleDeleteExecucao = async (item: ConferenciaItem) => {
-    if (!tenantId) return;
+  const handleDeleteExecucao = (item: ConferenciaItem) => {
     if (item.tarefa_status === "CONCLUIDA") {
       toast.error("Não é possível remover. A conferência deste item já foi concluída.");
       return;
     }
-    setDeleting(item.tarefa_execucao_id);
+    setCancelConfirm(item);
+  };
+
+  const confirmCancelExecucao = async () => {
+    if (!cancelConfirm || !tenantId) return;
+    setDeleting(cancelConfirm.tarefa_execucao_id);
     try {
       const { error } = await (supabase as any)
         .from("tarefa_execucao")
-        .delete()
-        .eq("id", item.tarefa_execucao_id)
+        .update({ status: "CANCELADA" })
+        .eq("id", cancelConfirm.tarefa_execucao_id)
         .eq("tenant_id", tenantId);
       if (error) throw error;
-      toast.success("Conferência removida.");
+      toast.success("Conferência cancelada.");
+      setCancelConfirm(null);
       loadConferencia();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao excluir.");
+      toast.error(err.message || "Erro ao cancelar.");
     } finally {
       setDeleting(null);
     }
   };
 
-  // Date scroll helper - generate month options
   const generateDateOptions = (type: "validade" | "fabricacao") => {
     const months: string[] = [];
     const now = new Date();
@@ -368,16 +361,16 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       {/* Items list */}
       {!currentProduct && (
-        <div className="space-y-1">
-          <span className="text-sm font-semibold text-[hsl(213,31%,55%)] uppercase">Itens conferidos</span>
+        <div className="flex flex-col gap-1 flex-1 min-h-0">
+          <span className="text-sm font-semibold text-[hsl(213,31%,55%)] uppercase shrink-0">Itens conferidos</span>
           {loading ? (
             <div className="flex justify-center py-4"><Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
           ) : items.length === 0 ? (
             <p className="text-sm text-[hsl(213,31%,45%)] text-center py-4">Nenhum item conferido ainda</p>
           ) : (
-            <div className="space-y-2 max-h-[40vh] overflow-y-auto">
+            <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
               {items.map((item) => (
-                <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2">
+                <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2 shrink-0">
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
                       <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
@@ -407,9 +400,36 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       {/* Footer action */}
       {!currentProduct && items.length > 0 && (
-        <ActionButton onClick={() => onNavigate("/coletor/recebimento/conferencia")} variant="primary">
-          VER RESUMO / FINALIZAR
-        </ActionButton>
+        <div className="shrink-0 pt-1">
+          <ActionButton onClick={() => onNavigate("/coletor/recebimento/conferencia")} variant="primary">
+            VER RESUMO / FINALIZAR
+          </ActionButton>
+        </div>
+      )}
+
+      {/* Cancel Confirm Dialog */}
+      {cancelConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+            <div className="flex flex-col items-center gap-3">
+              <AlertTriangle size={48} className="text-[hsl(45,93%,47%)]" />
+              <h3 className="text-base font-bold text-white text-center">Cancelar Conferência</h3>
+              <p className="text-sm text-[hsl(213,31%,75%)] text-center">
+                Deseja cancelar a conferência de <b>{cancelConfirm.sku}</b> ({cancelConfirm.quantidade_executada} un.)?
+              </p>
+            </div>
+            <ActionButton
+              onClick={confirmCancelExecucao}
+              loading={!!deleting}
+              variant="primary"
+            >
+              CONFIRMAR CANCELAMENTO
+            </ActionButton>
+            <ActionButton onClick={() => setCancelConfirm(null)} variant="secondary">
+              VOLTAR
+            </ActionButton>
+          </div>
+        </div>
       )}
 
       {/* Lote/Validade Modal */}
@@ -420,7 +440,6 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
               {currentProduct.tipo_controle === "VALIDADE" ? "Informações de Validade" : "Informações do Lote"}
             </h3>
 
-            {/* Quantidade display */}
             <div className="rounded-lg bg-[hsl(222,40%,14%)] p-2 text-center">
               <span className="text-xs text-[hsl(213,31%,55%)] uppercase">Quantidade</span>
               <p className="text-2xl font-bold text-white">{quantidade}</p>

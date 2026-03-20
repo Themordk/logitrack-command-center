@@ -41,7 +41,6 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
       });
       if (error) throw error;
       const parsed = Array.isArray(data) ? data : typeof data === "string" ? JSON.parse(data) : [];
-      // Sort by priority (URGENTE > ALTA > NORMAL > BAIXA) then by numero_onda
       const prioridadeOrdem: Record<string, number> = { URGENTE: 0, ALTA: 1, NORMAL: 2, BAIXA: 3 };
       parsed.sort((a: any, b: any) => {
         const pa = prioridadeOrdem[(a.prioridade || "NORMAL").toUpperCase()] ?? 2;
@@ -94,8 +93,6 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
         return;
       }
 
-      // Status update is handled by the RPC function itself
-
       setResultDialog({ sucesso: true, mensagem: `Separação da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!` });
     } catch (err: any) {
       setResultDialog({ sucesso: false, mensagem: err.message });
@@ -121,8 +118,8 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Separação" onNavigate={onNavigate} showBack backPath="/coletor/home">
-      <div className="flex flex-col gap-3 flex-1">
-        <p className="text-xs text-[hsl(213,31%,55%)]">Selecione uma onda para iniciar a separação</p>
+      <div className="flex flex-col gap-3 flex-1 min-h-0">
+        <p className="text-xs text-[hsl(213,31%,55%)] shrink-0">Selecione uma onda para iniciar a separação</p>
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
@@ -133,12 +130,12 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
             <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma onda liberada para separação.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2 flex-1 overflow-auto">
+          <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
             {ondas.map((onda) => (
               <button
                 key={onda.movimento_saida_id}
                 onClick={() => setSelectedId(onda.movimento_saida_id === selectedId ? null : onda.movimento_saida_id)}
-                className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left ${
+                className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left shrink-0 ${
                   selectedId === onda.movimento_saida_id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
@@ -166,9 +163,11 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
           </div>
         )}
 
-        <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
-          Iniciar Separação
-        </ActionButton>
+        <div className="shrink-0 pt-1">
+          <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
+            Iniciar Separação
+          </ActionButton>
+        </div>
       </div>
 
       {/* Result Dialog */}
