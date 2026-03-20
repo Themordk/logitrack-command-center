@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      agrupamento_conferencia: {
+        Row: {
+          created_at: string
+          empresa_id: string | null
+          id: string
+          sequencia: number | null
+          tenant_id: string | null
+          tipo_agrupamento:
+            | Database["public"]["Enums"]["enum_agrupar_conf_por"]
+            | null
+        }
+        Insert: {
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          sequencia?: number | null
+          tenant_id?: string | null
+          tipo_agrupamento?:
+            | Database["public"]["Enums"]["enum_agrupar_conf_por"]
+            | null
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          sequencia?: number | null
+          tenant_id?: string | null
+          tipo_agrupamento?:
+            | Database["public"]["Enums"]["enum_agrupar_conf_por"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agrupamento_conferencia_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agrupamento_conferencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agrupamento_separacao: {
         Row: {
           created_at: string
@@ -3801,6 +3849,52 @@ export type Database = {
       }
     }
     Functions: {
+      conferencia_buscar_ondas: {
+        Args: {
+          p_empresa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          movimento_saida_id: string
+          numero_onda: number
+          pedidos: string
+          prioridade: string
+          status: string
+          tipo_venda: string
+        }[]
+      }
+      conferencia_buscar_tarefas: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          armazem: string
+          endereco: string
+          fator_caixa: number
+          ordem_tarefa: number
+          produto: string
+          quantidade_requerida: number
+          separado: number
+          setor: string
+          sku: string
+          status: string
+          tarefa_id: string
+        }[]
+      }
+      conferencia_saida_confirmacao: {
+        Args: {
+          p_endereco_id: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: string
+      }
       cortar_item_separacao: {
         Args: {
           p_motivo_ocorrencia: string
@@ -3826,6 +3920,10 @@ export type Database = {
       finalizar_conferencia_entrada: {
         Args: { p_movimento_entrada_id: string; p_usuario: string }
         Returns: string
+      }
+      fn_gerar_conferencia_saida: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: undefined
       }
       fn_usuario_tem_empresa: {
         Args: { p_empresa_id: string }
@@ -3975,6 +4073,7 @@ export type Database = {
       }
     }
     Enums: {
+      enum_agrupar_conf_por: "DOCUMENTO" | "HU" | "BOX" | "ROTA"
       enum_agrupar_sep_por:
         | "DOCUMENTO"
         | "PRODUTO"
@@ -4242,6 +4341,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      enum_agrupar_conf_por: ["DOCUMENTO", "HU", "BOX", "ROTA"],
       enum_agrupar_sep_por: [
         "DOCUMENTO",
         "PRODUTO",

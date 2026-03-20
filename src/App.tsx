@@ -67,6 +67,9 @@ import { SeparacaoIniciarPage } from "./pages/coletor/SeparacaoIniciarPage";
 import { SeparacaoEnderecoPage } from "./pages/coletor/SeparacaoEnderecoPage";
 import { SeparacaoProdutoPage } from "./pages/coletor/SeparacaoProdutoPage";
 import { SeparacaoOcorrenciasPage } from "./pages/coletor/SeparacaoOcorrenciasPage";
+import { ConferenciaIniciarPage } from "./pages/coletor/ConferenciaIniciarPage";
+import { ConferenciaProdutoPage } from "./pages/coletor/ConferenciaProdutoPage";
+import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -85,7 +88,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
   "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
-  "/atividades/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Roteiro de Separação" }],
+  "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
@@ -119,7 +122,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
-    case "/atividades/roteiro-separacao": return <RoteiroSeparacaoPage />;
+    case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
@@ -193,6 +196,9 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/separacao/endereco": return <SeparacaoEnderecoPage onNavigate={onNavigate} />;
     case "/coletor/separacao/produto": return <SeparacaoProdutoPage onNavigate={onNavigate} />;
     case "/coletor/separacao/ocorrencias": return <SeparacaoOcorrenciasPage onNavigate={onNavigate} />;
+    case "/coletor/conferencia/iniciar": return <ConferenciaIniciarPage onNavigate={onNavigate} />;
+    case "/coletor/conferencia/produto": return <ConferenciaProdutoPage onNavigate={onNavigate} />;
+    case "/coletor/conferencia/itens": return <ConferenciaItensPage onNavigate={onNavigate} />;
     default: return <ColetorLoginPage onNavigate={onNavigate} />;
   }
 }
