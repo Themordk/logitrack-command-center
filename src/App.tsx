@@ -67,6 +67,9 @@ import { SeparacaoIniciarPage } from "./pages/coletor/SeparacaoIniciarPage";
 import { SeparacaoEnderecoPage } from "./pages/coletor/SeparacaoEnderecoPage";
 import { SeparacaoProdutoPage } from "./pages/coletor/SeparacaoProdutoPage";
 import { SeparacaoOcorrenciasPage } from "./pages/coletor/SeparacaoOcorrenciasPage";
+import { ConferenciaIniciarPage } from "./pages/coletor/ConferenciaIniciarPage";
+import { ConferenciaProdutoPage } from "./pages/coletor/ConferenciaProdutoPage";
+import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
