@@ -50,8 +50,8 @@ export function ReportTable({ columns, data, loading, emptyMessage = "Nenhum reg
   }
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <div className="overflow-x-auto max-h-[calc(100vh-320px)]">
+    <div className="border border-border rounded-lg overflow-hidden flex flex-col flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-auto">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-secondary">
             <TableRow className="border-b border-border hover:bg-secondary">
