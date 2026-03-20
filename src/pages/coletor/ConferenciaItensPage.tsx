@@ -24,7 +24,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Itens - Onda #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/conferencia/produto">
-      <div className="flex flex-col gap-2 flex-1 overflow-auto">
+      <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
         {tarefas.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-[hsl(213,31%,55%)]">Nenhum item encontrado.</p>
@@ -33,7 +33,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
           tarefas.map((t, idx) => (
             <div
               key={t.tarefa_id || idx}
-              className="flex items-center gap-3 p-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)]"
+              className="flex items-center gap-3 p-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] shrink-0"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
