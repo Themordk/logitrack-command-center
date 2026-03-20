@@ -121,9 +121,10 @@ export function CrudTable({
             <span className="ml-3 text-sm text-muted-foreground">Carregando...</span>
           </div>
         ) : (
-          <>
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-secondary/30">
                   {selectable && (
                     <th className="px-4 py-3 w-10">
