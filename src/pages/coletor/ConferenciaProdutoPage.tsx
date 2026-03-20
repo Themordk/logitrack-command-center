@@ -129,7 +129,6 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         p_tenant_id: tenantId,
         p_tarefa_id: tarefa.tarefa_id,
         p_quantidade: qtdFinal,
-        p_endereco_id: tarefa.endereco_id || null,
         p_usuario_id: usuarioId,
       });
       if (error) throw error;
