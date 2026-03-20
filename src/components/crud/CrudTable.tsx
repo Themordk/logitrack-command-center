@@ -114,7 +114,7 @@ export function CrudTable({
         {extraFilters}
       </div>
 
-      <div className="card-surface overflow-hidden">
+      <div className="card-surface overflow-hidden flex flex-col flex-1 min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={24} className="animate-spin text-primary" />
