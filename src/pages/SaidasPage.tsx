@@ -133,7 +133,7 @@ export function SaidasPage() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-foreground">Documentos de Saída Pendentes</h1>

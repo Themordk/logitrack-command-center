@@ -135,7 +135,7 @@ export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
   const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary";
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {onBack && (

@@ -252,7 +252,7 @@ export function RoteiroSeparacaoPage() {
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-6 animate-fade-in">
       <div>
         <h1 className="text-lg font-bold text-foreground">Roteiro de Separação e Conferência</h1>
         <p className="text-xs text-muted-foreground">Configure agrupamentos e ordem de separação. Arraste para reordenar.</p>

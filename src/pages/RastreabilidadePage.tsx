@@ -78,7 +78,7 @@ export function RastreabilidadePage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">Rastreamento Operacional</h1>
