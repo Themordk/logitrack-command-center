@@ -154,7 +154,7 @@ export function IntegracaoPage() {
   const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors";
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <div>
         <h1 className="text-xl font-bold text-foreground">Integração ERP</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Configurações de conexão e mapeamento de objetos</p>

@@ -603,7 +603,7 @@ export function MovimentoEntradaPage() {
   const fmtDateTime = (d: string | null) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <h1 className="text-lg font-bold text-foreground">Movimentos de Entrada</h1>
 
       {/* Status cards */}
@@ -657,7 +657,7 @@ export function MovimentoEntradaPage() {
         )}
       </div>
 
-      <div className="flex gap-4" style={{ minHeight: "60vh" }}>
+      <div className="flex gap-4 flex-1 min-h-0">
         {/* Movement list */}
         <div className="w-80 shrink-0 card-surface flex flex-col">
           <div className="p-3 border-b border-border">

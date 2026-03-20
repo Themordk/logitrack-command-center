@@ -347,7 +347,7 @@ export function MovimentoSaidaPage() {
   const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
   return (
-    <div className="space-y-3 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
       <h1 className="text-lg font-bold text-foreground">Ondas de Carregamento</h1>
 
       {/* Filters */}
@@ -378,7 +378,7 @@ export function MovimentoSaidaPage() {
         </button>
       </div>
 
-      <div className="flex gap-3" style={{ minHeight: "65vh" }}>
+      <div className="flex gap-3 flex-1 min-h-0">
         {/* Left panel */}
         <div className="w-80 shrink-0 card-surface flex flex-col">
           <div className="flex-1 overflow-auto">
