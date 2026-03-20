@@ -88,7 +88,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
   "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
-  "/atividades/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Roteiro de Separação" }],
+  "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
