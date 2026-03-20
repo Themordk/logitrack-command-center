@@ -127,7 +127,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     try {
       const { data, error } = await supabase.rpc("conferencia_saida_confirmacao" as any, {
         p_tenant_id: tenantId,
-        p_tarefa_id: tarefa.tarefa_id,
+        p_tarefa_id: tarefa.id || tarefa.tarefa_id,
         p_quantidade: qtdFinal,
         p_usuario_id: usuarioId,
       });
