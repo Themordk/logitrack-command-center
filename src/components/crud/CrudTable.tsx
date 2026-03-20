@@ -234,7 +234,7 @@ export function CrudTable({
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
