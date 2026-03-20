@@ -108,7 +108,7 @@ export function EstoqueReportPage() {
   if (filterEan) activeFilters["EAN"] = filterEan;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
         title="Posição de Estoque"
         subtitle="Relatório analítico de saldos por endereço"

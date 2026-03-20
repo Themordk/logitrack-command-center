@@ -94,7 +94,7 @@ export function MovimentacoesReportPage() {
   if (filterTipoMov) activeFilters["Tipo"] = getTipoMovimentoLabel(Number(filterTipoMov));
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
         title="Histórico de Movimentações"
         subtitle="Relatório analítico de movimentos de estoque"
