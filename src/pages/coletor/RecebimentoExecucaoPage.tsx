@@ -138,7 +138,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         .from("tarefa")
         .select("id")
         .eq("tenant_id", tenantId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA")
+        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA_ITEM")
         .in("id_documento_origem", meiData.map((m: any) => m.id))
         .limit(1);
 
