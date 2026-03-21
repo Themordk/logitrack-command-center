@@ -216,45 +216,22 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     setSaving(true);
 
     try {
-      const now = nowBrasilia();
       const fator = currentProduct.fator || 1;
       const qtdFinal = Number(quantidade) * fator;
 
-      const insertPayload: any = {
-        tenant_id: tenantId,
-        tarefa_id: currentProduct.tarefa_id,
-        usuario_id: usuarioId,
-        status: "CONCLUIDA",
-        atribuido_em: now,
-        iniciado_em: now,
-        concluido_em: now,
-        quantidade_executada: qtdFinal,
-      };
-      if (lote) insertPayload.lote = lote;
-      if (validade) insertPayload.validade = validade;
-      if (fabricacao) insertPayload.fabricacao = fabricacao;
+      const huId = sessionStorage.getItem("coletor_hu_id") || null;
 
-      const { data: execData, error: execErr } = await (supabase as any)
-        .from("tarefa_execucao")
-        .insert(insertPayload)
-        .select("id")
-        .single();
-
-      if (execErr) throw execErr;
-
-      await (supabase as any).from("tarefa_evento_execucao").insert({
-        tenant_id: tenantId,
-        execucao_tarefa_id: execData.id,
-        tipo_evento: "CONFERENCIA",
-        carga_util: {
-          produto_id: currentProduct.produto_id,
-          sku: currentProduct.sku,
-          quantidade: Number(quantidade),
-          lote,
-          validade,
-          fabricacao,
-        },
+      const { error } = await (supabase as any).rpc("finalizar_conferencia_item", {
+        p_tenant_id: tenantId,
+        p_usuario: usuarioId,
+        p_quantidade: qtdFinal,
+        p_lote: lote || "",
+        p_validade: validade || "1900-01-01",
+        p_fabricacao: fabricacao || "1900-01-01",
+        p_hu: huId,
       });
+
+      if (error) throw error;
 
       showOverlayMsg("success", `✔ ${quantidade} un. confirmadas`);
 
