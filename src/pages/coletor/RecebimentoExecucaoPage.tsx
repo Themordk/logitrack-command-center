@@ -125,18 +125,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       const prod = result.data;
 
-      // Get embalagem info for the scanned barcode
-      const { data: embData } = await (supabase as any)
-        .from("produto_embalagem")
-        .select("ean, fator")
-        .eq("ean", code)
-        .limit(1);
-
-      const embalagem = embData?.[0];
-
       setCurrentProduct({
-        ean: embalagem?.ean || code,
-        fator: embalagem?.fator || 1,
+        ean: code,
+        fator: prod.Fator_embalagem || prod.fator_embalagem || 1,
         descricao: prod.descricao,
         sku: prod.sku,
         referencia: prod.referencia,
