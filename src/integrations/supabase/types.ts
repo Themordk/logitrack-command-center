@@ -3849,6 +3849,15 @@ export type Database = {
       }
     }
     Functions: {
+      atribuir_tarefa: {
+        Args: {
+          p_empresa_id: string
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
       conferencia_buscar_ondas: {
         Args: {
           p_empresa_id: string
@@ -3913,7 +3922,19 @@ export type Database = {
         }
         Returns: string
       }
-      finalizar_conferencia_entrada: {
+      finalizar_conferencia_entrada_item: {
+        Args: {
+          p_fabricacao: string
+          p_hu: string
+          p_lote: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_usuario: string
+          p_validade: string
+        }
+        Returns: string
+      }
+      finalizar_conferencia_entrada_movimento: {
         Args: { p_movimento_entrada_id: string; p_usuario: string }
         Returns: string
       }
