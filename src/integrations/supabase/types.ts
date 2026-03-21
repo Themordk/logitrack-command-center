@@ -3938,6 +3938,14 @@ export type Database = {
         Args: { p_movimento_entrada_id: string; p_usuario: string }
         Returns: string
       }
+      fn_conferencia_buscar_produto_por_barcode: {
+        Args: {
+          p_codigo_barras: string
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_gerar_conferencia_saida: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: undefined
