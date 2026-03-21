@@ -108,86 +108,46 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
 
     try {
-      const { data: embData, error: embErr } = await (supabase as any)
+      const { data, error } = await (supabase as any).rpc("fn_conferencia_buscar_produto_por_barcode", {
+        p_tenant_id: tenantId,
+        p_movimento_entrada_id: movimentoId,
+        p_codigo_barras: code,
+      });
+
+      if (error) throw error;
+
+      const result = typeof data === "string" ? JSON.parse(data) : data;
+
+      if (!result?.success) {
+        showOverlayMsg("error", result?.message || "Produto não encontrado");
+        return;
+      }
+
+      const prod = result.data;
+
+      // Get embalagem info for the scanned barcode
+      const { data: embData } = await (supabase as any)
         .from("produto_embalagem")
-        .select("produto_id, ean, fator")
+        .select("ean, fator")
         .eq("ean", code)
         .limit(1);
 
-      if (embErr) throw embErr;
-      if (!embData || embData.length === 0) {
-        showOverlayMsg("error", "EAN não encontrado");
-        return;
-      }
-
-      const embalagem = embData[0];
-
-      const { data: meiData } = await (supabase as any)
-        .from("movimento_entrada_item")
-        .select("id")
-        .eq("movimento_entrada_id", movimentoId)
-        .eq("produto_id", embalagem.produto_id);
-
-      if (!meiData || meiData.length === 0) {
-        showOverlayMsg("error", "Produto não pertence a este recebimento");
-        return;
-      }
-
-      const { data: tarefaData } = await (supabase as any)
-        .from("tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("tipo_documento_origem", "MOVIMENTO_ENTRADA_ITEM")
-        .in("id_documento_origem", meiData.map((m: any) => m.id))
-        .limit(1);
-
-      if (!tarefaData || tarefaData.length === 0) {
-        showOverlayMsg("error", "Tarefa não encontrada para este produto");
-        return;
-      }
-
-      const { data: prodData, error: prodErr } = await (supabase as any)
-        .from("produto")
-        .select("id, sku, descricao, referencia, lastro, camada, tipo_controle, peso_variavel")
-        .eq("id", embalagem.produto_id)
-        .single();
-
-      if (prodErr) throw prodErr;
-
-      const tarefaIdResolved = tarefaData[0].id;
-      await (supabase as any)
-        .from("tarefa_atribuicao")
-        .upsert(
-          {
-            tenant_id: tenantId,
-            tarefa_id: tarefaIdResolved,
-            usuario_id: usuarioId,
-            status: "ATIVO",
-            atribuido_em: new Date().toISOString(),
-          },
-          { onConflict: "tarefa_id,usuario_id", ignoreDuplicates: true }
-        );
-
-      await (supabase as any)
-        .from("tarefa")
-        .update({ status: "ATRIBUIDA" })
-        .eq("id", tarefaIdResolved)
-        .eq("status", "CRIADA");
+      const embalagem = embData?.[0];
 
       setCurrentProduct({
-        ean: embalagem.ean,
-        fator: embalagem.fator,
-        descricao: prodData.descricao,
-        sku: prodData.sku,
-        referencia: prodData.referencia,
-        lastro: prodData.lastro,
-        camada: prodData.camada,
-        tipo_controle: prodData.tipo_controle,
-        produto_id: prodData.id,
-        tarefa_id: tarefaIdResolved,
-        peso_variavel: prodData.peso_variavel,
+        ean: embalagem?.ean || code,
+        fator: embalagem?.fator || 1,
+        descricao: prod.descricao,
+        sku: prod.sku,
+        referencia: prod.referencia,
+        lastro: prod.lastro,
+        camada: prod.camada,
+        tipo_controle: prod.tipo_controle,
+        produto_id: prod.id,
+        tarefa_id: prod.tarefa_id,
+        peso_variavel: prod.peso_variavel,
       });
-      showOverlayMsg("success", `Produto: ${prodData.sku}`);
+      showOverlayMsg("success", `Produto: ${prod.sku}`);
     } catch (err: any) {
       console.error(err);
       showOverlayMsg("error", "Erro ao buscar produto");
