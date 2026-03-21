@@ -221,7 +221,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       const huId = sessionStorage.getItem("coletor_hu_id") || null;
 
       const { error } = await (supabase as any).rpc("finalizar_conferencia_entrada_item", {
-        p_tenant_id: tenantId,
+        p_tarefa_id: currentProduct.tarefa_id,
         p_usuario: usuarioId,
         p_quantidade: qtdFinal,
         p_lote: lote || "",
