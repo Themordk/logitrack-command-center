@@ -71,7 +71,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     setFinalizing(true);
     try {
       const { data, error } = await (supabase as any)
-        .rpc("finalizar_conferencia_movimento", {
+        .rpc("finalizar_conferencia_entrada_movimento", {
           p_movimento_entrada_id: movimentoId,
           p_usuario: usuarioId,
         });
