@@ -52,7 +52,8 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
         descricao,
         tipo_endereco,
         armazem_id,
-        setor_id
+        setor_id,
+        tipo_estoque_id
       )
     `)
     .eq("tenant_id", filters.tenant_id)
