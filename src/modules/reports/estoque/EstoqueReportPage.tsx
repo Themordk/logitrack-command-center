@@ -24,9 +24,13 @@ export function EstoqueReportPage() {
   const [filterTipoEndereco, setFilterTipoEndereco] = useState("");
   const [filterArmazemId, setFilterArmazemId] = useState("");
   const [filterEan, setFilterEan] = useState("");
+  const [filterTipoEstoqueId, setFilterTipoEstoqueId] = useState("");
+  const [filterSetorId, setFilterSetorId] = useState("");
 
   // Options
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
+  const [tiposEstoque, setTiposEstoque] = useState<{ id: string; descricao: string }[]>([]);
+  const [setores, setSetores] = useState<{ id: string; descricao: string }[]>([]);
 
   useEffect(() => {
     if (!tenantId) return;
