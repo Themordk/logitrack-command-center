@@ -10,6 +10,8 @@ export interface EstoqueFilter {
   subgrupo_id?: string;
   parceiro_id?: string;
   ean?: string;
+  tipo_estoque_id?: string;
+  setor_id?: string;
 }
 
 export async function fetchEstoqueReport(filters: EstoqueFilter) {
