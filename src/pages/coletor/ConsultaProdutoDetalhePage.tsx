@@ -278,7 +278,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
 
   if (!produto) {
     return (
-      <ColetorLayout title="Detalhe Produto" onNavigate={onNavigate} showBack backPath="/coletor/consulta/produto">
+      <ColetorLayout title="Detalhe Produto" onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
         <p className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Produto não encontrado.</p>
       </ColetorLayout>
     );
