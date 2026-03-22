@@ -56,6 +56,8 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const armazemId = localStorage.getItem("core_armazem_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const produtoId = sessionStorage.getItem("coletor_consulta_produto_id") || "";
+  const customBackPath = sessionStorage.getItem("coletor_consulta_produto_back") || "/coletor/consulta/produto";
+  const backPath = customBackPath;
   const [tab, setTab] = useState<Tab>("info");
   const [loading, setLoading] = useState(true);
   const [produto, setProduto] = useState<ProdutoInfo | null>(null);
