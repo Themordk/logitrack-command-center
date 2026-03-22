@@ -218,6 +218,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
 
   // Picking CRUD
   const openPickForm = (pick?: PickingItem) => {
+    setScannedEnderecoInfo(null);
     if (pick) {
       setEditPick(pick);
       setPickForm({ endereco_id: pick.endereco_id, est_minimo: String(pick.est_minimo), est_maximo: String(pick.est_maximo), tipo_picking: pick.tipo_picking });
