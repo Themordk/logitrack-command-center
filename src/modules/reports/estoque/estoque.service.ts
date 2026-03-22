@@ -79,6 +79,8 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     endereco_descricao: row.endereco?.descricao || "",
     tipo_endereco: row.endereco?.tipo_endereco || "",
     armazem_id: row.endereco?.armazem_id || "",
+    setor_id: row.endereco?.setor_id || "",
+    tipo_estoque_id: row.endereco?.tipo_estoque_id || "",
     quantidade_disponivel: Number(row.quantidade_disponivel),
     quantidade_bloqueada: Number(row.quantidade_bloqueada),
     quantidade_total: Number(row.quantidade_total),
