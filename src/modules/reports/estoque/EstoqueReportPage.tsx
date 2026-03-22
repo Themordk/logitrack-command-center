@@ -118,6 +118,8 @@ export function EstoqueReportPage() {
   if (filterTipoEndereco) activeFilters["Tipo"] = filterTipoEndereco;
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterEan) activeFilters["EAN"] = filterEan;
+  if (filterTipoEstoqueId) activeFilters["Tipo Estoque"] = tiposEstoque.find(t => t.id === filterTipoEstoqueId)?.descricao || filterTipoEstoqueId;
+  if (filterSetorId) activeFilters["Setor"] = setores.find(s => s.id === filterSetorId)?.descricao || filterSetorId;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
