@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { Loader2, Plus, Trash2, Edit2 } from "lucide-react";
+import { ScanField } from "@/components/coletor/ScanField";
+import { Loader2, Plus, Trash2, Edit2, MapPin } from "lucide-react";
 
 interface Props {
   onNavigate: (path: string) => void;
