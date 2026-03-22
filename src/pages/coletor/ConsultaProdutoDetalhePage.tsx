@@ -126,14 +126,42 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   useEffect(() => { if (tab === "embalagens") loadEmbalagens(); }, [tab, loadEmbalagens]);
   useEffect(() => { if (tab === "picking") loadPickings(); }, [tab, loadPickings]);
 
-  // Load enderecos for picking form
-  useEffect(() => {
-    if (tab !== "picking") return;
-    (async () => {
-      const { data } = await (supabase as any).from("endereco").select("id, descricao").eq("tipo_endereco", "PICKING").eq("ativo", true).order("descricao").limit(500);
-      setEnderecoOptions(data || []);
-    })();
-  }, [tab]);
+  // Scan endereco for picking form
+  const handleScanEndereco = async (code: string) => {
+    setScannedEnderecoInfo(null);
+    try {
+      const { data } = await (supabase as any).from("endereco")
+        .select("id, descricao, armazem_id, setor_id")
+        .eq("descricao", code)
+        .eq("ativo", true)
+        .limit(1);
+      if (!data || data.length === 0) {
+        // Try by codigo_endereco
+        const { data: data2 } = await (supabase as any).from("endereco")
+          .select("id, descricao, armazem_id, setor_id")
+          .eq("codigo_endereco", Number(code) || -1)
+          .eq("ativo", true)
+          .limit(1);
+        if (!data2 || data2.length === 0) return;
+        const end = data2[0];
+        await resolveEnderecoInfo(end);
+        return;
+      }
+      await resolveEnderecoInfo(data[0]);
+    } catch { /* ignore */ }
+  };
+
+  const resolveEnderecoInfo = async (end: any) => {
+    let armazemDesc = "—", setorDesc = "—";
+    const [armRes, setRes] = await Promise.all([
+      end.armazem_id ? (supabase as any).from("armazem").select("descricao").eq("id", end.armazem_id).single() : Promise.resolve({ data: null }),
+      end.setor_id ? (supabase as any).from("setor").select("descricao").eq("id", end.setor_id).single() : Promise.resolve({ data: null }),
+    ]);
+    armazemDesc = armRes.data?.descricao || "—";
+    setorDesc = setRes.data?.descricao || "—";
+    setScannedEnderecoInfo({ id: end.id, descricao: end.descricao, armazem: armazemDesc, setor: setorDesc });
+    setPickForm(prev => ({ ...prev, endereco_id: end.id }));
+  };
 
   // Embalagem CRUD
   const openEmbForm = (emb?: Embalagem) => {
