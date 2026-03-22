@@ -75,7 +75,6 @@ import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
 import { InventarioListPage } from "./pages/coletor/InventarioListPage";
 import { InventarioEnderecoPage } from "./pages/coletor/InventarioEnderecoPage";
 import { InventarioProdutoPage } from "./pages/coletor/InventarioProdutoPage";
-import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
