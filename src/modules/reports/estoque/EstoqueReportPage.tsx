@@ -53,6 +53,8 @@ export function EstoqueReportPage() {
         tipo_endereco: filterTipoEndereco || undefined,
         sku: filterSku || undefined,
         ean: filterEan || undefined,
+        tipo_estoque_id: filterTipoEstoqueId || undefined,
+        setor_id: filterSetorId || undefined,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
