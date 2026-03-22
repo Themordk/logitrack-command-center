@@ -73,7 +73,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const [editPick, setEditPick] = useState<PickingItem | null>(null);
   const [pickForm, setPickForm] = useState({ endereco_id: "", est_minimo: "", est_maximo: "", tipo_picking: "FRACIONADO" });
   const [pickSubmitting, setPickSubmitting] = useState(false);
-  const [enderecoOptions, setEnderecoOptions] = useState<{ id: string; descricao: string }[]>([]);
+  const [scannedEnderecoInfo, setScannedEnderecoInfo] = useState<{ id: string; descricao: string; armazem: string; setor: string } | null>(null);
 
   const loadProduto = useCallback(async () => {
     if (!produtoId) return;
