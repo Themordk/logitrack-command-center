@@ -30,6 +30,7 @@ import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
+import { InventarioPage } from "./pages/InventarioPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -89,6 +90,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
   "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
+  "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
@@ -123,6 +125,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
     case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
+    case "/atividades/inventario": return <InventarioPage />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;

@@ -1175,61 +1175,123 @@ export type Database = {
       }
       inventario: {
         Row: {
-          created_at: string
+          acuracidade: number | null
+          armazem_id: string
+          bloquear_movimentacao: boolean | null
+          considerar_saldo_atual: boolean | null
+          criado_em: string | null
           criado_por: string | null
           descricao: string | null
           empresa_id: string
-          fim_em: string | null
-          id: number
-          inicio_em: string | null
-          status: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          endereco_id: string | null
+          finalizado_em: string | null
+          finalizado_por: string | null
+          grupo_produto_id: string | null
+          id: string
+          iniciado_em: string | null
+          numero_inventario: number
+          observacao: string | null
+          origem: Database["public"]["Enums"]["enum_origem_inventario"] | null
+          permite_recontagem: boolean | null
+          produto_id: string | null
+          quantidade_max_recontagem: number | null
+          status: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id: string
           tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          total_divergencias: number | null
+          total_itens: number | null
+          zona_atividade_id: string | null
         }
         Insert: {
-          created_at?: string
+          acuracidade?: number | null
+          armazem_id: string
+          bloquear_movimentacao?: boolean | null
+          considerar_saldo_atual?: boolean | null
+          criado_em?: string | null
           criado_por?: string | null
           descricao?: string | null
           empresa_id: string
-          fim_em?: string | null
-          id?: number
-          inicio_em?: string | null
-          status?: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          endereco_id?: string | null
+          finalizado_em?: string | null
+          finalizado_por?: string | null
+          grupo_produto_id?: string | null
+          id?: string
+          iniciado_em?: string | null
+          numero_inventario?: never
+          observacao?: string | null
+          origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
+          permite_recontagem?: boolean | null
+          produto_id?: string | null
+          quantidade_max_recontagem?: number | null
+          status?: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id: string
           tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          total_divergencias?: number | null
+          total_itens?: number | null
+          zona_atividade_id?: string | null
         }
         Update: {
-          created_at?: string
+          acuracidade?: number | null
+          armazem_id?: string
+          bloquear_movimentacao?: boolean | null
+          considerar_saldo_atual?: boolean | null
+          criado_em?: string | null
           criado_por?: string | null
           descricao?: string | null
           empresa_id?: string
-          fim_em?: string | null
-          id?: number
-          inicio_em?: string | null
-          status?: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          endereco_id?: string | null
+          finalizado_em?: string | null
+          finalizado_por?: string | null
+          grupo_produto_id?: string | null
+          id?: string
+          iniciado_em?: string | null
+          numero_inventario?: never
+          observacao?: string | null
+          origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
+          permite_recontagem?: boolean | null
+          produto_id?: string | null
+          quantidade_max_recontagem?: number | null
+          status?: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id?: string
           tipo_inventario?: Database["public"]["Enums"]["enum_tipo_inventario"]
+          total_divergencias?: number | null
+          total_itens?: number | null
+          zona_atividade_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "inventario_criado_por_fkey"
-            columns: ["criado_por"]
+            foreignKeyName: "inventario_armazem_fk"
+            columns: ["armazem_id"]
             isOneToOne: false
-            referencedRelation: "usuario"
+            referencedRelation: "armazem"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inventario_empresa_id_fkey"
+            foreignKeyName: "inventario_empresa_fk"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inventario_tenant_id_fkey"
+            foreignKeyName: "inventario_tenant_fk"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_usuario_criacao_fk"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_usuario_finalizacao_fk"
+            columns: ["finalizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -4134,6 +4196,7 @@ export type Database = {
         | "EXPEDICAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
+      enum_origem_inventario: "MANUAL" | "AUTOMATICO" | "ROTATIVO_SISTEMA"
       enum_prioridade_onda: "URGENTE" | "ALTA" | "NORMAL" | "BAIXA"
       enum_situacao_endereco: "LIVRE" | "OCUPADO" | "BLOQUEADO"
       enum_status_execucao_tarefa:
@@ -4142,6 +4205,12 @@ export type Database = {
         | "PAUSADA"
         | "CONCLUIDA"
         | "CANCELADA"
+      enum_status_inventario:
+        | "CRIADO"
+        | "GERANDO_TAREFAS"
+        | "EM_CONTAGEM"
+        | "EM_ANALISE"
+        | "FINALIZADO"
       enum_status_item_movimento:
         | "PENDENTE"
         | "EM_ANDAMENTO"
@@ -4212,7 +4281,12 @@ export type Database = {
         | "CONFERENCIA"
       enum_tipo_grupo: "PICKING" | "ARMAZENAGEM" | "INVENTARIO"
       enum_tipo_hu: "PALLET" | "CAIXA" | "VOLUME" | "OUTRO"
-      enum_tipo_inventario: "GERAL" | "CICLICO" | "AUDITORIA"
+      enum_tipo_inventario:
+        | "GERAL"
+        | "ROTATIVO"
+        | "ENDERECO"
+        | "PRODUTO"
+        | "ZONA"
       enum_tipo_operacao:
         | "RECEBIMENTO"
         | "ARMAZENAGEM"
@@ -4405,6 +4479,7 @@ export const Constants = {
       ],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
       enum_lado: ["PAR", "IMPAR"],
+      enum_origem_inventario: ["MANUAL", "AUTOMATICO", "ROTATIVO_SISTEMA"],
       enum_prioridade_onda: ["URGENTE", "ALTA", "NORMAL", "BAIXA"],
       enum_situacao_endereco: ["LIVRE", "OCUPADO", "BLOQUEADO"],
       enum_status_execucao_tarefa: [
@@ -4413,6 +4488,13 @@ export const Constants = {
         "PAUSADA",
         "CONCLUIDA",
         "CANCELADA",
+      ],
+      enum_status_inventario: [
+        "CRIADO",
+        "GERANDO_TAREFAS",
+        "EM_CONTAGEM",
+        "EM_ANALISE",
+        "FINALIZADO",
       ],
       enum_status_item_movimento: [
         "PENDENTE",
@@ -4491,7 +4573,13 @@ export const Constants = {
       ],
       enum_tipo_grupo: ["PICKING", "ARMAZENAGEM", "INVENTARIO"],
       enum_tipo_hu: ["PALLET", "CAIXA", "VOLUME", "OUTRO"],
-      enum_tipo_inventario: ["GERAL", "CICLICO", "AUDITORIA"],
+      enum_tipo_inventario: [
+        "GERAL",
+        "ROTATIVO",
+        "ENDERECO",
+        "PRODUTO",
+        "ZONA",
+      ],
       enum_tipo_operacao: [
         "RECEBIMENTO",
         "ARMAZENAGEM",
