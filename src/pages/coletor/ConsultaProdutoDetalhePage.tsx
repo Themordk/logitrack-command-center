@@ -420,13 +420,28 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
       {tab === "picking" && showPickForm && (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold text-white">{editPick ? "Editar Picking" : "Novo Picking"}</h3>
-          <div>
-            <label className={`${labelClass} block mb-1`}>Endereço *</label>
-            <select value={pickForm.endereco_id} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass}>
-              <option value="">Selecione...</option>
-              {enderecoOptions.map((e) => <option key={e.id} value={e.id}>{e.descricao}</option>)}
-            </select>
-          </div>
+          
+          {/* Scan Endereço */}
+          <ScanField
+            label="Escanear Endereço"
+            lastScanned={scannedEnderecoInfo?.descricao}
+            onScan={handleScanEndereco}
+            placeholder="Escaneie o código do endereço"
+          />
+
+          {/* Endereço Info */}
+          {scannedEnderecoInfo && (
+            <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 space-y-1">
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin size={14} className="text-[hsl(217,91%,60%)]" />
+                <span className="text-xs font-bold text-white">Endereço Selecionado</span>
+              </div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Armazém: <span className="font-bold text-white">{scannedEnderecoInfo.armazem}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Setor: <span className="font-bold text-white">{scannedEnderecoInfo.setor}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-white">{scannedEnderecoInfo.descricao}</span></div>
+            </div>
+          )}
+
           <div>
             <label className={`${labelClass} block mb-1`}>Estoque Mínimo *</label>
             <input type="number" value={pickForm.est_minimo} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} />

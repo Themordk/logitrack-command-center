@@ -142,7 +142,7 @@ export function EstoqueReportPage() {
         </button>
         {showFilters && (
           <div className="border-t border-border p-4 space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Armazém</Label>
                 <Select value={filterArmazemId} onValueChange={setFilterArmazemId}>
@@ -165,6 +165,32 @@ export function EstoqueReportPage() {
                   <SelectContent>
                     <SelectItem value="PICKING">Picking</SelectItem>
                     <SelectItem value="PULMAO">Pulmão</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo Estoque</Label>
+                <Select value={filterTipoEstoqueId} onValueChange={setFilterTipoEstoqueId}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposEstoque.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.descricao}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Setor</Label>
+                <Select value={filterSetorId} onValueChange={setFilterSetorId}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {setores.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.descricao}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
