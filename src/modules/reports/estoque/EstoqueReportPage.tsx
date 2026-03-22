@@ -24,14 +24,22 @@ export function EstoqueReportPage() {
   const [filterTipoEndereco, setFilterTipoEndereco] = useState("");
   const [filterArmazemId, setFilterArmazemId] = useState("");
   const [filterEan, setFilterEan] = useState("");
+  const [filterTipoEstoqueId, setFilterTipoEstoqueId] = useState("");
+  const [filterSetorId, setFilterSetorId] = useState("");
 
   // Options
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
+  const [tiposEstoque, setTiposEstoque] = useState<{ id: string; descricao: string }[]>([]);
+  const [setores, setSetores] = useState<{ id: string; descricao: string }[]>([]);
 
   useEffect(() => {
     if (!tenantId) return;
     supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
       .then(({ data }) => setArmazens(data || []));
+    (supabase as any).from("tipo_estoque").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+      .then(({ data }: any) => setTiposEstoque(data || []));
+    (supabase as any).from("setor").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+      .then(({ data }: any) => setSetores(data || []));
   }, [tenantId]);
 
   const handleGenerate = async () => {
@@ -45,6 +53,8 @@ export function EstoqueReportPage() {
         tipo_endereco: filterTipoEndereco || undefined,
         sku: filterSku || undefined,
         ean: filterEan || undefined,
+        tipo_estoque_id: filterTipoEstoqueId || undefined,
+        setor_id: filterSetorId || undefined,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
@@ -62,6 +72,8 @@ export function EstoqueReportPage() {
     setFilterTipoEndereco("");
     setFilterArmazemId("");
     setFilterEan("");
+    setFilterTipoEstoqueId("");
+    setFilterSetorId("");
   };
 
   const isExpired = (date: string) => {
@@ -106,6 +118,8 @@ export function EstoqueReportPage() {
   if (filterTipoEndereco) activeFilters["Tipo"] = filterTipoEndereco;
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterEan) activeFilters["EAN"] = filterEan;
+  if (filterTipoEstoqueId) activeFilters["Tipo Estoque"] = tiposEstoque.find(t => t.id === filterTipoEstoqueId)?.descricao || filterTipoEstoqueId;
+  if (filterSetorId) activeFilters["Setor"] = setores.find(s => s.id === filterSetorId)?.descricao || filterSetorId;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
@@ -128,7 +142,7 @@ export function EstoqueReportPage() {
         </button>
         {showFilters && (
           <div className="border-t border-border p-4 space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Armazém</Label>
                 <Select value={filterArmazemId} onValueChange={setFilterArmazemId}>
@@ -151,6 +165,32 @@ export function EstoqueReportPage() {
                   <SelectContent>
                     <SelectItem value="PICKING">Picking</SelectItem>
                     <SelectItem value="PULMAO">Pulmão</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo Estoque</Label>
+                <Select value={filterTipoEstoqueId} onValueChange={setFilterTipoEstoqueId}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposEstoque.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.descricao}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Setor</Label>
+                <Select value={filterSetorId} onValueChange={setFilterSetorId}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {setores.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.descricao}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

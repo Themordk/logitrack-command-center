@@ -123,7 +123,23 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
               <div className="flex justify-between items-start mb-1">
                 <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
               </div>
-              <p className="text-xs text-[hsl(213,31%,50%)] mb-1">SKU: {item.sku}</p>
+              <button
+                onClick={() => {
+                  // Navigate to product detail, storing return path
+                  sessionStorage.setItem("coletor_consulta_produto_sku", item.sku);
+                  sessionStorage.setItem("coletor_consulta_produto_back", "/coletor/recebimento/conferencia");
+                  // Lookup product id by sku
+                  (supabase as any).from("produto").select("id").eq("sku", item.sku).limit(1).then(({ data }: any) => {
+                    if (data && data.length > 0) {
+                      sessionStorage.setItem("coletor_consulta_produto_id", data[0].id);
+                      onNavigate("/coletor/consulta/produto/detalhe");
+                    }
+                  });
+                }}
+                className="text-xs text-[hsl(217,91%,60%)] mb-1 underline cursor-pointer"
+              >
+                SKU: {item.sku}
+              </button>
               <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
                 <span className="text-[#22C55E]">Qtd: <strong>{item.quantidade_executada}</strong></span>
                 {item.operador && <span className="text-[hsl(213,31%,55%)]">Op: {item.operador}</span>}

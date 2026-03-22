@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { Loader2, Plus, Trash2, Edit2 } from "lucide-react";
+import { ScanField } from "@/components/coletor/ScanField";
+import { Loader2, Plus, Trash2, Edit2, MapPin } from "lucide-react";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -55,6 +56,8 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const armazemId = localStorage.getItem("core_armazem_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const produtoId = sessionStorage.getItem("coletor_consulta_produto_id") || "";
+  const customBackPath = sessionStorage.getItem("coletor_consulta_produto_back") || "/coletor/consulta/produto";
+  const backPath = customBackPath;
   const [tab, setTab] = useState<Tab>("info");
   const [loading, setLoading] = useState(true);
   const [produto, setProduto] = useState<ProdutoInfo | null>(null);
@@ -72,7 +75,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const [editPick, setEditPick] = useState<PickingItem | null>(null);
   const [pickForm, setPickForm] = useState({ endereco_id: "", est_minimo: "", est_maximo: "", tipo_picking: "FRACIONADO" });
   const [pickSubmitting, setPickSubmitting] = useState(false);
-  const [enderecoOptions, setEnderecoOptions] = useState<{ id: string; descricao: string }[]>([]);
+  const [scannedEnderecoInfo, setScannedEnderecoInfo] = useState<{ id: string; descricao: string; armazem: string; setor: string } | null>(null);
 
   const loadProduto = useCallback(async () => {
     if (!produtoId) return;
@@ -125,14 +128,42 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   useEffect(() => { if (tab === "embalagens") loadEmbalagens(); }, [tab, loadEmbalagens]);
   useEffect(() => { if (tab === "picking") loadPickings(); }, [tab, loadPickings]);
 
-  // Load enderecos for picking form
-  useEffect(() => {
-    if (tab !== "picking") return;
-    (async () => {
-      const { data } = await (supabase as any).from("endereco").select("id, descricao").eq("tipo_endereco", "PICKING").eq("ativo", true).order("descricao").limit(500);
-      setEnderecoOptions(data || []);
-    })();
-  }, [tab]);
+  // Scan endereco for picking form
+  const handleScanEndereco = async (code: string) => {
+    setScannedEnderecoInfo(null);
+    try {
+      const { data } = await (supabase as any).from("endereco")
+        .select("id, descricao, armazem_id, setor_id")
+        .eq("descricao", code)
+        .eq("ativo", true)
+        .limit(1);
+      if (!data || data.length === 0) {
+        // Try by codigo_endereco
+        const { data: data2 } = await (supabase as any).from("endereco")
+          .select("id, descricao, armazem_id, setor_id")
+          .eq("codigo_endereco", Number(code) || -1)
+          .eq("ativo", true)
+          .limit(1);
+        if (!data2 || data2.length === 0) return;
+        const end = data2[0];
+        await resolveEnderecoInfo(end);
+        return;
+      }
+      await resolveEnderecoInfo(data[0]);
+    } catch { /* ignore */ }
+  };
+
+  const resolveEnderecoInfo = async (end: any) => {
+    let armazemDesc = "—", setorDesc = "—";
+    const [armRes, setRes] = await Promise.all([
+      end.armazem_id ? (supabase as any).from("armazem").select("descricao").eq("id", end.armazem_id).single() : Promise.resolve({ data: null }),
+      end.setor_id ? (supabase as any).from("setor").select("descricao").eq("id", end.setor_id).single() : Promise.resolve({ data: null }),
+    ]);
+    armazemDesc = armRes.data?.descricao || "—";
+    setorDesc = setRes.data?.descricao || "—";
+    setScannedEnderecoInfo({ id: end.id, descricao: end.descricao, armazem: armazemDesc, setor: setorDesc });
+    setPickForm(prev => ({ ...prev, endereco_id: end.id }));
+  };
 
   // Embalagem CRUD
   const openEmbForm = (emb?: Embalagem) => {
@@ -189,6 +220,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
 
   // Picking CRUD
   const openPickForm = (pick?: PickingItem) => {
+    setScannedEnderecoInfo(null);
     if (pick) {
       setEditPick(pick);
       setPickForm({ endereco_id: pick.endereco_id, est_minimo: String(pick.est_minimo), est_maximo: String(pick.est_maximo), tipo_picking: pick.tipo_picking });
@@ -238,7 +270,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
 
   if (loading) {
     return (
-      <ColetorLayout title="Detalhe Produto" onNavigate={onNavigate} showBack backPath="/coletor/consulta/produto">
+      <ColetorLayout title="Detalhe Produto" onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
         <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>
       </ColetorLayout>
     );
@@ -246,14 +278,14 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
 
   if (!produto) {
     return (
-      <ColetorLayout title="Detalhe Produto" onNavigate={onNavigate} showBack backPath="/coletor/consulta/produto">
+      <ColetorLayout title="Detalhe Produto" onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
         <p className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Produto não encontrado.</p>
       </ColetorLayout>
     );
   }
 
   return (
-    <ColetorLayout title={produto.sku} onNavigate={onNavigate} showBack backPath="/coletor/consulta/produto">
+    <ColetorLayout title={produto.sku} onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
       {/* Tab selector */}
       <div className="flex gap-1 p-1 rounded-xl bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)]">
         {(["info", "embalagens", "picking"] as Tab[]).map((t) => (
@@ -390,13 +422,28 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
       {tab === "picking" && showPickForm && (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold text-white">{editPick ? "Editar Picking" : "Novo Picking"}</h3>
-          <div>
-            <label className={`${labelClass} block mb-1`}>Endereço *</label>
-            <select value={pickForm.endereco_id} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass}>
-              <option value="">Selecione...</option>
-              {enderecoOptions.map((e) => <option key={e.id} value={e.id}>{e.descricao}</option>)}
-            </select>
-          </div>
+          
+          {/* Scan Endereço */}
+          <ScanField
+            label="Escanear Endereço"
+            lastScanned={scannedEnderecoInfo?.descricao}
+            onScan={handleScanEndereco}
+            placeholder="Escaneie o código do endereço"
+          />
+
+          {/* Endereço Info */}
+          {scannedEnderecoInfo && (
+            <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 space-y-1">
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin size={14} className="text-[hsl(217,91%,60%)]" />
+                <span className="text-xs font-bold text-white">Endereço Selecionado</span>
+              </div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Armazém: <span className="font-bold text-white">{scannedEnderecoInfo.armazem}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Setor: <span className="font-bold text-white">{scannedEnderecoInfo.setor}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Endereço: <span className="font-bold text-white">{scannedEnderecoInfo.descricao}</span></div>
+            </div>
+          )}
+
           <div>
             <label className={`${labelClass} block mb-1`}>Estoque Mínimo *</label>
             <input type="number" value={pickForm.est_minimo} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} />

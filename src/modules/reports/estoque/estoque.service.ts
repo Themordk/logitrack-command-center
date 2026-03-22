@@ -10,6 +10,8 @@ export interface EstoqueFilter {
   subgrupo_id?: string;
   parceiro_id?: string;
   ean?: string;
+  tipo_estoque_id?: string;
+  setor_id?: string;
 }
 
 export async function fetchEstoqueReport(filters: EstoqueFilter) {
@@ -50,7 +52,8 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
         descricao,
         tipo_endereco,
         armazem_id,
-        setor_id
+        setor_id,
+        tipo_estoque_id
       )
     `)
     .eq("tenant_id", filters.tenant_id)
@@ -76,6 +79,8 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     endereco_descricao: row.endereco?.descricao || "",
     tipo_endereco: row.endereco?.tipo_endereco || "",
     armazem_id: row.endereco?.armazem_id || "",
+    setor_id: row.endereco?.setor_id || "",
+    tipo_estoque_id: row.endereco?.tipo_estoque_id || "",
     quantidade_disponivel: Number(row.quantidade_disponivel),
     quantidade_bloqueada: Number(row.quantidade_bloqueada),
     quantidade_total: Number(row.quantidade_total),
@@ -87,6 +92,8 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
 
   if (filters.armazem_id) results = results.filter(r => r.armazem_id === filters.armazem_id);
   if (filters.tipo_endereco) results = results.filter(r => r.tipo_endereco === filters.tipo_endereco);
+  if (filters.tipo_estoque_id) results = results.filter(r => r.tipo_estoque_id === filters.tipo_estoque_id);
+  if (filters.setor_id) results = results.filter(r => r.setor_id === filters.setor_id);
   if (filters.sku) results = results.filter(r => r.sku.toLowerCase().includes(filters.sku!.toLowerCase()));
   if (filters.grupo_id) results = results.filter(r => r.grupo_id === filters.grupo_id);
   if (filters.subgrupo_id) results = results.filter(r => r.subgrupo_id === filters.subgrupo_id);

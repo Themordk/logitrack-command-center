@@ -72,6 +72,9 @@ import { SeparacaoOcorrenciasPage } from "./pages/coletor/SeparacaoOcorrenciasPa
 import { ConferenciaIniciarPage } from "./pages/coletor/ConferenciaIniciarPage";
 import { ConferenciaProdutoPage } from "./pages/coletor/ConferenciaProdutoPage";
 import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
+import { InventarioListPage } from "./pages/coletor/InventarioListPage";
+import { InventarioEnderecoPage } from "./pages/coletor/InventarioEnderecoPage";
+import { InventarioProdutoPage } from "./pages/coletor/InventarioProdutoPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
@@ -205,6 +208,9 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/conferencia/iniciar": return <ConferenciaIniciarPage onNavigate={onNavigate} />;
     case "/coletor/conferencia/produto": return <ConferenciaProdutoPage onNavigate={onNavigate} />;
     case "/coletor/conferencia/itens": return <ConferenciaItensPage onNavigate={onNavigate} />;
+    case "/coletor/inventario": return <InventarioListPage onNavigate={onNavigate} />;
+    case "/coletor/inventario/endereco": return <InventarioEnderecoPage onNavigate={onNavigate} />;
+    case "/coletor/inventario/produto": return <InventarioProdutoPage onNavigate={onNavigate} />;
     default: return <ColetorLoginPage onNavigate={onNavigate} />;
   }
 }

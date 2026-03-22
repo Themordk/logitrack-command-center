@@ -19,7 +19,7 @@ const modules: ModuleCard[] = [
   { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)" },
   { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)" },
   { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)" },
-  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/home", color: "hsl(0,84%,60%)" },
+  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)" },
 ];
 
 export function ColetorHomePage({ onNavigate }: Props) {

@@ -3649,6 +3649,33 @@ export type Database = {
       }
     }
     Views: {
+      v_inventario_iniciar: {
+        Row: {
+          numero_inventario: number | null
+          origem: Database["public"]["Enums"]["enum_origem_inventario"] | null
+          status: Database["public"]["Enums"]["enum_status_inventario"] | null
+          tipo_inventario:
+            | Database["public"]["Enums"]["enum_tipo_inventario"]
+            | null
+        }
+        Insert: {
+          numero_inventario?: number | null
+          origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
+          status?: Database["public"]["Enums"]["enum_status_inventario"] | null
+          tipo_inventario?:
+            | Database["public"]["Enums"]["enum_tipo_inventario"]
+            | null
+        }
+        Update: {
+          numero_inventario?: number | null
+          origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
+          status?: Database["public"]["Enums"]["enum_status_inventario"] | null
+          tipo_inventario?:
+            | Database["public"]["Enums"]["enum_tipo_inventario"]
+            | null
+        }
+        Relationships: []
+      }
       v_recebimento_iniciar: {
         Row: {
           box: string | null
@@ -4012,6 +4039,52 @@ export type Database = {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: undefined
       }
+      fn_inventario_buscar_tarefas: {
+        Args: {
+          p_empresa_id: string
+          p_inventario_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          conferido: number
+          descricao: string
+          fator_caixa: number
+          id: string
+          ordem_tarefa: number
+          quantidade_requerida: number
+          sku: string
+          status: string
+        }[]
+      }
+      fn_inventario_criar: {
+        Args: {
+          p_armazem_id: string
+          p_descricao?: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_grupo_produto_id?: string
+          p_produto_id?: string
+          p_tenant_id: string
+          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          p_usuario_id: string
+          p_zona_atividade_id?: string
+        }
+        Returns: Json
+      }
+      fn_inventario_finalizar_conferencia_endereco: {
+        Args: {
+          p_endereco_origem_id: string
+          p_fabricacao: string
+          p_hu: string
+          p_lote: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_usuario: string
+          p_validade: string
+        }
+        Returns: string
+      }
       fn_limpar_conferencia_entrada: {
         Args: {
           p_quantidade: number
@@ -4209,6 +4282,7 @@ export type Database = {
         | "CRIADO"
         | "GERANDO_TAREFAS"
         | "EM_CONTAGEM"
+        | "AGUARDANDO_RECONTAGEM"
         | "EM_ANALISE"
         | "FINALIZADO"
       enum_status_item_movimento:
@@ -4493,6 +4567,7 @@ export const Constants = {
         "CRIADO",
         "GERANDO_TAREFAS",
         "EM_CONTAGEM",
+        "AGUARDANDO_RECONTAGEM",
         "EM_ANALISE",
         "FINALIZADO",
       ],
