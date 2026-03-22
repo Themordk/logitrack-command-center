@@ -36,6 +36,10 @@ export function EstoqueReportPage() {
     if (!tenantId) return;
     supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
       .then(({ data }) => setArmazens(data || []));
+    (supabase as any).from("tipo_estoque").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+      .then(({ data }: any) => setTiposEstoque(data || []));
+    (supabase as any).from("setor").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+      .then(({ data }: any) => setSetores(data || []));
   }, [tenantId]);
 
   const handleGenerate = async () => {
