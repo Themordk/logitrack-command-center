@@ -34,7 +34,9 @@ interface Inventario {
   acuracidade: number | null;
 }
 
-export function InventarioPage() {
+interface Props { onNavigate: (path: string) => void; }
+
+export function InventarioPage({ onNavigate }: Props) {
   const { tenantId, empresaId, armazemId } = useTenant();
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export function InventarioPage() {
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between">
         <h1 className="text-lg font-bold text-foreground">Inventários</h1>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+        <button onClick={() => onNavigate("/atividades/inventario/novo")} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
           <Plus size={16} />
           Novo Inventário
         </button>

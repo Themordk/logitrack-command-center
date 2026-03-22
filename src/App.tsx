@@ -31,6 +31,7 @@ import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 import { InventarioPage } from "./pages/InventarioPage";
+import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -91,6 +92,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
   "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
+  "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
@@ -125,7 +127,8 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
     case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
-    case "/atividades/inventario": return <InventarioPage />;
+    case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
+    case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
