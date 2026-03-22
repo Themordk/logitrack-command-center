@@ -270,7 +270,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
 
   if (loading) {
     return (
-      <ColetorLayout title="Detalhe Produto" onNavigate={onNavigate} showBack backPath="/coletor/consulta/produto">
+      <ColetorLayout title="Detalhe Produto" onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
         <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>
       </ColetorLayout>
     );
