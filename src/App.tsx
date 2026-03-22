@@ -209,6 +209,9 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/conferencia/iniciar": return <ConferenciaIniciarPage onNavigate={onNavigate} />;
     case "/coletor/conferencia/produto": return <ConferenciaProdutoPage onNavigate={onNavigate} />;
     case "/coletor/conferencia/itens": return <ConferenciaItensPage onNavigate={onNavigate} />;
+    case "/coletor/inventario": return <InventarioListPage onNavigate={onNavigate} />;
+    case "/coletor/inventario/endereco": return <InventarioEnderecoPage onNavigate={onNavigate} />;
+    case "/coletor/inventario/produto": return <InventarioProdutoPage onNavigate={onNavigate} />;
     default: return <ColetorLoginPage onNavigate={onNavigate} />;
   }
 }

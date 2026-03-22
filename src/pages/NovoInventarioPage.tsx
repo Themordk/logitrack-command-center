@@ -215,22 +215,18 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     if (!tenantId || !empresaId || !armazemId) { toast.error("Contexto não carregado."); return; }
     setSaving(true);
     try {
-      const payload: any = {
-        tenant_id: tenantId,
-        empresa_id: empresaId,
-        armazem_id: armazemId,
-        tipo_inventario: tipo,
-        descricao: descricao || null,
-        bloquear_movimentacao: bloquearMov,
-        criado_por: usuarioId,
-        status: "CRIADO",
-      };
-
-      if (tipo === "ZONA" && selectedZona) payload.zona_atividade_id = selectedZona;
-      if (tipo === "ENDERECO" && selectedEnderecos.length === 1) payload.endereco_id = selectedEnderecos[0].id;
-      if (tipo === "PRODUTO" && selectedProdutos.length === 1) payload.produto_id = selectedProdutos[0].id;
-
-      const { error } = await (supabase as any).from("inventario").insert(payload);
+      const { data, error } = await supabase.rpc("fn_inventario_criar" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_armazem_id: armazemId,
+        p_usuario_id: usuarioId,
+        p_tipo_inventario: tipo,
+        p_zona_atividade_id: (tipo === "ZONA" && selectedZona) ? selectedZona : null,
+        p_endereco_id: (tipo === "ENDERECO" && selectedEnderecos.length === 1) ? selectedEnderecos[0].id : null,
+        p_produto_id: (tipo === "PRODUTO" && selectedProdutos.length === 1) ? selectedProdutos[0].id : null,
+        p_grupo_produto_id: null,
+        p_descricao: descricao || null,
+      });
       if (error) throw error;
       toast.success("Inventário criado com sucesso!");
       onNavigate("/atividades/inventario");

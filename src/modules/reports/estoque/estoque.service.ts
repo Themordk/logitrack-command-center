@@ -92,6 +92,8 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
 
   if (filters.armazem_id) results = results.filter(r => r.armazem_id === filters.armazem_id);
   if (filters.tipo_endereco) results = results.filter(r => r.tipo_endereco === filters.tipo_endereco);
+  if (filters.tipo_estoque_id) results = results.filter(r => r.tipo_estoque_id === filters.tipo_estoque_id);
+  if (filters.setor_id) results = results.filter(r => r.setor_id === filters.setor_id);
   if (filters.sku) results = results.filter(r => r.sku.toLowerCase().includes(filters.sku!.toLowerCase()));
   if (filters.grupo_id) results = results.filter(r => r.grupo_id === filters.grupo_id);
   if (filters.subgrupo_id) results = results.filter(r => r.subgrupo_id === filters.subgrupo_id);
