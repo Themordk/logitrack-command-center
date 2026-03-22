@@ -285,7 +285,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   }
 
   return (
-    <ColetorLayout title={produto.sku} onNavigate={onNavigate} showBack backPath="/coletor/consulta/produto">
+    <ColetorLayout title={produto.sku} onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
       {/* Tab selector */}
       <div className="flex gap-1 p-1 rounded-xl bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)]">
         {(["info", "embalagens", "picking"] as Tab[]).map((t) => (
