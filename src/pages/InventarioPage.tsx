@@ -34,7 +34,9 @@ interface Inventario {
   acuracidade: number | null;
 }
 
-export function InventarioPage() {
+interface Props { onNavigate: (path: string) => void; }
+
+export function InventarioPage({ onNavigate }: Props) {
   const { tenantId, empresaId, armazemId } = useTenant();
   const [inventarios, setInventarios] = useState<Inventario[]>([]);
   const [loading, setLoading] = useState(true);
