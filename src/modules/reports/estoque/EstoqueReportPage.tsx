@@ -72,6 +72,8 @@ export function EstoqueReportPage() {
     setFilterTipoEndereco("");
     setFilterArmazemId("");
     setFilterEan("");
+    setFilterTipoEstoqueId("");
+    setFilterSetorId("");
   };
 
   const isExpired = (date: string) => {
