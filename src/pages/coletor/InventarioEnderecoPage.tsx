@@ -48,16 +48,28 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       let enderecoMap: Record<string, { descricao: string; armazem: string; setor: string }> = {};
 
       if (enderecoIds.length > 0) {
+        // Query endereco with armazem (has FK), but setor_id has no FK so query separately
         const { data: enderecos } = await (supabase as any)
           .from("endereco")
-          .select("id, descricao, armazem:armazem(descricao), setor:setor(descricao)")
+          .select("id, descricao, armazem_id, setor_id, armazem:armazem(descricao)")
           .in("id", enderecoIds);
+
+        // Get unique setor_ids and fetch setor names
+        const setorIds = [...new Set((enderecos || []).map((e: any) => e.setor_id).filter(Boolean))];
+        let setorMap: Record<string, string> = {};
+        if (setorIds.length > 0) {
+          const { data: setores } = await (supabase as any)
+            .from("setor")
+            .select("id, descricao")
+            .in("id", setorIds);
+          (setores || []).forEach((s: any) => { setorMap[s.id] = s.descricao; });
+        }
 
         (enderecos || []).forEach((e: any) => {
           enderecoMap[e.id] = {
             descricao: e.descricao || "—",
             armazem: e.armazem?.descricao || "—",
-            setor: e.setor?.descricao || "—",
+            setor: e.setor_id ? (setorMap[e.setor_id] || "—") : "—",
           };
         });
       }

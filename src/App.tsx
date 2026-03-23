@@ -31,6 +31,7 @@ import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 import { InventarioPage } from "./pages/InventarioPage";
+import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 
 // Reports
@@ -146,6 +147,14 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage />;
     default: {
+      // Dynamic route: /atividades/inventario/:id/itens
+      const invItensMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/itens/);
+      if (invItensMatch) {
+        const invId = invItensMatch[1];
+        const params = new URLSearchParams(path.split("?")[1] || "");
+        const numero = Number(params.get("numero") || "0");
+        return <InventarioItensPage onNavigate={onNavigate} inventarioId={invId} numeroInventario={numero} />;
+      }
       const label = path.split("/").pop()?.replace(/-/g, " ") ?? path;
       return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fade-in">
