@@ -121,7 +121,7 @@ export function InventarioListPage({ onNavigate }: Props) {
             {inventarios.map((inv) => (
               <button
                 key={inv.id}
-                onClick={() => setSelectedId(inv.id === selectedId ? null : inv.id)}
+                onClick={() => setSelectedId(inv.id)}
                 className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left shrink-0 ${
                   selectedId === inv.id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
