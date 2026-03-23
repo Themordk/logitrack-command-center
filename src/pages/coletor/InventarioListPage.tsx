@@ -73,7 +73,7 @@ export function InventarioListPage({ onNavigate }: Props) {
 
       const tarefas = Array.isArray(result) ? result : [];
 
-      sessionStorage.setItem("coletor_inventario_id", selectedId);
+      sessionStorage.setItem("coletor_inventario_id", invId);
       sessionStorage.setItem("coletor_inventario_numero", String(inv.numero_inventario));
       sessionStorage.setItem("coletor_inventario_tarefas", JSON.stringify(tarefas));
       sessionStorage.setItem("coletor_inventario_tarefa_idx", "0");
