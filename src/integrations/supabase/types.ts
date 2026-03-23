@@ -2559,6 +2559,7 @@ export type Database = {
         Row: {
           armazem_id: string | null
           concluido_em: string | null
+          contagem_inventario: number | null
           criado_em: string
           empresa_id: string
           id: string
@@ -2574,6 +2575,7 @@ export type Database = {
           quantidade_executada: number
           quantidade_executada2: number | null
           quantidade_executada3: number | null
+          quantidade_executada4: number | null
           quantidade_requerida: number | null
           status: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
@@ -2584,6 +2586,7 @@ export type Database = {
         Insert: {
           armazem_id?: string | null
           concluido_em?: string | null
+          contagem_inventario?: number | null
           criado_em?: string
           empresa_id: string
           id?: string
@@ -2599,6 +2602,7 @@ export type Database = {
           quantidade_executada?: number
           quantidade_executada2?: number | null
           quantidade_executada3?: number | null
+          quantidade_executada4?: number | null
           quantidade_requerida?: number | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
@@ -2609,6 +2613,7 @@ export type Database = {
         Update: {
           armazem_id?: string | null
           concluido_em?: string | null
+          contagem_inventario?: number | null
           criado_em?: string
           empresa_id?: string
           id?: string
@@ -2624,6 +2629,7 @@ export type Database = {
           quantidade_executada?: number
           quantidade_executada2?: number | null
           quantidade_executada3?: number | null
+          quantidade_executada4?: number | null
           quantidade_requerida?: number | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id?: string
@@ -2745,6 +2751,13 @@ export type Database = {
             foreignKeyName: "fk_tarefa_atribuicao_tarefa"
             columns: ["tarefa_id"]
             isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_tarefa_atribuicao_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
             referencedRelation: "tarefa"
             referencedColumns: ["id"]
           },
@@ -2819,6 +2832,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_evento_execucao_tarefa_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -2909,6 +2929,13 @@ export type Database = {
           validade?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
             columns: ["tarefa_id"]
@@ -3025,6 +3052,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tarefa_performance_tarefa"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_tarefa_performance_tarefa"
             columns: ["tarefa_id"]
@@ -3662,6 +3696,25 @@ export type Database = {
       }
     }
     Views: {
+      inventario_item_resumo: {
+        Row: {
+          apto: number | null
+          descricao: string | null
+          divergência: number | null
+          id: string | null
+          nivel: number | null
+          predio: number | null
+          primeira_contagem: number | null
+          quantidade_requerida: number | null
+          referencia: string | null
+          rua: number | null
+          saldo_final: number | null
+          segunda_contagem: number | null
+          sku: string | null
+          status: Database["public"]["Enums"]["enum_status_tarefa"] | null
+        }
+        Relationships: []
+      }
       v_inventario_iniciar: {
         Row: {
           id: string | null
@@ -4060,6 +4113,7 @@ export type Database = {
       }
       fn_inventario_buscar_tarefas: {
         Args: {
+          p_contagem_inventario: number
           p_empresa_id: string
           p_inventario_id: string
           p_tenant_id: string
