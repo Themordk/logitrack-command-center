@@ -3530,7 +3530,8 @@ export type Database = {
         Row: {
           codigo_volume: string
           created_at: string
-          empresa_id: string | null
+          documento_saida_id: string | null
+          empresa_id: string
           id: string
           m3: number | null
           movimento_saida_id: string
@@ -3541,7 +3542,8 @@ export type Database = {
         Insert: {
           codigo_volume: string
           created_at?: string
-          empresa_id?: string | null
+          documento_saida_id?: string | null
+          empresa_id: string
           id?: string
           m3?: number | null
           movimento_saida_id: string
@@ -3552,7 +3554,8 @@ export type Database = {
         Update: {
           codigo_volume?: string
           created_at?: string
-          empresa_id?: string | null
+          documento_saida_id?: string | null
+          empresa_id?: string
           id?: string
           m3?: number | null
           movimento_saida_id?: string
@@ -3561,6 +3564,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "volume_expedicao_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "volume_expedicao_empresa_id_fkey"
             columns: ["empresa_id"]
