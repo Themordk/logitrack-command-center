@@ -223,7 +223,7 @@ export function InventarioPage({ onNavigate }: Props) {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1">
-                              <button className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Visualizar">
+                              <button onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Visualizar">
                                 <Eye size={13} />
                               </button>
                               {(inv.status === "CRIADO" || inv.status === "EM_EXECUCAO") && (
