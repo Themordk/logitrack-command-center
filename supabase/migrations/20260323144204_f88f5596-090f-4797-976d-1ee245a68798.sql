@@ -1,0 +1,1 @@
+UPDATE public.usuario SET email = 'coreslogistica@gmail.com' WHERE email = 'coreslogistia@gmail.com';
