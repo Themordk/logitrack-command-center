@@ -4070,6 +4070,7 @@ export type Database = {
           descricao: string
           fator_caixa: number
           id: string
+          id_local_origem: string
           ordem_tarefa: number
           quantidade_requerida: number
           sku: string
