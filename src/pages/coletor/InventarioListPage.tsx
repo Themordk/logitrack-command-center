@@ -175,8 +175,8 @@ export function InventarioListPage({ onNavigate }: Props) {
             <ActionButton onClick={() => setShowContagemPopup(false)} variant="secondary">Cancelar</ActionButton>
           </div>
         </div>
-      )
-      </div>
+      )}
+
 
       {resultDialog && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
