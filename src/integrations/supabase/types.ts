@@ -3702,6 +3702,7 @@ export type Database = {
           descricao: string | null
           divergência: number | null
           id: string | null
+          inventario_id: string | null
           nivel: number | null
           predio: number | null
           primeira_contagem: number | null
