@@ -205,8 +205,8 @@ function ProdutoDetailModal({
     } catch (err: any) { toast.error(err.message); } finally { setPickSaving(false); }
   };
   const deletePick = async (id: string) => {
-    const { error } = await (supabase as any).from("picking_produto").update({ ativo: false }).eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Removido!"); loadPickings(); }
+    const { error } = await (supabase as any).from("picking_produto").delete().eq("id", id);
+    if (error) toast.error(error.message); else { toast.success("Picking removido!"); loadPickings(); }
   };
 
   const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30";

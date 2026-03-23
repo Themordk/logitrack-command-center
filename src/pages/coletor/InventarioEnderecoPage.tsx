@@ -129,6 +129,16 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
     }
   };
 
+  if (loadingEnderecos) {
+    return (
+      <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario">
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" />
+        </div>
+      </ColetorLayout>
+    );
+  }
+
   if (!tarefa) {
     return (
       <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario">
