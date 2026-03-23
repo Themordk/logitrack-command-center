@@ -33,15 +33,16 @@ export function UsuariosPage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "id", label: "ID (UUID do auth.users)", type: "text", required: true, placeholder: "UUID do usuário auth" },
     { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
     { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions },
     { name: "turno_id", label: "Turno", type: "select", required: true, options: turnoOptions },
     { name: "nome", label: "Nome", type: "text", required: true, placeholder: "Nome completo" },
     { name: "login", label: "Login", type: "text", required: true, placeholder: "Login do usuário" },
-    { name: "email", label: "Email", type: "text", placeholder: "email@empresa.com" },
+    { name: "email", label: "Email", type: "text", required: true, placeholder: "email@empresa.com" },
+    { name: "senha", label: "Senha", type: "text", placeholder: "Senha de acesso (mín. 6 caracteres)" },
     { name: "habilidade", label: "Habilidade", type: "enum", enumValues: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"] },
     { name: "tipo_operacao", label: "Tipo de Operação", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "MOVIMENTOS", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "AUDITORIA"] },
+    { name: "tipo_usuario", label: "Tipo Usuário", type: "enum", enumValues: ["ADMIN", "OPERADOR", "SUPERVISOR"] },
     { name: "cod_erp", label: "Código ERP", type: "text", placeholder: "Opcional" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
