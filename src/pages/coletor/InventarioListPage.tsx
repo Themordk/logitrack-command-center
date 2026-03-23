@@ -149,7 +149,7 @@ export function InventarioListPage({ onNavigate }: Props) {
         )}
 
         <div className="shrink-0 pt-1">
-          <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
+          <ActionButton onClick={handleIniciar} disabled={selectedIdx === null} loading={starting}>
             Início de Contagem
           </ActionButton>
         </div>
