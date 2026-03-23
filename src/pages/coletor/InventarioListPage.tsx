@@ -44,10 +44,9 @@ export function InventarioListPage({ onNavigate }: Props) {
   };
 
   const handleIniciar = async () => {
-    if (selectedIdx === null || !tenantId || !empresaId || !usuarioId) return;
-    const inv = inventarios[selectedIdx];
+    if (!selectedId || !tenantId || !empresaId || !usuarioId) return;
+    const inv = inventarios.find(i => i.id === selectedId);
     if (!inv) return;
-    const invId = inv.id || inv.inventario_id || "";
 
     setStarting(true);
     try {
