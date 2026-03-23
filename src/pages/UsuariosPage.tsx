@@ -73,14 +73,29 @@ export function UsuariosPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editItem ? "Editar Usuário" : "Novo Usuário"}
-        fields={editItem ? fields.map(f => f.name === "id" ? { ...f, hidden: true } : f) : fields}
+        fields={editItem ? fields.filter(f => f.name !== "senha") : fields}
         initialData={editItem}
         onSave={async (data) => {
           if (editItem) {
-            const { id, ...rest } = data;
+            const { senha, ...rest } = data;
             return crud.update(editItem.id, rest);
           }
-          return crud.create(data);
+          // New user: call edge function to create auth + usuario
+          const { senha, ...userData } = data;
+          const { data: result, error } = await supabase.functions.invoke("create-usuario", {
+            body: {
+              ...userData,
+              senha: senha || undefined,
+              tenant_id: tenantId,
+            },
+          });
+          if (error || !result?.success) {
+            toast.error(result?.error || error?.message || "Erro ao criar usuário");
+            return false;
+          }
+          toast.success("Usuário criado com sucesso!");
+          crud.refresh();
+          return true;
         }}
       />
       <DeleteConfirmDialog
