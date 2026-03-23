@@ -8,15 +8,19 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 interface Props { onNavigate: (path: string) => void; }
 
 export function ColetorLoginPage({ onNavigate }: Props) {
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+    if (!login.trim() || !password.trim()) return;
     setLoading(true);
     try {
+      // Look up email by login
+      const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: login.trim() });
+      if (lookupError || !email) throw new Error("Usuário não encontrado.");
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
 
@@ -38,14 +42,12 @@ export function ColetorLoginPage({ onNavigate }: Props) {
         throw new Error("Usuário inativo.");
       }
 
-      // Store context
       localStorage.setItem("core_tenant_id", usuario.tenant_id);
       localStorage.setItem("core_empresa_id", usuario.empresa_id);
       localStorage.setItem("core_armazem_id", usuario.armazem_id);
       localStorage.setItem("core_usuario_id", usuario.id);
       localStorage.setItem("core_usuario_nome", usuario.nome);
 
-      // Create session log
       const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
         tenant_id: usuario.tenant_id,
         usuario_id: usuario.id,
@@ -77,12 +79,12 @@ export function ColetorLoginPage({ onNavigate }: Props) {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-[hsl(213,31%,65%)] mb-1.5 uppercase">E-mail</label>
+            <label className="block text-sm font-semibold text-[hsl(213,31%,65%)] mb-1.5 uppercase">Login</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
+              type="text"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              placeholder="Seu login"
               className="w-full h-14 px-4 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)] transition-colors"
               required
             />
@@ -98,7 +100,7 @@ export function ColetorLoginPage({ onNavigate }: Props) {
               required
             />
           </div>
-          <ActionButton type="submit" loading={loading} disabled={!email.trim() || !password.trim()}>
+          <ActionButton type="submit" loading={loading} disabled={!login.trim() || !password.trim()}>
             Entrar
           </ActionButton>
         </form>
