@@ -155,10 +155,27 @@ export function InventarioListPage({ onNavigate }: Props) {
         )}
 
         <div className="shrink-0 pt-1">
-          <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
+          <ActionButton onClick={handleIniciarClick} disabled={!selectedId} loading={starting}>
             Início de Contagem
           </ActionButton>
         </div>
+      </div>
+
+      {/* Contagem selection popup */}
+      {showContagemPopup && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-white text-center">Selecione a Contagem</h3>
+            <p className="text-xs text-[hsl(213,31%,55%)] text-center">Escolha qual contagem será realizada</p>
+            <div className="flex flex-col gap-2">
+              <ActionButton onClick={() => handleSelectContagem(1)} variant="primary">1ª Contagem</ActionButton>
+              <ActionButton onClick={() => handleSelectContagem(2)} variant="secondary">2ª Contagem</ActionButton>
+              <ActionButton onClick={() => handleSelectContagem(3)} variant="secondary">Divergência</ActionButton>
+            </div>
+            <ActionButton onClick={() => setShowContagemPopup(false)} variant="secondary">Cancelar</ActionButton>
+          </div>
+        </div>
+      )
       </div>
 
       {resultDialog && (
