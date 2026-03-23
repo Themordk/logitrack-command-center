@@ -118,12 +118,12 @@ export function InventarioListPage({ onNavigate }: Props) {
           </div>
         ) : (
           <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
-            {inventarios.map((inv, idx) => (
+            {inventarios.map((inv) => (
               <button
-                key={inv.id || inv.inventario_id || idx}
-                onClick={() => setSelectedIdx(idx)}
+                key={inv.id}
+                onClick={() => setSelectedId(inv.id)}
                 className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left shrink-0 ${
-                  selectedIdx === idx
+                  selectedId === inv.id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
