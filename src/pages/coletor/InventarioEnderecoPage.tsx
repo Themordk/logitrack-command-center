@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, ListOrdered, XCircle } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, ListOrdered, XCircle, Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
 interface Tarefa {
-  tarefa_id: string;
+  id: string;
   endereco?: string;
   endereco_id?: string;
   setor?: string;
@@ -18,6 +19,7 @@ interface Tarefa {
   produto?: string;
   descricao?: string;
   referencia?: string;
+  id_local_origem?: string;
   [key: string]: any;
 }
 
@@ -28,18 +30,56 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
   const [showOptions, setShowOptions] = useState(false);
   const [showEnderecoList, setShowEnderecoList] = useState(false);
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
+  const [loadingEnderecos, setLoadingEnderecos] = useState(true);
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("coletor_inventario_tarefas");
-    const idx = Number(sessionStorage.getItem("coletor_inventario_tarefa_idx") || "0");
-    if (raw) {
+    const loadTarefas = async () => {
+      const raw = sessionStorage.getItem("coletor_inventario_tarefas");
+      const idx = Number(sessionStorage.getItem("coletor_inventario_tarefa_idx") || "0");
+      if (!raw) { setLoadingEnderecos(false); return; }
+
       const parsed = JSON.parse(raw) as Tarefa[];
       parsed.sort((a, b) => (a.ordem_tarefa || 0) - (b.ordem_tarefa || 0));
-      setTarefas(parsed);
+
+      // Resolve endereco details from id_local_origem
+      const enderecoIds = [...new Set(parsed.map(t => t.id_local_origem).filter(Boolean))];
+      let enderecoMap: Record<string, { descricao: string; armazem: string; setor: string }> = {};
+
+      if (enderecoIds.length > 0) {
+        const { data: enderecos } = await (supabase as any)
+          .from("endereco")
+          .select("id, descricao, armazem:armazem_id(descricao), setor:setor_id(descricao)")
+          .in("id", enderecoIds);
+
+        (enderecos || []).forEach((e: any) => {
+          enderecoMap[e.id] = {
+            descricao: e.descricao || "—",
+            armazem: e.armazem?.descricao || "—",
+            setor: e.setor?.descricao || "—",
+          };
+        });
+      }
+
+      const enriched = parsed.map(t => {
+        const info = t.id_local_origem ? enderecoMap[t.id_local_origem] : null;
+        return {
+          ...t,
+          endereco: info?.descricao || t.endereco || "—",
+          armazem: info?.armazem || t.armazem || "—",
+          setor: info?.setor || t.setor || "—",
+          endereco_id: t.id_local_origem || t.endereco_id,
+        };
+      });
+
+      setTarefas(enriched);
       setCurrentIdx(idx);
-    }
+      // Update sessionStorage with enriched data
+      sessionStorage.setItem("coletor_inventario_tarefas", JSON.stringify(enriched));
+      setLoadingEnderecos(false);
+    };
+    loadTarefas();
   }, []);
 
   const tarefa = tarefas[currentIdx];
@@ -88,6 +128,16 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       sessionStorage.setItem("coletor_inventario_tarefa_idx", String(toIdx));
     }
   };
+
+  if (loadingEnderecos) {
+    return (
+      <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario">
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" />
+        </div>
+      </ColetorLayout>
+    );
+  }
 
   if (!tarefa) {
     return (

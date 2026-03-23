@@ -510,6 +510,8 @@ export function MovimentoSaidaPage() {
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Separada</th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Cortada</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
                       <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-10">Opções</th>
                     </tr>
                   </thead>
@@ -519,8 +521,19 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
                         <td className="px-3 py-2 text-xs text-foreground">{item.descricao}</td>
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.qtd_esperada)}</td>
-                        <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_separada)}</td>
-                        <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_conferida)}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_separada || 0)}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_conferida || 0)}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_cortada || 0)}</td>
+                        <td className="px-3 py-2 text-xs">
+                          {item.status ? (
+                            <span className={cn("text-[10px] px-2 py-0.5 rounded-full border",
+                              item.status === "CONCLUIDA" || item.status === "FINALIZADA" ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                              item.status === "PENDENTE" ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" :
+                              item.status === "EM_SEPARACAO" || item.status === "EM_CONFERENCIA" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" :
+                              "bg-gray-500/15 text-gray-400 border-gray-500/30"
+                            )}>{item.status}</span>
+                          ) : "—"}
+                        </td>
                         <td className="px-3 py-2 text-center relative">
                           <button
                             onClick={() => setItemActionMenuId(itemActionMenuId === (item.movimento_item_id || i) ? null : (item.movimento_item_id || i))}
@@ -548,7 +561,7 @@ export function MovimentoSaidaPage() {
                       </tr>
                     ))}
                     {tabItens.length === 0 && (
-                      <tr><td colSpan={5} className="text-center py-8 text-xs text-muted-foreground">Sem itens</td></tr>
+                      <tr><td colSpan={8} className="text-center py-8 text-xs text-muted-foreground">Sem itens</td></tr>
                     )}
                   </tbody>
                 </table>
