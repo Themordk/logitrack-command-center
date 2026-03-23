@@ -20,7 +20,7 @@ interface InventarioResumo {
 export function InventarioListPage({ onNavigate }: Props) {
   const [inventarios, setInventarios] = useState<InventarioResumo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
 
