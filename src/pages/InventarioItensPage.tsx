@@ -62,7 +62,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
       let query = (supabase as any)
         .from("inventario_item_resumo")
         .select("*", { count: "exact" })
-        .eq("id", inventarioId)
+        .eq("inventario_id", inventarioId)
         .range(from, to);
 
       if (fSku) query = query.ilike("sku", `%${fSku}%`);
