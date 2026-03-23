@@ -50,7 +50,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       if (enderecoIds.length > 0) {
         const { data: enderecos } = await (supabase as any)
           .from("endereco")
-          .select("id, descricao, armazem:armazem_id(descricao), setor:setor_id(descricao)")
+          .select("id, descricao, armazem:armazem(descricao), setor:setor(descricao)")
           .in("id", enderecoIds);
 
         (enderecos || []).forEach((e: any) => {
