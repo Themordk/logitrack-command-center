@@ -9,22 +9,25 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+    if (!login.trim() || !password.trim()) return;
     setLoading(true);
     try {
+      // Look up email by login
+      const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: login.trim() });
+      if (lookupError || !email) throw new Error("Usuário não encontrado.");
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
 
       const userId = authData.user?.id;
       if (!userId) throw new Error("Usuário não encontrado.");
 
-      // Validate usuario record
       const { data: usuario, error: userError } = await (supabase as any)
         .from("usuario")
         .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario")
@@ -41,7 +44,6 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
         throw new Error("Usuário inativo. Contate o administrador.");
       }
 
-      // Store user context
       localStorage.setItem("core_tenant_id", usuario.tenant_id);
       localStorage.setItem("core_empresa_id", usuario.empresa_id);
       localStorage.setItem("core_armazem_id", usuario.armazem_id);
@@ -75,12 +77,12 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">E-mail</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Login</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
+              type="text"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              placeholder="Seu login"
               className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary transition-colors"
               required
             />
@@ -98,7 +100,7 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
           </div>
           <button
             type="submit"
-            disabled={loading || !email.trim() || !password.trim()}
+            disabled={loading || !login.trim() || !password.trim()}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {loading ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}

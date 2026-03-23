@@ -4040,6 +4040,7 @@ export type Database = {
         Args: { p_movimento_entrada_id: string; p_usuario: string }
         Returns: string
       }
+      fn_buscar_email_por_login: { Args: { p_login: string }; Returns: string }
       fn_conferencia_buscar_produto_por_barcode: {
         Args: {
           p_codigo_barras: string
