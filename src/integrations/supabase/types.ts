@@ -3342,6 +3342,7 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          auth_user_id: string | null
           cod_erp: string | null
           created_at: string
           email: string | null
@@ -3358,12 +3359,13 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          auth_user_id?: string | null
           cod_erp?: string | null
           created_at?: string
           email?: string | null
           empresa_id: string
           habilidade?: Database["public"]["Enums"]["enum_habilidade"]
-          id: string
+          id?: string
           login: string
           nome: string
           tenant_id: string
@@ -3374,6 +3376,7 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          auth_user_id?: string | null
           cod_erp?: string | null
           created_at?: string
           email?: string | null

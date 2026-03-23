@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { toast } from "sonner";
 import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
@@ -33,15 +35,16 @@ export function UsuariosPage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "id", label: "ID (UUID do auth.users)", type: "text", required: true, placeholder: "UUID do usuário auth" },
     { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
     { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions },
     { name: "turno_id", label: "Turno", type: "select", required: true, options: turnoOptions },
     { name: "nome", label: "Nome", type: "text", required: true, placeholder: "Nome completo" },
     { name: "login", label: "Login", type: "text", required: true, placeholder: "Login do usuário" },
-    { name: "email", label: "Email", type: "text", placeholder: "email@empresa.com" },
+    { name: "email", label: "Email", type: "text", required: true, placeholder: "email@empresa.com" },
+    { name: "senha", label: "Senha", type: "text", placeholder: "Senha de acesso (mín. 6 caracteres)" },
     { name: "habilidade", label: "Habilidade", type: "enum", enumValues: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"] },
     { name: "tipo_operacao", label: "Tipo de Operação", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "MOVIMENTOS", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "AUDITORIA"] },
+    { name: "tipo_usuario", label: "Tipo Usuário", type: "enum", enumValues: ["ADMIN", "OPERADOR", "SUPERVISOR"] },
     { name: "cod_erp", label: "Código ERP", type: "text", placeholder: "Opcional" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
@@ -70,14 +73,29 @@ export function UsuariosPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editItem ? "Editar Usuário" : "Novo Usuário"}
-        fields={editItem ? fields.map(f => f.name === "id" ? { ...f, hidden: true } : f) : fields}
+        fields={editItem ? fields.filter(f => f.name !== "senha") : fields}
         initialData={editItem}
         onSave={async (data) => {
           if (editItem) {
-            const { id, ...rest } = data;
+            const { senha, ...rest } = data;
             return crud.update(editItem.id, rest);
           }
-          return crud.create(data);
+          // New user: call edge function to create auth + usuario
+          const { senha, ...userData } = data;
+          const { data: result, error } = await supabase.functions.invoke("create-usuario", {
+            body: {
+              ...userData,
+              senha: senha || undefined,
+              tenant_id: tenantId,
+            },
+          });
+          if (error || !result?.success) {
+            toast.error(result?.error || error?.message || "Erro ao criar usuário");
+            return false;
+          }
+          toast.success("Usuário criado com sucesso!");
+          crud.refresh();
+          return true;
         }}
       />
       <DeleteConfirmDialog
