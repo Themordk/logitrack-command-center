@@ -54,7 +54,7 @@ export function InventarioListPage({ onNavigate }: Props) {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_usuario_id: usuarioId,
-        p_inventario_id: invId,
+        p_inventario_id: selectedId,
       });
       if (error) throw error;
 
