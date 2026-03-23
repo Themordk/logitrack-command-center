@@ -8,17 +8,19 @@ import { toast } from "sonner";
 interface Props { onNavigate: (path: string) => void; }
 
 interface InventarioResumo {
-  id: string;
+  id?: string;
+  inventario_id?: string;
   numero_inventario: number;
   tipo_inventario: string;
   origem: string;
   status: string;
+  [key: string]: any;
 }
 
 export function InventarioListPage({ onNavigate }: Props) {
   const [inventarios, setInventarios] = useState<InventarioResumo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
 
@@ -44,9 +46,10 @@ export function InventarioListPage({ onNavigate }: Props) {
   };
 
   const handleIniciar = async () => {
-    if (!selectedId || !tenantId || !empresaId || !usuarioId) return;
-    const inv = inventarios.find(i => i.id === selectedId);
+    if (selectedIdx === null || !tenantId || !empresaId || !usuarioId) return;
+    const inv = inventarios[selectedIdx];
     if (!inv) return;
+    const invId = inv.id || inv.inventario_id || "";
 
     setStarting(true);
     try {
@@ -54,7 +57,7 @@ export function InventarioListPage({ onNavigate }: Props) {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_usuario_id: usuarioId,
-        p_inventario_id: selectedId,
+        p_inventario_id: invId,
       });
       if (error) throw error;
 
@@ -70,7 +73,7 @@ export function InventarioListPage({ onNavigate }: Props) {
 
       const tarefas = Array.isArray(result) ? result : [];
 
-      sessionStorage.setItem("coletor_inventario_id", selectedId);
+      sessionStorage.setItem("coletor_inventario_id", invId);
       sessionStorage.setItem("coletor_inventario_numero", String(inv.numero_inventario));
       sessionStorage.setItem("coletor_inventario_tarefas", JSON.stringify(tarefas));
       sessionStorage.setItem("coletor_inventario_tarefa_idx", "0");
@@ -118,12 +121,12 @@ export function InventarioListPage({ onNavigate }: Props) {
           </div>
         ) : (
           <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
-            {inventarios.map((inv) => (
+            {inventarios.map((inv, idx) => (
               <button
-                key={inv.id}
-                onClick={() => setSelectedId(inv.id)}
+                key={inv.id || inv.inventario_id || idx}
+                onClick={() => setSelectedIdx(idx)}
                 className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left shrink-0 ${
-                  selectedId === inv.id
+                  selectedIdx === idx
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
@@ -146,7 +149,7 @@ export function InventarioListPage({ onNavigate }: Props) {
         )}
 
         <div className="shrink-0 pt-1">
-          <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
+          <ActionButton onClick={handleIniciar} disabled={selectedIdx === null} loading={starting}>
             Início de Contagem
           </ActionButton>
         </div>
