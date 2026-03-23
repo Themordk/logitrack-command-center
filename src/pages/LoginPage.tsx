@@ -28,7 +28,7 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
       const { data: usuario, error: userError } = await (supabase as any)
         .from("usuario")
         .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario")
-        .eq("id", userId)
+        .eq("auth_user_id", userId)
         .single();
 
       if (userError || !usuario) {
