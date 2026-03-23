@@ -8,13 +8,11 @@ import { toast } from "sonner";
 interface Props { onNavigate: (path: string) => void; }
 
 interface InventarioResumo {
-  id?: string;
-  inventario_id?: string;
+  id: string;
   numero_inventario: number;
   tipo_inventario: string;
   origem: string;
   status: string;
-  [key: string]: any;
 }
 
 export function InventarioListPage({ onNavigate }: Props) {

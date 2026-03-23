@@ -3664,6 +3664,7 @@ export type Database = {
     Views: {
       v_inventario_iniciar: {
         Row: {
+          id: string | null
           numero_inventario: number | null
           origem: Database["public"]["Enums"]["enum_origem_inventario"] | null
           status: Database["public"]["Enums"]["enum_status_inventario"] | null
@@ -3672,6 +3673,7 @@ export type Database = {
             | null
         }
         Insert: {
+          id?: string | null
           numero_inventario?: number | null
           origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
           status?: Database["public"]["Enums"]["enum_status_inventario"] | null
@@ -3680,6 +3682,7 @@ export type Database = {
             | null
         }
         Update: {
+          id?: string | null
           numero_inventario?: number | null
           origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
           status?: Database["public"]["Enums"]["enum_status_inventario"] | null
