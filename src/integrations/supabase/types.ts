@@ -3910,9 +3910,11 @@ export type Database = {
           movimento_item_id: string | null
           produto_id: string | null
           qtd_conferida: number | null
+          qtd_cortada: number | null
           qtd_esperada: number | null
           qtd_separada: number | null
           sku: string | null
+          status: Database["public"]["Enums"]["enum_status_item_onda"] | null
         }
         Relationships: [
           {
@@ -4375,6 +4377,7 @@ export type Database = {
         | "ENDERECO"
         | "PRODUTO"
         | "ZONA"
+        | "GRUPO_PRODUTO"
       enum_tipo_operacao:
         | "RECEBIMENTO"
         | "ARMAZENAGEM"
@@ -4668,6 +4671,7 @@ export const Constants = {
         "ENDERECO",
         "PRODUTO",
         "ZONA",
+        "GRUPO_PRODUTO",
       ],
       enum_tipo_operacao: [
         "RECEBIMENTO",
