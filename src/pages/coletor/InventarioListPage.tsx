@@ -43,7 +43,15 @@ export function InventarioListPage({ onNavigate }: Props) {
     }
   };
 
-  const handleIniciar = async () => {
+  const [showContagemPopup, setShowContagemPopup] = useState(false);
+
+  const handleIniciarClick = () => {
+    if (!selectedId) return;
+    setShowContagemPopup(true);
+  };
+
+  const handleSelectContagem = async (contagem: number) => {
+    setShowContagemPopup(false);
     if (!selectedId || !tenantId || !empresaId || !usuarioId) return;
     const inv = inventarios.find(i => i.id === selectedId);
     if (!inv) return;
@@ -55,6 +63,7 @@ export function InventarioListPage({ onNavigate }: Props) {
         p_empresa_id: empresaId,
         p_usuario_id: usuarioId,
         p_inventario_id: selectedId,
+        p_contagem_inventario: contagem,
       });
       if (error) throw error;
 

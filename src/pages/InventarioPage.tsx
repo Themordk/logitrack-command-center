@@ -199,7 +199,7 @@ export function InventarioPage({ onNavigate }: Props) {
                     inventarios.map((inv, idx) => {
                       const statusInfo = STATUS_MAP[inv.status] || { label: inv.status, class: "" };
                       return (
-                        <tr key={inv.id} className={cn("border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer", idx % 2 !== 0 && "bg-secondary/10")}>
+                        <tr key={inv.id} onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)} className={cn("border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer", idx % 2 !== 0 && "bg-secondary/10")}>
                           <td className="px-4 py-3">
                             <span className="font-mono text-sm font-semibold text-primary">#{inv.numero_inventario}</span>
                           </td>
