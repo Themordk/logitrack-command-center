@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
+import { UpdatePrompt } from "./components/pwa/UpdatePrompt";
 import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
