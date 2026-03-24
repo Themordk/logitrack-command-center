@@ -27,6 +27,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [lastScanned, setLastScanned] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showEnderecoList, setShowEnderecoList] = useState(false);
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
@@ -96,24 +97,38 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
 
   const tarefa = tarefas[currentIdx];
 
-  const handleScan = (code: string) => {
+  const handleScan = async (code: string) => {
     if (!tarefa) return;
     setLastScanned(code);
+    setLoading(true);
 
-    // Validate scanned code against expected address
-    const expectedDesc = (tarefa.endereco || "").toUpperCase().trim();
-    const scannedCode = code.toUpperCase().trim();
+    try {
+      // Query endereco table to find the scanned address
+      const { data: enderecos } = await (supabase as any)
+        .from("endereco")
+        .select("id, descricao, codigo_endereco")
+        .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
+        .limit(1);
 
-    if (scannedCode !== expectedDesc) {
-      setErrorDialog("Endereço incorreto! Escaneie o endereço informado.");
-      return;
+      const found = enderecos?.[0];
+      const expectedId = tarefa.endereco_id || tarefa.id_local_origem;
+
+      if (!found || found.id !== expectedId) {
+        setErrorDialog("Endereço incorreto! Escaneie o endereço informado.");
+        setLoading(false);
+        return;
+      }
+
+      // Save current task and navigate to product screen
+      sessionStorage.setItem("coletor_inventario_tarefa_idx", String(currentIdx));
+      sessionStorage.setItem("coletor_inventario_tarefa_atual", JSON.stringify(tarefa));
+      toast.success("Endereço confirmado!");
+      onNavigate("/coletor/inventario/produto");
+    } catch {
+      setErrorDialog("Erro ao validar endereço.");
+    } finally {
+      setLoading(false);
     }
-
-    // Save current task and navigate to product screen
-    sessionStorage.setItem("coletor_inventario_tarefa_idx", String(currentIdx));
-    sessionStorage.setItem("coletor_inventario_tarefa_atual", JSON.stringify(tarefa));
-    toast.success("Endereço confirmado!");
-    onNavigate("/coletor/inventario/produto");
   };
 
   const handlePular = () => {
