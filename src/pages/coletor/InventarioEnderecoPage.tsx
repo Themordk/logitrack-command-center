@@ -27,6 +27,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [lastScanned, setLastScanned] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showEnderecoList, setShowEnderecoList] = useState(false);
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
