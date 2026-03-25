@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, Play, CheckCircle } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, Play, Pause, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   CRIADO: { label: "Criado", class: "bg-muted text-muted-foreground border-border" },
+  EM_CONTAGEM: { label: "Em Contagem", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
   EM_EXECUCAO: { label: "Em Execução", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  EM_ANALISE: { label: "Em Análise", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   EM_REVISAO: { label: "Em Revisão", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   FINALIZADO: { label: "Finalizado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
   CANCELADO: { label: "Cancelado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -43,6 +45,7 @@ export function InventarioPage({ onNavigate }: Props) {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 20;
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Filters
   const [filterDateFrom, setFilterDateFrom] = useState("");
@@ -75,7 +78,6 @@ export function InventarioPage({ onNavigate }: Props) {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      // Enrich with criado_por name
       const enriched = await Promise.all(
         (data || []).map(async (inv: any) => {
           let criado_por_nome = "—";
@@ -105,6 +107,21 @@ export function InventarioPage({ onNavigate }: Props) {
   const handleSearch = () => {
     setPage(1);
     fetchInventarios();
+  };
+
+  const handleChangeStatus = async (invId: string, newStatus: string, label: string) => {
+    setOpenMenuId(null);
+    try {
+      const { error } = await (supabase as any)
+        .from("inventario")
+        .update({ status: newStatus })
+        .eq("id", invId);
+      if (error) throw error;
+      toast.success(`Inventário ${label} com sucesso!`);
+      fetchInventarios();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -199,12 +216,12 @@ export function InventarioPage({ onNavigate }: Props) {
                     inventarios.map((inv, idx) => {
                       const statusInfo = STATUS_MAP[inv.status] || { label: inv.status, class: "" };
                       return (
-                        <tr key={inv.id} onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)} className={cn("border-b border-border/50 hover:bg-secondary/30 transition-colors cursor-pointer", idx % 2 !== 0 && "bg-secondary/10")}>
-                          <td className="px-4 py-3">
+                        <tr key={inv.id} className={cn("border-b border-border/50 hover:bg-secondary/30 transition-colors", idx % 2 !== 0 && "bg-secondary/10")}>
+                          <td className="px-4 py-3 cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>
                             <span className="font-mono text-sm font-semibold text-primary">#{inv.numero_inventario}</span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{TIPO_MAP[inv.tipo_inventario] || inv.tipo_inventario}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">{inv.descricao || "—"}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{TIPO_MAP[inv.tipo_inventario] || inv.tipo_inventario}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{inv.descricao || "—"}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{fmtDate(inv.criado_em)}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{inv.criado_por_nome}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground text-right">{inv.total_itens ?? 0}</td>
@@ -222,19 +239,41 @@ export function InventarioPage({ onNavigate }: Props) {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-1 relative">
                               <button onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Visualizar">
                                 <Eye size={13} />
                               </button>
-                              {(inv.status === "CRIADO" || inv.status === "EM_EXECUCAO") && (
-                                <button className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-blue-400 transition-colors flex items-center justify-center" title="Executar">
-                                  <Play size={13} />
-                                </button>
-                              )}
-                              {inv.status === "EM_REVISAO" && (
-                                <button className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-green-400 transition-colors flex items-center justify-center" title="Finalizar">
-                                  <CheckCircle size={13} />
-                                </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === inv.id ? null : inv.id); }}
+                                className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                                title="Opções"
+                              >
+                                <MoreHorizontal size={13} />
+                              </button>
+                              {openMenuId === inv.id && (
+                                <>
+                                  <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
+                                  <div className="absolute right-0 top-8 z-30 w-48 bg-popover border border-border rounded-lg shadow-lg py-1">
+                                    <button
+                                      onClick={() => handleChangeStatus(inv.id, "EM_CONTAGEM", "liberado")}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2 text-foreground"
+                                    >
+                                      <Play size={12} className="text-blue-400" /> Liberar Inventário
+                                    </button>
+                                    <button
+                                      onClick={() => handleChangeStatus(inv.id, "EM_ANALISE", "pausado")}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2 text-foreground"
+                                    >
+                                      <Pause size={12} className="text-yellow-400" /> Pausar Inventário
+                                    </button>
+                                    <button
+                                      onClick={() => handleChangeStatus(inv.id, "FINALIZADO", "finalizado")}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2 text-foreground"
+                                    >
+                                      <CheckCircle size={12} className="text-green-400" /> Finalizar Inventário
+                                    </button>
+                                  </div>
+                                </>
                               )}
                             </div>
                           </td>
