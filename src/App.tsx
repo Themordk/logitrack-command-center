@@ -33,6 +33,7 @@ import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 import { InventarioPage } from "./pages/InventarioPage";
 import { InventarioItensPage } from "./pages/InventarioItensPage";
+import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 
 // Reports
@@ -148,6 +149,16 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage />;
     default: {
+      // Dynamic route: /atividades/inventario/:id/execucao
+      const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);
+      if (invExecMatch) {
+        const invId = invExecMatch[1];
+        const params = new URLSearchParams(path.split("?")[1] || "");
+        const numero = Number(params.get("numero") || "0");
+        const tarefaId = params.get("tarefa_id") || "";
+        const sku = decodeURIComponent(params.get("sku") || "");
+        return <InventarioExecucaoPage onNavigate={onNavigate} inventarioId={invId} numeroInventario={numero} tarefaId={tarefaId} sku={sku} />;
+      }
       // Dynamic route: /atividades/inventario/:id/itens
       const invItensMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/itens/);
       if (invItensMatch) {
