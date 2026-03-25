@@ -71,9 +71,9 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
   };
 
   const handleConfirmar = async () => {
-    if (!tarefa || !quantidade || !usuarioId) return;
+    if (!tarefa || quantidade === "" || !usuarioId) return;
     const qtd = Number(quantidade);
-    if (isNaN(qtd) || qtd <= 0) {
+    if (isNaN(qtd) || qtd < 0) {
       toast.error("Informe uma quantidade válida.");
       return;
     }

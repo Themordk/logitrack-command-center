@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -177,11 +177,12 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
                     <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Saldo Final</th>
                     <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Divergência</th>
                     <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itens.length === 0 ? (
-                    <tr><td colSpan={13} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum item encontrado.</td></tr>
+                    <tr><td colSpan={14} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum item encontrado.</td></tr>
                   ) : itens.map((item, idx) => {
                     const statusInfo = STATUS_COLOR[item.status || ""] || "";
                     return (
@@ -208,6 +209,17 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
                               {item.status}
                             </span>
                           )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-end">
+                            <button
+                              onClick={() => onNavigate(`/atividades/inventario/${inventarioId}/execucao?numero=${numeroInventario}&tarefa_id=${item.id}&sku=${encodeURIComponent(item.sku || "")}`)}
+                              className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                              title="Visualizar Execuções"
+                            >
+                              <Eye size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
