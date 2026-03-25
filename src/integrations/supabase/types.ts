@@ -4160,6 +4160,20 @@ export type Database = {
         }
         Returns: string
       }
+      fn_inventario_registrar_contagem: {
+        Args: {
+          p_contagem: number
+          p_endereco_origem_id?: string
+          p_fabricacao?: string
+          p_hu?: string
+          p_lote?: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_usuario: string
+          p_validade?: string
+        }
+        Returns: string
+      }
       fn_limpar_conferencia_entrada: {
         Args: {
           p_quantidade: number
@@ -4405,6 +4419,7 @@ export type Database = {
         | "CONCLUIDA"
         | "AUDITADA"
         | "CANCELADA"
+        | "DIVERGENTE"
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
@@ -4696,6 +4711,7 @@ export const Constants = {
         "CONCLUIDA",
         "AUDITADA",
         "CANCELADA",
+        "DIVERGENTE",
       ],
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],

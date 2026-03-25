@@ -83,15 +83,18 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
 
     setConfirming(true);
     try {
-      const { data, error } = await supabase.rpc("fn_inventario_finalizar_conferencia_endereco" as any, {
+      const contagem = Number(sessionStorage.getItem("coletor_inventario_contagem") || "1");
+
+      const { data, error } = await supabase.rpc("fn_inventario_registrar_contagem" as any, {
         p_tarefa_id: tarefa.tarefa_id || tarefa.id,
         p_usuario: usuarioId,
+        p_contagem: contagem,
         p_quantidade: qtdFinal,
-        p_lote: tarefa.lote || "",
-        p_validade: tarefa.validade || "1900-01-01",
-        p_fabricacao: tarefa.fabricacao || "1900-01-01",
-        p_hu: tarefa.hu_id || tarefa.id_hu || null,
         p_endereco_origem_id: tarefa.endereco_id || tarefa.id_local_origem || null,
+        p_lote: tarefa.lote || null,
+        p_validade: tarefa.validade || null,
+        p_fabricacao: tarefa.fabricacao || null,
+        p_hu: tarefa.hu_id || tarefa.id_hu || null,
       });
       if (error) throw error;
 
