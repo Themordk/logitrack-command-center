@@ -392,9 +392,20 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <label className={labelClass}>Data Planejada</label>
                   <input type="date" value={dataPlanejada} onChange={(e) => setDataPlanejada(e.target.value)} className={inputClass} />
                 </div>
-                <div className="col-span-2">
-                  <label className={labelClass}>Descrição</label>
-                  <input type="text" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descrição do inventário" className={inputClass} />
+                <div className="col-span-2 flex gap-4">
+                  <div className="flex-1">
+                    <label className={labelClass}>Descrição</label>
+                    <input type="text" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descrição do inventário" className={inputClass} />
+                  </div>
+                  <div className="w-52">
+                    <label className={labelClass}>Tipo de Execução *</label>
+                    <select value={tipoExecucao} onChange={(e) => setTipoExecucao(e.target.value)} className={inputClass}>
+                      <option value="">Selecione...</option>
+                      {tiposExecucaoOptions.map(t => (
+                        <option key={t.tipo_execucao} value={t.tipo_execucao}>{t.tipo_execucao}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="col-span-2 flex gap-8">
                   <Toggle checked={bloquearMov} onChange={setBloquearMov} label="Bloquear Movimentações" />
