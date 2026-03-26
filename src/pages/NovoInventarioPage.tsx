@@ -37,6 +37,8 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const [dataPlanejada, setDataPlanejada] = useState("");
   const [bloquearMov, setBloquearMov] = useState(true);
   const [permitirParalela, setPermitirParalela] = useState(false);
+  const [tipoExecucao, setTipoExecucao] = useState("");
+  const [tiposExecucaoOptions, setTiposExecucaoOptions] = useState<{ tipo_execucao: string }[]>([]);
 
   // GERAL scope
   const [incluirPicking, setIncluirPicking] = useState(true);
