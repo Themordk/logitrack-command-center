@@ -89,6 +89,17 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   const debounceRef = useRef<any>(null);
 
+  // --- Load tipo_execucao options from inventario_tipo_tarefa ---
+  useEffect(() => {
+    if (!tenantId) return;
+    (async () => {
+      const { data } = await (supabase as any).from("inventario_tipo_tarefa").select("tipo_execucao")
+        .eq("tenant_id", tenantId);
+      const unique = Array.from(new Set((data || []).map((d: any) => d.tipo_execucao))).map(t => ({ tipo_execucao: t as string }));
+      setTiposExecucaoOptions(unique);
+    })();
+  }, [tenantId]);
+
   // --- GERAL: estimate addresses ---
   useEffect(() => {
     if (tipo !== "GERAL" || !tenantId || !armazemId) return;
