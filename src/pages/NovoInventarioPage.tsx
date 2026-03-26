@@ -37,6 +37,8 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const [dataPlanejada, setDataPlanejada] = useState("");
   const [bloquearMov, setBloquearMov] = useState(true);
   const [permitirParalela, setPermitirParalela] = useState(false);
+  const [tipoExecucao, setTipoExecucao] = useState("");
+  const [tiposExecucaoOptions, setTiposExecucaoOptions] = useState<{ tipo_execucao: string }[]>([]);
 
   // GERAL scope
   const [incluirPicking, setIncluirPicking] = useState(true);
@@ -86,6 +88,17 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
 
   const debounceRef = useRef<any>(null);
+
+  // --- Load tipo_execucao options from inventario_tipo_tarefa ---
+  useEffect(() => {
+    if (!tenantId) return;
+    (async () => {
+      const { data } = await (supabase as any).from("inventario_tipo_tarefa").select("tipo_execucao")
+        .eq("tenant_id", tenantId);
+      const unique = Array.from(new Set((data || []).map((d: any) => d.tipo_execucao))).map(t => ({ tipo_execucao: t as string }));
+      setTiposExecucaoOptions(unique);
+    })();
+  }, [tenantId]);
 
   // --- GERAL: estimate addresses ---
   useEffect(() => {
@@ -262,20 +275,24 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   // --- SAVE ---
   const handleSave = async () => {
     if (!tipo) { toast.error("Selecione o tipo de inventário."); return; }
+    if (!tipoExecucao) { toast.error("Selecione o tipo de execução."); return; }
     if (!tenantId || !empresaId || !armazemId) { toast.error("Contexto não carregado."); return; }
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc("fn_inventario_criar" as any, {
+      const { data, error } = await supabase.rpc("fn_criar_inventario" as any, {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_armazem_id: armazemId,
         p_usuario_id: usuarioId,
+        p_descricao: descricao || null,
         p_tipo_inventario: tipo,
+        p_tipo_execucao: tipoExecucao,
         p_zona_atividade_id: (tipo === "ZONA" && selectedZonas.length === 1) ? selectedZonas[0] : null,
         p_endereco_id: (tipo === "ENDERECO" && selectedEnderecos.length === 1) ? selectedEnderecos[0].id : null,
         p_produto_id: (tipo === "PRODUTO" && selectedProdutos.length === 1) ? selectedProdutos[0].id : null,
         p_grupo_produto_id: (tipo === "PRODUTO" && filterGrupo) ? filterGrupo : null,
-        p_descricao: descricao || null,
+        p_chunk_size: 1000,
+        p_inventario_id: null,
       });
       if (error) throw error;
       toast.success("Inventário criado com sucesso!");
@@ -375,9 +392,20 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <label className={labelClass}>Data Planejada</label>
                   <input type="date" value={dataPlanejada} onChange={(e) => setDataPlanejada(e.target.value)} className={inputClass} />
                 </div>
-                <div className="col-span-2">
-                  <label className={labelClass}>Descrição</label>
-                  <input type="text" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descrição do inventário" className={inputClass} />
+                <div className="col-span-2 flex gap-4">
+                  <div className="flex-1">
+                    <label className={labelClass}>Descrição</label>
+                    <input type="text" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descrição do inventário" className={inputClass} />
+                  </div>
+                  <div className="w-52">
+                    <label className={labelClass}>Tipo de Execução *</label>
+                    <select value={tipoExecucao} onChange={(e) => setTipoExecucao(e.target.value)} className={inputClass}>
+                      <option value="">Selecione...</option>
+                      {tiposExecucaoOptions.map(t => (
+                        <option key={t.tipo_execucao} value={t.tipo_execucao}>{t.tipo_execucao}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="col-span-2 flex gap-8">
                   <Toggle checked={bloquearMov} onChange={setBloquearMov} label="Bloquear Movimentações" />
