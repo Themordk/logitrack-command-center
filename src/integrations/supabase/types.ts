@@ -1176,11 +1176,14 @@ export type Database = {
       inventario: {
         Row: {
           acuracidade: number | null
-          armazem_id: string
+          armazem_id: string | null
           bloquear_movimentacao: boolean | null
           considerar_saldo_atual: boolean | null
           criado_em: string | null
           criado_por: string | null
+          criterio_selecao:
+            | Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+            | null
           descricao: string | null
           empresa_id: string
           endereco_id: string | null
@@ -1204,11 +1207,14 @@ export type Database = {
         }
         Insert: {
           acuracidade?: number | null
-          armazem_id: string
+          armazem_id?: string | null
           bloquear_movimentacao?: boolean | null
           considerar_saldo_atual?: boolean | null
           criado_em?: string | null
           criado_por?: string | null
+          criterio_selecao?:
+            | Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+            | null
           descricao?: string | null
           empresa_id: string
           endereco_id?: string | null
@@ -1232,11 +1238,14 @@ export type Database = {
         }
         Update: {
           acuracidade?: number | null
-          armazem_id?: string
+          armazem_id?: string | null
           bloquear_movimentacao?: boolean | null
           considerar_saldo_atual?: boolean | null
           criado_em?: string | null
           criado_por?: string | null
+          criterio_selecao?:
+            | Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+            | null
           descricao?: string | null
           empresa_id?: string
           endereco_id?: string | null
@@ -4342,6 +4351,11 @@ export type Database = {
         | "TIPO_SEP_SKU"
         | "CAPACDADE_HU"
         | "QUANTIDADE_MAX_SKU"
+      enum_criterio_selecao_inventario:
+        | "CURVA_VENDAS"
+        | "CURVA_ACESSO"
+        | "CORTES"
+        | "ESTORNOS"
       enum_curva: "A" | "B" | "C" | "D"
       enum_disponibilidade_hu:
         | "DISPONIVEL"
@@ -4625,6 +4639,12 @@ export const Constants = {
         "TIPO_SEP_SKU",
         "CAPACDADE_HU",
         "QUANTIDADE_MAX_SKU",
+      ],
+      enum_criterio_selecao_inventario: [
+        "CURVA_VENDAS",
+        "CURVA_ACESSO",
+        "CORTES",
+        "ESTORNOS",
       ],
       enum_curva: ["A", "B", "C", "D"],
       enum_disponibilidade_hu: [
