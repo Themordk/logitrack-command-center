@@ -275,20 +275,24 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   // --- SAVE ---
   const handleSave = async () => {
     if (!tipo) { toast.error("Selecione o tipo de inventário."); return; }
+    if (!tipoExecucao) { toast.error("Selecione o tipo de execução."); return; }
     if (!tenantId || !empresaId || !armazemId) { toast.error("Contexto não carregado."); return; }
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc("fn_inventario_criar" as any, {
+      const { data, error } = await supabase.rpc("fn_criar_inventario" as any, {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_armazem_id: armazemId,
         p_usuario_id: usuarioId,
+        p_descricao: descricao || null,
         p_tipo_inventario: tipo,
+        p_tipo_execucao: tipoExecucao,
         p_zona_atividade_id: (tipo === "ZONA" && selectedZonas.length === 1) ? selectedZonas[0] : null,
         p_endereco_id: (tipo === "ENDERECO" && selectedEnderecos.length === 1) ? selectedEnderecos[0].id : null,
         p_produto_id: (tipo === "PRODUTO" && selectedProdutos.length === 1) ? selectedProdutos[0].id : null,
         p_grupo_produto_id: (tipo === "PRODUTO" && filterGrupo) ? filterGrupo : null,
-        p_descricao: descricao || null,
+        p_chunk_size: 1000,
+        p_inventario_id: null,
       });
       if (error) throw error;
       toast.success("Inventário criado com sucesso!");
