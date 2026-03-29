@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
+import { usePermissions } from "@/contexts/PermissionsContext";
 import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -11,22 +12,29 @@ interface ModuleCard {
   path: string;
   color: string;
   countKey?: string;
+  permModulo?: string;
 }
 
 const modules: ModuleCard[] = [
-  { label: "Recebimento", icon: <ArrowDownToLine size={32} />, path: "/coletor/recebimento", color: "hsl(217,91%,50%)" },
-  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/armazenagem", color: "hsl(142,76%,36%)" },
-  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)" },
-  { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)" },
-  { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)" },
-  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)" },
+  { label: "Recebimento", icon: <ArrowDownToLine size={32} />, path: "/coletor/recebimento", color: "hsl(217,91%,50%)", permModulo: "coletor.recebimento" },
+  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/armazenagem", color: "hsl(142,76%,36%)", permModulo: "coletor.armazenagem" },
+  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)", permModulo: "coletor.movimentos" },
+  { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)", permModulo: "coletor.separacao" },
+  { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)", permModulo: "coletor.conferencia" },
+  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)", permModulo: "coletor.inventario" },
 ];
 
 export function ColetorHomePage({ onNavigate }: Props) {
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
+  const { can } = usePermissions();
   const userName = localStorage.getItem("core_usuario_nome") || "Operador";
   const tenantId = localStorage.getItem("core_tenant_id");
   const armazemId = localStorage.getItem("core_armazem_id");
+
+  // Filter modules by permission
+  const allowedModules = modules.filter(
+    (m) => !m.permModulo || can(m.permModulo, "READ") || can(m.permModulo, "EXECUTE")
+  );
 
   useEffect(() => {
     if (!tenantId || !armazemId) return;
@@ -49,7 +57,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 flex-1">
-        {modules.map((m) => {
+        {allowedModules.map((m) => {
           const count = pendingCounts[m.label];
           const isActive = m.path !== "/coletor/home";
           return (

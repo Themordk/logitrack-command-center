@@ -36,6 +36,10 @@ interface CrudTableProps {
   onSelectChange?: (ids: Set<string>) => void;
   headerActions?: React.ReactNode;
   extraRowActions?: (row: any) => React.ReactNode;
+  // Permission control
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function CrudTable({
@@ -45,6 +49,7 @@ export function CrudTable({
   newLabel = "Novo", searchPlaceholder = "Buscar...",
   extraFilters,
   selectable, selectedIds, onSelectChange, headerActions, extraRowActions,
+  canCreate = true, canEdit = true, canDelete = true,
 }: CrudTableProps) {
   const allSelected = selectable && data.length > 0 && data.every((r) => selectedIds?.has(r.id));
   const someSelected = selectable && data.some((r) => selectedIds?.has(r.id));
@@ -90,13 +95,15 @@ export function CrudTable({
         </div>
         <div className="flex items-center gap-2">
           {headerActions}
-          <button
-            onClick={onNew}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus size={16} />
-            {newLabel}
-          </button>
+          {canCreate && (
+            <button
+              onClick={onNew}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus size={16} />
+              {newLabel}
+            </button>
+          )}
         </div>
       </div>
 
@@ -173,12 +180,16 @@ export function CrudTable({
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {extraRowActions?.(row)}
-                          <button onClick={() => onEdit(row)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Editar">
-                            <Edit2 size={13} />
-                          </button>
-                          <button onClick={() => onDelete(row)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center" title="Excluir">
-                            <Trash2 size={13} />
-                          </button>
+                          {canEdit && (
+                            <button onClick={() => onEdit(row)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center" title="Editar">
+                              <Edit2 size={13} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button onClick={() => onDelete(row)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center" title="Excluir">
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
