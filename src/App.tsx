@@ -36,6 +36,7 @@ import { InventarioPage } from "./pages/InventarioPage";
 import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
+import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -111,6 +112,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/empresas": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Empresas" }],
   "/config/usuarios": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Usuários" }],
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
+  "/config/perfis": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Perfis de Acesso" }],
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
 };
@@ -147,6 +149,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/empresas": return <EmpresasPage />;
     case "/config/usuarios": return <UsuariosPage />;
     case "/config/integracao": return <IntegracaoPage />;
+    case "/config/perfis": return <PerfisAcessoPage />;
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage />;
     default: {
