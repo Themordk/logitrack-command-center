@@ -1,91 +1,65 @@
 
-# Plano PWA - CORE LogiTrack WMS
 
-## ✅ Fase 1 - MVP PWA (Implementado)
+# Alterações na Tela de Usuários
 
-- [x] `vite-plugin-pwa` instalado e configurado em `vite.config.ts`
-- [x] Manifest PWA com nome, cores, ícones, orientação portrait, start_url coletor
-- [x] Meta tags Apple/PWA no `index.html`
-- [x] Ícones PWA 192x192 e 512x512 gerados
-- [x] `UpdatePrompt.tsx` - banner de atualização não-intrusivo
-- [x] Service Worker com cache strategies (NetworkFirst para API, CacheFirst para fonts/assets)
-- [x] `navigateFallbackDenylist` para `/~oauth`
+## Resumo
 
-## ✅ Fase 2 - UX Operacional (Implementado)
-
-- [x] `useFeedback.ts` - hook de feedback sonoro (AudioContext) e vibratil
-- [x] `ScanField.tsx` - integração com feedback de sucesso no scan
-- [x] `ScanField.tsx` - `inputMode="none"` condicional para coletores físicos
-- [x] `ConfiguracoesPage.tsx` - seleção de tipo de dispositivo (Coletor/Celular)
-- [x] Auto re-focus ao voltar de overlays
-
-## 🔲 Fase 3 - Resiliência Offline (Pendente)
-
-- [ ] `offlineQueue.ts` - fila IndexedDB para RPCs offline
-- [ ] Badge de operações pendentes no header
-- [ ] Cache de tarefas em IndexedDB
-- [ ] Toast de sincronização ao reconectar
-
-## 🔲 Fase 4 - Performance (Pendente)
-
-- [ ] Code splitting com React.lazy para admin vs coletor
-- [ ] manualChunks para vendor splitting
-
-## 🔲 Fase 5 - Integração Hardware (Parcialmente Implementado)
-
-- [x] Tipo de dispositivo nas configurações
-- [ ] Timeout para distinguir scan rápido de digitação
-- [ ] Scanner por câmera (futuro)
-
-## 🔲 Fase 7 - Instalação (Pendente)
-
-- [ ] Página `/coletor/instalar` com instruções visuais
-- [ ] Interceptar `beforeinstallprompt`
-- [ ] QR Code na tela de login admin
+Ajustar a página de Usuários (`UsuariosPage.tsx`) e a edge function `create-usuario` para:
+1. Remover email da UI (manter auto-gerado no backend)
+2. Trocar "Tipo Usuário" por select de Perfil (tabela `perfil`)
+3. Tornar Armazém e Turno opcionais
+4. Na listagem, trocar coluna Email por Perfil vinculado
 
 ---
 
-# Plano RBAC - CORE LogiTrack WMS
+## Alterações
 
-## ✅ Fase 1 - Modelagem de Dados (Implementado)
+### 1. `src/pages/UsuariosPage.tsx`
 
-- [x] Enums: `enum_ambiente_modulo`, `enum_acao_permissao`
-- [x] Tabelas: `modulo`, `perfil`, `permissao`, `perfil_permissao`, `usuario_perfil`
-- [x] RLS em todas as tabelas novas
-- [x] Funções: `fn_usuario_tem_permissao`, `fn_usuario_permissoes`
-- [x] Função seed: `fn_seed_rbac_para_tenant`
+**Estado e fetch:**
+- Adicionar `perfilOptions` carregado via `fetchOptions("perfil", tenantId, "nome")`
+- Remover campo `email` do array `fields`
+- Alterar campo `tipo_usuario` para `perfil_id` com `type: "select"` usando `perfilOptions`, label "Perfil de Usuário"
+- Tornar `armazem_id` e `turno_id` com `required: false`
 
-## ✅ Fase 2 - Backend (Implementado)
+**Colunas da tabela:**
+- Remover `{ key: "email", label: "Email" }`
+- Adicionar coluna com `render` customizado que exibe o nome do perfil vinculado
+- Para isso, usar `useCrud` com `select: "*, usuario_perfil(perfil_id, perfil(nome))"` para trazer o perfil via join, ou carregar `usuario_perfil` separadamente
 
-- [x] Edge Function `create-usuario` atribui perfil automaticamente
+**Como obter o perfil na listagem:**
+- Alterar o `select` do useCrud para `"*, usuario_perfil(perfil(nome))"` para join relacional
+- Na coluna, renderizar `row.usuario_perfil?.[0]?.perfil?.nome ?? "—"`
 
-## ✅ Fase 3 - Frontend Context (Implementado)
+**onSave (novo usuário):**
+- Gerar email fictício a partir do login: `${login}@internal.logitrack`
+- Enviar `perfil_id` no body da edge function em vez de `tipo_usuario`
+- Remover `tipo_usuario` do payload
 
-- [x] `PermissionsContext.tsx` com cache sessionStorage (TTL 5min)
-- [x] `usePermissions()` hook com `can(modulo, acao)` e `canAny(modulo)`
-- [x] `PermissionGate.tsx` - oculta componentes por permissão
-- [x] `ProtectedRoute.tsx` - bloqueia rotas sem permissão
-- [x] `useRoutePermission.ts` - mapeamento rotas → módulos
+**onSave (edição):**
+- Na edição, ao salvar, além do `crud.update`, atualizar `usuario_perfil`: deletar existente e inserir novo com `perfil_id` selecionado
 
-## ✅ Fase 4 - Integração (Implementado)
+### 2. `supabase/functions/create-usuario/index.ts`
 
-- [x] TopNav filtra menus por permissão READ
-- [x] CrudTable aceita `canCreate`, `canEdit`, `canDelete`
-- [x] ColetorHomePage filtra módulos por permissão
+- Receber `perfil_id` no body em vez de `tipo_usuario`
+- Remover `armazem_id` da validação obrigatória
+- Gerar email internamente se não recebido: `${login}@internal.logitrack`
+- Usar `perfil_id` diretamente para inserir em `usuario_perfil` (em vez de mapear por nome)
+- Continuar guardando `email` no campo da tabela `usuario` para o Auth funcionar
 
-## ✅ Fase 5 - Gestão de Perfis (Implementado)
+### 3. Sem alteração de schema
 
-- [x] `PerfisAcessoPage.tsx` em `/config/perfis`
-- [x] CRUD de perfis personalizados
-- [x] Árvore de permissões com checkboxes por ação (C/R/U/D/Execute)
+As tabelas `perfil`, `usuario_perfil` e `usuario` já existem com as colunas necessárias. Apenas o campo `email` e `armazem_id` na tabela `usuario` precisam permitir null (verificar se já permitem -- pela schema, `armazem_id` não é nullable na tabela `usuario`, mas é nullable em outras tabelas como `inventario`).
 
-## 🔲 Fase 6 - Auditoria (Pendente)
+**Migration necessária:** Tornar `armazem_id` e `turno_id` nullable na tabela `usuario` (se ainda não forem), e tornar `email` não-required no frontend mas mantido no banco.
 
-- [ ] Tabela `log_acesso` com registro de ações sensíveis
-- [ ] Validação server-side em RPCs críticas via `fn_usuario_tem_permissao`
+---
 
-## 🔲 Fase 7 - Evolução (Pendente)
+## Arquivos afetados
 
-- [ ] Multi-select de perfis na página de Usuários
-- [ ] Testes e2e de segurança
-- [ ] Evolução para ABAC com `condicao_jsonb`
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/UsuariosPage.tsx` | Remover email da UI, trocar tipo_usuario por perfil_id select, tornar armazém/turno opcionais, coluna perfil na listagem |
+| `supabase/functions/create-usuario/index.ts` | Receber perfil_id, gerar email auto, remover armazem_id obrigatório |
+| Migration SQL | Tornar `usuario.armazem_id` e `usuario.turno_id` nullable (se necessário) |
+
