@@ -3568,7 +3568,7 @@ export type Database = {
       }
       usuario: {
         Row: {
-          armazem_id: string
+          armazem_id: string | null
           ativo: boolean
           auth_user_id: string | null
           cod_erp: string | null
@@ -3582,10 +3582,10 @@ export type Database = {
           tenant_id: string
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario: Database["public"]["Enums"]["enum_tipo_usuario"] | null
-          turno_id: string
+          turno_id: string | null
         }
         Insert: {
-          armazem_id: string
+          armazem_id?: string | null
           ativo?: boolean
           auth_user_id?: string | null
           cod_erp?: string | null
@@ -3599,10 +3599,10 @@ export type Database = {
           tenant_id: string
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
-          turno_id: string
+          turno_id?: string | null
         }
         Update: {
-          armazem_id?: string
+          armazem_id?: string | null
           ativo?: boolean
           auth_user_id?: string | null
           cod_erp?: string | null
@@ -3616,7 +3616,7 @@ export type Database = {
           tenant_id?: string
           tipo_operacao?: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
-          turno_id?: string
+          turno_id?: string | null
         }
         Relationships: [
           {
