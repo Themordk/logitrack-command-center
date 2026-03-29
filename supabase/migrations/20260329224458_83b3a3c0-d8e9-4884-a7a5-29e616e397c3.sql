@@ -1,0 +1,1 @@
+ALTER TABLE public.usuario ADD COLUMN IF NOT EXISTS deve_trocar_senha boolean NOT NULL DEFAULT false;

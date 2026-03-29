@@ -3573,6 +3573,7 @@ export type Database = {
           auth_user_id: string | null
           cod_erp: string | null
           created_at: string
+          deve_trocar_senha: boolean
           email: string | null
           empresa_id: string
           habilidade: Database["public"]["Enums"]["enum_habilidade"]
@@ -3590,6 +3591,7 @@ export type Database = {
           auth_user_id?: string | null
           cod_erp?: string | null
           created_at?: string
+          deve_trocar_senha?: boolean
           email?: string | null
           empresa_id: string
           habilidade?: Database["public"]["Enums"]["enum_habilidade"]
@@ -3607,6 +3609,7 @@ export type Database = {
           auth_user_id?: string | null
           cod_erp?: string | null
           created_at?: string
+          deve_trocar_senha?: boolean
           email?: string | null
           empresa_id?: string
           habilidade?: Database["public"]["Enums"]["enum_habilidade"]
