@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
+import { usePermissions } from "@/contexts/PermissionsContext";
+import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 
 import {
   Building2,
@@ -114,6 +116,22 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { usuarioNome, logout } = useTenant();
+  const { can } = usePermissions();
+
+  // Filter nav items based on permissions
+  const filteredNavItems = navItems.map((item) => {
+    if (!item.children) {
+      const modCode = item.path ? getModuleForChildRoute(item.path) : null;
+      if (modCode && !can(modCode, "READ")) return null;
+      return item;
+    }
+    const filteredChildren = item.children.filter((child) => {
+      const modCode = getModuleForChildRoute(child.path);
+      return !modCode || can(modCode, "READ");
+    });
+    if (filteredChildren.length === 0) return null;
+    return { ...item, children: filteredChildren };
+  }).filter(Boolean) as NavItem[];
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -155,7 +173,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
 
         {/* Nav items */}
         <nav ref={menuRef} className="flex items-center gap-0.5 flex-1">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = item.path ? currentPath === item.path : item.children?.some((c) => c.path === currentPath);
             const isOpen = openMenu === item.label;
 
