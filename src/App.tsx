@@ -296,8 +296,10 @@ function AppContent() {
 export default function App() {
   return (
     <TenantProvider>
-      <UpdatePrompt />
-      <AppContent />
+      <PermissionsProvider>
+        <UpdatePrompt />
+        <AppContent />
+      </PermissionsProvider>
     </TenantProvider>
   );
 }
