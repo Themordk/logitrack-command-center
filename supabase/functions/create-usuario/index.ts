@@ -20,16 +20,15 @@ Deno.serve(async (req) => {
       turno_id,
       nome,
       login,
-      email,
       senha,
       habilidade,
       tipo_operacao,
-      tipo_usuario,
+      perfil_id,
       cod_erp,
       ativo,
     } = body;
 
-    if (!tenant_id || !empresa_id || !armazem_id || !nome || !login || !email || !tipo_operacao) {
+    if (!tenant_id || !empresa_id || !nome || !login || !tipo_operacao) {
       return new Response(
         JSON.stringify({ success: false, error: "Campos obrigatórios não preenchidos." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -42,6 +41,9 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Generate internal email from login
+    const email = `${login}@internal.logitrack`;
 
     let authUserId: string | null = null;
 
@@ -63,20 +65,19 @@ Deno.serve(async (req) => {
       authUserId = authData.user?.id || null;
     }
 
-    // Insert usuario record with auto-generated ID
+    // Insert usuario record
     const { data: usuario, error: insertError } = await supabaseAdmin
       .from("usuario")
       .insert({
         tenant_id,
         empresa_id,
-        armazem_id,
-        turno_id,
+        armazem_id: armazem_id || null,
+        turno_id: turno_id || null,
         nome,
         login,
         email,
         habilidade: habilidade || "TREINANDO",
         tipo_operacao,
-        tipo_usuario: tipo_usuario || null,
         cod_erp: cod_erp || null,
         ativo: ativo !== false,
         auth_user_id: authUserId,
@@ -85,7 +86,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (insertError) {
-      // Rollback: delete auth user if created
       if (authUserId) {
         await supabaseAdmin.auth.admin.deleteUser(authUserId);
       }
@@ -95,32 +95,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Auto-assign profile based on tipo_usuario
-    if (tipo_usuario && usuario?.id) {
-      const perfilMap: Record<string, string> = {
-        ADMIN: "ADMINISTRADOR",
-        SUPERVISOR: "SUPERVISOR",
-        OPERADOR: "OPERADOR",
-      };
-      const perfilNome = perfilMap[tipo_usuario] || tipo_usuario;
-      
-      const { data: perfil } = await supabaseAdmin
-        .from("perfil")
-        .select("id")
-        .eq("tenant_id", tenant_id)
-        .eq("nome", perfilNome)
-        .eq("ativo", true)
-        .maybeSingle();
-
-      if (perfil?.id) {
-        await supabaseAdmin
-          .from("usuario_perfil")
-          .insert({
-            tenant_id,
-            usuario_id: usuario.id,
-            perfil_id: perfil.id,
-          });
-      }
+    // Assign perfil if provided
+    if (perfil_id && usuario?.id) {
+      await supabaseAdmin
+        .from("usuario_perfil")
+        .insert({
+          tenant_id,
+          usuario_id: usuario.id,
+          perfil_id,
+        });
     }
 
     return new Response(

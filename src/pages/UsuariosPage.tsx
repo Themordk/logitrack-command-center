@@ -9,42 +9,67 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function UsuariosPage() {
   const { tenantId } = useTenant();
-  const crud = useCrud({ table: "usuario", tenantId, orderBy: "nome" });
+  const crud = useCrud({
+    table: "usuario",
+    tenantId,
+    orderBy: "nome",
+    select: "*, usuario_perfil(perfil_id, perfil(nome))",
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [turnoOptions, setTurnoOptions] = useState<{ value: string; label: string }[]>([]);
+  const [perfilOptions, setPerfilOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     if (tenantId) {
       fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
       fetchOptions("armazem", tenantId).then(setArmazemOptions);
       fetchOptions("turnos", tenantId).then(setTurnoOptions);
+      fetchOptions("perfil", tenantId, "nome").then(setPerfilOptions);
     }
   }, [tenantId]);
 
   const columns: ColumnSpec[] = [
     { key: "nome", label: "Nome" },
     { key: "login", label: "Login" },
-    { key: "email", label: "Email" },
+    {
+      key: "perfil",
+      label: "Perfil",
+      render: (row: any) => {
+        const perfis = row.usuario_perfil;
+        if (Array.isArray(perfis) && perfis.length > 0) {
+          return perfis[0]?.perfil?.nome ?? "—";
+        }
+        return "—";
+      },
+    },
     { key: "habilidade", label: "Habilidade" },
     { key: "tipo_operacao", label: "Operação" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
+  const getEditInitialData = (item: any) => {
+    if (!item) return null;
+    const perfis = item.usuario_perfil;
+    const perfilId = Array.isArray(perfis) && perfis.length > 0
+      ? perfis[0]?.perfil_id || ""
+      : "";
+    return { ...item, perfil_id: perfilId };
+  };
+
   const fields: FieldSpec[] = [
     { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
-    { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions },
-    { name: "turno_id", label: "Turno", type: "select", required: true, options: turnoOptions },
+    { name: "armazem_id", label: "Armazém", type: "select", required: false, options: armazemOptions },
+    { name: "turno_id", label: "Turno", type: "select", required: false, options: turnoOptions },
+    { name: "perfil_id", label: "Perfil de Usuário", type: "select", required: true, options: perfilOptions },
     { name: "nome", label: "Nome", type: "text", required: true, placeholder: "Nome completo" },
     { name: "login", label: "Login", type: "text", required: true, placeholder: "Login do usuário" },
-    { name: "email", label: "Email", type: "text", required: true, placeholder: "email@empresa.com" },
     { name: "senha", label: "Senha", type: "text", placeholder: "Senha de acesso (mín. 6 caracteres)" },
     { name: "habilidade", label: "Habilidade", type: "enum", enumValues: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"] },
     { name: "tipo_operacao", label: "Tipo de Operação", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "MOVIMENTOS", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "AUDITORIA"] },
-    { name: "tipo_usuario", label: "Tipo Usuário", type: "enum", enumValues: ["ADMIN", "OPERADOR", "SUPERVISOR"] },
     { name: "cod_erp", label: "Código ERP", type: "text", placeholder: "Opcional" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
@@ -74,17 +99,33 @@ export function UsuariosPage() {
         onClose={() => setModalOpen(false)}
         title={editItem ? "Editar Usuário" : "Novo Usuário"}
         fields={editItem ? fields.filter(f => f.name !== "senha") : fields}
-        initialData={editItem}
+        initialData={editItem ? getEditInitialData(editItem) : null}
         onSave={async (data) => {
+          const { perfil_id, senha, ...rest } = data;
+
           if (editItem) {
-            const { senha, ...rest } = data;
-            return crud.update(editItem.id, rest);
+            // Update usuario record (without perfil_id and senha)
+            const ok = await crud.update(editItem.id, rest);
+            if (!ok) return false;
+
+            // Update usuario_perfil: delete existing, insert new
+            if (perfil_id) {
+              await (supabase as any).from("usuario_perfil").delete().eq("usuario_id", editItem.id);
+              await (supabase as any).from("usuario_perfil").insert({
+                tenant_id: tenantId,
+                usuario_id: editItem.id,
+                perfil_id,
+              });
+            }
+            crud.refresh();
+            return true;
           }
-          // New user: call edge function to create auth + usuario
-          const { senha, ...userData } = data;
+
+          // New user: call edge function
           const { data: result, error } = await supabase.functions.invoke("create-usuario", {
             body: {
-              ...userData,
+              ...rest,
+              perfil_id,
               senha: senha || undefined,
               tenant_id: tenantId,
             },
