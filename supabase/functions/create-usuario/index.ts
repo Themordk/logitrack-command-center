@@ -95,6 +95,34 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Auto-assign profile based on tipo_usuario
+    if (tipo_usuario && usuario?.id) {
+      const perfilMap: Record<string, string> = {
+        ADMIN: "ADMINISTRADOR",
+        SUPERVISOR: "SUPERVISOR",
+        OPERADOR: "OPERADOR",
+      };
+      const perfilNome = perfilMap[tipo_usuario] || tipo_usuario;
+      
+      const { data: perfil } = await supabaseAdmin
+        .from("perfil")
+        .select("id")
+        .eq("tenant_id", tenant_id)
+        .eq("nome", perfilNome)
+        .eq("ativo", true)
+        .maybeSingle();
+
+      if (perfil?.id) {
+        await supabaseAdmin
+          .from("usuario_perfil")
+          .insert({
+            tenant_id,
+            usuario_id: usuario.id,
+            perfil_id: perfil.id,
+          });
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
