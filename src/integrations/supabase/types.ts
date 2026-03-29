@@ -1380,6 +1380,41 @@ export type Database = {
           },
         ]
       }
+      modulo: {
+        Row: {
+          ambiente: Database["public"]["Enums"]["enum_ambiente_modulo"]
+          ativo: boolean
+          codigo: string
+          descricao: string
+          id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          ambiente?: Database["public"]["Enums"]["enum_ambiente_modulo"]
+          ativo?: boolean
+          codigo: string
+          descricao: string
+          id?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          ambiente?: Database["public"]["Enums"]["enum_ambiente_modulo"]
+          ativo?: boolean
+          codigo?: string
+          descricao?: string
+          id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modulo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       motivo_ocorrencia: {
         Row: {
           armazem_id: string
@@ -2154,6 +2189,123 @@ export type Database = {
           },
           {
             foreignKeyName: "parceiro_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perfil: {
+        Row: {
+          ativo: boolean
+          descricao: string | null
+          id: string
+          nome: string
+          sistema: boolean
+          tenant_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          descricao?: string | null
+          id?: string
+          nome: string
+          sistema?: boolean
+          tenant_id: string
+        }
+        Update: {
+          ativo?: boolean
+          descricao?: string | null
+          id?: string
+          nome?: string
+          sistema?: boolean
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perfil_permissao: {
+        Row: {
+          id: string
+          perfil_id: string
+          permissao_id: string
+          tenant_id: string
+        }
+        Insert: {
+          id?: string
+          perfil_id: string
+          permissao_id: string
+          tenant_id: string
+        }
+        Update: {
+          id?: string
+          perfil_id?: string
+          permissao_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perfil_permissao_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "perfil_permissao_permissao_id_fkey"
+            columns: ["permissao_id"]
+            isOneToOne: false
+            referencedRelation: "permissao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "perfil_permissao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissao: {
+        Row: {
+          acao: Database["public"]["Enums"]["enum_acao_permissao"]
+          descricao: string | null
+          id: string
+          modulo_id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          acao: Database["public"]["Enums"]["enum_acao_permissao"]
+          descricao?: string | null
+          id?: string
+          modulo_id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          acao?: Database["public"]["Enums"]["enum_acao_permissao"]
+          descricao?: string | null
+          id?: string
+          modulo_id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permissao_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permissao_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
@@ -3497,6 +3649,49 @@ export type Database = {
           },
         ]
       }
+      usuario_perfil: {
+        Row: {
+          id: string
+          perfil_id: string
+          tenant_id: string
+          usuario_id: string
+        }
+        Insert: {
+          id?: string
+          perfil_id: string
+          tenant_id: string
+          usuario_id: string
+        }
+        Update: {
+          id?: string
+          perfil_id?: string
+          tenant_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_perfil_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_perfil_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_reg: {
         Row: {
           empresa_id: string | null
@@ -4228,8 +4423,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_usuario_permissoes: {
+        Args: { p_usuario_id: string }
+        Returns: {
+          acao: string
+          modulo_codigo: string
+        }[]
+      }
       fn_usuario_tem_empresa: {
         Args: { p_empresa_id: string }
+        Returns: boolean
+      }
+      fn_usuario_tem_permissao: {
+        Args: { p_acao: string; p_modulo_codigo: string; p_usuario_id: string }
         Returns: boolean
       }
       fn_usuario_tenant: { Args: never; Returns: string }
@@ -4376,6 +4582,7 @@ export type Database = {
       }
     }
     Enums: {
+      enum_acao_permissao: "CREATE" | "READ" | "UPDATE" | "DELETE" | "EXECUTE"
       enum_agrupar_conf_por: "DOCUMENTO" | "HU" | "BOX" | "ROTA"
       enum_agrupar_sep_por:
         | "DOCUMENTO"
@@ -4387,6 +4594,7 @@ export type Database = {
         | "TIPO_SEP_SKU"
         | "CAPACDADE_HU"
         | "QUANTIDADE_MAX_SKU"
+      enum_ambiente_modulo: "WEB" | "COLETOR" | "AMBOS"
       enum_criterio_selecao_inventario:
         | "CURVA_VENDAS"
         | "CURVA_ACESSO"
@@ -4669,6 +4877,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      enum_acao_permissao: ["CREATE", "READ", "UPDATE", "DELETE", "EXECUTE"],
       enum_agrupar_conf_por: ["DOCUMENTO", "HU", "BOX", "ROTA"],
       enum_agrupar_sep_por: [
         "DOCUMENTO",
@@ -4681,6 +4890,7 @@ export const Constants = {
         "CAPACDADE_HU",
         "QUANTIDADE_MAX_SKU",
       ],
+      enum_ambiente_modulo: ["WEB", "COLETOR", "AMBOS"],
       enum_criterio_selecao_inventario: [
         "CURVA_VENDAS",
         "CURVA_ACESSO",
