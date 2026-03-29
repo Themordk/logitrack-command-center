@@ -1,83 +1,102 @@
 
 
-# Plano: Alteracao de Senhas de Usuarios
+# Plano: Padronizar Layout de Telas de Acompanhamento + Cores de Status
 
-## Resumo
+## Contexto
 
-Implementar dois fluxos de gerenciamento de senha:
-1. **Coletor** - Opcao em Configuracoes para o usuario alterar sua propria senha (confirma atual + nova 2x)
-2. **Painel Admin** - Botao "Resetar Senha" na lista de usuarios que define senha padrao `123456` e marca flag para forcar troca no proximo login
+A tela **Ondas de Carregamento** (`MovimentoSaidaPage`) e a imagem de referencia mostram o layout padrao CORE: filtros inline no topo, split-view com lista a esquerda e detalhe a direita, sem cards de contadores.
 
----
+A tela **Movimentos de Entrada** (`MovimentoEntradaPage`) tem layout diferente: cards de contadores de status, filtros em painel colapsavel, search bar duplicado, e estrutura diferente.
 
-## Fase 1 - Migration: Flag de troca obrigatoria
-
-Adicionar coluna `deve_trocar_senha boolean DEFAULT false` na tabela `usuario`. Quando o admin resetar a senha, esta flag vira `true`. Apos o usuario trocar a senha, volta para `false`.
+Alem disso, as cores de status sao inconsistentes entre telas e nao seguem a regra RED->GREEN.
 
 ---
 
-## Fase 2 - Edge Function `reset-password`
+## Parte 1: Padronizar Layout de Movimentos de Entrada
 
-Nova edge function que recebe `{ usuario_id }` e:
-1. Busca o `auth_user_id` do usuario na tabela `usuario`
-2. Usa `supabaseAdmin.auth.admin.updateUserById(authUserId, { password: "123456" })` para resetar
-3. Atualiza `usuario.deve_trocar_senha = true`
-4. Retorna sucesso
+Alterar `MovimentoEntradaPage` para ter o mesmo layout de `MovimentoSaidaPage` (referencia):
 
-Acesso restrito a admins (validar JWT + verificar permissao via `fn_usuario_tem_permissao`).
+### Remover
+- Cards de contadores de status (grid com GERADO, EM CONFERENCIA, etc.)
+- Painel de filtros colapsavel (card-surface com botao "Filtros")
+- Search bar separado no painel esquerdo
 
----
+### Substituir por
+- Filtros inline no topo (mesma linha), no padrao da tela de Ondas:
+  - Data De, Data Ate, Nº Movimento, Status (select), botao Filtrar
+- Painel esquerdo `w-80` sem search bar extra, apenas a lista de movimentos
+- Manter painel direito com tabs (Itens, Conferencia, Armazenagem, Informacoes) como esta
 
-## Fase 3 - Painel Admin: Botao "Resetar Senha"
-
-Em `UsuariosPage.tsx`, adicionar na listagem um botao/acao extra por linha usando a prop `extraRowActions` do `CrudTable`. O botao exibe um dialog de confirmacao e invoca a edge function `reset-password`.
-
----
-
-## Fase 4 - Coletor: Tela "Alterar Senha"
-
-Em `ConfiguracoesPage.tsx`, adicionar uma secao "Alterar Senha" com formulario:
-- Campo "Senha atual" (password)
-- Campo "Nova senha" (password, min 6 chars)
-- Campo "Confirmar nova senha" (password)
-
-O fluxo usa:
-1. `supabase.rpc("fn_buscar_email_por_login", { p_login })` para obter email
-2. `supabase.auth.signInWithPassword({ email, password: senhaAtual })` para validar a senha atual
-3. `supabase.auth.updateUser({ password: novaSenha })` para alterar
-4. Atualiza `usuario.deve_trocar_senha = false` se estava marcado
+### Resultado visual esperado
+Identico ao screenshot de referencia: titulo -> filtros inline -> split-view (lista | detalhe)
 
 ---
 
-## Fase 5 - Interceptacao de Login: Forcar troca de senha
+## Parte 2: Padronizar Cores de Status (RED -> GREEN)
 
-Nos dois fluxos de login (`LoginPage.tsx` e `ColetorLoginPage.tsx`), apos autenticar com sucesso e carregar o usuario, verificar `usuario.deve_trocar_senha`:
-- Se `true`, exibir um modal/tela de troca obrigatoria de senha (nova + confirmacao)
-- Apos trocar com sucesso, atualizar flag e prosseguir com o login normal
-- O usuario NAO consegue pular esta etapa
+Regra: o primeiro status do fluxo inicia com VERMELHO, o ultimo finaliza com VERDE, os intermediarios fazem gradiente entre eles.
 
-Criar um componente reutilizavel `ForcePasswordChangeModal` usado em ambas as paginas de login.
+### 2.1 MovimentoEntradaPage - STATUS_MAP
+
+```
+GERADO        -> vermelho  (bg-red-500/15 text-red-400 border-red-500/30)
+LIBERADO      -> laranja   (bg-orange-500/15 text-orange-400 ...)
+ERRO_TRANSPORTE -> amarelo (bg-yellow-500/15 text-yellow-400 ...)
+EM_CONFERENCIA -> azul     (bg-blue-500/15 text-blue-400 ...)
+CONFERIDO     -> ciano     (bg-cyan-500/15 text-cyan-400 ...)
+DIVERGENCIA   -> amarelo   (bg-yellow-500/15 text-yellow-400 ...)
+LIB_ARMAZENAGEM -> verde claro (bg-emerald-500/15 text-emerald-400 ...)
+ARMAZENADO    -> verde     (bg-green-500/15 text-green-400 ...)
+```
+
+### 2.2 MovimentoSaidaPage - STATUS_MAP
+
+```
+CRIADA         -> vermelho
+LIBERADO       -> laranja
+EM_PICKING     -> amarelo
+EM_CONFERENCIA -> azul
+EM_CARREGAMENTO -> ciano
+CONCLUIDA      -> verde
+CANCELADA      -> cinza (caso especial, nao faz parte do fluxo)
+```
+
+### 2.3 InventarioPage - STATUS_MAP
+
+```
+CRIADO         -> vermelho
+EM_CONTAGEM    -> laranja
+EM_EXECUCAO    -> amarelo
+EM_ANALISE     -> azul
+EM_REVISAO     -> ciano
+FINALIZADO     -> verde
+CANCELADO      -> cinza
+```
+
+### 2.4 StatusBadge configs
+
+Atualizar as cores em `StatusBadge.tsx` para seguir a mesma regra:
+- `endereco-situacao`: Livre (verde) -> Ocupado (amarelo) -> Bloqueado (vermelho)
+- `hu-disponibilidade`: Disponivel (verde) -> Reservada (amarelo) -> Bloqueada (vermelho) -> Em Movimento (azul) -> Descartada (cinza)
+- `volume-status`: Aberto (vermelho) -> Fechado (laranja) -> Conferido (azul) -> Expedido (verde)
+- `veiculo`: Disponivel (verde) -> Em Rota (amarelo) -> Manutencao (vermelho)
+
+### 2.5 Coletor (getStatusColor)
+
+Atualizar `ConferenciaItensPage` e `InventarioListPage` para usar a mesma logica de cores.
 
 ---
 
-## Arquivos a criar/modificar
+## Arquivos a modificar
 
-| Arquivo | Acao |
-|---------|------|
-| Migration SQL | Adicionar `deve_trocar_senha boolean DEFAULT false` em `usuario` |
-| `supabase/functions/reset-password/index.ts` | Nova edge function para reset de senha |
-| `src/pages/UsuariosPage.tsx` | Adicionar botao "Resetar Senha" via `extraRowActions` |
-| `src/pages/coletor/ConfiguracoesPage.tsx` | Adicionar secao "Alterar Senha" com formulario |
-| `src/components/ForcePasswordChangeModal.tsx` | Modal reutilizavel para troca obrigatoria |
-| `src/pages/LoginPage.tsx` | Verificar `deve_trocar_senha` e exibir modal |
-| `src/pages/coletor/ColetorLoginPage.tsx` | Verificar `deve_trocar_senha` e exibir modal |
-
----
-
-## Detalhes Tecnicos
-
-- A coluna `deve_trocar_senha` precisa ser lida no select do login: adicionar ao `.select(...)` em ambas as paginas de login
-- A edge function `reset-password` usa `SUPABASE_SERVICE_ROLE_KEY` para poder chamar `auth.admin.updateUserById`
-- A alteracao de senha pelo proprio usuario no coletor usa a API client-side `supabase.auth.updateUser()` que so precisa do token JWT da sessao ativa
-- Validacao de senha minima: 6 caracteres em ambos os fluxos
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/pages/MovimentoEntradaPage.tsx` | Remover cards/filtros colapsaveis, usar filtros inline como MovimentoSaida |
+| `src/pages/MovimentoEntradaPage.tsx` | Atualizar STATUS_MAP cores RED->GREEN |
+| `src/pages/MovimentoSaidaPage.tsx` | Atualizar STATUS_MAP cores RED->GREEN |
+| `src/pages/InventarioPage.tsx` | Atualizar STATUS_MAP cores RED->GREEN |
+| `src/components/StatusBadge.tsx` | Atualizar cores dos configs |
+| `src/pages/coletor/ConferenciaItensPage.tsx` | Atualizar getStatusColor |
+| `src/pages/coletor/InventarioListPage.tsx` | Atualizar getStatusColor |
+| `src/pages/coletor/AbastecimentoListPage.tsx` | Atualizar statusColor |
 
