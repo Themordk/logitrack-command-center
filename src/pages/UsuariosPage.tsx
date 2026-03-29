@@ -6,6 +6,7 @@ import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { KeyRound, Loader2 } from "lucide-react";
 
 export function UsuariosPage() {
   const { tenantId } = useTenant();
@@ -22,6 +23,8 @@ export function UsuariosPage() {
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [turnoOptions, setTurnoOptions] = useState<{ value: string; label: string }[]>([]);
   const [perfilOptions, setPerfilOptions] = useState<{ value: string; label: string }[]>([]);
+  const [resetConfirm, setResetConfirm] = useState<any>(null);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (tenantId) {
@@ -74,6 +77,26 @@ export function UsuariosPage() {
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
+  const handleResetPassword = async () => {
+    if (!resetConfirm) return;
+    setResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-password", {
+        body: { usuario_id: resetConfirm.id },
+      });
+      if (error || !data?.success) {
+        toast.error(data?.error || error?.message || "Erro ao resetar senha.");
+      } else {
+        toast.success(data.message || "Senha resetada com sucesso!");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao resetar senha.");
+    } finally {
+      setResetting(false);
+      setResetConfirm(null);
+    }
+  };
+
   return (
     <>
       <CrudTable
@@ -93,6 +116,15 @@ export function UsuariosPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Usuário"
         searchPlaceholder="Buscar por nome..."
+        extraRowActions={(row) => (
+          <button
+            onClick={() => setResetConfirm(row)}
+            title="Resetar Senha"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+          >
+            <KeyRound size={15} />
+          </button>
+        )}
       />
       <CrudModal
         open={modalOpen}
@@ -104,11 +136,9 @@ export function UsuariosPage() {
           const { perfil_id, senha, ...rest } = data;
 
           if (editItem) {
-            // Update usuario record (without perfil_id and senha)
             const ok = await crud.update(editItem.id, rest);
             if (!ok) return false;
 
-            // Update usuario_perfil: delete existing, insert new
             if (perfil_id) {
               await (supabase as any).from("usuario_perfil").delete().eq("usuario_id", editItem.id);
               await (supabase as any).from("usuario_perfil").insert({
@@ -121,7 +151,6 @@ export function UsuariosPage() {
             return true;
           }
 
-          // New user: call edge function
           const { data: result, error } = await supabase.functions.invoke("create-usuario", {
             body: {
               ...rest,
@@ -144,6 +173,40 @@ export function UsuariosPage() {
         onClose={() => setDeleteItem(null)}
         onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
       />
+
+      {/* Reset Password Confirmation Dialog */}
+      {resetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-6 space-y-4">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <KeyRound size={20} className="text-amber-500" />
+              </div>
+              <h3 className="text-base font-bold text-foreground">Resetar Senha</h3>
+              <p className="text-sm text-center text-muted-foreground">
+                A senha de <strong>{resetConfirm.nome}</strong> será redefinida para <code className="text-xs bg-muted px-1.5 py-0.5 rounded">123456</code>. O usuário será obrigado a trocar a senha no próximo login.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setResetConfirm(null)}
+                disabled={resetting}
+                className="flex-1 h-9 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={resetting}
+                className="flex-1 flex items-center justify-center gap-2 h-9 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50 transition-colors"
+              >
+                {resetting && <Loader2 size={14} className="animate-spin" />}
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

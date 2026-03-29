@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Boxes, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -12,13 +13,14 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forceChange, setForceChange] = useState(false);
+  const [pendingUsuario, setPendingUsuario] = useState<any>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!login.trim() || !password.trim()) return;
     setLoading(true);
     try {
-      // Look up email by login
       const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: login.trim() });
       if (lookupError || !email) throw new Error("Usuário não encontrado.");
 
@@ -30,7 +32,7 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
 
       const { data: usuario, error: userError } = await (supabase as any)
         .from("usuario")
-        .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario")
+        .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario, deve_trocar_senha")
         .eq("auth_user_id", userId)
         .single();
 
@@ -44,20 +46,32 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
         throw new Error("Usuário inativo. Contate o administrador.");
       }
 
-      localStorage.setItem("core_tenant_id", usuario.tenant_id);
-      localStorage.setItem("core_empresa_id", usuario.empresa_id);
-      localStorage.setItem("core_armazem_id", usuario.armazem_id);
-      localStorage.setItem("core_usuario_id", usuario.id);
-      localStorage.setItem("core_usuario_nome", usuario.nome);
-      localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");
+      // Check if password change is required
+      if (usuario.deve_trocar_senha) {
+        setPendingUsuario(usuario);
+        setForceChange(true);
+        setLoading(false);
+        return;
+      }
 
-      toast.success(`Bem-vindo, ${usuario.nome}!`);
-      onLogin();
+      completeLogin(usuario);
     } catch (err: any) {
       toast.error(err.message || "Erro ao fazer login.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const completeLogin = (usuario: any) => {
+    localStorage.setItem("core_tenant_id", usuario.tenant_id);
+    localStorage.setItem("core_empresa_id", usuario.empresa_id);
+    localStorage.setItem("core_armazem_id", usuario.armazem_id);
+    localStorage.setItem("core_usuario_id", usuario.id);
+    localStorage.setItem("core_usuario_nome", usuario.nome);
+    localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");
+
+    toast.success(`Bem-vindo, ${usuario.nome}!`);
+    onLogin();
   };
 
   return (
@@ -118,6 +132,16 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
           </button>
         </div>
       </div>
+
+      <ForcePasswordChangeModal
+        open={forceChange}
+        usuarioId={pendingUsuario?.id || ""}
+        variant="admin"
+        onSuccess={() => {
+          setForceChange(false);
+          if (pendingUsuario) completeLogin(pendingUsuario);
+        }}
+      />
     </div>
   );
 }

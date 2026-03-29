@@ -4,6 +4,7 @@ import { Boxes, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { nowBrasilia } from "@/lib/dateUtils";
 import { ActionButton } from "@/components/coletor/ActionButton";
+import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -11,13 +12,14 @@ export function ColetorLoginPage({ onNavigate }: Props) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forceChange, setForceChange] = useState(false);
+  const [pendingUsuario, setPendingUsuario] = useState<any>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!login.trim() || !password.trim()) return;
     setLoading(true);
     try {
-      // Look up email by login
       const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: login.trim() });
       if (lookupError || !email) throw new Error("Usuário não encontrado.");
 
@@ -29,7 +31,7 @@ export function ColetorLoginPage({ onNavigate }: Props) {
 
       const { data: usuario, error: userError } = await (supabase as any)
         .from("usuario")
-        .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario")
+        .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario, deve_trocar_senha")
         .eq("auth_user_id", userId)
         .single();
 
@@ -42,28 +44,40 @@ export function ColetorLoginPage({ onNavigate }: Props) {
         throw new Error("Usuário inativo.");
       }
 
-      localStorage.setItem("core_tenant_id", usuario.tenant_id);
-      localStorage.setItem("core_empresa_id", usuario.empresa_id);
-      localStorage.setItem("core_armazem_id", usuario.armazem_id);
-      localStorage.setItem("core_usuario_id", usuario.id);
-      localStorage.setItem("core_usuario_nome", usuario.nome);
+      // Check if password change is required
+      if (usuario.deve_trocar_senha) {
+        setPendingUsuario(usuario);
+        setForceChange(true);
+        setLoading(false);
+        return;
+      }
 
-      const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
-        tenant_id: usuario.tenant_id,
-        usuario_id: usuario.id,
-        inicio_sessao: nowBrasilia(),
-        ultimo_heartbeat: nowBrasilia(),
-      }).select("id").single();
-
-      if (sessao?.id) localStorage.setItem("coletor_session_id", sessao.id);
-
-      toast.success(`Bem-vindo, ${usuario.nome}!`);
-      onNavigate("/coletor/home");
+      await completeLogin(usuario);
     } catch (err: any) {
       toast.error(err.message || "Erro ao fazer login.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const completeLogin = async (usuario: any) => {
+    localStorage.setItem("core_tenant_id", usuario.tenant_id);
+    localStorage.setItem("core_empresa_id", usuario.empresa_id);
+    localStorage.setItem("core_armazem_id", usuario.armazem_id);
+    localStorage.setItem("core_usuario_id", usuario.id);
+    localStorage.setItem("core_usuario_nome", usuario.nome);
+
+    const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
+      tenant_id: usuario.tenant_id,
+      usuario_id: usuario.id,
+      inicio_sessao: nowBrasilia(),
+      ultimo_heartbeat: nowBrasilia(),
+    }).select("id").single();
+
+    if (sessao?.id) localStorage.setItem("coletor_session_id", sessao.id);
+
+    toast.success(`Bem-vindo, ${usuario.nome}!`);
+    onNavigate("/coletor/home");
   };
 
   return (
@@ -113,6 +127,16 @@ export function ColetorLoginPage({ onNavigate }: Props) {
           Acessar Painel Administrativo
         </button>
       </div>
+
+      <ForcePasswordChangeModal
+        open={forceChange}
+        usuarioId={pendingUsuario?.id || ""}
+        variant="coletor"
+        onSuccess={() => {
+          setForceChange(false);
+          if (pendingUsuario) completeLogin(pendingUsuario);
+        }}
+      />
     </div>
   );
 }
