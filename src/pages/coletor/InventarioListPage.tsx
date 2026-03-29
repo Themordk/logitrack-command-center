@@ -108,9 +108,13 @@ export function InventarioListPage({ onNavigate }: Props) {
 
   const getStatusColor = (s: string) => {
     const upper = (s || "").toUpperCase();
-    if (upper === "EM_EXECUCAO") return "text-blue-400 bg-blue-500/15 border-blue-500/30";
-    if (upper === "CRIADO") return "text-gray-400 bg-gray-500/15 border-gray-500/30";
-    return "text-yellow-400 bg-yellow-500/15 border-yellow-500/30";
+    if (upper === "CRIADO") return "text-red-400 bg-red-500/15 border-red-500/30";
+    if (upper === "EM_CONTAGEM") return "text-orange-400 bg-orange-500/15 border-orange-500/30";
+    if (upper === "EM_EXECUCAO") return "text-yellow-400 bg-yellow-500/15 border-yellow-500/30";
+    if (upper === "EM_ANALISE") return "text-blue-400 bg-blue-500/15 border-blue-500/30";
+    if (upper === "FINALIZADO") return "text-green-400 bg-green-500/15 border-green-500/30";
+    if (upper === "CANCELADO") return "text-gray-400 bg-gray-500/15 border-gray-500/30";
+    return "text-cyan-400 bg-cyan-500/15 border-cyan-500/30";
   };
 
   return (

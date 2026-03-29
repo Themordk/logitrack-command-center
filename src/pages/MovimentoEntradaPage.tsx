@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, Filter, X, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Trash2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -11,15 +11,15 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
-  GERADO: { label: "Gerado", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  LIBERADO: { label: "Liberado", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  ERRO_TRANSPORTADOR: { label: "Erro Transporte", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
-  "EM CONFERENCIA": { label: "Em Conferência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  EM_CONFERENCIA: { label: "Em Conferência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  CONFERIDO: { label: "Conferido", class: "bg-green-500/15 text-green-400 border-green-500/30" },
-  DIVERGENCIA: { label: "Divergência", class: "bg-red-500/15 text-red-400 border-red-500/30" },
-  LIB_ARMAZENAGEM: { label: "Lib. Armazenagem", class: "bg-green-500/15 text-green-400 border-green-500/30" },
-  "LIB. ARMAZENAGEM": { label: "Lib. Armazenagem", class: "bg-green-500/15 text-green-400 border-green-500/30" },
+  GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+  LIBERADO: { label: "Liberado", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  ERRO_TRANSPORTADOR: { label: "Erro Transporte", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  "EM CONFERENCIA": { label: "Em Conferência", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  EM_CONFERENCIA: { label: "Em Conferência", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  CONFERIDO: { label: "Conferido", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  DIVERGENCIA: { label: "Divergência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  LIB_ARMAZENAGEM: { label: "Lib. Armazenagem", class: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  "LIB. ARMAZENAGEM": { label: "Lib. Armazenagem", class: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
 };
 
@@ -106,7 +106,7 @@ interface DocVinculado {
 
 export function MovimentoEntradaPage() {
   const { armazemId, tenantId, empresaId, usuarioId } = useTenant();
-  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+  // statusCounts removed - no longer using cards
   const [movements, setMovements] = useState<MovEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMov, setSelectedMov] = useState<string | null>(null);
@@ -142,22 +142,13 @@ export function MovimentoEntradaPage() {
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
   const [filterNumero, setFilterNumero] = useState("");
-  const [filterData, setFilterData] = useState("");
-  const [filterParceiro, setFilterParceiro] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 20;
 
-  const fetchCounts = useCallback(async () => {
-    if (!tenantId) return;
-    let q = (supabase as any).from("movimento_entrada").select("status").eq("tenant_id", tenantId);
-    if (armazemId) q = q.eq("armazem_id", armazemId);
-    const { data } = await q;
-    const counts: Record<string, number> = {};
-    (data || []).forEach((m: any) => { counts[m.status] = (counts[m.status] || 0) + 1; });
-    setStatusCounts(counts);
-  }, [tenantId, armazemId]);
+  // fetchCounts removed - no longer using status cards
 
   const fetchMovements = useCallback(async () => {
     if (!tenantId) return;
@@ -175,7 +166,8 @@ export function MovimentoEntradaPage() {
       if (armazemId) query = query.eq("armazem_id", armazemId);
       if (filterStatus) query = query.eq("status", filterStatus);
       if (filterNumero) query = query.eq("numero_movimento", Number(filterNumero));
-      if (filterData) query = query.gte("created_at", filterData + "T00:00:00").lte("created_at", filterData + "T23:59:59");
+      if (filterDateFrom) query = query.gte("created_at", filterDateFrom + "T00:00:00");
+      if (filterDateTo) query = query.lte("created_at", filterDateTo + "T23:59:59");
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -195,21 +187,15 @@ export function MovimentoEntradaPage() {
         })
       );
 
-      let filtered = enriched;
-      if (filterParceiro) {
-        filtered = filtered.filter((m: any) => m.parceiro_nome?.toLowerCase().includes(filterParceiro.toLowerCase()));
-      }
-
-      setMovements(filtered);
+      setMovements(enriched);
       setTotal(count || 0);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [tenantId, armazemId, page, filterStatus, filterNumero, filterData, filterParceiro]);
+  }, [tenantId, armazemId, page, filterStatus, filterNumero, filterDateFrom, filterDateTo]);
 
-  useEffect(() => { fetchCounts(); }, [fetchCounts]);
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 
   const loadDetails = async (movId: string, movStatus: string) => {
@@ -589,84 +575,52 @@ export function MovimentoEntradaPage() {
     }
   };
 
-  const clearFilters = () => {
-    setFilterStatus(""); setFilterNumero(""); setFilterData(""); setFilterParceiro("");
+  const handleSearch = () => {
     setPage(1);
+    fetchMovements();
   };
 
-  const hasFilters = filterStatus || filterNumero || filterData || filterParceiro;
   const totalPages = Math.ceil(total / pageSize);
-  const statusCards = ["GERADO", "EM CONFERENCIA", "ARMAZENADO", "DIVERGENCIA"];
-  const inputClass = "w-full h-8 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
+  const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
   const fmtDateTime = (d: string | null) => d ? new Date(d).toLocaleString("pt-BR") : "—";
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
+    <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
       <h1 className="text-lg font-bold text-foreground">Movimentos de Entrada</h1>
 
-      {/* Status cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {statusCards.map((s) => {
-          const info = STATUS_MAP[s] || { label: s, class: "" };
-          return (
-            <button key={s} onClick={() => { setFilterStatus(filterStatus === s ? "" : s); setPage(1); }}
-              className={cn("card-surface p-4 text-left transition-all", filterStatus === s && "ring-1 ring-primary")}>
-              <p className="text-xs text-muted-foreground">{info.label}</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{statusCounts[s] || 0}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Filters bar */}
-      <div className="card-surface p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <Filter size={13} /> Filtros {hasFilters && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-          </button>
-          {hasFilters && (
-            <button onClick={clearFilters} className="flex items-center gap-1 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground">
-              <X size={11} /> Limpar
-            </button>
-          )}
+      {/* Filters inline */}
+      <div className="flex items-end gap-3 flex-wrap">
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data De</label>
+          <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className={inputClass} />
         </div>
-        {showFilters && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Nº Movimento</label>
-              <input value={filterNumero} onChange={(e) => { setFilterNumero(e.target.value); setPage(1); }} placeholder="Ex: 1001" className={inputClass} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Data Geração</label>
-              <input type="date" value={filterData} onChange={(e) => { setFilterData(e.target.value); setPage(1); }} className={inputClass} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Parceiro</label>
-              <input value={filterParceiro} onChange={(e) => { setFilterParceiro(e.target.value); setPage(1); }} placeholder="Nome..." className={inputClass} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Status</label>
-              <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }} className={inputClass}>
-                <option value="">Todos</option>
-                {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data Até</label>
+          <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Movimento</label>
+          <input type="number" value={filterNumero} onChange={(e) => setFilterNumero(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-20")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status</label>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={cn(inputClass, "w-36")}>
+            <option value="">Todos</option>
+            {Object.entries(STATUS_MAP).filter(([k]) => !k.includes(" ")).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
+          </select>
+        </div>
+        <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
+          <Search size={12} /> Filtrar
+        </button>
       </div>
 
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex gap-3 flex-1 min-h-0">
         {/* Movement list */}
         <div className="w-80 shrink-0 card-surface flex flex-col">
-          <div className="p-3 border-b border-border">
-            <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={filterNumero} onChange={(e) => { setFilterNumero(e.target.value); setPage(1); }} placeholder="Buscar nº movimento..."
-                className="w-full h-8 pl-8 pr-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary" />
-            </div>
-          </div>
           <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>

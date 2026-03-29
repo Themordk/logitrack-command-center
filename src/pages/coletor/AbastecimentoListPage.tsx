@@ -48,7 +48,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
   }, [tenantId, empresaId]);
 
   const statusColor: Record<string, string> = {
-    CRIADA: "bg-blue-500/20 text-blue-300",
+    CRIADA: "bg-red-500/20 text-red-300",
     EM_ANDAMENTO: "bg-yellow-500/20 text-yellow-300",
   };
 

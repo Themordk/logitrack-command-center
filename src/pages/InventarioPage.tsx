@@ -6,13 +6,13 @@ import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, 
 import { cn } from "@/lib/utils";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
-  CRIADO: { label: "Criado", class: "bg-muted text-muted-foreground border-border" },
-  EM_CONTAGEM: { label: "Em Contagem", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  EM_EXECUCAO: { label: "Em Execução", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  EM_ANALISE: { label: "Em Análise", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  EM_REVISAO: { label: "Em Revisão", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  CRIADO: { label: "Criado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+  EM_CONTAGEM: { label: "Em Contagem", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  EM_EXECUCAO: { label: "Em Execução", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  EM_ANALISE: { label: "Em Análise", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  EM_REVISAO: { label: "Em Revisão", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
   FINALIZADO: { label: "Finalizado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
-  CANCELADO: { label: "Cancelado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+  CANCELADO: { label: "Cancelado", class: "bg-gray-500/15 text-gray-400 border-gray-500/30" },
 };
 
 const TIPO_MAP: Record<string, string> = {
