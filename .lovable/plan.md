@@ -1,65 +1,83 @@
 
 
-# Alterações na Tela de Usuários
+# Plano: Alteracao de Senhas de Usuarios
 
 ## Resumo
 
-Ajustar a página de Usuários (`UsuariosPage.tsx`) e a edge function `create-usuario` para:
-1. Remover email da UI (manter auto-gerado no backend)
-2. Trocar "Tipo Usuário" por select de Perfil (tabela `perfil`)
-3. Tornar Armazém e Turno opcionais
-4. Na listagem, trocar coluna Email por Perfil vinculado
+Implementar dois fluxos de gerenciamento de senha:
+1. **Coletor** - Opcao em Configuracoes para o usuario alterar sua propria senha (confirma atual + nova 2x)
+2. **Painel Admin** - Botao "Resetar Senha" na lista de usuarios que define senha padrao `123456` e marca flag para forcar troca no proximo login
 
 ---
 
-## Alterações
+## Fase 1 - Migration: Flag de troca obrigatoria
 
-### 1. `src/pages/UsuariosPage.tsx`
-
-**Estado e fetch:**
-- Adicionar `perfilOptions` carregado via `fetchOptions("perfil", tenantId, "nome")`
-- Remover campo `email` do array `fields`
-- Alterar campo `tipo_usuario` para `perfil_id` com `type: "select"` usando `perfilOptions`, label "Perfil de Usuário"
-- Tornar `armazem_id` e `turno_id` com `required: false`
-
-**Colunas da tabela:**
-- Remover `{ key: "email", label: "Email" }`
-- Adicionar coluna com `render` customizado que exibe o nome do perfil vinculado
-- Para isso, usar `useCrud` com `select: "*, usuario_perfil(perfil_id, perfil(nome))"` para trazer o perfil via join, ou carregar `usuario_perfil` separadamente
-
-**Como obter o perfil na listagem:**
-- Alterar o `select` do useCrud para `"*, usuario_perfil(perfil(nome))"` para join relacional
-- Na coluna, renderizar `row.usuario_perfil?.[0]?.perfil?.nome ?? "—"`
-
-**onSave (novo usuário):**
-- Gerar email fictício a partir do login: `${login}@internal.logitrack`
-- Enviar `perfil_id` no body da edge function em vez de `tipo_usuario`
-- Remover `tipo_usuario` do payload
-
-**onSave (edição):**
-- Na edição, ao salvar, além do `crud.update`, atualizar `usuario_perfil`: deletar existente e inserir novo com `perfil_id` selecionado
-
-### 2. `supabase/functions/create-usuario/index.ts`
-
-- Receber `perfil_id` no body em vez de `tipo_usuario`
-- Remover `armazem_id` da validação obrigatória
-- Gerar email internamente se não recebido: `${login}@internal.logitrack`
-- Usar `perfil_id` diretamente para inserir em `usuario_perfil` (em vez de mapear por nome)
-- Continuar guardando `email` no campo da tabela `usuario` para o Auth funcionar
-
-### 3. Sem alteração de schema
-
-As tabelas `perfil`, `usuario_perfil` e `usuario` já existem com as colunas necessárias. Apenas o campo `email` e `armazem_id` na tabela `usuario` precisam permitir null (verificar se já permitem -- pela schema, `armazem_id` não é nullable na tabela `usuario`, mas é nullable em outras tabelas como `inventario`).
-
-**Migration necessária:** Tornar `armazem_id` e `turno_id` nullable na tabela `usuario` (se ainda não forem), e tornar `email` não-required no frontend mas mantido no banco.
+Adicionar coluna `deve_trocar_senha boolean DEFAULT false` na tabela `usuario`. Quando o admin resetar a senha, esta flag vira `true`. Apos o usuario trocar a senha, volta para `false`.
 
 ---
 
-## Arquivos afetados
+## Fase 2 - Edge Function `reset-password`
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/UsuariosPage.tsx` | Remover email da UI, trocar tipo_usuario por perfil_id select, tornar armazém/turno opcionais, coluna perfil na listagem |
-| `supabase/functions/create-usuario/index.ts` | Receber perfil_id, gerar email auto, remover armazem_id obrigatório |
-| Migration SQL | Tornar `usuario.armazem_id` e `usuario.turno_id` nullable (se necessário) |
+Nova edge function que recebe `{ usuario_id }` e:
+1. Busca o `auth_user_id` do usuario na tabela `usuario`
+2. Usa `supabaseAdmin.auth.admin.updateUserById(authUserId, { password: "123456" })` para resetar
+3. Atualiza `usuario.deve_trocar_senha = true`
+4. Retorna sucesso
+
+Acesso restrito a admins (validar JWT + verificar permissao via `fn_usuario_tem_permissao`).
+
+---
+
+## Fase 3 - Painel Admin: Botao "Resetar Senha"
+
+Em `UsuariosPage.tsx`, adicionar na listagem um botao/acao extra por linha usando a prop `extraRowActions` do `CrudTable`. O botao exibe um dialog de confirmacao e invoca a edge function `reset-password`.
+
+---
+
+## Fase 4 - Coletor: Tela "Alterar Senha"
+
+Em `ConfiguracoesPage.tsx`, adicionar uma secao "Alterar Senha" com formulario:
+- Campo "Senha atual" (password)
+- Campo "Nova senha" (password, min 6 chars)
+- Campo "Confirmar nova senha" (password)
+
+O fluxo usa:
+1. `supabase.rpc("fn_buscar_email_por_login", { p_login })` para obter email
+2. `supabase.auth.signInWithPassword({ email, password: senhaAtual })` para validar a senha atual
+3. `supabase.auth.updateUser({ password: novaSenha })` para alterar
+4. Atualiza `usuario.deve_trocar_senha = false` se estava marcado
+
+---
+
+## Fase 5 - Interceptacao de Login: Forcar troca de senha
+
+Nos dois fluxos de login (`LoginPage.tsx` e `ColetorLoginPage.tsx`), apos autenticar com sucesso e carregar o usuario, verificar `usuario.deve_trocar_senha`:
+- Se `true`, exibir um modal/tela de troca obrigatoria de senha (nova + confirmacao)
+- Apos trocar com sucesso, atualizar flag e prosseguir com o login normal
+- O usuario NAO consegue pular esta etapa
+
+Criar um componente reutilizavel `ForcePasswordChangeModal` usado em ambas as paginas de login.
+
+---
+
+## Arquivos a criar/modificar
+
+| Arquivo | Acao |
+|---------|------|
+| Migration SQL | Adicionar `deve_trocar_senha boolean DEFAULT false` em `usuario` |
+| `supabase/functions/reset-password/index.ts` | Nova edge function para reset de senha |
+| `src/pages/UsuariosPage.tsx` | Adicionar botao "Resetar Senha" via `extraRowActions` |
+| `src/pages/coletor/ConfiguracoesPage.tsx` | Adicionar secao "Alterar Senha" com formulario |
+| `src/components/ForcePasswordChangeModal.tsx` | Modal reutilizavel para troca obrigatoria |
+| `src/pages/LoginPage.tsx` | Verificar `deve_trocar_senha` e exibir modal |
+| `src/pages/coletor/ColetorLoginPage.tsx` | Verificar `deve_trocar_senha` e exibir modal |
+
+---
+
+## Detalhes Tecnicos
+
+- A coluna `deve_trocar_senha` precisa ser lida no select do login: adicionar ao `.select(...)` em ambas as paginas de login
+- A edge function `reset-password` usa `SUPABASE_SERVICE_ROLE_KEY` para poder chamar `auth.admin.updateUserById`
+- A alteracao de senha pelo proprio usuario no coletor usa a API client-side `supabase.auth.updateUser()` que so precisa do token JWT da sessao ativa
+- Validacao de senha minima: 6 caracteres em ambos os fluxos
 
