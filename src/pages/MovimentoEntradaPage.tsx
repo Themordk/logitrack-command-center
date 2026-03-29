@@ -326,7 +326,6 @@ export function MovimentoEntradaPage() {
       } else {
         toast.success(msg || "Movimento liberado para conferência.");
         fetchMovements();
-        fetchCounts();
         if (selectedMov === movId) loadDetails(movId, "LIBERADO");
       }
     } catch (err: any) {
@@ -347,7 +346,6 @@ export function MovimentoEntradaPage() {
       if (error) throw error;
       toast.success("Movimento retirado da conferência com sucesso.");
       fetchMovements();
-      fetchCounts();
       if (selectedMov === movId) loadDetails(movId, "GERADO");
     } catch (err: any) {
       toast.error(err.message);
@@ -371,7 +369,6 @@ export function MovimentoEntradaPage() {
       } else {
         toast.success(msg || "Armazenagem liberada com sucesso.");
         fetchMovements();
-        fetchCounts();
         if (selectedMov === movId) loadDetails(movId, "LIB_ARMAZENAGEM");
       }
     } catch (err: any) {
@@ -428,7 +425,6 @@ export function MovimentoEntradaPage() {
       toast.success("Recebimento liberado com erro no transporte.");
       setShowErroModal(false);
       fetchMovements();
-      fetchCounts();
       if (selectedMov === erroMovId) loadDetails(erroMovId, "LIBERADO");
     } catch (err: any) {
       toast.error(err.message);
@@ -476,7 +472,6 @@ export function MovimentoEntradaPage() {
         toast.success(msg || "Armazenagem liberada com divergência.");
         setShowDivergenciaModal(false);
         fetchMovements();
-        fetchCounts();
         if (selectedMov === divergenciaMovId) loadDetails(divergenciaMovId, "LIB_ARMAZENAGEM");
       }
     } catch (err: any) {
@@ -567,7 +562,6 @@ export function MovimentoEntradaPage() {
         setSelectedMovStatus(null);
       }
       fetchMovements();
-      fetchCounts();
       return true;
     } catch (err: any) {
       toast.error(`Erro ao excluir: ${err.message}`);
