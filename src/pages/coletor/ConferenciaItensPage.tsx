@@ -17,8 +17,9 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
 
   const getStatusColor = (status: string) => {
     const s = (status || "").toUpperCase();
-    if (s === "CONCLUIDA" || s === "FINALIZADA") return "text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30";
-    if (s === "ATRIBUIDA" || s === "EM_EXECUCAO") return "text-[hsl(45,93%,47%)] bg-[hsl(45,93%,47%)]/10 border-[hsl(45,93%,47%)]/30";
+    if (s === "CONCLUIDA" || s === "FINALIZADA") return "text-green-400 bg-green-500/10 border-green-500/30";
+    if (s === "ATRIBUIDA" || s === "EM_EXECUCAO") return "text-yellow-400 bg-yellow-500/10 border-yellow-500/30";
+    if (s === "PENDENTE" || s === "CRIADA") return "text-red-400 bg-red-500/10 border-red-500/30";
     return "text-blue-400 bg-blue-500/10 border-blue-500/30";
   };
 
