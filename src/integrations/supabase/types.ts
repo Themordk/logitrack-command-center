@@ -1187,17 +1187,14 @@ export type Database = {
           cursor_processamento: number | null
           descricao: string | null
           empresa_id: string
-          endereco_id: string | null
           finalizado_em: string | null
           finalizado_por: string | null
-          grupo_produto_id: string | null
           id: string
           iniciado_em: string | null
           numero_inventario: number
           observacao: string | null
           origem: Database["public"]["Enums"]["enum_origem_inventario"] | null
           permite_recontagem: boolean | null
-          produto_id: string | null
           quantidade_max_recontagem: number | null
           status: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id: string
@@ -1207,7 +1204,6 @@ export type Database = {
           tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
           total_divergencias: number | null
           total_itens: number | null
-          zona_atividade_id: string | null
         }
         Insert: {
           acuracidade?: number | null
@@ -1222,17 +1218,14 @@ export type Database = {
           cursor_processamento?: number | null
           descricao?: string | null
           empresa_id: string
-          endereco_id?: string | null
           finalizado_em?: string | null
           finalizado_por?: string | null
-          grupo_produto_id?: string | null
           id?: string
           iniciado_em?: string | null
           numero_inventario?: never
           observacao?: string | null
           origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
           permite_recontagem?: boolean | null
-          produto_id?: string | null
           quantidade_max_recontagem?: number | null
           status?: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id: string
@@ -1242,7 +1235,6 @@ export type Database = {
           tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
           total_divergencias?: number | null
           total_itens?: number | null
-          zona_atividade_id?: string | null
         }
         Update: {
           acuracidade?: number | null
@@ -1257,17 +1249,14 @@ export type Database = {
           cursor_processamento?: number | null
           descricao?: string | null
           empresa_id?: string
-          endereco_id?: string | null
           finalizado_em?: string | null
           finalizado_por?: string | null
-          grupo_produto_id?: string | null
           id?: string
           iniciado_em?: string | null
           numero_inventario?: never
           observacao?: string | null
           origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
           permite_recontagem?: boolean | null
-          produto_id?: string | null
           quantidade_max_recontagem?: number | null
           status?: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id?: string
@@ -1277,7 +1266,6 @@ export type Database = {
           tipo_inventario?: Database["public"]["Enums"]["enum_tipo_inventario"]
           total_divergencias?: number | null
           total_itens?: number | null
-          zona_atividade_id?: string | null
         }
         Relationships: [
           {
