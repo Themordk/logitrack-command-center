@@ -4423,6 +4423,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_seed_rbac_para_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       fn_usuario_permissoes: {
         Args: { p_usuario_id: string }
         Returns: {
