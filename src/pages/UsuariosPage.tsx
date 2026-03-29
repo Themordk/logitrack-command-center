@@ -13,7 +13,7 @@ export function UsuariosPage() {
     table: "usuario",
     tenantId,
     orderBy: "nome",
-    select: "*, usuario_perfil(perfil(nome))",
+    select: "*, usuario_perfil(perfil_id, perfil(nome))",
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
