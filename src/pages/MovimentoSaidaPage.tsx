@@ -149,28 +149,15 @@ export function MovimentoSaidaPage() {
         (supabase as any).from("vw_movimento_saida_resumo").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_saida_separacao_detalhe").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_saida_conferencia_detalhe").select("*").eq("movimento_saida_id", movId),
-        (supabase as any).from("movimento_saida_documento").select("documento_saida_id, ordem").eq("movimento_saida_id", movId).order("ordem"),
+        (supabase as any).from("vw_movimento_saida_docs_vinculados").select("*").eq("movimento_saida_id", movId).order("ordem"),
       ]);
       setTabItens(itensRes.data || []);
       setTabSeparacao(sepRes.data || []);
       setTabConferencia(confRes.data || []);
-
-      if (docsRes.data?.length) {
-        const enrichedDocs = await Promise.all(
-          docsRes.data.map(async (d: any) => {
-            const { data: ds } = await (supabase as any).from("documento_saida").select("numero_pedido, data_emissao, valor_pedido, parceiro_id").eq("id", d.documento_saida_id).single();
-            let parceiro = "—";
-            if (ds?.parceiro_id) {
-              const { data: p } = await (supabase as any).from("parceiro").select("razaosocial").eq("id", ds.parceiro_id).single();
-              parceiro = p?.razaosocial || "—";
-            }
-            return { ...d, numero_pedido: ds?.numero_pedido, data_emissao: ds?.data_emissao, valor_pedido: ds?.valor_pedido, parceiro };
-          })
-        );
-        setTabDocs(enrichedDocs);
-      } else {
-        setTabDocs([]);
-      }
+      setTabDocs((docsRes.data || []).map((d: any) => ({
+        ...d,
+        parceiro: d.parceiro || "—",
+      })));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
