@@ -88,6 +88,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
           );
         })}
       </div>
+      )}
 
       {/* Footer Navigation */}
       <div className="mt-auto pt-4 border-t border-[hsl(222,35%,18%)]">
