@@ -47,13 +47,15 @@ function saveToCache(map: Map<string, Set<string>>) {
 }
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const { usuarioId, authenticated } = useTenant();
+  const { usuarioId, authenticated, loading: tenantLoading } = useTenant();
   const [permissions, setPermissions] = useState<Map<string, Set<string>>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [resolvedUsuarioId, setResolvedUsuarioId] = useState<string | null>(null);
 
   const fetchPermissions = useCallback(async () => {
     if (!usuarioId) {
       setPermissions(new Map());
+      setResolvedUsuarioId(null);
       setLoading(false);
       return;
     }
@@ -62,6 +64,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     const cached = loadFromCache();
     if (cached) {
       setPermissions(cached);
+      setResolvedUsuarioId(usuarioId);
       setLoading(false);
       return;
     }
@@ -82,30 +85,43 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
     setPermissions(map);
     saveToCache(map);
+    setResolvedUsuarioId(usuarioId);
     setLoading(false);
   }, [usuarioId]);
 
   useEffect(() => {
+    if (tenantLoading) {
+      setLoading(true);
+      return;
+    }
+
     if (authenticated && usuarioId) {
       fetchPermissions();
+    } else if (authenticated) {
+      setPermissions(new Map());
+      setResolvedUsuarioId(null);
+      setLoading(true);
     } else {
       setPermissions(new Map());
+      setResolvedUsuarioId(null);
       sessionStorage.removeItem(CACHE_KEY);
       setLoading(false);
     }
-  }, [authenticated, usuarioId, fetchPermissions]);
+  }, [authenticated, usuarioId, fetchPermissions, tenantLoading]);
+
+  const permissionsLoading = tenantLoading || (authenticated && (!usuarioId || resolvedUsuarioId !== usuarioId || loading));
 
   const can = useCallback(
     (modulo: string, acao: string) => {
       // If no permissions loaded yet (and user is authenticated), allow by default
       // This prevents blocking while loading
-      if (permissions.size === 0 && loading) return true;
+      if (permissions.size === 0 && permissionsLoading) return true;
       // If user has NO permissions at all (no profile assigned), grant full access
       // This is a safety fallback for existing users without RBAC setup
-      if (permissions.size === 0 && !loading) return true;
+      if (permissions.size === 0 && !permissionsLoading) return true;
       return permissions.get(modulo)?.has(acao) ?? false;
     },
-    [permissions, loading],
+    [permissions, permissionsLoading],
   );
 
   const canAny = useCallback(
@@ -117,7 +133,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <PermissionsContext.Provider value={{ permissions, loading, can, canAny, refresh: fetchPermissions }}>
+    <PermissionsContext.Provider value={{ permissions, loading: permissionsLoading, can, canAny, refresh: fetchPermissions }}>
       {children}
     </PermissionsContext.Provider>
   );

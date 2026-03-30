@@ -5,10 +5,12 @@ import { toast } from "sonner";
 import { nowBrasilia } from "@/lib/dateUtils";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function ColetorLoginPage({ onNavigate }: Props) {
+  const { login: syncTenantSession } = useTenant();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -66,6 +68,7 @@ export function ColetorLoginPage({ onNavigate }: Props) {
     localStorage.setItem("core_armazem_id", usuario.armazem_id);
     localStorage.setItem("core_usuario_id", usuario.id);
     localStorage.setItem("core_usuario_nome", usuario.nome);
+    syncTenantSession(usuario.tipo_usuario || "");
 
     const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
       tenant_id: usuario.tenant_id,
