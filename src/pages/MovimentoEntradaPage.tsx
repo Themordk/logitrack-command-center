@@ -189,8 +189,8 @@ export function MovimentoEntradaPage() {
       }
 
       let query = (supabase as any)
-        .from("movimento_entrada")
-        .select("id, numero_movimento, status, created_at, placa_veiculo", { count: "exact" })
+        .from("vw_movimento_entrada_lista")
+        .select("id, numero_movimento, status, created_at, placa_veiculo, parceiro_nome, armazem_id, empresa_id, tenant_id", { count: "exact" })
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -205,22 +205,7 @@ export function MovimentoEntradaPage() {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      const enriched = await Promise.all(
-        (data || []).map(async (mov: any) => {
-          const { data: link } = await (supabase as any).from("movimento_entrada_documento").select("documento_entrada_id").eq("movimento_entrada_id", mov.id).limit(1);
-          let parceiro_nome = "—";
-          if (link && link.length > 0) {
-            const { data: doc } = await (supabase as any).from("documento_entrada").select("parceiro_id").eq("id", link[0].documento_entrada_id).single();
-            if (doc) {
-              const { data: p } = await (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single();
-              if (p) parceiro_nome = p.razaosocial;
-            }
-          }
-          return { ...mov, parceiro_nome };
-        })
-      );
-
-      setMovements(enriched);
+      setMovements((data || []).map((mov: any) => ({ ...mov, parceiro_nome: mov.parceiro_nome || "—" })));
       setTotal(count || 0);
     } catch (err: any) {
       toast.error(err.message);
