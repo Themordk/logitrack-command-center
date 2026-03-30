@@ -26,7 +26,7 @@ const modules: ModuleCard[] = [
 
 export function ColetorHomePage({ onNavigate }: Props) {
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
-  const { can } = usePermissions();
+  const { can, loading: permLoading } = usePermissions();
   const userName = localStorage.getItem("core_usuario_nome") || "Operador";
   const tenantId = localStorage.getItem("core_tenant_id");
   const armazemId = localStorage.getItem("core_armazem_id");
