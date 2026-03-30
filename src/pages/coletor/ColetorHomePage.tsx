@@ -56,6 +56,11 @@ export function ColetorHomePage({ onNavigate }: Props) {
         <span className="text-lg font-bold text-white">{userName}</span>
       </div>
 
+      {permLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" />
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-3 flex-1">
         {allowedModules.map((m) => {
           const count = pendingCounts[m.label];
