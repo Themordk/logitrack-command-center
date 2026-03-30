@@ -115,7 +115,7 @@ interface TopNavProps {
 export function TopNav({ currentPath, onNavigate }: TopNavProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { tenantId, empresaId, usuarioNome, logout } = useTenant();
+  const { tenantId, empresaId, usuarioNome, logout, changeEmpresa } = useTenant();
   const { can } = usePermissions();
   const [empresas, setEmpresas] = useState<{ id: string; codigo: string | null; razaosocial: string }[]>([]);
 
@@ -179,15 +179,15 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
           <MapPin size={13} className="text-muted-foreground" />
           <select
             value={empresaId || ""}
+            onChange={(e) => changeEmpresa(e.target.value)}
             className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer"
-            disabled
           >
             {empresas.map((e) => (
               <option key={e.id} value={e.id}>
-                {e.codigo ? `${e.codigo} – ${e.razaosocial}` : e.razaosocial}
+                {e.codigo || e.id.slice(0, 8)}
               </option>
             ))}
-            {empresas.length === 0 && <option value="">Nenhuma empresa</option>}
+            {empresas.length === 0 && <option value="">—</option>}
           </select>
         </div>
 
