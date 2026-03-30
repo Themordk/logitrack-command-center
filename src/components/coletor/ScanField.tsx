@@ -29,6 +29,9 @@ export function ScanField({
   // Read preference from localStorage if not explicitly set
   const shouldSuppressKeyboard = suppressKeyboard ?? localStorage.getItem("coletor_tipo_dispositivo") === "coletor";
 
+  // Use readOnly to suppress virtual keyboard without blocking hardware scanner IME
+  const [isReadOnly, setIsReadOnly] = useState(shouldSuppressKeyboard);
+
   useEffect(() => {
     if (!disabled) inputRef.current?.focus();
   }, [disabled]);
@@ -45,10 +48,26 @@ export function ScanField({
   }, [disabled]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // On first keydown, unlock the input so scanner/keyboard input flows through
+    if (shouldSuppressKeyboard && isReadOnly) {
+      setIsReadOnly(false);
+    }
+
     if (e.key === "Enter" && value.trim()) {
       feedback.success();
       onScan(value.trim());
       setValue("");
+      // Re-lock to suppress keyboard on next focus
+      if (shouldSuppressKeyboard) {
+        setIsReadOnly(true);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    // Re-lock when losing focus so virtual keyboard won't appear on re-focus
+    if (shouldSuppressKeyboard) {
+      setIsReadOnly(true);
     }
   };
 
@@ -71,8 +90,9 @@ export function ScanField({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
         disabled={disabled}
-        inputMode={shouldSuppressKeyboard ? "none" : undefined}
+        readOnly={shouldSuppressKeyboard && isReadOnly}
         className="absolute inset-0 opacity-0 w-full h-full cursor-text"
         autoComplete="off"
       />
