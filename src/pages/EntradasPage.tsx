@@ -11,10 +11,12 @@ interface DocEntry {
   numero_nota: string;
   data_emissao: string;
   parceiro_id: string;
+  tipo_entrada_id: string;
   valor_total_nota: number;
   qtd_volume: number | null;
   parceiro_nome?: string;
   total_skus?: number;
+  tipo_entrada_descricao?: string;
 }
 
 export function EntradasPage() {
@@ -51,7 +53,7 @@ export function EntradasPage() {
 
       let query = (supabase as any)
         .from("documento_entrada")
-        .select("id, numero_nota, data_emissao, parceiro_id, valor_total_nota, qtd_volume", { count: "exact" })
+        .select("id, numero_nota, data_emissao, parceiro_id, tipo_entrada_id, valor_total_nota, qtd_volume", { count: "exact" })
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .eq("status", 0)
@@ -70,14 +72,16 @@ export function EntradasPage() {
       // Fetch parceiro names and item counts
       const enriched = await Promise.all(
         (data || []).map(async (doc: any) => {
-          const [parceiroRes, itemRes] = await Promise.all([
+          const [parceiroRes, itemRes, tipoRes] = await Promise.all([
             (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single(),
             (supabase as any).from("documento_entrada_item").select("id", { count: "exact" }).eq("documento_entrada_id", doc.id),
+            doc.tipo_entrada_id ? (supabase as any).from("tipo_entrada").select("descricao").eq("id", doc.tipo_entrada_id).single() : Promise.resolve({ data: null }),
           ]);
           return {
             ...doc,
             parceiro_nome: parceiroRes.data?.razaosocial || "—",
             total_skus: itemRes.count || 0,
+            tipo_entrada_descricao: tipoRes.data?.descricao || "—",
           };
         })
       );
@@ -282,6 +286,7 @@ export function EntradasPage() {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Nº Nota</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Data Emissão</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Tipo Entrada</th>
                 <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
                 <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Valor Total</th>
@@ -296,6 +301,7 @@ export function EntradasPage() {
                   <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_nota}</td>
                   <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
                   <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
+                  <td className="px-4 py-2.5 text-foreground text-xs">{doc.tipo_entrada_descricao}</td>
                   <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
                   <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
                   <td className="px-4 py-2.5 text-right font-mono text-foreground">
