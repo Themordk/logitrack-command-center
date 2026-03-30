@@ -585,6 +585,7 @@ export type Database = {
         Row: {
           ativo: boolean
           cnpj: string
+          codigo: string | null
           id: string
           razaosocial: string
           tenant_id: string
@@ -592,6 +593,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           cnpj: string
+          codigo?: string | null
           id?: string
           razaosocial: string
           tenant_id: string
@@ -599,6 +601,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           cnpj?: string
+          codigo?: string | null
           id?: string
           razaosocial?: string
           tenant_id?: string
