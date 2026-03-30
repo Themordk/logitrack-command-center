@@ -704,14 +704,14 @@ export function MovimentoEntradaPage() {
         </div>
 
         {/* Detail panel with tabs */}
-        <div className="flex-1 card-surface flex flex-col">
+        <div className="flex-1 card-surface flex flex-col min-h-0 overflow-hidden">
           {!selectedMov ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
               <Package size={32} className="mb-2 opacity-40" />
               <p className="text-sm">Selecione um movimento para ver os detalhes</p>
             </div>
           ) : (
-            <Tabs value={itemTab} onValueChange={setItemTab} className="flex flex-col flex-1">
+            <Tabs value={itemTab} onValueChange={setItemTab} className="flex flex-col flex-1 min-h-0 overflow-hidden">
               <TabsList className="w-full shrink-0 border-b border-border rounded-none bg-transparent px-3 pt-2">
                 <TabsTrigger value="itens" className="flex-1">Itens</TabsTrigger>
                 <TabsTrigger value="conferencia" className="flex-1">Conferência</TabsTrigger>
