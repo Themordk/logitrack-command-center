@@ -11,6 +11,7 @@ interface TenantContextType {
   authenticated: boolean;
   login: (tipoUsuario?: string) => void;
   logout: () => void;
+  changeEmpresa: (empresaId: string) => void;
 }
 
 const TenantContext = createContext<TenantContextType>({
@@ -23,6 +24,7 @@ const TenantContext = createContext<TenantContextType>({
   authenticated: false,
   login: () => {},
   logout: () => {},
+  changeEmpresa: () => {},
 });
 
 export function TenantProvider({ children }: { children: ReactNode }) {
@@ -90,8 +92,13 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setAuthenticated(false);
   };
 
+  const changeEmpresa = (newEmpresaId: string) => {
+    localStorage.setItem("core_empresa_id", newEmpresaId);
+    setEmpresaId(newEmpresaId);
+  };
+
   return (
-    <TenantContext.Provider value={{ tenantId, empresaId, armazemId, usuarioId, usuarioNome, loading, authenticated, login, logout }}>
+    <TenantContext.Provider value={{ tenantId, empresaId, armazemId, usuarioId, usuarioNome, loading, authenticated, login, logout, changeEmpresa }}>
       {children}
     </TenantContext.Provider>
   );
