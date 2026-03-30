@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   Building2,
@@ -101,7 +102,6 @@ const navItems: NavItem[] = [
       { label: "Empresas", path: "/config/empresas" },
       { label: "Usuários", path: "/config/usuarios" },
       { label: "Integração ERP", path: "/config/integracao" },
-      { label: "Grupos Operacionais", path: "/config/grupos" },
       { label: "Perfis de Acesso", path: "/config/perfis" },
     ],
   },
@@ -115,8 +115,20 @@ interface TopNavProps {
 export function TopNav({ currentPath, onNavigate }: TopNavProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { usuarioNome, logout } = useTenant();
+  const { tenantId, empresaId, usuarioNome, logout } = useTenant();
   const { can } = usePermissions();
+  const [empresas, setEmpresas] = useState<{ id: string; codigo: string | null; razaosocial: string }[]>([]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    (supabase as any)
+      .from("empresa")
+      .select("id, codigo, razaosocial")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .order("razaosocial")
+      .then(({ data }: any) => setEmpresas(data || []));
+  }, [tenantId]);
 
   // Filter nav items based on permissions
   const filteredNavItems = navItems.map((item) => {
@@ -162,12 +174,20 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
           </div>
         </div>
 
-        {/* Armazém selector */}
+        {/* Empresa selector */}
         <div className="flex items-center gap-1.5 px-4 border-r border-border mr-2">
           <MapPin size={13} className="text-muted-foreground" />
-          <select className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer">
-            <option>ARM-001 – Central SP</option>
-            <option>ARM-002 – Sul RS</option>
+          <select
+            value={empresaId || ""}
+            className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer"
+            disabled
+          >
+            {empresas.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.codigo ? `${e.codigo} – ${e.razaosocial}` : e.razaosocial}
+              </option>
+            ))}
+            {empresas.length === 0 && <option value="">Nenhuma empresa</option>}
           </select>
         </div>
 

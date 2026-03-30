@@ -20,6 +20,7 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
   DIVERGENCIA: { label: "Divergência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   LIB_ARMAZENAGEM: { label: "Lib. Armazenagem", class: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   "LIB. ARMAZENAGEM": { label: "Lib. Armazenagem", class: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  ARMAZENAGEM_PARCIAL: { label: "Armaz. Parcial", class: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
   ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
 };
 
@@ -142,6 +143,7 @@ export function MovimentoEntradaPage() {
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
   const [filterNumero, setFilterNumero] = useState("");
+  const [filterDocumento, setFilterDocumento] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [page, setPage] = useState(1);
@@ -156,6 +158,36 @@ export function MovimentoEntradaPage() {
     try {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
+
+      // If filtering by documento, first find matching movimento IDs
+      let movIdsByDoc: string[] | null = null;
+      if (filterDocumento) {
+        const { data: docData } = await (supabase as any)
+          .from("documento_entrada")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .ilike("numero_nota", `%${filterDocumento}%`);
+        if (docData && docData.length > 0) {
+          const docIds = docData.map((d: any) => d.id);
+          const { data: linkData } = await (supabase as any)
+            .from("movimento_entrada_documento")
+            .select("movimento_entrada_id")
+            .in("documento_entrada_id", docIds);
+          movIdsByDoc = (linkData || []).map((l: any) => l.movimento_entrada_id);
+          if (movIdsByDoc.length === 0) {
+            setMovements([]);
+            setTotal(0);
+            setLoading(false);
+            return;
+          }
+        } else {
+          setMovements([]);
+          setTotal(0);
+          setLoading(false);
+          return;
+        }
+      }
+
       let query = (supabase as any)
         .from("movimento_entrada")
         .select("id, numero_movimento, status, created_at, placa_veiculo", { count: "exact" })
@@ -168,6 +200,7 @@ export function MovimentoEntradaPage() {
       if (filterNumero) query = query.eq("numero_movimento", Number(filterNumero));
       if (filterDateFrom) query = query.gte("created_at", filterDateFrom + "T00:00:00");
       if (filterDateTo) query = query.lte("created_at", filterDateTo + "T23:59:59");
+      if (movIdsByDoc) query = query.in("id", movIdsByDoc);
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -194,7 +227,7 @@ export function MovimentoEntradaPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenantId, armazemId, page, filterStatus, filterNumero, filterDateFrom, filterDateTo]);
+  }, [tenantId, armazemId, page, filterStatus, filterNumero, filterDocumento, filterDateFrom, filterDateTo]);
 
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 
@@ -599,6 +632,10 @@ export function MovimentoEntradaPage() {
           <input type="number" value={filterNumero} onChange={(e) => setFilterNumero(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-20")} />
         </div>
         <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
+          <input type="text" value={filterDocumento} onChange={(e) => setFilterDocumento(e.target.value)} placeholder="Nº NF" className={cn(inputClass, "w-24")} />
+        </div>
+        <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status</label>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={cn(inputClass, "w-36")}>
             <option value="">Todos</option>
@@ -830,7 +867,7 @@ export function MovimentoEntradaPage() {
               </TabsContent>
 
               {/* Aba Informações */}
-              <TabsContent value="informacoes" className="flex-1 overflow-auto m-0 p-4">
+              <TabsContent value="informacoes" className="flex-1 overflow-auto m-0 p-4 min-h-0">
                 {detailLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : movimentoInfo ? (
