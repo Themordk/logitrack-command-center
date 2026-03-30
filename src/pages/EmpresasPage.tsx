@@ -13,12 +13,14 @@ export function EmpresasPage() {
   const [deleteItem, setDeleteItem] = useState<any>(null);
 
   const columns: ColumnSpec[] = [
+    { key: "codigo", label: "Código" },
     { key: "razaosocial", label: "Razão Social" },
     { key: "cnpj", label: "CNPJ" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
   const fields: FieldSpec[] = [
+    { name: "codigo", label: "Código", type: "text", placeholder: "Código da Empresa" },
     { name: "razaosocial", label: "Razão Social", type: "text", required: true, placeholder: "Razão Social da Empresa" },
     { name: "cnpj", label: "CNPJ", type: "text", required: true, placeholder: "00.000.000/0001-00" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
