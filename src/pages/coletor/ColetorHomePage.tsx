@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { usePermissions } from "@/contexts/PermissionsContext";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -26,7 +26,7 @@ const modules: ModuleCard[] = [
 
 export function ColetorHomePage({ onNavigate }: Props) {
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
-  const { can } = usePermissions();
+  const { can, loading: permLoading } = usePermissions();
   const userName = localStorage.getItem("core_usuario_nome") || "Operador";
   const tenantId = localStorage.getItem("core_tenant_id");
   const armazemId = localStorage.getItem("core_armazem_id");
@@ -56,6 +56,11 @@ export function ColetorHomePage({ onNavigate }: Props) {
         <span className="text-lg font-bold text-white">{userName}</span>
       </div>
 
+      {permLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" />
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-3 flex-1">
         {allowedModules.map((m) => {
           const count = pendingCounts[m.label];
@@ -83,6 +88,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
           );
         })}
       </div>
+      )}
 
       {/* Footer Navigation */}
       <div className="mt-auto pt-4 border-t border-[hsl(222,35%,18%)]">
