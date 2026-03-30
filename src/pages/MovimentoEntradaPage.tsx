@@ -189,8 +189,8 @@ export function MovimentoEntradaPage() {
       }
 
       let query = (supabase as any)
-        .from("movimento_entrada")
-        .select("id, numero_movimento, status, created_at, placa_veiculo", { count: "exact" })
+        .from("vw_movimento_entrada_lista")
+        .select("id, numero_movimento, status, created_at, placa_veiculo, parceiro_nome, armazem_id, empresa_id, tenant_id", { count: "exact" })
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -205,22 +205,7 @@ export function MovimentoEntradaPage() {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      const enriched = await Promise.all(
-        (data || []).map(async (mov: any) => {
-          const { data: link } = await (supabase as any).from("movimento_entrada_documento").select("documento_entrada_id").eq("movimento_entrada_id", mov.id).limit(1);
-          let parceiro_nome = "—";
-          if (link && link.length > 0) {
-            const { data: doc } = await (supabase as any).from("documento_entrada").select("parceiro_id").eq("id", link[0].documento_entrada_id).single();
-            if (doc) {
-              const { data: p } = await (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single();
-              if (p) parceiro_nome = p.razaosocial;
-            }
-          }
-          return { ...mov, parceiro_nome };
-        })
-      );
-
-      setMovements(enriched);
+      setMovements((data || []).map((mov: any) => ({ ...mov, parceiro_nome: mov.parceiro_nome || "—" })));
       setTotal(count || 0);
     } catch (err: any) {
       toast.error(err.message);
@@ -279,62 +264,40 @@ export function MovimentoEntradaPage() {
       setConferenciaItems(r2.data || []);
       setArmazenagemItems(r3.data || []);
 
-      // Load info tab data
-      const { data: movData } = await (supabase as any)
-        .from("movimento_entrada")
-        .select("confirma_volume, total_volume, total_volume_conferido, placa_veiculo, valor_descarga, crossdocking, observacao, box_id, armazem_id")
-        .eq("id", movId)
+      // Load info tab data using consolidated view
+      const { data: infoData } = await (supabase as any)
+        .from("vw_movimento_entrada_info")
+        .select("*")
+        .eq("movimento_id", movId)
         .single();
 
-      if (movData) {
-        const [boxRes, armRes] = await Promise.all([
-          (supabase as any).from("box").select("descricao").eq("id", movData.box_id).single(),
-          movData.armazem_id ? (supabase as any).from("armazem").select("descricao").eq("id", movData.armazem_id).single() : Promise.resolve({ data: null }),
-        ]);
+      if (infoData) {
         setMovimentoInfo({
-          confirma_volume: movData.confirma_volume,
-          total_volume: movData.total_volume,
-          total_volume_conferido: movData.total_volume_conferido,
-          armazem_descricao: armRes.data?.descricao || "—",
-          box_descricao: boxRes.data?.descricao || "—",
-          placa_veiculo: movData.placa_veiculo,
-          valor_descarga: movData.valor_descarga,
-          crossdocking: movData.crossdocking,
-          observacao: movData.observacao,
+          confirma_volume: infoData.confirma_volume,
+          total_volume: infoData.total_volume,
+          total_volume_conferido: infoData.total_volume_conferido,
+          armazem_descricao: infoData.armazem_descricao || "—",
+          box_descricao: infoData.box_descricao || "—",
+          placa_veiculo: infoData.placa_veiculo,
+          valor_descarga: infoData.valor_descarga,
+          crossdocking: infoData.crossdocking,
+          observacao: infoData.observacao,
         });
       }
 
-      // Load linked documents
-      const { data: links } = await (supabase as any)
-        .from("movimento_entrada_documento")
-        .select("documento_entrada_id")
+      // Load linked documents using consolidated view
+      const { data: docsData } = await (supabase as any)
+        .from("vw_movimento_entrada_docs_vinculados")
+        .select("*")
         .eq("movimento_entrada_id", movId);
 
-      if (links && links.length > 0) {
-        const docIds = links.map((l: any) => l.documento_entrada_id);
-        const docsArr: DocVinculado[] = [];
-        for (const docId of docIds) {
-          const { data: doc } = await (supabase as any)
-            .from("documento_entrada")
-            .select("numero_nota, parceiro_id, valor_total_nota, qtd_volume")
-            .eq("id", docId)
-            .single();
-          if (doc) {
-            const { data: parceiro } = await (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single();
-            const { count: skuCount } = await (supabase as any).from("documento_entrada_item").select("id", { count: "exact" }).eq("documento_entrada_id", docId);
-            docsArr.push({
-              numero_nota: doc.numero_nota,
-              razaosocial: parceiro?.razaosocial || "—",
-              total_skus: skuCount || 0,
-              valor_total_nota: doc.valor_total_nota,
-              qtd_volume: doc.qtd_volume,
-            });
-          }
-        }
-        setDocsVinculados(docsArr);
-      } else {
-        setDocsVinculados([]);
-      }
+      setDocsVinculados((docsData || []).map((d: any) => ({
+        numero_nota: d.numero_nota,
+        razaosocial: d.razaosocial || "—",
+        total_skus: Number(d.total_skus) || 0,
+        valor_total_nota: d.valor_total_nota,
+        qtd_volume: d.qtd_volume,
+      })));
     } catch (err: any) {
       toast.error(err.message);
     } finally {

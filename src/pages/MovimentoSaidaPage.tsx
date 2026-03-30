@@ -113,8 +113,8 @@ export function MovimentoSaidaPage() {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       let query = (supabase as any)
-        .from("movimento_saida")
-        .select("id, numero_onda, status, data_emissao, destino_carga, motorista, total_pedidos, peso_total, m3, prioridade, total_volume, observacao, box_id, rota_id, veiculo_id, empresa_id", { count: "exact" })
+        .from("vw_movimento_saida_lista")
+        .select("id, numero_onda, status, data_emissao, destino_carga, motorista, total_pedidos, peso_total, m3, prioridade, total_volume, observacao, box_id, rota_id, veiculo_id, empresa_id, box_nome, parceiro_nome", { count: "exact" })
         .eq("tenant_id", tenantId)
         .order("numero_onda", { ascending: false })
         .range(from, to);
@@ -127,25 +127,11 @@ export function MovimentoSaidaPage() {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      const enriched = await Promise.all(
-        (data || []).map(async (mov: any) => {
-          const [boxRes, docRes] = await Promise.all([
-            (supabase as any).from("box").select("descricao").eq("id", mov.box_id).single(),
-            (supabase as any).from("movimento_saida_documento").select("documento_saida_id").eq("movimento_saida_id", mov.id).limit(1),
-          ]);
-          let parceiro_nome = "—";
-          if (docRes.data?.[0]) {
-            const { data: ds } = await (supabase as any).from("documento_saida").select("parceiro_id").eq("id", docRes.data[0].documento_saida_id).single();
-            if (ds?.parceiro_id) {
-              const { data: parc } = await (supabase as any).from("parceiro").select("razaosocial").eq("id", ds.parceiro_id).single();
-              parceiro_nome = parc?.razaosocial || "—";
-            }
-          }
-          return { ...mov, box_nome: boxRes.data?.descricao || "—", parceiro_nome };
-        })
-      );
-
-      setMovimentos(enriched);
+      setMovimentos((data || []).map((mov: any) => ({
+        ...mov,
+        box_nome: mov.box_nome || "—",
+        parceiro_nome: mov.parceiro_nome || "—",
+      })));
       setTotal(count || 0);
     } catch (err: any) {
       toast.error(err.message);
@@ -163,28 +149,15 @@ export function MovimentoSaidaPage() {
         (supabase as any).from("vw_movimento_saida_resumo").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_saida_separacao_detalhe").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_saida_conferencia_detalhe").select("*").eq("movimento_saida_id", movId),
-        (supabase as any).from("movimento_saida_documento").select("documento_saida_id, ordem").eq("movimento_saida_id", movId).order("ordem"),
+        (supabase as any).from("vw_movimento_saida_docs_vinculados").select("*").eq("movimento_saida_id", movId).order("ordem"),
       ]);
       setTabItens(itensRes.data || []);
       setTabSeparacao(sepRes.data || []);
       setTabConferencia(confRes.data || []);
-
-      if (docsRes.data?.length) {
-        const enrichedDocs = await Promise.all(
-          docsRes.data.map(async (d: any) => {
-            const { data: ds } = await (supabase as any).from("documento_saida").select("numero_pedido, data_emissao, valor_pedido, parceiro_id").eq("id", d.documento_saida_id).single();
-            let parceiro = "—";
-            if (ds?.parceiro_id) {
-              const { data: p } = await (supabase as any).from("parceiro").select("razaosocial").eq("id", ds.parceiro_id).single();
-              parceiro = p?.razaosocial || "—";
-            }
-            return { ...d, numero_pedido: ds?.numero_pedido, data_emissao: ds?.data_emissao, valor_pedido: ds?.valor_pedido, parceiro };
-          })
-        );
-        setTabDocs(enrichedDocs);
-      } else {
-        setTabDocs([]);
-      }
+      setTabDocs((docsRes.data || []).map((d: any) => ({
+        ...d,
+        parceiro: d.parceiro || "—",
+      })));
     } catch (err: any) {
       toast.error(err.message);
     } finally {

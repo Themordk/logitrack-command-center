@@ -1653,6 +1653,20 @@ export type Database = {
             foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
             columns: ["movimento_entrada_id"]
             isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_info"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_entrada_resumo"
             referencedColumns: ["movimento_id"]
           },
@@ -1720,6 +1734,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
             referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_info"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_lista"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
@@ -1901,6 +1929,13 @@ export type Database = {
             foreignKeyName: "fk_onda_doc_onda"
             columns: ["movimento_saida_id"]
             isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_saida_resumo"
             referencedColumns: ["movimento_id"]
           },
@@ -1930,6 +1965,13 @@ export type Database = {
             columns: ["movimento_saida_id"]
             isOneToOne: false
             referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
             referencedColumns: ["id"]
           },
           {
@@ -2013,6 +2055,13 @@ export type Database = {
             foreignKeyName: "fk_onda_item_onda"
             columns: ["movimento_saida_id"]
             isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_saida_resumo"
             referencedColumns: ["movimento_id"]
           },
@@ -2056,6 +2105,13 @@ export type Database = {
             columns: ["movimento_saida_id"]
             isOneToOne: false
             referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
             referencedColumns: ["id"]
           },
           {
@@ -3876,6 +3932,13 @@ export type Database = {
             foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
             columns: ["movimento_saida_id"]
             isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_saida_resumo"
             referencedColumns: ["movimento_id"]
           },
@@ -4054,6 +4117,20 @@ export type Database = {
             foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
             columns: ["movimento_entrada_id"]
             isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_info"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_entrada_resumo"
             referencedColumns: ["movimento_id"]
           },
@@ -4097,6 +4174,128 @@ export type Database = {
           validade: string | null
         }
         Relationships: []
+      }
+      vw_movimento_entrada_docs_vinculados: {
+        Row: {
+          movimento_entrada_id: string | null
+          numero_nota: string | null
+          qtd_volume: number | null
+          razaosocial: string | null
+          tenant_id: string | null
+          total_skus: number | null
+          valor_total_nota: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "v_recebimento_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_info"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+        ]
+      }
+      vw_movimento_entrada_info: {
+        Row: {
+          armazem_descricao: string | null
+          box_descricao: string | null
+          confirma_volume: boolean | null
+          crossdocking: boolean | null
+          movimento_id: string | null
+          observacao: string | null
+          placa_veiculo: string | null
+          tenant_id: string | null
+          total_volume: number | null
+          total_volume_conferido: number | null
+          valor_descarga: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_movimento_entrada_lista: {
+        Row: {
+          armazem_id: string | null
+          created_at: string | null
+          empresa_id: string | null
+          id: string | null
+          numero_movimento: number | null
+          parceiro_nome: string | null
+          placa_veiculo: string | null
+          status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimento_entrada_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_movimento_entrada_resumo: {
         Row: {
@@ -4149,6 +4348,13 @@ export type Database = {
             foreignKeyName: "fk_onda_item_onda"
             columns: ["movimento_saida_id"]
             isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_saida_resumo"
             referencedColumns: ["movimento_id"]
           },
@@ -4177,6 +4383,13 @@ export type Database = {
             foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
             columns: ["movimento_saida_id"]
             isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_saida_resumo"
             referencedColumns: ["movimento_id"]
           },
@@ -4199,6 +4412,158 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_movimento_saida_docs_vinculados: {
+        Row: {
+          data_emissao: string | null
+          movimento_saida_id: string | null
+          numero_pedido: number | null
+          ordem: number | null
+          parceiro: string | null
+          tenant_id: string | null
+          valor_pedido: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_doc_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_onda"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_documento_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+        ]
+      }
+      vw_movimento_saida_lista: {
+        Row: {
+          box_id: string | null
+          box_nome: string | null
+          data_emissao: string | null
+          destino_carga: string | null
+          empresa_id: string | null
+          id: string | null
+          m3: number | null
+          motorista: string | null
+          numero_onda: number | null
+          observacao: string | null
+          parceiro_nome: string | null
+          peso_total: number | null
+          prioridade: Database["public"]["Enums"]["enum_prioridade_onda"] | null
+          rota_id: string | null
+          status:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
+          tenant_id: string | null
+          total_pedidos: number | null
+          total_volume: number | null
+          veiculo_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_onda_box"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "box"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_empresa"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_rota"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "rotas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_veiculo"
+            columns: ["veiculo_id"]
+            isOneToOne: false
+            referencedRelation: "veiculos"
             referencedColumns: ["id"]
           },
         ]
