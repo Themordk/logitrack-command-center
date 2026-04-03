@@ -118,6 +118,18 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
 };
 
+function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
+  if (path.startsWith("/relatorios/movimentacoes/tarefa/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Relatórios" },
+      { label: "Histórico de Movimentos", path: "/relatorios/movimentacoes" },
+      { label: "Detalhe da Tarefa" },
+    ];
+  }
+  return null;
+}
+
 function renderPage(path: string, onNavigate: (p: string) => void) {
   switch (path) {
     case "/": return <Dashboard onNavigate={onNavigate} />;
