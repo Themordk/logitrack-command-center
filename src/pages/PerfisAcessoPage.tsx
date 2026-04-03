@@ -153,8 +153,22 @@ export function PerfisAcessoPage() {
     fetchAll();
   };
 
+  // Filter modules by search term
+  const filteredModulos = moduleSearch.trim()
+    ? modulos.filter((m) => {
+        const searchLower = moduleSearch.toLowerCase();
+        const groupKey = m.codigo.split(".").slice(0, 2).join(".");
+        const groupLabel = groupLabels[groupKey] || groupKey;
+        return (
+          m.descricao.toLowerCase().includes(searchLower) ||
+          m.codigo.toLowerCase().includes(searchLower) ||
+          groupLabel.toLowerCase().includes(searchLower)
+        );
+      })
+    : modulos;
+
   // Group modules by prefix (web.armazem, web.config, coletor, etc.)
-  const moduleGroups = modulos.reduce<Record<string, Modulo[]>>((acc, m) => {
+  const moduleGroups = filteredModulos.reduce<Record<string, Modulo[]>>((acc, m) => {
     const parts = m.codigo.split(".");
     const group = parts.length >= 2 ? parts.slice(0, 2).join(".") : m.codigo;
     if (!acc[group]) acc[group] = [];
