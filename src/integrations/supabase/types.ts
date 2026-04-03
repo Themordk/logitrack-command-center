@@ -855,6 +855,7 @@ export type Database = {
           quantidade: number
           tarefa_execucao_id: string | null
           tenant_id: string
+          tipo_documento_origem: string | null
           tipo_movimento: number
           usuario_id: string | null
         }
@@ -874,6 +875,7 @@ export type Database = {
           quantidade: number
           tarefa_execucao_id?: string | null
           tenant_id: string
+          tipo_documento_origem?: string | null
           tipo_movimento: number
           usuario_id?: string | null
         }
@@ -893,6 +895,7 @@ export type Database = {
           quantidade?: number
           tarefa_execucao_id?: string | null
           tenant_id?: string
+          tipo_documento_origem?: string | null
           tipo_movimento?: number
           usuario_id?: string | null
         }
@@ -4931,6 +4934,15 @@ export type Database = {
           status: string
           tarefa_id: string
         }[]
+      }
+      separacao_conferencia_limpar_item: {
+        Args: {
+          p_movimento_saida_id: string
+          p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
       }
       separacao_confirmar_endereco: {
         Args: { p_endereco_lido: string; p_tarefa_id: string }
