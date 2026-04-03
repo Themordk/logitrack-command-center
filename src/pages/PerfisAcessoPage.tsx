@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, Plus, Edit2, Trash2, Shield, ChevronDown, ChevronRight, Check } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Shield, ChevronDown, ChevronRight, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Perfil {
