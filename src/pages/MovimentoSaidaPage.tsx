@@ -524,7 +524,7 @@ export function MovimentoSaidaPage() {
                                 Limpar Separação Item
                               </button>
                               <button
-                                onClick={() => { setItemActionMenuId(null); setLimparConfItemDialog(item.movimento_item_id || i); }}
+                                onClick={() => { setItemActionMenuId(null); setLimparConfItemDialog({ movId: selectedId!, produtoId: item.produto_id }); }}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
                               >
                                 Limpar Conferência Item
