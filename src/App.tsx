@@ -302,7 +302,7 @@ function AppContent() {
     );
   }
 
-  const bc = breadcrumbs[currentPath] ?? [
+  const bc = breadcrumbs[currentPath] ?? getDynamicBreadcrumb(currentPath) ?? [
     { label: "CORE LogiTrack" },
     { label: currentPath.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
   ];
