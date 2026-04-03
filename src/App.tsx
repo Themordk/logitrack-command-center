@@ -164,7 +164,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/integracao": return <IntegracaoPage />;
     case "/config/perfis": return <PerfisAcessoPage />;
     case "/relatorios/estoque": return <EstoqueReportPage />;
-    case "/relatorios/movimentacoes": return <MovimentacoesReportPage />;
+    case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     default: {
       // Dynamic route: /atividades/inventario/:id/execucao
       const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);
