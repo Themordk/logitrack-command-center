@@ -153,6 +153,23 @@ export function PerfisAcessoPage() {
     fetchAll();
   };
 
+  const groupLabels: Record<string, string> = {
+    "web.dashboard": "Dashboard",
+    "web.rastreabilidade": "Rastreabilidade",
+    "web.armazem": "Armazém",
+    "web.dados-mestres": "Dados Mestres",
+    "web.atividades": "Atividades",
+    "web.relatorios": "Relatórios",
+    "web.config": "Configurações",
+    "coletor.recebimento": "Coletor - Recebimento",
+    "coletor.armazenagem": "Coletor - Armazenagem",
+    "coletor.movimentos": "Coletor - Movimentos",
+    "coletor.separacao": "Coletor - Separação",
+    "coletor.conferencia": "Coletor - Conferência",
+    "coletor.inventario": "Coletor - Inventário",
+    "coletor.consulta": "Coletor - Consultas",
+  };
+
   // Filter modules by search term
   const filteredModulos = moduleSearch.trim()
     ? modulos.filter((m) => {
@@ -175,23 +192,6 @@ export function PerfisAcessoPage() {
     acc[group].push(m);
     return acc;
   }, {});
-
-  const groupLabels: Record<string, string> = {
-    "web.dashboard": "Dashboard",
-    "web.rastreabilidade": "Rastreabilidade",
-    "web.armazem": "Armazém",
-    "web.dados-mestres": "Dados Mestres",
-    "web.atividades": "Atividades",
-    "web.relatorios": "Relatórios",
-    "web.config": "Configurações",
-    "coletor.recebimento": "Coletor - Recebimento",
-    "coletor.armazenagem": "Coletor - Armazenagem",
-    "coletor.movimentos": "Coletor - Movimentos",
-    "coletor.separacao": "Coletor - Separação",
-    "coletor.conferencia": "Coletor - Conferência",
-    "coletor.inventario": "Coletor - Inventário",
-    "coletor.consulta": "Coletor - Consultas",
-  };
 
   const acaoLabels: Record<string, string> = {
     CREATE: "Criar",
