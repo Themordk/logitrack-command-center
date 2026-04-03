@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, Plus, Edit2, Trash2, Shield, ChevronDown, ChevronRight, Check } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Shield, ChevronDown, ChevronRight, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Perfil {
@@ -44,6 +44,7 @@ export function PerfisAcessoPage() {
   const [editingDesc, setEditingDesc] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [moduleSearch, setModuleSearch] = useState("");
 
   const fetchAll = useCallback(async () => {
     if (!tenantId) return;
@@ -152,8 +153,22 @@ export function PerfisAcessoPage() {
     fetchAll();
   };
 
+  // Filter modules by search term
+  const filteredModulos = moduleSearch.trim()
+    ? modulos.filter((m) => {
+        const searchLower = moduleSearch.toLowerCase();
+        const groupKey = m.codigo.split(".").slice(0, 2).join(".");
+        const groupLabel = groupLabels[groupKey] || groupKey;
+        return (
+          m.descricao.toLowerCase().includes(searchLower) ||
+          m.codigo.toLowerCase().includes(searchLower) ||
+          groupLabel.toLowerCase().includes(searchLower)
+        );
+      })
+    : modulos;
+
   // Group modules by prefix (web.armazem, web.config, coletor, etc.)
-  const moduleGroups = modulos.reduce<Record<string, Modulo[]>>((acc, m) => {
+  const moduleGroups = filteredModulos.reduce<Record<string, Modulo[]>>((acc, m) => {
     const parts = m.codigo.split(".");
     const group = parts.length >= 2 ? parts.slice(0, 2).join(".") : m.codigo;
     if (!acc[group]) acc[group] = [];
@@ -299,6 +314,17 @@ export function PerfisAcessoPage() {
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                   Salvar
                 </button>
+              </div>
+
+              {/* Module search */}
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={moduleSearch}
+                  onChange={(e) => setModuleSearch(e.target.value)}
+                  placeholder="Pesquisar módulo..."
+                  className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground outline-none focus:border-primary"
+                />
               </div>
 
               {/* Permission tree */}

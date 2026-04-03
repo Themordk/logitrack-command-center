@@ -104,7 +104,8 @@ export function MovimentoSaidaPage() {
   const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
   const [limparSepItemDialog, setLimparSepItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
   const [limparSepItemLoading, setLimparSepItemLoading] = useState(false);
-  const [limparConfItemDialog, setLimparConfItemDialog] = useState<string | null>(null);
+  const [limparConfItemDialog, setLimparConfItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
+  const [limparConfItemLoading, setLimparConfItemLoading] = useState(false);
 
   const fetchMovimentos = useCallback(async () => {
     if (!tenantId) return;
@@ -523,7 +524,7 @@ export function MovimentoSaidaPage() {
                                 Limpar Separação Item
                               </button>
                               <button
-                                onClick={() => { setItemActionMenuId(null); setLimparConfItemDialog(item.movimento_item_id || i); }}
+                                onClick={() => { setItemActionMenuId(null); setLimparConfItemDialog({ movId: selectedId!, produtoId: item.produto_id }); }}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
                               >
                                 Limpar Conferência Item
@@ -911,15 +912,43 @@ export function MovimentoSaidaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Limpar Conferência Item (UI only) */}
+      {/* Limpar Conferência Item */}
       <Dialog open={!!limparConfItemDialog} onOpenChange={(v) => !v && setLimparConfItemDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Limpar Conferência do Item</DialogTitle>
-            <DialogDescription>Esta ação irá limpar a conferência deste item. Funcionalidade em desenvolvimento.</DialogDescription>
+            <DialogDescription>Tem certeza que deseja limpar a conferência deste item? Esta ação não pode ser desfeita.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setLimparConfItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+            <button onClick={() => setLimparConfItemDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              disabled={limparConfItemLoading}
+              onClick={async () => {
+                if (!limparConfItemDialog || !tenantId || !usuarioId) return;
+                setLimparConfItemLoading(true);
+                try {
+                  const { error } = await supabase.rpc("separacao_conferencia_limpar_item" as any, {
+                    p_tenant_id: tenantId,
+                    p_movimento_saida_id: limparConfItemDialog.movId,
+                    p_produto_id: limparConfItemDialog.produtoId,
+                    p_usuario_id: usuarioId,
+                  });
+                  if (error) throw error;
+                  toast.success("Conferência do item limpa com sucesso!");
+                  setLimparConfItemDialog(null);
+                  if (selectedId) loadTabData(selectedId);
+                  fetchMovimentos();
+                } catch (err: any) {
+                  toast.error(err.message || "Erro ao limpar conferência do item.");
+                } finally {
+                  setLimparConfItemLoading(false);
+                }
+              }}
+              className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 flex items-center gap-2"
+            >
+              {limparConfItemLoading && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
           </div>
         </DialogContent>
       </Dialog>
