@@ -4077,6 +4077,91 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_estoque_movimento_relatorio: {
+        Row: {
+          criado_em: string | null
+          empresa_id: string | null
+          endereco_destino: string | null
+          endereco_origem: string | null
+          hu_id: string | null
+          id: string | null
+          lote: string | null
+          produto_descricao: string | null
+          quantidade: number | null
+          sku: string | null
+          tarefa_execucao_id: string | null
+          tarefa_execucao_status:
+            | Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+            | null
+          tarefa_usuario_id: string | null
+          tarefa_usuario_nome: string | null
+          tenant_id: string | null
+          tipo_documento_origem: string | null
+          tipo_movimento: number | null
+          tipo_tarefa_codigo: string | null
+          tipo_tarefa_descricao: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_movimento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_hu_id_fkey"
+            columns: ["hu_id"]
+            isOneToOne: false
+            referencedRelation: "hu"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_usuario_id_fkey"
+            columns: ["tarefa_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_movimento_entrada_armazenagem_detalhe: {
         Row: {
           codigo_hu: string | null

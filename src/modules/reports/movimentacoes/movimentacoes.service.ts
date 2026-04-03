@@ -12,29 +12,24 @@ export interface MovimentacoesFilter {
 
 export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
   let query = supabase
-    .from("estoque_movimento")
+    .from("vw_estoque_movimento_relatorio")
     .select(`
       id,
       criado_em,
-      lote,
-      hu_id,
       tipo_movimento,
       quantidade,
-      produto:produto_id (
-        sku,
-        descricao
-      ),
-      endereco_origem:endereco_origem_id (
-        codigo_endereco,
-        descricao
-      ),
-      endereco_destino:endereco_destino_id (
-        codigo_endereco,
-        descricao
-      ),
-      usuario:usuario_id (
-        nome
-      )
+      lote,
+      hu_id,
+      tarefa_execucao_id,
+      sku,
+      produto_descricao,
+      endereco_origem,
+      endereco_destino,
+      usuario_nome,
+      tipo_documento_origem,
+      tipo_tarefa_codigo,
+      tipo_tarefa_descricao,
+      tarefa_execucao_status
     `)
     .eq("tenant_id", filters.tenant_id)
     .gte("criado_em", filters.data_inicio)
@@ -52,20 +47,69 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
   let results = (data || []).map((row: any) => ({
     id: row.id,
     criado_em: row.criado_em,
-    sku: row.produto?.sku || "",
-    descricao: row.produto?.descricao || "",
+    sku: row.sku || "",
+    descricao: row.produto_descricao || "",
     lote: row.lote || "",
     hu_id: row.hu_id || "",
-    origem: row.endereco_origem?.descricao ?? "—",
-    destino: row.endereco_destino?.descricao ?? "—",
+    origem: row.endereco_origem ?? "—",
+    destino: row.endereco_destino ?? "—",
     tipo_movimento: row.tipo_movimento,
     quantidade: Number(row.quantidade),
-    usuario: row.usuario?.nome || "—",
+    usuario: row.usuario_nome || "—",
+    tipo_documento_origem: row.tipo_documento_origem || "",
+    tarefa_execucao_id: row.tarefa_execucao_id || "",
+    tipo_tarefa_codigo: row.tipo_tarefa_codigo || "",
+    tipo_tarefa_descricao: row.tipo_tarefa_descricao || "",
+    tarefa_execucao_status: row.tarefa_execucao_status || "",
   }));
 
   if (filters.sku) results = results.filter(r => r.sku.toLowerCase().includes(filters.sku!.toLowerCase()));
 
   return results;
+}
+
+export async function fetchTarefaDetalhe(tarefaExecucaoId: string) {
+  // Fetch tarefa_execucao with tarefa details
+  const { data: execucao, error: execError } = await supabase
+    .from("tarefa_execucao")
+    .select(`
+      *,
+      tarefa:tarefa_id (
+        *,
+        tipo_tarefa:tipo_tarefa_id (
+          codigo,
+          descricao
+        ),
+        produto:produto_id (
+          sku,
+          descricao
+        ),
+        endereco_origem:endereco_origem_id (
+          descricao,
+          codigo_endereco
+        ),
+        endereco_destino:endereco_destino_id (
+          descricao,
+          codigo_endereco
+        )
+      ),
+      usuario:usuario_id (
+        nome
+      ),
+      endereco_origem:endereco_origem_id (
+        descricao,
+        codigo_endereco
+      ),
+      endereco_destino:endereco_destino_id (
+        descricao,
+        codigo_endereco
+      )
+    `)
+    .eq("id", tarefaExecucaoId)
+    .single();
+
+  if (execError) throw execError;
+  return execucao;
 }
 
 export function getTipoMovimentoLabel(tipo: number): string {
@@ -75,6 +119,8 @@ export function getTipoMovimentoLabel(tipo: number): string {
     case 3: return "Transferência";
     case 4: return "Armazenagem";
     case 5: return "Separação";
+    case 6: return "Inventário";
+    case 99: return "Estorno";
     default: return `Tipo ${tipo}`;
   }
 }
@@ -86,6 +132,17 @@ export function getTipoMovimentoColor(tipo: number): string {
     case 3: return "text-[hsl(var(--status-moving))]";
     case 4: return "text-[hsl(var(--status-free))]";
     case 5: return "text-purple-400";
+    case 6: return "text-orange-400";
+    case 99: return "text-yellow-400";
     default: return "text-muted-foreground";
+  }
+}
+
+export function getTipoDocumentoLabel(tipo: string): string {
+  switch (tipo) {
+    case "MOVIMENTO_ENTRADA_ITEM": return "Mov. Entrada";
+    case "MOVIMENTO_SAIDA_ITEM": return "Mov. Saída";
+    case "INVENTARIO": return "Inventário";
+    default: return tipo || "—";
   }
 }

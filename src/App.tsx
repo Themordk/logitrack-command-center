@@ -41,6 +41,7 @@ import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
 import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/MovimentacoesReportPage";
+import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhePage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
@@ -117,6 +118,18 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
 };
 
+function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
+  if (path.startsWith("/relatorios/movimentacoes/tarefa/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Relatórios" },
+      { label: "Histórico de Movimentos", path: "/relatorios/movimentacoes" },
+      { label: "Detalhe da Tarefa" },
+    ];
+  }
+  return null;
+}
+
 function renderPage(path: string, onNavigate: (p: string) => void) {
   switch (path) {
     case "/": return <Dashboard onNavigate={onNavigate} />;
@@ -151,8 +164,13 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/integracao": return <IntegracaoPage />;
     case "/config/perfis": return <PerfisAcessoPage />;
     case "/relatorios/estoque": return <EstoqueReportPage />;
-    case "/relatorios/movimentacoes": return <MovimentacoesReportPage />;
+    case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     default: {
+      // Dynamic route: /relatorios/movimentacoes/tarefa/:id
+      const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
+      if (tarefaMatch) {
+        return <TarefaDetalhePage tarefaExecucaoId={tarefaMatch[1]} onNavigate={onNavigate} />;
+      }
       // Dynamic route: /atividades/inventario/:id/execucao
       const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);
       if (invExecMatch) {
@@ -284,7 +302,7 @@ function AppContent() {
     );
   }
 
-  const bc = breadcrumbs[currentPath] ?? [
+  const bc = breadcrumbs[currentPath] ?? getDynamicBreadcrumb(currentPath) ?? [
     { label: "CORE LogiTrack" },
     { label: currentPath.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
   ];

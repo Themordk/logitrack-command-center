@@ -2,16 +2,21 @@ import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
-import { fetchMovimentacoesReport, getTipoMovimentoLabel, getTipoMovimentoColor, type MovimentacoesFilter } from "./movimentacoes.service";
+import { fetchMovimentacoesReport, getTipoMovimentoLabel, getTipoMovimentoColor, getTipoDocumentoLabel, type MovimentacoesFilter } from "./movimentacoes.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Filter, Search, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Filter, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export function MovimentacoesReportPage() {
+interface MovimentacoesReportPageProps {
+  onNavigate?: (path: string) => void;
+}
+
+export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageProps) {
   const { tenantId, empresaId } = useTenant();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,6 +87,40 @@ export function MovimentacoesReportPage() {
       ),
     },
     {
+      key: "tipo_documento_origem", label: "Doc. Origem", width: "130px",
+      render: (v) => {
+        if (!v) return <span className="text-muted-foreground">—</span>;
+        return (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 font-medium">
+            {getTipoDocumentoLabel(v)}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "tarefa_execucao_id", label: "Tarefa", width: "140px",
+      render: (v, row) => {
+        if (!v) return <span className="text-muted-foreground">—</span>;
+        const label = row.tipo_tarefa_codigo || v.substring(0, 8);
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onNavigate) {
+                onNavigate(`/relatorios/movimentacoes/tarefa/${v}`);
+              } else {
+                window.location.hash = `/relatorios/movimentacoes/tarefa/${v}`;
+              }
+            }}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 hover:underline transition-colors"
+          >
+            {label}
+            <ExternalLink size={10} />
+          </button>
+        );
+      },
+    },
+    {
       key: "quantidade", label: "Quantidade", align: "right", width: "100px",
       render: (v) => Number(v).toLocaleString("pt-BR"),
     },
@@ -139,6 +178,8 @@ export function MovimentacoesReportPage() {
                     <SelectItem value="3">Transferência</SelectItem>
                     <SelectItem value="4">Armazenagem</SelectItem>
                     <SelectItem value="5">Separação</SelectItem>
+                    <SelectItem value="6">Inventário</SelectItem>
+                    <SelectItem value="99">Estorno</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
