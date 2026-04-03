@@ -316,6 +316,17 @@ export function PerfisAcessoPage() {
                 </button>
               </div>
 
+              {/* Module search */}
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={moduleSearch}
+                  onChange={(e) => setModuleSearch(e.target.value)}
+                  placeholder="Pesquisar módulo..."
+                  className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground outline-none focus:border-primary"
+                />
+              </div>
+
               {/* Permission tree */}
               <div className="space-y-1">
                 {Object.entries(moduleGroups).map(([group, mods]) => {
