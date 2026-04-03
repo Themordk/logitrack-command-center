@@ -44,6 +44,7 @@ export function PerfisAcessoPage() {
   const [editingDesc, setEditingDesc] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [moduleSearch, setModuleSearch] = useState("");
 
   const fetchAll = useCallback(async () => {
     if (!tenantId) return;
