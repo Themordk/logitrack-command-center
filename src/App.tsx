@@ -166,6 +166,11 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     default: {
+      // Dynamic route: /relatorios/movimentacoes/tarefa/:id
+      const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
+      if (tarefaMatch) {
+        return <TarefaDetalhePage tarefaExecucaoId={tarefaMatch[1]} onNavigate={onNavigate} />;
+      }
       // Dynamic route: /atividades/inventario/:id/execucao
       const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);
       if (invExecMatch) {
