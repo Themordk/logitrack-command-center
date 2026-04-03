@@ -104,7 +104,8 @@ export function MovimentoSaidaPage() {
   const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
   const [limparSepItemDialog, setLimparSepItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
   const [limparSepItemLoading, setLimparSepItemLoading] = useState(false);
-  const [limparConfItemDialog, setLimparConfItemDialog] = useState<string | null>(null);
+  const [limparConfItemDialog, setLimparConfItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
+  const [limparConfItemLoading, setLimparConfItemLoading] = useState(false);
 
   const fetchMovimentos = useCallback(async () => {
     if (!tenantId) return;
