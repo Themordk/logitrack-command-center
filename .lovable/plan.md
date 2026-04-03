@@ -1,40 +1,136 @@
 
 
-# Correção: Scanner hardware não funciona no modo "Coletor com leitor"
+# Plano: Colunas de Rastreabilidade + Detalhe de Tarefa no Relatório de Movimentações
 
-## Diagnóstico
+## Contexto
 
-O problema está na linha 75 do `ScanField.tsx`:
+A tabela `estoque_movimento` já possui os campos `tipo_documento_origem` (text), `documento_origem_id` (text) e `tarefa_execucao_id` (uuid). Os dados confirmam que `tarefa_execucao_id` está preenchido em todos os registros e o `tipo_documento_origem` está na tabela `tarefa` (não na `estoque_movimento` -- onde aparece null). Os tipos de documento existentes são: `MOVIMENTO_ENTRADA_ITEM`, `MOVIMENTO_SAIDA_ITEM`, `INVENTARIO`. Os tipos de tarefa incluem: ARMAZENAGEM_ENTRADA, CONFERENCIA_ENTRADA, SEPARACAO, TRANSFERENCIA, ABASTECIMENTO, INVENTARIO, etc.
 
-```tsx
-inputMode={shouldSuppressKeyboard ? "none" : undefined}
+Atualmente a query faz joins individuais via Supabase SDK (N+1 implícito). Para performance, criaremos uma **view consolidada** no banco.
+
+---
+
+## Etapa 1 -- View de banco `vw_estoque_movimento_relatorio`
+
+Criar uma migration com uma view que consolida todos os dados necessários em uma única query, eliminando joins no frontend:
+
+```sql
+CREATE OR REPLACE VIEW public.vw_estoque_movimento_relatorio AS
+SELECT
+  em.id,
+  em.criado_em,
+  em.tenant_id,
+  em.empresa_id,
+  em.tipo_movimento,
+  em.quantidade,
+  em.lote,
+  em.hu_id,
+  em.tarefa_execucao_id,
+  -- Produto
+  p.sku,
+  p.descricao AS produto_descricao,
+  -- Enderecos
+  eo.descricao AS endereco_origem,
+  ed.descricao AS endereco_destino,
+  -- Usuario
+  u.nome AS usuario_nome,
+  -- Tarefa (via tarefa_execucao -> tarefa)
+  t.tipo_documento_origem,
+  tt.codigo AS tipo_tarefa_codigo,
+  tt.descricao AS tipo_tarefa_descricao,
+  -- Tarefa execucao resumo
+  te.status AS tarefa_execucao_status,
+  te.usuario_id AS tarefa_usuario_id,
+  tu.nome AS tarefa_usuario_nome
+FROM estoque_movimento em
+LEFT JOIN produto p ON p.id = em.produto_id
+LEFT JOIN endereco eo ON eo.id = em.endereco_origem_id
+LEFT JOIN endereco ed ON ed.id = em.endereco_destino_id
+LEFT JOIN usuario u ON u.id = em.usuario_id
+LEFT JOIN tarefa_execucao te ON te.id = em.tarefa_execucao_id
+LEFT JOIN tarefa t ON t.id = te.tarefa_id
+LEFT JOIN tipo_tarefa tt ON tt.id = t.tipo_tarefa_id
+LEFT JOIN usuario tu ON tu.id = te.usuario_id;
 ```
 
-`inputMode="none"` é um atributo HTML que instrui o navegador a **não ativar nenhum mecanismo de entrada virtual**. Em muitos dispositivos Android com coletores Zebra/Honeywell, o WebView interpreta `inputMode="none"` de forma agressiva — ele não apenas suprime o teclado virtual, mas também **bloqueia o canal IME (Input Method Editor)** pelo qual o scanner de hardware envia os caracteres. Isso explica por que:
+Isso elimina o padrão N+1 e traz todos os dados necessarios em uma unica consulta.
 
-- **Celular/Tablet** (sem `inputMode="none"`): scanner funciona normalmente, pois o input aceita qualquer entrada.
-- **Coletor com leitor** (`inputMode="none"`): o input rejeita a entrada do scanner porque o canal IME está bloqueado, mas digitação via teclado físico funciona pois usa KeyEvents diretamente.
+---
 
-## Solução
+## Etapa 2 -- Atualizar o service (`movimentacoes.service.ts`)
 
-Substituir `inputMode="none"` por uma abordagem que suprime o teclado virtual **sem bloquear o canal de entrada do scanner**. A técnica comprovada para coletores Zebra/Honeywell é usar `readOnly` momentaneamente:
+- Trocar a query atual (com joins via SDK) por uma consulta simples na view `vw_estoque_movimento_relatorio`.
+- Adicionar nos resultados mapeados: `tipo_documento_origem`, `tarefa_execucao_id`, `tipo_tarefa_codigo`, `tipo_tarefa_descricao`, `tarefa_execucao_status`.
+- Adicionar `case 99` nas funcoes `getTipoMovimentoLabel` (retorna "Estorno") e `getTipoMovimentoColor` (retorna `text-yellow-400`).
+- Adicionar helper `getTipoDocumentoLabel()` para traduzir os valores (`MOVIMENTO_ENTRADA_ITEM` -> "Mov. Entrada", `MOVIMENTO_SAIDA_ITEM` -> "Mov. Saida", `INVENTARIO` -> "Inventario").
 
-1. O input inicia com `readOnly={true}` — isso impede o teclado virtual de aparecer ao receber foco.
-2. Ao detectar o primeiro `keydown` (que vem do scanner ou teclado físico), remove-se o `readOnly` para permitir a entrada.
-3. Após processar o scan (Enter), volta a `readOnly={true}`.
+---
 
-Essa abordagem é usada amplamente em apps WMS industriais e funciona em todos os browsers móveis e WebViews de coletores.
+## Etapa 3 -- Adicionar colunas na tabela do relatorio (`MovimentacoesReportPage.tsx`)
 
-## Mudanças
+Duas novas colunas inseridas apos "Tipo Movimento":
 
-### `src/components/coletor/ScanField.tsx`
+1. **Doc. Origem** -- exibe o label amigavel do `tipo_documento_origem` (badge colorido).
+2. **Tarefa** -- exibe o `tipo_tarefa_codigo` como link clicavel. Ao clicar, navega para `/relatorios/movimentacoes/tarefa/:tarefa_execucao_id`.
+   - UUID simplificado: mostrar o codigo do tipo de tarefa (ex: "ENTR-ARMZ") em vez do UUID.
+   - Se nao houver tarefa vinculada, exibe "---".
 
-- Remover `inputMode="none"`.
-- Adicionar estado `readOnly` controlado:
-  - Inicia `true` quando `shouldSuppressKeyboard` está ativo.
-  - No `onKeyDown`, se `readOnly` estiver `true`, desativa-o para liberar a entrada.
-  - Após o scan (Enter), reativa `readOnly`.
-- Adicionar `onBlur` que reativa `readOnly` para que, ao re-focar, o teclado virtual não apareça.
+Adicionar "Estorno" (valor 99) no filtro de Tipo Movimento no select.
 
-Resultado: o teclado virtual continua suprimido, mas o scanner de hardware funciona normalmente.
+---
+
+## Etapa 4 -- Nova pagina de detalhe da tarefa
+
+Criar `src/modules/reports/movimentacoes/TarefaDetalhePage.tsx`:
+
+**Layout em cards informativos (estilo SAP dark):**
+
+**Card 1 -- Informacoes da Tarefa:**
+- Tipo Tarefa (codigo + descricao)
+- Tipo Documento Origem
+- Status
+- Prioridade
+- Ordem Tarefa
+- Produto (SKU + descricao via join)
+- Qtd Requerida / Qtd Executada / Qtd Cortada
+- % Execucao
+- Local Origem / Local Destino (descricao do endereco)
+- Criado em / Concluido em
+- Motivo Ocorrencia (se existir)
+
+**Card 2 -- Informacoes da Execucao:**
+- Status da Execucao
+- Usuario Executor (nome)
+- Atribuido em / Iniciado em / Concluido em
+- Quantidade Executada
+- Lote / Validade / Fabricacao / Serie
+- HU
+- Endereco Origem / Destino
+- Qtd Cortada (se houver)
+- Motivo Ocorrencia (se houver)
+
+**Botao "Voltar" para retornar ao relatorio.**
+
+---
+
+## Etapa 5 -- Rota no App.tsx
+
+Adicionar rota dinamica `/relatorios/movimentacoes/tarefa/:id` no bloco de rotas dinamicas (secao `default` do switch), renderizando `TarefaDetalhePage`.
+
+Adicionar breadcrumb correspondente.
+
+---
+
+## Resumo tecnico
+
+```text
+Arquivos modificados/criados:
+  1. migration: vw_estoque_movimento_relatorio (VIEW)
+  2. src/modules/reports/movimentacoes/movimentacoes.service.ts (query na view + helpers)
+  3. src/modules/reports/movimentacoes/MovimentacoesReportPage.tsx (2 colunas + estorno no filtro)
+  4. src/modules/reports/movimentacoes/TarefaDetalhePage.tsx (NOVO)
+  5. src/App.tsx (rota + breadcrumb)
+```
+
+**Ganho de performance**: a view elimina 4 sub-queries/joins feitos pelo Supabase SDK, consolidando tudo em uma unica consulta SQL otimizada pelo Postgres.
 
