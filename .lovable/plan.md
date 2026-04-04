@@ -1,136 +1,81 @@
 
 
-# Plano: Colunas de Rastreabilidade + Detalhe de Tarefa no Relatório de Movimentações
+# Plano: Relatório Inteligente de Ocupação de Endereços
 
-## Contexto
+## Resumo
 
-A tabela `estoque_movimento` já possui os campos `tipo_documento_origem` (text), `documento_origem_id` (text) e `tarefa_execucao_id` (uuid). Os dados confirmam que `tarefa_execucao_id` está preenchido em todos os registros e o `tipo_documento_origem` está na tabela `tarefa` (não na `estoque_movimento` -- onde aparece null). Os tipos de documento existentes são: `MOVIMENTO_ENTRADA_ITEM`, `MOVIMENTO_SAIDA_ITEM`, `INVENTARIO`. Os tipos de tarefa incluem: ARMAZENAGEM_ENTRADA, CONFERENCIA_ENTRADA, SEPARACAO, TRANSFERENCIA, ABASTECIMENTO, INVENTARIO, etc.
+Criar um dashboard operacional em `/relatorios/ocupacao` que apresenta a saúde de ocupação do armazém com KPIs, mapa visual por setor, drill-down detalhado e gráficos analíticos. Dados derivados das tabelas `endereco`, `estoque_geral`, `setor` e `estoque_movimento`.
 
-Atualmente a query faz joins individuais via Supabase SDK (N+1 implícito). Para performance, criaremos uma **view consolidada** no banco.
+## Modelo de Dados
 
----
+A ocupação será calculada client-side a partir de duas queries:
+1. **Endereços + Setor**: `endereco` com `setor.descricao` (busca separada por limitação de FK)
+2. **Estoque agregado por endereço**: `estoque_geral` agrupado por `endereco_id` (quantidade_total, count distinct produto_id)
+3. **Última movimentação por endereço**: `estoque_movimento` com MAX(criado_em) por endereco_destino_id
 
-## Etapa 1 -- View de banco `vw_estoque_movimento_relatorio`
+Status de ocupação derivado:
+- **Livre**: quantidade_total = 0 e situacao = LIVRE
+- **Ocupado**: quantidade_total > 0 e SKUs preenchem capacidade
+- **Parcial**: quantidade_total > 0 mas abaixo da capacidade
+- **Bloqueado**: situacao contém BLOQUEADO
 
-Criar uma migration com uma view que consolida todos os dados necessários em uma única query, eliminando joins no frontend:
+Como `total_pallet` e `m3` frequentemente são null, a % de ocupação será baseada na contagem de SKUs distintos por endereço (presença/ausência) e na quantidade total armazenada.
 
-```sql
-CREATE OR REPLACE VIEW public.vw_estoque_movimento_relatorio AS
-SELECT
-  em.id,
-  em.criado_em,
-  em.tenant_id,
-  em.empresa_id,
-  em.tipo_movimento,
-  em.quantidade,
-  em.lote,
-  em.hu_id,
-  em.tarefa_execucao_id,
-  -- Produto
-  p.sku,
-  p.descricao AS produto_descricao,
-  -- Enderecos
-  eo.descricao AS endereco_origem,
-  ed.descricao AS endereco_destino,
-  -- Usuario
-  u.nome AS usuario_nome,
-  -- Tarefa (via tarefa_execucao -> tarefa)
-  t.tipo_documento_origem,
-  tt.codigo AS tipo_tarefa_codigo,
-  tt.descricao AS tipo_tarefa_descricao,
-  -- Tarefa execucao resumo
-  te.status AS tarefa_execucao_status,
-  te.usuario_id AS tarefa_usuario_id,
-  tu.nome AS tarefa_usuario_nome
-FROM estoque_movimento em
-LEFT JOIN produto p ON p.id = em.produto_id
-LEFT JOIN endereco eo ON eo.id = em.endereco_origem_id
-LEFT JOIN endereco ed ON ed.id = em.endereco_destino_id
-LEFT JOIN usuario u ON u.id = em.usuario_id
-LEFT JOIN tarefa_execucao te ON te.id = em.tarefa_execucao_id
-LEFT JOIN tarefa t ON t.id = te.tarefa_id
-LEFT JOIN tipo_tarefa tt ON tt.id = t.tipo_tarefa_id
-LEFT JOIN usuario tu ON tu.id = te.usuario_id;
-```
+## Arquivos a Criar/Modificar
 
-Isso elimina o padrão N+1 e traz todos os dados necessarios em uma unica consulta.
+### 1. `src/modules/reports/ocupacao/ocupacao.service.ts` (NOVO)
+- `fetchOcupacaoData(filters)`: busca endereços, setores, estoque agregado e última movimentação
+- Retorna estrutura consolidada com KPIs calculados, dados por setor e por endereço
+- Helper functions para classificação de status e cores
 
----
+### 2. `src/modules/reports/ocupacao/OcupacaoReportPage.tsx` (NOVO)
+Página principal com layout em seções verticais:
 
-## Etapa 2 -- Atualizar o service (`movimentacoes.service.ts`)
+**Filtros superiores (inline)**:
+- Armazém (select, obrigatório)
+- Setor (select)
+- Tipo de Endereço (PICKING/PULMAO)
+- Status (Livre/Parcial/Ocupado/Bloqueado)
+- Botão Gerar
 
-- Trocar a query atual (com joins via SDK) por uma consulta simples na view `vw_estoque_movimento_relatorio`.
-- Adicionar nos resultados mapeados: `tipo_documento_origem`, `tarefa_execucao_id`, `tipo_tarefa_codigo`, `tipo_tarefa_descricao`, `tarefa_execucao_status`.
-- Adicionar `case 99` nas funcoes `getTipoMovimentoLabel` (retorna "Estorno") e `getTipoMovimentoColor` (retorna `text-yellow-400`).
-- Adicionar helper `getTipoDocumentoLabel()` para traduzir os valores (`MOVIMENTO_ENTRADA_ITEM` -> "Mov. Entrada", `MOVIMENTO_SAIDA_ITEM` -> "Mov. Saida", `INVENTARIO` -> "Inventario").
+**KPIs (6 cards)**:
+- Total de Endereços, Ocupados (%), Livres (%), Taxa Média Ocupação, Setor Mais Saturado, Setor Mais Ocioso
+- Cores: verde <70%, amarelo 70-85%, vermelho >85%
 
----
+**Mapa Visual de Setores**:
+- Grid de cards por setor com barra de progresso colorida
+- % ocupação, total endereços, cor dinâmica
+- Clique expande drill-down
 
-## Etapa 3 -- Adicionar colunas na tabela do relatorio (`MovimentacoesReportPage.tsx`)
+**Drill-Down (seção expandível por setor)**:
+- Tabela com: Endereço, Qtd Total, SKUs, Tipo Endereço, Situação, Última Movimentação
+- Ordenação por maior ocupação
 
-Duas novas colunas inseridas apos "Tipo Movimento":
+**Gráficos Analíticos**:
+- Ocupação por Setor (BarChart - Recharts)
+- Distribuição de Status (PieChart)
+- Ambos usando componentes `ChartContainer` já existentes
 
-1. **Doc. Origem** -- exibe o label amigavel do `tipo_documento_origem` (badge colorido).
-2. **Tarefa** -- exibe o `tipo_tarefa_codigo` como link clicavel. Ao clicar, navega para `/relatorios/movimentacoes/tarefa/:tarefa_execucao_id`.
-   - UUID simplificado: mostrar o codigo do tipo de tarefa (ex: "ENTR-ARMZ") em vez do UUID.
-   - Se nao houver tarefa vinculada, exibe "---".
+### 3. `src/App.tsx` (MODIFICAR)
+- Import `OcupacaoReportPage`
+- Adicionar rota `/relatorios/ocupacao`
+- Adicionar breadcrumb
 
-Adicionar "Estorno" (valor 99) no filtro de Tipo Movimento no select.
+### 4. `src/components/Layout.tsx` (MODIFICAR)
+- Adicionar item no menu lateral: "Ocupação de Endereços" em Relatórios
 
----
+## Estratégia de Performance
 
-## Etapa 4 -- Nova pagina de detalhe da tarefa
+- Todas as queries filtradas por `tenant_id` + `empresa_id` + `armazem_id` (obrigatório)
+- Agregação de estoque feita no banco (SUM/COUNT com GROUP BY)
+- Sem view adicional -- 3 queries paralelas client-side (endereços, estoque agregado, última movimentação)
+- Paginação no drill-down (20 registros por setor)
 
-Criar `src/modules/reports/movimentacoes/TarefaDetalhePage.tsx`:
+## Detalhes Técnicos
 
-**Layout em cards informativos (estilo SAP dark):**
-
-**Card 1 -- Informacoes da Tarefa:**
-- Tipo Tarefa (codigo + descricao)
-- Tipo Documento Origem
-- Status
-- Prioridade
-- Ordem Tarefa
-- Produto (SKU + descricao via join)
-- Qtd Requerida / Qtd Executada / Qtd Cortada
-- % Execucao
-- Local Origem / Local Destino (descricao do endereco)
-- Criado em / Concluido em
-- Motivo Ocorrencia (se existir)
-
-**Card 2 -- Informacoes da Execucao:**
-- Status da Execucao
-- Usuario Executor (nome)
-- Atribuido em / Iniciado em / Concluido em
-- Quantidade Executada
-- Lote / Validade / Fabricacao / Serie
-- HU
-- Endereco Origem / Destino
-- Qtd Cortada (se houver)
-- Motivo Ocorrencia (se houver)
-
-**Botao "Voltar" para retornar ao relatorio.**
-
----
-
-## Etapa 5 -- Rota no App.tsx
-
-Adicionar rota dinamica `/relatorios/movimentacoes/tarefa/:id` no bloco de rotas dinamicas (secao `default` do switch), renderizando `TarefaDetalhePage`.
-
-Adicionar breadcrumb correspondente.
-
----
-
-## Resumo tecnico
-
-```text
-Arquivos modificados/criados:
-  1. migration: vw_estoque_movimento_relatorio (VIEW)
-  2. src/modules/reports/movimentacoes/movimentacoes.service.ts (query na view + helpers)
-  3. src/modules/reports/movimentacoes/MovimentacoesReportPage.tsx (2 colunas + estorno no filtro)
-  4. src/modules/reports/movimentacoes/TarefaDetalhePage.tsx (NOVO)
-  5. src/App.tsx (rota + breadcrumb)
-```
-
-**Ganho de performance**: a view elimina 4 sub-queries/joins feitos pelo Supabase SDK, consolidando tudo em uma unica consulta SQL otimizada pelo Postgres.
+- Recharts para gráficos (já instalado)
+- Progress component para barras de capacidade
+- Skeleton loading durante carregamento
+- Padrão visual dark mode existente (#0F172A)
+- Cores semânticas: verde/amarelo/vermelho conforme saturação
 
