@@ -69,7 +69,7 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
 }
 
 export async function fetchTarefaDetalhe(tarefaExecucaoId: string) {
-  // Fetch tarefa_execucao with tarefa details (avoid nested FK joins for endereco)
+  // Fetch tarefa_execucao with tarefa details
   const { data: execucao, error: execError } = await supabase
     .from("tarefa_execucao")
     .select(`
@@ -83,6 +83,14 @@ export async function fetchTarefaDetalhe(tarefaExecucaoId: string) {
         produto:produto_id (
           sku,
           descricao
+        ),
+        endereco_origem:endereco_origem_id (
+          descricao,
+          codigo_endereco
+        ),
+        endereco_destino:endereco_destino_id (
+          descricao,
+          codigo_endereco
         )
       ),
       usuario:usuario_id (
@@ -98,28 +106,9 @@ export async function fetchTarefaDetalhe(tarefaExecucaoId: string) {
       )
     `)
     .eq("id", tarefaExecucaoId)
-    .maybeSingle();
+    .single();
 
   if (execError) throw execError;
-  if (!execucao) return null;
-
-  // Fetch tarefa's endereco_origem and endereco_destino separately if they exist
-  const tarefa = execucao.tarefa as any;
-  if (tarefa) {
-    const endIds = [tarefa.endereco_origem_id, tarefa.endereco_destino_id].filter(Boolean);
-    if (endIds.length > 0) {
-      const { data: enderecos } = await supabase
-        .from("endereco")
-        .select("id, descricao, codigo_endereco")
-        .in("id", endIds);
-      if (enderecos) {
-        const endMap = Object.fromEntries(enderecos.map(e => [e.id, e]));
-        tarefa.endereco_origem = endMap[tarefa.endereco_origem_id] || null;
-        tarefa.endereco_destino = endMap[tarefa.endereco_destino_id] || null;
-      }
-    }
-  }
-
   return execucao;
 }
 
