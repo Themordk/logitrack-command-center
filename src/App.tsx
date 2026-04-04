@@ -132,6 +132,14 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Detalhe da Tarefa" },
     ];
   }
+  if (path.startsWith("/relatorios/produtividade/operador/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Relatórios" },
+      { label: "Produtividade Operacional", path: "/relatorios/produtividade" },
+      { label: "Detalhe do Operador" },
+    ];
+  }
   return null;
 }
 
