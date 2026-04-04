@@ -42,6 +42,7 @@ import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
 import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/MovimentacoesReportPage";
 import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhePage";
+import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
