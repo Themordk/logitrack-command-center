@@ -80,7 +80,7 @@ export async function fetchOcupacaoData(filters: OcupacaoFilter): Promise<Ocupac
     .eq("ativo", true);
 
   if (filters.setor_id) endQuery = endQuery.eq("setor_id", filters.setor_id);
-  if (filters.tipo_endereco) endQuery = endQuery.eq("tipo_endereco", filters.tipo_endereco);
+  if (filters.tipo_endereco) endQuery = endQuery.eq("tipo_endereco", filters.tipo_endereco as any);
 
   // 2. Fetch setores for this armazem
   const setoresQuery = supabase
