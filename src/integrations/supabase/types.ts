@@ -946,6 +946,13 @@ export type Database = {
             foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
             columns: ["tarefa_execucao_id"]
             isOneToOne: false
+            referencedRelation: "vw_lms_timeline_operador"
+            referencedColumns: ["execucao_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
             referencedColumns: ["tarefa_execucao_id"]
           },
@@ -1340,6 +1347,166 @@ export type Database = {
             columns: ["tipo_tarefa_id"]
             isOneToOne: false
             referencedRelation: "tipo_tarefa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_metrica_diaria: {
+        Row: {
+          armazem_id: string
+          data_referencia: string
+          documentos_processados: number | null
+          empresa_id: string
+          id: string
+          peso_total: number | null
+          produtividade_hora: number | null
+          quantidade_total: number | null
+          skus_distintos: number | null
+          tarefas_canceladas: number | null
+          tarefas_concluidas: number | null
+          taxa_ocupacao: number | null
+          tempo_auxiliar: number | null
+          tempo_jornada: number | null
+          tempo_ocioso: number | null
+          tempo_produtivo: number | null
+          tenant_id: string
+          turno_id: string | null
+          usuario_id: string
+        }
+        Insert: {
+          armazem_id: string
+          data_referencia: string
+          documentos_processados?: number | null
+          empresa_id: string
+          id?: string
+          peso_total?: number | null
+          produtividade_hora?: number | null
+          quantidade_total?: number | null
+          skus_distintos?: number | null
+          tarefas_canceladas?: number | null
+          tarefas_concluidas?: number | null
+          taxa_ocupacao?: number | null
+          tempo_auxiliar?: number | null
+          tempo_jornada?: number | null
+          tempo_ocioso?: number | null
+          tempo_produtivo?: number | null
+          tenant_id: string
+          turno_id?: string | null
+          usuario_id: string
+        }
+        Update: {
+          armazem_id?: string
+          data_referencia?: string
+          documentos_processados?: number | null
+          empresa_id?: string
+          id?: string
+          peso_total?: number | null
+          produtividade_hora?: number | null
+          quantidade_total?: number | null
+          skus_distintos?: number | null
+          tarefas_canceladas?: number | null
+          tarefas_concluidas?: number | null
+          taxa_ocupacao?: number | null
+          tempo_auxiliar?: number | null
+          tempo_jornada?: number | null
+          tempo_ocioso?: number | null
+          tempo_produtivo?: number | null
+          tenant_id?: string
+          turno_id?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_metrica_diaria_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_metrica_diaria_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_metrica_diaria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_metrica_diaria_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "turnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_metrica_diaria_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_metrica_tipo_tarefa: {
+        Row: {
+          data_referencia: string
+          id: string
+          quantidade_total: number | null
+          tarefas_concluidas: number | null
+          tempo_medio_segundos: number | null
+          tempo_total_segundos: number | null
+          tenant_id: string
+          tipo_tarefa_id: string
+          usuario_id: string
+        }
+        Insert: {
+          data_referencia: string
+          id?: string
+          quantidade_total?: number | null
+          tarefas_concluidas?: number | null
+          tempo_medio_segundos?: number | null
+          tempo_total_segundos?: number | null
+          tenant_id: string
+          tipo_tarefa_id: string
+          usuario_id: string
+        }
+        Update: {
+          data_referencia?: string
+          id?: string
+          quantidade_total?: number | null
+          tarefas_concluidas?: number | null
+          tempo_medio_segundos?: number | null
+          tempo_total_segundos?: number | null
+          tenant_id?: string
+          tipo_tarefa_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_metrica_tipo_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_metrica_tipo_tarefa_tipo_tarefa_id_fkey"
+            columns: ["tipo_tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_metrica_tipo_tarefa_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -3073,6 +3240,13 @@ export type Database = {
             foreignKeyName: "evento_execucao_tarefa_execucao_tarefa_id_fkey"
             columns: ["execucao_tarefa_id"]
             isOneToOne: false
+            referencedRelation: "vw_lms_timeline_operador"
+            referencedColumns: ["execucao_id"]
+          },
+          {
+            foreignKeyName: "evento_execucao_tarefa_execucao_tarefa_id_fkey"
+            columns: ["execucao_tarefa_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
             referencedColumns: ["tarefa_execucao_id"]
           },
@@ -4129,6 +4303,13 @@ export type Database = {
             foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
             columns: ["tarefa_execucao_id"]
             isOneToOne: false
+            referencedRelation: "vw_lms_timeline_operador"
+            referencedColumns: ["execucao_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
             referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
             referencedColumns: ["tarefa_execucao_id"]
           },
@@ -4158,6 +4339,106 @@ export type Database = {
             columns: ["tarefa_usuario_id"]
             isOneToOne: false
             referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_lms_timeline_operador: {
+        Row: {
+          armazem_id: string | null
+          atribuido_em: string | null
+          concluido_em: string | null
+          duracao_segundos: number | null
+          empresa_id: string | null
+          espera_segundos: number | null
+          execucao_id: string | null
+          habilidade: Database["public"]["Enums"]["enum_habilidade"] | null
+          id_documento_origem: string | null
+          iniciado_em: string | null
+          quantidade_cortada: number | null
+          quantidade_executada: number | null
+          quantidade_requerida: number | null
+          status:
+            | Database["public"]["Enums"]["enum_status_execucao_tarefa"]
+            | null
+          tarefa_id: string | null
+          tempo_estimado_segundos: number | null
+          tenant_id: string | null
+          tipo_documento_origem: string | null
+          tipo_operacao:
+            | Database["public"]["Enums"]["enum_tipo_operacao"]
+            | null
+          tipo_tarefa_codigo: string | null
+          tipo_tarefa_descricao: string | null
+          turno_descricao: string | null
+          turno_fim: string | null
+          turno_id: string | null
+          turno_inicio: string | null
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "turnos"
             referencedColumns: ["id"]
           },
         ]
