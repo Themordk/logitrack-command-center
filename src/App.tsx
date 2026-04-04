@@ -179,6 +179,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
+    case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
     default: {
       // Dynamic route: /relatorios/movimentacoes/tarefa/:id
       const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
