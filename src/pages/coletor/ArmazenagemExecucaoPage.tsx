@@ -5,6 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin } from "lucide-react";
+import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -119,6 +120,8 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     setEnderecoScan(code);
     setEnderecoId(null);
     setEnderecoDesc("");
+    // LMS: mark task as started on first address scan
+    markTarefaIniciadaByTarefa(tarefaId, usuarioId);
     try {
       const { data, error } = await (supabase as any)
         .from("endereco")

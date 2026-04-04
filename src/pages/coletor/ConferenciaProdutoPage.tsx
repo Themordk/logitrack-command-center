@@ -5,6 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Package, CheckCircle, XCircle, BoxIcon, MoreVertical, List } from "lucide-react";
+import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -82,6 +83,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const handleEanScan = async (ean: string) => {
     if (!ean || !produtoId) return;
     setEanScanned(ean);
+    // LMS: mark task as started on first EAN scan
+    if (tarefa?.tarefa_id) {
+      markTarefaIniciadaByTarefa(tarefa.tarefa_id, usuarioId);
+    }
 
     const { data: emb } = await (supabase as any)
       .from("produto_embalagem")

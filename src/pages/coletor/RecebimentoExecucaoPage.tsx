@@ -7,6 +7,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -124,6 +125,11 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       }
 
       const prod = result.data;
+
+      // LMS: mark task as started on first scan
+      if (prod.tarefa_id) {
+        markTarefaIniciadaByTarefa(prod.tarefa_id, usuarioId);
+      }
 
       setCurrentProduct({
         ean: code,

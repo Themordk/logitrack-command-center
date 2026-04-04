@@ -43,6 +43,8 @@ import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
 import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/MovimentacoesReportPage";
 import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhePage";
 import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
+import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
+import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
@@ -118,6 +120,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
+  "/relatorios/produtividade": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtividade Operacional" }],
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
@@ -127,6 +130,14 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Relatórios" },
       { label: "Histórico de Movimentos", path: "/relatorios/movimentacoes" },
       { label: "Detalhe da Tarefa" },
+    ];
+  }
+  if (path.startsWith("/relatorios/produtividade/operador/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Relatórios" },
+      { label: "Produtividade Operacional", path: "/relatorios/produtividade" },
+      { label: "Detalhe do Operador" },
     ];
   }
   return null;
@@ -168,11 +179,18 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
+    case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
     default: {
       // Dynamic route: /relatorios/movimentacoes/tarefa/:id
       const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
       if (tarefaMatch) {
         return <TarefaDetalhePage tarefaExecucaoId={tarefaMatch[1]} onNavigate={onNavigate} />;
+      }
+      // Dynamic route: /relatorios/produtividade/operador/:id
+      const operadorMatch = path.match(/^\/relatorios\/produtividade\/operador\/([^/?]+)/);
+      if (operadorMatch) {
+        const params = new URLSearchParams(path.split("?")[1] || "");
+        return <ProdutividadeOperadorPage usuarioId={operadorMatch[1]} onNavigate={onNavigate} dataInicio={params.get("inicio") || undefined} dataFim={params.get("fim") || undefined} />;
       }
       // Dynamic route: /atividades/inventario/:id/execucao
       const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);

@@ -91,6 +91,7 @@ const navItems: NavItem[] = [
       { label: "Posição de Estoque", path: "/relatorios/estoque" },
       { label: "Histórico de Movimentos", path: "/relatorios/movimentacoes" },
       { label: "Ocupação de Endereços", path: "/relatorios/ocupacao" },
+      { label: "Produtividade Operacional", path: "/relatorios/produtividade" },
       { label: "Expedições", path: "/relatorios/expedicoes" },
       { label: "Inventário", path: "/relatorios/inventario" },
     ],
