@@ -86,6 +86,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
       <ReportHeader
         title="Produtividade Operacional"
         subtitle="Análise de performance dos colaboradores baseada em execução de tarefas"
+        generatedAt=""
       />
 
       {/* Filters */}

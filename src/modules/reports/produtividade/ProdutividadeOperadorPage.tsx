@@ -130,6 +130,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         <ReportHeader
           title={operadorNome || "Operador"}
           subtitle={`Timeline de Produtividade — ${inicio} a ${fim}`}
+          generatedAt=""
         />
       </div>
 
