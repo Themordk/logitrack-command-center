@@ -43,6 +43,8 @@ import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
 import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/MovimentacoesReportPage";
 import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhePage";
 import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
+import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
+import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
