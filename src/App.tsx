@@ -186,6 +186,12 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
       if (tarefaMatch) {
         return <TarefaDetalhePage tarefaExecucaoId={tarefaMatch[1]} onNavigate={onNavigate} />;
       }
+      // Dynamic route: /relatorios/produtividade/operador/:id
+      const operadorMatch = path.match(/^\/relatorios\/produtividade\/operador\/([^/?]+)/);
+      if (operadorMatch) {
+        const params = new URLSearchParams(path.split("?")[1] || "");
+        return <ProdutividadeOperadorPage usuarioId={operadorMatch[1]} onNavigate={onNavigate} dataInicio={params.get("inicio") || undefined} dataFim={params.get("fim") || undefined} />;
+      }
       // Dynamic route: /atividades/inventario/:id/execucao
       const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);
       if (invExecMatch) {
