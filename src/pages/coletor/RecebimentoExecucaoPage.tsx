@@ -7,6 +7,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
