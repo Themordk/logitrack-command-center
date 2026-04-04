@@ -126,6 +126,11 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       const prod = result.data;
 
+      // LMS: mark task as started on first scan
+      if (prod.tarefa_id) {
+        markTarefaIniciadaByTarefa(prod.tarefa_id, usuarioId);
+      }
+
       setCurrentProduct({
         ean: code,
         fator: prod.Fator_embalagem || prod.fator_embalagem || 1,

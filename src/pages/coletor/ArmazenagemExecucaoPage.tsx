@@ -120,6 +120,8 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     setEnderecoScan(code);
     setEnderecoId(null);
     setEnderecoDesc("");
+    // LMS: mark task as started on first address scan
+    markTarefaIniciadaByTarefa(tarefaId, usuarioId);
     try {
       const { data, error } = await (supabase as any)
         .from("endereco")
