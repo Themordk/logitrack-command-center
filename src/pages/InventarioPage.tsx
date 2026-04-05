@@ -62,9 +62,8 @@ export function InventarioPage({ onNavigate }: Props) {
       const to = from + pageSize - 1;
 
       let query = (supabase as any)
-        .from("inventario")
-        .select("id, numero_inventario, tipo_inventario, descricao, status, criado_em, criado_por, total_itens, total_divergencias, acuracidade", { count: "exact" })
-        .eq("tenant_id", tenantId)
+        .from("vw_inventario_lista")
+        .select("id, numero_inventario, tipo_inventario, descricao, status, criado_em, criado_por, total_itens, total_divergencias, acuracidade, criado_por_nome", { count: "exact" })
         .order("numero_inventario", { ascending: false })
         .range(from, to);
 
@@ -78,22 +77,7 @@ export function InventarioPage({ onNavigate }: Props) {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      const enriched = await Promise.all(
-        (data || []).map(async (inv: any) => {
-          let criado_por_nome = "—";
-          if (inv.criado_por) {
-            const { data: usr } = await (supabase as any)
-              .from("usuario")
-              .select("login")
-              .eq("id", inv.criado_por)
-              .single();
-            if (usr) criado_por_nome = usr.login;
-          }
-          return { ...inv, criado_por_nome };
-        })
-      );
-
-      setInventarios(enriched);
+      setInventarios((data || []).map((inv: any) => ({ ...inv, criado_por_nome: inv.criado_por_nome || "—" })));
       setTotal(count || 0);
     } catch (err: any) {
       toast.error(err.message);
