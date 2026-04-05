@@ -3061,7 +3061,6 @@ export type Database = {
       }
       tarefa: {
         Row: {
-          abastecimento_id: string | null
           armazem_id: string | null
           concluido_em: string | null
           contagem_inventario: number | null
@@ -3089,7 +3088,6 @@ export type Database = {
           usuario_cortou: string | null
         }
         Insert: {
-          abastecimento_id?: string | null
           armazem_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
@@ -3117,7 +3115,6 @@ export type Database = {
           usuario_cortou?: string | null
         }
         Update: {
-          abastecimento_id?: string | null
           armazem_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
@@ -3145,20 +3142,6 @@ export type Database = {
           usuario_cortou?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "tarefa_abastecimento_id_fkey"
-            columns: ["abastecimento_id"]
-            isOneToOne: false
-            referencedRelation: "abastecimento"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tarefa_abastecimento_id_fkey"
-            columns: ["abastecimento_id"]
-            isOneToOne: false
-            referencedRelation: "vw_abastecimento_lista"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "tarefa_armazem_id_fkey"
             columns: ["armazem_id"]

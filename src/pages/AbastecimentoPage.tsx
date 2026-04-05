@@ -180,7 +180,7 @@ export function AbastecimentoPage() {
     const { data: tarefas } = await (supabase as any)
       .from("tarefa")
       .select("id, quantidade_requerida, quantidade_executada, status, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao)")
-      .eq("abastecimento_id", abastId)
+      .eq("id_documento_origem", abastId)
       .order("criado_em", { ascending: true });
     setDetailTarefas(tarefas || []);
     setDetailLoading(false);
