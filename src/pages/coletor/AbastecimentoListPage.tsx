@@ -83,6 +83,10 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
                 <span className="text-xs text-[hsl(213,31%,55%)]">Qtd: <span className="text-white font-bold">{t.quantidade_requerida}</span></span>
                 <span className="text-[10px] text-[hsl(213,31%,45%)]">{new Date(t.criado_em).toLocaleDateString("pt-BR")}</span>
               </div>
+              <div className="flex gap-4 mt-1.5 text-[10px] text-[hsl(213,31%,50%)]">
+                <span>Origem: <span className="text-[hsl(213,31%,70%)]">{t.endereco_origem}</span></span>
+                <span>Destino: <span className="text-[hsl(213,31%,70%)]">{t.endereco_destino}</span></span>
+              </div>
             </div>
           ))}
         </div>

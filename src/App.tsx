@@ -37,6 +37,7 @@ import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
+import { AbastecimentoPage } from "./pages/AbastecimentoPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
