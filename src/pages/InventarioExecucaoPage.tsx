@@ -39,62 +39,25 @@ export function InventarioExecucaoPage({ onNavigate, inventarioId, numeroInventa
       const to = from + pageSize - 1;
 
       const { data, error, count } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select("id, usuario_id, quantidade_executada, endereco_origem_id, lote, fabricacao, validade, hu, concluido_em", { count: "exact" })
+        .from("vw_inventario_execucao")
+        .select("id, usuario_login, quantidade_executada, endereco_descricao, lote, fabricacao, validade, hu_codigo, concluido_em", { count: "exact" })
         .eq("tarefa_id", tarefaId)
         .order("concluido_em", { ascending: false })
         .range(from, to);
 
       if (error) throw error;
 
-      // Enrich with usuario login and endereco descricao
-      const enriched = await Promise.all(
-        (data || []).map(async (ex: any) => {
-          let usuario_login = "—";
-          if (ex.usuario_id) {
-            const { data: usr } = await (supabase as any)
-              .from("usuario")
-              .select("login")
-              .eq("id", ex.usuario_id)
-              .single();
-            if (usr) usuario_login = usr.login;
-          }
-
-          let endereco_descricao = "—";
-          if (ex.endereco_origem_id) {
-            const { data: end } = await (supabase as any)
-              .from("endereco")
-              .select("descricao")
-              .eq("id", ex.endereco_origem_id)
-              .single();
-            if (end) endereco_descricao = end.descricao;
-          }
-
-          let hu_codigo = "—";
-          if (ex.hu) {
-            const { data: huData } = await (supabase as any)
-              .from("hu")
-              .select("codigo_hu")
-              .eq("id", ex.hu)
-              .single();
-            if (huData) hu_codigo = huData.codigo_hu || ex.hu;
-          }
-
-          return {
-            id: ex.id,
-            usuario_login,
-            quantidade_executada: ex.quantidade_executada,
-            endereco_descricao,
-            lote: ex.lote,
-            fabricacao: ex.fabricacao,
-            validade: ex.validade,
-            hu: hu_codigo,
-            concluido_em: ex.concluido_em,
-          };
-        })
-      );
-
-      setExecucoes(enriched);
+      setExecucoes((data || []).map((ex: any) => ({
+        id: ex.id,
+        usuario_login: ex.usuario_login || "—",
+        quantidade_executada: ex.quantidade_executada,
+        endereco_descricao: ex.endereco_descricao || "—",
+        lote: ex.lote,
+        fabricacao: ex.fabricacao,
+        validade: ex.validade,
+        hu: ex.hu_codigo || "—",
+        concluido_em: ex.concluido_em,
+      })));
       setTotal(count || 0);
     } catch (err: any) {
       toast.error(err.message);

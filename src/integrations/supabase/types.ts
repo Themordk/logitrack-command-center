@@ -946,6 +946,13 @@ export type Database = {
             foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
             columns: ["tarefa_execucao_id"]
             isOneToOne: false
+            referencedRelation: "vw_inventario_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
             referencedRelation: "vw_lms_timeline_operador"
             referencedColumns: ["execucao_id"]
           },
@@ -3240,6 +3247,13 @@ export type Database = {
             foreignKeyName: "evento_execucao_tarefa_execucao_tarefa_id_fkey"
             columns: ["execucao_tarefa_id"]
             isOneToOne: false
+            referencedRelation: "vw_inventario_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evento_execucao_tarefa_execucao_tarefa_id_fkey"
+            columns: ["execucao_tarefa_id"]
+            isOneToOne: false
             referencedRelation: "vw_lms_timeline_operador"
             referencedColumns: ["execucao_id"]
           },
@@ -4303,6 +4317,13 @@ export type Database = {
             foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
             columns: ["tarefa_execucao_id"]
             isOneToOne: false
+            referencedRelation: "vw_inventario_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
             referencedRelation: "vw_lms_timeline_operador"
             referencedColumns: ["execucao_id"]
           },
@@ -4337,6 +4358,137 @@ export type Database = {
           {
             foreignKeyName: "execucao_tarefa_usuario_id_fkey"
             columns: ["tarefa_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_inventario_execucao: {
+        Row: {
+          concluido_em: string | null
+          endereco_descricao: string | null
+          endereco_origem_id: string | null
+          fabricacao: string | null
+          hu: string | null
+          hu_codigo: string | null
+          id: string | null
+          lote: string | null
+          quantidade_executada: number | null
+          tarefa_id: string | null
+          tenant_id: string | null
+          usuario_id: string | null
+          usuario_login: string | null
+          validade: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_endereco_origem_id_fkey"
+            columns: ["endereco_origem_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_hu_fkey"
+            columns: ["hu"]
+            isOneToOne: false
+            referencedRelation: "hu"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_inventario_lista: {
+        Row: {
+          acuracidade: number | null
+          armazem_id: string | null
+          criado_em: string | null
+          criado_por: string | null
+          criado_por_nome: string | null
+          descricao: string | null
+          empresa_id: string | null
+          id: string | null
+          numero_inventario: number | null
+          observacao: string | null
+          origem: Database["public"]["Enums"]["enum_origem_inventario"] | null
+          status: Database["public"]["Enums"]["enum_status_inventario"] | null
+          tenant_id: string | null
+          tipo_execucao:
+            | Database["public"]["Enums"]["enum_execucao_inventario"]
+            | null
+          tipo_inventario:
+            | Database["public"]["Enums"]["enum_tipo_inventario"]
+            | null
+          total_divergencias: number | null
+          total_itens: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_armazem_fk"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_empresa_fk"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_usuario_criacao_fk"
+            columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "usuario"
             referencedColumns: ["id"]
