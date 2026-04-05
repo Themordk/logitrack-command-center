@@ -14,6 +14,8 @@ interface TarefaAbast {
   quantidade_requerida: number;
   status: string;
   criado_em: string;
+  endereco_origem: string;
+  endereco_destino: string;
 }
 
 export function AbastecimentoListPage({ onNavigate }: Props) {
@@ -42,6 +44,8 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
         quantidade_requerida: t.quantidade_requerida,
         status: t.status,
         criado_em: t.criado_em,
+        endereco_origem: t.origem?.descricao || "—",
+        endereco_destino: t.destino?.descricao || "—",
       })));
       setLoading(false);
     })();
