@@ -37,6 +37,7 @@ import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
+import { AbastecimentoPage } from "./pages/AbastecimentoPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -106,6 +107,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
+  "/atividades/abastecimento": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
   "/dados-mestres/subgrupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Subgrupos" }],
@@ -165,6 +167,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage />;
+    case "/atividades/abastecimento": return <AbastecimentoPage />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
     case "/dados-mestres/subgrupos": return <SubgruposPage />;

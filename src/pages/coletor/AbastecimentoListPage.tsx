@@ -14,6 +14,8 @@ interface TarefaAbast {
   quantidade_requerida: number;
   status: string;
   criado_em: string;
+  endereco_origem: string;
+  endereco_destino: string;
 }
 
 export function AbastecimentoListPage({ onNavigate }: Props) {
@@ -28,7 +30,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
       setLoading(true);
       const { data } = await (supabase as any)
         .from("tarefa")
-        .select("id, quantidade_requerida, status, criado_em, produto:produto_id(sku, descricao)")
+        .select("id, quantidade_requerida, status, criado_em, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao)")
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .eq("tipo_tarefa_id", TIPO_TAREFA_ABAST)
@@ -42,6 +44,8 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
         quantidade_requerida: t.quantidade_requerida,
         status: t.status,
         criado_em: t.criado_em,
+        endereco_origem: t.origem?.descricao || "—",
+        endereco_destino: t.destino?.descricao || "—",
       })));
       setLoading(false);
     })();
@@ -78,6 +82,10 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
               <div className="flex justify-between items-center mt-2 pt-2 border-t border-[hsl(222,35%,18%)]">
                 <span className="text-xs text-[hsl(213,31%,55%)]">Qtd: <span className="text-white font-bold">{t.quantidade_requerida}</span></span>
                 <span className="text-[10px] text-[hsl(213,31%,45%)]">{new Date(t.criado_em).toLocaleDateString("pt-BR")}</span>
+              </div>
+              <div className="flex gap-4 mt-1.5 text-[10px] text-[hsl(213,31%,50%)]">
+                <span>Origem: <span className="text-[hsl(213,31%,70%)]">{t.endereco_origem}</span></span>
+                <span>Destino: <span className="text-[hsl(213,31%,70%)]">{t.endereco_destino}</span></span>
               </div>
             </div>
           ))}

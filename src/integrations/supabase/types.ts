@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      abastecimento: {
+        Row: {
+          armazem_id: string
+          criado_em: string
+          criado_por: string | null
+          empresa_id: string
+          finalizado_em: string | null
+          id: string
+          observacao: string | null
+          status: Database["public"]["Enums"]["enum_status_abastecimento"]
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["enum_tipo_abastecimento"]
+          total_itens: number
+          total_tarefas: number
+        }
+        Insert: {
+          armazem_id: string
+          criado_em?: string
+          criado_por?: string | null
+          empresa_id: string
+          finalizado_em?: string | null
+          id?: string
+          observacao?: string | null
+          status?: Database["public"]["Enums"]["enum_status_abastecimento"]
+          tenant_id: string
+          tipo: Database["public"]["Enums"]["enum_tipo_abastecimento"]
+          total_itens?: number
+          total_tarefas?: number
+        }
+        Update: {
+          armazem_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          empresa_id?: string
+          finalizado_em?: string | null
+          id?: string
+          observacao?: string | null
+          status?: Database["public"]["Enums"]["enum_status_abastecimento"]
+          tenant_id?: string
+          tipo?: Database["public"]["Enums"]["enum_tipo_abastecimento"]
+          total_itens?: number
+          total_tarefas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abastecimento_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abastecimento_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abastecimento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abastecimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agrupamento_conferencia: {
         Row: {
           created_at: string
@@ -2987,6 +3061,7 @@ export type Database = {
       }
       tarefa: {
         Row: {
+          abastecimento_id: string | null
           armazem_id: string | null
           concluido_em: string | null
           contagem_inventario: number | null
@@ -3014,6 +3089,7 @@ export type Database = {
           usuario_cortou: string | null
         }
         Insert: {
+          abastecimento_id?: string | null
           armazem_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
@@ -3041,6 +3117,7 @@ export type Database = {
           usuario_cortou?: string | null
         }
         Update: {
+          abastecimento_id?: string | null
           armazem_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
@@ -3068,6 +3145,20 @@ export type Database = {
           usuario_cortou?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tarefa_abastecimento_id_fkey"
+            columns: ["abastecimento_id"]
+            isOneToOne: false
+            referencedRelation: "abastecimento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_abastecimento_id_fkey"
+            columns: ["abastecimento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_abastecimento_lista"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tarefa_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -4265,6 +4356,58 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_abastecimento_lista: {
+        Row: {
+          armazem_descricao: string | null
+          armazem_id: string | null
+          criado_em: string | null
+          criado_por: string | null
+          criado_por_login: string | null
+          empresa_id: string | null
+          finalizado_em: string | null
+          id: string | null
+          observacao: string | null
+          status:
+            | Database["public"]["Enums"]["enum_status_abastecimento"]
+            | null
+          tarefas_concluidas: number | null
+          tarefas_vinculadas: number | null
+          tenant_id: string | null
+          tipo: Database["public"]["Enums"]["enum_tipo_abastecimento"] | null
+          total_itens: number | null
+          total_tarefas: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abastecimento_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abastecimento_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abastecimento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abastecimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_estoque_movimento_relatorio: {
         Row: {
           criado_em: string | null
@@ -5255,6 +5398,17 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_gerar_abastecimento: {
+        Args: {
+          p_armazem_id: string
+          p_empresa_id: string
+          p_simular?: boolean
+          p_tenant_id: string
+          p_tipo: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       fn_gerar_conferencia_saida: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: undefined
@@ -5529,6 +5683,11 @@ export type Database = {
         | "OCUPADO"
         | "BLOQUEADO"
         | "BLOQUEADO_INVENTARIO"
+      enum_status_abastecimento:
+        | "GERADO"
+        | "EM_EXECUCAO"
+        | "FINALIZADO"
+        | "CANCELADO"
       enum_status_execucao_tarefa:
         | "ATRIBUIDA"
         | "EM_ANDAMENTO"
@@ -5590,6 +5749,7 @@ export type Database = {
         | "DIVERGENTE"
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
+      enum_tipo_abastecimento: "PREVENTIVO" | "CORRETIVO"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
       enum_tipo_controle: "UNIDADE" | "LOTE" | "VALIDADE" | "SERIE" | "METROS"
       enum_tipo_convocacao:
@@ -5829,6 +5989,12 @@ export const Constants = {
         "BLOQUEADO",
         "BLOQUEADO_INVENTARIO",
       ],
+      enum_status_abastecimento: [
+        "GERADO",
+        "EM_EXECUCAO",
+        "FINALIZADO",
+        "CANCELADO",
+      ],
       enum_status_execucao_tarefa: [
         "ATRIBUIDA",
         "EM_ANDAMENTO",
@@ -5897,6 +6063,7 @@ export const Constants = {
       ],
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],
+      enum_tipo_abastecimento: ["PREVENTIVO", "CORRETIVO"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],
       enum_tipo_controle: ["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"],
       enum_tipo_convocacao: [
