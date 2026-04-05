@@ -28,7 +28,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
       setLoading(true);
       const { data } = await (supabase as any)
         .from("tarefa")
-        .select("id, quantidade_requerida, status, criado_em, produto:produto_id(sku, descricao)")
+        .select("id, quantidade_requerida, status, criado_em, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao)")
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .eq("tipo_tarefa_id", TIPO_TAREFA_ABAST)

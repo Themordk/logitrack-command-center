@@ -77,7 +77,7 @@ const navItems: NavItem[] = [
       { label: "Gerar Entradas", path: "/atividades/entradas" },
       { label: "Gerar Saída", path: "/atividades/saidas" },
       { label: "Movimento de Entrada", path: "/atividades/movimentos" },
-      { label: "Abastecimento", path: "/atividades/Abastecimento" },
+      { label: "Abastecimento", path: "/atividades/abastecimento" },
       { label: "Ondas de Carregamento", path: "/atividades/mov-saida" },
       { label: "Volumes", path: "/atividades/volumes" },
       { label: "Embarque", path: "/atividades/embarque" },
