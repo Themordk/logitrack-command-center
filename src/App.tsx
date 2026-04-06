@@ -186,6 +186,13 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
     case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
     default: {
+      // Dynamic route: /atividades/abastecimento/gerar
+      if (path.startsWith("/atividades/abastecimento/gerar")) {
+        const params = new URLSearchParams(path.split("?")[1] || "");
+        const tipo = params.get("tipo") || "PREVENTIVO";
+        const armazemId = params.get("armazem") || "";
+        return <AbastecimentoGeracaoPage onNavigate={onNavigate} tipo={tipo} armazemId={armazemId} />;
+      }
       // Dynamic route: /relatorios/movimentacoes/tarefa/:id
       const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
       if (tarefaMatch) {
