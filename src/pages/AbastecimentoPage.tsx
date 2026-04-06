@@ -60,10 +60,6 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
   const [armazens, setArmazens] = useState<Armazem[]>([]);
   const [selectedArmazem, setSelectedArmazem] = useState<string>("");
 
-  // Detail modal
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailTarefas, setDetailTarefas] = useState<any[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!tenantId || !empresaId) return;
@@ -117,16 +113,8 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
     fetchData();
   };
 
-  const handleVerTarefas = async (abastId: string) => {
-    setDetailLoading(true);
-    setDetailOpen(true);
-    const { data: tarefas } = await (supabase as any)
-      .from("tarefa")
-      .select("id, quantidade_requerida, quantidade_executada, status, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao)")
-      .eq("id_documento_origem", abastId)
-      .order("criado_em", { ascending: true });
-    setDetailTarefas(tarefas || []);
-    setDetailLoading(false);
+  const handleVerTarefas = (abastId: string) => {
+    onNavigate?.(`/atividades/abastecimento/${abastId}/tarefas`);
   };
 
   return (
@@ -242,51 +230,6 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Detail Modal */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Tarefas de Abastecimento</DialogTitle>
-            <DialogDescription>Lista de tarefas vinculadas a este lote de abastecimento.</DialogDescription>
-          </DialogHeader>
-          {detailLoading ? (
-            <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted-foreground" size={24} /></div>
-          ) : detailTarefas.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa vinculada.</p>
-          ) : (
-            <div className="rounded-lg border border-border overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Requerida</TableHead>
-                    <TableHead className="text-right">Executada</TableHead>
-                    <TableHead>Origem</TableHead>
-                    <TableHead>Destino</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {detailTarefas.map((t: any) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-mono text-xs">{t.produto?.sku || "—"}</TableCell>
-                      <TableCell className="text-sm truncate max-w-[160px]">{t.produto?.descricao || "—"}</TableCell>
-                      <TableCell className="text-right text-sm">{Number(t.quantidade_requerida)}</TableCell>
-                      <TableCell className="text-right text-sm">{Number(t.quantidade_executada || 0)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{t.origem?.descricao || "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{t.destino?.descricao || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">{t.status}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
