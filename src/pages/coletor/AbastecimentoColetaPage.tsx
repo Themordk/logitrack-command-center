@@ -71,9 +71,9 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const handleScanEndereco = async (code: string) => {
     const { data } = await (supabase as any)
       .from("endereco")
-      .select("id, descricao")
+      .select("id, descricao, codigo_endereco")
       .eq("tenant_id", tenantId)
-      .eq("descricao", code)
+      .eq("codigo_endereco", code)
       .limit(1)
       .maybeSingle();
 
