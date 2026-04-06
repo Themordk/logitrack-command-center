@@ -207,7 +207,7 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
             empresa_id: empresaId,
             tarefa_id: t.id,
             usuario_id: selectedUsuario,
-            tipo_convocacao: "MANUAL",
+            tipo_convocacao: "CONVOCACAO_GESTOR",
             status: "ATRIBUIDA",
           }));
           await (supabase as any).from("tarefa_atribuicao").insert(atribuicoes);
