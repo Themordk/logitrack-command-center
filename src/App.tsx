@@ -38,6 +38,7 @@ import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
 import { AbastecimentoPage } from "./pages/AbastecimentoPage";
+import { AbastecimentoGeracaoPage } from "./pages/AbastecimentoGeracaoPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -108,6 +109,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/atividades/abastecimento": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento" }],
+  "/atividades/abastecimento/gerar": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento", path: "/atividades/abastecimento" }, { label: "Geração" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
   "/dados-mestres/subgrupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Subgrupos" }],
@@ -126,6 +128,14 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
+  if (path.startsWith("/atividades/abastecimento/gerar")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Atividades" },
+      { label: "Abastecimento", path: "/atividades/abastecimento" },
+      { label: "Geração" },
+    ];
+  }
   if (path.startsWith("/relatorios/movimentacoes/tarefa/")) {
     return [
       { label: "CORE LogiTrack" },
@@ -167,7 +177,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage />;
-    case "/atividades/abastecimento": return <AbastecimentoPage />;
+    case "/atividades/abastecimento": return <AbastecimentoPage onNavigate={onNavigate} />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
     case "/dados-mestres/subgrupos": return <SubgruposPage />;
@@ -184,6 +194,13 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
     case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
     default: {
+      // Dynamic route: /atividades/abastecimento/gerar
+      if (path.startsWith("/atividades/abastecimento/gerar")) {
+        const params = new URLSearchParams(path.split("?")[1] || "");
+        const tipo = params.get("tipo") || "PREVENTIVO";
+        const armazemId = params.get("armazem") || "";
+        return <AbastecimentoGeracaoPage onNavigate={onNavigate} tipo={tipo} armazemId={armazemId} />;
+      }
       // Dynamic route: /relatorios/movimentacoes/tarefa/:id
       const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
       if (tarefaMatch) {
