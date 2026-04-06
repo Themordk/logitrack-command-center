@@ -38,6 +38,7 @@ import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
 import { AbastecimentoPage } from "./pages/AbastecimentoPage";
+import { AbastecimentoGeracaoPage } from "./pages/AbastecimentoGeracaoPage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -108,6 +109,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
   "/atividades/abastecimento": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento" }],
+  "/atividades/abastecimento/gerar": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento", path: "/atividades/abastecimento" }, { label: "Geração" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
   "/dados-mestres/grupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Grupos" }],
   "/dados-mestres/subgrupos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Subgrupos" }],
