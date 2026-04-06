@@ -128,6 +128,14 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
+  if (path.startsWith("/atividades/abastecimento/gerar")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Atividades" },
+      { label: "Abastecimento", path: "/atividades/abastecimento" },
+      { label: "Geração" },
+    ];
+  }
   if (path.startsWith("/relatorios/movimentacoes/tarefa/")) {
     return [
       { label: "CORE LogiTrack" },
