@@ -1,88 +1,105 @@
 
 
-# Plano: Otimizar Fluxo de Abastecimento
+# Plano: Ajustes no Fluxo de Abastecimento (WEB + Coletor)
 
-## Problema 1 -- Simulacao nao exibe itens
+## 1. Fix enum `tipo_convocacao` no insert de `tarefa_atribuicao`
 
-A RPC `fn_gerar_abastecimento` retorna um array plano de objetos `{origem, destino, produto_id, quantidade}`, mas o frontend espera `result.itens`, `result.alertas`, `result.total_tarefas` -- campos que nao existem no retorno real. Por isso `simItens` fica vazio.
+**Problema**: O valor `"MANUAL"` nao existe no enum `enum_tipo_convocacao`. Valores validos: `AUTO_CONVOCADO`, `CONVOCACAO_GESTOR`, `CONVOCACAO_ATIVA`.
 
-## Problema 2 -- Fluxo precisa virar nova rota
+**Solucao**: Em `AbastecimentoGeracaoPage.tsx` linha 210, trocar `tipo_convocacao: "MANUAL"` por `tipo_convocacao: "CONVOCACAO_GESTOR"`.
 
-O usuario quer que ao clicar "Gerar Preventivo/Corretivo", o sistema navegue para uma rota dedicada (similar a Onda de Carregamento) em vez de abrir modal.
+Arquivo: `src/pages/AbastecimentoGeracaoPage.tsx`
 
 ---
 
-## Arquitetura Proposta
+## 2. Nova rota WEB para visualizar tarefas de um abastecimento
+
+Substituir o modal de detalhe (`detailOpen`) por navegacao para rota dedicada.
+
+### 2.1 Nova pagina `AbastecimentoDetalhePage.tsx`
+
+Rota: `/atividades/abastecimento/:id/tarefas`
+
+- Layout similar a `AbastecimentoGeracaoPage` (tabela com header e botao voltar)
+- Colunas: SKU, Descricao, Requerida, Executada, Origem, Destino, Status, Cancelar
+- Botao "Cancelar" por linha: atualiza `tarefa.status = 'CANCELADA'` para tarefas com status `CRIADA` ou `ATRIBUIDA`
+- Query: `tarefa` filtrada por `id_documento_origem = abastId` com JOINs em produto e endereco
+
+### 2.2 Ajustar `AbastecimentoPage.tsx`
+
+- Remover modal de detalhe
+- Botao Eye navega para `/atividades/abastecimento/${row.id}/tarefas`
+
+### 2.3 Registrar rota em `App.tsx`
+
+- Import + dynamic route match em `renderPage`
+- Breadcrumb dinamico em `getDynamicBreadcrumb`
+
+Arquivos: novo `src/pages/AbastecimentoDetalhePage.tsx`, editar `AbastecimentoPage.tsx`, `App.tsx`
+
+---
+
+## 3. Fluxo de abastecimento no Coletor (3 novas paginas)
+
+O fluxo substitui a listagem simples por um processo de coleta e destino em etapas.
 
 ```text
-AbastecimentoPage (lista de lotes)
-  └─ Botao "Gerar Preventivo/Corretivo"
-       └─ Modal selecao armazem → navega para nova rota
+AbastecimentoListPage (lista tarefas pendentes)
+  └─ Selecionar tarefa → navega para /coletor/movimentos/abastecimento/coleta
 
-AbastecimentoGeracaoPage (nova rota: /atividades/abastecimento/gerar)
-  ├─ Filtros superiores (Saldo Picking ordem, Setor)
-  ├─ Tabela com checkbox (SKU, Descricao, End.Origem, End.Destino,
-  │   Saldo Picking, Saldo Pulmao, Est.Minimo, Est.Maximo, Em Separacao)
-  ├─ Selecionar todos / individuais
-  └─ Botao "Confirmar Geracao"
-       └─ Popup atribuicao usuario (opcional)
-            └─ Gera tarefas + tarefa_atribuicao
+AbastecimentoColetaPage (Rota A)
+  ├─ Scan Endereco Origem → valida vs tarefa
+  ├─ Scan Produto (EAN/SKU) → valida vs tarefa
+  ├─ Input quantidade
+  ├─ Botao "Confirmar Coleta" → bloqueia saldo em estoque_geral (quantidade_bloqueada += qty, quantidade_disponivel -= qty)
+  ├─ Lista de coletas realizadas (pode coletar de varios enderecos)
+  └─ Botao "Abastecer" → navega para /coletor/movimentos/abastecimento/destino
+
+AbastecimentoDestinoPage (Rota B)
+  ├─ Lista enderecos de destino ordenados por proximidade (rua ASC)
+  ├─ Scan Endereco Destino → valida vs tarefa
+  ├─ Scan Produto → valida
+  ├─ Input quantidade
+  ├─ Botao "Confirmar Abastecimento":
+  │   - Cria tarefa_execucao (status CONCLUIDA)
+  │   - Atualiza estoque_geral: origem (desbloqueio, baixa) e destino (credito)
+  │   - Atualiza tarefa.quantidade_executada
+  │   - Navega para proximo destino pendente
+  ├─ Se nao ha mais destinos mas ha coletas pendentes → volta para /coleta
+  └─ Se tudo concluido → mensagem sucesso → navega /coletor/movimentos/abastecimento
 ```
 
----
+### 3.1 `AbastecimentoColetaPage.tsx`
 
-## Detalhamento
+- Recebe `tarefa_id` via sessionStorage
+- ScanField para endereco origem (valida contra `id_local_origem` da tarefa)
+- ScanField para produto (valida EAN/SKU contra `produto_id` da tarefa)
+- Input numerico para quantidade
+- Ao confirmar coleta: `UPDATE estoque_geral SET quantidade_bloqueada = quantidade_bloqueada + qty, quantidade_disponivel = quantidade_disponivel - qty WHERE endereco_id = origem AND produto_id = X`
+- Armazena coletas em sessionStorage como array
+- Botao "Abastecer" habilitado quando ha pelo menos 1 coleta
 
-### 1. Ajustar RPC `fn_gerar_abastecimento` (migration SQL)
+### 3.2 `AbastecimentoDestinoPage.tsx`
 
-A RPC precisa retornar dados enriquecidos para a nova tela. Alterar o retorno da simulacao para incluir:
-- `sku`, `descricao` (JOIN com `produto`)
-- `endereco_origem_desc`, `endereco_destino_desc` (JOIN com `endereco`)
-- `saldo_picking` (saldo atual no endereco picking)
-- `saldo_pulmao` (saldo atual no endereco pulmao)
-- `est_minimo`, `est_maximo` (de `picking_produto`)
-- `em_separacao` (tarefas SEP pendentes para o produto)
-- `setor_id`, `setor_descricao` (do endereco destino, para filtro)
-- `quantidade` (qtd a abastecer)
+- Le coletas do sessionStorage
+- Lista enderecos destino pendentes ordenados por `rua ASC` (proximidade)
+- ScanField para endereco destino + produto + quantidade
+- Ao confirmar:
+  - INSERT em `tarefa_execucao` (status CONCLUIDA, quantidades, endereco_origem, endereco_destino)
+  - UPDATE `estoque_geral` origem: `quantidade_bloqueada -= qty, quantidade_total -= qty`
+  - UPSERT `estoque_geral` destino: credita quantidade
+  - UPDATE `tarefa.quantidade_executada += qty`
+  - Se tarefa completa: UPDATE `tarefa.status = 'CONCLUIDA'`
+- Navega para proximo destino, ou volta para coleta, ou finaliza
 
-O retorno deve ser um array de objetos enriquecidos quando `p_simular = true`.
+### 3.3 Ajustar `AbastecimentoListPage.tsx`
 
-### 2. Nova pagina `AbastecimentoGeracaoPage.tsx`
+- Ao clicar em uma tarefa, salvar dados em sessionStorage e navegar para `/coletor/movimentos/abastecimento/coleta`
 
-Rota: `/atividades/abastecimento/gerar?tipo=PREVENTIVO&armazem=UUID`
+### 3.4 Registrar rotas no `App.tsx` (renderColetorPage)
 
-Layout inspirado em `MovimentoSaidaPage`:
-- **Barra de filtros superior**: 
-  - Ordenar por Saldo Picking (crescente/decrescente)
-  - Filtro por Setor
-- **Tabela com colunas**: SKU | Descricao | End. Origem | End. Destino | Saldo Picking | Saldo Pulmao | Est. Minimo | Est. Maximo | Em Separacao
-- **Checkbox** por linha + "Selecionar todos" no header
-- **Rodape fixo**: contadores (X itens selecionados, Y tarefas) + botao "Confirmar Geracao"
-
-### 3. Popup de atribuicao de usuario
-
-Ao clicar "Confirmar Geracao":
-1. Abre dialog com select de usuarios do tipo operador (consulta tabela `usuario`)
-2. Campo opcional -- pode confirmar sem selecionar usuario
-3. Ao confirmar:
-   - Chama RPC `fn_gerar_abastecimento` com `p_simular = false` passando apenas os itens selecionados
-   - Se usuario atribuido: insere registros em `tarefa_atribuicao` para cada tarefa gerada
-
-### 4. Ajustar `AbastecimentoPage.tsx`
-
-- Remover modal de simulacao/geracao (todo o fluxo multi-step)
-- Botoes "Gerar Preventivo/Corretivo" abrem modal simples de selecao de armazem, e ao confirmar navegam para `/atividades/abastecimento/gerar?tipo=X&armazem=Y`
-- Manter tabela de listagem e modal de detalhe de tarefas
-
-### 5. Registrar rota no `App.tsx`
-
-- Adicionar rota dinamica `/atividades/abastecimento/gerar` no switch/case
-- Adicionar breadcrumb correspondente
-- Importar novo componente
-
-### 6. Ajustar RPC para aceitar lista de itens selecionados
-
-Adicionar parametro opcional `p_itens jsonb` a `fn_gerar_abastecimento`. Quando `p_simular = false` e `p_itens` for informado, gerar tarefas apenas para os itens passados (produto_id + destino + quantidade).
+- `/coletor/movimentos/abastecimento/coleta` → AbastecimentoColetaPage
+- `/coletor/movimentos/abastecimento/destino` → AbastecimentoDestinoPage
 
 ---
 
@@ -90,12 +107,17 @@ Adicionar parametro opcional `p_itens jsonb` a `fn_gerar_abastecimento`. Quando 
 
 ```text
 NOVOS:
-  - src/pages/AbastecimentoGeracaoPage.tsx
-  - 1 migration SQL (ajustar RPC)
+  - src/pages/AbastecimentoDetalhePage.tsx
+  - src/pages/coletor/AbastecimentoColetaPage.tsx
+  - src/pages/coletor/AbastecimentoDestinoPage.tsx
 
 EDITADOS:
-  - src/pages/AbastecimentoPage.tsx (simplificar, remover modal multi-step)
-  - src/App.tsx (nova rota + breadcrumb + import)
-  - src/hooks/useRoutePermission.ts (mapear nova rota)
+  - src/pages/AbastecimentoGeracaoPage.tsx (fix enum)
+  - src/pages/AbastecimentoPage.tsx (remover modal detalhe, navegar para rota)
+  - src/pages/coletor/AbastecimentoListPage.tsx (click navega para coleta)
+  - src/App.tsx (3 novas rotas + imports + breadcrumbs)
+  - src/hooks/useRoutePermission.ts (mapear novas rotas)
 ```
+
+Nenhuma migration SQL necessaria -- todas as operacoes usam tabelas e colunas existentes.
 
