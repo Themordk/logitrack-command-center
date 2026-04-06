@@ -29,6 +29,7 @@ const routeToModuleMap: Record<string, string> = {
   "/atividades/volumes": "web.atividades.volumes",
   "/atividades/abastecimento": "web.atividades.abastecimento",
   "/atividades/abastecimento/gerar": "web.atividades.abastecimento",
+  "/atividades/abastecimento/:id/tarefas": "web.atividades.abastecimento",
   "/atividades/inventario": "web.atividades.inventario",
   "/atividades/inventario/novo": "web.atividades.inventario",
   "/relatorios/estoque": "web.relatorios.estoque",

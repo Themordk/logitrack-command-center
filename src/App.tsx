@@ -39,6 +39,7 @@ import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
 import { AbastecimentoPage } from "./pages/AbastecimentoPage";
 import { AbastecimentoGeracaoPage } from "./pages/AbastecimentoGeracaoPage";
+import { AbastecimentoDetalhePage } from "./pages/AbastecimentoDetalhePage";
 
 // Reports
 import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
@@ -75,6 +76,8 @@ import { TransferenciaDetalhePage } from "./pages/coletor/TransferenciaDetalhePa
 import { TransferenciaDestinoPage } from "./pages/coletor/TransferenciaDestinoPage";
 import { TransferenciaConcluidoPage } from "./pages/coletor/TransferenciaConcluidoPage";
 import { AbastecimentoListPage } from "./pages/coletor/AbastecimentoListPage";
+import { AbastecimentoColetaPage } from "./pages/coletor/AbastecimentoColetaPage";
+import { AbastecimentoDestinoPage } from "./pages/coletor/AbastecimentoDestinoPage";
 import { RecebimentoVolumesPage } from "./pages/coletor/RecebimentoVolumesPage";
 import { SeparacaoIniciarPage } from "./pages/coletor/SeparacaoIniciarPage";
 import { SeparacaoEnderecoPage } from "./pages/coletor/SeparacaoEnderecoPage";
@@ -134,6 +137,15 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Atividades" },
       { label: "Abastecimento", path: "/atividades/abastecimento" },
       { label: "Geração" },
+    ];
+  }
+  const abastDetalheMatch = path.match(/^\/atividades\/abastecimento\/([^/]+)\/tarefas/);
+  if (abastDetalheMatch) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Atividades" },
+      { label: "Abastecimento", path: "/atividades/abastecimento" },
+      { label: "Tarefas" },
     ];
   }
   if (path.startsWith("/relatorios/movimentacoes/tarefa/")) {
@@ -200,6 +212,11 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
         const tipo = params.get("tipo") || "PREVENTIVO";
         const armazemId = params.get("armazem") || "";
         return <AbastecimentoGeracaoPage onNavigate={onNavigate} tipo={tipo} armazemId={armazemId} />;
+      }
+      // Dynamic route: /atividades/abastecimento/:id/tarefas
+      const abastDetalheMatch = path.match(/^\/atividades\/abastecimento\/([^/]+)\/tarefas/);
+      if (abastDetalheMatch) {
+        return <AbastecimentoDetalhePage onNavigate={onNavigate} abastecimentoId={abastDetalheMatch[1]} />;
       }
       // Dynamic route: /relatorios/movimentacoes/tarefa/:id
       const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
@@ -285,6 +302,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/movimentos/transferencia/destino": return <TransferenciaDestinoPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/concluido": return <TransferenciaConcluidoPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/abastecimento": return <AbastecimentoListPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/abastecimento/coleta": return <AbastecimentoColetaPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/abastecimento/destino": return <AbastecimentoDestinoPage onNavigate={onNavigate} />;
     case "/coletor/separacao/iniciar": return <SeparacaoIniciarPage onNavigate={onNavigate} />;
     case "/coletor/separacao/endereco": return <SeparacaoEnderecoPage onNavigate={onNavigate} />;
     case "/coletor/separacao/produto": return <SeparacaoProdutoPage onNavigate={onNavigate} />;
