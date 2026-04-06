@@ -169,7 +169,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage />;
-    case "/atividades/abastecimento": return <AbastecimentoPage />;
+    case "/atividades/abastecimento": return <AbastecimentoPage onNavigate={onNavigate} />;
     case "/dados-mestres/produtos": return <ProdutosPage />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
     case "/dados-mestres/subgrupos": return <SubgruposPage />;
