@@ -5307,17 +5307,30 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_gerar_abastecimento: {
-        Args: {
-          p_armazem_id: string
-          p_empresa_id: string
-          p_simular?: boolean
-          p_tenant_id: string
-          p_tipo: string
-          p_usuario_id: string
-        }
-        Returns: Json
-      }
+      fn_gerar_abastecimento:
+        | {
+            Args: {
+              p_armazem_id: string
+              p_empresa_id: string
+              p_itens?: Json
+              p_simular?: boolean
+              p_tenant_id: string
+              p_tipo: string
+              p_usuario_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_armazem_id: string
+              p_empresa_id: string
+              p_simular?: boolean
+              p_tenant_id: string
+              p_tipo: string
+              p_usuario_id: string
+            }
+            Returns: Json
+          }
       fn_gerar_conferencia_saida: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: undefined
