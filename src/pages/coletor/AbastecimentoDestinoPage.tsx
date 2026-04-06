@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { InfoCard } from "@/components/coletor/InfoCard";
 import { StatusOverlay } from "@/components/coletor/StatusOverlay";
 import { Loader2, PackageCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -41,13 +40,13 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [tarefas, setTarefas] = useState<TarefaInfo[]>([]);
   const [coletas, setColetas] = useState<Coleta[]>([]);
+  const [overlayType, setOverlayType] = useState<"success" | "error" | null>(null);
+  const [overlayMsg, setOverlayMsg] = useState("");
 
-  // Current destination state
   const [enderecoScanned, setEnderecoScanned] = useState<string | null>(null);
   const [produtoScanned, setProdutoScanned] = useState<string | null>(null);
   const [quantidade, setQuantidade] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [allDone, setAllDone] = useState(false);
 
   useEffect(() => {
@@ -61,7 +60,6 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
     setLoading(false);
   }, []);
 
-  // Group coletas by produto to know what we have to deliver
   const coletasByProduto = coletas.reduce((acc, c) => {
     if (!acc[c.produto_id]) acc[c.produto_id] = { total: 0, items: [] };
     acc[c.produto_id].total += c.quantidade;
@@ -69,7 +67,6 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
     return acc;
   }, {} as Record<string, { total: number; items: Coleta[] }>);
 
-  // Find destinations that still need product (sorted by rua ASC)
   const pendingDestinos = tarefas
     .filter(t => {
       const coletaTotal = coletasByProduto[t.produto_id]?.total || 0;
@@ -163,7 +160,6 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         if (remaining <= 0) break;
         const debit = Math.min(remaining, coleta.quantidade);
 
-        // Update estoque_geral: deblock + debit
         const { data: est } = await (supabase as any)
           .from("estoque_geral")
           .select("id, quantidade_bloqueada, quantidade_total")
@@ -180,7 +176,6 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
             .eq("id", est.id);
         }
 
-        // Update coleta amount
         const idx = updatedColetas.findIndex(c => c.estoque_id === coleta.estoque_id && c.produto_id === coleta.produto_id);
         if (idx >= 0) {
           updatedColetas[idx] = { ...updatedColetas[idx], quantidade: updatedColetas[idx].quantidade - debit };
@@ -188,12 +183,11 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         remaining -= debit;
       }
 
-      // Remove depleted coletas
       const cleanedColetas = updatedColetas.filter(c => c.quantidade > 0);
       setColetas(cleanedColetas);
       sessionStorage.setItem("abast_coletas", JSON.stringify(cleanedColetas));
 
-      // 3. Credit destination stock (upsert)
+      // 3. Credit destination stock
       const { data: destEst } = await (supabase as any)
         .from("estoque_geral")
         .select("id, quantidade_disponivel, quantidade_total")
@@ -246,47 +240,42 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
           empresa_id: empresaId,
           produto_id: currentDestino.produto_id,
           quantidade: qty,
-          tipo_movimento: 6, // abastecimento
+          tipo_movimento: 6,
           endereco_origem_id: currentDestino.endereco_origem_id,
           endereco_destino_id: currentDestino.endereco_destino_id,
           usuario_id: usuarioId,
         });
 
-      // Update local tarefas state
-      setTarefas(prev => prev.map(t =>
-        t.id === currentDestino.id
-          ? { ...t, quantidade_executada: newExecutada }
-          : t
-      ));
-      sessionStorage.setItem("abast_tarefas", JSON.stringify(
-        tarefas.map(t => t.id === currentDestino.id ? { ...t, quantidade_executada: newExecutada } : t)
-      ));
+      // Update local state
+      const newTarefas = tarefas.map(t =>
+        t.id === currentDestino.id ? { ...t, quantidade_executada: newExecutada } : t
+      );
+      setTarefas(newTarefas);
+      sessionStorage.setItem("abast_tarefas", JSON.stringify(newTarefas));
 
-      // Check if all done
-      const remainingColetas = cleanedColetas.reduce((s, c) => s + c.quantidade, 0);
-      const remainingTarefas = tarefas.filter(t => {
-        const exec = t.id === currentDestino.id ? newExecutada : t.quantidade_executada;
-        return (t.quantidade_requerida - exec) > 0;
-      });
+      // Check completion
+      const remainingColetasQty = cleanedColetas.reduce((s, c) => s + c.quantidade, 0);
+      const remainingTarefas = newTarefas.filter(t => (t.quantidade_requerida - t.quantidade_executada) > 0);
 
-      if (remainingTarefas.length === 0 || remainingColetas === 0) {
-        if (remainingTarefas.length > 0 && remainingColetas === 0) {
-          // Need more collections
+      if (remainingTarefas.length === 0 || remainingColetasQty === 0) {
+        if (remainingTarefas.length > 0 && remainingColetasQty === 0) {
           toast.info("Coletas esgotadas. Retornando para coleta.");
           setTimeout(() => onNavigate("/coletor/movimentos/abastecimento/coleta"), 1500);
           return;
         }
-        // All done
         setAllDone(true);
+        setOverlayType("success");
+        setOverlayMsg("Abastecimento concluído!");
         sessionStorage.removeItem("abast_tarefas");
         sessionStorage.removeItem("abast_coletas");
         setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 3000);
         return;
       }
 
-      setShowSuccess(true);
+      setOverlayType("success");
+      setOverlayMsg("Abastecimento registrado!");
       setTimeout(() => {
-        setShowSuccess(false);
+        setOverlayType(null);
         setEnderecoScanned(null);
         setProdutoScanned(null);
         setQuantidade("");
@@ -302,7 +291,7 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   if (loading) {
     return (
       <ColetorLayout title="Destino" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/abastecimento/coleta">
-        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>
+        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>
       </ColetorLayout>
     );
   }
@@ -310,24 +299,36 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   if (allDone) {
     return (
       <ColetorLayout title="Abastecimento" onNavigate={onNavigate}>
-        <StatusOverlay status="success" message="Abastecimento concluído com sucesso!" />
+        <StatusOverlay type="success" message="Abastecimento concluído com sucesso!" />
       </ColetorLayout>
     );
   }
 
   return (
     <ColetorLayout title="Destino Abastecimento" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/abastecimento/coleta">
-      {showSuccess && <StatusOverlay status="success" message="Abastecimento registrado!" />}
+      <StatusOverlay type={overlayType} message={overlayMsg} />
 
       {currentDestino && (
         <div className="space-y-3">
-          <InfoCard label="Destino" value={currentDestino.endereco_destino_desc} />
-          <InfoCard label="Produto" value={`${currentDestino.produto_sku} - ${currentDestino.produto_desc}`} />
-          <div className="flex gap-3">
-            <InfoCard label="Requerida" value={String(currentDestino.quantidade_requerida)} />
-            <InfoCard label="Executada" value={String(currentDestino.quantidade_executada)} />
+          <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+            <p className="text-xs text-[hsl(213,31%,55%)]">Destino</p>
+            <p className="text-lg font-bold text-[hsl(213,31%,91%)]">{currentDestino.endereco_destino_desc}</p>
           </div>
-          <p className="text-xs text-muted-foreground">{pendingDestinos.length} destino(s) pendente(s)</p>
+          <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+            <p className="text-xs text-[hsl(213,31%,55%)]">Produto</p>
+            <p className="font-bold text-[hsl(213,31%,91%)]">{currentDestino.produto_sku} - {currentDestino.produto_desc}</p>
+          </div>
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+              <p className="text-xs text-[hsl(213,31%,55%)]">Requerida</p>
+              <p className="text-lg font-bold text-[hsl(213,31%,91%)]">{currentDestino.quantidade_requerida}</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+              <p className="text-xs text-[hsl(213,31%,55%)]">Executada</p>
+              <p className="text-lg font-bold text-[hsl(213,31%,91%)]">{currentDestino.quantidade_executada}</p>
+            </div>
+          </div>
+          <p className="text-xs text-[hsl(213,31%,55%)]">{pendingDestinos.length} destino(s) pendente(s)</p>
         </div>
       )}
 
@@ -339,9 +340,9 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
 
       {enderecoScanned && !produtoScanned && (
         <div className="mt-3 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CheckCircle2 size={14} className="text-green-500" />
-            <span>Endereço: <span className="font-bold text-foreground">{enderecoScanned}</span></span>
+          <div className="flex items-center gap-2 text-xs text-[hsl(213,31%,55%)]">
+            <CheckCircle2 size={14} className="text-[#22C55E]" />
+            <span>Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{enderecoScanned}</span></span>
           </div>
           <ScanField label="Escanear Produto" onScan={handleScanProduto} />
         </div>
@@ -349,44 +350,42 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
 
       {enderecoScanned && produtoScanned && (
         <div className="mt-3 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CheckCircle2 size={14} className="text-green-500" />
-            <span>Endereço: <span className="font-bold text-foreground">{enderecoScanned}</span></span>
+          <div className="flex items-center gap-2 text-xs text-[hsl(213,31%,55%)]">
+            <CheckCircle2 size={14} className="text-[#22C55E]" />
+            <span>Endereço: <span className="font-bold text-[hsl(213,31%,91%)]">{enderecoScanned}</span></span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <CheckCircle2 size={14} className="text-green-500" />
-            <span>Produto: <span className="font-bold text-foreground">{produtoScanned}</span></span>
+          <div className="flex items-center gap-2 text-xs text-[hsl(213,31%,55%)]">
+            <CheckCircle2 size={14} className="text-[#22C55E]" />
+            <span>Produto: <span className="font-bold text-[hsl(213,31%,91%)]">{produtoScanned}</span></span>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Quantidade</label>
+            <label className="text-xs font-medium text-[hsl(213,31%,55%)] mb-1 block">Quantidade</label>
             <input
               type="number"
               inputMode="numeric"
               value={quantidade}
               onChange={(e) => setQuantidade(e.target.value)}
-              className="w-full h-12 rounded-xl border-2 border-primary/40 bg-card text-center text-lg font-bold text-foreground focus:outline-none focus:border-primary"
+              className="w-full h-12 rounded-xl border-2 border-[hsl(217,91%,50%)]/40 bg-[hsl(222,40%,12%)] text-center text-lg font-bold text-[hsl(213,31%,91%)] focus:outline-none focus:border-[hsl(217,91%,50%)]"
             />
           </div>
           <ActionButton
-            label="Confirmar Abastecimento"
-            icon={PackageCheck}
             onClick={handleConfirmarAbastecimento}
             disabled={processing || !quantidade || Number(quantidade) <= 0}
             loading={processing}
-          />
+          >
+            <PackageCheck size={20} /> Confirmar Abastecimento
+          </ActionButton>
         </div>
       )}
 
       {!currentDestino && coletas.length > 0 && (
         <div className="text-center py-8">
-          <p className="text-sm text-muted-foreground">Nenhum destino pendente com coletas disponíveis.</p>
-          <ActionButton
-            label="Voltar para Coleta"
-            icon={PackageCheck}
-            onClick={() => onNavigate("/coletor/movimentos/abastecimento/coleta")}
-            variant="secondary"
-            className="mt-4"
-          />
+          <p className="text-sm text-[hsl(213,31%,55%)]">Nenhum destino pendente com coletas disponíveis.</p>
+          <div className="mt-4">
+            <ActionButton onClick={() => onNavigate("/coletor/movimentos/abastecimento/coleta")} variant="secondary">
+              Voltar para Coleta
+            </ActionButton>
+          </div>
         </div>
       )}
     </ColetorLayout>

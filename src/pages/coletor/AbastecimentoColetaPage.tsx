@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { InfoCard } from "@/components/coletor/InfoCard";
 import { StatusOverlay } from "@/components/coletor/StatusOverlay";
 import { Loader2, PackageCheck, Truck } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +36,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const empresaId = localStorage.getItem("core_empresa_id") || "";
   const [loading, setLoading] = useState(true);
   const [tarefas, setTarefas] = useState<TarefaInfo[]>([]);
+  const [overlayType, setOverlayType] = useState<"success" | "error" | null>(null);
 
   // Scan state
   const [enderecoScanned, setEnderecoScanned] = useState<string | null>(null);
@@ -45,23 +45,19 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const [quantidade, setQuantidade] = useState("");
   const [coletas, setColetas] = useState<Coleta[]>([]);
   const [processing, setProcessing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Load tarefas from sessionStorage
   useEffect(() => {
     const raw = sessionStorage.getItem("abast_tarefas");
     if (!raw) { onNavigate("/coletor/movimentos/abastecimento"); return; }
     try {
       const parsed = JSON.parse(raw) as TarefaInfo[];
       setTarefas(parsed);
-      // Load existing coletas
       const existingColetas = sessionStorage.getItem("abast_coletas");
       if (existingColetas) setColetas(JSON.parse(existingColetas));
     } catch { onNavigate("/coletor/movimentos/abastecimento"); }
     setLoading(false);
   }, []);
 
-  // Get remaining qty per tarefa (considering existing coletas)
   const getRemainingQty = (t: TarefaInfo) => {
     const coletado = coletas
       .filter(c => c.produto_id === t.produto_id && c.endereco_origem_id === t.endereco_origem_id)
@@ -69,14 +65,10 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
     return t.quantidade_requerida - t.quantidade_executada - coletado;
   };
 
-  // Pending tarefas (still need collection)
   const pendingTarefas = tarefas.filter(t => getRemainingQty(t) > 0);
-
-  // Current expected tarefa (first pending, sorted by rua ASC via order)
   const currentTarefa = pendingTarefas[0] || null;
 
   const handleScanEndereco = async (code: string) => {
-    // Find endereco by descricao
     const { data } = await (supabase as any)
       .from("endereco")
       .select("id, descricao")
@@ -87,7 +79,6 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
     if (!data) { toast.error("Endereço não encontrado"); return; }
 
-    // Validate: must match one of the pending tarefas origem
     const matchesTarefa = pendingTarefas.some(t => t.endereco_origem_id === data.id);
     if (!matchesTarefa) { toast.error("Endereço não corresponde a nenhuma tarefa pendente"); return; }
 
@@ -100,7 +91,6 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const handleScanProduto = async (code: string) => {
     if (!enderecoId) return;
 
-    // Try EAN first
     const { data: emb } = await (supabase as any)
       .from("produto_embalagem")
       .select("produto_id")
@@ -111,7 +101,6 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
     let prodId = emb?.produto_id;
     if (!prodId) {
-      // Try SKU
       const { data: prod } = await (supabase as any)
         .from("produto")
         .select("id")
@@ -124,7 +113,6 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
     if (!prodId) { toast.error("Produto não encontrado"); return; }
 
-    // Validate product matches a pending tarefa at this endereco
     const tarefa = pendingTarefas.find(t => t.produto_id === prodId && t.endereco_origem_id === enderecoId);
     if (!tarefa) { toast.error("Produto não esperado neste endereço"); return; }
 
@@ -146,7 +134,6 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
     setProcessing(true);
     try {
-      // Block stock: quantidade_bloqueada += qty, quantidade_disponivel -= qty
       const { data: estoque } = await (supabase as any)
         .from("estoque_geral")
         .select("id, quantidade_disponivel, quantidade_bloqueada")
@@ -184,9 +171,9 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
       setColetas(updatedColetas);
       sessionStorage.setItem("abast_coletas", JSON.stringify(updatedColetas));
 
-      setShowSuccess(true);
+      setOverlayType("success");
       setTimeout(() => {
-        setShowSuccess(false);
+        setOverlayType(null);
         setEnderecoScanned(null);
         setEnderecoId(null);
         setProdutoScanned(null);
@@ -216,11 +203,14 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Coleta Abastecimento" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/abastecimento">
-      {showSuccess && <StatusOverlay status="success" message="Coleta registrada!" />}
+      <StatusOverlay type={overlayType} message="Coleta registrada!" />
 
       {/* Current task info */}
       {currentTarefa && !enderecoScanned && (
-        <InfoCard label="Próximo Endereço" value={currentTarefa.endereco_origem_desc} />
+        <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 mb-3">
+          <p className="text-xs text-[hsl(213,31%,55%)]">Próximo Endereço</p>
+          <p className="text-lg font-bold text-[hsl(213,31%,91%)]">{currentTarefa.endereco_origem_desc}</p>
+        </div>
       )}
 
       {/* Step 1: Scan endereço */}
@@ -231,7 +221,10 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
       {/* Step 2: Scan produto */}
       {enderecoScanned && !produtoScanned && (
         <div className="space-y-3">
-          <InfoCard label="Endereço Origem" value={enderecoScanned} />
+          <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+            <p className="text-xs text-[hsl(213,31%,55%)]">Endereço Origem</p>
+            <p className="text-lg font-bold text-[hsl(213,31%,91%)]">{enderecoScanned}</p>
+          </div>
           <ScanField label="Escanear Produto" onScan={handleScanProduto} />
         </div>
       )}
@@ -239,39 +232,45 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
       {/* Step 3: Confirm qty */}
       {enderecoScanned && produtoScanned && (
         <div className="space-y-3">
-          <InfoCard label="Endereço Origem" value={enderecoScanned} />
-          <InfoCard label="Produto" value={produtoScanned} />
+          <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+            <p className="text-xs text-[hsl(213,31%,55%)]">Endereço Origem</p>
+            <p className="font-bold text-[hsl(213,31%,91%)]">{enderecoScanned}</p>
+          </div>
+          <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
+            <p className="text-xs text-[hsl(213,31%,55%)]">Produto</p>
+            <p className="font-bold text-[hsl(213,31%,91%)]">{produtoScanned}</p>
+          </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Quantidade</label>
+            <label className="text-xs font-medium text-[hsl(213,31%,55%)] mb-1 block">Quantidade</label>
             <input
               type="number"
               inputMode="numeric"
               value={quantidade}
               onChange={(e) => setQuantidade(e.target.value)}
-              className="w-full h-12 rounded-xl border-2 border-primary/40 bg-card text-center text-lg font-bold text-foreground focus:outline-none focus:border-primary"
+              className="w-full h-12 rounded-xl border-2 border-[hsl(217,91%,50%)]/40 bg-[hsl(222,40%,12%)] text-center text-lg font-bold text-[hsl(213,31%,91%)] focus:outline-none focus:border-[hsl(217,91%,50%)]"
             />
           </div>
           <ActionButton
-            label="Confirmar Coleta"
-            icon={PackageCheck}
             onClick={handleConfirmarColeta}
             disabled={processing || !quantidade || Number(quantidade) <= 0}
             loading={processing}
-          />
+          >
+            <PackageCheck size={20} /> Confirmar Coleta
+          </ActionButton>
         </div>
       )}
 
       {/* Coletas list */}
       {coletas.length > 0 && (
         <div className="mt-4 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">{coletas.length} coleta(s) realizada(s)</p>
+          <p className="text-xs font-medium text-[hsl(213,31%,55%)]">{coletas.length} coleta(s) realizada(s)</p>
           {coletas.map((c, i) => (
-            <div key={i} className="bg-card border border-border rounded-lg p-2 flex justify-between items-center text-xs">
+            <div key={i} className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-lg p-2 flex justify-between items-center text-xs">
               <div>
-                <span className="font-mono text-primary">{c.produto_sku}</span>
-                <span className="text-muted-foreground ml-2">{c.endereco_origem_desc}</span>
+                <span className="font-mono text-[hsl(217,91%,60%)]">{c.produto_sku}</span>
+                <span className="text-[hsl(213,31%,55%)] ml-2">{c.endereco_origem_desc}</span>
               </div>
-              <span className="font-bold text-foreground">{c.quantidade}</span>
+              <span className="font-bold text-[hsl(213,31%,91%)]">{c.quantidade}</span>
             </div>
           ))}
         </div>
@@ -280,12 +279,9 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
       {/* Abastecer button */}
       {coletas.length > 0 && (
         <div className="mt-4">
-          <ActionButton
-            label="Abastecer"
-            icon={Truck}
-            onClick={handleAbastecer}
-            variant="secondary"
-          />
+          <ActionButton onClick={handleAbastecer} variant="secondary">
+            <Truck size={20} /> Abastecer
+          </ActionButton>
         </div>
       )}
     </ColetorLayout>
