@@ -105,6 +105,14 @@ export function MovimentoSaidaPage() {
   const [prioridadeValue, setPrioridadeValue] = useState("");
   const [savingPrioridade, setSavingPrioridade] = useState(false);
 
+  // Corte dialog
+  const [corteItem, setCorteItem] = useState<OcorrenciaItem | null>(null);
+  const [corteMotivos, setCorteMotivos] = useState<MotivoOcorrencia[]>([]);
+  const [corteMotivoId, setCorteMotivoId] = useState("");
+  const [corteSaving, setCorteSaving] = useState(false);
+  const [loadingSaldoPulmao, setLoadingSaldoPulmao] = useState(false);
+  const [abastItemLoading, setAbastItemLoading] = useState<string | null>(null);
+
   // Limpar placeholders
   const [limparSepDialog, setLimparSepDialog] = useState<string | null>(null);
   const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
