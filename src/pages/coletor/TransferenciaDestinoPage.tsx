@@ -68,7 +68,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
           produto_id: produtoId,
           quantidade_requerida: quantidade,
           status: "CONCLUIDA",
-          prioridade: 1,
+          prioridade_tarefa: "NORMAL",
           criado_em: now,
           id_local_origem: origemId,
           id_local_destino: destinoId,

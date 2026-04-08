@@ -49,6 +49,7 @@ interface OcorrenciaItem {
   qtd_esperada?: number;
   saldo_picking?: number;
   endereco_picking?: string;
+  saldo_pulmao?: number;
   [key: string]: any;
 }
 
@@ -58,6 +59,11 @@ interface LiberarResult {
   tipo_ocorrencia?: string;
   itens?: OcorrenciaItem[];
   ocorrencias?: OcorrenciaItem[];
+}
+
+interface MotivoOcorrencia {
+  id: string;
+  descricao: string;
 }
 
 export function MovimentoSaidaPage() {
@@ -98,6 +104,14 @@ export function MovimentoSaidaPage() {
   const [prioridadeDialogId, setPrioridadeDialogId] = useState<string | null>(null);
   const [prioridadeValue, setPrioridadeValue] = useState("");
   const [savingPrioridade, setSavingPrioridade] = useState(false);
+
+  // Corte dialog
+  const [corteItem, setCorteItem] = useState<OcorrenciaItem | null>(null);
+  const [corteMotivos, setCorteMotivos] = useState<MotivoOcorrencia[]>([]);
+  const [corteMotivoId, setCorteMotivoId] = useState("");
+  const [corteSaving, setCorteSaving] = useState(false);
+  const [loadingSaldoPulmao, setLoadingSaldoPulmao] = useState(false);
+  const [abastItemLoading, setAbastItemLoading] = useState<string | null>(null);
 
   // Limpar placeholders
   const [limparSepDialog, setLimparSepDialog] = useState<string | null>(null);
@@ -208,6 +222,11 @@ export function MovimentoSaidaPage() {
         setLiberarResult(result);
         setLiberarMovId(movId);
         setLiberarDialogOpen(true);
+
+        // If saldo_insuficiente_picking, fetch saldo pulmão for each item
+        if (result.tipo_ocorrencia === "saldo_insuficiente_picking" && result.itens?.length) {
+          fetchSaldoPulmao(result.itens);
+        }
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -287,6 +306,129 @@ export function MovimentoSaidaPage() {
       setLiberarDialogOpen(false);
     } catch (err: any) {
       toast.error(err.message);
+    }
+  };
+
+  const fetchSaldoPulmao = async (itens: OcorrenciaItem[]) => {
+    setLoadingSaldoPulmao(true);
+    try {
+      const produtoIds = itens.map(i => i.produto_id).filter(Boolean) as string[];
+      if (produtoIds.length === 0) return;
+
+      // Get all PULMAO addresses
+      const { data: endPulmao } = await (supabase as any)
+        .from("endereco")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("tipo_endereco", "PULMAO");
+
+      const pulmaoIds = (endPulmao || []).map((e: any) => e.id);
+
+      if (pulmaoIds.length === 0) {
+        // No pulmão addresses, all saldo = 0
+        setLiberarResult(prev => {
+          if (!prev) return prev;
+          return { ...prev, itens: prev.itens?.map(i => ({ ...i, saldo_pulmao: 0 })) };
+        });
+        return;
+      }
+
+      // Get stock for each product in pulmão
+      const { data: estoques } = await (supabase as any)
+        .from("estoque_geral")
+        .select("produto_id, quantidade_disponivel")
+        .eq("tenant_id", tenantId)
+        .in("produto_id", produtoIds)
+        .in("endereco_id", pulmaoIds)
+        .gt("quantidade_disponivel", 0);
+
+      // Sum by produto_id
+      const saldoMap: Record<string, number> = {};
+      (estoques || []).forEach((e: any) => {
+        saldoMap[e.produto_id] = (saldoMap[e.produto_id] || 0) + Number(e.quantidade_disponivel);
+      });
+
+      setLiberarResult(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          itens: prev.itens?.map(i => ({
+            ...i,
+            saldo_pulmao: i.produto_id ? (saldoMap[i.produto_id] || 0) : 0,
+          })),
+        };
+      });
+    } catch (err: any) {
+      console.error("Erro ao buscar saldo pulmão:", err);
+    } finally {
+      setLoadingSaldoPulmao(false);
+    }
+  };
+
+  const handleAbastecimentoItem = async (item: OcorrenciaItem) => {
+    if (!liberarMovId || !tenantId || !item.produto_id) return;
+    setAbastItemLoading(item.produto_id);
+    try {
+      const { data, error } = await supabase.rpc("fn_gerar_abastecimento" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_simular: false,
+        p_itens: JSON.stringify([{ produto_id: item.produto_id, endereco_picking: item.endereco_picking }]),
+      });
+      if (error) throw error;
+      toast.success("Abastecimento gerado para o item!");
+      // Refresh saldo
+      if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setAbastItemLoading(null);
+    }
+  };
+
+  const handleOpenCorte = async (item: OcorrenciaItem) => {
+    setCorteItem(item);
+    setCorteMotivoId("");
+    // Load motivos
+    const { data } = await (supabase as any)
+      .from("motivo_ocorrencia")
+      .select("id, descricao")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .eq("etapa_ocorrencia", "SEPARACAO")
+      .order("descricao");
+    setCorteMotivos(data || []);
+  };
+
+  const handleConfirmarCorte = async () => {
+    if (!corteItem || !corteMotivoId || !liberarMovId || !usuarioId) return;
+    setCorteSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("movimento_saida_item")
+        .update({
+          qtde_cortada: corteItem.qtd_esperada || 0,
+          motivo_ocorrencia: corteMotivoId,
+          usuario_autorizou: usuarioId,
+          autorizado_em: new Date().toISOString(),
+        })
+        .eq("movimento_saida_id", liberarMovId)
+        .eq("produto_id", corteItem.produto_id);
+      if (error) throw error;
+      toast.success("Item cortado com sucesso!");
+      setCorteItem(null);
+      // Remove item from list
+      setLiberarResult(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          itens: prev.itens?.filter(i => i.produto_id !== corteItem.produto_id),
+        };
+      });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setCorteSaving(false);
     }
   };
 
@@ -758,6 +900,8 @@ export function MovimentoSaidaPage() {
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Saldo Picking</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereço</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Saldo Pulmão</th>
+                        <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Ação</th>
                       </>
                     )}
                     {liberarResult.tipo_ocorrencia === "sem_picking" && (
@@ -781,6 +925,35 @@ export function MovimentoSaidaPage() {
                           <td className="px-3 py-2 text-right text-foreground">{item.qtd_esperada ?? "—"}</td>
                           <td className="px-3 py-2 text-right text-destructive font-semibold">{item.saldo_picking ?? 0}</td>
                           <td className="px-3 py-2 text-xs text-muted-foreground">{item.endereco_picking || "—"}</td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {loadingSaldoPulmao ? (
+                              <Loader2 size={12} className="animate-spin text-muted-foreground inline" />
+                            ) : (
+                              <span className={item.saldo_pulmao && item.saldo_pulmao > 0 ? "text-green-400 font-semibold" : "text-destructive"}>
+                                {item.saldo_pulmao ?? "—"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {!loadingSaldoPulmao && item.saldo_pulmao !== undefined && (
+                              item.saldo_pulmao > 0 ? (
+                                <button
+                                  onClick={() => handleAbastecimentoItem(item)}
+                                  disabled={abastItemLoading === item.produto_id}
+                                  className="px-2 py-1 rounded text-[11px] font-medium bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors disabled:opacity-50"
+                                >
+                                  {abastItemLoading === item.produto_id ? <Loader2 size={12} className="animate-spin inline" /> : "Abastecer"}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleOpenCorte(item)}
+                                  className="px-2 py-1 rounded text-[11px] font-medium bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition-colors"
+                                >
+                                  Cortar
+                                </button>
+                              )
+                            )}
+                          </td>
                         </>
                       )}
                       {liberarResult.tipo_ocorrencia === "sem_picking" && (
@@ -803,12 +976,48 @@ export function MovimentoSaidaPage() {
                     onClick={handleGerarAbastecimentoPreventivo}
                     className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
                   >
-                    Gerar Abastecimento Preventivo
+                    Gerar Abastecimento Preventivo (Todos)
                   </button>
                 </div>
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Corte Dialog */}
+      <Dialog open={!!corteItem} onOpenChange={(v) => !v && setCorteItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cortar Item</DialogTitle>
+            <DialogDescription>
+              Confirme o corte do item <span className="font-mono font-semibold">{corteItem?.sku}</span> — Qtd: {corteItem?.qtd_esperada}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2">
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motivo de Ocorrência *</label>
+            <select
+              value={corteMotivoId}
+              onChange={(e) => setCorteMotivoId(e.target.value)}
+              className="w-full h-9 px-3 rounded-md border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
+            >
+              <option value="">Selecione...</option>
+              {corteMotivos.map((m) => (
+                <option key={m.id} value={m.id}>{m.descricao}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setCorteItem(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              onClick={handleConfirmarCorte}
+              disabled={corteSaving || !corteMotivoId}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+            >
+              {corteSaving && <Loader2 size={14} className="animate-spin" />}
+              Confirmar Corte
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
