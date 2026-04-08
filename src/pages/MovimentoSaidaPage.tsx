@@ -316,13 +316,12 @@ export function MovimentoSaidaPage() {
     }
   };
 
-  const fetchSaldoPulmao = async (itens: OcorrenciaItem[]) => {
+  const fetchSaldoPulmao = async (itens: OcorrenciaItem[], target: "itens" | "ocorrencias" = "itens") => {
     setLoadingSaldoPulmao(true);
     try {
       const produtoIds = itens.map(i => i.produto_id).filter(Boolean) as string[];
       if (produtoIds.length === 0) return;
 
-      // Get all PULMAO addresses
       const { data: endPulmao } = await (supabase as any)
         .from("endereco")
         .select("id")
@@ -332,15 +331,14 @@ export function MovimentoSaidaPage() {
       const pulmaoIds = (endPulmao || []).map((e: any) => e.id);
 
       if (pulmaoIds.length === 0) {
-        // No pulmão addresses, all saldo = 0
         setLiberarResult(prev => {
           if (!prev) return prev;
-          return { ...prev, itens: prev.itens?.map(i => ({ ...i, saldo_pulmao: 0 })) };
+          const update = (arr?: OcorrenciaItem[]) => arr?.map(i => ({ ...i, saldo_pulmao: 0 }));
+          return { ...prev, [target]: update(prev[target] as OcorrenciaItem[]) };
         });
         return;
       }
 
-      // Get stock for each product in pulmão
       const { data: estoques } = await (supabase as any)
         .from("estoque_geral")
         .select("produto_id, quantidade_disponivel")
@@ -349,7 +347,6 @@ export function MovimentoSaidaPage() {
         .in("endereco_id", pulmaoIds)
         .gt("quantidade_disponivel", 0);
 
-      // Sum by produto_id
       const saldoMap: Record<string, number> = {};
       (estoques || []).forEach((e: any) => {
         saldoMap[e.produto_id] = (saldoMap[e.produto_id] || 0) + Number(e.quantidade_disponivel);
@@ -357,13 +354,11 @@ export function MovimentoSaidaPage() {
 
       setLiberarResult(prev => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          itens: prev.itens?.map(i => ({
-            ...i,
-            saldo_pulmao: i.produto_id ? (saldoMap[i.produto_id] || 0) : 0,
-          })),
-        };
+        const update = (arr?: OcorrenciaItem[]) => arr?.map(i => ({
+          ...i,
+          saldo_pulmao: i.produto_id ? (saldoMap[i.produto_id] || 0) : 0,
+        }));
+        return { ...prev, [target]: update(prev[target] as OcorrenciaItem[]) };
       });
     } catch (err: any) {
       console.error("Erro ao buscar saldo pulmão:", err);
