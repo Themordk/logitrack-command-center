@@ -1,123 +1,75 @@
 
 
-# Plano: Ajustes no Fluxo de Abastecimento (WEB + Coletor)
+# Plano: Relatório de Cortes de Separação
 
-## 1. Fix enum `tipo_convocacao` no insert de `tarefa_atribuicao`
+## Resumo
 
-**Problema**: O valor `"MANUAL"` nao existe no enum `enum_tipo_convocacao`. Valores validos: `AUTO_CONVOCADO`, `CONVOCACAO_GESTOR`, `CONVOCACAO_ATIVA`.
+Criar um novo relatório tabular em `/relatorios/cortes` que exibe os itens cortados na separação (onde `qtde_cortada > 0`), com resumo de custo total no topo. Seguirá o mesmo padrão arquitetural dos relatórios existentes (Service + Page + componentes compartilhados).
 
-**Solucao**: Em `AbastecimentoGeracaoPage.tsx` linha 210, trocar `tipo_convocacao: "MANUAL"` por `tipo_convocacao: "CONVOCACAO_GESTOR"`.
-
-Arquivo: `src/pages/AbastecimentoGeracaoPage.tsx`
-
----
-
-## 2. Nova rota WEB para visualizar tarefas de um abastecimento
-
-Substituir o modal de detalhe (`detailOpen`) por navegacao para rota dedicada.
-
-### 2.1 Nova pagina `AbastecimentoDetalhePage.tsx`
-
-Rota: `/atividades/abastecimento/:id/tarefas`
-
-- Layout similar a `AbastecimentoGeracaoPage` (tabela com header e botao voltar)
-- Colunas: SKU, Descricao, Requerida, Executada, Origem, Destino, Status, Cancelar
-- Botao "Cancelar" por linha: atualiza `tarefa.status = 'CANCELADA'` para tarefas com status `CRIADA` ou `ATRIBUIDA`
-- Query: `tarefa` filtrada por `id_documento_origem = abastId` com JOINs em produto e endereco
-
-### 2.2 Ajustar `AbastecimentoPage.tsx`
-
-- Remover modal de detalhe
-- Botao Eye navega para `/atividades/abastecimento/${row.id}/tarefas`
-
-### 2.3 Registrar rota em `App.tsx`
-
-- Import + dynamic route match em `renderPage`
-- Breadcrumb dinamico em `getDynamicBreadcrumb`
-
-Arquivos: novo `src/pages/AbastecimentoDetalhePage.tsx`, editar `AbastecimentoPage.tsx`, `App.tsx`
-
----
-
-## 3. Fluxo de abastecimento no Coletor (3 novas paginas)
-
-O fluxo substitui a listagem simples por um processo de coleta e destino em etapas.
-
-```text
-AbastecimentoListPage (lista tarefas pendentes)
-  └─ Selecionar tarefa → navega para /coletor/movimentos/abastecimento/coleta
-
-AbastecimentoColetaPage (Rota A)
-  ├─ Scan Endereco Origem → valida vs tarefa
-  ├─ Scan Produto (EAN/SKU) → valida vs tarefa
-  ├─ Input quantidade
-  ├─ Botao "Confirmar Coleta" → bloqueia saldo em estoque_geral (quantidade_bloqueada += qty, quantidade_disponivel -= qty)
-  ├─ Lista de coletas realizadas (pode coletar de varios enderecos)
-  └─ Botao "Abastecer" → navega para /coletor/movimentos/abastecimento/destino
-
-AbastecimentoDestinoPage (Rota B)
-  ├─ Lista enderecos de destino ordenados por proximidade (rua ASC)
-  ├─ Scan Endereco Destino → valida vs tarefa
-  ├─ Scan Produto → valida
-  ├─ Input quantidade
-  ├─ Botao "Confirmar Abastecimento":
-  │   - Cria tarefa_execucao (status CONCLUIDA)
-  │   - Atualiza estoque_geral: origem (desbloqueio, baixa) e destino (credito)
-  │   - Atualiza tarefa.quantidade_executada
-  │   - Navega para proximo destino pendente
-  ├─ Se nao ha mais destinos mas ha coletas pendentes → volta para /coleta
-  └─ Se tudo concluido → mensagem sucesso → navega /coletor/movimentos/abastecimento
-```
-
-### 3.1 `AbastecimentoColetaPage.tsx`
-
-- Recebe `tarefa_id` via sessionStorage
-- ScanField para endereco origem (valida contra `id_local_origem` da tarefa)
-- ScanField para produto (valida EAN/SKU contra `produto_id` da tarefa)
-- Input numerico para quantidade
-- Ao confirmar coleta: `UPDATE estoque_geral SET quantidade_bloqueada = quantidade_bloqueada + qty, quantidade_disponivel = quantidade_disponivel - qty WHERE endereco_id = origem AND produto_id = X`
-- Armazena coletas em sessionStorage como array
-- Botao "Abastecer" habilitado quando ha pelo menos 1 coleta
-
-### 3.2 `AbastecimentoDestinoPage.tsx`
-
-- Le coletas do sessionStorage
-- Lista enderecos destino pendentes ordenados por `rua ASC` (proximidade)
-- ScanField para endereco destino + produto + quantidade
-- Ao confirmar:
-  - INSERT em `tarefa_execucao` (status CONCLUIDA, quantidades, endereco_origem, endereco_destino)
-  - UPDATE `estoque_geral` origem: `quantidade_bloqueada -= qty, quantidade_total -= qty`
-  - UPSERT `estoque_geral` destino: credita quantidade
-  - UPDATE `tarefa.quantidade_executada += qty`
-  - Se tarefa completa: UPDATE `tarefa.status = 'CONCLUIDA'`
-- Navega para proximo destino, ou volta para coleta, ou finaliza
-
-### 3.3 Ajustar `AbastecimentoListPage.tsx`
-
-- Ao clicar em uma tarefa, salvar dados em sessionStorage e navegar para `/coletor/movimentos/abastecimento/coleta`
-
-### 3.4 Registrar rotas no `App.tsx` (renderColetorPage)
-
-- `/coletor/movimentos/abastecimento/coleta` → AbastecimentoColetaPage
-- `/coletor/movimentos/abastecimento/destino` → AbastecimentoDestinoPage
-
----
-
-## Arquivos Afetados
+## Estrutura de Arquivos
 
 ```text
 NOVOS:
-  - src/pages/AbastecimentoDetalhePage.tsx
-  - src/pages/coletor/AbastecimentoColetaPage.tsx
-  - src/pages/coletor/AbastecimentoDestinoPage.tsx
+  - src/modules/reports/cortes/CortesReportPage.tsx
+  - src/modules/reports/cortes/cortes.service.ts
 
 EDITADOS:
-  - src/pages/AbastecimentoGeracaoPage.tsx (fix enum)
-  - src/pages/AbastecimentoPage.tsx (remover modal detalhe, navegar para rota)
-  - src/pages/coletor/AbastecimentoListPage.tsx (click navega para coleta)
-  - src/App.tsx (3 novas rotas + imports + breadcrumbs)
-  - src/hooks/useRoutePermission.ts (mapear novas rotas)
+  - src/App.tsx (import + rota /relatorios/cortes)
+  - src/hooks/useRoutePermission.ts (mapear permissão)
 ```
 
-Nenhuma migration SQL necessaria -- todas as operacoes usam tabelas e colunas existentes.
+## 1. Service (`cortes.service.ts`)
+
+- Interface `CortesFilter`: `tenant_id`, `data_inicio`, `data_fim`, `motivo_ocorrencia_id?`, `sku?`
+- Função `fetchCortesReport(filters)`:
+  - Query em `movimento_saida_item` com filtro `qtde_cortada > 0`
+  - JOINs via select do Supabase:
+    - `movimento_saida:movimento_saida_id (numero_onda)`
+    - `produto:produto_id (sku, descricao, preco_custo)`
+    - `motivo:motivo_ocorrencia (descricao)`
+    - `usuario:usuario_autorizou (nome)` (tabela `usuario`)
+  - Filtro por período: `autorizado_em` entre `data_inicio` e `data_fim`
+  - Filtro opcional por `motivo_ocorrencia` (UUID)
+  - Filtro opcional por SKU (client-side filter no resultado, mesmo padrão do relatório de movimentações)
+  - Retorna array mapeado com campos: `numero_onda`, `sku`, `descricao`, `preco_custo`, `qtde_cortada`, `custo_total_item` (preco_custo × qtde_cortada), `motivo`, `usuario`, `autorizado_em`
+
+## 2. Page (`CortesReportPage.tsx`)
+
+Seguindo o padrão de `MovimentacoesReportPage`:
+
+**Filtros:**
+- Data Início / Data Fim (obrigatórios, default últimos 7 dias)
+- Motivo de Ocorrência (Select com dados carregados de `motivo_ocorrencia`)
+- SKU (input texto)
+
+**Resumo superior** (exibido após geração, entre o ReportHeader e a tabela):
+- Card com: Total de itens cortados, Quantidade total cortada, Custo total dos cortes (soma de preco_custo × qtde_cortada)
+
+**Colunas da tabela (ReportTable):**
+| Coluna | Campo | Alinhamento |
+|---|---|---|
+| Nº Onda | numero_onda | left |
+| SKU | sku | left |
+| Descrição | descricao | left |
+| Qtd Cortada | qtde_cortada | right |
+| Preço Custo | preco_custo | right (R$ formatado) |
+| Custo Total | custo_total_item | right (R$ formatado) |
+| Motivo | motivo | left |
+| Autorizado por | usuario | left |
+| Autorizado em | autorizado_em | left (data formatada pt-BR) |
+
+## 3. Rota (`App.tsx`)
+
+- Import `CortesReportPage` de `./modules/reports/cortes/CortesReportPage`
+- Adicionar case `"/relatorios/cortes"` no switch de `renderPage`
+
+## 4. Permissão (`useRoutePermission.ts`)
+
+- Mapear `/relatorios/cortes` para o módulo de relatórios existente
+
+## Observações
+
+- Nenhuma migration SQL necessária — a query usa tabelas e colunas existentes com JOINs via SDK do Supabase
+- O campo `autorizado_em` da tabela `movimento_saida_item` será usado como referência de período
+- O resumo de custos usa `preco_custo` da tabela `produto` multiplicado por `qtde_cortada`
 
