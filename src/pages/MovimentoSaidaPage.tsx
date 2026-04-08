@@ -309,6 +309,129 @@ export function MovimentoSaidaPage() {
     }
   };
 
+  const fetchSaldoPulmao = async (itens: OcorrenciaItem[]) => {
+    setLoadingSaldoPulmao(true);
+    try {
+      const produtoIds = itens.map(i => i.produto_id).filter(Boolean) as string[];
+      if (produtoIds.length === 0) return;
+
+      // Get all PULMAO addresses
+      const { data: endPulmao } = await (supabase as any)
+        .from("endereco")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("tipo_endereco", "PULMAO");
+
+      const pulmaoIds = (endPulmao || []).map((e: any) => e.id);
+
+      if (pulmaoIds.length === 0) {
+        // No pulmão addresses, all saldo = 0
+        setLiberarResult(prev => {
+          if (!prev) return prev;
+          return { ...prev, itens: prev.itens?.map(i => ({ ...i, saldo_pulmao: 0 })) };
+        });
+        return;
+      }
+
+      // Get stock for each product in pulmão
+      const { data: estoques } = await (supabase as any)
+        .from("estoque_geral")
+        .select("produto_id, quantidade_disponivel")
+        .eq("tenant_id", tenantId)
+        .in("produto_id", produtoIds)
+        .in("endereco_id", pulmaoIds)
+        .gt("quantidade_disponivel", 0);
+
+      // Sum by produto_id
+      const saldoMap: Record<string, number> = {};
+      (estoques || []).forEach((e: any) => {
+        saldoMap[e.produto_id] = (saldoMap[e.produto_id] || 0) + Number(e.quantidade_disponivel);
+      });
+
+      setLiberarResult(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          itens: prev.itens?.map(i => ({
+            ...i,
+            saldo_pulmao: i.produto_id ? (saldoMap[i.produto_id] || 0) : 0,
+          })),
+        };
+      });
+    } catch (err: any) {
+      console.error("Erro ao buscar saldo pulmão:", err);
+    } finally {
+      setLoadingSaldoPulmao(false);
+    }
+  };
+
+  const handleAbastecimentoItem = async (item: OcorrenciaItem) => {
+    if (!liberarMovId || !tenantId || !item.produto_id) return;
+    setAbastItemLoading(item.produto_id);
+    try {
+      const { data, error } = await supabase.rpc("fn_gerar_abastecimento" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_simular: false,
+        p_itens: JSON.stringify([{ produto_id: item.produto_id, endereco_picking: item.endereco_picking }]),
+      });
+      if (error) throw error;
+      toast.success("Abastecimento gerado para o item!");
+      // Refresh saldo
+      if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setAbastItemLoading(null);
+    }
+  };
+
+  const handleOpenCorte = async (item: OcorrenciaItem) => {
+    setCorteItem(item);
+    setCorteMotivoId("");
+    // Load motivos
+    const { data } = await (supabase as any)
+      .from("motivo_ocorrencia")
+      .select("id, descricao")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .eq("etapa_ocorrencia", "SEPARACAO")
+      .order("descricao");
+    setCorteMotivos(data || []);
+  };
+
+  const handleConfirmarCorte = async () => {
+    if (!corteItem || !corteMotivoId || !liberarMovId || !usuarioId) return;
+    setCorteSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("movimento_saida_item")
+        .update({
+          qtde_cortada: corteItem.qtd_esperada || 0,
+          motivo_ocorrencia: corteMotivoId,
+          usuario_autorizou: usuarioId,
+          autorizado_em: new Date().toISOString(),
+        })
+        .eq("movimento_saida_id", liberarMovId)
+        .eq("produto_id", corteItem.produto_id);
+      if (error) throw error;
+      toast.success("Item cortado com sucesso!");
+      setCorteItem(null);
+      // Remove item from list
+      setLiberarResult(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          itens: prev.itens?.filter(i => i.produto_id !== corteItem.produto_id),
+        };
+      });
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setCorteSaving(false);
+    }
+  };
+
   const handleSavePrioridade = async () => {
     if (!prioridadeDialogId || !prioridadeValue) return;
     setSavingPrioridade(true);
