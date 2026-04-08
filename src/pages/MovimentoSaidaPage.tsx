@@ -985,6 +985,42 @@ export function MovimentoSaidaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Corte Dialog */}
+      <Dialog open={!!corteItem} onOpenChange={(v) => !v && setCorteItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cortar Item</DialogTitle>
+            <DialogDescription>
+              Confirme o corte do item <span className="font-mono font-semibold">{corteItem?.sku}</span> — Qtd: {corteItem?.qtd_esperada}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2">
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motivo de Ocorrência *</label>
+            <select
+              value={corteMotivoId}
+              onChange={(e) => setCorteMotivoId(e.target.value)}
+              className="w-full h-9 px-3 rounded-md border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
+            >
+              <option value="">Selecione...</option>
+              {corteMotivos.map((m) => (
+                <option key={m.id} value={m.id}>{m.descricao}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setCorteItem(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              onClick={handleConfirmarCorte}
+              disabled={corteSaving || !corteMotivoId}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+            >
+              {corteSaving && <Loader2 size={14} className="animate-spin" />}
+              Confirmar Corte
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Prioridade Dialog */}
       <Dialog open={!!prioridadeDialogId} onOpenChange={(v) => !v && setPrioridadeDialogId(null)}>
         <DialogContent className="max-w-sm">
