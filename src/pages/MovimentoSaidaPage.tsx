@@ -236,10 +236,13 @@ export function MovimentoSaidaPage() {
               .in("produto_id", produtoIds);
 
             const resumoMap = new Map((resumoItems || []).map((item: any) => [item.produto_id, item]));
-            enrichedResult.ocorrencias = result.ocorrencias.map((oc) => ({
-              ...resumoMap.get(oc.produto_id),
-              ...oc,
-            }));
+            enrichedResult.ocorrencias = result.ocorrencias.map((oc) => {
+              const resumo = oc.produto_id ? resumoMap.get(oc.produto_id) : undefined;
+              return {
+                ...(resumo || {}),
+                ...oc,
+              };
+            });
           }
         }
 
