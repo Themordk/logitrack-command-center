@@ -90,6 +90,7 @@ const navItems: NavItem[] = [
     children: [
       { label: "Posição de Estoque", path: "/relatorios/estoque" },
       { label: "Histórico de Movimentos", path: "/relatorios/movimentacoes" },
+      { label: "Cortes de Separação", path: "/relatorios/cortes" },
       { label: "Ocupação de Endereços", path: "/relatorios/ocupacao" },
       { label: "Produtividade Operacional", path: "/relatorios/produtividade" },
       { label: "Expedições", path: "/relatorios/expedicoes" },
