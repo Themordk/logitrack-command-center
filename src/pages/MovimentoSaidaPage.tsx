@@ -221,34 +221,21 @@ export function MovimentoSaidaPage() {
           setSelectedMov((prev) => prev ? { ...prev, status: "LIBERADO" } : null);
         }
       } else {
-        const enrichedResult: LiberarResult = {
-          ...result,
-          ocorrencias: result.ocorrencias,
-        };
-
-        if (result.ocorrencias?.length) {
-          const produtoIds = Array.from(new Set(result.ocorrencias.map(oc => oc.produto_id).filter(Boolean))) as string[];
-          if (produtoIds.length > 0) {
-            const { data: resumoItems } = await (supabase as any)
-              .from("vw_movimento_saida_resumo")
-              .select("produto_id, sku, descricao, qtd_esperada")
-              .eq("movimento_id", movId)
-              .in("produto_id", produtoIds);
-
-            const resumoMap = new Map((resumoItems || []).map((item: any) => [item.produto_id, item]));
-            enrichedResult.ocorrencias = result.ocorrencias.map((oc) => {
-              const resumo = oc.produto_id ? resumoMap.get(oc.produto_id) : undefined;
-              return {
-                ...(resumo || {}),
-                ...oc,
-              };
-            });
-          }
-        }
-
-        setLiberarResult(enrichedResult);
+        setLiberarResult(result);
         setLiberarMovId(movId);
         setLiberarDialogOpen(true);
+
+        if (isSaldoInsuficientePicking(result.tipo_ocorrencia) && result.itens?.length) {
+          fetchSaldoPulmao(result.itens, "itens");
+        }
+
+        if (result.ocorrencias?.length) {
+          const pickingOcs = result.ocorrencias.filter((oc) => isSaldoInsuficientePicking(oc.tipo) && oc.produto_id);
+          if (pickingOcs.length > 0) {
+            fetchSaldoPulmao(pickingOcs, "ocorrencias");
+          }
+        }
+      }
 
         if (result.tipo_ocorrencia === "saldo_insuficiente_picking" && result.itens?.length) {
           fetchSaldoPulmao(result.itens, "itens");
