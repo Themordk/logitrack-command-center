@@ -3073,7 +3073,9 @@ export type Database = {
           motivo_ocorrencia: string | null
           ordem_tarefa: number | null
           percentual_execucao: number | null
-          prioridade: number
+          prioridade_tarefa:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
           produto_id: string | null
           quantidade_cortada: number | null
           quantidade_executada: number
@@ -3100,7 +3102,9 @@ export type Database = {
           motivo_ocorrencia?: string | null
           ordem_tarefa?: number | null
           percentual_execucao?: number | null
-          prioridade?: number
+          prioridade_tarefa?:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
           produto_id?: string | null
           quantidade_cortada?: number | null
           quantidade_executada?: number
@@ -3127,7 +3131,9 @@ export type Database = {
           motivo_ocorrencia?: string | null
           ordem_tarefa?: number | null
           percentual_execucao?: number | null
-          prioridade?: number
+          prioridade_tarefa?:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
           produto_id?: string | null
           quantidade_cortada?: number | null
           quantidade_executada?: number
@@ -5615,6 +5621,7 @@ export type Database = {
         | "PAUSADA"
         | "CONCLUIDA"
         | "CANCELADA"
+        | "COLETA_PENDENTE"
       enum_status_inventario:
         | "CRIADO"
         | "GERANDO_TAREFAS"
@@ -5922,6 +5929,7 @@ export const Constants = {
         "PAUSADA",
         "CONCLUIDA",
         "CANCELADA",
+        "COLETA_PENDENTE",
       ],
       enum_status_inventario: [
         "CRIADO",
