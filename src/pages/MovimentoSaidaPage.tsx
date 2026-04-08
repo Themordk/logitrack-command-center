@@ -225,7 +225,14 @@ export function MovimentoSaidaPage() {
 
         // If saldo_insuficiente_picking, fetch saldo pulmão for each item
         if (result.tipo_ocorrencia === "saldo_insuficiente_picking" && result.itens?.length) {
-          fetchSaldoPulmao(result.itens);
+          fetchSaldoPulmao(result.itens, "itens");
+        }
+        // Also check ocorrencias format
+        if (result.ocorrencias?.length) {
+          const pickingOcs = result.ocorrencias.filter(oc => oc.tipo === "saldo_insuficiente_picking" && oc.produto_id);
+          if (pickingOcs.length > 0) {
+            fetchSaldoPulmao(pickingOcs, "ocorrencias");
+          }
         }
       }
     } catch (err: any) {
