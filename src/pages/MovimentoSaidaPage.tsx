@@ -847,7 +847,7 @@ export function MovimentoSaidaPage() {
 
       {/* Liberar result dialog */}
       <Dialog open={liberarDialogOpen} onOpenChange={setLiberarDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
