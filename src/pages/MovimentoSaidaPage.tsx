@@ -900,6 +900,8 @@ export function MovimentoSaidaPage() {
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Saldo Picking</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereço</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Saldo Pulmão</th>
+                        <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Ação</th>
                       </>
                     )}
                     {liberarResult.tipo_ocorrencia === "sem_picking" && (
@@ -923,6 +925,35 @@ export function MovimentoSaidaPage() {
                           <td className="px-3 py-2 text-right text-foreground">{item.qtd_esperada ?? "—"}</td>
                           <td className="px-3 py-2 text-right text-destructive font-semibold">{item.saldo_picking ?? 0}</td>
                           <td className="px-3 py-2 text-xs text-muted-foreground">{item.endereco_picking || "—"}</td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {loadingSaldoPulmao ? (
+                              <Loader2 size={12} className="animate-spin text-muted-foreground inline" />
+                            ) : (
+                              <span className={item.saldo_pulmao && item.saldo_pulmao > 0 ? "text-green-400 font-semibold" : "text-destructive"}>
+                                {item.saldo_pulmao ?? "—"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {!loadingSaldoPulmao && item.saldo_pulmao !== undefined && (
+                              item.saldo_pulmao > 0 ? (
+                                <button
+                                  onClick={() => handleAbastecimentoItem(item)}
+                                  disabled={abastItemLoading === item.produto_id}
+                                  className="px-2 py-1 rounded text-[11px] font-medium bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors disabled:opacity-50"
+                                >
+                                  {abastItemLoading === item.produto_id ? <Loader2 size={12} className="animate-spin inline" /> : "Abastecer"}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleOpenCorte(item)}
+                                  className="px-2 py-1 rounded text-[11px] font-medium bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition-colors"
+                                >
+                                  Cortar
+                                </button>
+                              )
+                            )}
+                          </td>
                         </>
                       )}
                       {liberarResult.tipo_ocorrencia === "sem_picking" && (
@@ -945,7 +976,7 @@ export function MovimentoSaidaPage() {
                     onClick={handleGerarAbastecimentoPreventivo}
                     className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
                   >
-                    Gerar Abastecimento Preventivo
+                    Gerar Abastecimento Preventivo (Todos)
                   </button>
                 </div>
               )}
