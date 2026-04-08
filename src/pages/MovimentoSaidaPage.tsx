@@ -222,6 +222,11 @@ export function MovimentoSaidaPage() {
         setLiberarResult(result);
         setLiberarMovId(movId);
         setLiberarDialogOpen(true);
+
+        // If saldo_insuficiente_picking, fetch saldo pulmão for each item
+        if (result.tipo_ocorrencia === "saldo_insuficiente_picking" && result.itens?.length) {
+          fetchSaldoPulmao(result.itens);
+        }
       }
     } catch (err: any) {
       toast.error(err.message);
