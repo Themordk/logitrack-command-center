@@ -66,8 +66,11 @@ interface MotivoOcorrencia {
   descricao: string;
 }
 
+const normalizeOccurrenceType = (tipo?: string | null) => (tipo || "").trim().toUpperCase();
+const isSaldoInsuficientePicking = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SALDO_PICKING_INSUFICIENTE";
+
 export function MovimentoSaidaPage() {
-  const { tenantId, empresaId, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
   const [movimentos, setMovimentos] = useState<MovSaida[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -218,18 +221,16 @@ export function MovimentoSaidaPage() {
           setSelectedMov((prev) => prev ? { ...prev, status: "LIBERADO" } : null);
         }
       } else {
-        // Show dialog with occurrence details
         setLiberarResult(result);
         setLiberarMovId(movId);
         setLiberarDialogOpen(true);
 
-        // If saldo_insuficiente_picking, fetch saldo pulmão for each item
-        if (result.tipo_ocorrencia === "saldo_insuficiente_picking" && result.itens?.length) {
+        if (isSaldoInsuficientePicking(result.tipo_ocorrencia) && result.itens?.length) {
           fetchSaldoPulmao(result.itens, "itens");
         }
-        // Also check ocorrencias format
+
         if (result.ocorrencias?.length) {
-          const pickingOcs = result.ocorrencias.filter(oc => oc.tipo === "saldo_insuficiente_picking" && oc.produto_id);
+          const pickingOcs = result.ocorrencias.filter((oc) => isSaldoInsuficientePicking(oc.tipo) && oc.produto_id);
           if (pickingOcs.length > 0) {
             fetchSaldoPulmao(pickingOcs, "ocorrencias");
           }
@@ -382,7 +383,7 @@ export function MovimentoSaidaPage() {
       // Refresh saldo
       if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens, "itens");
       if (liberarResult?.ocorrencias) {
-        const pickingOcs = liberarResult.ocorrencias.filter(oc => oc.tipo === "saldo_insuficiente_picking" && oc.produto_id);
+        const pickingOcs = liberarResult.ocorrencias.filter((oc) => isSaldoInsuficientePicking(oc.tipo) && oc.produto_id);
         if (pickingOcs.length > 0) fetchSaldoPulmao(pickingOcs, "ocorrencias");
       }
     } catch (err: any) {
@@ -429,6 +430,7 @@ export function MovimentoSaidaPage() {
         return {
           ...prev,
           itens: prev.itens?.filter(i => i.produto_id !== corteItem.produto_id),
+          ocorrencias: prev.ocorrencias?.filter(i => i.produto_id !== corteItem.produto_id),
         };
       });
     } catch (err: any) {
@@ -864,7 +866,7 @@ export function MovimentoSaidaPage() {
 
           {/* Ocorrências list from new JSON format */}
           {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (() => {
-            const hasPicking = liberarResult.ocorrencias.some(oc => oc.tipo === "saldo_insuficiente_picking");
+            const hasPicking = liberarResult.ocorrencias.some((oc) => isSaldoInsuficientePicking(oc.tipo));
             return (
             <div className="mt-4 space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Ocorrências ({liberarResult.ocorrencias.length})</p>
@@ -896,7 +898,7 @@ export function MovimentoSaidaPage() {
                         {hasPicking && (
                           <>
                             <td className="px-3 py-2 text-right font-mono">
-                              {oc.tipo === "saldo_insuficiente_picking" ? (
+                              {isSaldoInsuficientePicking(oc.tipo) ? (
                                 loadingSaldoPulmao ? (
                                   <Loader2 size={12} className="animate-spin text-muted-foreground inline" />
                                 ) : (
@@ -907,7 +909,7 @@ export function MovimentoSaidaPage() {
                               ) : "—"}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              {oc.tipo === "saldo_insuficiente_picking" && !loadingSaldoPulmao && oc.saldo_pulmao !== undefined && (
+                              {isSaldoInsuficientePicking(oc.tipo) && !loadingSaldoPulmao && oc.saldo_pulmao !== undefined && (
                                 oc.saldo_pulmao > 0 ? (
                                   <button
                                     onClick={() => handleAbastecimentoItem(oc)}
@@ -945,7 +947,7 @@ export function MovimentoSaidaPage() {
                   <tr className="border-b border-border bg-secondary/30">
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                    {liberarResult.tipo_ocorrencia === "saldo_insuficiente_picking" && (
+                    {isSaldoInsuficientePicking(liberarResult.tipo_ocorrencia) && (
                       <>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
                         <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Saldo Picking</th>
@@ -970,7 +972,7 @@ export function MovimentoSaidaPage() {
                     <tr key={i} className="border-b border-border/50">
                       <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku || "—"}</td>
                       <td className="px-3 py-2 text-xs text-foreground">{item.descricao || "—"}</td>
-                      {liberarResult.tipo_ocorrencia === "saldo_insuficiente_picking" && (
+                      {isSaldoInsuficientePicking(liberarResult.tipo_ocorrencia) && (
                         <>
                           <td className="px-3 py-2 text-right text-foreground">{item.qtd_esperada ?? "—"}</td>
                           <td className="px-3 py-2 text-right text-destructive font-semibold">{item.saldo_picking ?? 0}</td>
@@ -1020,7 +1022,7 @@ export function MovimentoSaidaPage() {
                 </tbody>
               </table>
 
-              {liberarResult.tipo_ocorrencia === "saldo_insuficiente_picking" && (
+              {isSaldoInsuficientePicking(liberarResult.tipo_ocorrencia) && (
                 <div className="mt-4 flex justify-end">
                   <button
                     onClick={handleGerarAbastecimentoPreventivo}
