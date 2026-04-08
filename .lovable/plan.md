@@ -1,75 +1,113 @@
 
 
-# Plano: Relatório de Cortes de Separação
+# Plano: Atualizações de Abastecimento, Ondas e Coletor
 
 ## Resumo
 
-Criar um novo relatório tabular em `/relatorios/cortes` que exibe os itens cortados na separação (onde `qtde_cortada > 0`), com resumo de custo total no topo. Seguirá o mesmo padrão arquitetural dos relatórios existentes (Service + Page + componentes compartilhados).
+Ajustar o campo `prioridade` -> `prioridade_tarefa` na tabela `tarefa`, adicionar coluna editável de prioridade nas tarefas de abastecimento, implementar ações de abastecimento/corte na liberação de ondas, e melhorar o fluxo de abastecimento no coletor com seleção múltipla, informações detalhadas e persistência de coletas.
 
-## Estrutura de Arquivos
+---
 
-```text
-NOVOS:
-  - src/modules/reports/cortes/CortesReportPage.tsx
-  - src/modules/reports/cortes/cortes.service.ts
+## Pré-requisito: Campo PRIORIDADE -> PRIORIDADE_TAREFA
 
-EDITADOS:
-  - src/App.tsx (import + rota /relatorios/cortes)
-  - src/hooks/useRoutePermission.ts (mapear permissão)
-```
+O campo `prioridade` foi removido e substituído por `prioridade_tarefa` (tipo `enum_prioridade_onda`) na tabela `tarefa`.
 
-## 1. Service (`cortes.service.ts`)
+**Arquivo afetado:**
+- `src/pages/coletor/TransferenciaDestinoPage.tsx` (linha 71): trocar `prioridade: 1` por `prioridade_tarefa: "NORMAL"`
 
-- Interface `CortesFilter`: `tenant_id`, `data_inicio`, `data_fim`, `motivo_ocorrencia_id?`, `sku?`
-- Função `fetchCortesReport(filters)`:
-  - Query em `movimento_saida_item` com filtro `qtde_cortada > 0`
-  - JOINs via select do Supabase:
-    - `movimento_saida:movimento_saida_id (numero_onda)`
-    - `produto:produto_id (sku, descricao, preco_custo)`
-    - `motivo:motivo_ocorrencia (descricao)`
-    - `usuario:usuario_autorizou (nome)` (tabela `usuario`)
-  - Filtro por período: `autorizado_em` entre `data_inicio` e `data_fim`
-  - Filtro opcional por `motivo_ocorrencia` (UUID)
-  - Filtro opcional por SKU (client-side filter no resultado, mesmo padrão do relatório de movimentações)
-  - Retorna array mapeado com campos: `numero_onda`, `sku`, `descricao`, `preco_custo`, `qtde_cortada`, `custo_total_item` (preco_custo × qtde_cortada), `motivo`, `usuario`, `autorizado_em`
+---
 
-## 2. Page (`CortesReportPage.tsx`)
+## 1. Tarefas de Abastecimento — Coluna Prioridade Editável
 
-Seguindo o padrão de `MovimentacoesReportPage`:
+**Arquivo:** `src/pages/AbastecimentoDetalhePage.tsx`
 
-**Filtros:**
-- Data Início / Data Fim (obrigatórios, default últimos 7 dias)
-- Motivo de Ocorrência (Select com dados carregados de `motivo_ocorrencia`)
-- SKU (input texto)
+- Adicionar `prioridade_tarefa` ao select da query de tarefas
+- Adicionar coluna "Prioridade" na tabela com Badge colorido (mesmo padrão do `MovimentoSaidaPage`)
+- Ao clicar no Badge de prioridade, abrir um Dialog com as 4 opções (URGENTE, ALTA, NORMAL, BAIXA) — mesmo componente visual usado em `MovimentoSaidaPage` (linhas 815-846)
+- Ao salvar, fazer `update` na tabela `tarefa` com o novo valor de `prioridade_tarefa`
 
-**Resumo superior** (exibido após geração, entre o ReportHeader e a tabela):
-- Card com: Total de itens cortados, Quantidade total cortada, Custo total dos cortes (soma de preco_custo × qtde_cortada)
+---
 
-**Colunas da tabela (ReportTable):**
-| Coluna | Campo | Alinhamento |
-|---|---|---|
-| Nº Onda | numero_onda | left |
-| SKU | sku | left |
-| Descrição | descricao | left |
-| Qtd Cortada | qtde_cortada | right |
-| Preço Custo | preco_custo | right (R$ formatado) |
-| Custo Total | custo_total_item | right (R$ formatado) |
-| Motivo | motivo | left |
-| Autorizado por | usuario | left |
-| Autorizado em | autorizado_em | left (data formatada pt-BR) |
+## 2. Liberação de Ondas — Ações para Saldo Picking Insuficiente
 
-## 3. Rota (`App.tsx`)
+**Arquivo:** `src/pages/MovimentoSaidaPage.tsx`
 
-- Import `CortesReportPage` de `./modules/reports/cortes/CortesReportPage`
-- Adicionar case `"/relatorios/cortes"` no switch de `renderPage`
+Na dialog de ocorrências de liberação (linhas 748-812), quando `tipo_ocorrencia === "saldo_insuficiente_picking"`:
 
-## 4. Permissão (`useRoutePermission.ts`)
+### 2.1 Coluna "Saldo Pulmão"
+- Para cada item da ocorrência, consultar `estoque_geral` somando `quantidade_disponivel` dos endereços do tipo PULMÃO (`endereco.tipo_endereco = 'PULMAO'`) para o `produto_id`
+- Exibir o saldo na tabela como nova coluna
 
-- Mapear `/relatorios/cortes` para o módulo de relatórios existente
+### 2.2 Botão "Gerar Abastecimento Preventivo" (por item)
+- Se saldo pulmão > 0: habilitar botão azul para chamar `fn_gerar_abastecimento` com `p_simular = false` passando o item específico via `p_itens`
+- Botão já existe globalmente (linha 802), será adaptado para funcionar por item quando houver saldo
+
+### 2.3 Botão "Cortar" (vermelho, por item)
+- Se saldo pulmão = 0: exibir botão vermelho "Cortar"
+- Ao clicar, abrir dialog de confirmação solicitando motivo de ocorrência (select carregado de `motivo_ocorrencia`)
+- Ao confirmar, fazer `update` em `movimento_saida_item`:
+  - `qtde_cortada` = `qtd_esperada` (ou valor informado)
+  - `motivo_ocorrencia` = UUID selecionado
+  - `usuario_autorizou` = `usuarioId`
+  - `autorizado_em` = `now()`
+- Filtrar o item correto via `movimento_saida_id` + `produto_id`
+
+---
+
+## 3. Coletor — Abastecimento
+
+### 3.1 Seleção Múltipla de Tarefas
+
+**Arquivo:** `src/pages/coletor/AbastecimentoListPage.tsx`
+
+- Adicionar checkbox em cada card de tarefa
+- Adicionar botão flutuante "Iniciar Coleta (N selecionadas)" no rodapé
+- Ao iniciar, salvar apenas as tarefas selecionadas no `sessionStorage` ordenadas por `endereco_destino_rua` ASC (rua do endereço destino)
+- Se nenhuma selecionada, exibir toast de aviso
+
+### 3.2 Informações do Item na Coleta
+
+**Arquivo:** `src/pages/coletor/AbastecimentoColetaPage.tsx`
+
+**Ao escanear endereço (step 2 — antes do scan produto):**
+- Exibir container com informações do item esperado: SKU, Referência (`produto.referencia`), Descrição
+- Incluir `referencia` no select do produto e no `TarefaInfo`
+
+**Ao confirmar produto (step 3):**
+- Container de produto: SKU, Referência, Descrição, Fator (do EAN confirmado, buscar `produto_embalagem.fator`)
+- Novo container abaixo com: Qtd a Abastecer (requerida - executada), Qtd Coletada (soma das coletas locais), Qtd Abastecida (executada)
+- Incluir `fator` no state ao confirmar scan do produto via `produto_embalagem`
+
+### 3.3 Persistência de Coletas vinculada à Tarefa
+
+**Mecanismo de controle:**
+- Ao confirmar coleta, além de salvar no `sessionStorage`, inserir registro na tabela `tarefa_execucao` com status `COLETA_PENDENTE` (ou usar um campo de controle), vinculando `tarefa_id`, `usuario_id`, `quantidade_executada`, `endereco_origem_id`
+- Ao iniciar a tela de coleta, verificar se existem `tarefa_execucao` pendentes no banco para as tarefas selecionadas e carregar como coletas existentes
+- Isso garante que se o app fechar, as coletas não sejam perdidas
+
+### 3.4 Trava contra Bloqueio Duplicado de Saldo
+
+**Arquivo:** `src/pages/coletor/AbastecimentoColetaPage.tsx`
+
+- Antes de bloquear saldo em `estoque_geral`, verificar se já existe uma coleta (no banco) para o mesmo `tarefa_id` + `endereco_id` + `produto_id` com status pendente
+- Se já existir coleta com a quantidade total requerida, impedir novo bloqueio
+- Usar a soma de `tarefa_execucao` pendentes para calcular o saldo já bloqueado e subtrair do disponível
+
+---
+
+## Arquivos Modificados (Resumo)
+
+| Arquivo | Alteração |
+|---|---|
+| `src/pages/coletor/TransferenciaDestinoPage.tsx` | `prioridade` -> `prioridade_tarefa` |
+| `src/pages/AbastecimentoDetalhePage.tsx` | Coluna prioridade editável |
+| `src/pages/MovimentoSaidaPage.tsx` | Saldo pulmão + botões abastecimento/corte por item |
+| `src/pages/coletor/AbastecimentoListPage.tsx` | Seleção múltipla + ordenação por rua |
+| `src/pages/coletor/AbastecimentoColetaPage.tsx` | Info detalhada do produto + persistência + trava duplicidade |
 
 ## Observações
 
-- Nenhuma migration SQL necessária — a query usa tabelas e colunas existentes com JOINs via SDK do Supabase
-- O campo `autorizado_em` da tabela `movimento_saida_item` será usado como referência de período
-- O resumo de custos usa `preco_custo` da tabela `produto` multiplicado por `qtde_cortada`
+- Nenhuma migration SQL necessária (o campo `prioridade_tarefa` já existe no banco)
+- A persistência de coletas no banco (item 3.3) é essencial para evitar perda de dados e bloqueios órfãos em `estoque_geral`
+- O corte (item 2.3) afeta diretamente o relatório de Cortes recém-criado
 
