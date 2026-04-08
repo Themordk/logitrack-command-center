@@ -380,7 +380,11 @@ export function MovimentoSaidaPage() {
       if (error) throw error;
       toast.success("Abastecimento gerado para o item!");
       // Refresh saldo
-      if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens);
+      if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens, "itens");
+      if (liberarResult?.ocorrencias) {
+        const pickingOcs = liberarResult.ocorrencias.filter(oc => oc.tipo === "saldo_insuficiente_picking" && oc.produto_id);
+        if (pickingOcs.length > 0) fetchSaldoPulmao(pickingOcs, "ocorrencias");
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
