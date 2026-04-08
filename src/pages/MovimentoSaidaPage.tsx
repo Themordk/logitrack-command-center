@@ -49,6 +49,7 @@ interface OcorrenciaItem {
   qtd_esperada?: number;
   saldo_picking?: number;
   endereco_picking?: string;
+  saldo_pulmao?: number;
   [key: string]: any;
 }
 
@@ -58,6 +59,11 @@ interface LiberarResult {
   tipo_ocorrencia?: string;
   itens?: OcorrenciaItem[];
   ocorrencias?: OcorrenciaItem[];
+}
+
+interface MotivoOcorrencia {
+  id: string;
+  descricao: string;
 }
 
 export function MovimentoSaidaPage() {
