@@ -66,8 +66,11 @@ interface MotivoOcorrencia {
   descricao: string;
 }
 
+const normalizeOccurrenceType = (tipo?: string | null) => (tipo || "").trim().toUpperCase();
+const isSaldoInsuficientePicking = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SALDO_PICKING_INSUFICIENTE";
+
 export function MovimentoSaidaPage() {
-  const { tenantId, empresaId, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
   const [movimentos, setMovimentos] = useState<MovSaida[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
