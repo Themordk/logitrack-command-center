@@ -48,6 +48,7 @@ import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhe
 import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
+import { CortesReportPage } from "./modules/reports/cortes/CortesReportPage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
@@ -128,6 +129,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
   "/relatorios/produtividade": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtividade Operacional" }],
+  "/relatorios/cortes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cortes de Separação" }],
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
@@ -205,6 +207,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
     case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
+    case "/relatorios/cortes": return <CortesReportPage />;
     default: {
       // Dynamic route: /atividades/abastecimento/gerar
       if (path.startsWith("/atividades/abastecimento/gerar")) {

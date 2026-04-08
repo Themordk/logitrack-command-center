@@ -34,6 +34,7 @@ const routeToModuleMap: Record<string, string> = {
   "/atividades/inventario/novo": "web.atividades.inventario",
   "/relatorios/estoque": "web.relatorios.estoque",
   "/relatorios/movimentacoes": "web.relatorios.movimentacoes",
+  "/relatorios/cortes": "web.relatorios.cortes",
   "/config/empresas": "web.config.empresas",
   "/config/usuarios": "web.config.usuarios",
   "/config/integracao": "web.config.integracao",
