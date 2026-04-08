@@ -225,7 +225,14 @@ export function MovimentoSaidaPage() {
 
         // If saldo_insuficiente_picking, fetch saldo pulmão for each item
         if (result.tipo_ocorrencia === "saldo_insuficiente_picking" && result.itens?.length) {
-          fetchSaldoPulmao(result.itens);
+          fetchSaldoPulmao(result.itens, "itens");
+        }
+        // Also check ocorrencias format
+        if (result.ocorrencias?.length) {
+          const pickingOcs = result.ocorrencias.filter(oc => oc.tipo === "saldo_insuficiente_picking" && oc.produto_id);
+          if (pickingOcs.length > 0) {
+            fetchSaldoPulmao(pickingOcs, "ocorrencias");
+          }
         }
       }
     } catch (err: any) {
@@ -309,13 +316,12 @@ export function MovimentoSaidaPage() {
     }
   };
 
-  const fetchSaldoPulmao = async (itens: OcorrenciaItem[]) => {
+  const fetchSaldoPulmao = async (itens: OcorrenciaItem[], target: "itens" | "ocorrencias" = "itens") => {
     setLoadingSaldoPulmao(true);
     try {
       const produtoIds = itens.map(i => i.produto_id).filter(Boolean) as string[];
       if (produtoIds.length === 0) return;
 
-      // Get all PULMAO addresses
       const { data: endPulmao } = await (supabase as any)
         .from("endereco")
         .select("id")
@@ -325,15 +331,14 @@ export function MovimentoSaidaPage() {
       const pulmaoIds = (endPulmao || []).map((e: any) => e.id);
 
       if (pulmaoIds.length === 0) {
-        // No pulmão addresses, all saldo = 0
         setLiberarResult(prev => {
           if (!prev) return prev;
-          return { ...prev, itens: prev.itens?.map(i => ({ ...i, saldo_pulmao: 0 })) };
+          const update = (arr?: OcorrenciaItem[]) => arr?.map(i => ({ ...i, saldo_pulmao: 0 }));
+          return { ...prev, [target]: update(prev[target] as OcorrenciaItem[]) };
         });
         return;
       }
 
-      // Get stock for each product in pulmão
       const { data: estoques } = await (supabase as any)
         .from("estoque_geral")
         .select("produto_id, quantidade_disponivel")
@@ -342,7 +347,6 @@ export function MovimentoSaidaPage() {
         .in("endereco_id", pulmaoIds)
         .gt("quantidade_disponivel", 0);
 
-      // Sum by produto_id
       const saldoMap: Record<string, number> = {};
       (estoques || []).forEach((e: any) => {
         saldoMap[e.produto_id] = (saldoMap[e.produto_id] || 0) + Number(e.quantidade_disponivel);
@@ -350,13 +354,11 @@ export function MovimentoSaidaPage() {
 
       setLiberarResult(prev => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          itens: prev.itens?.map(i => ({
-            ...i,
-            saldo_pulmao: i.produto_id ? (saldoMap[i.produto_id] || 0) : 0,
-          })),
-        };
+        const update = (arr?: OcorrenciaItem[]) => arr?.map(i => ({
+          ...i,
+          saldo_pulmao: i.produto_id ? (saldoMap[i.produto_id] || 0) : 0,
+        }));
+        return { ...prev, [target]: update(prev[target] as OcorrenciaItem[]) };
       });
     } catch (err: any) {
       console.error("Erro ao buscar saldo pulmão:", err);
@@ -378,7 +380,11 @@ export function MovimentoSaidaPage() {
       if (error) throw error;
       toast.success("Abastecimento gerado para o item!");
       // Refresh saldo
-      if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens);
+      if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens, "itens");
+      if (liberarResult?.ocorrencias) {
+        const pickingOcs = liberarResult.ocorrencias.filter(oc => oc.tipo === "saldo_insuficiente_picking" && oc.produto_id);
+        if (pickingOcs.length > 0) fetchSaldoPulmao(pickingOcs, "ocorrencias");
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -841,7 +847,7 @@ export function MovimentoSaidaPage() {
 
       {/* Liberar result dialog */}
       <Dialog open={liberarDialogOpen} onOpenChange={setLiberarDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
@@ -857,16 +863,24 @@ export function MovimentoSaidaPage() {
           </DialogHeader>
 
           {/* Ocorrências list from new JSON format */}
-          {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (
+          {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (() => {
+            const hasPicking = liberarResult.ocorrencias.some(oc => oc.tipo === "saldo_insuficiente_picking");
+            return (
             <div className="mt-4 space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Ocorrências ({liberarResult.ocorrencias.length})</p>
-              <div className="rounded-lg border border-border overflow-hidden">
+              <div className="rounded-lg border border-border overflow-hidden overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30">
                       <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Tipo</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
+                      {hasPicking && (
+                        <>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Saldo Pulmão</th>
+                          <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Ação</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -874,18 +888,54 @@ export function MovimentoSaidaPage() {
                       <tr key={i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{oc.sku || "—"}</td>
                         <td className="px-3 py-2 text-xs">
-                          <span className="px-2 py-0.5 rounded bg-destructive/15 text-destructive text-[11px] font-medium">
+                          <span className="px-2 py-0.5 rounded bg-destructive/15 text-destructive text-[11px] font-medium uppercase">
                             {oc.tipo?.replace(/_/g, " ") || "—"}
                           </span>
                         </td>
                         <td className="px-3 py-2 text-xs text-foreground">{oc.descricao || "—"}</td>
+                        {hasPicking && (
+                          <>
+                            <td className="px-3 py-2 text-right font-mono">
+                              {oc.tipo === "saldo_insuficiente_picking" ? (
+                                loadingSaldoPulmao ? (
+                                  <Loader2 size={12} className="animate-spin text-muted-foreground inline" />
+                                ) : (
+                                  <span className={oc.saldo_pulmao && oc.saldo_pulmao > 0 ? "text-green-400 font-semibold" : "text-destructive"}>
+                                    {oc.saldo_pulmao ?? "—"}
+                                  </span>
+                                )
+                              ) : "—"}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {oc.tipo === "saldo_insuficiente_picking" && !loadingSaldoPulmao && oc.saldo_pulmao !== undefined && (
+                                oc.saldo_pulmao > 0 ? (
+                                  <button
+                                    onClick={() => handleAbastecimentoItem(oc)}
+                                    disabled={abastItemLoading === oc.produto_id}
+                                    className="px-2 py-1 rounded text-[11px] font-medium bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors disabled:opacity-50"
+                                  >
+                                    {abastItemLoading === oc.produto_id ? <Loader2 size={12} className="animate-spin inline" /> : "Abastecer"}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleOpenCorte(oc)}
+                                    className="px-2 py-1 rounded text-[11px] font-medium bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition-colors"
+                                  >
+                                    Cortar
+                                  </button>
+                                )
+                              )}
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Legacy itens format fallback */}
           {(!liberarResult?.ocorrencias || liberarResult.ocorrencias.length === 0) && liberarResult?.itens && liberarResult.itens.length > 0 && (
