@@ -6,8 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Ban } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
 interface Tarefa {
   id: string;
@@ -18,6 +22,7 @@ interface Tarefa {
   endereco_origem: string;
   endereco_destino: string;
   status: string;
+  prioridade_tarefa: string;
 }
 
 const statusBadge: Record<string, string> = {
@@ -26,6 +31,13 @@ const statusBadge: Record<string, string> = {
   EM_ANDAMENTO: "bg-yellow-500/15 text-yellow-600 border-yellow-500/30",
   CONCLUIDA: "bg-green-500/15 text-green-600 border-green-500/30",
   CANCELADA: "bg-destructive/15 text-destructive border-destructive/30",
+};
+
+const prioridadeBadge: Record<string, string> = {
+  URGENTE: "bg-red-500/15 text-red-400 border-red-500/30",
+  ALTA: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  NORMAL: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  BAIXA: "bg-muted text-muted-foreground border-border",
 };
 
 interface Props {
@@ -39,12 +51,17 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [cancelling, setCancelling] = useState<string | null>(null);
 
+  // Priority dialog
+  const [prioridadeDialogId, setPrioridadeDialogId] = useState<string | null>(null);
+  const [prioridadeValue, setPrioridadeValue] = useState("");
+  const [savingPrioridade, setSavingPrioridade] = useState(false);
+
   const fetchTarefas = useCallback(async () => {
     if (!tenantId || !abastecimentoId) return;
     setLoading(true);
     const { data } = await (supabase as any)
       .from("tarefa")
-      .select("id, quantidade_requerida, quantidade_executada, status, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao)")
+      .select("id, quantidade_requerida, quantidade_executada, status, prioridade_tarefa, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao)")
       .eq("id_documento_origem", abastecimentoId)
       .order("criado_em", { ascending: true });
 
@@ -57,6 +74,7 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
       endereco_origem: t.origem?.descricao || "—",
       endereco_destino: t.destino?.descricao || "—",
       status: t.status,
+      prioridade_tarefa: t.prioridade_tarefa || "NORMAL",
     })));
     setLoading(false);
   }, [tenantId, abastecimentoId]);
@@ -76,6 +94,25 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
       fetchTarefas();
     }
     setCancelling(null);
+  };
+
+  const handleSavePrioridade = async () => {
+    if (!prioridadeDialogId || !prioridadeValue) return;
+    setSavingPrioridade(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("tarefa")
+        .update({ prioridade_tarefa: prioridadeValue })
+        .eq("id", prioridadeDialogId);
+      if (error) throw error;
+      toast.success("Prioridade atualizada!");
+      setPrioridadeDialogId(null);
+      fetchTarefas();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingPrioridade(false);
+    }
   };
 
   return (
@@ -107,6 +144,7 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
                 <TableHead className="text-right">Executada</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Destino</TableHead>
+                <TableHead>Prioridade</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -120,6 +158,18 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
                   <TableCell className="text-right text-sm font-mono">{t.quantidade_executada}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{t.endereco_origem}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{t.endereco_destino}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={cn("text-xs cursor-pointer hover:opacity-80 transition-opacity", prioridadeBadge[t.prioridade_tarefa] || "")}
+                      onClick={() => {
+                        setPrioridadeValue(t.prioridade_tarefa);
+                        setPrioridadeDialogId(t.id);
+                      }}
+                    >
+                      {t.prioridade_tarefa}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`text-xs ${statusBadge[t.status] || ""}`}>
                       {t.status}
@@ -148,6 +198,39 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
           </Table>
         </div>
       )}
+
+      {/* Prioridade Dialog */}
+      <Dialog open={!!prioridadeDialogId} onOpenChange={(v) => !v && setPrioridadeDialogId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Alterar Prioridade</DialogTitle>
+            <DialogDescription>Selecione a nova prioridade para esta tarefa.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-2">
+            {PRIORIDADE_OPTIONS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPrioridadeValue(p)}
+                className={cn(
+                  "px-4 py-3 rounded-lg border text-sm font-medium text-left transition-colors",
+                  prioridadeValue === p
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-secondary/30 text-foreground hover:bg-secondary"
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={() => setPrioridadeDialogId(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button onClick={handleSavePrioridade} disabled={savingPrioridade} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {savingPrioridade && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
