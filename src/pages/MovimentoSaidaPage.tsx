@@ -557,7 +557,7 @@ export function MovimentoSaidaPage() {
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleRetirar(mov.id); }}
-                                disabled={mov.status !== "LIBERADO"}
+                                disabled={mov.status !== "LIBERADO" && mov.status !== "EM_PICKING"}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
                                 <Lock size={13} /> Retirar da separação
