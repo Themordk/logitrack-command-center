@@ -151,7 +151,7 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         });
       if (execError) throw execError;
 
-      // 2. Deblock and debit origin stock
+      // 2. Update local coleta tracking (stock operations handled by DB trigger)
       const coletaItems = coletasByProduto[currentDestino.produto_id]?.items || [];
       let remaining = qty;
       const updatedColetas = [...coletas];
@@ -159,23 +159,6 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
       for (const coleta of coletaItems) {
         if (remaining <= 0) break;
         const debit = Math.min(remaining, coleta.quantidade);
-
-        const { data: est } = await (supabase as any)
-          .from("estoque_geral")
-          .select("id, quantidade_bloqueada, quantidade_total")
-          .eq("id", coleta.estoque_id)
-          .maybeSingle();
-
-        if (est) {
-          await (supabase as any)
-            .from("estoque_geral")
-            .update({
-              quantidade_bloqueada: Math.max(0, Number(est.quantidade_bloqueada) - debit),
-              quantidade_total: Math.max(0, Number(est.quantidade_total) - debit),
-            })
-            .eq("id", est.id);
-        }
-
         const idx = updatedColetas.findIndex(c => c.estoque_id === coleta.estoque_id && c.produto_id === coleta.produto_id);
         if (idx >= 0) {
           updatedColetas[idx] = { ...updatedColetas[idx], quantidade: updatedColetas[idx].quantidade - debit };
@@ -187,40 +170,7 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
       setColetas(cleanedColetas);
       sessionStorage.setItem("abast_coletas", JSON.stringify(cleanedColetas));
 
-      // 3. Credit destination stock
-      const { data: destEst } = await (supabase as any)
-        .from("estoque_geral")
-        .select("id, quantidade_disponivel, quantidade_total")
-        .eq("tenant_id", tenantId)
-        .eq("empresa_id", empresaId)
-        .eq("endereco_id", currentDestino.endereco_destino_id)
-        .eq("produto_id", currentDestino.produto_id)
-        .limit(1)
-        .maybeSingle();
-
-      if (destEst) {
-        await (supabase as any)
-          .from("estoque_geral")
-          .update({
-            quantidade_disponivel: Number(destEst.quantidade_disponivel) + qty,
-            quantidade_total: Number(destEst.quantidade_total) + qty,
-          })
-          .eq("id", destEst.id);
-      } else {
-        await (supabase as any)
-          .from("estoque_geral")
-          .insert({
-            tenant_id: tenantId,
-            empresa_id: empresaId,
-            endereco_id: currentDestino.endereco_destino_id,
-            produto_id: currentDestino.produto_id,
-            quantidade_disponivel: qty,
-            quantidade_total: qty,
-            quantidade_bloqueada: 0,
-          });
-      }
-
-      // 4. Update tarefa
+      // 3. Update tarefa
       const newExecutada = currentDestino.quantidade_executada + qty;
       const updateData: any = { quantidade_executada: newExecutada };
       if (newExecutada >= currentDestino.quantidade_requerida) {
@@ -231,20 +181,6 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         .from("tarefa")
         .update(updateData)
         .eq("id", currentDestino.id);
-
-      // 5. Create estoque_movimento
-      await (supabase as any)
-        .from("estoque_movimento")
-        .insert({
-          tenant_id: tenantId,
-          empresa_id: empresaId,
-          produto_id: currentDestino.produto_id,
-          quantidade: qty,
-          tipo_movimento: 6,
-          endereco_origem_id: currentDestino.endereco_origem_id,
-          endereco_destino_id: currentDestino.endereco_destino_id,
-          usuario_id: usuarioId,
-        });
 
       // Update local state
       const newTarefas = tarefas.map(t =>
