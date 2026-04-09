@@ -6,7 +6,7 @@ import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, Aler
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { cn } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
