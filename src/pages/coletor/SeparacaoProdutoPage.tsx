@@ -4,7 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon } from "lucide-react";
+import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon, ScanLine } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
