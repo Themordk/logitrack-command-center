@@ -616,15 +616,27 @@ export function MovimentoEntradaPage() {
                         <button className="p-1 rounded hover:bg-secondary text-muted-foreground mt-0.5"><MoreVertical size={14} /></button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id, mov.status)}>Liberar para conferência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, mov.status)}>Retirar de conferência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>Liberar armazenagem</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>Liberar armazenagem c/ divergência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>Liberar recebimento com erro no transporte</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>Atualizar ERP</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id, mov.status)}>
+                          <Unlock size={14} className="mr-2" /> Liberar para conferência
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, mov.status)}>
+                          <Lock size={14} className="mr-2" /> Retirar de conferência
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>
+                          <PackageCheck size={14} className="mr-2" /> Liberar armazenagem
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>
+                          <PackageMinus size={14} className="mr-2" /> Liberar armazenagem c/ divergência
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>
+                          <Truck size={14} className="mr-2" /> Liberar recebimento com erro no transporte
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>
+                          <RefreshCw size={14} className="mr-2" /> Atualizar ERP
+                        </DropdownMenuItem>
                         
-                        <DropdownMenuItem onClick={() => handleMenuAction("excluir_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
-                          <Trash2 size={14} className="mr-2" /> Excluir movimento
+                        <DropdownMenuItem onClick={() => handleMenuAction("cancelar_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
+                          <Ban size={14} className="mr-2" /> Cancelar movimento
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
