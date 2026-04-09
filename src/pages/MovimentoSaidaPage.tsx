@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star } from "lucide-react";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -259,46 +259,35 @@ export function MovimentoSaidaPage() {
     }
   };
 
-  const handleExcluirOnda = async () => {
+  const [cancelarResult, setCancelarResult] = useState<any>(null);
+
+  const handleCancelarOnda = async () => {
     if (!deleteConfirmId || !tenantId) return;
     setDeleting(true);
+    setCancelarResult(null);
     try {
-      const mov = movimentos.find(m => m.id === deleteConfirmId);
-      if (!mov) throw new Error("Movimento não encontrado");
-      if (mov.status !== "CRIADA") {
-        toast.error("Só é possível excluir ondas com status CRIADA.");
-        return;
-      }
-
-      // Get linked documents
-      const { data: docs } = await (supabase as any)
-        .from("movimento_saida_documento")
-        .select("documento_saida_id")
-        .eq("movimento_saida_id", deleteConfirmId);
-      const docIds = (docs || []).map((d: any) => d.documento_saida_id);
-
-      // Delete items -> docs -> movement
-      await (supabase as any).from("movimento_saida_item").delete().eq("movimento_saida_id", deleteConfirmId);
-      await (supabase as any).from("movimento_saida_documento").delete().eq("movimento_saida_id", deleteConfirmId);
-      const { error } = await (supabase as any).from("movimento_saida").delete().eq("id", deleteConfirmId);
+      const { data, error } = await supabase.rpc("fn_cancelar_onda_carregamento" as any, {
+        p_movimento_saida_id: deleteConfirmId,
+        p_tenant_id: tenantId,
+      });
       if (error) throw error;
 
-      // Reset doc status to 0
-      if (docIds.length > 0) {
-        await (supabase as any).from("documento_saida").update({ status: 0 }).in("id", docIds);
+      setCancelarResult(data);
+      const result = typeof data === "string" ? JSON.parse(data) : data;
+      if (result?.sucesso) {
+        toast.success(result.mensagem || "Onda cancelada com sucesso!");
+        if (selectedId === deleteConfirmId) {
+          setSelectedId(null);
+          setSelectedMov(null);
+        }
+        fetchMovimentos();
+      } else {
+        toast.error(result?.mensagem || "Erro ao cancelar onda.");
       }
-
-      toast.success("Onda excluída com sucesso!");
-      if (selectedId === deleteConfirmId) {
-        setSelectedId(null);
-        setSelectedMov(null);
-      }
-      fetchMovimentos();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
       setDeleting(false);
-      setDeleteConfirmId(null);
     }
   };
 
@@ -558,44 +547,39 @@ export function MovimentoSaidaPage() {
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleLiberar(mov.id); }}
                                 disabled={mov.status !== "CRIADA"}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
-                                Liberar para separação
+                                <Unlock size={13} /> Liberar para separação
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleRetirar(mov.id); }}
                                 disabled={mov.status !== "LIBERADO"}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
-                                Retirar da separação
+                                <Lock size={13} /> Retirar da separação
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActionMenuId(null);
-                                  if (mov.status !== "CRIADA") {
-                                    toast.error("Só é possível excluir ondas com status CRIADA.");
-                                    return;
-                                  }
                                   setDeleteConfirmId(mov.id);
                                 }}
-                                disabled={mov.status !== "CRIADA"}
-                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2"
                               >
-                                Excluir onda
+                                <Ban size={13} /> Cancelar onda
                               </button>
                               <div className="border-t border-border" />
                               <button
                                 onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparSepDialog(mov.id); }}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary flex items-center gap-2"
                               >
-                                Limpar Separação Total
+                                <Eraser size={13} /> Limpar Separação Total
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparConfDialog(mov.id); }}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary flex items-center gap-2"
                               >
-                                Limpar Conferência Total
+                                <Eraser size={13} /> Limpar Conferência Total
                               </button>
                               <div className="border-t border-border" />
                               <button
@@ -605,9 +589,9 @@ export function MovimentoSaidaPage() {
                                   setPrioridadeValue(mov.prioridade || "NORMAL");
                                   setPrioridadeDialogId(mov.id);
                                 }}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary flex items-center gap-2"
                               >
-                                Prioridade
+                                <Star size={13} /> Prioridade
                               </button>
                             </div>
                           )}
@@ -843,29 +827,36 @@ export function MovimentoSaidaPage() {
       </div>
 
       {/* Delete confirm dialog */}
-      <Dialog open={!!deleteConfirmId} onOpenChange={(v) => !v && setDeleteConfirmId(null)}>
+      <Dialog open={!!deleteConfirmId} onOpenChange={(v) => { if (!v) { setDeleteConfirmId(null); setCancelarResult(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
-                <AlertTriangle size={20} className="text-destructive" />
+                <Ban size={20} className="text-destructive" />
               </div>
               <div>
-                <DialogTitle>Excluir Onda</DialogTitle>
+                <DialogTitle>Cancelar Onda</DialogTitle>
                 <DialogDescription className="mt-1">
-                  Tem certeza que deseja excluir esta onda de carregamento? Itens, documentos vinculados serão removidos e os documentos de saída terão status resetado.
+                  Tem certeza que deseja cancelar esta onda de carregamento?
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
+          {cancelarResult && (
+            <div className="mt-2 p-3 rounded-lg bg-muted text-xs font-mono whitespace-pre-wrap max-h-40 overflow-auto">
+              {JSON.stringify(cancelarResult, null, 2)}
+            </div>
+          )}
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-              Cancelar
+            <button onClick={() => { setDeleteConfirmId(null); setCancelarResult(null); }} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              Fechar
             </button>
-            <button onClick={handleExcluirOnda} disabled={deleting} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
-              {deleting && <Loader2 size={14} className="animate-spin" />}
-              {deleting ? "Excluindo..." : "Excluir"}
-            </button>
+            {!cancelarResult && (
+              <button onClick={handleCancelarOnda} disabled={deleting} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
+                {deleting && <Loader2 size={14} className="animate-spin" />}
+                {deleting ? "Cancelando..." : "Cancelar Onda"}
+              </button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
