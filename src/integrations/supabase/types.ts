@@ -5664,6 +5664,7 @@ export type Database = {
         | "ARMAZENAGEM_PARCIAL"
         | "ARMAZENADO"
         | "EXPORTADO"
+        | "CANCELADO"
       enum_status_onda_carregamento:
         | "CRIADA"
         | "LIBERADO"
@@ -5976,6 +5977,7 @@ export const Constants = {
         "ARMAZENAGEM_PARCIAL",
         "ARMAZENADO",
         "EXPORTADO",
+        "CANCELADO",
       ],
       enum_status_onda_carregamento: [
         "CRIADA",

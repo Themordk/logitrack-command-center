@@ -261,7 +261,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/iniciar">
-      <div className="flex flex-col gap-3 flex-1">
+      <div className="flex flex-col gap-3 flex-1 pb-24">
         {/* Progress */}
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[hsl(213,31%,55%)]">Endereço {progress}</span>
@@ -306,15 +306,6 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Product preview */}
-        <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-1">
-          <p className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Produto</p>
-          <p className="text-sm font-bold text-white">{tarefa.sku} - {tarefa.produto}</p>
-          <p className="text-xs text-[hsl(213,31%,55%)]">Qtd Requerida: <span className="font-bold text-white">{tarefa.quantidade_requerida}</span></p>
-          {tarefa.fator_caixa && <p className="text-xs text-[hsl(213,31%,55%)]">Fator Caixa: <span className="font-bold text-white">{tarefa.fator_caixa}</span></p>}
-          <p className="text-xs text-[hsl(213,31%,55%)]">Separado: <span className="font-bold text-[hsl(142,71%,45%)]">{tarefa.separado || 0}</span></p>
-        </div>
-
         {/* Scan field */}
         <ScanField
           label="Confirmar Endereço"
@@ -322,8 +313,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           onScan={handleScan}
           placeholder="Escaneie o endereço para confirmar"
         />
+      </div>
 
-        {/* Skip button */}
+      {/* Floating skip button */}
+      <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
         <ActionButton onClick={handlePular} variant="secondary">
           <SkipForward size={18} /> Pular Endereço
         </ActionButton>
