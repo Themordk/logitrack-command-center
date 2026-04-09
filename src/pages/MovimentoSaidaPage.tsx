@@ -366,10 +366,10 @@ export function MovimentoSaidaPage() {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_armazem_id: armazemId,
-        p_tipo: "CORRETIVO",
+        p_tipo: "PREVENTIVO",
         p_usuario_id: usuarioId,
         p_simular: false,
-        p_itens: JSON.stringify([{ produto_id: item.produto_id, endereco_picking: item.endereco_picking }]),
+        p_itens: [{ produto_id: item.produto_id, endereco_picking: item.endereco_picking }],
       });
       if (error) throw error;
       toast.success("Abastecimento gerado para o item!");
