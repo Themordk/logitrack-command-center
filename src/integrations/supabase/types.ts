@@ -5287,6 +5287,10 @@ export type Database = {
         Returns: string
       }
       fn_buscar_email_por_login: { Args: { p_login: string }; Returns: string }
+      fn_cancelar_movimento_entrada: {
+        Args: { p_movimento_entrada_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       fn_cancelar_onda_carregamento: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: Json

@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, PackageCheck, PackageMinus, Truck, RefreshCw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -136,9 +135,11 @@ export function MovimentoEntradaPage() {
   const [selectedDivergenciaMotivo, setSelectedDivergenciaMotivo] = useState("");
   const [divergenciaSubmitting, setDivergenciaSubmitting] = useState(false);
 
-  // Delete modal
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteMovId, setDeleteMovId] = useState<string | null>(null);
+  // Cancel modal
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelMovId, setCancelMovId] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState(false);
+  const [cancelarResult, setCancelarResult] = useState<any>(null);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
@@ -498,8 +499,10 @@ export function MovimentoEntradaPage() {
       openErroTransporteModal(movId);
       return;
     }
-    if (action === "excluir_movimento") {
-      handleExcluirMovimento(movId, status);
+    if (action === "cancelar_movimento") {
+      setCancelMovId(movId);
+      setCancelarResult(null);
+      setShowCancelModal(true);
       return;
     }
     if (action === "atualizar_erp") {
@@ -508,60 +511,32 @@ export function MovimentoEntradaPage() {
     }
   };
 
-  const handleExcluirMovimento = async (movId: string, status: string) => {
-    if (status !== "GERADO" && status !== "LIBERADO") {
-      toast.warning("Apenas movimentos com status 'Gerado' ou 'Liberado' podem ser excluídos.");
-      return;
-    }
-    // Check qtd_conferida and qtd_armazenada
-    const { data: items } = await (supabase as any)
-      .from("movimento_entrada_item")
-      .select("qtd_conferida, qtd_armazenada")
-      .eq("movimento_entrada_id", movId);
-
-    const hasActivity = (items || []).some((i: any) =>
-      (Number(i.qtd_conferida) || 0) > 0 || (Number(i.qtd_armazenada) || 0) > 0
-    );
-    if (hasActivity) {
-      toast.error("Não é possível excluir: existem itens com conferência ou armazenagem registrada.");
-      return;
-    }
-
-    setDeleteMovId(movId);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDeleteMovimento = async (): Promise<boolean> => {
-    if (!deleteMovId) return false;
+  const handleCancelarMovimento = async () => {
+    if (!cancelMovId) return;
+    setCancelando(true);
+    setCancelarResult(null);
     try {
-      // 1. Get linked document IDs
-      const { data: links } = await (supabase as any)
-        .from("movimento_entrada_documento")
-        .select("documento_entrada_id")
-        .eq("movimento_entrada_id", deleteMovId);
-      const docIds = (links || []).map((l: any) => l.documento_entrada_id);
-
-      // 2. Delete items
-      await (supabase as any).from("movimento_entrada_item").delete().eq("movimento_entrada_id", deleteMovId);
-      // 3. Delete document links
-      await (supabase as any).from("movimento_entrada_documento").delete().eq("movimento_entrada_id", deleteMovId);
-      // 4. Delete movement
-      await (supabase as any).from("movimento_entrada").delete().eq("id", deleteMovId);
-      // 5. Reset document status
-      if (docIds.length > 0) {
-        await (supabase as any).from("documento_entrada").update({ status: 0 }).in("id", docIds);
+      const { data, error } = await supabase.rpc("fn_cancelar_movimento_entrada" as any, {
+        p_movimento_entrada_id: cancelMovId,
+        p_tenant_id: tenantId,
+      });
+      if (error) {
+        setCancelarResult(error);
+        toast.error("Erro ao cancelar movimento.");
+      } else {
+        setCancelarResult(data);
+        toast.success("Movimento cancelado com sucesso.");
+        if (selectedMov === cancelMovId) {
+          setSelectedMov(null);
+          setSelectedMovStatus(null);
+        }
+        fetchMovements();
       }
-
-      toast.success("Movimento de entrada excluído com sucesso.");
-      if (selectedMov === deleteMovId) {
-        setSelectedMov(null);
-        setSelectedMovStatus(null);
-      }
-      fetchMovements();
-      return true;
     } catch (err: any) {
-      toast.error(`Erro ao excluir: ${err.message}`);
-      return false;
+      setCancelarResult({ error: err.message });
+      toast.error(err.message);
+    } finally {
+      setCancelando(false);
     }
   };
 
@@ -640,15 +615,27 @@ export function MovimentoEntradaPage() {
                         <button className="p-1 rounded hover:bg-secondary text-muted-foreground mt-0.5"><MoreVertical size={14} /></button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id, mov.status)}>Liberar para conferência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, mov.status)}>Retirar de conferência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>Liberar armazenagem</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>Liberar armazenagem c/ divergência</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>Liberar recebimento com erro no transporte</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>Atualizar ERP</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id, mov.status)}>
+                          <Unlock size={14} className="mr-2" /> Liberar para conferência
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, mov.status)}>
+                          <Lock size={14} className="mr-2" /> Retirar de conferência
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>
+                          <PackageCheck size={14} className="mr-2" /> Liberar armazenagem
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>
+                          <PackageMinus size={14} className="mr-2" /> Liberar armazenagem c/ divergência
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>
+                          <Truck size={14} className="mr-2" /> Liberar recebimento com erro no transporte
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>
+                          <RefreshCw size={14} className="mr-2" /> Atualizar ERP
+                        </DropdownMenuItem>
                         
-                        <DropdownMenuItem onClick={() => handleMenuAction("excluir_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
-                          <Trash2 size={14} className="mr-2" /> Excluir movimento
+                        <DropdownMenuItem onClick={() => handleMenuAction("cancelar_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
+                          <Ban size={14} className="mr-2" /> Cancelar movimento
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1001,14 +988,49 @@ export function MovimentoEntradaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Excluir Movimento */}
-      <DeleteConfirmDialog
-        open={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={confirmDeleteMovimento}
-        title="Excluir Movimento de Entrada"
-        description="Tem certeza que deseja excluir este movimento? Os documentos vinculados voltarão ao status pendente."
-      />
+      {/* Modal Cancelar Movimento */}
+      <Dialog open={showCancelModal} onOpenChange={(v) => { if (!v) { setShowCancelModal(false); setCancelarResult(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
+                <Ban size={20} className="text-destructive" />
+              </div>
+              <DialogTitle>Cancelar Movimento de Entrada</DialogTitle>
+            </div>
+          </DialogHeader>
+          {!cancelarResult ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Tem certeza que deseja cancelar este movimento? A função de cancelamento será executada no banco de dados.</p>
+              <DialogFooter>
+                <button onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                  Voltar
+                </button>
+                <button
+                  onClick={handleCancelarMovimento}
+                  disabled={cancelando}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+                >
+                  {cancelando && <Loader2 size={14} className="animate-spin" />}
+                  {cancelando ? "Cancelando..." : "Confirmar Cancelamento"}
+                </button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase">Resultado da execução:</p>
+              <pre className="p-3 rounded-lg bg-secondary/50 border border-border text-xs text-foreground overflow-auto max-h-60 whitespace-pre-wrap">
+                {JSON.stringify(cancelarResult, null, 2)}
+              </pre>
+              <DialogFooter>
+                <button onClick={() => { setShowCancelModal(false); setCancelarResult(null); }} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                  Fechar
+                </button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
