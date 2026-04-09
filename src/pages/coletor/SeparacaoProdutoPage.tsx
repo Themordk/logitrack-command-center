@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon } from "lucide-react";
+import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon, ScanLine } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -28,6 +27,8 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [eanInputValue, setEanInputValue] = useState("");
+  const eanInputRef = useRef<HTMLInputElement>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -304,26 +305,44 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* EAN Scan - reduced 25% */}
-        <div className="transform scale-[0.75] origin-top -mb-6">
-          <ScanField
-            label="Escanear EAN do Produto"
-            lastScanned={eanScanned}
-            onScan={handleScanEan}
-            placeholder="Escaneie o código de barras"
+        {/* EAN Scan - compact inline */}
+        <div className="relative rounded-xl border-2 border-dashed border-[hsl(217,91%,60%)]/40 bg-[hsl(222,40%,12%)] p-2.5 flex items-center gap-3 cursor-text"
+          onClick={() => eanInputRef.current?.focus()}
+        >
+          <ScanLine size={22} className="text-[hsl(217,91%,60%)] shrink-0" />
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-xs font-semibold text-[hsl(213,31%,55%)]">Escanear EAN do Produto</span>
+            {eanScanned ? (
+              <span className="text-xs text-[hsl(213,31%,55%)]">Último: <span className="font-mono font-bold text-[hsl(213,31%,91%)]">{eanScanned}</span></span>
+            ) : (
+              <span className="text-xs text-[hsl(213,31%,55%)]/60">Escaneie o código de barras</span>
+            )}
+          </div>
+          <input
+            ref={eanInputRef}
+            type="text"
+            value={eanInputValue}
+            onChange={(e) => setEanInputValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && eanInputValue.trim()) {
+                handleScanEan(eanInputValue.trim());
+                setEanInputValue("");
+              }
+            }}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-text"
+            autoComplete="off"
           />
         </div>
 
         {/* Embalagem info stat - always visible after scan */}
         {embalagemInfo && (
-          <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
-            <div className="flex items-center gap-2 mb-1">
-              <BoxIcon size={18} className="text-[hsl(217,91%,60%)]" />
-              <span className="text-sm font-bold text-white">Embalagem</span>
+          <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] px-3 py-2 flex items-center gap-4">
+            <BoxIcon size={16} className="text-[hsl(217,91%,60%)] shrink-0" />
+            <div className="flex items-center gap-4 flex-1 text-xs overflow-hidden">
+              <span className="text-[hsl(213,31%,55%)]">EAN: <span className="font-bold text-[hsl(213,31%,91%)]">{embalagemInfo.ean}</span></span>
+              <span className="text-[hsl(213,31%,55%)]">Fator: <span className="font-bold text-[hsl(217,91%,60%)]">{embalagemInfo.fator}</span></span>
+              <span className="text-[hsl(213,31%,55%)] truncate">Emb: <span className="font-bold text-[hsl(213,31%,91%)]">{embalagemInfo.embalagem}</span></span>
             </div>
-            <div className="text-xs text-[hsl(213,31%,55%)]">EAN: <span className="font-bold text-[hsl(213,31%,91%)]">{embalagemInfo.ean}</span></div>
-            <div className="text-xs text-[hsl(213,31%,55%)]">Fator: <span className="font-bold text-[hsl(217,91%,60%)]">{embalagemInfo.fator}</span></div>
-            <div className="text-xs text-[hsl(213,31%,55%)]">Embalagem: <span className="font-bold text-[hsl(213,31%,91%)]">{embalagemInfo.embalagem}</span></div>
           </div>
         )}
 
