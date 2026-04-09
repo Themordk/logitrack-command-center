@@ -409,19 +409,42 @@ export function MovimentoSaidaPage() {
 
   const handleConfirmarCorte = async () => {
     if (!corteItem || !corteMotivoId || !liberarMovId || !usuarioId) return;
+    if (!corteItem.produto_id) {
+      toast.error("Produto do item não identificado para realizar o corte.");
+      return;
+    }
+
     setCorteSaving(true);
     try {
-      const { error } = await (supabase as any)
+      const { data: itensMovimento, error: itensError } = await (supabase as any)
         .from("movimento_saida_item")
-        .update({
-          qtde_cortada: corteItem.qtd_esperada || 0,
-          motivo_ocorrencia: corteMotivoId,
-          usuario_autorizou: usuarioId,
-          autorizado_em: new Date().toISOString(),
-        })
+        .select("id, qtd_esperada")
         .eq("movimento_saida_id", liberarMovId)
         .eq("produto_id", corteItem.produto_id);
-      if (error) throw error;
+
+      if (itensError) throw itensError;
+      if (!itensMovimento?.length) {
+        throw new Error("Item da onda não encontrado para realizar o corte.");
+      }
+
+      const autorizadoEm = new Date().toISOString();
+      const updateResults = await Promise.all(
+        itensMovimento.map((item: any) =>
+          (supabase as any)
+            .from("movimento_saida_item")
+            .update({
+              qtde_cortada: Number(item.qtd_esperada ?? 0),
+              motivo_ocorrencia: corteMotivoId,
+              usuario_autorizou: usuarioId,
+              autorizado_em: autorizadoEm,
+            })
+            .eq("id", item.id)
+        )
+      );
+
+      const updateError = updateResults.find((result: any) => result.error)?.error;
+      if (updateError) throw updateError;
+
       toast.success("Item cortado com sucesso!");
       setCorteItem(null);
       // Remove item from list
