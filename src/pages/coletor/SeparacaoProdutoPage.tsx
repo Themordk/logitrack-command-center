@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { ScanField } from "@/components/coletor/ScanField";
+import { ActionButton } from "@/components/coletor/ActionButton";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon, ScanLine } from "lucide-react";
@@ -28,6 +28,8 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [eanInputValue, setEanInputValue] = useState("");
+  const eanInputRef = useRef<HTMLInputElement>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -304,9 +306,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* EAN Scan - compact */}
+        {/* EAN Scan - compact inline */}
         <div className="relative rounded-xl border-2 border-dashed border-[hsl(217,91%,60%)]/40 bg-[hsl(222,40%,12%)] p-2.5 flex items-center gap-3 cursor-text"
-          onClick={() => document.getElementById('ean-scan-input')?.focus()}
+          onClick={() => eanInputRef.current?.focus()}
         >
           <ScanLine size={22} className="text-[hsl(217,91%,60%)] shrink-0" />
           <div className="flex flex-col min-w-0 flex-1">
@@ -317,6 +319,20 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
               <span className="text-xs text-[hsl(213,31%,55%)]/60">Escaneie o código de barras</span>
             )}
           </div>
+          <input
+            ref={eanInputRef}
+            type="text"
+            value={eanInputValue}
+            onChange={(e) => setEanInputValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && eanInputValue.trim()) {
+                handleScanEan(eanInputValue.trim());
+                setEanInputValue("");
+              }
+            }}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-text"
+            autoComplete="off"
+          />
         </div>
 
         {/* Embalagem info stat - always visible after scan */}
