@@ -259,46 +259,35 @@ export function MovimentoSaidaPage() {
     }
   };
 
-  const handleExcluirOnda = async () => {
+  const [cancelarResult, setCancelarResult] = useState<any>(null);
+
+  const handleCancelarOnda = async () => {
     if (!deleteConfirmId || !tenantId) return;
     setDeleting(true);
+    setCancelarResult(null);
     try {
-      const mov = movimentos.find(m => m.id === deleteConfirmId);
-      if (!mov) throw new Error("Movimento não encontrado");
-      if (mov.status !== "CRIADA") {
-        toast.error("Só é possível excluir ondas com status CRIADA.");
-        return;
-      }
-
-      // Get linked documents
-      const { data: docs } = await (supabase as any)
-        .from("movimento_saida_documento")
-        .select("documento_saida_id")
-        .eq("movimento_saida_id", deleteConfirmId);
-      const docIds = (docs || []).map((d: any) => d.documento_saida_id);
-
-      // Delete items -> docs -> movement
-      await (supabase as any).from("movimento_saida_item").delete().eq("movimento_saida_id", deleteConfirmId);
-      await (supabase as any).from("movimento_saida_documento").delete().eq("movimento_saida_id", deleteConfirmId);
-      const { error } = await (supabase as any).from("movimento_saida").delete().eq("id", deleteConfirmId);
+      const { data, error } = await supabase.rpc("fn_cancelar_onda_carregamento" as any, {
+        p_movimento_saida_id: deleteConfirmId,
+        p_tenant_id: tenantId,
+      });
       if (error) throw error;
 
-      // Reset doc status to 0
-      if (docIds.length > 0) {
-        await (supabase as any).from("documento_saida").update({ status: 0 }).in("id", docIds);
+      setCancelarResult(data);
+      const result = typeof data === "string" ? JSON.parse(data) : data;
+      if (result?.sucesso) {
+        toast.success(result.mensagem || "Onda cancelada com sucesso!");
+        if (selectedId === deleteConfirmId) {
+          setSelectedId(null);
+          setSelectedMov(null);
+        }
+        fetchMovimentos();
+      } else {
+        toast.error(result?.mensagem || "Erro ao cancelar onda.");
       }
-
-      toast.success("Onda excluída com sucesso!");
-      if (selectedId === deleteConfirmId) {
-        setSelectedId(null);
-        setSelectedMov(null);
-      }
-      fetchMovimentos();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
       setDeleting(false);
-      setDeleteConfirmId(null);
     }
   };
 
