@@ -989,14 +989,49 @@ export function MovimentoEntradaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Excluir Movimento */}
-      <DeleteConfirmDialog
-        open={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={confirmDeleteMovimento}
-        title="Excluir Movimento de Entrada"
-        description="Tem certeza que deseja excluir este movimento? Os documentos vinculados voltarão ao status pendente."
-      />
+      {/* Modal Cancelar Movimento */}
+      <Dialog open={showCancelModal} onOpenChange={(v) => { if (!v) { setShowCancelModal(false); setCancelarResult(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
+                <Ban size={20} className="text-destructive" />
+              </div>
+              <DialogTitle>Cancelar Movimento de Entrada</DialogTitle>
+            </div>
+          </DialogHeader>
+          {!cancelarResult ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Tem certeza que deseja cancelar este movimento? A função de cancelamento será executada no banco de dados.</p>
+              <DialogFooter>
+                <button onClick={() => setShowCancelModal(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                  Voltar
+                </button>
+                <button
+                  onClick={handleCancelarMovimento}
+                  disabled={cancelando}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+                >
+                  {cancelando && <Loader2 size={14} className="animate-spin" />}
+                  {cancelando ? "Cancelando..." : "Confirmar Cancelamento"}
+                </button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase">Resultado da execução:</p>
+              <pre className="p-3 rounded-lg bg-secondary/50 border border-border text-xs text-foreground overflow-auto max-h-60 whitespace-pre-wrap">
+                {JSON.stringify(cancelarResult, null, 2)}
+              </pre>
+              <DialogFooter>
+                <button onClick={() => { setShowCancelModal(false); setCancelarResult(null); }} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                  Fechar
+                </button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
