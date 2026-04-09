@@ -827,29 +827,36 @@ export function MovimentoSaidaPage() {
       </div>
 
       {/* Delete confirm dialog */}
-      <Dialog open={!!deleteConfirmId} onOpenChange={(v) => !v && setDeleteConfirmId(null)}>
+      <Dialog open={!!deleteConfirmId} onOpenChange={(v) => { if (!v) { setDeleteConfirmId(null); setCancelarResult(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
-                <AlertTriangle size={20} className="text-destructive" />
+                <Ban size={20} className="text-destructive" />
               </div>
               <div>
-                <DialogTitle>Excluir Onda</DialogTitle>
+                <DialogTitle>Cancelar Onda</DialogTitle>
                 <DialogDescription className="mt-1">
-                  Tem certeza que deseja excluir esta onda de carregamento? Itens, documentos vinculados serão removidos e os documentos de saída terão status resetado.
+                  Tem certeza que deseja cancelar esta onda de carregamento?
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
+          {cancelarResult && (
+            <div className="mt-2 p-3 rounded-lg bg-muted text-xs font-mono whitespace-pre-wrap max-h-40 overflow-auto">
+              {JSON.stringify(cancelarResult, null, 2)}
+            </div>
+          )}
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-              Cancelar
+            <button onClick={() => { setDeleteConfirmId(null); setCancelarResult(null); }} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              Fechar
             </button>
-            <button onClick={handleExcluirOnda} disabled={deleting} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
-              {deleting && <Loader2 size={14} className="animate-spin" />}
-              {deleting ? "Excluindo..." : "Excluir"}
-            </button>
+            {!cancelarResult && (
+              <button onClick={handleCancelarOnda} disabled={deleting} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
+                {deleting && <Loader2 size={14} className="animate-spin" />}
+                {deleting ? "Cancelando..." : "Cancelar Onda"}
+              </button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
