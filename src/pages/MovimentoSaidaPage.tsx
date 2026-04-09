@@ -361,9 +361,13 @@ export function MovimentoSaidaPage() {
     if (!liberarMovId || !tenantId || !item.produto_id) return;
     setAbastItemLoading(item.produto_id);
     try {
+      const armazemId = localStorage.getItem("core_armazem_id") || "";
       const { data, error } = await supabase.rpc("fn_gerar_abastecimento" as any, {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
+        p_armazem_id: armazemId,
+        p_tipo: "CORRETIVO",
+        p_usuario_id: usuarioId,
         p_simular: false,
         p_itens: JSON.stringify([{ produto_id: item.produto_id, endereco_picking: item.endereco_picking }]),
       });
