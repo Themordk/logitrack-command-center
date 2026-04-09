@@ -547,44 +547,39 @@ export function MovimentoSaidaPage() {
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleLiberar(mov.id); }}
                                 disabled={mov.status !== "CRIADA"}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
-                                Liberar para separação
+                                <Unlock size={13} /> Liberar para separação
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleRetirar(mov.id); }}
                                 disabled={mov.status !== "LIBERADO"}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
-                                Retirar da separação
+                                <Lock size={13} /> Retirar da separação
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActionMenuId(null);
-                                  if (mov.status !== "CRIADA") {
-                                    toast.error("Só é possível excluir ondas com status CRIADA.");
-                                    return;
-                                  }
                                   setDeleteConfirmId(mov.id);
                                 }}
-                                disabled={mov.status !== "CRIADA"}
-                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full text-left px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2"
                               >
-                                Excluir onda
+                                <Ban size={13} /> Cancelar onda
                               </button>
                               <div className="border-t border-border" />
                               <button
                                 onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparSepDialog(mov.id); }}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary flex items-center gap-2"
                               >
-                                Limpar Separação Total
+                                <Eraser size={13} /> Limpar Separação Total
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setActionMenuId(null); setLimparConfDialog(mov.id); }}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary flex items-center gap-2"
                               >
-                                Limpar Conferência Total
+                                <Eraser size={13} /> Limpar Conferência Total
                               </button>
                               <div className="border-t border-border" />
                               <button
@@ -594,9 +589,9 @@ export function MovimentoSaidaPage() {
                                   setPrioridadeValue(mov.prioridade || "NORMAL");
                                   setPrioridadeDialogId(mov.id);
                                 }}
-                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary"
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary flex items-center gap-2"
                               >
-                                Prioridade
+                                <Star size={13} /> Prioridade
                               </button>
                             </div>
                           )}
