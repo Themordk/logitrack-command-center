@@ -1,55 +1,65 @@
 
-## Plan: Optimize Separation Screens to Reduce Scrolling
 
-### Summary
-Reduce scrolling on two collector separation screens by hiding non-essential info, making buttons floating, and compacting the product scan field.
+## Plan: Three Fixes for Separation, Wave Release, and Replenishment
 
----
-
-### 1. SeparacaoEnderecoPage (Scan Endereco)
-
-**File:** `src/pages/coletor/SeparacaoEnderecoPage.tsx`
-
-**1.1 Hide product container** — Remove the "Product preview" card (lines ~219-226) from the rendered output. The product data is already stored in `tarefa` and passed via sessionStorage, so no data is lost for the next route.
-
-**1.2 Floating "Pular Endereço" button** — Move the skip button out of the scrollable `flex-col` container and position it as a fixed floating button at the bottom of the screen, matching the pattern from `AbastecimentoListPage.tsx`:
-```
-<div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
-  <ActionButton onClick={handlePular} variant="secondary">
-    <SkipForward size={18} /> Pular Endereço
-  </ActionButton>
-</div>
-```
-Add `pb-24` padding to the main content to avoid overlap.
-
----
-
-### 2. SeparacaoProdutoPage (Scan Produto)
+### 1. SeparacaoProdutoPage — Remove EAN from embalagem + use ScanField component
 
 **File:** `src/pages/coletor/SeparacaoProdutoPage.tsx`
 
-**2.1 Floating "Confirmar Quantidade" button** — Move the confirm button to a fixed bottom position with the same pattern:
-```
-<div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
-  <ActionButton ...>Confirmar Quantidade</ActionButton>
-</div>
-```
-Add bottom padding to main content.
+**1.1** Remove the EAN field from the embalagem info container (line 342). Keep only Fator and Embalagem.
 
-**2.2 Move "Ocorrências" button** — Remove the full-width warning ActionButton at the bottom. Instead, place a small icon-only button (yellow background, white `AlertTriangle` icon) inside the product info card header, aligned to the right:
+**1.2** Replace the custom inline scan input (lines 308-335) with the existing `ScanField` component, which already handles:
+- Device type detection (`coletor_tipo_dispositivo` from localStorage)
+- `readOnly` toggle to suppress virtual keyboard on hardware scanners
+- Sound/vibration feedback via `useFeedback` hook
+- Auto-focus behavior
+
+The `ScanField` will be used with the existing `handleScanEan` callback. Import `ScanField` and `useFeedback`, remove the manual `eanInputRef`/`eanInputValue` state, and remove the `ScanLine` import (already in ScanField).
+
+---
+
+### 2. MovimentoSaidaPage — Enable "Retirar da Separação" for EM_PICKING
+
+**File:** `src/pages/MovimentoSaidaPage.tsx`
+
+**Line 560:** Change the disabled condition from:
 ```
-<button
-  onClick={() => onNavigate("/coletor/separacao/ocorrencias")}
-  className="w-8 h-8 rounded-lg bg-[#F59E0B] flex items-center justify-center"
->
-  <AlertTriangle size={16} className="text-white" />
-</button>
+disabled={mov.status !== "LIBERADO"}
+```
+to:
+```
+disabled={mov.status !== "LIBERADO" && mov.status !== "EM_PICKING"}
 ```
 
-**2.3 Reduce ScanField size by 25%** — Apply a `scale-[0.75]` wrapper or reduce the internal padding/icon size of the ScanField specifically on this page. Preferred approach: wrap the ScanField in a container with reduced padding and smaller icon/text via a `compact` className or inline style override, keeping the component reusable. Concretely, wrap in `<div className="transform scale-[0.75] origin-top">` to shrink it 25%.
+This allows the "Retirar da separação" action for movements that are already being picked.
+
+---
+
+### 3. AbastecimentoDestinoPage — Fix duplicate estoque_movimento
+
+**File:** `src/pages/coletor/AbastecimentoDestinoPage.tsx`
+
+**Root cause:** When confirming replenishment, the code:
+1. Inserts a `tarefa_execucao` with status `CONCLUIDA` (line 139-152)
+2. Manually debits origin stock in `estoque_geral` (lines 154-184)
+3. Manually credits destination stock in `estoque_geral` (lines 191-221)
+4. Manually inserts into `estoque_movimento` with `tipo_movimento: 6` (lines 236-247)
+
+However, the database has a trigger `trg_tarefa_execucao_estoque` on `tarefa_execucao` INSERT that calls `processar_movimento_estoque()`, which **also** inserts into `estoque_movimento` (using the `tipo_movimento` from `tipo_tarefa`) and **also** updates `estoque_geral` (debit/credit).
+
+This creates duplicate records: one manual (tipo_movimento 6, no tarefa_execucao_id) and one from the trigger (with tarefa_execucao_id, using the tipo_tarefa's tipo_movimento). The estoque_geral is also double-updated.
+
+**Fix:** Remove all manual stock operations from the frontend code (steps 2, 3, and 5 above — lines 154-247). The trigger already handles everything correctly. The code should only:
+1. Insert `tarefa_execucao` (keeps line 139-152)
+2. Update coleta tracking in local state (keeps lines 179-188)
+3. Update `tarefa` status (keeps lines 224-233)
+
+Remove: manual `estoque_geral` debit (lines 154-184), manual `estoque_geral` credit (lines 191-221), and manual `estoque_movimento` insert (lines 236-247).
 
 ---
 
 ### Files Modified
-- `src/pages/coletor/SeparacaoEnderecoPage.tsx`
 - `src/pages/coletor/SeparacaoProdutoPage.tsx`
+- `src/pages/MovimentoSaidaPage.tsx`
+- `src/pages/coletor/AbastecimentoDestinoPage.tsx`
+
