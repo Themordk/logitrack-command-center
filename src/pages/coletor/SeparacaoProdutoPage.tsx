@@ -259,12 +259,20 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/endereco">
-      <div className="flex flex-col gap-3 flex-1">
+      <div className="flex flex-col gap-3 flex-1 pb-24">
         {/* Product info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
-          <div className="flex items-center gap-2 mb-1">
-            <Package size={18} className="text-[hsl(217,91%,60%)]" />
-            <span className="text-sm font-bold text-white">Produto</span>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Package size={18} className="text-[hsl(217,91%,60%)]" />
+              <span className="text-sm font-bold text-white">Produto</span>
+            </div>
+            <button
+              onClick={() => onNavigate("/coletor/separacao/ocorrencias")}
+              className="w-8 h-8 rounded-lg bg-[#F59E0B] flex items-center justify-center"
+            >
+              <AlertTriangle size={16} className="text-white" />
+            </button>
           </div>
           <div className="text-xs text-[hsl(213,31%,55%)]">SKU: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.sku || "—"}</span></div>
           <div className="text-xs text-[hsl(213,31%,55%)]">Referência: <span className="font-bold text-[hsl(213,31%,91%)]">{referencia || tarefa.referencia || "—"}</span></div>
@@ -296,13 +304,15 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* EAN Scan */}
-        <ScanField
-          label="Escanear EAN do Produto"
-          lastScanned={eanScanned}
-          onScan={handleScanEan}
-          placeholder="Escaneie o código de barras"
-        />
+        {/* EAN Scan - reduced 25% */}
+        <div className="transform scale-[0.75] origin-top -mb-6">
+          <ScanField
+            label="Escanear EAN do Produto"
+            lastScanned={eanScanned}
+            onScan={handleScanEan}
+            placeholder="Escaneie o código de barras"
+          />
+        </div>
 
         {/* Embalagem info stat - always visible after scan */}
         {embalagemInfo && (
@@ -328,8 +338,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             className="w-full h-12 rounded-xl bg-[hsl(222,35%,8%)] border border-[hsl(222,35%,22%)] text-center text-xl font-bold text-white outline-none focus:border-[hsl(217,91%,50%)]"
           />
         </div>
+      </div>
 
-        {/* Actions */}
+      {/* Floating confirm button */}
+      <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
         <ActionButton
           onClick={handleConfirmar}
           disabled={!quantidade || confirming || !eanConfirmado}
@@ -337,10 +349,6 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           variant="success"
         >
           Confirmar Quantidade
-        </ActionButton>
-
-        <ActionButton onClick={() => onNavigate("/coletor/separacao/ocorrencias")} variant="warning">
-          <AlertTriangle size={18} /> Ocorrências
         </ActionButton>
       </div>
 
