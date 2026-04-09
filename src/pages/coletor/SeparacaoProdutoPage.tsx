@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon, ScanLine } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
