@@ -191,7 +191,7 @@ async function fetchDocumentoOrigem(tipo: string | null, id: string | null): Pro
       .select(`
         id, qtd_esperada, qtd_separada, qtde_cortada, status, valor_unit, valor_total,
         produto:produto_id ( sku, descricao ),
-        movimento_saida:movimento_saida_id (
+        movimento_saida:movimento_saida!fk_onda_item_onda (
           id, numero_onda, status, destino_carga, observacao,
           rota:rota_id ( descricao )
         )
