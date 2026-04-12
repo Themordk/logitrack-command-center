@@ -664,10 +664,12 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-xs">
                           {item.status ? (
                             <span className={cn("text-[10px] px-2 py-0.5 rounded-full border",
-                              item.status === "CONCLUIDA" || item.status === "FINALIZADA" ? "bg-green-500/15 text-green-400 border-green-500/30" :
-                              item.status === "PENDENTE" ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" :
-                              item.status === "EM_SEPARACAO" || item.status === "EM_CONFERENCIA" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" :
-                              "bg-gray-500/15 text-gray-400 border-gray-500/30"
+                              item.status === "PENDENTE" ? "bg-red-500/15 text-red-400 border-red-500/30" :
+                              item.status === "EM_SEPARACAO" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
+                              item.status === "EM_CONFERENCIA" ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" :
+                              item.status === "CONCLUIDA" || item.status === "FINALIZADA" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" :
+                              item.status === "CANCELADA" ? "bg-gray-500/15 text-gray-400 border-gray-500/30" :
+                              "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
                             )}>{item.status}</span>
                           ) : "—"}
                         </td>
