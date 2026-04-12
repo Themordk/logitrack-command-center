@@ -14,9 +14,11 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
   CRIADA: { label: "Criada", class: "bg-red-500/15 text-red-400 border-red-500/30" },
   LIBERADO: { label: "Liberada", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
   EM_PICKING: { label: "Em Separação", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  EM_CONFERENCIA: { label: "Em Conferência", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  EM_CARREGAMENTO: { label: "Em Carregamento", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
-  CONCLUIDA: { label: "Concluída", class: "bg-green-500/15 text-green-400 border-green-500/30" },
+  SEPARADO: { label: "Separado", class: "bg-lime-500/15 text-lime-400 border-lime-500/30" },
+  EM_CONFERENCIA: { label: "Em Conferência", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  CONFERIDO: { label: "Conferido", class: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
+  EM_CARREGAMENTO: { label: "Em Carregamento", class: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
+  CONCLUIDA: { label: "Concluída", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
   CANCELADA: { label: "Cancelada", class: "bg-gray-500/15 text-gray-400 border-gray-500/30" },
 };
 
@@ -662,10 +664,12 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-xs">
                           {item.status ? (
                             <span className={cn("text-[10px] px-2 py-0.5 rounded-full border",
-                              item.status === "CONCLUIDA" || item.status === "FINALIZADA" ? "bg-green-500/15 text-green-400 border-green-500/30" :
-                              item.status === "PENDENTE" ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" :
-                              item.status === "EM_SEPARACAO" || item.status === "EM_CONFERENCIA" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" :
-                              "bg-gray-500/15 text-gray-400 border-gray-500/30"
+                              item.status === "PENDENTE" ? "bg-red-500/15 text-red-400 border-red-500/30" :
+                              item.status === "EM_SEPARACAO" ? "bg-orange-500/15 text-orange-400 border-orange-500/30" :
+                              item.status === "EM_CONFERENCIA" ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" :
+                              item.status === "CONCLUIDA" || item.status === "FINALIZADA" ? "bg-blue-500/15 text-blue-400 border-blue-500/30" :
+                              item.status === "CANCELADA" ? "bg-gray-500/15 text-gray-400 border-gray-500/30" :
+                              "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
                             )}>{item.status}</span>
                           ) : "—"}
                         </td>
