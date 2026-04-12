@@ -116,8 +116,8 @@ export async function fetchTarefaDetalhe(tarefaExecucaoId: string): Promise<Tare
       .in("id", endIds);
     if (enderecos) {
       const endMap = Object.fromEntries(enderecos.map((e: any) => [e.id, e]));
-      tarefa.endereco_origem = endMap[tarefa.id_local_origem] || null;
-      tarefa.endereco_destino = endMap[tarefa.id_local_destino] || null;
+      (tarefa as any).endereco_origem = endMap[tarefa.id_local_origem] || null;
+      (tarefa as any).endereco_destino = endMap[tarefa.id_local_destino] || null;
     }
   }
 
