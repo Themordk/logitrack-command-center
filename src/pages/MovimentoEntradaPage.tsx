@@ -12,22 +12,27 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
   LIBERADO: { label: "Liberado", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
-  ERRO_TRANSPORTADOR: { label: "Erro Transporte", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  "EM CONFERENCIA": { label: "Em Conferência", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  EM_CONFERENCIA: { label: "Em Conferência", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  CONFERIDO: { label: "Conferido", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
-  DIVERGENCIA: { label: "Divergência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  LIB_ARMAZENAGEM: { label: "Lib. Armazenagem", class: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-  "LIB. ARMAZENAGEM": { label: "Lib. Armazenagem", class: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  ERRO_TRANSPORTADOR: { label: "Erro Transporte", class: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  "EM CONFERENCIA": { label: "Em Conferência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  EM_CONFERENCIA: { label: "Em Conferência", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  CONFERIDO: { label: "Conferido", class: "bg-lime-500/15 text-lime-400 border-lime-500/30" },
+  DIVERGENCIA: { label: "Divergência", class: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
+  LIB_ARMAZENAGEM: { label: "Lib. Armazenagem", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  "LIB. ARMAZENAGEM": { label: "Lib. Armazenagem", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
   ARMAZENAGEM_PARCIAL: { label: "Armaz. Parcial", class: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
-  ARMAZENADO: { label: "Armazenado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
+  ARMAZENADO: { label: "Armazenado", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  EXPORTADO: { label: "Exportado", class: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30" },
+  CANCELADO: { label: "Cancelado", class: "bg-gray-500/15 text-gray-400 border-gray-500/30" },
 };
 
 const STATUS_ITEM_MAP: Record<string, { label: string; class: string }> = {
-  PENDENTE: { label: "Pendente", class: "bg-muted text-muted-foreground border-border" },
-  EM_ANDAMENTO: { label: "Em Andamento", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  CONFERIDO: { label: "Conferido", class: "bg-green-500/15 text-green-400 border-green-500/30" },
-  DIVERGENTE: { label: "Divergente", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+  PENDENTE: { label: "Pendente", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+  EM_ANDAMENTO: { label: "Em Andamento", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  CONCLUIDO: { label: "Concluído", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  CANCELADO: { label: "Cancelado", class: "bg-gray-500/15 text-gray-400 border-gray-500/30" },
+  CONFERIDO: { label: "Conferido", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  DIVERGENTE: { label: "Divergente", class: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
+  ARMAZENADO: { label: "Armazenado", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
 };
 
 interface MovEntry {
