@@ -626,6 +626,7 @@ export function MovimentoEntradaPage() {
                         <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
+                      <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
                       <p className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</p>
                     </button>
                     <DropdownMenu>
