@@ -140,11 +140,19 @@ export async function fetchTarefasPendentesOnda(
 
   const { data: atribs } = await (supabase as any)
     .from("tarefa_atribuicao")
-    .select("id, tarefa_id, usuario_id, atribuido_em, liberado_em, status, usuario:usuario_id(nome)")
+    .select("id, tarefa_id, usuario_id, atribuido_em, liberado_em, status")
     .eq("tenant_id", tenantId)
     .in("tarefa_id", tarefaIds)
     .in("status", STATUS_ATRIBUICAO_ATIVA)
     .is("liberado_em", null);
+
+  // nomes (sem FK → join manual)
+  const usuarioIds = Array.from(new Set((atribs || []).map((a: any) => a.usuario_id).filter(Boolean)));
+  const { data: usuarios } = usuarioIds.length
+    ? await (supabase as any).from("usuario").select("id, nome").in("id", usuarioIds)
+    : { data: [] };
+  const nomeById = new Map<string, string>();
+  (usuarios || []).forEach((u: any) => nomeById.set(u.id, u.nome));
 
   // Quais tarefas já têm execução iniciada?
   const { data: execs } = await (supabase as any)
@@ -159,7 +167,7 @@ export async function fetchTarefasPendentesOnda(
     tarefa_atribuicao_id: a.id,
     tarefa_id: a.tarefa_id,
     usuario_id: a.usuario_id,
-    usuario_nome: a.usuario?.nome || "—",
+    usuario_nome: nomeById.get(a.usuario_id) || "—",
     iniciado_em: tarefasIniciadas.has(a.tarefa_id) ? "iniciado" : null,
     atribuido_em: a.atribuido_em,
     tarefa_status: tarefaStatusMap.get(a.tarefa_id) || "",
