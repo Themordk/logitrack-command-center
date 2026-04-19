@@ -342,44 +342,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Lists: Planejadas + Conferidas */}
+      {/* Lista: Itens Conferidos (conferência cega) */}
       {!currentProduct && (
         <div className="flex flex-col gap-3 flex-1 min-h-0">
-          {/* Tarefas planejadas */}
-          <div className="flex flex-col gap-1 shrink-0 max-h-[40%]">
-            <span className="text-sm font-semibold text-[hsl(213,31%,55%)] uppercase shrink-0">
-              Tarefas planejadas {tarefas.length > 0 && <span className="text-[hsl(213,31%,45%)] normal-case font-normal">({tarefas.length})</span>}
-            </span>
-            {tarefas.length === 0 ? (
-              <p className="text-xs text-[hsl(213,31%,45%)] py-2">Nenhuma tarefa atribuída.</p>
-            ) : (
-              <div className="space-y-1.5 overflow-y-auto">
-                {tarefas.map((t) => {
-                  const pct = t.quantidade_requerida > 0 ? Math.min(100, (t.conferido / t.quantidade_requerida) * 100) : 0;
-                  const completa = t.conferido >= t.quantidade_requerida;
-                  return (
-                    <div key={t.id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] shrink-0">
-                      <div className="flex justify-between items-baseline gap-2">
-                        <span className="font-mono text-sm font-bold text-white truncate">{t.sku}</span>
-                        <span className={`text-sm font-bold ${completa ? "text-[#22C55E]" : "text-[hsl(217,91%,60%)]"}`}>
-                          {t.conferido}/{t.quantidade_requerida}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[hsl(213,31%,55%)] truncate">{t.descricao}</p>
-                      <div className="mt-1 h-1 rounded-full bg-[hsl(222,35%,18%)] overflow-hidden">
-                        <div
-                          className={`h-full ${completa ? "bg-[#22C55E]" : "bg-[hsl(217,91%,60%)]"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Execuções */}
           <div className="flex flex-col gap-1 flex-1 min-h-0">
             <span className="text-sm font-semibold text-[hsl(213,31%,55%)] uppercase shrink-0">Itens conferidos</span>
             {loading ? (
