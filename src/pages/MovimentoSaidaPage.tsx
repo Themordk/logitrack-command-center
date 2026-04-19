@@ -1268,6 +1268,16 @@ export function MovimentoSaidaPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ReatribuirTarefasModal
+        open={!!reatribuirMov}
+        movimentoSaidaId={reatribuirMov?.id || null}
+        numeroOnda={reatribuirMov?.numero || null}
+        tenantId={tenantId}
+        empresaId={empresaId}
+        onClose={() => setReatribuirMov(null)}
+        onSuccess={() => fetchMovimentos()}
+      />
     </div>
   );
 }
