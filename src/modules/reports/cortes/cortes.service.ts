@@ -29,7 +29,7 @@ export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow
       id,
       qtde_cortada,
       autorizado_em,
-      movimento_saida:movimento_saida_id (numero_onda),
+      movimento_saida:movimento_saida!movimento_saida_item_movimento_saida_id_fkey (numero_onda),
       produto:produto_id (sku, descricao, preco_custo),
       motivo:motivo_ocorrencia (descricao),
       usuario_auth:usuario_autorizou (login)
