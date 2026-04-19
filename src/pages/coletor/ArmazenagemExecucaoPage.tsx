@@ -4,7 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin } from "lucide-react";
+import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin, AlertTriangle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
