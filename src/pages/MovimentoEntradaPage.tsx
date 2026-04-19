@@ -8,6 +8,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
+import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -42,6 +44,7 @@ interface MovEntry {
   created_at: string;
   placa_veiculo: string | null;
   parceiro_nome?: string;
+  operadores_atribuidos?: string[];
 }
 
 interface ResumoItem {
@@ -211,8 +214,18 @@ export function MovimentoEntradaPage() {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      setMovements((data || []).map((mov: any) => ({ ...mov, parceiro_nome: mov.parceiro_nome || "—" })));
+      setMovements((data || []).map((mov: any) => ({ ...mov, parceiro_nome: mov.parceiro_nome || "—", operadores_atribuidos: [] })));
       setTotal(count || 0);
+
+      const movIds = (data || []).map((m: any) => m.id);
+      if (movIds.length > 0) {
+        try {
+          const opsMap = await fetchOperadoresAtribuidos(tenantId, movIds, "MOVIMENTO_ENTRADA_ITEM");
+          setMovements((prev) => prev.map((m) => ({ ...m, operadores_atribuidos: opsMap.get(m.id) || [] })));
+        } catch (err) {
+          console.error("Erro ao buscar operadores:", err);
+        }
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -613,6 +626,7 @@ export function MovimentoEntradaPage() {
                         <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
+                      <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
                       <p className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</p>
                     </button>
                     <DropdownMenu>
