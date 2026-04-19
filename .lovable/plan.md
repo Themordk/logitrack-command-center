@@ -1,81 +1,82 @@
 
 
-## Plano: Refatorar Dashboard como Torre de Controle Operacional
+## Plano: Atribuição de Tarefas — Visibilidade e Reatribuição
 
-### Visão geral
-Substituir o conteúdo atual de `src/pages/Dashboard.tsx` por uma torre de controle com filtros globais, 4 KPIs principais, ranking de operadores e gráfico de ocorrências. Manter o tema dark, classe `card-surface`, ícones lucide e padrão visual existente.
-
----
-
-### 1. Filtros globais (topo)
-
-Adicionar barra de filtros logo abaixo do header:
-- **Armazém** — Select carregado de `armazem` (tenant atual).
-- **Data** — Date range picker (Popover + Calendar shadcn). Default: hoje.
-- **Turno** — Select carregado de `turnos` filtrado pelo armazém.
-
-Estado local `filters` que dispara recarga de todos os blocos via `useEffect`. Estrutura preparada para auto-refresh futuro (polling `setInterval`, deixado comentado).
+### Contexto técnico descoberto
+- `tarefa.id_documento_origem` aponta para `movimento_saida_item.id` (origem `MOVIMENTO_SAIDA_ITEM`) ou `movimento_entrada_item.id` (origem `MOVIMENTO_ENTRADA_ITEM`).
+- `tarefa_execucao.status` ∈ `COLETA_PENDENTE | CONCLUIDA | CANCELADA`. Atribuição ativa = `COLETA_PENDENTE`.
+- Telas usam views `vw_movimento_saida_lista` e `vw_movimento_entrada_lista` (sem dados de operador ainda).
 
 ---
 
-### 2. Top KPIs (4 cards clicáveis)
+### 1. Exibir operador atribuído abaixo do status (ambas as telas)
 
-Novo componente `KPICardPro` com: título, valor grande, subtítulo, ícone, badge de tendência (▲▼ com %), barra/cor semântica e `onClick` opcional.
+**Ondas de Carregamento** (`MovimentoSaidaPage.tsx`):
+- Após carregar a lista paginada, executar 1 query agregada para os IDs visíveis:
+  - `tarefa_execucao` ⨝ `tarefa` ⨝ `movimento_saida_item` ⨝ `usuario`
+  - Filtro: `te.status = 'COLETA_PENDENTE'` AND `msi.movimento_saida_id IN (...)`
+  - Agrupar por `movimento_saida_id` → lista de nomes distintos.
+- Acrescentar `operadores_atribuidos: string[]` em `MovSaida`.
+- Renderizar abaixo do status com ícone `Users` (lucide).
 
-| KPI | Cálculo | Cor / regra |
-|---|---|---|
-| **OTIF** | % de `movimento_saida` com `status = CONCLUIDA` no período / total liberado no mesmo período. *Observação: a tabela não possui campo `data_prevista` nem `data_conclusao`; usaremos `data_emissao` no range e `status` como proxy. Documentar isso no card via tooltip.* | >95% verde, 90-95% amarelo, <90% vermelho. Click → `/atividades/movimento-saida` |
-| **Taxa de Ocupação** | `endereco` com `situacao=OCUPADO` / total ativos no armazém. Subtítulo: total e livres. | >85% vermelho, 70-85% amarelo, <70% verde. Click → `/armazem/enderecos` |
-| **Produtividade** | Soma `tarefas_concluidas` em `lms_metrica_diaria` no período / soma `tempo_produtivo` (horas) → tarefas/h. Tendência vs período anterior equivalente. | Neutro azul. |
-| **Backlog** | Count `tarefa` com `status IN (CRIADA, ATRIBUIDA)` no armazém. Subtítulo: tempo médio de espera = `now() - criado_em` médio. | >50 vermelho, 20-50 amarelo, <20 verde. Click → futuramente lista de tarefas pendentes (placeholder navega para `/atividades/movimento-saida`). |
+**Movimento de Entrada** (`MovimentoEntradaPage.tsx`):
+- Mesma lógica via `movimento_entrada_item`.
 
----
-
-### 3. Gráficos estratégicos (2 colunas)
-
-**3.1 Top Operadores (Ranking)**
-- Query em `lms_metrica_diaria` agregando por `usuario_id` no range, join com `usuario` (nome).
-- Lista vertical ordenada DESC por `tarefas_concluidas`. Top 3 com badge dourado/prata/bronze e destaque visual (border accent). Demais em estilo padrão.
-- Colunas: posição, nome, tarefas concluídas, produtividade/h.
-
-**3.2 Ocorrências Operacionais**
-- Query: `tarefa` (e/ou `tarefa_execucao`) com `motivo_ocorrencia IS NOT NULL` no range, join `motivo_ocorrencia` para descrição, agrupado por motivo.
-- Renderizar como gráfico de barras horizontal Recharts, top 8 motivos. Cor única (vermelho atenuado) para destacar como alerta.
+**Layout proposto**:
+```text
+Onda #55                    [Em Separação]
+FORNECEDOR B                👤 João Silva
+Box: A1 • 09/04/2026
+```
+- Sem atribuição → linha **oculta** (mantém o card limpo).
+- Múltiplos → "**João Silva +2**" com tooltip listando todos.
 
 ---
 
-### 4. Ocupação compacta (mantida no rodapé)
+### 2. Nova opção "Reatribuir tarefas" (somente Ondas de Carregamento)
 
-Manter o donut de ocupação atual em uma 3ª linha (mais compacto) lado a lado com um mini card de "Acesso Rápido" reduzido (4 links principais: Endereços, Movimento Entrada, Movimento Saída, Inventário). Isso preserva contexto visual sem dominar a tela.
+**Disparo**: novo item no menu `MoreVertical` da onda, abaixo de "Prioridade":
+- Label: `Reatribuir tarefas` (ícone `UserCog`).
+- Habilitado quando existir ≥ 1 `tarefa_execucao` com `status='COLETA_PENDENTE'` na onda.
 
----
+**Modal de reatribuição**:
+1. Lista das tarefas pendentes agrupadas por **operador atual**, com checkbox por operador (escopo: trocar tudo de um operador específico de uma vez — atende cenários de ausência).
+2. Para tarefas com `iniciado_em IS NOT NULL`: marcar com badge "Em andamento" e exigir confirmação adicional.
+3. Select do **novo operador** carregado de `usuario` (ativo, mesmo `tenant_id`/`empresa_id`, `tipo_usuario` operacional).
+4. Botão "Confirmar reatribuição".
 
-### 5. Estrutura de arquivos
+**Lógica de reatribuição** (transação no client em sequência):
+Para cada `tarefa_execucao` afetada:
+1. **Cancelar a execução atual** do usuário antigo:
+   - `UPDATE tarefa_execucao SET status='CANCELADA', concluido_em=nowBrasilia() WHERE id=...`
+   - O Coletor filtra por `status='COLETA_PENDENTE'` + `usuario_id`, então o usuário antigo deixa de ver imediatamente.
+2. **Criar nova execução** para o novo usuário:
+   - `INSERT INTO tarefa_execucao (tarefa_id, usuario_id, status, atribuido_em, tenant_id)` com `status='COLETA_PENDENTE'`, `atribuido_em=nowBrasilia()`.
+3. Toast: `"X tarefa(s) reatribuída(s) para FULANO"`.
+4. Refresh da lista para atualizar nomes.
 
-- **`src/pages/Dashboard.tsx`** — refatoração completa: header + filtros + 4 KPIs + 2 gráficos + ocupação compacta.
-- **`src/pages/dashboard/dashboard.service.ts`** *(novo)* — funções:
-  - `fetchOtif(filters)`, `fetchOcupacao(filters)`, `fetchProdutividade(filters)`, `fetchBacklog(filters)`
-  - `fetchTopOperadores(filters)`, `fetchOcorrencias(filters)`
-  - Cada função recebe `{ tenantId, armazemId, dataIni, dataFim, turnoId }`.
-- **`src/pages/dashboard/components/KPICardPro.tsx`** *(novo)* — card de KPI com tendência/cor.
-- **`src/pages/dashboard/components/DashboardFilters.tsx`** *(novo)* — barra de filtros (armazém, data range, turno).
-- **`src/pages/dashboard/components/RankingOperadores.tsx`** *(novo)*.
-- **`src/pages/dashboard/components/OcorrenciasChart.tsx`** *(novo)*.
-
----
-
-### 6. Detalhes técnicos
-
-- Reutilizar `card-surface`, tokens de cor via classes Tailwind (`bg-red-500/15`, `text-green-400`, etc.) seguindo o padrão atual.
-- Loading: skeletons compactos por bloco (não bloquear toda a tela).
-- Empty states: mensagem leve em cinza quando sem dados.
-- Tendência (▲▼): comparar período atual vs período anterior de mesma duração.
-- Date picker: shadcn `Calendar` com `pointer-events-auto` dentro de `Popover`.
-- Sem alterações de schema/RLS — todas as tabelas já possuem políticas por tenant.
+**Por que cancelar + recriar** (em vez de `UPDATE usuario_id`):
+- Preserva auditoria (sabemos quem teve a tarefa antes).
+- LMS calcula por execução; cancelamentos não contam como concluídos.
+- Alinha com o padrão já adotado: `tarefa_execucao` não é deletada (memory `integridade-execucao`).
 
 ---
 
-### Observações importantes
-- **OTIF**: como `movimento_saida` não tem campos de data prevista/realizada de entrega, o KPI será uma aproximação baseada em status conforme descrito. Caso o usuário queira OTIF "verdadeiro" depois, será necessário adicionar colunas `data_prevista_expedicao` e `data_realizada_expedicao`.
-- Cards de "Total HUs" e "Endereços Bloqueados" atuais saem da seção principal — bloqueados podem virar um chip de alerta no header se relevantes.
+### 3. Decisões adotadas (sem mais perguntas — padrões já estabelecidos no sistema)
+- **Sem atribuição** → ocultar a linha (alinha com design enxuto do card).
+- **Múltiplos operadores** → primeiro nome + `+N` com tooltip (compacto).
+- **Tarefa já INICIADA** → permitir, mas exibir badge "Em andamento" no modal e exigir confirmação extra antes de cancelar o progresso (mantém flexibilidade operacional sem surpreender o usuário).
+- **Escopo** → permitir selecionar por operador atual (cobre o caso 1-operador automaticamente e permite trocar parcialmente quando há vários).
+
+---
+
+### 4. Detalhes técnicos
+- **Sem alterações de schema** — apenas tabelas existentes (`tarefa_execucao`, `tarefa`, `movimento_saida_item`, `movimento_entrada_item`, `usuario`).
+- Timestamps via `nowBrasilia()` (memory padrão).
+- Modal com `Dialog` shadcn, select de usuário com `usuario` ativo + tenant + empresa.
+- 1 query agregada por refresh da lista (não N+1) — performance preservada.
+
+### Arquivos modificados
+- `src/pages/MovimentoSaidaPage.tsx` — exibir operadores + nova opção "Reatribuir tarefas" + modal.
+- `src/pages/MovimentoEntradaPage.tsx` — exibir operadores (apenas leitura).
 
