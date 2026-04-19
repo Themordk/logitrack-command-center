@@ -121,54 +121,6 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
         <OcorrenciasChart data={ocor} loading={loading} />
       </div>
 
-      {/* Ocupação compacta + acesso rápido */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card-surface p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Ocupação de Endereços</h3>
-          <div className="relative flex items-center justify-center" style={{ height: 180 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={donut} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
-                  {donut.map((e, i) => <Cell key={i} fill={e.color} stroke="transparent" />)}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-bold text-foreground">{ocup ? `${ocup.value}%` : "—"}</span>
-              <span className="text-xs text-muted-foreground">Ocupado</span>
-            </div>
-          </div>
-          <div className="flex justify-center gap-4 mt-2">
-            {donut.map((item) => (
-              <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: item.color }} />
-                {item.name}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card-surface p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Acesso Rápido</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: "Endereços", path: "/armazem/enderecos" },
-              { label: "Movimento Entrada", path: "/atividades/movimento-entrada" },
-              { label: "Movimento Saída", path: "/atividades/movimento-saida" },
-              { label: "Inventário", path: "/atividades/inventario" },
-            ].map((link) => (
-              <button
-                key={link.path}
-                onClick={() => onNavigate(link.path)}
-                className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-secondary/50 hover:bg-secondary text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {link.label}
-                <ArrowRight size={12} />
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
