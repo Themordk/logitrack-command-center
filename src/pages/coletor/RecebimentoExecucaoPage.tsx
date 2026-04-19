@@ -39,12 +39,32 @@ interface ConferenciaItem {
   status: string;
 }
 
+interface TarefaPlanejada {
+  id: string;
+  ordem_tarefa: number;
+  sku: string;
+  descricao: string;
+  fator_caixa: number;
+  quantidade_requerida: number;
+  conferido: number;
+  status: string;
+}
+
 export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
+  const empresaId = localStorage.getItem("core_empresa_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
   const [items, setItems] = useState<ConferenciaItem[]>([]);
+  const [tarefas, setTarefas] = useState<TarefaPlanejada[]>(() => {
+    try {
+      const cached = sessionStorage.getItem("coletor_recebimento_tarefas");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [lastScanned, setLastScanned] = useState("");
   const [currentProduct, setCurrentProduct] = useState<ProdutoInfo | null>(null);
@@ -60,6 +80,31 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [lote, setLote] = useState("");
   const [fabricacao, setFabricacao] = useState("");
   const [validade, setValidade] = useState("");
+
+  const refreshTarefas = useCallback(async () => {
+    if (!movimentoId || !tenantId || !empresaId || !usuarioId) return;
+    try {
+      const { data, error } = await (supabase as any).rpc(
+        "entrada_conferencia_buscar_tarefas",
+        {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+          p_usuario_id: usuarioId,
+          p_movimento_entrada_id: movimentoId,
+        }
+      );
+      if (error) throw error;
+      const parsed: TarefaPlanejada[] = Array.isArray(data)
+        ? data
+        : typeof data === "string"
+        ? JSON.parse(data)
+        : [];
+      setTarefas(parsed);
+      sessionStorage.setItem("coletor_recebimento_tarefas", JSON.stringify(parsed));
+    } catch (err) {
+      console.error("Erro ao atualizar tarefas:", err);
+    }
+  }, [movimentoId, tenantId, empresaId, usuarioId]);
 
   const loadConferencia = useCallback(async () => {
     if (!movimentoId) return;
@@ -95,8 +140,11 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   }, [movimentoId]);
 
   useEffect(() => {
-    if (movimentoId) loadConferencia();
-  }, [movimentoId, loadConferencia]);
+    if (movimentoId) {
+      loadConferencia();
+      refreshTarefas();
+    }
+  }, [movimentoId, loadConferencia, refreshTarefas]);
 
   const handleScan = async (code: string) => {
     setLastScanned(code);
@@ -198,7 +246,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       setValidade("");
       setShowLoteModal(false);
 
-      setTimeout(loadConferencia, 800);
+      setTimeout(() => { loadConferencia(); refreshTarefas(); }, 800);
     } catch (err: any) {
       toast.error(err.message || "Erro ao confirmar.");
       showOverlayMsg("error", "Erro ao confirmar");
@@ -229,6 +277,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       toast.success("Conferência cancelada.");
       setCancelConfirm(null);
       loadConferencia();
+      refreshTarefas();
     } catch (err: any) {
       toast.error(err.message || "Erro ao cancelar.");
     } finally {
@@ -293,42 +342,79 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Items list */}
+      {/* Lists: Planejadas + Conferidas */}
       {!currentProduct && (
-        <div className="flex flex-col gap-1 flex-1 min-h-0">
-          <span className="text-sm font-semibold text-[hsl(213,31%,55%)] uppercase shrink-0">Itens conferidos</span>
-          {loading ? (
-            <div className="flex justify-center py-4"><Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
-          ) : items.length === 0 ? (
-            <p className="text-sm text-[hsl(213,31%,45%)] text-center py-4">Nenhum item conferido ainda</p>
-          ) : (
-            <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
-              {items.map((item) => (
-                <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2 shrink-0">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline">
-                      <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
-                      <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
+        <div className="flex flex-col gap-3 flex-1 min-h-0">
+          {/* Tarefas planejadas */}
+          <div className="flex flex-col gap-1 shrink-0 max-h-[40%]">
+            <span className="text-sm font-semibold text-[hsl(213,31%,55%)] uppercase shrink-0">
+              Tarefas planejadas {tarefas.length > 0 && <span className="text-[hsl(213,31%,45%)] normal-case font-normal">({tarefas.length})</span>}
+            </span>
+            {tarefas.length === 0 ? (
+              <p className="text-xs text-[hsl(213,31%,45%)] py-2">Nenhuma tarefa atribuída.</p>
+            ) : (
+              <div className="space-y-1.5 overflow-y-auto">
+                {tarefas.map((t) => {
+                  const pct = t.quantidade_requerida > 0 ? Math.min(100, (t.conferido / t.quantidade_requerida) * 100) : 0;
+                  const completa = t.conferido >= t.quantidade_requerida;
+                  return (
+                    <div key={t.id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] shrink-0">
+                      <div className="flex justify-between items-baseline gap-2">
+                        <span className="font-mono text-sm font-bold text-white truncate">{t.sku}</span>
+                        <span className={`text-sm font-bold ${completa ? "text-[#22C55E]" : "text-[hsl(217,91%,60%)]"}`}>
+                          {t.conferido}/{t.quantidade_requerida}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[hsl(213,31%,55%)] truncate">{t.descricao}</p>
+                      <div className="mt-1 h-1 rounded-full bg-[hsl(222,35%,18%)] overflow-hidden">
+                        <div
+                          className={`h-full ${completa ? "bg-[#22C55E]" : "bg-[hsl(217,91%,60%)]"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
                     </div>
-                    <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                      {item.operador && <span className="text-[10px] text-[hsl(213,31%,45%)]">Op: {item.operador}</span>}
-                      {item.codigo_hu && <span className="text-[10px] text-[hsl(213,31%,45%)]">HU: {item.codigo_hu}</span>}
-                      {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
-                      {item.concluido_em && <span className="text-[10px] text-[hsl(213,31%,45%)]">{new Date(item.concluido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Execuções */}
+          <div className="flex flex-col gap-1 flex-1 min-h-0">
+            <span className="text-sm font-semibold text-[hsl(213,31%,55%)] uppercase shrink-0">Itens conferidos</span>
+            {loading ? (
+              <div className="flex justify-center py-4"><Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
+            ) : items.length === 0 ? (
+              <p className="text-sm text-[hsl(213,31%,45%)] text-center py-4">Nenhum item conferido ainda</p>
+            ) : (
+              <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
+                {items.map((item) => (
+                  <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2 shrink-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
+                        <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
+                      </div>
+                      <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        {item.operador && <span className="text-[10px] text-[hsl(213,31%,45%)]">Op: {item.operador}</span>}
+                        {item.codigo_hu && <span className="text-[10px] text-[hsl(213,31%,45%)]">HU: {item.codigo_hu}</span>}
+                        {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
+                        {item.concluido_em && <span className="text-[10px] text-[hsl(213,31%,45%)]">{new Date(item.concluido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                      </div>
                     </div>
+                    <button
+                      onClick={() => handleDeleteExecucao(item)}
+                      disabled={deleting === item.tarefa_execucao_id}
+                      className="shrink-0 w-9 h-9 rounded-lg bg-[#E02424]/15 flex items-center justify-center text-[#E02424] active:bg-[#E02424]/30 disabled:opacity-40"
+                    >
+                      {deleting === item.tarefa_execucao_id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDeleteExecucao(item)}
-                    disabled={deleting === item.tarefa_execucao_id}
-                    className="shrink-0 w-9 h-9 rounded-lg bg-[#E02424]/15 flex items-center justify-center text-[#E02424] active:bg-[#E02424]/30 disabled:opacity-40"
-                  >
-                    {deleting === item.tarefa_execucao_id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

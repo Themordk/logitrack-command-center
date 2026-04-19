@@ -59,20 +59,44 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
 
   const handleConfirmStart = async () => {
     if (!selectedId || !tenantId || !usuarioId) return;
+    const empresaId = localStorage.getItem("core_empresa_id");
+    if (!empresaId) {
+      toast.error("Empresa não identificada.");
+      return;
+    }
     setConfirming(true);
     try {
+      // Marca início da conferência no movimento
       const { error: updErr } = await (supabase as any)
         .from("movimento_entrada")
         .update({
           conferencia_iniciada_em: nowBrasilia(),
           conferencia_iniciada_por: usuarioId,
-          status: "EM_CONFERENCIA",
         })
         .eq("id", selectedId);
 
       if (updErr) throw updErr;
 
+      // Atribui as tarefas ao usuário e busca a lista planejada
+      const { data: tarefasData, error: rpcErr } = await (supabase as any).rpc(
+        "entrada_conferencia_buscar_tarefas",
+        {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+          p_usuario_id: usuarioId,
+          p_movimento_entrada_id: selectedId,
+        }
+      );
+      if (rpcErr) throw rpcErr;
+
+      const tarefas = Array.isArray(tarefasData)
+        ? tarefasData
+        : typeof tarefasData === "string"
+        ? JSON.parse(tarefasData)
+        : [];
+
       sessionStorage.setItem("coletor_movimento_id", selectedId);
+      sessionStorage.setItem("coletor_recebimento_tarefas", JSON.stringify(tarefas));
 
       const selectedMov = movimentos.find((m) => m.id === selectedId);
       const needsVolumeCheck = !selectedMov?.total_volume_conferido;
@@ -80,7 +104,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
         toast.success("Conferência iniciada! Confirme os volumes.");
         onNavigate("/coletor/recebimento/volumes");
       } else {
-        toast.success("Conferência iniciada!");
+        toast.success(`Conferência iniciada! ${tarefas.length} tarefa(s) atribuída(s).`);
         onNavigate("/coletor/recebimento/execucao");
       }
     } catch (err: any) {
