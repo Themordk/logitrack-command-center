@@ -39,12 +39,32 @@ interface ConferenciaItem {
   status: string;
 }
 
+interface TarefaPlanejada {
+  id: string;
+  ordem_tarefa: number;
+  sku: string;
+  descricao: string;
+  fator_caixa: number;
+  quantidade_requerida: number;
+  conferido: number;
+  status: string;
+}
+
 export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
+  const empresaId = localStorage.getItem("core_empresa_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
   const [items, setItems] = useState<ConferenciaItem[]>([]);
+  const [tarefas, setTarefas] = useState<TarefaPlanejada[]>(() => {
+    try {
+      const cached = sessionStorage.getItem("coletor_recebimento_tarefas");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [lastScanned, setLastScanned] = useState("");
   const [currentProduct, setCurrentProduct] = useState<ProdutoInfo | null>(null);
@@ -60,6 +80,31 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [lote, setLote] = useState("");
   const [fabricacao, setFabricacao] = useState("");
   const [validade, setValidade] = useState("");
+
+  const refreshTarefas = useCallback(async () => {
+    if (!movimentoId || !tenantId || !empresaId || !usuarioId) return;
+    try {
+      const { data, error } = await (supabase as any).rpc(
+        "entrada_conferencia_buscar_tarefas",
+        {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+          p_usuario_id: usuarioId,
+          p_movimento_entrada_id: movimentoId,
+        }
+      );
+      if (error) throw error;
+      const parsed: TarefaPlanejada[] = Array.isArray(data)
+        ? data
+        : typeof data === "string"
+        ? JSON.parse(data)
+        : [];
+      setTarefas(parsed);
+      sessionStorage.setItem("coletor_recebimento_tarefas", JSON.stringify(parsed));
+    } catch (err) {
+      console.error("Erro ao atualizar tarefas:", err);
+    }
+  }, [movimentoId, tenantId, empresaId, usuarioId]);
 
   const loadConferencia = useCallback(async () => {
     if (!movimentoId) return;
@@ -95,8 +140,11 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   }, [movimentoId]);
 
   useEffect(() => {
-    if (movimentoId) loadConferencia();
-  }, [movimentoId, loadConferencia]);
+    if (movimentoId) {
+      loadConferencia();
+      refreshTarefas();
+    }
+  }, [movimentoId, loadConferencia, refreshTarefas]);
 
   const handleScan = async (code: string) => {
     setLastScanned(code);
