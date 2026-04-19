@@ -130,6 +130,9 @@ export function MovimentoSaidaPage() {
   const [limparConfItemDialog, setLimparConfItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
   const [limparConfItemLoading, setLimparConfItemLoading] = useState(false);
 
+  // Reatribuir tarefas
+  const [reatribuirMov, setReatribuirMov] = useState<{ id: string; numero: number } | null>(null);
+
   const fetchMovimentos = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
@@ -155,8 +158,22 @@ export function MovimentoSaidaPage() {
         ...mov,
         box_nome: mov.box_nome || "—",
         parceiro_nome: mov.parceiro_nome || "—",
+        operadores_atribuidos: [],
       })));
       setTotal(count || 0);
+
+      // Enriquece com operadores atribuídos (1 query agregada)
+      const movIds = (data || []).map((m: any) => m.id);
+      if (movIds.length > 0) {
+        try {
+          const opsMap = await fetchOperadoresAtribuidos(tenantId, movIds, "MOVIMENTO_SAIDA_ITEM");
+          setMovimentos((prev) =>
+            prev.map((m) => ({ ...m, operadores_atribuidos: opsMap.get(m.id) || [] })),
+          );
+        } catch (err) {
+          console.error("Erro ao buscar operadores:", err);
+        }
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
