@@ -4,17 +4,23 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, MapPin } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
 interface TarefaResult {
   tarefa_id: string;
   produto_id: string;
-  produto_descricao: string;
-  quantidade_requerida: number;
-  quantidade_armazenada: number;
-  quantidade_restante: number;
+  sku: string;
+  descricao: string;
+  qtd_conferida: number;
+  qtd_armazenada: number;
+  qtd_a_armazenar: number;
+  validade: string | null;
+  fabricacao: string | null;
+  lote: string | null;
+  varios_pickings: string | null;
+  enderecos_picking: string | null;
 }
 
 export function ArmazenagemIniciarPage({ onNavigate }: Props) {
@@ -34,10 +40,10 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_buscar_tarefa" as any, {
+      const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
         p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-        p_codigo_scan: code,
+        p_empresa_ids: [empresaId],
+        p_ean: code,
       });
       if (error) throw error;
       if (!data || data.length === 0) {
@@ -45,9 +51,10 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
         setOverlayMsg("Nenhuma tarefa encontrada para este código");
         return;
       }
-      setTarefa(data[0]);
+      const row = data[0] as TarefaResult;
+      setTarefa(row);
       setOverlay("success");
-      setOverlayMsg(`Produto encontrado: ${data[0].produto_descricao}`);
+      setOverlayMsg(`Produto encontrado: ${row.descricao}`);
     } catch (err: any) {
       setOverlay("error");
       setOverlayMsg(err.message || "Erro ao buscar tarefa");
@@ -60,10 +67,18 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     if (!tarefa) return;
     sessionStorage.setItem("coletor_armazenagem_tarefa_id", tarefa.tarefa_id);
     sessionStorage.setItem("coletor_armazenagem_produto_id", tarefa.produto_id);
-    sessionStorage.setItem("coletor_armazenagem_produto_desc", tarefa.produto_descricao);
-    sessionStorage.setItem("coletor_armazenagem_qtd_restante", String(tarefa.quantidade_restante));
+    sessionStorage.setItem("coletor_armazenagem_produto_desc", tarefa.descricao);
+    sessionStorage.setItem("coletor_armazenagem_produto_sku", tarefa.sku || "");
+    sessionStorage.setItem("coletor_armazenagem_qtd_restante", String(tarefa.qtd_a_armazenar));
+    sessionStorage.setItem("coletor_armazenagem_lote", tarefa.lote || "");
+    sessionStorage.setItem("coletor_armazenagem_validade", tarefa.validade || "");
+    sessionStorage.setItem("coletor_armazenagem_fabricacao", tarefa.fabricacao || "");
+    sessionStorage.setItem("coletor_armazenagem_picking_sugerido", tarefa.enderecos_picking || "");
+    sessionStorage.setItem("coletor_armazenagem_varios_pickings", tarefa.varios_pickings || "N");
     onNavigate("/coletor/armazenagem/execucao");
   };
+
+  const variosPickings = tarefa?.varios_pickings === "S";
 
   return (
     <ColetorLayout title="Iniciar Armazenagem" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem">
@@ -78,21 +93,49 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       {tarefa && !loading && (
         <>
           <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-4 space-y-3">
-            <p className="text-lg font-bold text-white">{tarefa.produto_descricao}</p>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-sm font-bold text-[hsl(213,31%,80%)]">{tarefa.sku}</span>
+            </div>
+            <p className="text-lg font-bold text-white leading-snug">{tarefa.descricao}</p>
+
+            {(tarefa.lote || tarefa.validade || tarefa.fabricacao) && (
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[hsl(213,31%,55%)] border-t border-[hsl(222,35%,22%)] pt-2">
+                {tarefa.lote && <span>Lote: <b className="text-[hsl(213,31%,85%)]">{tarefa.lote}</b></span>}
+                {tarefa.fabricacao && <span>Fab: <b className="text-[hsl(213,31%,85%)]">{tarefa.fabricacao}</b></span>}
+                {tarefa.validade && <span>Val: <b className="text-[hsl(213,31%,85%)]">{tarefa.validade}</b></span>}
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-2">
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">A armazenar</span>
-                <span className="text-xl font-bold text-white">{tarefa.quantidade_requerida}</span>
+                <span className="text-xl font-bold text-white">{tarefa.qtd_conferida}</span>
               </div>
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Armazenado</span>
-                <span className="text-xl font-bold text-[#22C55E]">{tarefa.quantidade_armazenada}</span>
+                <span className="text-xl font-bold text-[#22C55E]">{tarefa.qtd_armazenada}</span>
               </div>
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Restante</span>
-                <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{tarefa.quantidade_restante}</span>
+                <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{tarefa.qtd_a_armazenar}</span>
               </div>
             </div>
+
+            {tarefa.enderecos_picking && (
+              <div className="flex items-center gap-1.5 border-t border-[hsl(222,35%,22%)] pt-2">
+                <MapPin size={14} className="text-[hsl(280,70%,55%)] shrink-0" />
+                <span className="text-xs text-[hsl(213,31%,80%)]">
+                  Picking: <b className="text-[hsl(280,70%,65%)]">{tarefa.enderecos_picking}</b>
+                </span>
+              </div>
+            )}
+
+            {variosPickings && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1.5">
+                <AlertTriangle size={14} className="text-[hsl(45,93%,47%)] shrink-0" />
+                <span className="text-xs text-[hsl(45,93%,80%)]">Produto possui múltiplos endereços de picking</span>
+              </div>
+            )}
           </div>
 
           <ActionButton onClick={handleConfirm} variant="primary">

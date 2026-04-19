@@ -16,16 +16,16 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const tarefaId = sessionStorage.getItem("coletor_armazenagem_tarefa_id") || "";
   const produtoId = sessionStorage.getItem("coletor_armazenagem_produto_id") || "";
   const produtoDesc = sessionStorage.getItem("coletor_armazenagem_produto_desc") || "";
+  const produtoSku = sessionStorage.getItem("coletor_armazenagem_produto_sku") || "";
   const qtdRestante = Number(sessionStorage.getItem("coletor_armazenagem_qtd_restante") || "0");
+  const pickingSugerido = sessionStorage.getItem("coletor_armazenagem_picking_sugerido") || "";
+  const variosPickings = sessionStorage.getItem("coletor_armazenagem_varios_pickings") === "S";
 
   const [estoquePulmao, setEstoquePulmao] = useState(0);
   const [estoquePicking, setEstoquePicking] = useState(0);
   const [totalArmazenar, setTotalArmazenar] = useState(0);
   const [totalArmazenado, setTotalArmazenado] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
-
-  const [pickingEndereco, setPickingEndereco] = useState<string | null>(null);
-  const [loadingPicking, setLoadingPicking] = useState(true);
 
   const [movimentoEntradaId, setMovimentoEntradaId] = useState<string | null>(null);
 

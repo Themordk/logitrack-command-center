@@ -5304,6 +5304,23 @@ export type Database = {
         Args: { p_movimento_entrada_id: string; p_usuario: string }
         Returns: string
       }
+      fn_buscar_dados_armazenagem: {
+        Args: { p_ean: string; p_empresa_ids: string[]; p_tenant_id: string }
+        Returns: {
+          descricao: string
+          enderecos_picking: string
+          fabricacao: string
+          lote: string
+          produto_id: string
+          qtd_a_armazenar: number
+          qtd_armazenada: number
+          qtd_conferida: number
+          sku: string
+          tarefa_id: string
+          validade: string
+          varios_pickings: string
+        }[]
+      }
       fn_buscar_email_por_login: { Args: { p_login: string }; Returns: string }
       fn_cancelar_movimento_entrada: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
