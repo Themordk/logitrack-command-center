@@ -246,7 +246,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       setValidade("");
       setShowLoteModal(false);
 
-      setTimeout(loadConferencia, 800);
+      setTimeout(() => { loadConferencia(); refreshTarefas(); }, 800);
     } catch (err: any) {
       toast.error(err.message || "Erro ao confirmar.");
       showOverlayMsg("error", "Erro ao confirmar");
@@ -277,6 +277,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       toast.success("Conferência cancelada.");
       setCancelConfirm(null);
       loadConferencia();
+      refreshTarefas();
     } catch (err: any) {
       toast.error(err.message || "Erro ao cancelar.");
     } finally {
