@@ -620,12 +620,24 @@ export function MovimentoSaidaPage() {
                               >
                                 <Star size={13} /> Prioridade
                               </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionMenuId(null);
+                                  setReatribuirMov({ id: mov.id, numero: mov.numero_onda });
+                                }}
+                                disabled={(mov.operadores_atribuidos?.length || 0) === 0}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+                              >
+                                <UserCog size={13} /> Reatribuir tarefas
+                              </button>
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
+                    <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
                     <p className="text-xs text-muted-foreground">Box: {mov.box_nome} • {new Date(mov.data_emissao).toLocaleDateString("pt-BR")}</p>
                   </div>
                 );
