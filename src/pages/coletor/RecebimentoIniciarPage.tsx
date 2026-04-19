@@ -44,7 +44,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
             .from("movimento_entrada")
             .select("confirma_volume, total_volume_conferido")
             .eq("id", m.id)
-            .single();
+            .maybeSingle();
           return { ...m, confirma_volume: movData?.confirma_volume ?? false, total_volume_conferido: movData?.total_volume_conferido ?? null };
         })
       );
