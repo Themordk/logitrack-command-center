@@ -89,32 +89,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     })();
   }, [tenantId, empresaId, produtoId]);
 
-  // Fetch picking address for product
-  useEffect(() => {
-    if (!tenantId || !produtoId) { setLoadingPicking(false); return; }
-    (async () => {
-      setLoadingPicking(true);
-      try {
-        const { data, error } = await (supabase as any)
-          .from("picking_produto")
-          .select("endereco_id, endereco:endereco_id(descricao)")
-          .eq("tenant_id", tenantId)
-          .eq("produto_id", produtoId)
-          .eq("ativo", true)
-          .limit(1);
-        if (error) throw error;
-        if (data && data.length > 0 && data[0].endereco) {
-          setPickingEndereco(data[0].endereco.descricao);
-        } else {
-          setPickingEndereco(null);
-        }
-      } catch {
-        setPickingEndereco(null);
-      } finally {
-        setLoadingPicking(false);
-      }
-    })();
-  }, [tenantId, produtoId]);
+  // Picking address comes from sessionStorage (returned by fn_buscar_dados_armazenagem)
 
   const handleScanEndereco = async (code: string) => {
     setEnderecoScan(code);
@@ -210,19 +185,23 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
       {/* Product info + picking */}
       <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 space-y-1">
-        <p className="text-sm text-[hsl(213,31%,55%)]">Produto</p>
+        {produtoSku && <p className="font-mono text-xs text-[hsl(213,31%,70%)]">{produtoSku}</p>}
         <p className="text-base font-bold text-white">{produtoDesc}</p>
         <p className="text-xs text-[hsl(213,31%,55%)]">Restante: <b className="text-[hsl(45,93%,47%)]">{qtdRestante}</b></p>
         <div className="flex items-center gap-1.5 pt-1 border-t border-[hsl(222,35%,22%)] mt-1">
           <MapPin size={14} className="text-[hsl(280,70%,55%)] shrink-0" />
-          {loadingPicking ? (
-            <Loader2 size={14} className="animate-spin text-[hsl(213,31%,55%)]" />
-          ) : pickingEndereco ? (
-            <span className="text-xs text-[hsl(213,31%,80%)]">Picking: <b className="text-[hsl(280,70%,65%)]">{pickingEndereco}</b></span>
+          {pickingSugerido ? (
+            <span className="text-xs text-[hsl(213,31%,80%)]">Picking: <b className="text-[hsl(280,70%,65%)]">{pickingSugerido}</b></span>
           ) : (
             <span className="text-xs text-[hsl(45,93%,47%)]">Sem picking cadastrado</span>
           )}
         </div>
+        {variosPickings && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 mt-1">
+            <AlertTriangle size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
+            <span className="text-[11px] text-[hsl(45,93%,80%)]">Múltiplos endereços de picking</span>
+          </div>
+        )}
       </div>
 
       {/* Quantity */}
