@@ -8,6 +8,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
+import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -42,6 +44,7 @@ interface MovEntry {
   created_at: string;
   placa_veiculo: string | null;
   parceiro_nome?: string;
+  operadores_atribuidos?: string[];
 }
 
 interface ResumoItem {
