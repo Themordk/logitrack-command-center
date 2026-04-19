@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star, UserCog } from "lucide-react";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
+import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
+import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
@@ -41,6 +44,7 @@ interface MovSaida {
   empresa_id: string;
   parceiro_nome?: string;
   box_nome?: string;
+  operadores_atribuidos?: string[];
 }
 
 interface OcorrenciaItem {
