@@ -1,77 +1,65 @@
+import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid,
-} from "recharts";
-import {
-  Boxes, MapPin, Truck, AlertTriangle, TrendingUp,
-  Activity, ArrowRight,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { Target, Activity, Gauge, ListTodo, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
-
-interface Stats {
-  totalEnderecos: number;
-  enderecosLivres: number;
-  enderecosOcupados: number;
-  enderecosBloqueados: number;
-  totalHUs: number;
-  ocupacaoPercent: number;
-}
-
-function KPICard({ title, value, subtitle, icon, color }: {
-  title: string; value: string | number; subtitle?: string; icon: React.ReactNode; color: string;
-}) {
-  return (
-    <div className="card-surface p-5 flex items-start gap-4 hover:border-primary/30 transition-colors">
-      <div className={cn("flex items-center justify-center w-11 h-11 rounded-xl shrink-0", color)}>{icon}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
-        <p className="text-2xl font-bold text-foreground mt-0.5 leading-none">{value}</p>
-        {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
-      </div>
-    </div>
-  );
-}
+import { DashboardFilters, FiltersState } from "./dashboard/components/DashboardFilters";
+import { KPICardPro, KPISeverity } from "./dashboard/components/KPICardPro";
+import { RankingOperadores } from "./dashboard/components/RankingOperadores";
+import { OcorrenciasChart } from "./dashboard/components/OcorrenciasChart";
+import {
+  fetchOtif, fetchOcupacao, fetchProdutividade, fetchBacklog,
+  fetchTopOperadores, fetchOcorrencias, DashboardFilters as DF,
+} from "./dashboard/dashboard.service";
 
 export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
   const { tenantId, armazemId } = useTenant();
-  const [stats, setStats] = useState<Stats>({ totalEnderecos: 0, enderecosLivres: 0, enderecosOcupados: 0, enderecosBloqueados: 0, totalHUs: 0, ocupacaoPercent: 0 });
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  const [filters, setFilters] = useState<FiltersState>({
+    armazemId: armazemId || null,
+    dataIni: today,
+    dataFim: today,
+    turnoId: null,
+  });
+
+  const [otif, setOtif] = useState<any>(null);
+  const [ocup, setOcup] = useState<any>(null);
+  const [prod, setProd] = useState<any>(null);
+  const [back, setBack] = useState<any>(null);
+  const [oper, setOper] = useState<any[]>([]);
+  const [ocor, setOcor] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const dfArgs: DF | null = useMemo(() => tenantId ? { tenantId, ...filters } : null, [tenantId, filters]);
 
   useEffect(() => {
-    if (!tenantId) return;
-    const load = async () => {
-      const [endRes, huRes] = await Promise.all([
-        (supabase as any).from("endereco").select("situacao", { count: "exact" }).eq("tenant_id", tenantId).eq("ativo", true),
-        (supabase as any).from("hu").select("id", { count: "exact" }).eq("tenant_id", tenantId),
-      ]);
-      const enderecos = endRes.data || [];
-      const total = endRes.count || 0;
-      const livres = enderecos.filter((e: any) => e.situacao === "LIVRE").length;
-      const ocupados = enderecos.filter((e: any) => e.situacao === "OCUPADO").length;
-      const bloqueados = enderecos.filter((e: any) => e.situacao === "BLOQUEADO").length;
-      setStats({
-        totalEnderecos: total,
-        enderecosLivres: livres,
-        enderecosOcupados: ocupados,
-        enderecosBloqueados: bloqueados,
-        totalHUs: huRes.count || 0,
-        ocupacaoPercent: total > 0 ? Math.round((ocupados / total) * 100) : 0,
-      });
-    };
-    load();
-  }, [tenantId]);
+    if (!dfArgs) return;
+    setLoading(true);
+    Promise.all([
+      fetchOtif(dfArgs), fetchOcupacao(dfArgs), fetchProdutividade(dfArgs),
+      fetchBacklog(dfArgs), fetchTopOperadores(dfArgs), fetchOcorrencias(dfArgs),
+    ]).then(([a, b, c, d, e, f]) => {
+      setOtif(a); setOcup(b); setProd(c); setBack(d); setOper(e); setOcor(f);
+    }).finally(() => setLoading(false));
+    // future: const id = setInterval(reload, 60000); return () => clearInterval(id);
+  }, [dfArgs]);
 
-  const enderecoDonutData = [
-    { name: "Livres", value: stats.enderecosLivres || 1, color: "#16A34A" },
-    { name: "Ocupados", value: stats.enderecosOcupados, color: "#EAB308" },
-    { name: "Bloqueados", value: stats.enderecosBloqueados, color: "#DC2626" },
-  ];
+  const otifSev: KPISeverity = !otif ? "neutral" : otif.value >= 95 ? "good" : otif.value >= 90 ? "warn" : "bad";
+  const ocupSev: KPISeverity = !ocup ? "neutral" : ocup.value > 85 ? "bad" : ocup.value >= 70 ? "warn" : "good";
+  const backSev: KPISeverity = !back ? "neutral" : back.value > 50 ? "bad" : back.value >= 20 ? "warn" : "good";
+
+  const donut = ocup ? [
+    { name: "Livres", value: ocup.livres || 0.0001, color: "hsl(142 70% 45%)" },
+    { name: "Ocupados", value: ocup.ocupados, color: "hsl(45 90% 55%)" },
+    { name: "Bloqueados", value: ocup.bloqueados, color: "hsl(0 72% 55%)" },
+  ] : [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Torre de Controle</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Visão executiva em tempo real</p>
@@ -82,33 +70,76 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
         </div>
       </div>
 
-      {/* removed setup warning - login handles this now */}
+      {/* Filtros */}
+      {tenantId && (
+        <DashboardFilters tenantId={tenantId} defaultArmazemId={armazemId} value={filters} onChange={setFilters} />
+      )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Total de HUs" value={stats.totalHUs.toLocaleString()} icon={<Boxes size={20} className="text-blue-400" />} color="bg-blue-500/15" />
-        <KPICard title="Endereços" value={stats.totalEnderecos.toLocaleString()} subtitle={`${stats.enderecosLivres} livres`} icon={<MapPin size={20} className="text-green-400" />} color="bg-green-500/15" />
-        <KPICard title="Ocupação" value={`${stats.ocupacaoPercent}%`} icon={<Activity size={20} className="text-purple-400" />} color="bg-purple-500/15" />
-        <KPICard title="Endereços Bloqueados" value={stats.enderecosBloqueados} icon={<AlertTriangle size={20} className="text-yellow-400" />} color="bg-yellow-500/15" />
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICardPro
+          title="OTIF"
+          value={otif ? `${otif.value}%` : "—"}
+          subtitle={otif ? `${otif.concluidas}/${otif.total} pedidos concluídos` : "Sem dados"}
+          icon={<Target size={20} />}
+          severity={otifSev}
+          trend={otif?.trend}
+          tooltip="Aproximação baseada em status (CONCLUIDA) sobre total emitido no período."
+          onClick={() => onNavigate("/atividades/movimento-saida")}
+        />
+        <KPICardPro
+          title="Taxa de Ocupação"
+          value={ocup ? `${ocup.value}%` : "—"}
+          subtitle={ocup ? `${ocup.ocupados} ocupados · ${ocup.livres} livres · ${ocup.total} total` : "Sem dados"}
+          icon={<Gauge size={20} />}
+          severity={ocupSev}
+          trendGoodWhen="down"
+          onClick={() => onNavigate("/armazem/enderecos")}
+        />
+        <KPICardPro
+          title="Produtividade"
+          value={prod ? `${prod.value}` : "—"}
+          subtitle={prod ? `${prod.tarefas} tarefas em ${prod.horas}h · tarefas/hora` : "Sem dados"}
+          icon={<Activity size={20} />}
+          severity="neutral"
+          trend={prod?.trend}
+        />
+        <KPICardPro
+          title="Backlog Operacional"
+          value={back ? back.value : "—"}
+          subtitle={back ? `Espera média ${back.tempoMedioMin} min` : "Sem dados"}
+          icon={<ListTodo size={20} />}
+          severity={backSev}
+          trendGoodWhen="down"
+          onClick={() => onNavigate("/atividades/movimento-saida")}
+        />
       </div>
 
+      {/* Ranking + Ocorrências */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <RankingOperadores data={oper} loading={loading} />
+        <OcorrenciasChart data={ocor} loading={loading} />
+      </div>
+
+      {/* Ocupação compacta + acesso rápido */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card-surface p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Ocupação de Endereços</h3>
           <div className="relative flex items-center justify-center" style={{ height: 180 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={enderecoDonutData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
-                  {enderecoDonutData.map((entry, idx) => <Cell key={idx} fill={entry.color} stroke="transparent" />)}
+                <Pie data={donut} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                  {donut.map((e, i) => <Cell key={i} fill={e.color} stroke="transparent" />)}
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-bold text-foreground">{stats.ocupacaoPercent}%</span>
+              <span className="text-2xl font-bold text-foreground">{ocup ? `${ocup.value}%` : "—"}</span>
               <span className="text-xs text-muted-foreground">Ocupado</span>
             </div>
           </div>
           <div className="flex justify-center gap-4 mt-2">
-            {enderecoDonutData.map((item) => (
+            {donut.map((item) => (
               <div key={item.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: item.color }} />
                 {item.name}
@@ -121,14 +152,10 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           <h3 className="text-sm font-semibold text-foreground mb-4">Acesso Rápido</h3>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "Armazéns", path: "/armazem/armazens" },
               { label: "Endereços", path: "/armazem/enderecos" },
-              { label: "Produtos", path: "/dados-mestres/produtos" },
-              { label: "Parceiros", path: "/dados-mestres/parceiros" },
-              { label: "HUs", path: "/atividades/hus" },
-              { label: "Volumes", path: "/atividades/volumes" },
-              { label: "Veículos", path: "/armazem/veiculos" },
-              { label: "Empresas", path: "/config/empresas" },
+              { label: "Movimento Entrada", path: "/atividades/movimento-entrada" },
+              { label: "Movimento Saída", path: "/atividades/movimento-saida" },
+              { label: "Inventário", path: "/atividades/inventario" },
             ].map((link) => (
               <button
                 key={link.path}
