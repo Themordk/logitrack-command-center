@@ -62,18 +62,27 @@ export async function fetchOperadoresAtribuidos(
   // 3) atribuições ativas (não liberadas)
   const { data: atribs, error: atribErr } = await (supabase as any)
     .from("tarefa_atribuicao")
-    .select("tarefa_id, usuario_id, status, liberado_em, usuario:usuario_id(nome)")
+    .select("tarefa_id, usuario_id, status, liberado_em")
     .eq("tenant_id", tenantId)
     .in("tarefa_id", Array.from(tarefaToMov.keys()))
     .in("status", STATUS_ATRIBUICAO_ATIVA)
     .is("liberado_em", null);
 
-  if (atribErr || !atribs) return result;
+  if (atribErr || !atribs || atribs.length === 0) return result;
+
+  // 4) busca nomes dos usuários (sem FK declarada → join manual)
+  const usuarioIds = Array.from(new Set(atribs.map((a: any) => a.usuario_id).filter(Boolean)));
+  const { data: usuarios } = await (supabase as any)
+    .from("usuario")
+    .select("id, nome")
+    .in("id", usuarioIds);
+  const nomeById = new Map<string, string>();
+  (usuarios || []).forEach((u: any) => nomeById.set(u.id, u.nome));
 
   const movToNomes = new Map<string, Set<string>>();
   atribs.forEach((a: any) => {
     const movId = tarefaToMov.get(a.tarefa_id);
-    const nome = a.usuario?.nome;
+    const nome = nomeById.get(a.usuario_id);
     if (!movId || !nome) return;
     if (!movToNomes.has(movId)) movToNomes.set(movId, new Set());
     movToNomes.get(movId)!.add(nome);
