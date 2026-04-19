@@ -1,82 +1,76 @@
 
+## Plano: Substituir `rpc_coletor_armazenagem_buscar_tarefa` por `fn_buscar_dados_armazenagem`
 
-## Plano: Atribuição de Tarefas — Visibilidade e Reatribuição
+### Análise comparativa
 
-### Contexto técnico descoberto
-- `tarefa.id_documento_origem` aponta para `movimento_saida_item.id` (origem `MOVIMENTO_SAIDA_ITEM`) ou `movimento_entrada_item.id` (origem `MOVIMENTO_ENTRADA_ITEM`).
-- `tarefa_execucao.status` ∈ `COLETA_PENDENTE | CONCLUIDA | CANCELADA`. Atribuição ativa = `COLETA_PENDENTE`.
-- Telas usam views `vw_movimento_saida_lista` e `vw_movimento_entrada_lista` (sem dados de operador ainda).
+**Função antiga (`rpc_coletor_armazenagem_buscar_tarefa`)** retorna apenas:
+`tarefa_id`, `produto_id`, `produto_descricao`, `quantidade_requerida`, `quantidade_armazenada`, `quantidade_restante`.
 
----
+**Função nova (`fn_buscar_dados_armazenagem`)** retorna:
+`tarefa_id`, `produto_id`, `sku`, `descricao`, `qtd_conferida`, `validade`, `fabricacao`, `lote`, `qtd_armazenada`, `varios_pickings`, `enderecos_picking`, `qtd_a_armazenar`.
 
-### 1. Exibir operador atribuído abaixo do status (ambas as telas)
+### Mapeamento de campos (UI atual → Nova função)
 
-**Ondas de Carregamento** (`MovimentoSaidaPage.tsx`):
-- Após carregar a lista paginada, executar 1 query agregada para os IDs visíveis:
-  - `tarefa_execucao` ⨝ `tarefa` ⨝ `movimento_saida_item` ⨝ `usuario`
-  - Filtro: `te.status = 'COLETA_PENDENTE'` AND `msi.movimento_saida_id IN (...)`
-  - Agrupar por `movimento_saida_id` → lista de nomes distintos.
-- Acrescentar `operadores_atribuidos: string[]` em `MovSaida`.
-- Renderizar abaixo do status com ícone `Users` (lucide).
+| Uso na UI | Campo antigo | Campo novo | Status |
+|---|---|---|---|
+| Descrição produto | `produto_descricao` | `descricao` | ✅ |
+| SKU exibição | (não tinha) | `sku` | ✅ ganho |
+| Qtd requerida | `quantidade_requerida` | `qtd_conferida` (lê do conferido) | ✅ |
+| Qtd já armazenada | `quantidade_armazenada` | `qtd_armazenada` | ✅ |
+| Qtd restante | `quantidade_restante` | `qtd_a_armazenar` | ✅ |
+| Lote para `finalizar_armazenagem` | sessionStorage (legado conferência) | `lote` | ✅ ganho — elimina dependência de sessionStorage |
+| Validade | sessionStorage | `validade` | ✅ ganho |
+| Fabricação | sessionStorage | `fabricacao` | ✅ ganho |
+| Endereço picking sugerido | query `picking_produto` | `enderecos_picking` | ✅ elimina query |
+| Vários pickings | query manual | `varios_pickings` | ✅ ganho |
 
-**Movimento de Entrada** (`MovimentoEntradaPage.tsx`):
-- Mesma lógica via `movimento_entrada_item`.
+### Consultas adicionais que continuam necessárias
+1. **`movimento_entrada_id`** (via `tarefa.id_documento_origem` → `movimento_entrada_item`) — obrigatório para `finalizar_armazenagem`. **Não vem na nova função.** ⚠️
+2. **`rpc_coletor_armazenagem_execucao`** (estoque pulmão/picking, totais) — continua útil para cards de stats.
+3. **Lookup de endereço destino** ao escanear (continua, é leitura específica do scan do operador).
 
-**Layout proposto**:
+### Recomendação
+Sugerir adicionar `movimento_entrada_id` ao retorno de `fn_buscar_dados_armazenagem` para eliminar a última consulta acessória pré-execução. Caso contrário, mantemos o lookup atual (1 query, aceitável).
+
+### Mudanças no código
+
+**1. `src/pages/coletor/ArmazenagemIniciarPage.tsx`**
+- Trocar chamada `rpc_coletor_armazenagem_buscar_tarefa` por `fn_buscar_dados_armazenagem`.
+- Parâmetros: `p_tenant_id`, `p_empresa_ids: [empresaId]` (array), `p_ean: code`.
+- Atualizar interface `TarefaResult` para os novos nomes (`descricao`, `sku`, `qtd_a_armazenar`, `qtd_armazenada`, `lote`, `validade`, `fabricacao`, `enderecos_picking`, `varios_pickings`).
+- Persistir em `sessionStorage` os novos campos: `coletor_armazenagem_lote`, `coletor_armazenagem_validade`, `coletor_armazenagem_fabricacao`, `coletor_armazenagem_picking_sugerido`, `coletor_armazenagem_varios_pickings`, além dos existentes.
+- Exibir SKU na tela de confirmação (ganho de UX).
+
+**2. `src/pages/coletor/ArmazenagemExecucaoPage.tsx`**
+- **Remover query** `picking_produto` (passa a ler `coletor_armazenagem_picking_sugerido` do sessionStorage).
+- Lote/validade/fabricação já vêm da função e ficam no sessionStorage — fluxo `handleConfirm` permanece igual (já lê do sessionStorage).
+- Manter query de `movimento_entrada_id` (a menos que função seja estendida).
+- Manter `rpc_coletor_armazenagem_execucao` para cards de estoque.
+- Se `varios_pickings = 'S'`, exibir aviso "Produto possui múltiplos pickings".
+
+### Diagrama do fluxo simplificado
+
 ```text
-Onda #55                    [Em Separação]
-FORNECEDOR B                👤 João Silva
-Box: A1 • 09/04/2026
+ANTES                                  DEPOIS
+─────                                  ──────
+Iniciar:  1 RPC buscar_tarefa          Iniciar:  1 RPC fn_buscar_dados_armazenagem
+                                                 (já traz lote/val/fab/picking)
+Execução: 1 RPC execucao (stats)       Execução: 1 RPC execucao (stats)
+          1 query tarefa                         1 query tarefa→mov_entrada
+          1 query mov_entrada_item               (− picking_produto eliminado)
+          1 query picking_produto
+          1 RPC finalizar                        1 RPC finalizar
+─────                                  ──────
+Total: 5 idas ao backend               Total: 4 idas ao backend (− 1 query)
 ```
-- Sem atribuição → linha **oculta** (mantém o card limpo).
-- Múltiplos → "**João Silva +2**" com tooltip listando todos.
 
----
-
-### 2. Nova opção "Reatribuir tarefas" (somente Ondas de Carregamento)
-
-**Disparo**: novo item no menu `MoreVertical` da onda, abaixo de "Prioridade":
-- Label: `Reatribuir tarefas` (ícone `UserCog`).
-- Habilitado quando existir ≥ 1 `tarefa_execucao` com `status='COLETA_PENDENTE'` na onda.
-
-**Modal de reatribuição**:
-1. Lista das tarefas pendentes agrupadas por **operador atual**, com checkbox por operador (escopo: trocar tudo de um operador específico de uma vez — atende cenários de ausência).
-2. Para tarefas com `iniciado_em IS NOT NULL`: marcar com badge "Em andamento" e exigir confirmação adicional.
-3. Select do **novo operador** carregado de `usuario` (ativo, mesmo `tenant_id`/`empresa_id`, `tipo_usuario` operacional).
-4. Botão "Confirmar reatribuição".
-
-**Lógica de reatribuição** (transação no client em sequência):
-Para cada `tarefa_execucao` afetada:
-1. **Cancelar a execução atual** do usuário antigo:
-   - `UPDATE tarefa_execucao SET status='CANCELADA', concluido_em=nowBrasilia() WHERE id=...`
-   - O Coletor filtra por `status='COLETA_PENDENTE'` + `usuario_id`, então o usuário antigo deixa de ver imediatamente.
-2. **Criar nova execução** para o novo usuário:
-   - `INSERT INTO tarefa_execucao (tarefa_id, usuario_id, status, atribuido_em, tenant_id)` com `status='COLETA_PENDENTE'`, `atribuido_em=nowBrasilia()`.
-3. Toast: `"X tarefa(s) reatribuída(s) para FULANO"`.
-4. Refresh da lista para atualizar nomes.
-
-**Por que cancelar + recriar** (em vez de `UPDATE usuario_id`):
-- Preserva auditoria (sabemos quem teve a tarefa antes).
-- LMS calcula por execução; cancelamentos não contam como concluídos.
-- Alinha com o padrão já adotado: `tarefa_execucao` não é deletada (memory `integridade-execucao`).
-
----
-
-### 3. Decisões adotadas (sem mais perguntas — padrões já estabelecidos no sistema)
-- **Sem atribuição** → ocultar a linha (alinha com design enxuto do card).
-- **Múltiplos operadores** → primeiro nome + `+N` com tooltip (compacto).
-- **Tarefa já INICIADA** → permitir, mas exibir badge "Em andamento" no modal e exigir confirmação extra antes de cancelar o progresso (mantém flexibilidade operacional sem surpreender o usuário).
-- **Escopo** → permitir selecionar por operador atual (cobre o caso 1-operador automaticamente e permite trocar parcialmente quando há vários).
-
----
-
-### 4. Detalhes técnicos
-- **Sem alterações de schema** — apenas tabelas existentes (`tarefa_execucao`, `tarefa`, `movimento_saida_item`, `movimento_entrada_item`, `usuario`).
-- Timestamps via `nowBrasilia()` (memory padrão).
-- Modal com `Dialog` shadcn, select de usuário com `usuario` ativo + tenant + empresa.
-- 1 query agregada por refresh da lista (não N+1) — performance preservada.
+### Observações técnicas
+- `p_empresa_ids` é `uuid[]` — passar `[empresaId]`.
+- `enderecos_picking` provavelmente vem como string concatenada (ex: "R01-P02-N01-A01"); tratar como `text` para exibição direta.
+- `varios_pickings` provavelmente é `'S'/'N'` — interpretar como flag booleana.
+- Datas (`validade`, `fabricacao`) chegam como `YYYY-MM-DD` — passar diretamente para `finalizar_armazenagem`.
+- Sugestão opcional: estender `fn_buscar_dados_armazenagem` para retornar também `movimento_entrada_id` e `hu_id` (se aplicável), eliminando a última query intermediária.
 
 ### Arquivos modificados
-- `src/pages/MovimentoSaidaPage.tsx` — exibir operadores + nova opção "Reatribuir tarefas" + modal.
-- `src/pages/MovimentoEntradaPage.tsx` — exibir operadores (apenas leitura).
-
+- `src/pages/coletor/ArmazenagemIniciarPage.tsx`
+- `src/pages/coletor/ArmazenagemExecucaoPage.tsx`
