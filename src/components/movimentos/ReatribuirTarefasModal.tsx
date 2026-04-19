@@ -134,25 +134,26 @@ export function ReatribuirTarefasModal({
 
     try {
       for (const t of tarefasSelecionadas) {
-        // 1) cancela execução atual
+        // 1) libera (encerra) a atribuição atual do usuário antigo
         const { error: cancelErr } = await (supabase as any)
-          .from("tarefa_execucao")
-          .update({ status: "CANCELADA", concluido_em: agora })
-          .eq("id", t.tarefa_execucao_id);
+          .from("tarefa_atribuicao")
+          .update({ status: "LIBERADA", liberado_em: agora })
+          .eq("id", t.tarefa_atribuicao_id);
         if (cancelErr) {
-          erros.push(`Cancelar ${t.tarefa_id}: ${cancelErr.message}`);
+          erros.push(`Liberar ${t.tarefa_id}: ${cancelErr.message}`);
           continue;
         }
-        // 2) cria nova execução para o novo usuário
+        // 2) cria nova atribuição para o novo usuário
         const { error: insErr } = await (supabase as any)
-          .from("tarefa_execucao")
+          .from("tarefa_atribuicao")
           .insert({
             tarefa_id: t.tarefa_id,
             usuario_id: novoUsuarioId,
-            status: "COLETA_PENDENTE",
+            status: "ATRIBUIDA",
             atribuido_em: agora,
             tenant_id: tenantId,
-            quantidade_executada: 0,
+            empresa_id: empresaId,
+            tipo_convocacao: "CONVOCACAO_GESTOR",
           });
         if (insErr) {
           erros.push(`Criar ${t.tarefa_id}: ${insErr.message}`);
