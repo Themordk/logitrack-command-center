@@ -62,18 +62,27 @@ export async function fetchOperadoresAtribuidos(
   // 3) atribuições ativas (não liberadas)
   const { data: atribs, error: atribErr } = await (supabase as any)
     .from("tarefa_atribuicao")
-    .select("tarefa_id, usuario_id, status, liberado_em, usuario:usuario_id(nome)")
+    .select("tarefa_id, usuario_id, status, liberado_em")
     .eq("tenant_id", tenantId)
     .in("tarefa_id", Array.from(tarefaToMov.keys()))
     .in("status", STATUS_ATRIBUICAO_ATIVA)
     .is("liberado_em", null);
 
-  if (atribErr || !atribs) return result;
+  if (atribErr || !atribs || atribs.length === 0) return result;
+
+  // 4) busca nomes dos usuários (sem FK declarada → join manual)
+  const usuarioIds = Array.from(new Set(atribs.map((a: any) => a.usuario_id).filter(Boolean)));
+  const { data: usuarios } = await (supabase as any)
+    .from("usuario")
+    .select("id, nome")
+    .in("id", usuarioIds);
+  const nomeById = new Map<string, string>();
+  (usuarios || []).forEach((u: any) => nomeById.set(u.id, u.nome));
 
   const movToNomes = new Map<string, Set<string>>();
   atribs.forEach((a: any) => {
     const movId = tarefaToMov.get(a.tarefa_id);
-    const nome = a.usuario?.nome;
+    const nome = nomeById.get(a.usuario_id);
     if (!movId || !nome) return;
     if (!movToNomes.has(movId)) movToNomes.set(movId, new Set());
     movToNomes.get(movId)!.add(nome);
@@ -131,11 +140,19 @@ export async function fetchTarefasPendentesOnda(
 
   const { data: atribs } = await (supabase as any)
     .from("tarefa_atribuicao")
-    .select("id, tarefa_id, usuario_id, atribuido_em, liberado_em, status, usuario:usuario_id(nome)")
+    .select("id, tarefa_id, usuario_id, atribuido_em, liberado_em, status")
     .eq("tenant_id", tenantId)
     .in("tarefa_id", tarefaIds)
     .in("status", STATUS_ATRIBUICAO_ATIVA)
     .is("liberado_em", null);
+
+  // nomes (sem FK → join manual)
+  const usuarioIds = Array.from(new Set((atribs || []).map((a: any) => a.usuario_id).filter(Boolean)));
+  const { data: usuarios } = usuarioIds.length
+    ? await (supabase as any).from("usuario").select("id, nome").in("id", usuarioIds)
+    : { data: [] };
+  const nomeById = new Map<string, string>();
+  (usuarios || []).forEach((u: any) => nomeById.set(u.id, u.nome));
 
   // Quais tarefas já têm execução iniciada?
   const { data: execs } = await (supabase as any)
@@ -150,7 +167,7 @@ export async function fetchTarefasPendentesOnda(
     tarefa_atribuicao_id: a.id,
     tarefa_id: a.tarefa_id,
     usuario_id: a.usuario_id,
-    usuario_nome: a.usuario?.nome || "—",
+    usuario_nome: nomeById.get(a.usuario_id) || "—",
     iniciado_em: tarefasIniciadas.has(a.tarefa_id) ? "iniciado" : null,
     atribuido_em: a.atribuido_em,
     tarefa_status: tarefaStatusMap.get(a.tarefa_id) || "",
