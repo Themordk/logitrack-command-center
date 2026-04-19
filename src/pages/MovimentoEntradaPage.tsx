@@ -214,8 +214,18 @@ export function MovimentoEntradaPage() {
       const { data, error, count } = await query;
       if (error) throw error;
 
-      setMovements((data || []).map((mov: any) => ({ ...mov, parceiro_nome: mov.parceiro_nome || "—" })));
+      setMovements((data || []).map((mov: any) => ({ ...mov, parceiro_nome: mov.parceiro_nome || "—", operadores_atribuidos: [] })));
       setTotal(count || 0);
+
+      const movIds = (data || []).map((m: any) => m.id);
+      if (movIds.length > 0) {
+        try {
+          const opsMap = await fetchOperadoresAtribuidos(tenantId, movIds, "MOVIMENTO_ENTRADA_ITEM");
+          setMovements((prev) => prev.map((m) => ({ ...m, operadores_atribuidos: opsMap.get(m.id) || [] })));
+        } catch (err) {
+          console.error("Erro ao buscar operadores:", err);
+        }
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
