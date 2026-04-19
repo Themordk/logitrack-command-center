@@ -5256,6 +5256,24 @@ export type Database = {
         }
         Returns: Json
       }
+      entrada_conferencia_buscar_tarefas: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          conferido: number
+          descricao: string
+          fator_caixa: number
+          id: string
+          ordem_tarefa: number
+          quantidade_requerida: number
+          sku: string
+          status: string
+        }[]
+      }
       finalizar_armazenagem: {
         Args: {
           p_endereco_destino_id: string
