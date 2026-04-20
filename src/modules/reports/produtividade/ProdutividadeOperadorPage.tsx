@@ -11,6 +11,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
+import { formatBrasiliaDateTimeShort } from "@/lib/dateUtils";
 
 interface Props {
   usuarioId: string;
@@ -286,10 +287,10 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                         {t.duracao_segundos != null ? formatSegundos(t.duracao_segundos) : "—"}
                       </td>
                       <td className="p-3 text-muted-foreground text-xs">
-                        {t.iniciado_em ? new Date(t.iniciado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                        {formatBrasiliaDateTimeShort(t.iniciado_em)}
                       </td>
                       <td className="p-3 text-muted-foreground text-xs">
-                        {t.concluido_em ? new Date(t.concluido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                        {formatBrasiliaDateTimeShort(t.concluido_em)}
                       </td>
                     </tr>
                   ))}

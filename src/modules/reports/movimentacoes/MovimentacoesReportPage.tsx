@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Filter, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 interface MovimentacoesReportPageProps {
   onNavigate?: (path: string) => void;
@@ -52,7 +53,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       };
       const results = await fetchMovimentacoesReport(filters);
       setData(results);
-      setGeneratedAt(new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }));
+      setGeneratedAt(nowBrasiliaDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -70,7 +71,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   const columns: ReportColumn[] = [
     {
       key: "criado_em", label: "Data/Hora", width: "150px",
-      render: (v) => v ? new Date(v).toLocaleString("pt-BR") : "—",
+      render: (v) => formatBrasiliaDateTime(v),
     },
     { key: "sku", label: "SKU", width: "100px" },
     { key: "descricao", label: "Descrição", width: "200px" },

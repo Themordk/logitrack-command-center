@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function EstoqueReportPage() {
   const { tenantId, empresaId } = useTenant();
@@ -58,7 +59,7 @@ export function EstoqueReportPage() {
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
-      setGeneratedAt(new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }));
+      setGeneratedAt(nowBrasiliaDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -109,7 +110,7 @@ export function EstoqueReportPage() {
     },
     {
       key: "atualizado_em", label: "Última Atualização", width: "150px",
-      render: (v) => v ? new Date(v).toLocaleString("pt-BR") : "—",
+      render: (v) => formatBrasiliaDateTime(v),
     },
   ];
 

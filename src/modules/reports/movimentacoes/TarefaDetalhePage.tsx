@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ClipboardList, Play, FileText, Package, MapPin, Clock, User, AlertTriangle, Hash } from "lucide-react";
 import { fetchTarefaDetalhe, getPrioridadeLabel, getPrioridadeColor, type TarefaDetalheResult } from "./movimentacoes.service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatBrasiliaDateTime, formatBrasiliaDate } from "@/lib/dateUtils";
 
 interface TarefaDetalhePageProps {
   tarefaExecucaoId: string;
@@ -26,13 +27,11 @@ function InfoItem({ label, value, icon }: { label: string; value: React.ReactNod
 }
 
 function formatDate(d: string | null | undefined): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleString("pt-BR");
+  return formatBrasiliaDateTime(d);
 }
 
 function formatDateShort(d: string | null | undefined): string {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("pt-BR");
+  return formatBrasiliaDate(d);
 }
 
 const STATUS_TAREFA_COLORS: Record<string, string> = {

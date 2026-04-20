@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Filter, Search, X, Scissors, PackageX, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function CortesReportPage() {
   const { tenantId, empresaId } = useTenant();
@@ -54,7 +55,7 @@ export function CortesReportPage() {
       };
       const results = await fetchCortesReport(filters);
       setData(results);
-      setGeneratedAt(new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }));
+      setGeneratedAt(nowBrasiliaDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -98,7 +99,7 @@ export function CortesReportPage() {
     { key: "usuario", label: "Autorizado por", width: "120px" },
     {
       key: "autorizado_em", label: "Autorizado em", width: "150px",
-      render: (v) => v ? new Date(v).toLocaleString("pt-BR") : "—",
+      render: (v) => formatBrasiliaDateTime(v),
     },
   ];
 

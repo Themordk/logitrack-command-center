@@ -566,8 +566,8 @@ export function MovimentoEntradaPage() {
   const totalPages = Math.ceil(total / pageSize);
   const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
-  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
-  const fmtDateTime = (d: string | null) => d ? new Date(d).toLocaleString("pt-BR") : "—";
+  const fmtDate = (d: string | null) => formatBrasiliaDate(d);
+  const fmtDateTime = (d: string | null) => formatBrasiliaDateTime(d);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
