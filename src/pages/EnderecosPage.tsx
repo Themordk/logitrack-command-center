@@ -5,7 +5,7 @@ import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Printer } from "lucide-react";
+import { Printer, Layers } from "lucide-react";
 import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
@@ -121,15 +121,24 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
         headerActions={
-          selectedIds.size > 0 ? (
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handlePrintSelected}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+              >
+                <Printer size={15} />
+                Imprimir Selecionados ({selectedIds.size})
+              </button>
+            )}
             <button
-              onClick={handlePrintSelected}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+              onClick={() => onNavigate?.("/armazem/enderecos/lote")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-secondary transition-colors"
             >
-              <Printer size={15} />
-              Imprimir Selecionados ({selectedIds.size})
+              <Layers size={15} />
+              Cadastro em Lote
             </button>
-          ) : undefined
+          </div>
         }
         extraRowActions={(row) => (
           <button
