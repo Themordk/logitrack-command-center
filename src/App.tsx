@@ -9,6 +9,7 @@ import { ArmazensPage } from "./pages/ArmazensPage";
 import { SetoresPage } from "./pages/SetoresPage";
 import { TiposEstoquePage } from "./pages/TiposEstoquePage";
 import { EnderecosPage } from "./pages/EnderecosPage";
+import { EnderecosBatchPage } from "./pages/EnderecosBatchPage";
 import { ZonasAtividadePage } from "./pages/ZonasAtividadePage";
 import { ProdutosPage } from "./pages/ProdutosPage";
 import { GruposProdutoPage } from "./pages/GruposProdutoPage";
@@ -98,6 +99,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/armazem/setores": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Setores" }],
   "/armazem/tipos-estoque": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Tipos de Estoque" }],
   "/armazem/enderecos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Endereços" }],
+  "/armazem/enderecos/lote": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Endereços", path: "/armazem/enderecos" }, { label: "Cadastro em Lote" }],
   "/armazem/veiculos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Veículos" }],
   "/armazem/zonas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Zonas de Atividade" }],
   "/armazem/box": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Box" }],
@@ -177,6 +179,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/setores": return <SetoresPage />;
     case "/armazem/tipos-estoque": return <TiposEstoquePage />;
     case "/armazem/enderecos": return <EnderecosPage onNavigate={onNavigate} />;
+    case "/armazem/enderecos/lote": return <EnderecosBatchPage onNavigate={onNavigate} />;
     case "/armazem/veiculos": return <VeiculosPage />;
     case "/armazem/zonas": return <ZonasAtividadePage />;
     case "/armazem/box": return <BoxPage />;
