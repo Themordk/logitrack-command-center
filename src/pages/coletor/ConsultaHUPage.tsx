@@ -4,6 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2, Archive, Package } from "lucide-react";
+import { formatBrasiliaDateTime } from "@/lib/dateUtils";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -165,7 +166,7 @@ export function ConsultaHUPage({ onNavigate }: Props) {
                     <p className="text-xs text-white">{e.status}</p>
                     <p className="text-[10px] text-[hsl(213,31%,55%)]">Qtd: {e.quantidade_executada ?? "—"}</p>
                   </div>
-                  <span className="text-[10px] text-[hsl(213,31%,55%)]">{e.concluido_em ? new Date(e.concluido_em).toLocaleString("pt-BR") : "—"}</span>
+                  <span className="text-[10px] text-[hsl(213,31%,55%)]">{formatBrasiliaDateTime(e.concluido_em)}</span>
                 </div>
               ))}
             </div>

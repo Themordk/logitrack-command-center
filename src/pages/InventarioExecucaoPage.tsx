@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatBrasiliaDateTime } from "@/lib/dateUtils";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -69,10 +70,7 @@ export function InventarioExecucaoPage({ onNavigate, inventarioId, numeroInventa
   useEffect(() => { fetchExecucoes(); }, [fetchExecucoes]);
 
   const totalPages = Math.ceil(total / pageSize);
-  const fmtDate = (d: string | null) => {
-    if (!d) return "—";
-    try { return new Date(d).toLocaleString("pt-BR"); } catch { return "—"; }
-  };
+  const fmtDate = (d: string | null) => formatBrasiliaDateTime(d);
 
   const backPath = `/atividades/inventario/${inventarioId}/itens?numero=${numeroInventario}`;
 
