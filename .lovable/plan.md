@@ -1,144 +1,138 @@
 
 
-## Plano: Cadastro em Lote de Endereços
+## Plano: Padronização Global de DataHora em Brasília (UTC-3)
 
-### Visão geral
-Nova tela acessível a partir de **Armazém → Localizações/Endereços**, com botão secundário "Cadastro em Lote" no header da listagem. A tela permite gerar combinatoriamente múltiplos endereços (Rua × Prédio × Nível × Apto) com regras de paridade no Prédio, validação prévia, prevenção de duplicidade e inserção em lote no Supabase.
+### Diagnóstico da causa raiz
 
-### Fluxo do usuário
+O problema atual é um **conflito entre escrita e leitura** de timestamps:
 
-```text
-┌──────────────────────────────────────────────────────┐
-│ Endereços (lista)                                    │
-│   [+ Novo Endereço]  [⚡ Cadastro em Lote]            │
-└──────────────────────────────────────────────────────┘
-                        ↓ clica
-┌──────────────────────────────────────────────────────┐
-│ Cadastro em Lote                                     │
-│   Configurações comuns (Armazém, Setor, Tipo, ...)   │
-│   Intervalos (Rua/Prédio/Nível/Apto Inicial→Final)   │
-│   Lado: PAR / IMPAR / TODOS                          │
-│   ┌────────────────────────────────────────────┐     │
-│   │ Resumo: "Serão criados 128 endereços"      │     │
-│   │ [Pré-visualizar] (mostra 50 primeiros)     │     │
-│   └────────────────────────────────────────────┘     │
-│   [Cancelar]            [Gerar Endereços]            │
-└──────────────────────────────────────────────────────┘
-                        ↓ confirma
-              valida → checa duplicados → insert
-                        ↓
-              "X endereços criados com sucesso"
-                        ↓
-                volta para a lista
+**Na escrita** (`nowBrasilia()` em `src/lib/dateUtils.ts`):
+- Retorna string sem offset: `"2026-04-20T17:48:58"` (já convertida para horário de Brasília).
+- Postgres recebe essa string em coluna `timestamp with time zone` e **interpreta como UTC** → grava `2026-04-20 17:48:58+00`.
+
+**Na leitura** (relatórios e telas):
+- `new Date(v).toLocaleString("pt-BR")` recebe `2026-04-20 17:48:58+00`, converte de UTC para Brasília subtraindo 3h → exibe `14:48:58`.
+- Mas o operador realmente fez a ação às **17:48 (Brasília)**, então deveria aparecer **17:48**.
+
+Resultado prático: **horário sempre 3h "adiantado" em relação ao real** (na verdade está 3h atrasado, porque está mostrando Brasília-3h quando o relógio do operador era Brasília).
+
+Verificação em produção (`tarefa_execucao` mais recente): coluna `iniciado_em = 2026-04-20 20:48:58+00`. Como agora são ~20:52 UTC = 17:52 Brasília, os dados foram gravados como se fossem 20:48 UTC (= 17:48 Brasília no relógio do operador), e ao ler de volta exibimos 20:48 — **3h a mais que o esperado**.
+
+### Estratégia de correção
+
+Há duas escolhas arquiteturais. Recomendo a **Opção A** (mais simples, sem migração):
+
+#### Opção A — Corrigir leitura (recomendada)
+Manter `nowBrasilia()` gravando "horário local Brasília como UTC" (comportamento legado, milhares de registros já gravados assim) e **forçar a leitura também a interpretar como horário local**, sem aplicar conversão de timezone.
+
+- **Vantagem**: zero migração de dados, retrocompatível com todos os registros históricos.
+- **Como**: criar formatter `formatBrasilia(value)` que faz parse e formata **sem conversão** (trata o valor como já estando em Brasília).
+
+#### Opção B — Corrigir escrita (descartada)
+Reescrever `nowBrasilia()` para retornar ISO UTC real + migração para corrigir todos os registros históricos somando 3h. Risco alto, sem ganho prático.
+
+### Implementação (Opção A)
+
+**1. Centralizar formatação em `src/lib/dateUtils.ts`** — adicionar 3 helpers puros:
+
+```ts
+// Trata timestamp do banco como horário Brasília "cru" (sem reconverter TZ)
+export function formatBrasiliaDateTime(v: string | Date | null | undefined): string {
+  if (!v) return "—";
+  const s = typeof v === "string" ? v : v.toISOString();
+  // Remove offset/Z para evitar conversão automática do JS
+  const naive = s.replace(/(\+|-)\d{2}:?\d{2}$|Z$/, "");
+  const d = new Date(naive); // interpretado como local time
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+}
+
+export function formatBrasiliaDate(v: string | Date | null | undefined): string { /* idem, só data */ }
+export function formatBrasiliaTime(v: string | Date | null | undefined): string { /* idem, só hora */ }
 ```
 
-### Estrutura da tela (UX)
+**Por que funciona**: ao remover o sufixo `+00`/`Z`, o `new Date` passa a interpretar a string como horário local do navegador. Como no banco gravamos "horário Brasília" mascarado como UTC, o JS lê os dígitos brutos (17:48) e os exibe sem subtrair 3h.
 
-Layout consistente com o padrão administrativo (h-screen, `card-surface`, dark mode), em duas colunas (md:grid-cols-2). Seções:
+**2. Substituir todas as ocorrências de formatação** nos arquivos abaixo, trocando `new Date(v).toLocaleString("pt-BR")` por `formatBrasiliaDateTime(v)`:
 
-1. **Configurações comuns** — aplicadas a todos os endereços gerados
-   - Armazém * (select)
-   - Setor * (select)
-   - Tipo de Estoque * (select)
-   - Tipo Endereço * (PULMAO / PICKING)
-   - Tipo Estrutura (enum)
-   - Situação * (LIVRE / OCUPADO / BLOQUEADO) — default LIVRE
-   - Curva de Acesso (A/B/C/D)
-   - Total Pallets (visível apenas se PULMAO)
-   - Altura, Largura, Comprimento, M³, Peso Máx
-   - Ativo (switch, default ON)
+| Arquivo | Ocorrências |
+|---|---|
+| `src/modules/reports/cortes/CortesReportPage.tsx` | `autorizado_em` + `generatedAt` |
+| `src/modules/reports/estoque/EstoqueReportPage.tsx` | `atualizado_em` + `generatedAt` |
+| `src/modules/reports/movimentacoes/MovimentacoesReportPage.tsx` | `criado_em` + `generatedAt` |
+| `src/modules/reports/movimentacoes/TarefaDetalhePage.tsx` | `formatDate`, `formatDateShort` (substituir corpo) |
+| `src/modules/reports/produtividade/ProdutividadeOperadorPage.tsx` | revisar campos de hora |
+| `src/modules/reports/produtividade/ProdutividadeDashboardPage.tsx` | revisar `generatedAt` |
+| `src/modules/reports/ocupacao/OcupacaoReportPage.tsx` | revisar `generatedAt` |
+| `src/pages/MovimentoEntradaPage.tsx` | `fmtDateTime`, `fmtDate` |
+| `src/pages/MovimentoSaidaPage.tsx` | 2x `concluido_em` |
+| `src/pages/InventarioExecucaoPage.tsx` | `fmtDate` |
+| `src/pages/coletor/ConsultaHUPage.tsx` | `concluido_em` |
 
-2. **Intervalos** — cada par lado-a-lado em uma linha
-   - Rua: [Inicial] até [Final]
-   - Prédio: [Inicial] até [Final]
-   - Nível: [Inicial] até [Final]
-   - Apto: [Inicial] até [Final]
-   - Lado * (PAR / IMPAR / TODOS) — aplicado sobre o **Prédio**
+**3. `generatedAt` dos cabeçalhos** (`new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })`):
+- Esta linha está **correta** para o "agora do navegador" (converte UTC do cliente → Brasília).
+- Mas para padronização, trocar para um único helper `nowBrasiliaDisplay()` que usa o mesmo padrão de exibição dos demais campos. Mantém o offset real (data/hora locais do cliente convertidas para Brasília) — o caso de uso é diferente: aqui sabemos que o `Date` é UTC real do relógio do navegador, não um timestamp do banco.
 
-3. **Resumo dinâmico** (atualiza em tempo real)
-   - "Serão criados **N** endereços"
-   - Botão `[Pré-visualizar]` abre tabela com até 50 linhas: `Endereço | Tipo | Situação`
-
-4. **Ações**
-   - Cancelar (volta para lista)
-   - Gerar Endereços (com loading e disabled durante operação)
-
-### Regras de geração
-
-- **Combinação total**: produto cartesiano `Ruas × Prédios(filtrados por Lado) × Níveis × Aptos`
-- **Filtro Lado** (aplicado no Prédio):
-  - `PAR` → mantém apenas pares
-  - `IMPAR` → mantém apenas ímpares
-  - `TODOS` → mantém todos (gravado como `PAR` no banco por padrão; ver Observações)
-- **Formato descrição**: `R{rr}-P{pp}-N{nn}-A{aa}` (zero-pad 2 dígitos), reusando `buildDescricao`.
-- **Validações antes de gerar**:
-  - Inicial ≤ Final em todos os 4 intervalos
-  - Todos os campos obrigatórios preenchidos
-  - Limite de segurança: máximo **5.000 endereços** por lote (proteção UX/DB)
-- **Prevenção de duplicidade**:
-  - Antes do insert, consulta `endereco` filtrando por `tenant_id + armazem_id + (rua, predio, nivel, apto) IN (...)`
-  - Remove do payload os já existentes
-  - Exibe contagem: "X criados, Y já existiam (ignorados)"
-- **Performance**:
-  - Geração das combinações em memória com `useMemo` (instantâneo até 5k)
-  - Insert em chunks de 500 registros via `supabase.from('endereco').insert([...])`
-  - Loading bloqueante com contador de progresso durante chunks
-
-### Detalhes técnicos
-
-**Arquivos novos**
-- `src/pages/EnderecosBatchPage.tsx` — nova página (componente único, autocontido)
-
-**Arquivos modificados**
-- `src/pages/EnderecosPage.tsx` — adicionar botão "Cadastro em Lote" no `headerActions` (ícone `Layers` ou `Copy`), chamando `onNavigate("/armazem/enderecos/lote")`
-- `src/App.tsx`:
-  - Adicionar `import { EnderecosBatchPage }`
-  - Adicionar rota `case "/armazem/enderecos/lote": return <EnderecosBatchPage onNavigate={onNavigate} />`
-  - Adicionar breadcrumb `"/armazem/enderecos/lote": [..., { label: "Endereços", path: "/armazem/enderecos" }, { label: "Cadastro em Lote" }]`
-
-**Tipo do payload por endereço** (consistente com schema atual de `endereco`):
 ```ts
-{
-  tenant_id, armazem_id, setor_id, tipo_estoque_id,
-  rua, predio, nivel, apto,
-  descricao, lado: 'PAR' | 'IMPAR',
-  tipo_endereco, tipo_estrutura?, situacao,
-  curva_acesso?, total_pallet?,
-  altura?, largura?, comprimento?, m3?, peso_total?,
-  ativo: true
+export function nowBrasiliaDisplay(): string {
+  return new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
 }
 ```
 
-**Algoritmo (pseudocódigo)**
-```ts
-const ruas = range(ruaIni, ruaFim);
-const niveis = range(nivelIni, nivelFim);
-const aptos = range(aptoIni, aptoFim);
-const prediosBase = range(predioIni, predioFim);
-const predios = lado === 'TODOS' ? prediosBase
-              : lado === 'PAR'   ? prediosBase.filter(n => n % 2 === 0)
-              : prediosBase.filter(n => n % 2 !== 0);
+**4. Sem alterações em `nowBrasilia()`** (escrita) — comportamento legado preservado para manter compatibilidade com todos os registros já gravados.
 
-const combos = [];
-for (r of ruas) for (p of predios) for (n of niveis) for (a of aptos)
-  combos.push({ rua:r, predio:p, nivel:n, apto:a,
-                descricao: buildDescricao(r,p,n,a),
-                lado: (p % 2 === 0 ? 'PAR' : 'IMPAR'),
-                ...common });
+### Diagrama do fluxo corrigido
+
+```text
+ANTES (bug)
+─────
+Operador clica 17:48 (Brasília)
+  → nowBrasilia() retorna "2026-04-20T17:48:00"
+  → Postgres grava como UTC: 2026-04-20 17:48:00+00
+  → Frontend: new Date("2026-04-20 17:48:00+00").toLocaleString("pt-BR")
+  → Converte UTC→Brasília: exibe 14:48:00  ❌ (3h atrasado)
+  
+Aguardando 1s e ler de novo, com `timeZone:Sao_Paulo`:
+  → exibe 14:48:00  ❌ (mesmo erro)
+
+DEPOIS (correção)
+─────
+Operador clica 17:48 (Brasília)
+  → nowBrasilia() retorna "2026-04-20T17:48:00" (igual)
+  → Postgres grava como UTC: 2026-04-20 17:48:00+00 (igual)
+  → Frontend: formatBrasiliaDateTime("2026-04-20 17:48:00+00")
+  → Remove "+00" → "2026-04-20 17:48:00"
+  → new Date(naive).toLocaleString("pt-BR") → exibe 17:48:00  ✅
 ```
 
-**Reuso**: `fetchOptions("armazem"|"setor"|"tipo_estoque", tenantId)` do `useCrud.ts`, e `buildDescricao` (mover para util compartilhado ou duplicar localmente).
+### Arquivos modificados
 
-### Observações importantes
-- **Campo `lado` no banco** é enum `PAR | IMPAR` (não aceita `TODOS`). Quando o usuário escolhe `TODOS`, o `lado` de cada registro é derivado da paridade do `predio` individual — preservando integridade do schema sem migration.
-- **Sem alteração de schema**: nenhum migration necessário; todos os campos já existem na tabela `endereco`.
-- **RLS**: o insert respeita `tenant_full_access` automaticamente (todos os registros recebem `tenant_id` do contexto).
-- **Erro de chunk**: se um chunk falhar, aborta o restante e mostra contagem do que foi salvo + mensagem de erro.
-
-### Resumo dos arquivos
-| Arquivo | Tipo | Descrição |
+| Arquivo | Tipo | Mudança |
 |---|---|---|
-| `src/pages/EnderecosBatchPage.tsx` | novo | Tela completa de cadastro em lote |
-| `src/pages/EnderecosPage.tsx` | alterado | Botão "Cadastro em Lote" no header |
-| `src/App.tsx` | alterado | Rota + breadcrumb |
+| `src/lib/dateUtils.ts` | alterado | Adiciona `formatBrasiliaDateTime`, `formatBrasiliaDate`, `formatBrasiliaTime`, `nowBrasiliaDisplay` |
+| `src/modules/reports/cortes/CortesReportPage.tsx` | alterado | Usa novos helpers |
+| `src/modules/reports/estoque/EstoqueReportPage.tsx` | alterado | Usa novos helpers |
+| `src/modules/reports/movimentacoes/MovimentacoesReportPage.tsx` | alterado | Usa novos helpers |
+| `src/modules/reports/movimentacoes/TarefaDetalhePage.tsx` | alterado | Usa novos helpers |
+| `src/modules/reports/produtividade/ProdutividadeOperadorPage.tsx` | alterado | Usa novos helpers |
+| `src/modules/reports/produtividade/ProdutividadeDashboardPage.tsx` | alterado | Usa novos helpers |
+| `src/modules/reports/ocupacao/OcupacaoReportPage.tsx` | alterado | Usa novos helpers |
+| `src/pages/MovimentoEntradaPage.tsx` | alterado | Usa novos helpers |
+| `src/pages/MovimentoSaidaPage.tsx` | alterado | Usa novos helpers |
+| `src/pages/InventarioExecucaoPage.tsx` | alterado | Usa novos helpers |
+| `src/pages/coletor/ConsultaHUPage.tsx` | alterado | Usa novos helpers |
+
+### Observações
+
+- **Memória do projeto**: o padrão "Brasília UTC-3 via `nowBrasilia()`" continua válido; reforça-se a regra "para exibição use `formatBrasilia*`, nunca `new Date(v).toLocaleString` direto".
+- **Não há migração de banco** — risco zero para dados históricos.
+- **Após implantar**, tarefas/movimentos antigos passam a exibir o horário "real" que o operador viu no relógio quando executou — o que é o comportamento desejado e foi o que causou a abertura do chamado.
+- **Edge case**: se um dia migrarmos `nowBrasilia()` para gravar UTC real, basta ajustar os helpers para voltar a aplicar `timeZone: "America/Sao_Paulo"` — fica isolado em um único arquivo.
 
