@@ -334,7 +334,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             </div>
           )}
         </div>
-        </div>
+
 
         {/* Quantities */}
         <div className="grid grid-cols-3 gap-2">
