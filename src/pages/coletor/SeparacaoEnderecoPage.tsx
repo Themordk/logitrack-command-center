@@ -66,27 +66,32 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   }, []);
 
   const enrichTarefas = async (tarefas: Tarefa[]): Promise<Tarefa[]> => {
-    // Check if any tarefa is missing produto_id
-    const missingSkus = tarefas
-      .filter((t) => !t.produto_id && t.sku)
+    // Collect SKUs missing produto_id OR tipo_controle
+    const skusToLookup = tarefas
+      .filter((t) => (!t.produto_id || !t.tipo_controle) && t.sku)
       .map((t) => t.sku!);
-    
-    if (missingSkus.length === 0) return tarefas;
+
+    if (skusToLookup.length === 0) return tarefas;
 
     try {
-      const uniqueSkus = [...new Set(missingSkus)];
+      const uniqueSkus = [...new Set(skusToLookup)];
       const { data } = await (supabase as any)
         .from("produto")
-        .select("id, sku, referencia")
+        .select("id, sku, referencia, tipo_controle")
         .in("sku", uniqueSkus);
 
       if (data && data.length > 0) {
-        const skuMap: Record<string, { id: string; referencia: string }> = {};
-        data.forEach((p: any) => { skuMap[p.sku] = { id: p.id, referencia: p.referencia }; });
+        const skuMap: Record<string, { id: string; referencia: string; tipo_controle: string }> = {};
+        data.forEach((p: any) => { skuMap[p.sku] = { id: p.id, referencia: p.referencia, tipo_controle: p.tipo_controle }; });
 
         return tarefas.map((t) => {
-          if (!t.produto_id && t.sku && skuMap[t.sku]) {
-            return { ...t, produto_id: skuMap[t.sku].id, referencia: skuMap[t.sku].referencia };
+          if (t.sku && skuMap[t.sku]) {
+            return {
+              ...t,
+              produto_id: t.produto_id || skuMap[t.sku].id,
+              referencia: t.referencia || skuMap[t.sku].referencia,
+              tipo_controle: t.tipo_controle || skuMap[t.sku].tipo_controle,
+            };
           }
           return t;
         });
@@ -96,6 +101,8 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     }
     return tarefas;
   };
+
+  const requerLote = (tc?: string) => !!tc && ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tc);
 
   const tarefa = tarefas[currentIdx];
 
