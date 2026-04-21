@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus } from "lucide-react";
+import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fetchOptions } from "@/hooks/useCrud";
 import { CadastroDocSaidaPage } from "./CadastroDocSaidaPage";
+import { DocSaidaDetalhePage } from "./DocSaidaDetalhePage";
 
 interface DocSaida {
   id: string;
@@ -26,6 +27,7 @@ export function SaidasPage() {
   const [total, setTotal] = useState(0);
   const pageSize = 15;
   const [showCadastro, setShowCadastro] = useState(false);
+  const [detalheId, setDetalheId] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -132,6 +134,10 @@ export function SaidasPage() {
     return <CadastroDocSaidaPage onBack={() => { setShowCadastro(false); fetchDocs(); }} />;
   }
 
+  if (detalheId) {
+    return <DocSaidaDetalhePage documentoId={detalheId} onBack={() => { setDetalheId(null); fetchDocs(); }} />;
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -169,6 +175,7 @@ export function SaidasPage() {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
                 <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -180,6 +187,15 @@ export function SaidasPage() {
                   <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
                   <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
                   <td className="px-4 py-2.5 text-right font-mono text-foreground">{doc.valor_pedido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
+                      className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      title="Ver detalhes"
+                    >
+                      <Eye size={14} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
