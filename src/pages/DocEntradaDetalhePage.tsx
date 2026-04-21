@@ -268,7 +268,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
               <tfoot>

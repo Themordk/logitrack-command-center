@@ -268,7 +268,7 @@ export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
               <tfoot>
