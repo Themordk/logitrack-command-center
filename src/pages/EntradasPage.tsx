@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus } from "lucide-react";
+import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye } from "lucide-react";
 import { CadastroDocEntradaPage } from "./CadastroDocEntradaPage";
+import { DocEntradaDetalhePage } from "./DocEntradaDetalhePage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface DocEntry {
@@ -28,6 +29,7 @@ export function EntradasPage() {
   const [total, setTotal] = useState(0);
   const pageSize = 15;
   const [showCadastro, setShowCadastro] = useState(false);
+  const [detalheId, setDetalheId] = useState<string | null>(null);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -240,6 +242,10 @@ export function EntradasPage() {
     return <CadastroDocEntradaPage onBack={() => { setShowCadastro(false); fetchDocs(); }} />;
   }
 
+  if (detalheId) {
+    return <DocEntradaDetalhePage documentoId={detalheId} onBack={() => { setDetalheId(null); fetchDocs(); }} />;
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -290,6 +296,7 @@ export function EntradasPage() {
                 <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
                 <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Valor Total</th>
+                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -306,6 +313,15 @@ export function EntradasPage() {
                   <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
                   <td className="px-4 py-2.5 text-right font-mono text-foreground">
                     {doc.valor_total_nota.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
+                      className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      title="Ver detalhes"
+                    >
+                      <Eye size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}
