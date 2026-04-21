@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -231,8 +231,8 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
               </thead>
               <tbody>
                 {items.map((it) => (
-                  <>
-                    <tr key={it.id} className="border-b border-border/50">
+                  <Fragment key={it.id}>
+                    <tr className="border-b border-border/50">
                       <td className="px-4 py-2.5 font-mono text-xs text-foreground">{it.produto_sku}</td>
                       <td className="px-4 py-2.5 text-foreground">{it.produto_descricao}</td>
                       <td className="px-4 py-2.5 text-right font-mono text-foreground">{Number(it.quantidade).toLocaleString("pt-BR")}</td>
