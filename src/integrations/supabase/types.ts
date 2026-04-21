@@ -4558,6 +4558,7 @@ export type Database = {
           armazem_id: string | null
           atribuido_em: string | null
           concluido_em: string | null
+          criado_em: string | null
           duracao_segundos: number | null
           empresa_id: string | null
           espera_segundos: number | null
@@ -5607,16 +5608,31 @@ export type Database = {
         Args: { p_endereco_lido: string; p_tarefa_id: string }
         Returns: Json
       }
-      separacao_executar_coleta: {
-        Args: {
-          p_endereco_id: string
-          p_quantidade: number
-          p_tarefa_id: string
-          p_tenant_id: string
-          p_usuario_id: string
-        }
-        Returns: string
-      }
+      separacao_executar_coleta:
+        | {
+            Args: {
+              p_endereco_id: string
+              p_quantidade: number
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_endereco_id: string
+              p_fabricacao: string
+              p_hu: string
+              p_lote: string
+              p_quantidade: number
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+              p_validade: string
+            }
+            Returns: string
+          }
       separacao_limpar_item: {
         Args: {
           p_movimento_saida_id: string
