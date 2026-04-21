@@ -31,6 +31,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
+  const tenantId = localStorage.getItem("core_tenant_id");
 
   useEffect(() => {
     const raw = sessionStorage.getItem("coletor_separacao_tarefa_atual");
@@ -74,13 +75,15 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
         return;
       }
 
-      const { data, error } = await (supabase as any)
+      let query = (supabase as any)
         .from("estoque_geral")
         .select("lote, data_validade, data_fabricacao, hu_id, quantidade_disponivel")
         .eq("produto_id", produtoId)
         .eq("endereco_id", enderecoId)
         .gt("quantidade_disponivel", 0)
         .limit(200);
+      if (tenantId) query = query.eq("tenant_id", tenantId);
+      const { data, error } = await query;
 
       if (error) throw error;
 
