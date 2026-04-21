@@ -5716,6 +5716,7 @@ export type Database = {
       enum_status_item_onda:
         | "PENDENTE"
         | "EM_PICKING"
+        | "CORTE_TOTAL"
         | "SEPARADO"
         | "EM_CONFERENCIA"
         | "CONFERIDO"
@@ -6028,6 +6029,7 @@ export const Constants = {
       enum_status_item_onda: [
         "PENDENTE",
         "EM_PICKING",
+        "CORTE_TOTAL",
         "SEPARADO",
         "EM_CONFERENCIA",
         "CONFERIDO",
