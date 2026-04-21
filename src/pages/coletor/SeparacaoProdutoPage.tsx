@@ -72,6 +72,12 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         lookupEnderecoId(t.endereco);
       }
     }
+
+    // Load selected lote (when tipo_controle requires it)
+    const rawLote = sessionStorage.getItem("coletor_separacao_lote_selecionado");
+    if (rawLote) {
+      try { setLoteSel(JSON.parse(rawLote)); } catch { /* ignore */ }
+    }
   }, []);
 
   const fetchProdutoDetails = async (id: string) => {
