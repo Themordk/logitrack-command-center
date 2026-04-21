@@ -250,9 +250,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     };
     sessionStorage.setItem("coletor_separacao_tarefa_idx", String(currentIdx));
     sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(updatedTarefa));
+    sessionStorage.removeItem("coletor_separacao_lote_selecionado");
     toast.success(`Endereço alternativo selecionado: ${endAlt.endereco_descricao}`);
     setShowOutrosEnderecos(false);
-    onNavigate("/coletor/separacao/produto");
+    onNavigate(requerLote(tarefa.tipo_controle) ? "/coletor/separacao/lote" : "/coletor/separacao/produto");
   };
 
   if (!tarefa) {

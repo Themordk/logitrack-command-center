@@ -15,6 +15,14 @@ interface EmbalagemInfo {
   embalagem: string;
 }
 
+interface LoteSelecionado {
+  lote: string;
+  validade: string | null;
+  fabricacao: string | null;
+  hu_id: string | null;
+  saldo_disponivel: number;
+}
+
 export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [tarefa, setTarefa] = useState<any>(null);
   const [produtoId, setProdutoId] = useState<string | null>(null);
@@ -28,6 +36,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
