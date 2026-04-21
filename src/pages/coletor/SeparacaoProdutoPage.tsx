@@ -294,10 +294,17 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   if (!tarefa) return null;
 
   const restante = Number(tarefa.quantidade_requerida) - qtdSeparada;
-  const temLote = tarefa.tipo_controle === "LOTE" || tarefa.tipo_controle === "VALIDADE";
+  const temLote = ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tarefa.tipo_controle);
+  const backPath = temLote ? "/coletor/separacao/lote" : "/coletor/separacao/endereco";
+
+  const fmtDate = (iso: string | null | undefined) => {
+    if (!iso || iso === "1900-01-01") return "—";
+    const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+  };
 
   return (
-    <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/endereco">
+    <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath={backPath}>
       <div className="flex flex-col gap-3 flex-1 pb-24">
         {/* Product info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
@@ -319,12 +326,14 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           {tarefa.fator_caixa && <div className="text-xs text-[hsl(213,31%,55%)]">Fator Caixa: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.fator_caixa}</span></div>}
 
           {temLote && (
-            <>
-              <div className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.lote || "—"}</span></div>
-              <div className="text-xs text-[hsl(213,31%,55%)]">Validade: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.validade ? new Date(tarefa.validade).toLocaleDateString("pt-BR") : "—"}</span></div>
-              <div className="text-xs text-[hsl(213,31%,55%)]">Fabricação: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.fabricacao ? new Date(tarefa.fabricacao).toLocaleDateString("pt-BR") : "—"}</span></div>
-            </>
+            <div className="mt-2 pt-2 border-t border-[hsl(222,35%,22%)] space-y-1">
+              <div className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)]">{loteSel?.lote || tarefa.lote || "—"}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Validade: <span className="font-bold text-[hsl(213,31%,91%)]">{fmtDate(loteSel?.validade ?? tarefa.validade)}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Fabricação: <span className="font-bold text-[hsl(213,31%,91%)]">{fmtDate(loteSel?.fabricacao ?? tarefa.fabricacao)}</span></div>
+              {loteSel && <div className="text-xs text-[hsl(213,31%,55%)]">Saldo do Lote: <span className="font-bold text-[hsl(142,71%,45%)]">{loteSel.saldo_disponivel}</span></div>}
+            </div>
           )}
+        </div>
         </div>
 
         {/* Quantities */}
