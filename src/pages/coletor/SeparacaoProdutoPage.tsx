@@ -278,6 +278,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
     const nextIdx = idx + 1;
 
+    // Clear lote selection so it doesn't leak into the next task
+    sessionStorage.removeItem("coletor_separacao_lote_selecionado");
+
     if (nextIdx >= tarefas.length) {
       toast.success("Separação concluída para esta onda!");
       onNavigate("/coletor/separacao/iniciar");
