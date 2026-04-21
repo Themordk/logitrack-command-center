@@ -179,6 +179,23 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     const fator = embalagemInfo?.fator || 1;
     const qtdFinal = qtd * fator;
 
+    // Guard-rail: produtos com controle de lote exigem lote selecionado
+    const requerLote = ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tarefa.tipo_controle);
+    if (requerLote && !loteSel) {
+      toast.error("Selecione um lote antes de confirmar.");
+      onNavigate("/coletor/separacao/lote");
+      return;
+    }
+
+    // Validação de saldo do lote selecionado
+    if (loteSel && qtdFinal > loteSel.saldo_disponivel) {
+      setResultDialog({
+        sucesso: false,
+        mensagem: `Quantidade (${qtdFinal}) excede o saldo disponível no lote (${loteSel.saldo_disponivel}). Volte e selecione outro lote ou ajuste a quantidade.`,
+      });
+      return;
+    }
+
     setConfirming(true);
     try {
       const resolvedEnderecoId = enderecoId || tarefa.endereco_id || tarefa.endereco_alternativo_id;
@@ -189,6 +206,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         p_quantidade: qtdFinal,
         p_endereco_id: resolvedEnderecoId,
         p_usuario_id: usuarioId,
+        p_validade: loteSel?.validade ?? null,
+        p_fabricacao: loteSel?.fabricacao ?? null,
+        p_lote: loteSel?.lote ?? null,
+        p_hu: loteSel?.hu_id ?? null,
       });
       if (error) throw error;
 
