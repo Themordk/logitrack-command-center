@@ -83,6 +83,7 @@ import { AbastecimentoDestinoPage } from "./pages/coletor/AbastecimentoDestinoPa
 import { RecebimentoVolumesPage } from "./pages/coletor/RecebimentoVolumesPage";
 import { SeparacaoIniciarPage } from "./pages/coletor/SeparacaoIniciarPage";
 import { SeparacaoEnderecoPage } from "./pages/coletor/SeparacaoEnderecoPage";
+import { SeparacaoLotePage } from "./pages/coletor/SeparacaoLotePage";
 import { SeparacaoProdutoPage } from "./pages/coletor/SeparacaoProdutoPage";
 import { SeparacaoOcorrenciasPage } from "./pages/coletor/SeparacaoOcorrenciasPage";
 import { ConferenciaIniciarPage } from "./pages/coletor/ConferenciaIniciarPage";
@@ -312,6 +313,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/movimentos/abastecimento/destino": return <AbastecimentoDestinoPage onNavigate={onNavigate} />;
     case "/coletor/separacao/iniciar": return <SeparacaoIniciarPage onNavigate={onNavigate} />;
     case "/coletor/separacao/endereco": return <SeparacaoEnderecoPage onNavigate={onNavigate} />;
+    case "/coletor/separacao/lote": return <SeparacaoLotePage onNavigate={onNavigate} />;
     case "/coletor/separacao/produto": return <SeparacaoProdutoPage onNavigate={onNavigate} />;
     case "/coletor/separacao/ocorrencias": return <SeparacaoOcorrenciasPage onNavigate={onNavigate} />;
     case "/coletor/conferencia/iniciar": return <ConferenciaIniciarPage onNavigate={onNavigate} />;

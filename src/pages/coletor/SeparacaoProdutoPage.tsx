@@ -15,6 +15,14 @@ interface EmbalagemInfo {
   embalagem: string;
 }
 
+interface LoteSelecionado {
+  lote: string;
+  validade: string | null;
+  fabricacao: string | null;
+  hu_id: string | null;
+  saldo_disponivel: number;
+}
+
 export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [tarefa, setTarefa] = useState<any>(null);
   const [produtoId, setProdutoId] = useState<string | null>(null);
@@ -28,6 +36,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -62,6 +71,12 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       } else if (t.endereco) {
         lookupEnderecoId(t.endereco);
       }
+    }
+
+    // Load selected lote (when tipo_controle requires it)
+    const rawLote = sessionStorage.getItem("coletor_separacao_lote_selecionado");
+    if (rawLote) {
+      try { setLoteSel(JSON.parse(rawLote)); } catch { /* ignore */ }
     }
   }, []);
 
@@ -164,6 +179,23 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     const fator = embalagemInfo?.fator || 1;
     const qtdFinal = qtd * fator;
 
+    // Guard-rail: produtos com controle de lote exigem lote selecionado
+    const requerLote = ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tarefa.tipo_controle);
+    if (requerLote && !loteSel) {
+      toast.error("Selecione um lote antes de confirmar.");
+      onNavigate("/coletor/separacao/lote");
+      return;
+    }
+
+    // Validação de saldo do lote selecionado
+    if (loteSel && qtdFinal > loteSel.saldo_disponivel) {
+      setResultDialog({
+        sucesso: false,
+        mensagem: `Quantidade (${qtdFinal}) excede o saldo disponível no lote (${loteSel.saldo_disponivel}). Volte e selecione outro lote ou ajuste a quantidade.`,
+      });
+      return;
+    }
+
     setConfirming(true);
     try {
       const resolvedEnderecoId = enderecoId || tarefa.endereco_id || tarefa.endereco_alternativo_id;
@@ -174,6 +206,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         p_quantidade: qtdFinal,
         p_endereco_id: resolvedEnderecoId,
         p_usuario_id: usuarioId,
+        p_validade: loteSel?.validade ?? null,
+        p_fabricacao: loteSel?.fabricacao ?? null,
+        p_lote: loteSel?.lote ?? null,
+        p_hu: loteSel?.hu_id ?? null,
       });
       if (error) throw error;
 
@@ -242,6 +278,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
     const nextIdx = idx + 1;
 
+    // Clear lote selection so it doesn't leak into the next task
+    sessionStorage.removeItem("coletor_separacao_lote_selecionado");
+
     if (nextIdx >= tarefas.length) {
       toast.success("Separação concluída para esta onda!");
       onNavigate("/coletor/separacao/iniciar");
@@ -255,10 +294,17 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   if (!tarefa) return null;
 
   const restante = Number(tarefa.quantidade_requerida) - qtdSeparada;
-  const temLote = tarefa.tipo_controle === "LOTE" || tarefa.tipo_controle === "VALIDADE";
+  const temLote = ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tarefa.tipo_controle);
+  const backPath = temLote ? "/coletor/separacao/lote" : "/coletor/separacao/endereco";
+
+  const fmtDate = (iso: string | null | undefined) => {
+    if (!iso || iso === "1900-01-01") return "—";
+    const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+  };
 
   return (
-    <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/endereco">
+    <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath={backPath}>
       <div className="flex flex-col gap-3 flex-1 pb-24">
         {/* Product info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
@@ -280,13 +326,15 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           {tarefa.fator_caixa && <div className="text-xs text-[hsl(213,31%,55%)]">Fator Caixa: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.fator_caixa}</span></div>}
 
           {temLote && (
-            <>
-              <div className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.lote || "—"}</span></div>
-              <div className="text-xs text-[hsl(213,31%,55%)]">Validade: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.validade ? new Date(tarefa.validade).toLocaleDateString("pt-BR") : "—"}</span></div>
-              <div className="text-xs text-[hsl(213,31%,55%)]">Fabricação: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.fabricacao ? new Date(tarefa.fabricacao).toLocaleDateString("pt-BR") : "—"}</span></div>
-            </>
+            <div className="mt-2 pt-2 border-t border-[hsl(222,35%,22%)] space-y-1">
+              <div className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)]">{loteSel?.lote || tarefa.lote || "—"}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Validade: <span className="font-bold text-[hsl(213,31%,91%)]">{fmtDate(loteSel?.validade ?? tarefa.validade)}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Fabricação: <span className="font-bold text-[hsl(213,31%,91%)]">{fmtDate(loteSel?.fabricacao ?? tarefa.fabricacao)}</span></div>
+              {loteSel && <div className="text-xs text-[hsl(213,31%,55%)]">Saldo do Lote: <span className="font-bold text-[hsl(142,71%,45%)]">{loteSel.saldo_disponivel}</span></div>}
+            </div>
           )}
         </div>
+
 
         {/* Quantities */}
         <div className="grid grid-cols-3 gap-2">
