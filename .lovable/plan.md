@@ -1,104 +1,155 @@
 
 
-## Plano: Telas de Detalhe para Documentos de Entrada e Saída
+## Plano: 3 Novos Relatórios Operacionais
 
-### Objetivo
+Manter a tríade arquitetural já consolidada: `service.ts` (query Supabase + transformação) + `Page.tsx` (UI com `ReportHeader`/`ReportTable` + filtros) + rota em `App.tsx` + entrada no menu `TopNav.tsx`. Visual SAP-like idêntico aos relatórios atuais (densidade alta, 9–11px, dark theme, status com cores semânticas).
 
-Permitir ao usuário **clicar em um registro** das listas em **Atividades → Gerar Entradas** e **Atividades → Gerar Saídas** para visualizar os detalhes completos do documento (cabeçalho + itens), seguindo o mesmo padrão visual da tela `TarefaDetalhePage`.
+---
 
-### Padrão visual
+### Relatório 1 — Curva ABC de Estoque (por giro)
 
-Reutilizar exatamente os mesmos componentes/estilos de `TarefaDetalhePage.tsx`:
-- Header com botão "Voltar" + título + subtítulo
-- Cards (`Card`/`CardHeader`/`CardContent`) com ícone no título
-- Helper `InfoItem` para exibir label uppercase + valor
-- Datas via `formatBrasiliaDateTime` / `formatBrasiliaDate` (padrão Brasília)
-- Tabela densa para os itens (mesmo estilo da `EntradasPage`/`SaidasPage`)
+**Caminho**: `/relatorios/curva-abc` · Menu: "Curva ABC"
 
-### Mudanças
+**Objetivo**: Classificar produtos pelo volume de saída no período, segmentando em A (80%), B (15%), C (5%) do total, para apoiar slotting/priorização.
 
-**1. Nova página `src/pages/DocEntradaDetalhePage.tsx`**
+**Fonte de dados**:
+- `estoque_movimento` filtrado por `tipo_movimento = 2` (Saída) entre `data_inicio` e `data_fim`, agregado por `produto_id`.
+- Join com `produto` para `sku`, `descricao`, `marca`, `grupo_id`, `subgrupo_id`.
+- Saldo atual via `estoque_geral` (soma `quantidade_total` por `produto_id`) — opcional, exibido como contexto.
 
-Props: `{ documentoId: string; onBack: () => void }`
+**Lógica de cálculo (service)**:
+1. `SELECT produto_id, SUM(quantidade) AS qtd_saida FROM estoque_movimento WHERE tipo_movimento=2 AND criado_em BETWEEN ... GROUP BY produto_id ORDER BY qtd_saida DESC`.
+2. Em memória: `total = Σ qtd_saida`; para cada linha: `participacao = qtd_saida / total`, `acumulado` cumulativo.
+3. Classificação: `acumulado ≤ 80% → A`; `≤ 95% → B`; resto → `C`. Limites parametrizáveis (constantes no topo do service).
 
-Layout em 2 cards verticais:
+**Colunas**:
+| SKU | Descrição | Marca | Qtd. Saída | % Particip. | % Acum. | Saldo Atual | Classe |
 
-- **Card 1 — Dados do Documento** (ícone `FileText`)
-  - Nº Nota, Data Emissão, Data Entrada
-  - Parceiro (razão social + CNPJ)
-  - Tipo de Entrada (descrição)
-  - Armazém (descrição)
-  - Qtd Volumes, Valor Total Produtos, Valor Total Nota
-  - Status (badge: 0=Pendente, 1=Em Movimento, 2=Concluído) + Criado em
+- Classe renderizada como badge: A = verde, B = amarelo, C = cinza.
+- "Saldo Atual = 0" em vermelho-escuro (alerta de ruptura num produto A/B).
 
-- **Card 2 — Itens do Documento** (ícone `Package`, contador no título)
-  - Tabela: Produto (SKU + Descrição), Quantidade, Valor Unit., Valor Total
-  - Linhas com lotes (quando existirem em `documento_entrada_item_lote`) exibidas como sub-linhas recolhíveis ou colunas extras (Lote, Validade, Fabricação, Série, Quantidade)
-  - Footer com Total de SKUs e Valor Total Produtos
+**Filtros**: Período (data_inicio/data_fim, default últimos 30 dias), Armazém, Grupo, Subgrupo, Marca, SKU, Classe (A/B/C).
 
-Carregamento: 4 queries paralelas (`documento_entrada`, `parceiro`, `tipo_entrada`, `armazem`) + 1 query `documento_entrada_item` com enriquecimento de produto e lotes em batch.
+**Insights**:
+- Item Classe A com saldo zero → alerta de ruptura crítica.
+- Item Classe C com saldo alto → candidato a remanejamento de picking para pulmão.
 
-**2. Nova página `src/pages/DocSaidaDetalhePage.tsx`**
+---
 
-Props: `{ documentoId: string; onBack: () => void }`
+### Relatório 2 — Validade & Lote (FEFO/FIFO)
 
-Layout em 2 cards verticais:
+**Caminho**: `/relatorios/validade-lote` · Menu: "Validade e Lote"
 
-- **Card 1 — Dados do Documento** (ícone `FileText`)
-  - Nº Pedido, Data Emissão
-  - Parceiro (razão social + CNPJ)
-  - Tipo Pedido (descrição)
-  - Rota, Vendedor, Transportador
-  - Valor Pedido, Status (badge: 0=Pendente, 1=Em Onda, 2=Concluído)
-  - Observação
+**Objetivo**: Visão analítica de saldos por lote/validade ordenada por FEFO, com destaque para itens próximos ao vencimento.
 
-- **Card 2 — Itens do Documento** (ícone `Package`, contador no título)
-  - Tabela: Produto (SKU + Descrição), Quantidade, Valor Unit., Valor Total
-  - Sub-linhas/colunas com Lote, Validade, Fabricação, Série quando houver `documento_saida_item_lote`
-  - Footer com Total de SKUs e Valor Total
+**Fonte de dados**:
+- `estoque_geral` (linhas com `quantidade_total > 0`) restrito a produtos cujo `tipo_controle ∈ ('LOTE','VALIDADE','LOTE_SERIE')`.
+- Joins: `produto` (sku, descricao, marca, dias_shelf), `endereco` (codigo_endereco, descricao, tipo_endereco, armazem_id, setor_id).
 
-Carregamento análogo à entrada, usando `documento_saida` / `documento_saida_item` / `documento_saida_item_lote`.
+**Lógica de cálculo (service)**:
+- `dias_para_vencer = DATEDIFF(data_validade, hoje)` em memória.
+- Ordenação default: `data_validade ASC, sku ASC` (FEFO). Toggle no header da tabela permite ordenar por `data_fabricacao ASC` (FIFO).
+- Faixas de criticidade:
+  - `< 0` → **Vencido** (vermelho `--status-blocked`)
+  - `0–30` → **Crítico** (laranja)
+  - `31–60` → **Atenção** (amarelo)
+  - `> 60` → **OK** (cinza)
 
-**3. Alterações em `src/pages/EntradasPage.tsx`**
+**Colunas**:
+| SKU | Descrição | Lote | Fabricação | Validade | Dias p/ Vencer | Saldo | Endereço | Tipo End. |
 
-- Novo state: `const [detalheId, setDetalheId] = useState<string | null>(null)`
-- Adicionar uma **coluna "Ações"** com ícone `Eye` (clique → `setDetalheId(doc.id)`) — não usar o clique da linha inteira para evitar conflito com o checkbox de seleção (que continua selecionando)
-- Renderização condicional no topo do componente: `if (detalheId) return <DocEntradaDetalhePage documentoId={detalheId} onBack={() => { setDetalheId(null); fetchDocs(); }} />;`
-- Mesmo padrão já usado para `showCadastro`/`CadastroDocEntradaPage` — não cria nova rota.
+- Linha inteira ganha tinta de fundo sutil para Vencido/Crítico (mesmo padrão do `EstoqueReportPage`).
+- Quando `lote = ''` e `data_validade = '1900-01-01'` → item sem controle, omitido.
 
-**4. Alterações em `src/pages/SaidasPage.tsx`**
+**Filtros**: Armazém, Setor, Tipo Endereço (Picking/Pulmão), SKU, Marca, Grupo, Subgrupo, Faixa de Criticidade (Vencido/Crítico/Atenção/OK), Validade até (data), Toggle FEFO/FIFO.
 
-- Mesma estratégia: state `detalheId`, coluna "Ações" com botão `Eye`, render condicional `<DocSaidaDetalhePage />`.
+**Insights**:
+- Quantidade total vencida (KPI no `ReportHeader` em vermelho).
+- Quantidade crítica ≤30 dias.
+- Lote duplicado em endereços diferentes → potencial consolidação.
 
-### UX da listagem
+---
 
-Hoje o clique na linha **alterna o checkbox**. Isso será preservado. A entrada para o detalhe será via **botão de ícone (olho)** na nova coluna "Ações" à direita, com `e.stopPropagation()` para não conflitar com a seleção. Esse padrão é consistente com tabelas SAP-like do sistema.
+### Relatório 3 — Baixo Giro / Obsoletos
 
-### Tratamento de status (badges)
+**Caminho**: `/relatorios/baixo-giro` · Menu: "Baixo Giro / Obsoletos"
 
-| Tabela | status | label | cor |
-|---|---|---|---|
-| documento_entrada | 0 | Pendente | red |
-| documento_entrada | 1 | Em Movimento | yellow |
-| documento_entrada | 2 | Concluído | blue |
-| documento_saida | 0 | Pendente | red |
-| documento_saida | 1 | Em Onda | yellow |
-| documento_saida | 2 | Concluído | blue |
+**Objetivo**: Identificar produtos com saldo em estoque cuja última saída ocorreu há mais de N dias (default 90), suportando decisões de descarte/promoção/realocação.
 
-(Reaproveita paleta da progressão de status já usada no projeto.)
+**Fonte de dados**:
+- `estoque_geral` agrupado por `produto_id` (saldo total > 0).
+- `estoque_movimento` (`tipo_movimento = 2`) para `MAX(criado_em)` por `produto_id` — última saída.
+- Join com `produto` para metadados; `parceiro` (fornecedor) opcional.
+
+**Lógica de cálculo (service)**:
+1. Query A: saldo agregado por produto em `estoque_geral`.
+2. Query B: última saída por produto em `estoque_movimento`.
+3. Merge em memória pelo `produto_id`. Produtos sem registro em B → `dias_sem_movimento = ∞` (representado como "Nunca").
+4. Filtro: `dias_sem_movimento >= dias_limite` (parametrizável; default 90).
+5. Classificação:
+   - `dias_sem_movimento >= 180` → **Obsoleto** (vermelho)
+   - `90 ≤ dias < 180` → **Baixo Giro** (amarelo)
+   - "Nunca" → **Sem Movimento** (vermelho-escuro)
+
+**Colunas**:
+| SKU | Descrição | Marca | Saldo | Custo Unit. | Custo Total | Última Saída | Dias s/ Mov. | Classificação |
+
+- `Custo Total = saldo × produto.preco_custo` — soma exibida no rodapé do `ReportHeader` ("Capital parado: R$ X").
+- Datas via `formatBrasiliaDate`.
+
+**Filtros**: Dias sem movimento (input numérico, default 90), Armazém, Grupo, Subgrupo, Marca, SKU, Classificação (Baixo Giro/Obsoleto/Sem Movimento), Saldo mínimo.
+
+**Insights**:
+- KPIs no header: Total de SKUs parados, Saldo total imobilizado, Custo total imobilizado.
+- Coluna "Custo Total" alinhada à direita, formatada em BRL.
+
+---
+
+### Padrão técnico (todos os 3)
+
+**Estrutura de arquivos** (idêntica aos relatórios existentes):
+```text
+src/modules/reports/
+├── curva-abc/
+│   ├── CurvaAbcReportPage.tsx
+│   └── curvaAbc.service.ts
+├── validade-lote/
+│   ├── ValidadeLoteReportPage.tsx
+│   └── validadeLote.service.ts
+└── baixo-giro/
+    ├── BaixoGiroReportPage.tsx
+    └── baixoGiro.service.ts
+```
+
+**Componentes reutilizados**: `ReportHeader`, `ReportTable` (com `ReportColumn`), `Input`, `Label`, `Select`, `Button` do shadcn. Helpers: `formatBrasiliaDate`, `formatBrasiliaDateTime`, `nowBrasiliaDisplay`.
+
+**Rotas** (em `src/App.tsx`):
+- `/relatorios/curva-abc` → `CurvaAbcReportPage`
+- `/relatorios/validade-lote` → `ValidadeLoteReportPage`
+- `/relatorios/baixo-giro` → `BaixoGiroReportPage`
+
+**Menu** (em `src/components/TopNav.tsx`, dentro de "Relatórios"): adicionar 3 itens entre "Posição de Estoque" e "Histórico de Movimentos".
+
+**Performance**:
+- Limite default 1000 linhas (paginação client-side via `ReportTable`).
+- Agregações pesadas (`Curva ABC`, `Baixo Giro`) feitas em memória após query única `tipo_movimento=2` filtrada por período — Supabase devolve raw, JS agrupa. Caso volumes ultrapassem 50k linhas em cliente, próxima iteração migra para uma view SQL (`vw_curva_abc`, `vw_baixo_giro`) — não escopo desta entrega.
+- `tenantId` sempre injetado via `useTenant()`; RLS já cobre `estoque_geral` e `estoque_movimento`.
+
+**Cores semânticas** (mesma paleta do projeto):
+- Verde `--status-free` · Amarelo `--status-busy` · Vermelho `--status-blocked` · Cinza `text-muted-foreground`.
+
+**Sem mudanças de schema, RLS, edge function ou tipos**.
 
 ### Arquivos
 
-| Arquivo | Tipo | Descrição |
-|---|---|---|
-| `src/pages/DocEntradaDetalhePage.tsx` | novo | Tela de detalhe do documento de entrada |
-| `src/pages/DocSaidaDetalhePage.tsx` | novo | Tela de detalhe do documento de saída |
-| `src/pages/EntradasPage.tsx` | alterado | Coluna "Ações" + render condicional do detalhe |
-| `src/pages/SaidasPage.tsx` | alterado | Coluna "Ações" + render condicional do detalhe |
-
-### Observações
-
-- Sem mudanças de schema, RLS ou rotas no `App.tsx` (segue o padrão de `CadastroDocEntradaPage`/`CadastroDocSaidaPage`, que usam render condicional dentro da página-mãe).
-- Datas exibidas via helpers `formatBrasiliaDateTime`/`formatBrasiliaDate`, alinhado com o padrão Brasília.
-- Cards de lotes aparecem **somente** quando há registros em `documento_entrada_item_lote` / `documento_saida_item_lote` para o item — produtos sem controle de lote ficam com a linha simples.
+| Arquivo | Tipo |
+|---|---|
+| `src/modules/reports/curva-abc/curvaAbc.service.ts` | novo |
+| `src/modules/reports/curva-abc/CurvaAbcReportPage.tsx` | novo |
+| `src/modules/reports/validade-lote/validadeLote.service.ts` | novo |
+| `src/modules/reports/validade-lote/ValidadeLoteReportPage.tsx` | novo |
+| `src/modules/reports/baixo-giro/baixoGiro.service.ts` | novo |
+| `src/modules/reports/baixo-giro/BaixoGiroReportPage.tsx` | novo |
+| `src/App.tsx` | alterado (3 imports + 3 cases) |
+| `src/components/TopNav.tsx` | alterado (3 itens no submenu Relatórios) |
 
