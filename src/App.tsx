@@ -50,6 +50,9 @@ import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPag
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 import { CortesReportPage } from "./modules/reports/cortes/CortesReportPage";
+import { CurvaAbcReportPage } from "./modules/reports/curva-abc/CurvaAbcReportPage";
+import { ValidadeLoteReportPage } from "./modules/reports/validade-lote/ValidadeLoteReportPage";
+import { BaixoGiroReportPage } from "./modules/reports/baixo-giro/BaixoGiroReportPage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
@@ -133,6 +136,9 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
   "/relatorios/produtividade": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtividade Operacional" }],
   "/relatorios/cortes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cortes de Separação" }],
+  "/relatorios/curva-abc": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Curva ABC" }],
+  "/relatorios/validade-lote": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Validade & Lote" }],
+  "/relatorios/baixo-giro": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Baixo Giro / Obsoletos" }],
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
@@ -212,6 +218,9 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
     case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
     case "/relatorios/cortes": return <CortesReportPage />;
+    case "/relatorios/curva-abc": return <CurvaAbcReportPage />;
+    case "/relatorios/validade-lote": return <ValidadeLoteReportPage />;
+    case "/relatorios/baixo-giro": return <BaixoGiroReportPage />;
     default: {
       // Dynamic route: /atividades/abastecimento/gerar
       if (path.startsWith("/atividades/abastecimento/gerar")) {
