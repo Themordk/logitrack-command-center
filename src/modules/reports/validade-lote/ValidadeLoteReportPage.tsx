@@ -88,7 +88,7 @@ export function ValidadeLoteReportPage() {
   const criticidadeBadge = (c: ValidadeLoteRow["criticidade"]) => {
     const map: Record<string, string> = {
       VENCIDO: "bg-[hsl(var(--status-blocked))]/15 text-[hsl(var(--status-blocked))] border-[hsl(var(--status-blocked))]/30",
-      CRITICO: "bg-orange-500/15 text-orange-500 border-orange-500/30",
+      CRITICO: "bg-[hsl(var(--status-blocked))]/10 text-[hsl(var(--status-blocked))] border-[hsl(var(--status-blocked))]/20",
       ATENCAO: "bg-[hsl(var(--status-busy))]/15 text-[hsl(var(--status-busy))] border-[hsl(var(--status-busy))]/30",
       OK: "bg-muted text-muted-foreground border-border",
     };
@@ -114,7 +114,7 @@ export function ValidadeLoteReportPage() {
       render: (v, row) => (
         <span className={cn(
           row.criticidade === "VENCIDO" && "text-[hsl(var(--status-blocked))] font-bold",
-          row.criticidade === "CRITICO" && "text-orange-500 font-semibold",
+          row.criticidade === "CRITICO" && "text-[hsl(var(--status-blocked))] font-semibold",
           row.criticidade === "ATENCAO" && "text-[hsl(var(--status-busy))]",
         )}>
           {v < 0 ? `${v}` : v}
