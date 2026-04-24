@@ -98,6 +98,7 @@ const navItems: NavItem[] = [
       { label: "Produtividade Operacional", path: "/relatorios/produtividade" },
       { label: "Expedições", path: "/relatorios/expedicoes" },
       { label: "Inventário", path: "/relatorios/inventario" },
+      { label: "Recebimento (Dock-to-Stock)", path: "/relatorios/recebimento" },
     ],
   },
   {
