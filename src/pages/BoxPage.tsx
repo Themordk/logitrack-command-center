@@ -6,23 +6,22 @@ import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function BoxPage() {
-  const { tenantId, armazemId } = useTenant();
-  const crud = useCrud({
-    table: "box",
-    tenantId,
-    orderBy: "descricao",
-    filters: armazemId ? { armazem_id: armazemId } : {},
-  });
+  const { tenantId, armazemId, empresaVersion } = useTenant();
+  const crud = useCrud({ table: "box", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [tipoBoxOptions, setTipoBoxOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    if (tenantId) {
-      fetchOptions("tipo_box", tenantId, "descricao", armazemId ? { armazem_id: armazemId } : undefined).then(setTipoBoxOptions);
+    if (tenantId && armazemId) {
+      fetchOptions("tipo_box", tenantId, "descricao", { armazem_id: armazemId }).then(setTipoBoxOptions);
+    } else {
+      setTipoBoxOptions([]);
     }
-  }, [tenantId, armazemId]);
+    setModalOpen(false);
+    setEditItem(null);
+  }, [tenantId, armazemId, empresaVersion]);
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição", type: "mono" },

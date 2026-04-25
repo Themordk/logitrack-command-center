@@ -7,12 +7,7 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function TurnosPage() {
   const { tenantId, armazemId } = useTenant();
-  const crud = useCrud({
-    table: "turnos",
-    tenantId,
-    orderBy: "descricao",
-    filters: armazemId ? { armazem_id: armazemId } : {},
-  });
+  const crud = useCrud({ table: "turnos", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);

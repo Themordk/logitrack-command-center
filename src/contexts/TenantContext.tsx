@@ -13,7 +13,7 @@ interface TenantContextType {
   switchingEmpresa: boolean;
   login: (tipoUsuario?: string) => void;
   logout: () => void;
-  changeEmpresa: (empresaId: string) => void;
+  changeEmpresa: (empresaId: string) => Promise<void>;
 }
 
 const TenantContext = createContext<TenantContextType>({
@@ -28,7 +28,7 @@ const TenantContext = createContext<TenantContextType>({
   switchingEmpresa: false,
   login: () => {},
   logout: () => {},
-  changeEmpresa: () => {},
+  changeEmpresa: async () => {},
 });
 
 export function TenantProvider({ children }: { children: ReactNode }) {
@@ -104,16 +104,48 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setAuthenticated(false);
   };
 
-  const changeEmpresa = (newEmpresaId: string) => {
+  const changeEmpresa = async (newEmpresaId: string) => {
     if (!newEmpresaId || newEmpresaId === empresaId) return;
-    localStorage.setItem("core_empresa_id", newEmpresaId);
-    setEmpresaId(newEmpresaId);
-    setEmpresaVersion((v) => v + 1);
-    // invalida cache de permissões (podem variar por empresa em evolução futura)
-    sessionStorage.removeItem("core_rbac_permissions");
-    // Overlay leve para feedback visual
+
     setSwitchingEmpresa(true);
     if (switchTimer.current) window.clearTimeout(switchTimer.current);
+
+    // Persiste empresa
+    localStorage.setItem("core_empresa_id", newEmpresaId);
+    setEmpresaId(newEmpresaId);
+
+    // Recalcula armazém ativo coerente com a nova empresa
+    let novoArmazemId: string | null = null;
+    try {
+      if (tenantId) {
+        const { data } = await (supabase as any)
+          .from("armazem")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("empresa_id", newEmpresaId)
+          .eq("ativo", true)
+          .order("descricao")
+          .limit(1)
+          .maybeSingle();
+        novoArmazemId = data?.id ?? null;
+      }
+    } catch (e) {
+      console.warn("Falha ao buscar armazém ativo da nova empresa", e);
+    }
+
+    if (novoArmazemId) {
+      localStorage.setItem("core_armazem_id", novoArmazemId);
+    } else {
+      localStorage.removeItem("core_armazem_id");
+    }
+    setArmazemId(novoArmazemId);
+
+    // Invalida cache de permissões
+    sessionStorage.removeItem("core_rbac_permissions");
+
+    // Dispara refetch global após empresa+armazém estarem coerentes
+    setEmpresaVersion((v) => v + 1);
+
     switchTimer.current = window.setTimeout(() => setSwitchingEmpresa(false), 700);
   };
 

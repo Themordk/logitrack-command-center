@@ -9,16 +9,14 @@ import { Printer, Layers } from "lucide-react";
 import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
-  const { tenantId } = useTenant();
+  const { tenantId, armazemId, empresaVersion } = useTenant();
   const crud = useCrud({ table: "endereco", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
   const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
 
-  // Selection & Print
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
@@ -36,12 +34,17 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   };
 
   useEffect(() => {
-    if (tenantId) {
-      fetchOptions("armazem", tenantId).then(setArmazemOptions);
-      fetchOptions("setor", tenantId).then(setSetorOptions);
-      fetchOptions("tipo_estoque", tenantId).then(setTipoEstoqueOptions);
+    if (tenantId && armazemId) {
+      fetchOptions("setor", tenantId, "descricao", { armazem_id: armazemId }).then(setSetorOptions);
+      fetchOptions("tipo_estoque", tenantId, "descricao", { armazem_id: armazemId }).then(setTipoEstoqueOptions);
+    } else {
+      setSetorOptions([]);
+      setTipoEstoqueOptions([]);
     }
-  }, [tenantId]);
+    setSelectedIds(new Set());
+    setModalOpen(false);
+    setEditItem(null);
+  }, [tenantId, armazemId, empresaVersion]);
 
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
@@ -65,7 +68,6 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   ];
 
   const fields: FieldSpec[] = [
-    { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions },
     { name: "setor_id", label: "Setor", type: "select", required: true, options: setorOptions },
     { name: "tipo_estoque_id", label: "Tipo de Estoque", type: "select", required: true, options: tipoEstoqueOptions },
     { name: "rua", label: "Rua", type: "number", required: true, placeholder: "1" },
@@ -87,13 +89,13 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   ];
 
   const handleSave = async (data: Record<string, any>) => {
-    // Auto-generate descricao
     data.descricao = buildDescricao(
       String(data.rua || "0"),
       String(data.predio || "0"),
       String(data.nivel || "0"),
       String(data.apto || "0")
     );
+    if (armazemId) data.armazem_id = armazemId;
     if (editItem) return crud.update(editItem.id, data);
     return crud.create(data);
   };
