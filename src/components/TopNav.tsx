@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
 
