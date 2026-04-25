@@ -6,20 +6,22 @@ import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function ParceirosPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const crud = useCrud({ table: "parceiro", tenantId, orderBy: "razaosocial" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
   const [rotaOptions, setRotaOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    if (tenantId) {
-      fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
-      fetchOptions("rotas", tenantId).then(setRotaOptions);
+    if (tenantId && empresaId && armazemId) {
+      fetchOptions("rotas", tenantId, "descricao", { empresa_id: empresaId, armazem_id: armazemId }).then(setRotaOptions);
+    } else {
+      setRotaOptions([]);
     }
-  }, [tenantId]);
+    setModalOpen(false);
+    setEditItem(null);
+  }, [tenantId, empresaId, armazemId, empresaVersion]);
 
   const columns: ColumnSpec[] = [
     { key: "razaosocial", label: "Razão Social" },
@@ -31,7 +33,6 @@ export function ParceirosPage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
     { name: "razaosocial", label: "Razão Social", type: "text", required: true, placeholder: "Razão Social" },
     { name: "cnpj", label: "CNPJ", type: "text", required: true, placeholder: "00.000.000/0001-00" },
     { name: "tipo_parceiro", label: "Tipo de Parceiro", type: "enum", required: true, enumValues: ["CLIENTE", "FORNECEDOR", "TRANSPORTADOR"] },
