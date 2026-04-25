@@ -220,7 +220,8 @@ export function useCrud<T extends Record<string, any>>({
   };
 }
 
-// Helper de selects: filtra opções por tenant + ativo + filters extras
+// Helper de selects: filtra opções por tenant + ativo + filters extras.
+// Aceita filters como { empresa_id, armazem_id, ... } para escopo correto.
 export async function fetchOptions(
   table: string,
   tenantId: string,
