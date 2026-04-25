@@ -55,6 +55,7 @@ import { ValidadeLoteReportPage } from "./modules/reports/validade-lote/Validade
 import { BaixoGiroReportPage } from "./modules/reports/baixo-giro/BaixoGiroReportPage";
 import { InventarioReportPage } from "./modules/reports/inventario/InventarioReportPage";
 import { RecebimentoReportPage } from "./modules/reports/recebimento/RecebimentoReportPage";
+import { CicloPedidoReportPage } from "./modules/reports/ciclo-pedido/CicloPedidoReportPage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
@@ -143,6 +144,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/baixo-giro": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Baixo Giro / Obsoletos" }],
   "/relatorios/inventario": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Acuracidade de Inventário" }],
   "/relatorios/recebimento": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Recebimento (Dock-to-Stock)" }],
+  "/relatorios/ciclo-pedido": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Tempo de Ciclo de Pedido" }],
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
@@ -227,6 +229,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/baixo-giro": return <BaixoGiroReportPage />;
     case "/relatorios/inventario": return <InventarioReportPage />;
     case "/relatorios/recebimento": return <RecebimentoReportPage />;
+    case "/relatorios/ciclo-pedido": return <CicloPedidoReportPage />;
     default: {
       // Dynamic route: /atividades/abastecimento/gerar
       if (path.startsWith("/atividades/abastecimento/gerar")) {
