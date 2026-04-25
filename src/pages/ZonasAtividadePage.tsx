@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
@@ -10,14 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Plus, Trash2, Loader2, Link2 } from "lucide-react";
 
 export function ZonasAtividadePage() {
-  const { tenantId, armazemId } = useTenant();
-  const crud = useCrud({ table: "zona_atividade", tenantId, orderBy: "descricao", filters: { armazem_id: armazemId } });
+  const { tenantId, armazemId, empresaVersion } = useTenant();
+  const crud = useCrud({ table: "zona_atividade", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
 
-  // Vínculo state
   const [vinculoZona, setVinculoZona] = useState<any>(null);
   const [vinculos, setVinculos] = useState<any[]>([]);
   const [vinculoLoading, setVinculoLoading] = useState(false);
@@ -25,9 +23,15 @@ export function ZonasAtividadePage() {
   const [enderecoOptions, setEnderecoOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedEnderecos, setSelectedEnderecos] = useState<string[]>([]);
 
+  // Resetar estado local ao trocar empresa/armazém
   useEffect(() => {
-    if (tenantId) fetchOptions("armazem", tenantId).then(setArmazemOptions);
-  }, [tenantId]);
+    setVinculoZona(null);
+    setVinculos([]);
+    setAddEndOpen(false);
+    setSelectedEnderecos([]);
+    setModalOpen(false);
+    setEditItem(null);
+  }, [tenantId, armazemId, empresaVersion]);
 
   const loadVinculos = async (zonaId: string) => {
     setVinculoLoading(true);
@@ -81,11 +85,16 @@ export function ZonasAtividadePage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Zona Picking A" },
     { name: "tipo_grupo", label: "Tipo do Grupo", type: "enum", required: true, enumValues: ["PICKING", "ARMAZENAGEM", "INVENTARIO"] },
     { name: "Ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
+
+  const handleSave = async (data: Record<string, any>) => {
+    if (armazemId) data.armazem_id = armazemId;
+    if (editItem) return crud.update(editItem.id, data);
+    return crud.create(data);
+  };
 
   return (
     <>
@@ -122,7 +131,7 @@ export function ZonasAtividadePage() {
         title={editItem ? "Editar Zona" : "Nova Zona"}
         fields={fields}
         initialData={editItem}
-        onSave={async (data) => editItem ? crud.update(editItem.id, data) : crud.create(data)}
+        onSave={handleSave}
       />
       <DeleteConfirmDialog
         open={!!deleteItem}
@@ -130,7 +139,6 @@ export function ZonasAtividadePage() {
         onConfirm={async () => deleteItem ? crud.remove(deleteItem.id, false) : false}
       />
 
-      {/* Vínculos Dialog */}
       <Dialog open={!!vinculoZona} onOpenChange={(v) => !v && setVinculoZona(null)}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -163,7 +171,6 @@ export function ZonasAtividadePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Endereço Dialog */}
       <Dialog open={addEndOpen} onOpenChange={(v) => !v && setAddEndOpen(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>

@@ -1,21 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function VeiculosPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId } = useTenant();
   const crud = useCrud({ table: "veiculos", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
-
-  useEffect(() => {
-    if (tenantId) fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
-  }, [tenantId]);
 
   const columns: ColumnSpec[] = [
     { key: "placa", label: "Placa", type: "mono" },
@@ -29,7 +24,6 @@ export function VeiculosPage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
     { name: "placa", label: "Placa", type: "text", required: true, placeholder: "ABC-1234" },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do veículo" },
     { name: "tipo_veiculo", label: "Tipo de Veículo", type: "enum", required: true, enumValues: ["VUC", "3/4", "TOCO", "TRUCK", "BITRUCK", "BITREM", "RODOTREM", "OUTROS"] },
@@ -39,6 +33,12 @@ export function VeiculosPage() {
     { name: "total_pallet", label: "Total Pallets", type: "number", placeholder: "30" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
+
+  const handleSave = async (data: Record<string, any>) => {
+    if (empresaId) data.empresa_id = empresaId;
+    if (editItem) return crud.update(editItem.id, data);
+    return crud.create(data);
+  };
 
   return (
     <>
@@ -66,7 +66,7 @@ export function VeiculosPage() {
         title={editItem ? "Editar Veículo" : "Novo Veículo"}
         fields={fields}
         initialData={editItem}
-        onSave={async (data) => editItem ? crud.update(editItem.id, data) : crud.create(data)}
+        onSave={handleSave}
       />
       <DeleteConfirmDialog
         open={!!deleteItem}
