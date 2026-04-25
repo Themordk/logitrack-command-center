@@ -72,8 +72,9 @@ export function useCrud<T extends Record<string, any>>({
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const requiresArmazem = TABLES_WITH_ARMAZEM.has(table);
-  const requiresEmpresa = TABLES_WITH_EMPRESA.has(table);
+  const requiresBoth = TABLES_WITH_EMPRESA_AND_ARMAZEM.has(table);
+  const requiresArmazem = TABLES_WITH_ARMAZEM.has(table) || requiresBoth;
+  const requiresEmpresa = TABLES_WITH_EMPRESA.has(table) || requiresBoth;
 
   const fetchData = useCallback(async () => {
     if (!tenantId) {
