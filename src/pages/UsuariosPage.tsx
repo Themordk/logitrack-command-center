@@ -143,7 +143,7 @@ export function UsuariosPage() {
         onClose={() => setModalOpen(false)}
         title={editItem ? "Editar Usuário" : "Novo Usuário"}
         fields={editItem ? fields.filter(f => f.name !== "senha") : fields}
-        initialData={editItem ? getEditInitialData(editItem) : null}
+        initialData={editItem ? getEditInitialData(editItem) : (empresaId ? { empresa_id: empresaId, armazem_id: armazemId || undefined } : null)}
         onSave={async (data) => {
           const { perfil_id, senha, ...rest } = data;
 
