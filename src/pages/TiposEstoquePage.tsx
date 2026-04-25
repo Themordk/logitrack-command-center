@@ -1,21 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function TiposEstoquePage() {
-  const { tenantId } = useTenant();
+  const { tenantId, armazemId } = useTenant();
   const crud = useCrud({ table: "tipo_estoque", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
-
-  useEffect(() => {
-    if (tenantId) fetchOptions("armazem", tenantId).then(setArmazemOptions);
-  }, [tenantId]);
 
   const columns: ColumnSpec[] = [
     { key: "codigo_erp", label: "Código", type: "mono" },
@@ -25,12 +20,17 @@ export function TiposEstoquePage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions },
     { name: "codigo_erp", label: "Código ERP", type: "text", required: true, placeholder: "Ex: TE-001" },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Estoque Regular" },
     { name: "sigla", label: "Sigla", type: "text", placeholder: "Ex: REG" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
+
+  const handleSave = async (data: Record<string, any>) => {
+    if (armazemId) data.armazem_id = armazemId;
+    if (editItem) return crud.update(editItem.id, data);
+    return crud.create(data);
+  };
 
   return (
     <>
@@ -57,7 +57,7 @@ export function TiposEstoquePage() {
         title={editItem ? "Editar Tipo de Estoque" : "Novo Tipo de Estoque"}
         fields={fields}
         initialData={editItem}
-        onSave={async (data) => editItem ? crud.update(editItem.id, data) : crud.create(data)}
+        onSave={handleSave}
       />
       <DeleteConfirmDialog
         open={!!deleteItem}
