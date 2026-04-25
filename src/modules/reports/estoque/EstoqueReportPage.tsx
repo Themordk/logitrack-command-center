@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function EstoqueReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -33,8 +33,6 @@ export function EstoqueReportPage() {
   const [tiposEstoque, setTiposEstoque] = useState<{ id: string; descricao: string }[]>([]);
   const [setores, setSetores] = useState<{ id: string; descricao: string }[]>([]);
 
-  const { tenantId, empresaId, empresaVersion } = useTenant();
-  // ... keep existing code
 
   useEffect(() => {
     if (!tenantId) return;
