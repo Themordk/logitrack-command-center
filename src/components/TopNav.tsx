@@ -125,6 +125,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const { tenantId, empresaId, usuarioNome, logout, changeEmpresa } = useTenant();
   const { can } = usePermissions();
+  const isAdmin = useIsAdmin();
   const [empresas, setEmpresas] = useState<{ id: string; codigo: string | null; razaosocial: string }[]>([]);
 
   useEffect(() => {
