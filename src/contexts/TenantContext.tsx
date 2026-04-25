@@ -114,7 +114,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     // Overlay leve para feedback visual
     setSwitchingEmpresa(true);
     if (switchTimer.current) window.clearTimeout(switchTimer.current);
-    switchTimer.current = window.setTimeout(() => setSwitchingEmpresa(false), 450);
+    switchTimer.current = window.setTimeout(() => setSwitchingEmpresa(false), 700);
   };
 
   return (
