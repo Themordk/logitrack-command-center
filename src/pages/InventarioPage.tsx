@@ -55,7 +55,7 @@ export function InventarioPage({ onNavigate }: Props) {
   const [filterCodigo, setFilterCodigo] = useState("");
 
   const fetchInventarios = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) return;
     setLoading(true);
     try {
       const from = (page - 1) * pageSize;
@@ -64,6 +64,8 @@ export function InventarioPage({ onNavigate }: Props) {
       let query = (supabase as any)
         .from("vw_inventario_lista")
         .select("id, numero_inventario, tipo_inventario, descricao, status, criado_em, criado_por, total_itens, total_divergencias, acuracidade, criado_por_nome", { count: "exact" })
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
         .order("numero_inventario", { ascending: false })
         .range(from, to);
 
@@ -84,7 +86,7 @@ export function InventarioPage({ onNavigate }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [tenantId, armazemId, page, filterStatus, filterTipo, filterCodigo, filterDateFrom, filterDateTo]);
+  }, [tenantId, empresaId, armazemId, page, filterStatus, filterTipo, filterCodigo, filterDateFrom, filterDateTo]);
 
   useEffect(() => { fetchInventarios(); }, [fetchInventarios]);
 
