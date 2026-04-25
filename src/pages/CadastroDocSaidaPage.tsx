@@ -20,7 +20,7 @@ interface ProdOption {
 }
 
 export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
 
   const [numeroPedido, setNumeroPedido] = useState("");
   const [dataEmissao, setDataEmissao] = useState(new Date().toISOString().slice(0, 10));
@@ -42,19 +42,24 @@ export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) {
+      setParceiros([]); setTiposSaida([]); setRotas([]); setProdutos([]);
+      return;
+    }
+    // Reset seleções ao trocar empresa
+    setParceiroId(""); setTipoPedidoId(""); setRotaId(""); setItems([]);
     Promise.all([
-      (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("ativo", true).order("razaosocial"),
-      (supabase as any).from("tipo_saida").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao"),
-      (supabase as any).from("rotas").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao"),
-      (supabase as any).from("produto").select("id, descricao, sku").eq("tenant_id", tenantId).eq("ativo", true).order("descricao"),
+      (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("razaosocial"),
+      (supabase as any).from("tipo_saida").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
+      (supabase as any).from("rotas").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
+      (supabase as any).from("produto").select("id, descricao, sku").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
     ]).then(([pRes, tRes, rRes, prRes]) => {
       setParceiros(pRes.data || []);
       setTiposSaida(tRes.data || []);
       setRotas(rRes.data || []);
       setProdutos(prRes.data || []);
     });
-  }, [tenantId]);
+  }, [tenantId, empresaId, empresaVersion]);
 
   const valorTotalPedido = items.reduce((s, i) => s + i.valor_total, 0);
 
