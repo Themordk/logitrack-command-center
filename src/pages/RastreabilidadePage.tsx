@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Package,
@@ -44,19 +44,11 @@ export function RastreabilidadePage() {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  // Reset ao trocar de empresa para não exibir resultado de empresa anterior
-  useState(() => {
+  // Limpa resultado ao trocar de empresa
+  useEffect(() => {
     setResult(null);
     setNotFound(false);
-    return undefined as any;
-  });
-
-  // limpa resultado quando empresa muda
-  // (useEffect simples)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  if (typeof window !== "undefined") {
-    // noop — placeholder para manter linha
-  }
+  }, [empresaId, empresaVersion]);
 
   const handleSearch = async () => {
     if (!query.trim() || !tenantId || !empresaId) return;
