@@ -9,7 +9,7 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { KeyRound, Loader2 } from "lucide-react";
 
 export function UsuariosPage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const crud = useCrud({
     table: "usuario",
     tenantId,
@@ -29,11 +29,23 @@ export function UsuariosPage() {
   useEffect(() => {
     if (tenantId) {
       fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
-      fetchOptions("armazem", tenantId).then(setArmazemOptions);
-      fetchOptions("turnos", tenantId).then(setTurnoOptions);
       fetchOptions("perfil", tenantId, "nome").then(setPerfilOptions);
+      // Armazém filtrado por empresa ativa
+      if (empresaId) {
+        fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(setArmazemOptions);
+      } else {
+        setArmazemOptions([]);
+      }
+      // Turnos filtrados por armazém ativo (turnos pertencem a um armazém)
+      if (armazemId) {
+        fetchOptions("turnos", tenantId, "descricao", { armazem_id: armazemId }).then(setTurnoOptions);
+      } else {
+        setTurnoOptions([]);
+      }
     }
-  }, [tenantId]);
+    setModalOpen(false);
+    setEditItem(null);
+  }, [tenantId, empresaId, armazemId, empresaVersion]);
 
   const columns: ColumnSpec[] = [
     { key: "nome", label: "Nome" },
