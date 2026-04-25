@@ -14,7 +14,7 @@ import {
 } from "./dashboard/dashboard.service";
 
 export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
-  const { tenantId, armazemId } = useTenant();
+  const { tenantId, empresaId, empresaVersion, armazemId } = useTenant();
   const today = format(new Date(), "yyyy-MM-dd");
 
   const [filters, setFilters] = useState<FiltersState>({
@@ -32,7 +32,10 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
   const [ocor, setOcor] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const dfArgs: DF | null = useMemo(() => tenantId ? { tenantId, ...filters } : null, [tenantId, filters]);
+  const dfArgs: DF | null = useMemo(
+    () => (tenantId ? { tenantId, empresaId: empresaId || null, ...filters } : null),
+    [tenantId, empresaId, filters],
+  );
 
   useEffect(() => {
     if (!dfArgs) return;
@@ -44,7 +47,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
       setOtif(a); setOcup(b); setProd(c); setBack(d); setOper(e); setOcor(f);
     }).finally(() => setLoading(false));
     // future: const id = setInterval(reload, 60000); return () => clearInterval(id);
-  }, [dfArgs]);
+  }, [dfArgs, empresaVersion]);
 
   const otifSev: KPISeverity = !otif ? "neutral" : otif.value >= 95 ? "good" : otif.value >= 90 ? "warn" : "bad";
   const ocupSev: KPISeverity = !ocup ? "neutral" : ocup.value > 85 ? "bad" : ocup.value >= 70 ? "warn" : "good";

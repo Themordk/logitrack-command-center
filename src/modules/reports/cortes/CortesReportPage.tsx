@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function CortesReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<CorteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -36,6 +36,13 @@ export function CortesReportPage() {
       fetchMotivosOcorrencia(tenantId).then(setMotivos);
     }
   }, [tenantId]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;

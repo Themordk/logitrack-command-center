@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Package,
@@ -37,15 +37,21 @@ interface RastreioResult {
 }
 
 export function RastreabilidadePage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState<"hu" | "produto" | "pedido" | "endereco">("hu");
   const [result, setResult] = useState<RastreioResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
+  // Limpa resultado ao trocar de empresa
+  useEffect(() => {
+    setResult(null);
+    setNotFound(false);
+  }, [empresaId, empresaVersion]);
+
   const handleSearch = async () => {
-    if (!query.trim() || !tenantId) return;
+    if (!query.trim() || !tenantId || !empresaId) return;
     setLoading(true);
     setNotFound(false);
     setResult(null);
@@ -55,6 +61,7 @@ export function RastreabilidadePage() {
         const { data } = await (supabase as any).from("hu")
           .select("*")
           .eq("tenant_id", tenantId)
+          .eq("empresa_id", empresaId)
           .or(`codigo_hu.ilike.%${query}%`)
           .limit(1)
           .maybeSingle();

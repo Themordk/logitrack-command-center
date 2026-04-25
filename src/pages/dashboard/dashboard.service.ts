@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface DashboardFilters {
   tenantId: string;
+  empresaId?: string | null;
   armazemId: string | null;
   dataIni: string; // ISO date
   dataFim: string; // ISO date
@@ -38,6 +39,7 @@ export async function fetchOtif(f: DashboardFilters) {
 
   let q = sb.from("movimento_saida").select("status,data_emissao").eq("tenant_id", f.tenantId)
     .gte("data_emissao", dIni).lte("data_emissao", dFim);
+  if (f.empresaId) q = q.eq("empresa_id", f.empresaId);
   const { data } = await q;
   const rows = data || [];
   const total = rows.length;
@@ -45,8 +47,10 @@ export async function fetchOtif(f: DashboardFilters) {
   const otif = total > 0 ? Math.round((concluidas / total) * 1000) / 10 : 0;
 
   const { prevIni, prevFim } = previousRange(f.dataIni, f.dataFim);
-  const { data: prevData } = await sb.from("movimento_saida").select("status").eq("tenant_id", f.tenantId)
+  let qPrev = sb.from("movimento_saida").select("status").eq("tenant_id", f.tenantId)
     .gte("data_emissao", `${prevIni}T00:00:00`).lte("data_emissao", `${prevFim}T23:59:59`);
+  if (f.empresaId) qPrev = qPrev.eq("empresa_id", f.empresaId);
+  const { data: prevData } = await qPrev;
   const prevRows = prevData || [];
   const prevTotal = prevRows.length;
   const prevConc = prevRows.filter((r: any) => r.status === "CONCLUIDA" || r.status === "FINALIZADA").length;
@@ -57,6 +61,7 @@ export async function fetchOtif(f: DashboardFilters) {
 
 // ---------- Ocupação ----------
 export async function fetchOcupacao(f: DashboardFilters) {
+  // endereco não tem empresa_id direto, mas armazem_id já é filtrado pelo armazém da empresa.
   let q = sb.from("endereco").select("situacao", { count: "exact" }).eq("tenant_id", f.tenantId).eq("ativo", true);
   if (f.armazemId) q = q.eq("armazem_id", f.armazemId);
   const { data, count } = await q;
@@ -74,6 +79,7 @@ export async function fetchProdutividade(f: DashboardFilters) {
   let q = sb.from("lms_metrica_diaria").select("tarefas_concluidas,tempo_produtivo")
     .eq("tenant_id", f.tenantId)
     .gte("data_referencia", f.dataIni).lte("data_referencia", f.dataFim);
+  if (f.empresaId) q = q.eq("empresa_id", f.empresaId);
   if (f.armazemId) q = q.eq("armazem_id", f.armazemId);
   if (f.turnoId) q = q.eq("turno_id", f.turnoId);
   const { data } = await q;
@@ -86,6 +92,7 @@ export async function fetchProdutividade(f: DashboardFilters) {
   const { prevIni, prevFim } = previousRange(f.dataIni, f.dataFim);
   let q2 = sb.from("lms_metrica_diaria").select("tarefas_concluidas,tempo_produtivo")
     .eq("tenant_id", f.tenantId).gte("data_referencia", prevIni).lte("data_referencia", prevFim);
+  if (f.empresaId) q2 = q2.eq("empresa_id", f.empresaId);
   if (f.armazemId) q2 = q2.eq("armazem_id", f.armazemId);
   if (f.turnoId) q2 = q2.eq("turno_id", f.turnoId);
   const { data: prev } = await q2;
@@ -101,6 +108,7 @@ export async function fetchBacklog(f: DashboardFilters) {
   let q = sb.from("tarefa").select("criado_em,status").eq("tenant_id", f.tenantId)
     .in("status", ["CRIADA", "ATRIBUIDA"]);
   if (f.armazemId) q = q.eq("armazem_id", f.armazemId);
+  // tarefa não tem empresa_id direto; herda via armazem (já filtrado).
   const { data } = await q;
   const rows = data || [];
   const total = rows.length;
@@ -116,6 +124,7 @@ export async function fetchTopOperadores(f: DashboardFilters, limit = 8) {
     .select("usuario_id,tarefas_concluidas,tempo_produtivo,usuario:usuario_id(nome)")
     .eq("tenant_id", f.tenantId)
     .gte("data_referencia", f.dataIni).lte("data_referencia", f.dataFim);
+  if (f.empresaId) q = q.eq("empresa_id", f.empresaId);
   if (f.armazemId) q = q.eq("armazem_id", f.armazemId);
   if (f.turnoId) q = q.eq("turno_id", f.turnoId);
   const { data } = await q;
@@ -147,6 +156,7 @@ export async function fetchOcorrencias(f: DashboardFilters, limit = 8) {
     .eq("tenant_id", f.tenantId)
     .not("motivo_ocorrencia", "is", null)
     .gte("concluido_em", dIni).lte("concluido_em", dFim);
+  // tarefa_execucao herda empresa via tarefa/armazem; mantemos sem filtro direto.
   const { data } = await q;
   const map = new Map<string, { descricao: string; qtd: number }>();
   for (const r of data || []) {

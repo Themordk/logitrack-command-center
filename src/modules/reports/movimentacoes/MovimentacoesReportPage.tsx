@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
@@ -18,7 +18,7 @@ interface MovimentacoesReportPageProps {
 }
 
 export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageProps) {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -34,6 +34,13 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().split("T")[0]);
   const [filterSku, setFilterSku] = useState("");
   const [filterTipoMov, setFilterTipoMov] = useState("");
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;

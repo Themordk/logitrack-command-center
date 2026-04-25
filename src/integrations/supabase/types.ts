@@ -2895,6 +2895,7 @@ export type Database = {
           armazem_id: string
           ativo: boolean
           descricao: string
+          empresa_id: string | null
           id: string
           tenant_id: string
         }
@@ -2902,6 +2903,7 @@ export type Database = {
           armazem_id: string
           ativo?: boolean
           descricao: string
+          empresa_id?: string | null
           id?: string
           tenant_id: string
         }
@@ -2909,6 +2911,7 @@ export type Database = {
           armazem_id?: string
           ativo?: boolean
           descricao?: string
+          empresa_id?: string | null
           id?: string
           tenant_id?: string
         }
@@ -2918,6 +2921,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rotas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {

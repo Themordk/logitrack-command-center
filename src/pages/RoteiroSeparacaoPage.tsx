@@ -43,7 +43,7 @@ interface OrdemItem {
 }
 
 export function RoteiroSeparacaoPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [agrupamentos, setAgrupamentos] = useState<AgrupamentoItem[]>([]);
   const [agrupConf, setAgrupConf] = useState<AgrupamentoItem[]>([]);
   const [ordens, setOrdens] = useState<OrdemItem[]>([]);
@@ -64,42 +64,45 @@ export function RoteiroSeparacaoPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   const fetchAgrupamentos = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) return;
     setLoadingAgrup(true);
     const { data, error } = await (supabase as any)
       .from("agrupamento_separacao")
       .select("*")
       .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
       .order("sequencia", { ascending: true });
     if (!error) setAgrupamentos(data || []);
     setLoadingAgrup(false);
-  }, [tenantId]);
+  }, [tenantId, empresaId]);
 
   const fetchAgrupConf = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) return;
     setLoadingAgrupConf(true);
     const { data, error } = await (supabase as any)
       .from("agrupamento_conferencia")
       .select("*")
       .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
       .order("sequencia", { ascending: true });
     if (!error) setAgrupConf(data || []);
     setLoadingAgrupConf(false);
-  }, [tenantId]);
+  }, [tenantId, empresaId]);
 
   const fetchOrdens = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) return;
     setLoadingOrdem(true);
     const { data, error } = await (supabase as any)
       .from("ordem_expedicao")
       .select("*")
       .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
       .order("sequencia", { ascending: true });
     if (!error) setOrdens(data || []);
     setLoadingOrdem(false);
-  }, [tenantId]);
+  }, [tenantId, empresaId]);
 
-  useEffect(() => { fetchAgrupamentos(); fetchAgrupConf(); fetchOrdens(); }, [fetchAgrupamentos, fetchAgrupConf, fetchOrdens]);
+  useEffect(() => { fetchAgrupamentos(); fetchAgrupConf(); fetchOrdens(); }, [fetchAgrupamentos, fetchAgrupConf, fetchOrdens, empresaVersion]);
 
   // Agrupamento Separação CRUD
   const addAgrupamento = async () => {

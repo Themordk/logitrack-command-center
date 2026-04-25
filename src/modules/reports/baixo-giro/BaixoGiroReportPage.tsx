@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatBrasiliaDate, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function BaixoGiroReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<BaixoGiroRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -42,6 +42,13 @@ export function BaixoGiroReportPage() {
     (supabase as any).from("subgrupo_produto").select("id, descricao").eq("tenant_id", tenantId)
       .then(({ data }: any) => setSubgrupos(data || []));
   }, [tenantId]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;

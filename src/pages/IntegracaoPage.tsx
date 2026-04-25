@@ -23,7 +23,7 @@ const OBJETOS_SISTEMA = [
 ];
 
 export function IntegracaoPage() {
-  const { tenantId, armazemId } = useTenant();
+  const { tenantId, empresaId, empresaVersion, armazemId } = useTenant();
 
   // Connection tab
   const [config, setConfig] = useState({
@@ -41,9 +41,12 @@ export function IntegracaoPage() {
 
   useEffect(() => {
     if (!tenantId || !armazemId) return;
+    // reset state ao trocar empresa para evitar mostrar dado antigo
+    setConfigId(null);
+    setConfig({ host: "", banco: "", usuario_bd: "", senha: "", tipo_banco: "SQL Server" });
     loadConfig();
     loadObjetos();
-  }, [tenantId, armazemId]);
+  }, [tenantId, armazemId, empresaId, empresaVersion]);
 
   const loadConfig = async () => {
     setLoadingConfig(true);

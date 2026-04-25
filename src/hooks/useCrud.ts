@@ -18,6 +18,12 @@ const TABLES_WITH_EMPRESA = new Set([
   "subgrupo_produto",
   "hu",
   "usuario",
+  "tipo_entrada",
+  "tipo_saida",
+  "rotas",
+  "agrupamento_separacao",
+  "agrupamento_conferencia",
+  "ordem_expedicao",
 ]);
 
 interface UseCrudOptions {

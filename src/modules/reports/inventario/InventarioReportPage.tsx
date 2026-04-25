@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function InventarioReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<InventarioRow[]>([]);
   const [kpis, setKpis] = useState<InventarioKpis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,6 +57,14 @@ export function InventarioReportPage() {
       else if (rows[0]) setInventarioId(rows[0].id);
     });
   }, [tenantId, empresaId]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setKpis(null);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;

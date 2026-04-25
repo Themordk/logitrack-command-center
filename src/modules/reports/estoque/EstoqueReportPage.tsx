@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function EstoqueReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -33,6 +33,7 @@ export function EstoqueReportPage() {
   const [tiposEstoque, setTiposEstoque] = useState<{ id: string; descricao: string }[]>([]);
   const [setores, setSetores] = useState<{ id: string; descricao: string }[]>([]);
 
+
   useEffect(() => {
     if (!tenantId) return;
     supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
@@ -42,6 +43,13 @@ export function EstoqueReportPage() {
     (supabase as any).from("setor").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
       .then(({ data }: any) => setSetores(data || []));
   }, [tenantId]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;

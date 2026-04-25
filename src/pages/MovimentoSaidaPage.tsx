@@ -135,7 +135,7 @@ export function MovimentoSaidaPage() {
   const [reatribuirMov, setReatribuirMov] = useState<{ id: string; numero: number } | null>(null);
 
   const fetchMovimentos = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) return;
     setLoading(true);
     try {
       const from = (page - 1) * pageSize;
@@ -144,6 +144,7 @@ export function MovimentoSaidaPage() {
         .from("vw_movimento_saida_lista")
         .select("id, numero_onda, status, data_emissao, destino_carga, motorista, total_pedidos, peso_total, m3, prioridade, total_volume, observacao, box_id, rota_id, veiculo_id, empresa_id, box_nome, parceiro_nome", { count: "exact" })
         .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
         .order("numero_onda", { ascending: false })
         .range(from, to);
 
@@ -180,7 +181,7 @@ export function MovimentoSaidaPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenantId, page, filterStatus, filterOnda, filterDateFrom, filterDateTo]);
+  }, [tenantId, empresaId, page, filterStatus, filterOnda, filterDateFrom, filterDateTo]);
 
   useEffect(() => { fetchMovimentos(); }, [fetchMovimentos]);
 

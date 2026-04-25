@@ -163,7 +163,7 @@ export function MovimentoEntradaPage() {
   // fetchCounts removed - no longer using status cards
 
   const fetchMovements = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) return;
     setLoading(true);
     try {
       const from = (page - 1) * pageSize;
@@ -176,6 +176,7 @@ export function MovimentoEntradaPage() {
           .from("documento_entrada")
           .select("id")
           .eq("tenant_id", tenantId)
+          .eq("empresa_id", empresaId)
           .ilike("numero_nota", `%${filterDocumento}%`);
         if (docData && docData.length > 0) {
           const docIds = docData.map((d: any) => d.id);
@@ -202,6 +203,7 @@ export function MovimentoEntradaPage() {
         .from("vw_movimento_entrada_lista")
         .select("id, numero_movimento, status, created_at, placa_veiculo, parceiro_nome, armazem_id, empresa_id, tenant_id", { count: "exact" })
         .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -232,7 +234,7 @@ export function MovimentoEntradaPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenantId, armazemId, page, filterStatus, filterNumero, filterDocumento, filterDateFrom, filterDateTo]);
+  }, [tenantId, empresaId, armazemId, page, filterStatus, filterNumero, filterDocumento, filterDateFrom, filterDateTo]);
 
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 

@@ -43,7 +43,7 @@ export function SaidasPage() {
   });
 
   const fetchDocs = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) return;
     setLoading(true);
     try {
       const from = (page - 1) * pageSize;
@@ -52,6 +52,7 @@ export function SaidasPage() {
         .from("documento_saida")
         .select("id, numero_pedido, data_emissao, parceiro_id, valor_pedido", { count: "exact" })
         .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
         .eq("status", 0)
         .order("data_emissao", { ascending: false })
         .range(from, to);
@@ -73,7 +74,7 @@ export function SaidasPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenantId, page]);
+  }, [tenantId, empresaId, page]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
