@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/contexts/TenantContext";
 
-// Tabelas que possuem coluna empresa_id e devem ser filtradas por empresa ativa
+// Tabelas com coluna empresa_id direta — filtradas/criadas vinculadas à empresa ativa
 const TABLES_WITH_EMPRESA = new Set([
   "produto",
   "parceiro",
@@ -24,6 +24,22 @@ const TABLES_WITH_EMPRESA = new Set([
   "agrupamento_separacao",
   "agrupamento_conferencia",
   "ordem_expedicao",
+  "veiculos",
+  "produto_embalagem",
+  "volume_expedicao",
+]);
+
+// Tabelas sem empresa_id direto, mas que pertencem a um armazém — filtradas pelo armazém ativo
+const TABLES_WITH_ARMAZEM = new Set([
+  "tipo_estoque",
+  "setor",
+  "endereco",
+  "box",
+  "turnos",
+  "motivo_ocorrencia",
+  "zona_atividade",
+  "tipo_box",
+  "picking_produto",
 ]);
 
 interface UseCrudOptions {
@@ -45,12 +61,15 @@ export function useCrud<T extends Record<string, any>>({
   select = "*",
   filters = {},
 }: UseCrudOptions) {
-  const { empresaId, empresaVersion } = useTenant();
+  const { empresaId, armazemId, empresaVersion } = useTenant();
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+
+  const requiresArmazem = TABLES_WITH_ARMAZEM.has(table);
+  const requiresEmpresa = TABLES_WITH_EMPRESA.has(table);
 
   const fetchData = useCallback(async () => {
     if (!tenantId) {
@@ -58,14 +77,31 @@ export function useCrud<T extends Record<string, any>>({
       setLoading(false);
       return;
     }
+    // Proteção contra vazamento de dados: se a tabela depende de armazém/empresa
+    // e o contexto ainda não está pronto, não consulta o tenant inteiro.
+    if (requiresArmazem && !armazemId) {
+      setData([]);
+      setTotal(0);
+      setLoading(false);
+      return;
+    }
+    if (requiresEmpresa && !empresaId) {
+      setData([]);
+      setTotal(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       let query = (supabase as any).from(table).select(select, { count: "exact" });
       query = query.eq("tenant_id", tenantId);
 
-      // Filtro automático por empresa ativa quando aplicável
-      if (TABLES_WITH_EMPRESA.has(table) && empresaId) {
+      if (requiresEmpresa && empresaId) {
         query = query.eq("empresa_id", empresaId);
+      }
+      if (requiresArmazem && armazemId) {
+        query = query.eq("armazem_id", armazemId);
       }
 
       Object.entries(filters).forEach(([key, val]) => {
@@ -75,12 +111,12 @@ export function useCrud<T extends Record<string, any>>({
       });
 
       if (search) {
-        // Search across common text columns
         const searchFields = ["descricao"];
         if (table === "hu") searchFields.push("codigo_hu");
         if (table === "volume_expedicao") searchFields.push("codigo_volume");
         if (table === "produto") searchFields.push("sku");
         if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("coderp");
+        if (table === "veiculos") searchFields.push("placa");
         const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
         query = query.or(orClause);
       }
@@ -100,7 +136,7 @@ export function useCrud<T extends Record<string, any>>({
     } finally {
       setLoading(false);
     }
-  }, [table, tenantId, empresaId, empresaVersion, page, pageSize, search, orderBy, orderDir, select, JSON.stringify(filters)]);
+  }, [table, tenantId, empresaId, armazemId, empresaVersion, page, pageSize, search, orderBy, orderDir, select, JSON.stringify(filters), requiresArmazem, requiresEmpresa]);
 
   useEffect(() => {
     fetchData();
@@ -109,9 +145,11 @@ export function useCrud<T extends Record<string, any>>({
   const create = async (record: Partial<T>) => {
     try {
       const payload: any = { ...record, tenant_id: tenantId };
-      // Anexa empresa ativa quando a tabela exige
-      if (TABLES_WITH_EMPRESA.has(table) && empresaId && payload.empresa_id == null) {
+      if (requiresEmpresa && empresaId && payload.empresa_id == null) {
         payload.empresa_id = empresaId;
+      }
+      if (requiresArmazem && armazemId && payload.armazem_id == null) {
+        payload.armazem_id = armazemId;
       }
       const { error } = await (supabase as any).from(table).insert(payload);
       if (error) throw error;
@@ -177,9 +215,19 @@ export function useCrud<T extends Record<string, any>>({
   };
 }
 
-// Helper to fetch options for selects
-export async function fetchOptions(table: string, tenantId: string, labelField = "descricao", filters?: Record<string, any>) {
-  let query = (supabase as any).from(table).select(`id, ${labelField}`).eq("tenant_id", tenantId).eq("ativo", true).order(labelField);
+// Helper de selects: filtra opções por tenant + ativo + filters extras
+export async function fetchOptions(
+  table: string,
+  tenantId: string,
+  labelField = "descricao",
+  filters?: Record<string, any>
+) {
+  let query = (supabase as any)
+    .from(table)
+    .select(`id, ${labelField}`)
+    .eq("tenant_id", tenantId)
+    .eq("ativo", true)
+    .order(labelField);
   if (filters) {
     Object.entries(filters).forEach(([k, v]) => {
       if (v) query = query.eq(k, v);
