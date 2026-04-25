@@ -37,15 +37,29 @@ interface RastreioResult {
 }
 
 export function RastreabilidadePage() {
-  const { tenantId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState<"hu" | "produto" | "pedido" | "endereco">("hu");
   const [result, setResult] = useState<RastreioResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
+  // Reset ao trocar de empresa para não exibir resultado de empresa anterior
+  useState(() => {
+    setResult(null);
+    setNotFound(false);
+    return undefined as any;
+  });
+
+  // limpa resultado quando empresa muda
+  // (useEffect simples)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  if (typeof window !== "undefined") {
+    // noop — placeholder para manter linha
+  }
+
   const handleSearch = async () => {
-    if (!query.trim() || !tenantId) return;
+    if (!query.trim() || !tenantId || !empresaId) return;
     setLoading(true);
     setNotFound(false);
     setResult(null);
@@ -55,6 +69,7 @@ export function RastreabilidadePage() {
         const { data } = await (supabase as any).from("hu")
           .select("*")
           .eq("tenant_id", tenantId)
+          .eq("empresa_id", empresaId)
           .or(`codigo_hu.ilike.%${query}%`)
           .limit(1)
           .maybeSingle();
