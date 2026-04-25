@@ -364,7 +364,7 @@ export async function fetchCicloPedidoReport(
       pedidos: pedidos.length > 0 ? pedidos.join(", ") : "—",
       cliente,
       parceiro_id: parceirosIds[0] || null,
-      armazem_id: m.armazem_id,
+      box_id: m.box_id,
       t0_criacao: t0,
       t1_liberado: t1,
       t2_inicio_sep: t2,
