@@ -25,7 +25,7 @@ export interface CicloPedidoRow {
   pedidos: string;
   cliente: string;
   parceiro_id: string | null;
-  armazem_id: string | null;
+  box_id: string | null;
 
   t0_criacao: string | null;
   t1_liberado: string | null;
@@ -92,12 +92,19 @@ export async function fetchCicloPedidoReport(
   // 1) Cabeçalho de movimento_saida
   let mq: any = (supabase as any)
     .from("movimento_saida")
-    .select("id, numero_onda, status, prioridade, data_emissao, finalizado_em, armazem_id, empresa_id")
+    .select("id, numero_onda, status, prioridade, data_emissao, finalizado_em, box_id, empresa_id")
     .eq("tenant_id", filters.tenant_id)
     .order("data_emissao", { ascending: false })
     .limit(2000);
   if (filters.empresa_id) mq = mq.eq("empresa_id", filters.empresa_id);
-  if (filters.armazem_id) mq = mq.eq("armazem_id", filters.armazem_id);
+  if (filters.armazem_id) {
+    // movimento_saida não tem armazem_id direto — vincular via box
+    const { data: boxes } = await (supabase as any)
+      .from("box").select("id").eq("tenant_id", filters.tenant_id).eq("armazem_id", filters.armazem_id);
+    const boxIds = (boxes || []).map((b: any) => b.id);
+    if (boxIds.length === 0) return { rows: [], kpis: emptyKpis() };
+    mq = mq.in("box_id", boxIds);
+  }
   if (filters.status_onda) mq = mq.eq("status", filters.status_onda);
   if (filters.prioridade) mq = mq.eq("prioridade", filters.prioridade);
   if (filters.data_inicio) mq = mq.gte("data_emissao", filters.data_inicio);
