@@ -2030,6 +2030,7 @@ export type Database = {
           data_emissao: string
           destino_carga: string | null
           empresa_id: string
+          finalizado_em: string | null
           id: string
           m3: number | null
           motorista: string | null
@@ -2051,6 +2052,7 @@ export type Database = {
           data_emissao: string
           destino_carga?: string | null
           empresa_id: string
+          finalizado_em?: string | null
           id?: string
           m3?: number | null
           motorista?: string | null
@@ -2072,6 +2074,7 @@ export type Database = {
           data_emissao?: string
           destino_carga?: string | null
           empresa_id?: string
+          finalizado_em?: string | null
           id?: string
           m3?: number | null
           motorista?: string | null

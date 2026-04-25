@@ -1,76 +1,60 @@
+## Plano: Relatório de Tempo de Ciclo de Pedido (Order Cycle Time)
 
+**Caminho**: `/relatorios/ciclo-pedido` · Menu: "Relatórios → Ciclo de Pedido"
 
-## Plano: Relatório de Acuracidade do Inventário
-
-**Caminho**: `/relatorios/inventario` · Menu: já existe em "Relatórios → Inventário"
-
-Manter a tríade arquitetural padrão: `service.ts` (query + transformação) + `Page.tsx` (UI com `ReportHeader` + `ReportTable` + filtros) + case em `App.tsx` + breadcrumb.
+Mantém a tríade arquitetural padrão (`service.ts` + `Page.tsx` + rota em `App.tsx` + item no `TopNav.tsx`), idêntica aos relatórios de Recebimento/Inventário/Curva ABC.
 
 ---
 
-### Fonte de dados
+### Fonte de dados (schema real verificado)
 
-A view `inventario_item_resumo` já consolida o necessário (uma linha por tarefa de auditoria por item):
+| Tabela | Campo | Uso |
+|---|---|---|
+| `movimento_saida` | `id`, `numero_onda`, `status`, `data_emissao`, `finalizado_em`, `prioridade`, `total_pedidos`, `total_volume`, `peso_total`, `m3`, `box_id`, `armazem_id`, `empresa_id` | Cabeçalho da onda |
+| `movimento_saida_documento` → `documento_saida` → `parceiro` | `numero_pedido`, `razaosocial` | Pedido(s) e cliente(s) |
+| `movimento_saida_item` | `movimento_saida_id`, `qtd_esperada`, `qtd_separada` | Volume/itens |
+| `tarefa` | `id_documento_origem` (= `movimento_saida_item.id`), `tipo_documento_origem` = `'MOVIMENTO_SAIDA_ITEM'`, `tipo_tarefa_id`, `criado_em` | Marco T1 (geração) |
+| `tipo_tarefa` | `codigo` ∈ {`SEP`, `SEP-CONF`} | Identificar separação x conferência |
+| `tarefa_atribuicao` | `tarefa_id`, `atribuido_em`, `liberado_em` | **Marco T2 (início real do trabalho)** |
+| `tarefa_execucao` | `tarefa_id`, `concluido_em`, `status` | Marco T3/T4 (fim das etapas) |
 
-| Campo da view | Significado |
-|---|---|
-| `inventario_id` | FK para `inventario.id` |
-| `sku`, `referencia`, `descricao` | Identificação do produto |
-| `rua`, `predio`, `nivel`, `apto` | Endereço físico |
-| `quantidade_requerida` | **Quantidade sistêmica** (saldo congelado no momento do snapshot) |
-| `primeira_contagem` | 1ª contagem física |
-| `segunda_contagem` | 2ª contagem (quando cega/dupla) |
-| `saldo_final` | Saldo após auditoria (oficial) |
-| `divergência` | Já calculado na view |
-| `status` | PENDENTE / CONTADO / DIVERGENTE / CONFERIDO |
-
-Joins adicionais no service:
-- `inventario` → `numero_inventario`, `descricao`, `tipo_inventario`, `status`, `iniciado_em`, `finalizado_em`
-- `produto` → `preco_custo` (para impacto financeiro)
-
-> **Lote**: o modelo atual de `tarefa` não armazena `lote` por linha de inventário. A coluna **Lote** será exibida e ficará como "—" quando não disponível. Caso a operação precise de granularidade por lote no futuro, será necessário evoluir o snapshot da auditoria — fora do escopo desta entrega.
+> **Observação crítica confirmada nos dados**: em `tarefa_execucao`, `iniciado_em == concluido_em`. Portanto, o "início efetivo" da etapa **deve** vir de `tarefa_atribuicao.atribuido_em` (mesmo workaround usado no relatório de Recebimento). Idem `tarefa.concluido_em` aparece nulo em vários casos — usar **MAX(`tarefa_execucao.concluido_em`)** como fim.
 
 ---
 
-### Lógica de cálculo (no service, em memória)
+### Marcos do processo (T0 → T5)
 
-Para cada item retornado:
+| Marco | Origem | Significado |
+|---|---|---|
+| **T0 — Criação** | `movimento_saida.data_emissao` | Pedido entrou no WMS |
+| **T1 — Liberado p/ separação** | `MIN(tarefa.criado_em)` para tarefas SEP da onda | Tarefas geradas/disponibilizadas |
+| **T2 — Início separação** | `MIN(tarefa_atribuicao.atribuido_em)` para SEP | Operador pegou a 1ª tarefa SEP |
+| **T3 — Fim separação** | `MAX(tarefa_execucao.concluido_em)` para SEP | Última linha bipada |
+| **T4 — Início/Fim conferência** | `MIN(tarefa_atribuicao.atribuido_em)` e `MAX(tarefa_execucao.concluido_em)` para SEP-CONF | Janela da conferência |
+| **T5 — Expedição** | `movimento_saida.finalizado_em` se status = `CONCLUIDA`; senão `MAX(tarefa_execucao.concluido_em)` da última etapa concluída | Onda liberada para sair |
 
-```
-sistemico  = quantidade_requerida ?? 0
-contado    = saldo_final ?? primeira_contagem ?? 0   // saldo_final tem prioridade
-diferenca  = contado - sistemico                     // positiva = sobra, negativa = falta
-diferenca_pct = sistemico > 0 ? (diferenca / sistemico) * 100 : (contado > 0 ? 100 : 0)
+---
 
-acuracidade_item = sistemico > 0
-  ? max(0, (1 - abs(diferenca) / sistemico) * 100)
-  : (contado === 0 ? 100 : 0)
-
-impacto_financeiro = abs(diferenca) * (produto.preco_custo ?? 0)
-
-status_calc =
-  diferenca === 0          → "CONFORME"
-  diferenca  >  0          → "SOBRA"
-  diferenca  <  0          → "FALTA"
-
-severidade =
-  abs(diferenca_pct) === 0    → "OK"           (verde)
-  abs(diferenca_pct) <= 5     → "PEQUENA"      (amarelo)
-  abs(diferenca_pct) <= 20    → "MEDIA"        (laranja)
-  abs(diferenca_pct)  > 20    → "GRANDE"       (vermelho)
-```
-
-**Acuracidade geral do inventário** (KPIs no `ReportHeader`):
+### Cálculo (no service, em memória)
 
 ```
-acuracidade_por_item       = (qtde_itens_conformes / total_itens) * 100        // % de itens sem divergência
-acuracidade_ponderada_qtd  = 1 - (Σ |diferenca|)        / Σ sistemico   * 100  // por quantidade
-acuracidade_ponderada_R$   = 1 - (Σ impacto_financeiro) / Σ (sistemico * preco_custo) * 100
+tempo_total_min       = T5 - T0           // Order Cycle Time
+tempo_fila_min        = T2 - T0           // tempo até iniciar trabalho
+tempo_picking_min     = T3 - T2           // duração da separação
+tempo_conferencia_min = T4_fim - T4_inicio
+tempo_ate_expedicao_min = T5 - T4_fim     // espera pós-conferência (doca)
+tempo_ocioso_min      = (T2 - T1) + (T4_inicio - T3) + (T5 - T4_fim)
+
+sla_horas (parametrizável, default 24h)
+perc_sla = (tempo_total_min / (sla_horas * 60)) * 100
+status_sla:
+  perc_sla <= 80              → DENTRO   (verde)
+  perc_sla <= 100             → ALERTA   (amarelo)
+  perc_sla  > 100             → FORA     (vermelho)
+  pedido sem T5               → EM_ANDAMENTO (cinza)
 ```
 
-Exibir as três métricas no header — a **ponderada por quantidade** será o KPI primário (padrão de mercado para WMS).
-
-Itens com `status = PENDENTE` (nunca contados) entram como **FALTA** apenas se `sistemico > 0` e `saldo_final` for nulo após o inventário ser finalizado; se ainda estiver em andamento, aparecem como "Pendente" e são excluídos do cálculo agregado (toggle no filtro).
+**Pior etapa (gargalo)** por linha: `argmax(tempo_picking, tempo_conferencia, tempo_fila, tempo_ate_expedicao)` — exibido em coluna dedicada.
 
 ---
 
@@ -78,55 +62,82 @@ Itens com `status = PENDENTE` (nunca contados) entram como **FALTA** apenas se `
 
 | # | Coluna | Origem | Render |
 |---|---|---|---|
-| 1 | Inventário | `numero_inventario` | `#1234` |
-| 2 | SKU | `sku` | mono semibold |
-| 3 | Descrição | `descricao` | truncate |
-| 4 | Endereço | `rua-predio-nivel-apto` | `R01-P02-N03-A04` |
-| 5 | Lote | — | "—" (placeholder) |
-| 6 | Qtd. Sistêmica | `quantidade_requerida` | right |
-| 7 | Qtd. Contada | `saldo_final` ?? `primeira_contagem` | right |
-| 8 | Diferença | calc | right, colorido (verde 0, vermelho falta, amarelo sobra) |
-| 9 | Diferença % | calc | right, mesmo critério |
-| 10 | Impacto R$ | calc | right, BRL |
-| 11 | Acuracidade % | calc | right, badge colorido |
-| 12 | Status | calc (CONFORME/SOBRA/FALTA) | badge |
+| 1 | Onda | `numero_onda` | `#1234` mono |
+| 2 | Pedido(s) | `documento_saida.numero_pedido` (concatenado) | "12345, 12346" |
+| 3 | Cliente | `parceiro.razaosocial` (1º ou "+N") | truncate |
+| 4 | Status Onda | `movimento_saida.status` | badge cromático |
+| 5 | Prioridade | `prioridade` | badge |
+| 6 | Criação (T0) | `data_emissao` | `formatBrasiliaDateTime` |
+| 7 | Início Sep. (T2) | calc | dt curto |
+| 8 | Fim Sep. (T3) | calc | dt curto |
+| 9 | Fim Conf. (T4) | calc | dt curto |
+| 10 | Expedição (T5) | calc | dt curto |
+| 11 | T. Total | calc | `formatDuration` (right) |
+| 12 | T. Fila | calc | right, amarelo se > 25% do total |
+| 13 | T. Picking | calc | right |
+| 14 | T. Conferência | calc | right |
+| 15 | T. Pós-Conf. | calc | right |
+| 16 | T. Ocioso | calc | right, vermelho se > 30% do total |
+| 17 | Pior Etapa | calc | badge laranja |
+| 18 | SLA % | calc | right, badge cromático |
+| 19 | Status SLA | calc | badge (Dentro/Alerta/Fora/Em Andamento) |
 
-Linhas com `severidade = GRANDE` recebem leve tinta de fundo vermelha (mesmo padrão de `EstoqueReportPage`).
-
----
-
-### Filtros
-
-- **Inventário** (select carregado dos `inventario` do tenant — default: último inventário finalizado)
-- **Período** (`iniciado_em` BETWEEN — quando "Inventário" = "Todos")
-- **Armazém** (FK em `inventario.armazem_id`)
-- **SKU** (input texto)
-- **Endereço** (input rua/prédio/nível/apto, igual `InventarioItensPage`)
-- **Status** (Conforme / Sobra / Falta / Pendente)
-- **Severidade** (OK / Pequena / Média / Grande)
-- **Apenas divergentes** (toggle on/off — default off)
+Linhas com `status_sla = FORA` ganham tinta de fundo vermelha sutil.
 
 ---
 
-### KPIs (rodapé do `ReportHeader`)
+### Filtros (toolbar)
 
-- Total de itens auditados
-- Itens conformes / divergentes (com %)
-- **Acuracidade ponderada por quantidade** (destaque principal)
-- Acuracidade por item (%)
-- Acuracidade ponderada por valor (R$)
-- Impacto financeiro total das divergências (BRL)
-
-Cores: verde ≥ 98%, amarelo 95–97.9%, vermelho < 95%.
+- **Período** (data_emissao BETWEEN, default últimos 30 dias)
+- **Armazém**
+- **Empresa** (já injetado via contexto)
+- **Cliente / Parceiro** (select)
+- **Status da onda** (CRIADA, EM_SEPARACAO, SEPARADA, CONFERIDO, CONCLUIDA, CANCELADA)
+- **Status SLA** (Dentro / Alerta / Fora / Em Andamento)
+- **Prioridade**
+- **SLA (horas)** input numérico, default 24
+- **Apenas concluídas** toggle (default off — para ver gargalos em curso)
 
 ---
 
-### Insights operacionais (já viabilizados pela tabela ordenável)
+### KPIs no `ReportHeader`
 
-- **Endereços com baixa confiabilidade**: ordenar por `Acuracidade %` ASC + agrupar mentalmente por `rua` (ranking visível no scroll).
-- **Produtos com erro recorrente**: filtrar por SKU + período amplo abrangendo múltiplos inventários — itens repetidos com divergência indicam problema sistêmico (recebimento, separação, armazenagem).
-- **Tendência sobra vs. falta**: KPI de soma de diferenças positivas vs. negativas no header → se houver dominância de "FALTA", suspeitar de furtos/quebras; "SOBRA" indica falhas de baixa de estoque.
-- **Maior impacto financeiro**: ordenar por `Impacto R$` DESC.
+- Total de ondas no período
+- Concluídas / Em andamento
+- **Tempo médio total** (destaque principal — `formatDuration`)
+- Tempo médio por etapa: Fila · Picking · Conferência · Pós-Conf · Ocioso
+- % Dentro do SLA (verde ≥ 95%, amarelo 85–94%, vermelho < 85%)
+- **Pior etapa agregada** (qual etapa tem maior média — aponta o gargalo do armazém)
+
+---
+
+### Insights operacionais habilitados
+
+- **Onde o pedido trava**: ordenar por `T. Picking` ou `T. Pós-Conf.` DESC.
+- **Clientes problemáticos**: filtrar por cliente + período amplo → ondas com maior média.
+- **Picos de ineficiência**: combinar `Período` curto (1 dia) com sort por `Criação` para ver horários.
+- **Capacidade vs volume**: KPI "Pior etapa agregada" = "Fila" → falta operador no início; "Pós-Conf." → gargalo de doca/expedição.
+- **Ondas órfãs**: `EM_ANDAMENTO` há mais de N horas (ranking no topo por sort default).
+
+---
+
+### Estratégia de query (performance)
+
+1. **Q1** — `movimento_saida` filtrado por tenant/período/armazém/empresa, `LIMIT 2000`.
+2. **Q2** — `movimento_saida_documento` + `documento_saida` + `parceiro` para os IDs de Q1 (concatenar pedidos/clientes em memória).
+3. **Q3** — `movimento_saida_item` para mapear `item_id → onda_id`.
+4. **Q4** — `tarefa` `WHERE tipo_documento_origem='MOVIMENTO_SAIDA_ITEM' AND id_documento_origem IN (item_ids) AND tipo_tarefa_id IN (SEP, SEP-CONF)` (chunks de 800 IDs como já feito em recebimento).
+5. **Q5** — `tarefa_atribuicao WHERE tarefa_id IN (...)` → MIN(atribuido_em) por tarefa.
+6. **Q6** — `tarefa_execucao WHERE tarefa_id IN (...) AND concluido_em IS NOT NULL` → MAX(concluido_em) por tarefa.
+7. Reduzir em memória: por onda, separar SEP vs SEP-CONF e calcular T1..T5.
+
+Default 1000 linhas no `ReportTable` (paginação client-side).
+
+---
+
+### Ordenação default
+
+`status_sla` (FORA → ALERTA → EM_ANDAMENTO → DENTRO), depois `tempo_total_min` DESC. Igual ao padrão do Recebimento.
 
 ---
 
@@ -134,21 +145,16 @@ Cores: verde ≥ 98%, amarelo 95–97.9%, vermelho < 95%.
 
 **Estrutura de arquivos**:
 ```text
-src/modules/reports/inventario/
-├── InventarioReportPage.tsx
-└── inventario.service.ts
+src/modules/reports/ciclo-pedido/
+├── CicloPedidoReportPage.tsx
+└── cicloPedido.service.ts
 ```
 
-**Reutilização**: `ReportHeader`, `ReportTable` (`ReportColumn`), `Input`, `Label`, `Select`, `Button`, helpers `formatBrasiliaDateTime` / `nowBrasiliaDisplay`. `useTenant()` para `tenantId`.
+**Reutilização**: `ReportHeader`, `ReportTable` (`ReportColumn`), `Input`, `Label`, `Select`, `Button`, `Switch`. Helpers: `formatBrasiliaDateTime`, `nowBrasiliaDisplay`, `formatDuration` (já existe em `recebimento.service.ts` — extrair para `src/lib/dateUtils.ts` ou duplicar localmente — duplicar por simplicidade, igual ao padrão atual).
 
-**Performance**:
-- Limite default 1000 linhas (paginação client-side via `ReportTable`).
-- Filtro obrigatório por **Inventário** quando o usuário não escolhe período → evita varrer histórico inteiro.
-- Cálculos em memória após query única na view.
+**Cores semânticas**: `--status-free` (verde), `--status-busy` (amarelo), `--status-blocked` (vermelho), `text-muted-foreground` (cinza/em andamento). Mesma paleta dos demais relatórios.
 
-**Cores semânticas**: já usadas no projeto — `--status-free` (verde), `--status-busy` (amarelo), `--status-blocked` (vermelho), `text-muted-foreground` (cinza/pendente).
-
-**Sem mudanças de schema, RLS, edge function ou tipos**. A view `inventario_item_resumo` já existe e respeita RLS via `tenant_full_access` nas tabelas-base.
+**Sem mudanças de schema, RLS ou edge function**. RLS já cobre todas as tabelas via `tenant_full_access`.
 
 ---
 
@@ -156,8 +162,7 @@ src/modules/reports/inventario/
 
 | Arquivo | Tipo |
 |---|---|
-| `src/modules/reports/inventario/inventario.service.ts` | novo |
-| `src/modules/reports/inventario/InventarioReportPage.tsx` | novo |
-| `src/App.tsx` | alterado (1 import + 1 case `/relatorios/inventario` + breadcrumb) |
-| `src/components/TopNav.tsx` | sem alteração (item já existe no submenu) |
-
+| `src/modules/reports/ciclo-pedido/cicloPedido.service.ts` | novo |
+| `src/modules/reports/ciclo-pedido/CicloPedidoReportPage.tsx` | novo |
+| `src/App.tsx` | alterado (1 import + 1 case + breadcrumb) |
+| `src/components/TopNav.tsx` | alterado (1 item no submenu Relatórios) |
