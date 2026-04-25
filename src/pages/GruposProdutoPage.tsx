@@ -1,21 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function GruposProdutoPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId } = useTenant();
   const crud = useCrud({ table: "grupo_produto", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
-
-  useEffect(() => {
-    if (tenantId) fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
-  }, [tenantId]);
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
@@ -23,7 +18,6 @@ export function GruposProdutoPage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Eletrônicos" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
