@@ -37,10 +37,10 @@ const range = (ini: number, fim: number) => {
 };
 
 export function EnderecosBatchPage({ onNavigate }: Props) {
-  const { tenantId } = useTenant();
+  const { tenantId, armazemId: ctxArmazemId, empresaVersion } = useTenant();
 
-  // Common
-  const [armazemId, setArmazemId] = useState("");
+  // Common (armazém vem do contexto, não é editável)
+  const armazemId = ctxArmazemId || "";
   const [setorId, setSetorId] = useState("");
   const [tipoEstoqueId, setTipoEstoqueId] = useState("");
   const [tipoEndereco, setTipoEndereco] = useState("PICKING");
@@ -67,7 +67,6 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
   const [lado, setLado] = useState("TODOS");
 
   // Options
-  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
   const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
 
@@ -77,12 +76,17 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    if (tenantId) {
-      fetchOptions("armazem", tenantId).then(setArmazemOptions);
-      fetchOptions("setor", tenantId).then(setSetorOptions);
-      fetchOptions("tipo_estoque", tenantId).then(setTipoEstoqueOptions);
+    // Limpar seleções ao trocar empresa/armazém para evitar inconsistência
+    setSetorId("");
+    setTipoEstoqueId("");
+    if (tenantId && armazemId) {
+      fetchOptions("setor", tenantId, "descricao", { armazem_id: armazemId }).then(setSetorOptions);
+      fetchOptions("tipo_estoque", tenantId, "descricao", { armazem_id: armazemId }).then(setTipoEstoqueOptions);
+    } else {
+      setSetorOptions([]);
+      setTipoEstoqueOptions([]);
     }
-  }, [tenantId]);
+  }, [tenantId, armazemId, empresaVersion]);
 
   const combos = useMemo(() => {
     const rIni = parseInt(ruaIni), rFim = parseInt(ruaFim);
