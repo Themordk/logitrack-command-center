@@ -255,7 +255,9 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Configurações Comuns</h3>
 
             <Field label="Armazém *">
-              <SelectInput value={armazemId} onChange={setArmazemId} options={armazemOptions} placeholder="Selecione o armazém" />
+              <div className="h-9 px-3 rounded-md bg-secondary/40 border border-border flex items-center text-sm text-muted-foreground">
+                {armazemId ? "Armazém ativo da empresa selecionada" : "Selecione um armazém no topo"}
+              </div>
             </Field>
             <Field label="Setor *">
               <SelectInput value={setorId} onChange={setSetorId} options={setorOptions} placeholder="Selecione o setor" />
