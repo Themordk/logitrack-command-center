@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { TopNav } from "./TopNav";
 import { Breadcrumb } from "./Breadcrumb";
+import { EmpresaSwitchOverlay } from "./EmpresaSwitchOverlay";
 
 interface LayoutProps {
   children: ReactNode;
@@ -22,6 +23,7 @@ export function Layout({ children, currentPath, breadcrumb, onNavigate }: Layout
           {children}
         </div>
       </main>
+      <EmpresaSwitchOverlay />
     </div>
   );
 }

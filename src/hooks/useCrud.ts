@@ -1,6 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useTenant } from "@/contexts/TenantContext";
+
+// Tabelas que possuem coluna empresa_id e devem ser filtradas por empresa ativa
+const TABLES_WITH_EMPRESA = new Set([
+  "produto",
+  "parceiro",
+  "movimento_entrada",
+  "movimento_saida",
+  "documento_entrada",
+  "documento_saida",
+  "abastecimento",
+  "inventario",
+  "armazem",
+  "grupo_produto",
+  "subgrupo_produto",
+  "hu",
+  "usuario",
+]);
 
 interface UseCrudOptions {
   table: string;
@@ -21,6 +39,7 @@ export function useCrud<T extends Record<string, any>>({
   select = "*",
   filters = {},
 }: UseCrudOptions) {
+  const { empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
