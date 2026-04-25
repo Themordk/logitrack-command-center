@@ -21,7 +21,7 @@ interface ProdOption {
 }
 
 export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
 
   // Header
   const [numeroNota, setNumeroNota] = useState("");
@@ -46,19 +46,24 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) {
+      setParceiros([]); setTiposEntrada([]); setArmazens([]); setProdutos([]);
+      return;
+    }
+    // Reset seleções dependentes ao trocar empresa
+    setParceiroId(""); setTipoEntradaId(""); setArmazemId(""); setItems([]);
     Promise.all([
-      (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("ativo", true).order("razaosocial"),
-      (supabase as any).from("tipo_entrada").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao"),
-      (supabase as any).from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao"),
-      (supabase as any).from("produto").select("id, descricao, sku").eq("tenant_id", tenantId).eq("ativo", true).order("descricao"),
+      (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("razaosocial"),
+      (supabase as any).from("tipo_entrada").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
+      (supabase as any).from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
+      (supabase as any).from("produto").select("id, descricao, sku").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
     ]).then(([pRes, tRes, aRes, prRes]) => {
       setParceiros(pRes.data || []);
       setTiposEntrada(tRes.data || []);
       setArmazens(aRes.data || []);
       setProdutos(prRes.data || []);
     });
-  }, [tenantId]);
+  }, [tenantId, empresaId, empresaVersion]);
 
   const valorTotalProdutos = items.reduce((s, i) => s + i.valor_total, 0);
 

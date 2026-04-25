@@ -20,13 +20,17 @@ const TABLES_WITH_EMPRESA = new Set([
   "usuario",
   "tipo_entrada",
   "tipo_saida",
-  "rotas",
   "agrupamento_separacao",
   "agrupamento_conferencia",
   "ordem_expedicao",
   "veiculos",
   "produto_embalagem",
   "volume_expedicao",
+]);
+
+// Tabelas com empresa_id E armazem_id (filtradas pelos dois)
+const TABLES_WITH_EMPRESA_AND_ARMAZEM = new Set([
+  "rotas",
 ]);
 
 // Tabelas sem empresa_id direto, mas que pertencem a um armazém — filtradas pelo armazém ativo
@@ -68,8 +72,9 @@ export function useCrud<T extends Record<string, any>>({
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const requiresArmazem = TABLES_WITH_ARMAZEM.has(table);
-  const requiresEmpresa = TABLES_WITH_EMPRESA.has(table);
+  const requiresBoth = TABLES_WITH_EMPRESA_AND_ARMAZEM.has(table);
+  const requiresArmazem = TABLES_WITH_ARMAZEM.has(table) || requiresBoth;
+  const requiresEmpresa = TABLES_WITH_EMPRESA.has(table) || requiresBoth;
 
   const fetchData = useCallback(async () => {
     if (!tenantId) {
@@ -215,7 +220,8 @@ export function useCrud<T extends Record<string, any>>({
   };
 }
 
-// Helper de selects: filtra opções por tenant + ativo + filters extras
+// Helper de selects: filtra opções por tenant + ativo + filters extras.
+// Aceita filters como { empresa_id, armazem_id, ... } para escopo correto.
 export async function fetchOptions(
   table: string,
   tenantId: string,

@@ -61,7 +61,7 @@ export function ArmazensPage() {
         onClose={() => setModalOpen(false)}
         title={editItem ? "Editar Armazém" : "Novo Armazém"}
         fields={fields}
-        initialData={editItem}
+        initialData={editItem ?? (empresaId ? { empresa_id: empresaId } : null)}
         onSave={async (data) => editItem ? crud.update(editItem.id, data) : crud.create(data)}
       />
       <DeleteConfirmDialog
