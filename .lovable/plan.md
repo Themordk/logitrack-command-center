@@ -1,221 +1,146 @@
-Plano para corrigir as telas do menu Armazém ao trocar empresa no TopNav
 
-## Diagnóstico
+# Revisão de Multi-Empresa nas telas de Cadastro (Web)
 
-As telas citadas não estão inconsistentes por falta de `empresaVersion` no `useCrud`; elas falham principalmente porque várias tabelas de Armazém não têm `empresa_id` direto e dependem de `armazem_id`:
+## 1. Auditoria — situação atual de cada tela
 
-- `tipo_estoque`, `setor`, `endereco`, `box`, `turnos`, `motivo_ocorrencia`, `zona_atividade` são filtradas por `armazem_id`.
-- O `armazemId` atual fica persistido em `localStorage.core_armazem_id` e não está sendo recalculado quando o ADMIN troca a empresa no TopNav.
-- Resultado: a empresa ativa muda, mas o armazém ativo pode continuar sendo o armazém da empresa anterior; as telas do menu Armazém continuam filtrando/criando dados nesse armazém antigo.
-- `veiculos` possui `empresa_id`, mas ainda não está na whitelist `TABLES_WITH_EMPRESA`, então não recebe filtro nem injeção automática da empresa ativa.
-- `fetchOptions()` também só filtra por `tenant_id`/`ativo` e, quando usado em selects como Armazém, Setor e Tipo de Estoque, pode listar opções de outras empresas.
+| # | Tela | Tabela | Filtra lista por empresa ativa? | Cria registro vinculado à empresa ativa? | Status |
+|---|------|--------|--------------------------------|------------------------------------------|--------|
+| 1 | Empresas | `empresa` | N/A (é a própria base) | OK (apenas tenant) | ✅ |
+| 2 | Armazéns | `armazem` | OK (whitelist) | ❌ Usa select manual de empresa no formulário | ⚠️ |
+| 3 | Usuários | `usuario` | ❌ não usa empresa | ❌ Usa select manual de empresa | ⚠️ |
+| 4 | Perfis de Acesso | `perfil` | OK (escopo tenant) | OK | ✅ |
+| 5 | Integração | `integracao_config` | OK (depende de armazem) | OK | ✅ (já corrigido) |
+| 6 | Tipos Estoque | `tipo_estoque` | OK (armazém) | OK (armazém vem do contexto) | ✅ |
+| 7 | Setores | `setor` | OK (armazém) | OK | ✅ |
+| 8 | Endereços | `endereco` | OK (armazém) | OK | ✅ |
+| 9 | Endereços em Lote | `endereco` | ❌ select manual de armazém | ❌ usa select manual | ⚠️ |
+| 10 | Box | `box` | OK | OK | ✅ |
+| 11 | Turnos | `turnos` | OK | OK | ✅ |
+| 12 | Motivos Ocorrência | `motivo_ocorrencia` | OK | OK | ✅ |
+| 13 | Zonas de Atividade | `zona_atividade` | OK | OK | ✅ |
+| 14 | Roteiro de Separação | `agrupamento_*`, `ordem_expedicao` | OK | OK | ✅ |
+| 15 | **Produtos** | `produto` | OK (whitelist) | OK (injeta empresa_id) | ✅ |
+| 16 | **Parceiros** | `parceiro` | ❌ não usa filtro de empresa | ❌ select manual de empresa | 🔴 |
+| 17 | **Grupos de Produto** | `grupo_produto` | OK (whitelist) | ❌ select manual de empresa | ⚠️ |
+| 18 | **Subgrupos de Produto** | `subgrupo_produto` | OK | OK (injeta) | ✅ |
+| 19 | Tipos de Entrada | `tipo_entrada` | OK | OK | ✅ |
+| 20 | Tipos de Saída | `tipo_saida` | ❌ falta filter no useCrud | OK | ⚠️ |
+| 21 | Rotas | `rotas` | OK (whitelist) | ❌ usa select manual de armazém, não injeta empresa | ⚠️ |
+| 22 | Veículos | `veiculos` | OK | OK | ✅ |
+| 23 | HUs | `hu` | OK | OK | ✅ |
+| 24 | Volumes Expedição | `volume_expedicao` | OK | N/A (somente leitura) | ✅ |
+| 25 | Cadastro Doc Entrada | `documento_entrada` | N/A (página é cadastro) | OK (injeta empresa_id), mas selects de Parceiro/Tipo Entrada/Produto/Armazém **não filtram por empresa** | ⚠️ |
+| 26 | Cadastro Doc Saída | `documento_saida` | N/A | Idem (selects sem filtro de empresa) | ⚠️ |
+| 27 | Movimento Entrada (criar) | `movimento_entrada` | OK (lista) | OK (criação injeta empresa) | ✅ |
+| 28 | Movimento Saída (criar) | `movimento_saida` | OK (lista) | OK | ✅ |
+| 29 | Inventário (Novo) | `inventario` | OK | OK | ✅ |
+| 30 | Abastecimento Geração | `abastecimento` (RPC) | OK (recebe empresaId) | OK | ✅ |
 
-## Objetivo da correção
+### Problemas identificados (resumo)
 
-Garantir que, ao alternar a empresa no TopNav:
+- 🔴 **Parceiros**: lista todos os parceiros do tenant — vaza dados entre empresas. Cadastro pede empresa via select.
+- ⚠️ **Grupos de Produto / Armazéns**: lista já filtra (whitelist), mas o formulário ainda mostra select manual de empresa, redundante e suscetível a engano.
+- ⚠️ **Usuários**: lista todos os usuários do tenant, sem filtrar pela empresa ativa do TopNav.
+- ⚠️ **Tipos de Saída**: o `useCrud` não recebe `filters: { empresa_id }`, embora a tabela esteja na whitelist (já filtra automaticamente). Apenas falta consistência.
+- ⚠️ **Rotas**: select manual de armazém no formulário; deveria assumir o armazém ativo do contexto e empresa ativa.
+- ⚠️ **Endereços em Lote**: select manual de armazém + setor + tipo_estoque sem filtro pelo armazém ativo.
+- ⚠️ **Cadastro Doc Entrada/Saída**: dropdowns de Parceiro, Tipo Entrada/Saída, Produto, Rota e Armazém não filtram por `empresa_id` ativo.
 
-1. O armazém ativo seja compatível com a nova empresa.
-2. Todas as telas do menu Armazém exibam somente dados da empresa selecionada.
-3. Novos registros sejam criados vinculados à empresa/armazém corretos.
-4. Não haja opções de select apontando para registros da empresa anterior.
-5. O banco bloqueie gravações inconsistentes onde for possível validar.
+---
 
-## Implementação proposta
+## 2. Plano de correção
 
-### 1. Recalcular o armazém ativo ao trocar empresa
+### 2.1 Hook `useCrud.ts`
+- Adicionar `parceiro` à `TABLES_WITH_EMPRESA` (já tem coluna `empresa_id` direta) — passa a filtrar e injetar automaticamente.
+- Adicionar `usuario` à `TABLES_WITH_EMPRESA` para filtrar a lista de usuários pela empresa ativa (admin pode trocar de empresa para gerenciar).
+- (Whitelist de `armazem` já existe — apenas trocar UI.)
 
-Atualizar `TenantContext.changeEmpresa()` para também ajustar `core_armazem_id`:
+### 2.2 Helper `fetchOptions`
+- Estender assinatura para aceitar `empresaId` e `armazemId` opcionais e aplicar `.eq("empresa_id", x)` / `.eq("armazem_id", x)` quando informados, evitando ter que passar via `filters` em cada chamada.
+- Manter retrocompat (parâmetros opcionais).
 
-- Ao selecionar uma nova empresa, buscar o primeiro armazém ativo dessa empresa dentro do tenant.
-- Persistir esse armazém em `localStorage.core_armazem_id`.
-- Atualizar `setArmazemId()` no contexto.
-- Incrementar `empresaVersion` somente após empresa/armazém estarem coerentes.
-- Se a empresa não tiver armazém ativo, limpar `armazemId` e fazer as telas retornarem lista vazia ou exigirem criação/seleção de armazém.
+### 2.3 Telas a alterar
 
-Fluxo esperado:
+1. **`ParceirosPage.tsx`**
+   - Remover campo `empresa_id` do formulário (vem do contexto via useCrud).
+   - Remover busca de `empresaOptions`.
+   - Filtrar `fetchOptions("rotas", tenantId, ...)` por `empresa_id` ativo.
 
-```text
-ADMIN troca empresa no TopNav
-  -> changeEmpresa(novaEmpresa)
-  -> salva empresa ativa
-  -> busca armazém ativo da nova empresa
-  -> salva armazém ativo compatível
-  -> limpa caches dependentes
-  -> incrementa empresaVersion
-  -> telas refazem fetch com empresa/armazém corretos
-```
+2. **`GruposProdutoPage.tsx`**
+   - Remover campo `empresa_id` do formulário (já está na whitelist do useCrud).
+   - Remover `empresaOptions`.
 
-### 2. Evoluir `useCrud` para tabelas dependentes de armazém
+3. **`ArmazensPage.tsx`**
+   - **Decisão de produto**: armazém precisa de empresa explícita (admin pode criar armazéns para qualquer empresa). Manter o select de empresa, mas pré-selecionar a empresa ativa do TopNav e permitir trocar (apenas admin).
+   - Para usuário não-admin (que vê só sua empresa), esconder o campo e injetar a empresa ativa.
 
-Manter a whitelist `TABLES_WITH_EMPRESA` e adicionar uma segunda estratégia para tabelas que não possuem `empresa_id`, mas possuem `armazem_id`:
+4. **`UsuariosPage.tsx`**
+   - Igual a Armazéns: admin precisa poder cadastrar usuários para outras empresas. Pré-selecionar a empresa ativa, mas manter o select. Filtrar a listagem pela empresa ativa.
+   - Filtrar `fetchOptions("armazem", ...)` e `fetchOptions("turnos", ...)` pela empresa ativa.
 
-- Criar `TABLES_WITH_ARMAZEM_CONTEXT`, incluindo:
-  - `tipo_estoque`
-  - `setor`
-  - `endereco`
-  - `box`
-  - `turnos`
-  - `motivo_ocorrencia`
-  - `zona_atividade`
-  - `tipo_box` se usado como cadastro por armazém
-  - `picking_produto` se aparecer em rotas administrativas relacionadas
-- Para essas tabelas, aplicar automaticamente `.eq("armazem_id", armazemId)` quando houver armazém ativo.
-- Se não houver armazém ativo, retornar `[]` para evitar vazamento de dados do tenant inteiro.
-- No `create()`, injetar `armazem_id` automaticamente quando a tabela exigir contexto de armazém e o payload não vier preenchido.
-- Continuar aceitando `filters` explícitos, mas evitar que filtros vazios removam a proteção de contexto.
+5. **`RotasPage.tsx`**
+   - Remover campo `armazem_id` do formulário; assumir `armazemId` ativo do contexto + injetar `empresa_id` ativo (`onSave`).
+   - Adicionar `rotas` à `TABLES_WITH_ARMAZEM`? — **NÃO**, mantém só na empresa (tabela tem `armazem_id` e `empresa_id` direto). Injetar ambos no `onSave`.
 
-### 3. Incluir `veiculos` na filtragem por empresa
+6. **`TiposSaidaPage.tsx`**
+   - Adicionar `filters: { empresa_id: empresaId }` no useCrud para consistência com `TiposEntradaPage`.
+   - O `payload` já injeta empresa.
 
-Atualizar `TABLES_WITH_EMPRESA` em `useCrud.ts` para incluir:
+7. **`EnderecosBatchPage.tsx`**
+   - Trocar select manual de armazém por `armazemId` do contexto (read-only/badge).
+   - Filtrar selects de Setor e Tipo de Estoque por `armazem_id` ativo.
+   - Resetar estado ao mudar `empresaVersion`.
 
-- `veiculos`
-- `produto_embalagem`, se necessário para telas relacionadas
-- `estoque_geral`, `estoque_movimento` e `volume_expedicao` para consistência futura em CRUDs/listagens que usem o hook
+8. **`CadastroDocEntradaPage.tsx`**
+   - Adicionar `.eq("empresa_id", empresaId)` aos selects: `parceiro`, `tipo_entrada`, `produto`, `armazem`.
+   - Recarregar opções quando `empresaVersion` mudar.
 
-Para `VeiculosPage`, remover dependência de seleção manual de empresa no formulário ou forçar `empresa_id = empresaId` no `handleSave`, garantindo criação sempre na empresa ativa.
+9. **`CadastroDocSaidaPage.tsx`**
+   - Mesmo tratamento: filtrar `parceiro`, `tipo_saida`, `rotas`, `produto` por `empresa_id`.
+   - Recarregar quando trocar empresa.
 
-### 4. Corrigir selects/opções para respeitar empresa ativa
+10. **`MotivosOcorrenciaPage.tsx`** (opcional)
+    - Já está OK pelo armazém ativo. Sem mudança.
 
-Substituir chamadas genéricas como:
+### 2.4 Backend (migration)
+- **Estender `trg_validar_empresa_usuario`** para incluir `parceiro` e `usuario` (para garantia server-side caso a UI seja burlada).
+- Atualizar memória `auth/empresa-switch-admin.md` com a lista atual de tabelas cobertas.
 
-```ts
-fetchOptions("armazem", tenantId)
-fetchOptions("setor", tenantId)
-fetchOptions("tipo_estoque", tenantId)
-```
+---
 
-por chamadas filtradas pelo contexto correto:
+## 3. Componentes impactados
 
-- `armazem`: filtrar por `empresa_id = empresaId`
-- `setor`: filtrar por `armazem_id = armazemId`
-- `tipo_estoque`: filtrar por `armazem_id = armazemId`
-- `tipo_box`: filtrar por `armazem_id = armazemId`
-- `veiculos`: filtrar por `empresa_id = empresaId`
-
-Também ajustar `fetchOptions()` para aceitar uma opção de segurança contextual ou criar helper dedicado, por exemplo:
-
-```ts
-fetchContextOptions(table, { tenantId, empresaId, armazemId })
-```
-
-Isso reduz o risco de novas telas repetirem o mesmo erro.
-
-### 5. Ajustar telas impactadas
-
-Aplicar os filtros e criação contextual nas seguintes telas:
-
-- `TiposEstoquePage.tsx`
-  - Filtrar lista por armazém ativo.
-  - Filtrar select de Armazém por empresa ativa ou, preferencialmente, usar armazém ativo automaticamente.
-
-- `SetoresPage.tsx`
-  - Filtrar lista por armazém ativo.
-  - Filtrar select de Armazém por empresa ativa.
-
-- `EnderecosPage.tsx`
-  - Filtrar lista por armazém ativo.
-  - Filtrar selects: Armazém por empresa, Setor/Tipo Estoque por armazém.
-  - Limpar seleção de impressão ao trocar empresa para evitar etiquetas de endereços antigos.
-
-- `EnderecosBatchPage.tsx`
-  - Carregar opções somente do contexto ativo.
-  - Ao trocar empresa, resetar `armazemId`, `setorId`, `tipoEstoqueId` locais para evitar geração em contexto antigo.
-
-- `BoxPage.tsx`
-  - Já usa `armazemId`, mas ficará protegido também pelo novo `useCrud`.
-  - Garantir `tipo_box` filtrado pelo armazém ativo.
-
-- `TurnosPage.tsx`
-  - Já usa `armazemId`, mas ficará protegido contra armazém antigo após a troca.
-
-- `MotivosOcorrenciaPage.tsx`
-  - Já usa `armazemId`, mas ficará protegido contra armazém antigo após a troca.
-
-- `VeiculosPage.tsx`
-  - Filtrar por `empresaId` via `useCrud`.
-  - Criar/editar sempre na empresa ativa.
-
-- `ZonasAtividadePage.tsx`
-  - Filtrar lista por armazém ativo.
-  - Filtrar select de Armazém por empresa ativa.
-  - Em vínculos, carregar somente endereços do armazém ativo.
-  - Limpar modal/vínculos abertos ao trocar empresa.
-
-### 6. Reforçar segurança no banco
-
-Criar uma nova migration para ampliar a validação server-side.
-
-#### Para tabelas com `empresa_id`
-
-Adicionar `trg_validar_empresa_usuario` também em:
-
-- `veiculos`
-- `produto_embalagem`
-- `hu`
-- `estoque_geral`
-- `estoque_movimento`
-- `volume_expedicao`
-
-#### Para tabelas que dependem de `armazem_id`
-
-Criar uma função/trigger específica, por exemplo `fn_validar_armazem_empresa_usuario()`, que:
-
-- Obtém o `usuario.empresa_id` pelo `auth.uid()`.
-- Permite ADMINISTRADOR.
-- Verifica se `NEW.armazem_id` pertence à empresa do usuário em `public.armazem`.
-- Bloqueia inserts/updates em armazém de outra empresa para usuários não-admin.
-
-Aplicar em:
-
-- `tipo_estoque`
-- `setor`
-- `endereco`
-- `box`
-- `turnos`
-- `motivo_ocorrencia`
-- `zona_atividade`
-- `tipo_box`
-- `rotas`
-- `integracao_config` / `integracao_objetos`, se mantiverem isolamento por armazém
-
-Para `endereco_zona_atividade`, validar por relação indireta:
-
-- O endereço vinculado deve pertencer ao mesmo armazém/tenant da zona.
-- A zona deve pertencer ao armazém ativo/permitido.
-
-### 7. UX e prevenção de inconsistência visual
-
-- Manter overlay “Atualizando dados…” durante a troca.
-- Fechar modais abertos ou resetar estados locais sensíveis quando `empresaVersion` mudar.
-- Em telas de Armazém, se a empresa ativa não tiver armazém, exibir estado vazio claro: “Nenhum armazém ativo encontrado para esta empresa”.
-
-## Arquivos impactados
-
-Frontend:
-
-- `src/contexts/TenantContext.tsx`
-- `src/hooks/useCrud.ts`
-- `src/pages/TiposEstoquePage.tsx`
-- `src/pages/SetoresPage.tsx`
-- `src/pages/EnderecosPage.tsx`
+- `src/hooks/useCrud.ts` (whitelist + fetchOptions)
+- `src/pages/ParceirosPage.tsx`
+- `src/pages/GruposProdutoPage.tsx`
+- `src/pages/ArmazensPage.tsx`
+- `src/pages/UsuariosPage.tsx`
+- `src/pages/RotasPage.tsx`
+- `src/pages/TiposSaidaPage.tsx`
 - `src/pages/EnderecosBatchPage.tsx`
-- `src/pages/BoxPage.tsx`
-- `src/pages/TurnosPage.tsx`
-- `src/pages/MotivosOcorrenciaPage.tsx`
-- `src/pages/VeiculosPage.tsx`
-- `src/pages/ZonasAtividadePage.tsx`
-- Possivelmente `src/pages/RotasPage.tsx` por usar `armazem_id` e estar em Dados Mestres, mas depende da mesma raiz do problema.
+- `src/pages/CadastroDocEntradaPage.tsx`
+- `src/pages/CadastroDocSaidaPage.tsx`
+- Migration SQL: estender `trg_validar_empresa_usuario` para `parceiro` e `usuario`.
+- Memória: `mem://auth/empresa-switch-admin.md` (atualizar lista coberta).
 
-Banco:
+---
 
-- Nova migration em `supabase/migrations/` com triggers de validação por `empresa_id` e por `armazem_id`.
+## 4. Riscos e pontos de atenção
 
-## Critérios de aceite
+1. **Usuários e Armazéns são "objetos transversais"**: o admin precisa criar usuários/armazéns vinculados a empresas diferentes da que está ativa. Mantemos o select, mas pré-selecionado, em vez de remover.
+2. **Parceiros**: hoje há histórico que pode estar com `empresa_id` antigo. Após o filtro automático, parceiros antigos da empresa “errada” deixarão de aparecer — comportamento desejado.
+3. **Selects dependentes (Doc Entrada/Saída)**: ao trocar de empresa no meio do cadastro, o produto previamente selecionado pode sumir. Vamos resetar `selectedItems` quando `empresaVersion` mudar nessas duas páginas.
+4. **Cadastro de Endereços em Lote**: mudança de `armazemId` no meio do preenchimento é destrutiva — manter o reset com `empresaVersion`.
+5. **Trigger backend**: ao incluir `usuario` na validação, atenção para a edge function `create-usuario` (executa com service role e `auth.uid()` é nulo → trigger retorna `NEW` sem validar, OK).
+6. **Migration idempotente**: padrão existente (`DROP TRIGGER IF EXISTS … CREATE TRIGGER …`) — sem risco.
 
-- Ao trocar empresa no TopNav, `empresaId` e `armazemId` ficam compatíveis.
-- Tipo de Estoque, Setores, Endereços, Box, Turnos, Motivos, Veículos e Zonas exibem somente dados da empresa ativa.
-- Selects dessas telas não oferecem Armazéns/Setores/Tipos de Estoque de outra empresa.
-- Criar registro nessas telas grava no armazém/empresa ativa correta.
-- Se tentar manipular manualmente payload com empresa/armazém de outra empresa, o banco bloqueia para usuários não-admin.
-- Não há reload completo da página.
-- Build TypeScript passa sem erros.
+---
+
+## 5. Fluxo final esperado
+
+1. Admin troca empresa no TopNav → `empresaVersion++` → overlay → `armazemId` é re-derivado → todos os hooks `useCrud` e telas com `empresaVersion` no useEffect reexecutam.
+2. Toda criação em tabela com `empresa_id` recebe automaticamente o `empresa_id` ativo (via `useCrud.create` ou injeção no `onSave`).
+3. Selects auxiliares (Parceiro, Produto, Tipo Entrada/Saída, Setor, Tipo Estoque) só listam itens da empresa/armazém ativo.
+4. Backend triggers garantem que usuário não-admin não consiga gravar em tabela de outra empresa, mesmo via console/curl.
+
+Após aprovação, executo as alterações (frontend + 1 migration de extensão de triggers).
