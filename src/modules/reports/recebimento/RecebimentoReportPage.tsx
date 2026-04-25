@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { formatBrasiliaDateTimeShort, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function RecebimentoReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<RecebimentoRow[]>([]);
   const [kpis, setKpis] = useState<RecebimentoKpis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,6 +50,14 @@ export function RecebimentoReportPage() {
       .order("razaosocial").limit(500)
       .then(({ data }: any) => setParceiros(data || []));
   }, [tenantId]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setKpis(null);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;

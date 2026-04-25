@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 
 export function OcupacaoReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
 
   // Filter state
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
@@ -76,6 +76,12 @@ export function OcupacaoReportPage() {
       .order("descricao")
       .then(({ data }) => setSetores(data || []));
   }, [tenantId, selectedArmazem]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData(null);
+    setExpandedSetor(null);
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId || !empresaId || !selectedArmazem) {

@@ -24,7 +24,7 @@ const STATUS_ONDA = ["CRIADA", "EM_SEPARACAO", "SEPARADA", "CONFERIDO", "CONCLUI
 const PRIORIDADES = ["BAIXA", "NORMAL", "ALTA", "URGENTE"];
 
 export function CicloPedidoReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [data, setData] = useState<CicloPedidoRow[]>([]);
   const [kpis, setKpis] = useState<CicloPedidoKpis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,6 +56,14 @@ export function CicloPedidoReportPage() {
       .order("razaosocial").limit(500)
       .then(({ data }: any) => setParceiros(data || []));
   }, [tenantId]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setKpis(null);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;

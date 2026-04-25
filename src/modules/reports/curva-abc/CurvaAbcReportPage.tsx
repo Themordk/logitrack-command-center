@@ -21,7 +21,7 @@ function defaultDateRange() {
 }
 
 export function CurvaAbcReportPage() {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const def = defaultDateRange();
   const [data, setData] = useState<CurvaAbcRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,6 +51,13 @@ export function CurvaAbcReportPage() {
     (supabase as any).from("subgrupo_produto").select("id, descricao").eq("tenant_id", tenantId)
       .then(({ data }: any) => setSubgrupos(data || []));
   }, [tenantId]);
+
+  // Reset relatório ao trocar empresa
+  useEffect(() => {
+    setData([]);
+    setGenerated(false);
+    setGeneratedAt("");
+  }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;
