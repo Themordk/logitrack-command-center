@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
@@ -11,11 +11,6 @@ export function RotasPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
-
-  useEffect(() => {
-    if (tenantId) fetchOptions("armazem", tenantId).then(setArmazemOptions);
-  }, [tenantId]);
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
@@ -23,7 +18,6 @@ export function RotasPage() {
   ];
 
   const fields: FieldSpec[] = [
-    { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Rota SP-01" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
