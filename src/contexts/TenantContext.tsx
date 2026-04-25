@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface TenantContextType {
@@ -9,6 +9,8 @@ interface TenantContextType {
   usuarioNome: string | null;
   loading: boolean;
   authenticated: boolean;
+  empresaVersion: number;
+  switchingEmpresa: boolean;
   login: (tipoUsuario?: string) => void;
   logout: () => void;
   changeEmpresa: (empresaId: string) => void;
@@ -22,6 +24,8 @@ const TenantContext = createContext<TenantContextType>({
   usuarioNome: null,
   loading: true,
   authenticated: false,
+  empresaVersion: 0,
+  switchingEmpresa: false,
   login: () => {},
   logout: () => {},
   changeEmpresa: () => {},
@@ -35,6 +39,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [usuarioNome, setUsuarioNome] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [empresaVersion, setEmpresaVersion] = useState(0);
+  const [switchingEmpresa, setSwitchingEmpresa] = useState(false);
+  const switchTimer = useRef<number | null>(null);
 
   const loadFromStorage = () => {
     setTenantId(localStorage.getItem("core_tenant_id"));
@@ -87,18 +94,46 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // limpa caches dependentes do usuário
+    sessionStorage.removeItem("core_rbac_permissions");
+    Object.keys(sessionStorage)
+      .filter((k) => k.startsWith("core_is_admin_"))
+      .forEach((k) => sessionStorage.removeItem(k));
     await supabase.auth.signOut();
     clearStorage();
     setAuthenticated(false);
   };
 
   const changeEmpresa = (newEmpresaId: string) => {
+    if (!newEmpresaId || newEmpresaId === empresaId) return;
     localStorage.setItem("core_empresa_id", newEmpresaId);
     setEmpresaId(newEmpresaId);
+    setEmpresaVersion((v) => v + 1);
+    // invalida cache de permissões (podem variar por empresa em evolução futura)
+    sessionStorage.removeItem("core_rbac_permissions");
+    // Overlay leve para feedback visual
+    setSwitchingEmpresa(true);
+    if (switchTimer.current) window.clearTimeout(switchTimer.current);
+    switchTimer.current = window.setTimeout(() => setSwitchingEmpresa(false), 450);
   };
 
   return (
-    <TenantContext.Provider value={{ tenantId, empresaId, armazemId, usuarioId, usuarioNome, loading, authenticated, login, logout, changeEmpresa }}>
+    <TenantContext.Provider
+      value={{
+        tenantId,
+        empresaId,
+        armazemId,
+        usuarioId,
+        usuarioNome,
+        loading,
+        authenticated,
+        empresaVersion,
+        switchingEmpresa,
+        login,
+        logout,
+        changeEmpresa,
+      }}
+    >
       {children}
     </TenantContext.Provider>
   );

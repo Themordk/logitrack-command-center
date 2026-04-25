@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -124,6 +125,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const { tenantId, empresaId, usuarioNome, logout, changeEmpresa } = useTenant();
   const { can } = usePermissions();
+  const isAdmin = useIsAdmin();
   const [empresas, setEmpresas] = useState<{ id: string; codigo: string | null; razaosocial: string }[]>([]);
 
   useEffect(() => {
@@ -181,21 +183,34 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
           </div>
         </div>
 
-        {/* Empresa selector */}
+        {/* Empresa selector — apenas ADMINISTRADOR pode trocar */}
         <div className="flex items-center gap-1.5 px-4 border-r border-border mr-2">
           <MapPin size={13} className="text-muted-foreground" />
-          <select
-            value={empresaId || ""}
-            onChange={(e) => changeEmpresa(e.target.value)}
-            className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer"
-          >
-            {empresas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.codigo || e.id.slice(0, 8)}
-              </option>
-            ))}
-            {empresas.length === 0 && <option value="">—</option>}
-          </select>
+          {isAdmin ? (
+            <select
+              value={empresaId || ""}
+              onChange={(e) => changeEmpresa(e.target.value)}
+              className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer"
+              title="Trocar empresa ativa"
+            >
+              {empresas.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.codigo || e.id.slice(0, 8)}
+                </option>
+              ))}
+              {empresas.length === 0 && <option value="">—</option>}
+            </select>
+          ) : (
+            <span
+              className="text-xs text-foreground font-medium"
+              title="Empresa ativa"
+            >
+              {(() => {
+                const atual = empresas.find((e) => e.id === empresaId);
+                return atual?.codigo || atual?.razaosocial || "—";
+              })()}
+            </span>
+          )}
         </div>
 
         {/* Nav items */}
