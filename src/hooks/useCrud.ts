@@ -57,6 +57,11 @@ export function useCrud<T extends Record<string, any>>({
       let query = (supabase as any).from(table).select(select, { count: "exact" });
       query = query.eq("tenant_id", tenantId);
 
+      // Filtro automático por empresa ativa quando aplicável
+      if (TABLES_WITH_EMPRESA.has(table) && empresaId) {
+        query = query.eq("empresa_id", empresaId);
+      }
+
       Object.entries(filters).forEach(([key, val]) => {
         if (val !== undefined && val !== null && val !== "" && val !== "all") {
           query = query.eq(key, val);
@@ -89,7 +94,7 @@ export function useCrud<T extends Record<string, any>>({
     } finally {
       setLoading(false);
     }
-  }, [table, tenantId, page, pageSize, search, orderBy, orderDir, select, JSON.stringify(filters)]);
+  }, [table, tenantId, empresaId, empresaVersion, page, pageSize, search, orderBy, orderDir, select, JSON.stringify(filters)]);
 
   useEffect(() => {
     fetchData();
@@ -97,7 +102,12 @@ export function useCrud<T extends Record<string, any>>({
 
   const create = async (record: Partial<T>) => {
     try {
-      const { error } = await (supabase as any).from(table).insert({ ...record, tenant_id: tenantId });
+      const payload: any = { ...record, tenant_id: tenantId };
+      // Anexa empresa ativa quando a tabela exige
+      if (TABLES_WITH_EMPRESA.has(table) && empresaId && payload.empresa_id == null) {
+        payload.empresa_id = empresaId;
+      }
+      const { error } = await (supabase as any).from(table).insert(payload);
       if (error) throw error;
       toast.success("Registro criado com sucesso!");
       await fetchData();
