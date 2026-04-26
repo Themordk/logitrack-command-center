@@ -86,6 +86,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "abastecimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       agrupamento_conferencia: {
@@ -134,6 +141,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agrupamento_conferencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       agrupamento_separacao: {
@@ -180,6 +194,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agrupamento_separacao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -233,6 +254,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "armazem_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       box: {
@@ -273,6 +301,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "box_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -363,6 +398,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "documento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "documento_entrada_tipo_entrada_id_fkey"
             columns: ["tipo_entrada_id"]
             isOneToOne: false
@@ -421,6 +463,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "documento_entrada_item_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_entrada_item_lote: {
@@ -467,6 +516,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_item_lote_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -547,6 +603,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_doc_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_doc_saida_tipo"
             columns: ["tipo_pedido_id"]
             isOneToOne: false
@@ -605,6 +668,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_doc_saida_item_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_saida_item_lote: {
@@ -653,6 +723,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_doc_saida_item_lote_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       empresa: {
@@ -686,6 +763,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empresa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -787,6 +871,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "endereco_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       endereco_zona_atividade: {
@@ -821,6 +912,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endereco_zona_atividade_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -1052,6 +1150,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "estoque_movimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "estoque_movimento_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -1098,6 +1203,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupo_produto_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -1160,6 +1272,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hu_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       integracao_config: {
@@ -1214,6 +1333,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "integracao_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       integracao_objetos: {
@@ -1263,6 +1389,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integracao_objetos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -1384,6 +1517,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inventario_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inventario_usuario_criacao_fk"
             columns: ["criado_por"]
             isOneToOne: false
@@ -1421,6 +1561,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_tipo_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -1519,6 +1666,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lms_metrica_diaria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lms_metrica_diaria_turno_id_fkey"
             columns: ["turno_id"]
             isOneToOne: false
@@ -1577,6 +1731,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lms_metrica_tipo_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lms_metrica_tipo_tarefa_tipo_tarefa_id_fkey"
             columns: ["tipo_tarefa_id"]
             isOneToOne: false
@@ -1626,6 +1787,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "log_sessao_usuario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "log_sessao_usuario_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -1665,6 +1833,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "modulo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -1710,6 +1885,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motivo_ocorrencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -1844,6 +2026,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimento_entrada_usuario_autorizou_fkey"
             columns: ["usuario_autorizou"]
             isOneToOne: false
@@ -1926,6 +2115,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_documento_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -2019,6 +2215,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_item_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -2120,6 +2323,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_onda_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_onda_veiculo"
             columns: ["veiculo_id"]
             isOneToOne: false
@@ -2205,6 +2415,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -2341,6 +2558,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_onda_item_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimento_saida_item_motivo_ocorrencia_fkey"
             columns: ["motivo_ocorrencia"]
             isOneToOne: false
@@ -2434,6 +2658,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ordem_expedixao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       parceiro: {
@@ -2507,6 +2738,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "parceiro_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       perfil: {
@@ -2540,6 +2778,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -2585,6 +2830,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "perfil_permissao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       permissao: {
@@ -2622,6 +2874,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permissao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -2689,7 +2948,41 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "picking_produto_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      platform_support_user: {
+        Row: {
+          ativo: boolean
+          auth_user_id: string
+          created_at: string
+          email: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          auth_user_id: string
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          auth_user_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
       }
       produto: {
         Row: {
@@ -2815,6 +3108,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "produto_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       produto_embalagem: {
@@ -2888,6 +3188,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "produto_embalagem_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       rotas: {
@@ -2937,6 +3244,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "rotas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sequencia: {
@@ -2970,10 +3284,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sequencia_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sequencia_tenant_id_fkey1"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sequencia_tenant_id_fkey1"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -3016,6 +3344,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setor_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -3068,6 +3403,70 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subgrupo_produto_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_chamado: {
+        Row: {
+          atendido_em: string | null
+          atendido_por: string | null
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          prioridade: string
+          resposta: string | null
+          status: string
+          tenant_id: string
+          titulo: string
+        }
+        Insert: {
+          atendido_em?: string | null
+          atendido_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          prioridade?: string
+          resposta?: string | null
+          status?: string
+          tenant_id: string
+          titulo: string
+        }
+        Update: {
+          atendido_em?: string | null
+          atendido_por?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          prioridade?: string
+          resposta?: string | null
+          status?: string
+          tenant_id?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_chamado_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_chamado_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -3208,6 +3607,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -3372,6 +3778,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "evento_execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tarefa_evento_execucao_tarefa_fkey"
             columns: ["tarefa_id"]
             isOneToOne: false
@@ -3502,6 +3915,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "execucao_tarefa_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -3606,6 +4026,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tipo_box_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tipo_entrada: {
@@ -3646,6 +4073,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tipo_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -3693,6 +4127,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tipo_estoque_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tipo_saida: {
@@ -3736,6 +4177,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_tipo_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -3785,6 +4233,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tipo_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       turnos: {
@@ -3831,6 +4286,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turnos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -3913,6 +4375,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "usuario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "usuario_turno_id_fkey"
             columns: ["turno_id"]
             isOneToOne: false
@@ -3953,6 +4422,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_perfil_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -4070,6 +4546,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "veiculos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       volume_expedicao: {
@@ -4166,6 +4649,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "volume_expedicao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       zona_atividade: {
@@ -4206,6 +4696,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zona_atividade_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -4334,6 +4831,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "abastecimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       vw_estoque_movimento_relatorio: {
@@ -4420,6 +4924,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "estoque_movimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "estoque_movimento_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -4489,6 +5000,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "execucao_tarefa_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -4555,6 +5073,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -4635,6 +5160,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "execucao_tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -4741,6 +5273,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       vw_movimento_entrada_conferencia_detalhe: {
@@ -4784,6 +5323,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -4852,6 +5398,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "movimento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       vw_movimento_entrada_lista: {
@@ -4886,6 +5439,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -5007,6 +5567,13 @@ export type Database = {
             referencedRelation: "tenant"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tarefa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       vw_movimento_saida_docs_vinculados: {
@@ -5025,6 +5592,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
           {
@@ -5153,6 +5727,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_onda_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_onda_veiculo"
             columns: ["veiculo_id"]
             isOneToOne: false
@@ -5206,6 +5787,45 @@ export type Database = {
             | Database["public"]["Enums"]["enum_status_tarefa"]
             | null
           validade: string | null
+        }
+        Relationships: []
+      }
+      vw_tenant_resumo: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          id: string | null
+          nome: string | null
+          total_empresas: number | null
+          total_entradas: number | null
+          total_movimentos: number | null
+          total_ondas: number | null
+          total_produtos: number | null
+          total_usuarios: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string | null
+          nome?: string | null
+          total_empresas?: never
+          total_entradas?: never
+          total_movimentos?: never
+          total_ondas?: never
+          total_produtos?: never
+          total_usuarios?: never
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          id?: string | null
+          nome?: string | null
+          total_empresas?: never
+          total_entradas?: never
+          total_movimentos?: never
+          total_ondas?: never
+          total_produtos?: never
+          total_usuarios?: never
         }
         Relationships: []
       }
@@ -5527,6 +6147,10 @@ export type Database = {
       get_current_tenant: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
       hu_padrao: { Args: never; Returns: string }
+      is_platform_support: {
+        Args: { p_auth_user_id: string }
+        Returns: boolean
+      }
       liberar_onda_separacao: {
         Args: {
           p_empresa_id: string
