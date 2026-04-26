@@ -157,25 +157,35 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
             <h1 className="text-xl font-bold text-foreground">
               CORE <span className="text-primary">LogiTrack</span>
             </h1>
-            <p className="text-xs text-muted-foreground mt-1">Sistema de Gestão de Armazém</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isSupportMode ? "Painel de Suporte" : "Sistema de Gestão de Armazém"}
+            </p>
           </div>
-          {bootTenant && (
+          {isSupportMode ? (
+            <div className="mt-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
+              <span className="text-[11px] uppercase tracking-wide text-amber-500 font-semibold">
+                Acesso: Suporte da Plataforma
+              </span>
+            </div>
+          ) : bootTenant ? (
             <div className="mt-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
               <span className="text-[11px] uppercase tracking-wide text-primary font-semibold">
                 Acesso: {bootTenant.nome}
               </span>
             </div>
-          )}
+          ) : null}
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Login</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">
+              {isSupportMode ? "E-mail" : "Login"}
+            </label>
             <input
               type="text"
               value={login}
               onChange={(e) => setLogin(e.target.value)}
-              placeholder="Seu login"
+              placeholder={isSupportMode ? "suporte.corelogitrack@gmail.com" : "Seu login"}
               className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary transition-colors"
               required
             />
@@ -202,13 +212,23 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
         </form>
 
         <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={onNavigateColetor}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
-          >
-            Acessar Coletor de Dados
-          </button>
+          {isSupportMode ? (
+            <button
+              type="button"
+              onClick={() => onBackToPicker?.()}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
+            >
+              ← Voltar à identificação do cliente
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onNavigateColetor}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
+            >
+              Acessar Coletor de Dados
+            </button>
+          )}
         </div>
       </div>
 
