@@ -116,18 +116,20 @@ export function EntradasPage() {
   };
 
   const openModal = async () => {
-    // Fetch boxes and armazens in parallel
+    // Fetch boxes (por armazém ativo) e armazens (por empresa ativa) em paralelo
     const [boxRes, armRes] = await Promise.all([
       (supabase as any)
         .from("box")
         .select("id, descricao")
         .eq("tenant_id", tenantId)
+        .eq("armazem_id", armazemId)
         .eq("ativo", true)
         .order("descricao"),
       (supabase as any)
         .from("armazem")
         .select("id, descricao")
         .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
         .eq("ativo", true)
         .order("descricao"),
     ]);
