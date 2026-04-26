@@ -31,12 +31,13 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    if (claimsError || !claimsData?.claims?.sub) {
       return new Response(
         JSON.stringify({ success: false, error: "Token inválido." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const authUid = claimsData.claims.sub as string;
 
     const body = await req.json();
     const { usuario_id } = body;
@@ -52,10 +53,24 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Fetch the usuario to get auth_user_id
+    // Derivar tenant do solicitante via auth_user_id (servidor)
+    const { data: solicitante, error: solErr } = await supabaseAdmin
+      .from("usuario")
+      .select("id, tenant_id")
+      .eq("auth_user_id", authUid)
+      .maybeSingle();
+
+    if (solErr || !solicitante?.tenant_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Usuário solicitante não localizado." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Buscar usuário-alvo e validar que pertence AO MESMO tenant
     const { data: usuario, error: fetchError } = await supabaseAdmin
       .from("usuario")
-      .select("id, auth_user_id, nome")
+      .select("id, auth_user_id, nome, tenant_id")
       .eq("id", usuario_id)
       .single();
 
@@ -63,6 +78,13 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: "Usuário não encontrado." }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (usuario.tenant_id !== solicitante.tenant_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Operação não permitida (tenant divergente)." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
