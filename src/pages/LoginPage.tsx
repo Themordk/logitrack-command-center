@@ -21,8 +21,37 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
     if (!login.trim() || !password.trim()) return;
     setLoading(true);
     try {
-      const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: login.trim() });
-      if (lookupError || !email) throw new Error("Usuário não encontrado.");
+      const loginInput = login.trim();
+      const isSupportEmail = loginInput.toLowerCase() === "suporte.corelogitrack@gmail.com";
+
+      // ===== Fluxo SUPORTE DA PLATAFORMA =====
+      if (isSupportEmail) {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: loginInput,
+          password,
+        });
+        if (authError) throw authError;
+        if (!authData.user?.id) throw new Error("Falha de autenticação.");
+
+        // Confirma autorização via edge function
+        const { data: who, error: whoErr } = await supabase.functions.invoke("support-whoami");
+        if (whoErr || !who?.success) {
+          await supabase.auth.signOut();
+          throw new Error("Conta não autorizada para o painel de suporte.");
+        }
+
+        localStorage.setItem("core_is_platform_support", "1");
+        localStorage.setItem("core_usuario_nome", who.nome || "Suporte");
+        toast.success(`Bem-vindo, ${who.nome || "Suporte"}!`);
+        window.location.hash = "/suporte/tenants";
+        // Recarrega para garantir que App entre no fluxo de suporte
+        window.location.reload();
+        return;
+      }
+
+      // ===== Fluxo NORMAL =====
+      const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: loginInput });
+      if (lookupError || !email) throw new Error("Usuário não encontrado ou tenant inativo.");
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
