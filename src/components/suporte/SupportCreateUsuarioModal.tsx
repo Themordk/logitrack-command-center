@@ -19,7 +19,7 @@ export function SupportCreateUsuarioModal({ tenant, onClose, onCreated }: Props)
     nome: "",
     login: "",
     senha: "",
-    tipo_operacao: "ADMINISTRATIVO",
+    tipo_operacao: "RECEBIMENTO",
     habilidade: "TREINANDO",
     perfil_id: "",
   });
@@ -141,8 +141,13 @@ export function SupportCreateUsuarioModal({ tenant, onClose, onCreated }: Props)
               onChange={(e) => setForm({ ...form, tipo_operacao: e.target.value })}
               className="w-full h-9 px-2 rounded border border-border bg-secondary/40 text-xs"
             >
-              <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
-              <option value="OPERACIONAL">OPERACIONAL</option>
+              <option value="RECEBIMENTO">RECEBIMENTO</option>
+              <option value="ARMAZENAGEM">ARMAZENAGEM</option>
+              <option value="MOVIMENTOS">MOVIMENTOS</option>
+              <option value="SEPARACAO">SEPARACAO</option>
+              <option value="CONFERENCIA">CONFERENCIA</option>
+              <option value="EXPEDICAO">EXPEDICAO</option>
+              <option value="AUDITORIA">AUDITORIA</option>
             </select>
           </Field>
 
