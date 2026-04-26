@@ -22,7 +22,8 @@ export interface SupportContext {
   email: string;
   supportId: string;
   supportNome: string;
-  admin: ReturnType<typeof createClient>;
+  // deno-lint-ignore no-explicit-any
+  admin: any;
 }
 
 /**
