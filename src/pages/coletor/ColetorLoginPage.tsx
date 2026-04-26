@@ -24,8 +24,19 @@ export function ColetorLoginPage({ onNavigate }: Props) {
     if (!login.trim() || !password.trim()) return;
     setLoading(true);
     try {
-      const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: login.trim() });
-      if (lookupError || !email) throw new Error("Usuário não encontrado.");
+      // Trava por subdomínio quando aplicável
+      const rpcArgs: { p_login: string; p_tenant_id?: string } = { p_login: login.trim() };
+      if (bootTenant) rpcArgs.p_tenant_id = bootTenant.id;
+
+      const { data: email, error: lookupError } = await supabase.rpc(
+        "fn_buscar_email_por_login",
+        rpcArgs as any
+      );
+      if (lookupError || !email) {
+        throw new Error(
+          bootTenant ? "Usuário não encontrado neste cliente." : "Usuário não encontrado."
+        );
+      }
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
@@ -33,11 +44,25 @@ export function ColetorLoginPage({ onNavigate }: Props) {
       const userId = authData.user?.id;
       if (!userId) throw new Error("Usuário não encontrado.");
 
-      const { data: usuario, error: userError } = await (supabase as any)
+      // Defesa em profundidade pós-auth
+      if (bootTenant) {
+        const { data: belongs, error: belongsErr } = await supabase.rpc(
+          "fn_user_belongs_to_tenant",
+          { p_tenant_id: bootTenant.id }
+        );
+        if (belongsErr || belongs !== true) {
+          await supabase.auth.signOut();
+          throw new Error("Este usuário não pertence ao cliente acessado.");
+        }
+      }
+
+      const usuarioQuery = (supabase as any)
         .from("usuario")
         .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario, deve_trocar_senha")
-        .eq("auth_user_id", userId)
-        .single();
+        .eq("auth_user_id", userId);
+      if (bootTenant) usuarioQuery.eq("tenant_id", bootTenant.id);
+
+      const { data: usuario, error: userError } = await usuarioQuery.single();
 
       if (userError || !usuario) {
         await supabase.auth.signOut();
