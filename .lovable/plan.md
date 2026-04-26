@@ -1,162 +1,205 @@
-# Plano — Módulo "Suporte da Plataforma" (Gestão de Tenants)
+# Plano — Arquitetura Multi-Tenant por Subdomínio
 
-Objetivo: criar uma área administrativa **fora do RLS multi-tenant**, acessível apenas ao e-mail `suporte.corelogitrack@gmail.com`, para gerenciar todos os Tenants do sistema.
+## 🎯 Objetivo
 
-Princípios de segurança:
-- **RLS permanece intacto** em todas as tabelas dos clientes.
-- Toda leitura/escrita do módulo passa por **edge functions com service_role**, validando JWT + flag `is_platform_support` em cada chamada.
-- Whitelist de e-mail no servidor (não confia em flag de localStorage).
+Identificar o tenant **automaticamente pelo subdomínio** de `corelogitrack.com.br`, validar no backend antes do login, travar a sessão a esse tenant e impedir qualquer acesso cruzado entre clientes.
+
+Exemplo:
+- `jrpneus.corelogitrack.com.br` → tenant **Jrpneus** (`0619c6ea-…`)
+- `tiaotruck.corelogitrack.com.br` → tenant **Tiaotruck**
+- `app.corelogitrack.com.br` ou domínio raiz → portal neutro (escolha de tenant / suporte)
 
 ---
 
-## Fase 1 — Banco de dados
+## 🧱 Estado Atual (descoberto na inspeção)
 
-### 1.1 Nova tabela `platform_support_user`
-Marca quais `auth.users` são suporte da plataforma (não pertencem a nenhum tenant).
+- `TenantContext` lê `tenant_id` do `localStorage` (gravado pelo login do usuário).
+- `fn_buscar_email_por_login(p_login)` busca e-mail por login **sem filtrar por tenant** — hoje, dois tenants com o mesmo `login` causariam ambiguidade.
+- `get_current_tenant()` no banco deriva tenant do `auth.uid()` (usuario.auth_user_id) — isso é seguro **após** o login, mas hoje **antes do login não há trava por subdomínio**.
+- Tabela `tenant` tem apenas `id`, `nome`, `ativo` (sem `slug`).
+- Há 3 tenants reais: CORE LogiTrack, Jrpneus, Tiaotruck.
 
-```sql
-CREATE TABLE public.platform_support_user (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  auth_user_id uuid NOT NULL UNIQUE,
-  email text NOT NULL UNIQUE,
-  nome text NOT NULL,
-  ativo boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.platform_support_user ENABLE ROW LEVEL SECURITY;
--- Sem políticas públicas: só service_role acessa.
+**Gap crítico:** nada hoje impede que um usuário do tenant A digite suas credenciais em `tenantB.corelogitrack.com.br` e acesse o sistema (o login resolveria pelo `auth.uid()`).
+
+---
+
+## 🗺️ Fluxo Alvo
+
 ```
-
-### 1.2 Função utilitária
-```sql
-CREATE OR REPLACE FUNCTION public.is_platform_support(p_auth_user_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.platform_support_user
-    WHERE auth_user_id = p_auth_user_id AND ativo = true
-  );
-$$;
-```
-
-### 1.3 Seed do primeiro suporte
-Migration cria o usuário em `auth.users` (se não existir) com senha inicial `Suporte@Core2026` e insere em `platform_support_user`. Email **whitelisted no código** das edge functions: `suporte.corelogitrack@gmail.com`.
-
-### 1.4 Bloqueio de login para tenant inativo
-Atualizar `fn_buscar_email_por_login` (e/ou validação no `LoginPage`) para rejeitar quando `tenant.ativo = false`.
-
-### 1.5 View agregada de métricas (consumida só pela edge function)
-```sql
-CREATE OR REPLACE VIEW public.vw_tenant_resumo AS
-SELECT
-  t.id, t.nome, t.ativo, t.created_at,
-  (SELECT count(*) FROM empresa  WHERE tenant_id = t.id) AS total_empresas,
-  (SELECT count(*) FROM usuario  WHERE tenant_id = t.id) AS total_usuarios,
-  (SELECT count(*) FROM produto  WHERE tenant_id = t.id) AS total_produtos,
-  (SELECT count(*) FROM estoque_movimento WHERE tenant_id = t.id) AS total_movimentos
-FROM public.tenant t;
+1. Usuário acessa  jrpneus.corelogitrack.com.br
+2. UI extrai subdomínio → "jrpneus"
+3. UI chama edge function pública: resolve-tenant?slug=jrpneus
+4. Backend valida (slug existe + ativo) e devolve { tenant_id, nome, ativo }
+5. UI grava tenant em sessionStorage + contexto global (TenantBootContext)
+6. Tela de Login fica "amarrada" ao tenant — login só aceita usuário daquele tenant
+7. Sessão inteira opera com esse tenant; qualquer divergência derruba a sessão
 ```
 
 ---
 
-## Fase 2 — Edge Functions (todas validam JWT + `is_platform_support`)
+## 📦 Fase 1 — Banco de Dados
 
-Helper comum em cada function:
+### 1.1. Adicionar coluna `slug` em `tenant`
+```sql
+ALTER TABLE public.tenant ADD COLUMN IF NOT EXISTS slug text;
+
+-- Backfill normalizado (lowercase, sem espaços/acentos)
+UPDATE public.tenant
+SET slug = lower(regexp_replace(unaccent(nome), '[^a-z0-9]', '', 'g'))
+WHERE slug IS NULL;
+
+ALTER TABLE public.tenant ALTER COLUMN slug SET NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tenant_slug ON public.tenant(lower(slug));
+```
+> Ex: `Jrpneus` → `jrpneus`, `Tiaotruck` → `tiaotruck`, `CORE LogiTrack` → `corelogitrack`.
+
+### 1.2. Função pública `fn_resolve_tenant_by_slug(p_slug text)`
+- `SECURITY DEFINER`, retorna **apenas** `id`, `nome`, `slug`, `ativo` quando ativo. Caso inativo/inexistente, retorna `NULL`.
+- `GRANT EXECUTE … TO anon, authenticated`.
+- Não expõe nenhum outro dado do tenant.
+
+### 1.3. Reforçar `fn_buscar_email_por_login` para travar pelo tenant
+Nova assinatura: `fn_buscar_email_por_login(p_login text, p_tenant_id uuid)`.
+- Filtra `usuario.login = p_login AND usuario.tenant_id = p_tenant_id AND tenant.ativo = true`.
+- Se o usuário existir em outro tenant, retorna `NULL` (sem vazar).
+- Mantém comportamento de bloquear tenant inativo.
+
+### 1.4. Função `fn_user_belongs_to_tenant(p_tenant_id uuid)`
+- Pós-login: `SECURITY DEFINER`, verifica se `auth.uid()` pertence ao `p_tenant_id` informado pelo subdomínio.
+- Usada pela UI (RPC) imediatamente após `signInWithPassword` para abortar a sessão se houver mismatch.
+
+---
+
+## ⚙️ Fase 2 — Edge Functions
+
+### 2.1. `resolve-tenant` (público, sem JWT)
+- `GET /resolve-tenant?slug=jrpneus`
+- Sanitiza slug (`/^[a-z0-9-]{2,40}$/`), faz `rpc('fn_resolve_tenant_by_slug', { p_slug })`.
+- Resposta:
+  - 200 `{ id, nome, slug, ativo: true }`
+  - 404 `{ error: "TENANT_NOT_FOUND" }`
+  - 403 `{ error: "TENANT_INACTIVE" }`
+- Rate limit simples por IP (in-memory) para evitar enumeração.
+- CORS aberto, `verify_jwt = false`.
+
+### 2.2. (opcional) `tenant-health` para diagnóstico
+Apenas devolve status do tenant resolvido — útil para tela de erro.
+
+---
+
+## 🖥️ Fase 3 — Frontend
+
+### 3.1. Util `getSubdomainTenantSlug()`
+`src/lib/tenantSubdomain.ts`:
 ```ts
-const { data } = await supabase.auth.getClaims(token);
-const email = data?.claims?.email;
-if (email !== "suporte.corelogitrack@gmail.com") return 403;
-const { data: sup } = await admin.from("platform_support_user")
-  .select("id").eq("auth_user_id", data.claims.sub).eq("ativo", true).maybeSingle();
-if (!sup) return 403;
+export function getSubdomainTenantSlug(): string | null {
+  const host = window.location.hostname.toLowerCase();
+  // Ignora localhost / preview lovable / IPs
+  if (host === "localhost" || host.endsWith(".lovable.app") || /^\d+\.\d+\.\d+\.\d+$/.test(host))
+    return null;
+  if (!host.endsWith("corelogitrack.com.br")) return null;
+  const parts = host.split(".");
+  // app.corelogitrack.com.br, www.corelogitrack.com.br, corelogitrack.com.br → neutro
+  if (parts.length < 4) return null;
+  const sub = parts[0].trim();
+  if (["www", "app", ""].includes(sub)) return null;
+  if (!/^[a-z0-9-]{2,40}$/.test(sub)) return null;
+  return sub;
+}
 ```
 
-Funções a criar:
+### 3.2. Novo `TenantBootContext` (executa **antes** de tudo)
+`src/contexts/TenantBootContext.tsx`:
+- Estados: `status: 'loading' | 'ready' | 'no-subdomain' | 'not-found' | 'inactive' | 'error'`, `tenant: { id, nome, slug } | null`.
+- No mount:
+  1. Se não há subdomínio → `status = 'no-subdomain'` (mostra portal neutro).
+  2. Chama `supabase.functions.invoke('resolve-tenant', { query: { slug } })` (com timeout 8s + 1 retry).
+  3. Sucesso → grava em `sessionStorage('boot_tenant_id', boot_tenant_slug)` e seta `tenant`.
+  4. Erro → seta status apropriado.
+- **Bloqueia render do app** até `status !== 'loading'`.
 
-| Function | Método | Descrição |
+### 3.3. Telas de Erro e Portal Neutro
+- `<TenantNotFoundPage>`: "Cliente não encontrado" + botão para `https://app.corelogitrack.com.br`.
+- `<TenantInactivePage>`: "Acesso suspenso. Contate o suporte."
+- `<TenantPickerPage>` (rota neutra `app.*` ou raiz): permite digitar slug e redireciona via `window.location = https://${slug}.corelogitrack.com.br`. Não lista tenants.
+
+### 3.4. Ajuste no `LoginPage`
+- Lê `useTenantBoot()` para saber `tenant.id`.
+- Mostra **nome do tenant** acima do form ("Acesso: Jrpneus").
+- Chama `fn_buscar_email_por_login(login, tenant.id)`.
+- Após `signInWithPassword`, chama `rpc('fn_user_belongs_to_tenant', { p_tenant_id: tenant.id })`. Se `false` → `signOut()` + toast "Usuário não pertence a este cliente."
+- Carrega `usuario` filtrando **também** por `tenant_id = boot.tenant.id` (defesa extra).
+- Caso especial **suporte** (`suporte.corelogitrack@gmail.com`): só permitido em `app.corelogitrack.com.br` (sem subdomínio). Em qualquer subdomínio de cliente, bloqueia com mensagem.
+
+### 3.5. Ajuste no `TenantContext` existente
+- `loadFromStorage` valida que `core_tenant_id === boot.tenant.id`. Se divergir → `logout()`.
+- `logout` mantido, mas **nunca** apaga o `boot_tenant_id` (ele pertence ao subdomínio, não à sessão).
+
+### 3.6. Ajuste no `ColetorLoginPage`
+- Mesma lógica do LoginPage: amarra ao tenant do subdomínio antes de buscar e-mail.
+- Em previews/lovable.app sem subdomínio, mantém comportamento atual (modo dev).
+
+### 3.7. Guarda contínua no `App.tsx`
+- Envolver tudo com `<TenantBootProvider>` no `main.tsx`.
+- `App` decide qual UI renderizar baseado em `useTenantBoot().status`:
+  - `loading` → splash
+  - `no-subdomain` → portal neutro / suporte
+  - `not-found | inactive | error` → tela de erro
+  - `ready` → fluxo atual (Login, Coletor, etc.)
+
+### 3.8. Interceptor leve nas requests Supabase
+Wrapper opcional em `src/integrations/supabase/withTenantGuard.ts`:
+- Antes de qualquer query autenticada, valida `boot.tenant.id === localStorage.core_tenant_id`. Mismatch → `signOut()` + reload. Defesa contra trocas manuais de localStorage.
+
+---
+
+## 🔐 Segurança — Itens Obrigatórios
+
+| Risco | Mitigação |
+|---|---|
+| Frontend forjar tenant | Edge function valida slug; RPC `fn_user_belongs_to_tenant` valida pós-login |
+| Usuário do tenant A logar no subdomínio do tenant B | `fn_buscar_email_por_login` agora exige `tenant_id`; segunda checagem com RPC após auth |
+| Enumeração de tenants | Slug sanitizado, rate limit por IP no edge, mensagens genéricas |
+| Tenant leakage via RLS | Mantemos `get_current_tenant()` (deriva de `auth.uid`); subdomínio é **camada extra**, não substitui RLS |
+| Suporte global confundir tenants | Login do suporte só funciona em domínio neutro `app.corelogitrack.com.br` |
+| Localhost / preview Lovable | Subdomínio ignorado → cai no portal neutro (modo legado) |
+
+---
+
+## 🌐 Fase 4 — DNS / Custom Domain
+
+- `corelogitrack.com.br` (raiz) e `*.corelogitrack.com.br` (wildcard) já configurados como custom domain Lovable.
+- Confirmar no painel do Lovable que **wildcard** está marcado como **Active**.
+- SSL wildcard provisionado automaticamente.
+- Caso o wildcard ainda não esteja ativo, instruções de DNS (A 185.158.133.1 + TXT _lovable) devem ser revisadas — fora do escopo de código.
+
+---
+
+## 🚦 Tratamento de Erros (UX)
+
+| Cenário | Tela | CTA |
 |---|---|---|
-| `support-list-tenants` | GET | Lista tenants com filtro por nome (usa `vw_tenant_resumo`) |
-| `support-tenant-detail` | GET `?tenant_id=` | Informações gerais: contagens detalhadas, último login, etc. |
-| `support-tenant-toggle` | POST | Ativa/desativa `tenant.ativo` |
-| `support-create-usuario` | POST | Cadastra usuário em qualquer tenant (reusa lógica de `create-usuario` mas suporte injeta o `tenant_id` alvo) |
-| `support-list-chamados` | GET | Lista chamados (Fase 4 — placeholder retorna `[]` por enquanto) |
-
-Notas:
-- `create-usuario` original **não** será reaproveitado diretamente: hoje ele força `tenant_id = solicitante.tenant_id`. A nova `support-create-usuario` usa o mesmo fluxo Auth, mas aceita `tenant_id` no body **somente** após validar suporte.
+| Sem subdomínio (raiz / app.) | Portal "Selecione seu cliente" | Input de slug |
+| Slug inválido / inexistente | "Cliente **xxx** não encontrado" | Voltar ao portal |
+| Tenant inativo | "Acesso suspenso. Contate o suporte." | Email do suporte |
+| Edge function offline / timeout | "Não foi possível conectar. Tente novamente." | Retry manual |
+| Mismatch usuário×tenant pós-login | Toast vermelho + signOut imediato | Permanece no Login |
 
 ---
 
-## Fase 3 — Frontend
+## 📋 Entregáveis (ordem de implementação)
 
-### 3.1 Login (mesmo formulário)
-`LoginPage.handleLogin`: se `login.trim().toLowerCase() === "suporte.corelogitrack@gmail.com"`, pular `fn_buscar_email_por_login` e fazer `signInWithPassword({ email: login, password })` direto. Após sucesso, chamar uma edge function leve (`support-whoami`) que confirma e retorna `{ nome }`. Setar:
-```
-localStorage.setItem("core_is_platform_support", "1");
-localStorage.setItem("core_usuario_nome", nome);
-```
-e navegar para `#/suporte/tenants`.
-
-### 3.2 Novo `SupportLayout` + `SupportTopNav`
-Mesmo padrão visual do TopNav admin (logo CORE LogiTrack, badge "SUPORTE" em destaque, sem seletor de empresa). Itens do menu: **Tenants**, **Chamados** (placeholder), **Sair**.
-
-Guard `SupportRoute`: bloqueia se `localStorage.core_is_platform_support !== "1"` E revalida via `support-whoami` no mount (defesa em profundidade — localStorage é só hint, autoridade real é o JWT).
-
-### 3.3 Páginas
-- `src/pages/suporte/SupportTenantsPage.tsx` — tabela central com:
-  - Filtro por nome
-  - Colunas: Nome, Status, Empresas, Usuários, Criado em
-  - Ações por linha: **Informações** | **Cadastrar Usuário** | **Chamados** | **Ativar/Desativar**
-- `src/pages/suporte/SupportTenantDetailPage.tsx` — KPIs do tenant (empresas, usuários, produtos, movimentos, requisições por período via analytics se viável; senão ocultar essa seção na v1).
-- `src/pages/suporte/SupportCreateUsuarioModal.tsx` — replica `UsuariosPage` form (login, nome, email, perfis), chamando `support-create-usuario` com `tenant_id` da linha selecionada.
-- `src/pages/suporte/SupportChamadosPage.tsx` — lista vazia + aviso "Em breve" (estrutura pronta para Fase 4).
-
-### 3.4 Roteamento (`App.tsx`)
-Adicionar rotas hash:
-- `#/suporte/tenants`
-- `#/suporte/tenants/:id`
-- `#/suporte/chamados`
-- `#/suporte/chamados/:tenantId`
-
-Todas envolvidas por `<SupportRoute>`. **Não** entram em `Layout` admin nem em `PermissionsProvider` (RBAC do tenant não se aplica).
-
-### 3.5 Logout
-Limpar `core_is_platform_support` no `logout()` do TenantContext.
+1. **Migração SQL**: coluna `slug`, índice, função `fn_resolve_tenant_by_slug`, nova `fn_buscar_email_por_login(login, tenant_id)`, `fn_user_belongs_to_tenant`.
+2. **Edge function** `resolve-tenant` (pública).
+3. **Frontend core**: `tenantSubdomain.ts`, `TenantBootContext`, telas de erro/portal, integração no `main.tsx` e `App.tsx`.
+4. **Login**: ajustes em `LoginPage` + `ColetorLoginPage` (RPC com tenant_id, double-check pós-auth, bloqueio de suporte fora do domínio neutro).
+5. **Hardening**: validação contínua em `TenantContext` + (opcional) `withTenantGuard`.
+6. **QA**: testar `jrpneus.…`, `tiaotruck.…`, slug inexistente, tenant inativo, login cruzado entre tenants, suporte em subdomínio cliente, fluxo localhost.
 
 ---
 
-## Fase 4 — Chamados (estrutura mínima, sem CRUD completo nessa entrega)
+## ⚠️ Itens Fora do Escopo Desta Iteração
 
-Tabela criada agora para evitar migration futura:
-```sql
-CREATE TABLE public.support_chamado (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.tenant(id),
-  titulo text NOT NULL,
-  descricao text,
-  status text NOT NULL DEFAULT 'ABERTO',
-  criado_por uuid,  -- usuario do tenant
-  criado_em timestamptz NOT NULL DEFAULT now(),
-  atendido_por uuid, -- platform_support_user
-  atendido_em timestamptz
-);
-ALTER TABLE public.support_chamado ENABLE ROW LEVEL SECURITY;
--- RLS: usuários do tenant podem ver/criar os próprios; suporte acessa via service_role.
-CREATE POLICY chamado_tenant_select ON public.support_chamado
-  FOR SELECT USING (tenant_id = get_current_tenant());
-CREATE POLICY chamado_tenant_insert ON public.support_chamado
-  FOR INSERT WITH CHECK (tenant_id = get_current_tenant());
-```
-A UI de criação pelo cliente fica para depois — agora a página de listagem do suporte já consegue exibir.
-
----
-
-## Riscos & mitigações
-- **Bypass do guard front**: mitigado porque toda action chama edge function que revalida JWT + tabela.
-- **Vazamento via service_role**: edge functions nunca retornam dados sem antes confirmar `is_platform_support`.
-- **Tenant desativado ainda logado**: opcionalmente forçar `signOut` no próximo heartbeat se `tenant.ativo=false` (incluso em 1.4).
-- **Senha inicial do suporte**: marcada com `deve_trocar_senha=true`-equivalente; instruir trocar imediatamente após o primeiro login.
-
-## Entregáveis
-1. Migration criando `platform_support_user`, `support_chamado`, `vw_tenant_resumo`, `is_platform_support()` e seed.
-2. 6 edge functions: `support-whoami`, `support-list-tenants`, `support-tenant-detail`, `support-tenant-toggle`, `support-create-usuario`, `support-list-chamados`.
-3. Front: `SupportLayout`, `SupportTopNav`, `SupportRoute`, 4 páginas + modal de criação de usuário, ajuste em `LoginPage` e `App.tsx`.
-4. Atualização da `core memory` registrando o novo módulo isolado.
+- Migração de slugs definitivos pelo cliente (usaremos slug normalizado do `nome`; cliente pode customizar depois via UI de suporte).
+- Auto-cadastro de tenants.
+- Onboarding via subdomínio personalizado (CNAME do cliente).
