@@ -5211,6 +5211,11 @@ export type Database = {
       }
     }
     Functions: {
+      assert_tenant_match: { Args: { p_tenant_id: string }; Returns: undefined }
+      assert_tenant_match_seed: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       atribuir_tarefa: {
         Args: {
           p_empresa_id: string
