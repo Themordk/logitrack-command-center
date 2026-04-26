@@ -1,110 +1,81 @@
-# Auditoria de filtros multi-empresa — Plano de correção
+# Auditoria Multi-Tenant — Riscos e Plano de Correção
 
-## 🔍 Diagnóstico
+## 🔴 Achados Críticos (vetores reais de vazamento entre clientes)
 
-Auditei todos os dropdowns/selects de filtro em telas administrativas e relatórios. Identifiquei **dois padrões de vazamento entre empresas**:
+A camada **RLS por `tenant_id` está bem coberta** nas tabelas (todas com policy `tenant_id = get_current_tenant()`, baseada em `auth.uid()` via `usuario.auth_user_id`). Porém, **existem 4 vetores reais** que permitem cross-tenant hoje:
 
-### Padrão A — Lookups que deveriam respeitar `empresa_id` mas só filtram por `tenant_id`
-Tabelas com coluna `empresa_id` direta retornando dados de **todas as empresas do tenant**:
+### 1. ⛔ Tabela `v_reg` SEM RLS (CRÍTICO)
+- Tabela real (não view), tem `tenant_id` mas **RLS desabilitado** e zero policies.
+- Contém movimentos de estoque (produto, quantidade, lote, validade, endereços, usuário).
+- Qualquer usuário autenticado lê dados de **todos os tenants**.
+- **Correção:** habilitar RLS + policy `tenant_id = get_current_tenant()` (ALL).
 
-| Tela | Tabela carregada | Problema |
-|---|---|---|
-| **Relatório Validade & Lote** | `grupo_produto`, `subgrupo_produto` | Sem filtro de `empresa_id` |
-| **Relatório Curva ABC** | `grupo_produto`, `subgrupo_produto` | Sem filtro de `empresa_id` |
-| **Relatório Baixo Giro** | `grupo_produto`, `subgrupo_produto` | Sem filtro de `empresa_id` |
-| **Relatório Recebimento** | `parceiro` | Sem filtro de `empresa_id` |
-| **Relatório Ciclo de Pedido** | `parceiro` | Sem filtro de `empresa_id` |
-| **Relatório Cortes** (`fetchMotivosOcorrencia`) | `motivo_ocorrencia` | Sem `tenant_id` nem `armazem_id` |
-| **Relatório Produtividade — Dashboard** | `armazem` | Sem `tenant_id` |
-| **Relatório Produtividade — Operador** | `usuario` | Sem `tenant_id` nem `empresa_id` |
-| **Relatório Movimento Saída — modal corte** | `motivo_ocorrencia` | Sem `armazem_id` (motivo é por armazém) |
-| **Movimento Entrada — modal erro/divergência** | `motivo_ocorrencia` | Sem `armazem_id` |
-| **Reatribuir Tarefas (modal)** | `usuario` | Filtra por empresa só se `empresaId` truthy — ok, mas redundante após guard global |
-| **Abastecimento Geração — operadores** | `usuario` | Sem filtro de `empresa_id` |
+### 2. ⛔ 20 Views SECURITY DEFINER (CRÍTICO)
+Todas as 20 views (`vw_movimento_*`, `vw_inventario_*`, `vw_abastecimento_lista`, `vw_estoque_movimento_relatorio`, `vw_lms_timeline_operador`, `inventario_item_resumo`, `v_inventario_iniciar`, `v_recebimento_iniciar`, `v_separacao_iniciar`) são executadas como o owner (postgres = bypass de RLS).
+- Embora a maioria filtre por `tenant_id` em um JOIN/WHERE interno, qualquer view que **não** tenha cláusula explícita pode retornar tudo.
+- **Correção:** recriar todas com `WITH (security_invoker = true)` para herdar o RLS do usuário atual + auditar cada SELECT para incluir `tenant_id` no WHERE.
 
-### Padrão B — Lookups que deveriam respeitar `armazem_id` mas só filtram por `tenant_id`
-Tabelas vinculadas a armazém retornando dados de **todos os armazéns**:
+### 3. ⛔ Edge Functions sem validação de tenant (CRÍTICO)
+- **`create-usuario`**: NÃO valida JWT nem cargo do solicitante. Qualquer requisição (mesmo anônima) pode criar `usuario` em qualquer `tenant_id`/`empresa_id` arbitrários (usa `service_role`, bypass total). Vetor catastrófico: criar admin em tenant alheio e logar.
+- **`reset-password`**: valida JWT, mas NÃO confere se o `usuario_id` alvo pertence ao mesmo tenant do solicitante. Admin do tenant A reseta senha de qualquer usuário, inclusive de outros tenants.
+- **Correção:**
+  - `create-usuario`: exigir Authorization Bearer válido, derivar tenant via `usuario.auth_user_id` do solicitante e **forçar** `tenant_id = solicitante.tenant_id` (ignorar o do body), validar permissão `web.usuarios CREATE`.
+  - `reset-password`: derivar tenant do JWT e validar que `usuario_alvo.tenant_id = solicitante.tenant_id` antes de resetar.
 
-| Tela | Tabela carregada | Problema |
-|---|---|---|
-| **Relatório Estoque** | `tipo_estoque`, `setor` | Sem `armazem_id` (carrega setores de todos armazéns ao popular o dropdown) |
-| **Relatório Validade & Lote** | `setor` | Sem `armazem_id` |
-| **Dashboard (filtros)** | `armazem`, `turnos` | Não filtra por `empresa_id` ativa |
-| **Entradas — modal gerar movimento** | `box`, `armazem` | Sem `empresa_id` (armazem)/`armazem_id` (box) |
-| **Abastecimento — modal armazém** | `armazem` | Sem `empresa_id` |
+### 4. ⛔ Funções SECURITY DEFINER que confiam em `p_tenant_id` do cliente (CRÍTICO)
+6 funções SECURITY DEFINER recebem `p_tenant_id` do front (vindo do `localStorage`, manipulável) e o usam como filtro **sem validar contra `auth.uid()`**:
+- `conferencia_saida_confirmacao`
+- `fn_gerar_abastecimento`
+- `fn_seed_rbac_para_tenant`
+- `gerar_tarefas_conferencia_entrada`
+- `rpc_coletor_armazenagem_execucao`
+- `separacao_executar_coleta` (2 overloads)
 
-### ✅ Telas já corrigidas (referência — não precisam de alteração)
-`CadastroDocEntradaPage`, `CadastroDocSaidaPage`, `ParceirosPage`, `RotasPage`, `EnderecosBatchPage`, `GruposProdutoPage`, `UsuariosPage`, `ArmazensPage`, `ProdutosPage` (já passaram pela última auditoria).
+Um atacante autenticado pode passar o `tenant_id` de outra empresa e a função **executa, gravando/movendo estoque cross-tenant** (RLS não atua, é DEFINER).
+- **Correção:** no início de cada função, validar:
+  ```sql
+  IF p_tenant_id <> public.get_current_tenant() THEN
+     RAISE EXCEPTION 'Tenant inválido' USING ERRCODE = '42501';
+  END IF;
+  ```
+  e idem para `p_usuario_id` (deve casar com `usuario.id` cujo `auth_user_id = auth.uid()`).
 
----
+## 🟡 Achados de Risco Médio (cross-empresa dentro do mesmo tenant)
 
-## 🛠 Plano de execução
+5. **120+ funções com `search_path` mutável** (linter WARN): vulnerabilidade a hijacking se um atacante criar objeto homônimo em outro schema. Adicionar `SET search_path = public` em todas as funções públicas.
 
-### 1. Padronizar dropdowns de relatórios para usar `fetchOptions` com escopo
-Substituir as queries inline `supabase.from("xxx").select(...).eq("tenant_id", ...)` por `fetchOptions("xxx", tenantId, "descricao", { empresa_id, armazem_id })`, que já aplica os filtros corretos automaticamente.
+6. **Buscas por `produto.sku` sem `empresa_id` no Coletor** (`SeparacaoProdutoPage`, `ConferenciaProdutoPage`, `AbastecimentoColetaPage`, `RecebimentoConferenciaPage`, etc.). Como o RLS filtra por tenant, mas SKUs podem repetir entre empresas do mesmo tenant, há risco de pegar produto da empresa errada. Adicionar `.eq("empresa_id", empresaId)`.
 
-**Arquivos:**
-- `src/modules/reports/estoque/EstoqueReportPage.tsx` → `setor`, `tipo_estoque` filtrados por `armazem_id` ativo
-- `src/modules/reports/validade-lote/ValidadeLoteReportPage.tsx` → `setor` por armazém; `grupo_produto`/`subgrupo_produto` por empresa
-- `src/modules/reports/curva-abc/CurvaAbcReportPage.tsx` → idem grupo/subgrupo
-- `src/modules/reports/baixo-giro/BaixoGiroReportPage.tsx` → idem grupo/subgrupo
-- `src/modules/reports/recebimento/RecebimentoReportPage.tsx` → `parceiro` por empresa
-- `src/modules/reports/ciclo-pedido/CicloPedidoReportPage.tsx` → `parceiro` por empresa
-- `src/modules/reports/produtividade/ProdutividadeDashboardPage.tsx` → adicionar `tenant_id`; usar `armazemId` do contexto como default
-- `src/modules/reports/produtividade/ProdutividadeOperadorPage.tsx` → `usuario` filtrado por `tenant_id` + `empresa_id`
-- `src/modules/reports/cortes/cortes.service.ts` → `fetchMotivosOcorrencia` recebe `armazem_id` e filtra por `tenant_id` + `armazem_id`
+7. **`ConsultaEnderecoPage` (Coletor)** consulta `endereco` apenas por `descricao/codigo_endereco`. Sem filtro de `empresa_id` ou `armazem_id`, pode retornar endereço de outro armazém. Restringir.
 
-### 2. Reagir à troca de empresa nos relatórios
-Em todos os relatórios acima, garantir que o `useEffect` de carregamento dos lookups dependa de `[tenantId, empresaId, armazemId, empresaVersion]` (hoje muitos só dependem de `tenantId`). Limpar os filtros selecionados que se referem a registros da empresa anterior ao trocar.
+8. **`tenant`** com RLS habilitado mas sem policies (bloqueia tudo) — OK, mas confirmar que nenhum código tenta ler/gravar diretamente.
 
-### 3. Filtros do Dashboard (`DashboardFilters.tsx`)
-- Adicionar prop `empresaId` e filtrar `armazem` por empresa ativa
-- Filtrar `turnos` por `tenant_id` + `armazem_id` (já filtra por armazém quando selecionado, ok)
-- Resetar `armazemId` quando trocar empresa
+## 📋 Plano de Execução (em ordem de criticidade)
 
-### 4. Modais de Entradas / Abastecimento
-- `EntradasPage.openModal()` → adicionar `.eq("empresa_id", empresaId)` no `armazem` e `.eq("armazem_id", armazemId)` no `box`
-- `AbastecimentoPage` → carregar `armazem` filtrado por `empresa_id`
+### Fase 1 — Correções de banco (migration) — CRÍTICO
+- [ ] Habilitar RLS em `v_reg` e adicionar policy `tenant_id = get_current_tenant()`.
+- [ ] Recriar as 20 views com `WITH (security_invoker = true)` (preserva o SQL atual).
+- [ ] Adicionar guard `IF p_tenant_id <> get_current_tenant() THEN RAISE` nas 6 funções SECURITY DEFINER que recebem tenant_id.
+- [ ] Adicionar `SET search_path = public` nas funções listadas pelo linter (lote único).
 
-### 5. Modais operacionais de Movimento Entrada/Saída
-- Ao carregar `motivo_ocorrencia` para erro de transporte / divergência / corte de separação, adicionar `.eq("armazem_id", armazemId)` (motivo de ocorrência é por armazém)
+### Fase 2 — Correções nas Edge Functions — CRÍTICO
+- [ ] Reescrever `create-usuario`: validar JWT, derivar tenant do solicitante, ignorar `tenant_id` do body, checar permissão.
+- [ ] Reescrever `reset-password`: validar mesmo tenant do solicitante e do alvo.
 
-### 6. Página `NovoInventarioPage` — busca de produtos
-- Linha 179: `supabase.from("produto")` ao buscar produtos não filtra por `empresa_id`. Adicionar `.eq("empresa_id", empresaId)` para isolar produtos da empresa ativa.
+### Fase 3 — Frontend (escopo cross-empresa) — MÉDIO
+- [ ] Adicionar filtro `.eq("empresa_id", empresaId)` em todas as buscas a `produto`/`endereco` no Coletor (lista priorizada acima).
+- [ ] Restringir `ConsultaEnderecoPage` por `armazem_id` ativo.
 
-### 7. Modal Reatribuir Tarefas
-- Tornar o filtro `empresa_id` obrigatório (hoje é condicional). Após o guard global isso é redundante mas reforça segurança defensiva.
+### Fase 4 — Validação
+- [ ] Re-executar `supabase--linter` (esperar zero ERRORs).
+- [ ] Teste manual: tentar passar `p_tenant_id` adulterado em RPC e confirmar bloqueio.
+- [ ] Teste manual: chamar `create-usuario` sem JWT → 401.
 
-### 8. Estender `fetchOptions` com label customizável
-Hoje `fetchOptions` recebe `labelField` mas não suporta o caso de `parceiro` (cujo label é `razaosocial`). Já é compatível pois aceita `labelField` como parâmetro — só precisa ser usado corretamente nas chamadas novas.
-
-### 9. Corrigir build errors em edge functions
-Os erros TS18046 em `supabase/functions/create-usuario/index.ts` (linha 122) e `reset-password/index.ts` (linha 108) são pré-existentes mas bloqueiam a build. Tipar `err` como `any`:
-```ts
-} catch (err: any) {
-  return new Response(
-    JSON.stringify({ success: false, error: err?.message || "Erro interno" }),
-    ...
-  );
-}
-```
+## ✅ O que JÁ está bem
+- 100% das tabelas (exceto `v_reg`) têm RLS ativo com filtro por tenant.
+- `get_current_tenant()` é SECURITY DEFINER e deriva o tenant via `auth.uid()` (não confia em parâmetros).
+- Não existe nenhuma policy permissiva (`USING (true)`).
+- Cliente Supabase usa apenas a `anon key`; nenhuma exposição de `service_role`.
 
 ---
-
-## 📋 Resumo das alterações
-
-| Categoria | Arquivos |
-|---|---|
-| Relatórios (lookups) | 9 arquivos em `src/modules/reports/` |
-| Service layer | `cortes.service.ts` (assinatura `fetchMotivosOcorrencia`) |
-| Dashboard | `DashboardFilters.tsx`, possivelmente `Dashboard.tsx` |
-| Páginas operacionais | `EntradasPage`, `AbastecimentoPage`, `MovimentoEntradaPage`, `MovimentoSaidaPage`, `NovoInventarioPage`, `ReatribuirTarefasModal` |
-| Edge functions (build fix) | `create-usuario/index.ts`, `reset-password/index.ts` |
-
-Sem migração de banco — toda a correção é frontend, aproveitando os triggers de validação `trg_validar_empresa_usuario` e `trg_validar_armazem_empresa_usuario` já criados nas iterações anteriores como segunda camada de defesa.
-
-## ✅ Resultado esperado
-Após aprovação:
-- Todos os dropdowns de filtros refletem **estritamente** a empresa/armazém selecionados no TopNav
-- Trocar empresa no TopNav recarrega automaticamente todos os lookups e zera filtros que referenciam registros da empresa anterior
-- Build do projeto passa sem erros TS
+**Aguardo aprovação para executar as Fases 1 e 2 (críticas) em uma única migração + atualização das edge functions, e em seguida as Fases 3 e 4.**
