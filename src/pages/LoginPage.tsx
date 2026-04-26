@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Boxes, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
+import { useTenantBoot } from "@/contexts/TenantBootContext";
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -10,6 +11,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
+  const { tenant: bootTenant, status: bootStatus } = useTenantBoot();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,13 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
 
       // ===== Fluxo SUPORTE DA PLATAFORMA =====
       if (isSupportEmail) {
+        // Suporte só pode logar em domínio neutro (sem subdomínio de tenant)
+        if (bootTenant) {
+          throw new Error(
+            `O suporte da plataforma não acessa pelo subdomínio "${bootTenant.slug}". Use o portal principal.`
+          );
+        }
+
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: loginInput,
           password,
@@ -33,7 +42,6 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
         if (authError) throw authError;
         if (!authData.user?.id) throw new Error("Falha de autenticação.");
 
-        // Confirma autorização via edge function
         const { data: who, error: whoErr } = await supabase.functions.invoke("support-whoami");
         if (whoErr || !who?.success) {
           await supabase.auth.signOut();
@@ -44,14 +52,31 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
         localStorage.setItem("core_usuario_nome", who.nome || "Suporte");
         toast.success(`Bem-vindo, ${who.nome || "Suporte"}!`);
         window.location.hash = "/suporte/tenants";
-        // Recarrega para garantir que App entre no fluxo de suporte
         window.location.reload();
         return;
       }
 
       // ===== Fluxo NORMAL =====
-      const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: loginInput });
-      if (lookupError || !email) throw new Error("Usuário não encontrado ou tenant inativo.");
+      // Em produção (com subdomínio), o tenant DEVE estar resolvido
+      if (bootStatus === "ready" && !bootTenant) {
+        throw new Error("Tenant não identificado. Recarregue a página.");
+      }
+
+      // Trava por tenant: passa p_tenant_id quando há subdomínio resolvido
+      const rpcArgs: { p_login: string; p_tenant_id?: string } = { p_login: loginInput };
+      if (bootTenant) rpcArgs.p_tenant_id = bootTenant.id;
+
+      const { data: email, error: lookupError } = await supabase.rpc(
+        "fn_buscar_email_por_login",
+        rpcArgs as any
+      );
+      if (lookupError || !email) {
+        throw new Error(
+          bootTenant
+            ? "Usuário não encontrado neste cliente ou cliente inativo."
+            : "Usuário não encontrado ou tenant inativo."
+        );
+      }
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
@@ -59,11 +84,27 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
       const userId = authData.user?.id;
       if (!userId) throw new Error("Usuário não encontrado.");
 
-      const { data: usuario, error: userError } = await (supabase as any)
+      // Defesa em profundidade: confirma que usuário pertence ao tenant do subdomínio
+      if (bootTenant) {
+        const { data: belongs, error: belongsErr } = await supabase.rpc(
+          "fn_user_belongs_to_tenant",
+          { p_tenant_id: bootTenant.id }
+        );
+        if (belongsErr || belongs !== true) {
+          await supabase.auth.signOut();
+          throw new Error("Este usuário não pertence ao cliente acessado.");
+        }
+      }
+
+      const usuarioQuery = (supabase as any)
         .from("usuario")
         .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario, deve_trocar_senha")
-        .eq("auth_user_id", userId)
-        .single();
+        .eq("auth_user_id", userId);
+
+      // Filtro extra por tenant_id quando subdomínio presente
+      if (bootTenant) usuarioQuery.eq("tenant_id", bootTenant.id);
+
+      const { data: usuario, error: userError } = await usuarioQuery.single();
 
       if (userError || !usuario) {
         await supabase.auth.signOut();
@@ -75,7 +116,6 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
         throw new Error("Usuário inativo. Contate o administrador.");
       }
 
-      // Check if password change is required
       if (usuario.deve_trocar_senha) {
         setPendingUsuario(usuario);
         setForceChange(true);
@@ -116,6 +156,13 @@ export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
             </h1>
             <p className="text-xs text-muted-foreground mt-1">Sistema de Gestão de Armazém</p>
           </div>
+          {bootTenant && (
+            <div className="mt-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+              <span className="text-[11px] uppercase tracking-wide text-primary font-semibold">
+                Acesso: {bootTenant.nome}
+              </span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
