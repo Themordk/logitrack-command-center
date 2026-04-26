@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatBrasiliaDate, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function ValidadeLoteReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const [data, setData] = useState<ValidadeLoteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -37,22 +37,37 @@ export function ValidadeLoteReportPage() {
   const [subgrupos, setSubgrupos] = useState<{ id: string; descricao: string }[]>([]);
 
   useEffect(() => {
-    if (!tenantId) return;
-    supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+    if (!tenantId || !empresaId) {
+      setArmazens([]); setSetores([]); setGrupos([]); setSubgrupos([]);
+      return;
+    }
+    supabase.from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }) => setArmazens(data || []));
-    (supabase as any).from("setor").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
-      .then(({ data }: any) => setSetores(data || []));
-    (supabase as any).from("grupo_produto").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+    (supabase as any).from("grupo_produto").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }: any) => setGrupos(data || []));
-    (supabase as any).from("subgrupo_produto").select("id, descricao").eq("tenant_id", tenantId)
+    (supabase as any).from("subgrupo_produto").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).order("descricao")
       .then(({ data }: any) => setSubgrupos(data || []));
-  }, [tenantId]);
+
+    const armazemFiltro = filterArmazemId || armazemId;
+    if (armazemFiltro) {
+      (supabase as any).from("setor").select("id, descricao")
+        .eq("tenant_id", tenantId).eq("armazem_id", armazemFiltro).eq("ativo", true).order("descricao")
+        .then(({ data }: any) => setSetores(data || []));
+    } else {
+      setSetores([]);
+    }
+  }, [tenantId, empresaId, armazemId, filterArmazemId, empresaVersion]);
 
   // Reset relatório ao trocar empresa
   useEffect(() => {
     setData([]);
     setGenerated(false);
     setGeneratedAt("");
+    setFilterArmazemId(""); setFilterSetorId("");
+    setFilterGrupoId(""); setFilterSubgrupoId("");
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
