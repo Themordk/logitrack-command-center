@@ -119,6 +119,13 @@ export function ColetorLoginPage({ onNavigate }: Props) {
           </div>
           <h1 className="text-2xl font-bold text-white">CORE <span className="text-[hsl(217,91%,60%)]">Coletor</span></h1>
           <p className="text-sm text-[hsl(213,31%,55%)]">WMS – Login do Operador</p>
+          {bootTenant && (
+            <div className="mt-1 px-3 py-1 rounded-full bg-[hsl(217,91%,50%)]/15 border border-[hsl(217,91%,50%)]/30">
+              <span className="text-[11px] uppercase tracking-wide text-[hsl(217,91%,70%)] font-semibold">
+                Cliente: {bootTenant.nome}
+              </span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
