@@ -67,12 +67,22 @@ export function TenantBootError() {
   );
 }
 
-export function TenantPickerPage() {
+interface TenantPickerPageProps {
+  onNavigateSupport?: () => void;
+}
+
+export function TenantPickerPage({ onNavigateSupport }: TenantPickerPageProps) {
   const [slug, setSlug] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const goSupport = () => {
+  const goSupport = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     // Rota dedicada ao login do suporte da plataforma
+    if (onNavigateSupport) {
+      onNavigateSupport();
+      return;
+    }
     window.location.hash = "/suporte-login";
   };
 
@@ -132,6 +142,7 @@ export function TenantPickerPage() {
           <button
             type="button"
             onClick={goSupport}
+            formNoValidate
             className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2"
           >
             Sou do suporte da plataforma
