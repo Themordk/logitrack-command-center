@@ -49,20 +49,26 @@ export function OcupacaoReportPage() {
   const [loading, setLoading] = useState(false);
   const [expandedSetor, setExpandedSetor] = useState<string | null>(null);
 
-  // Load armazens
+  // Load armazens scoped by empresa
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) {
+      setArmazens([]);
+      setSelectedArmazem("");
+      return;
+    }
     supabase
       .from("armazem")
       .select("id, descricao")
       .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
       .eq("ativo", true)
       .order("descricao")
       .then(({ data }) => {
-        setArmazens(data || []);
-        if (data?.length === 1) setSelectedArmazem(data[0].id);
+        const list = data || [];
+        setArmazens(list);
+        setSelectedArmazem(list.length === 1 ? list[0].id : "");
       });
-  }, [tenantId]);
+  }, [tenantId, empresaId, empresaVersion]);
 
   // Load setores when armazem changes
   useEffect(() => {
@@ -77,10 +83,13 @@ export function OcupacaoReportPage() {
       .then(({ data }) => setSetores(data || []));
   }, [tenantId, selectedArmazem]);
 
-  // Reset relatório ao trocar empresa
+  // Reset relatório e filtros ao trocar empresa
   useEffect(() => {
     setData(null);
     setExpandedSetor(null);
+    setSelectedSetor("__all__");
+    setSelectedTipo("__all__");
+    setSelectedStatus("__all__");
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
