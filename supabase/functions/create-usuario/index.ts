@@ -117,9 +117,9 @@ Deno.serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err) {
+  } catch (err: any) {
     return new Response(
-      JSON.stringify({ success: false, error: err.message || "Erro interno" }),
+      JSON.stringify({ success: false, error: err?.message || "Erro interno" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
