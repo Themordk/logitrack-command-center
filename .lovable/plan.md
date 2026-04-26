@@ -1,137 +1,110 @@
-## Objetivo
-Garantir que todas as rotas WEB do `App.tsx` estejam refletidas na tabela `modulo` e visíveis na tela **Perfis de Acesso**, para que possam ser liberadas/restringidas via RBAC.
+# Auditoria de filtros multi-empresa — Plano de correção
 
-## Diagnóstico (auditoria realizada)
+## 🔍 Diagnóstico
 
-Comparando `App.tsx` (`renderPage` + `breadcrumbs`) e `useRoutePermission.ts` com a tabela `modulo` no banco:
+Auditei todos os dropdowns/selects de filtro em telas administrativas e relatórios. Identifiquei **dois padrões de vazamento entre empresas**:
 
-### Módulos WEB faltantes (10)
-| Código de Módulo | Rota | Descrição |
+### Padrão A — Lookups que deveriam respeitar `empresa_id` mas só filtram por `tenant_id`
+Tabelas com coluna `empresa_id` direta retornando dados de **todas as empresas do tenant**:
+
+| Tela | Tabela carregada | Problema |
 |---|---|---|
-| `web.atividades.abastecimento` | `/atividades/abastecimento` (+ `/gerar`, `/:id/tarefas`) | Abastecimento |
-| `web.relatorios.ocupacao` | `/relatorios/ocupacao` | Ocupação de Endereços |
-| `web.relatorios.produtividade` | `/relatorios/produtividade` (+ `/operador/:id`) | Produtividade Operacional |
-| `web.relatorios.cortes` | `/relatorios/cortes` | Cortes de Separação |
-| `web.relatorios.curva-abc` | `/relatorios/curva-abc` | Curva ABC |
-| `web.relatorios.validade-lote` | `/relatorios/validade-lote` | Validade & Lote |
-| `web.relatorios.baixo-giro` | `/relatorios/baixo-giro` | Baixo Giro / Obsoletos |
-| `web.relatorios.inventario` | `/relatorios/inventario` | Acuracidade de Inventário |
-| `web.relatorios.recebimento` | `/relatorios/recebimento` | Recebimento (Dock-to-Stock) |
-| `web.relatorios.ciclo-pedido` | `/relatorios/ciclo-pedido` | Tempo de Ciclo de Pedido |
+| **Relatório Validade & Lote** | `grupo_produto`, `subgrupo_produto` | Sem filtro de `empresa_id` |
+| **Relatório Curva ABC** | `grupo_produto`, `subgrupo_produto` | Sem filtro de `empresa_id` |
+| **Relatório Baixo Giro** | `grupo_produto`, `subgrupo_produto` | Sem filtro de `empresa_id` |
+| **Relatório Recebimento** | `parceiro` | Sem filtro de `empresa_id` |
+| **Relatório Ciclo de Pedido** | `parceiro` | Sem filtro de `empresa_id` |
+| **Relatório Cortes** (`fetchMotivosOcorrencia`) | `motivo_ocorrencia` | Sem `tenant_id` nem `armazem_id` |
+| **Relatório Produtividade — Dashboard** | `armazem` | Sem `tenant_id` |
+| **Relatório Produtividade — Operador** | `usuario` | Sem `tenant_id` nem `empresa_id` |
+| **Relatório Movimento Saída — modal corte** | `motivo_ocorrencia` | Sem `armazem_id` (motivo é por armazém) |
+| **Movimento Entrada — modal erro/divergência** | `motivo_ocorrencia` | Sem `armazem_id` |
+| **Reatribuir Tarefas (modal)** | `usuario` | Filtra por empresa só se `empresaId` truthy — ok, mas redundante após guard global |
+| **Abastecimento Geração — operadores** | `usuario` | Sem filtro de `empresa_id` |
 
-### Já cadastrados (referência) — 32 WEB + 7 COLETOR
-Inclui `web.relatorios.estoque`, `web.relatorios.movimentacoes`, `web.relatorios.cortes` (este último já está no mapa mas falta o módulo correspondente — sim, faltou: ele está na lista acima).
+### Padrão B — Lookups que deveriam respeitar `armazem_id` mas só filtram por `tenant_id`
+Tabelas vinculadas a armazém retornando dados de **todos os armazéns**:
 
-### Rotas que NÃO precisam de módulo próprio
-São subrotas que herdam permissão do pai:
-- `/armazem/enderecos/lote` → `web.armazem.enderecos`
-- `/atividades/inventario/novo` e `/atividades/inventario/:id/itens|execucao` → `web.atividades.inventario`
-- `/atividades/abastecimento/gerar` e `/:id/tarefas` → `web.atividades.abastecimento`
-- `/relatorios/movimentacoes/tarefa/:id` → `web.relatorios.movimentacoes`
-- `/relatorios/produtividade/operador/:id` → `web.relatorios.produtividade`
+| Tela | Tabela carregada | Problema |
+|---|---|---|
+| **Relatório Estoque** | `tipo_estoque`, `setor` | Sem `armazem_id` (carrega setores de todos armazéns ao popular o dropdown) |
+| **Relatório Validade & Lote** | `setor` | Sem `armazem_id` |
+| **Dashboard (filtros)** | `armazem`, `turnos` | Não filtra por `empresa_id` ativa |
+| **Entradas — modal gerar movimento** | `box`, `armazem` | Sem `empresa_id` (armazem)/`armazem_id` (box) |
+| **Abastecimento — modal armazém** | `armazem` | Sem `empresa_id` |
 
-## Plano de execução
+### ✅ Telas já corrigidas (referência — não precisam de alteração)
+`CadastroDocEntradaPage`, `CadastroDocSaidaPage`, `ParceirosPage`, `RotasPage`, `EnderecosBatchPage`, `GruposProdutoPage`, `UsuariosPage`, `ArmazensPage`, `ProdutosPage` (já passaram pela última auditoria).
 
-### 1. Migration SQL (idempotente, multi-tenant)
-Criar uma migration que, **para cada tenant_id existente em `modulo`**, insere os 10 módulos faltantes e suas 4 permissões (`CREATE`, `READ`, `UPDATE`, `DELETE`) cada — somando **10 módulos + 40 permissões por tenant**.
+---
 
-Estrutura proposta (uso de `ON CONFLICT DO NOTHING` e CTE para gerar permissões):
+## 🛠 Plano de execução
 
-```sql
--- 1) Inserir módulos faltantes para cada tenant
-WITH faltantes(codigo, descricao) AS (
-  VALUES
-    ('web.atividades.abastecimento','Abastecimento'),
-    ('web.relatorios.ocupacao','Ocupação de Endereços'),
-    ('web.relatorios.produtividade','Produtividade Operacional'),
-    ('web.relatorios.cortes','Cortes de Separação'),
-    ('web.relatorios.curva-abc','Curva ABC'),
-    ('web.relatorios.validade-lote','Validade & Lote'),
-    ('web.relatorios.baixo-giro','Baixo Giro / Obsoletos'),
-    ('web.relatorios.inventario','Acuracidade de Inventário'),
-    ('web.relatorios.recebimento','Recebimento (Dock-to-Stock)'),
-    ('web.relatorios.ciclo-pedido','Tempo de Ciclo de Pedido')
-),
-tenants AS (SELECT DISTINCT tenant_id FROM modulo WHERE tenant_id IS NOT NULL)
-INSERT INTO modulo (id, tenant_id, codigo, descricao, ambiente, ativo)
-SELECT gen_random_uuid(), t.tenant_id, f.codigo, f.descricao, 'WEB', true
-FROM tenants t CROSS JOIN faltantes f
-WHERE NOT EXISTS (
-  SELECT 1 FROM modulo m
-  WHERE m.tenant_id = t.tenant_id AND m.codigo = f.codigo
-);
+### 1. Padronizar dropdowns de relatórios para usar `fetchOptions` com escopo
+Substituir as queries inline `supabase.from("xxx").select(...).eq("tenant_id", ...)` por `fetchOptions("xxx", tenantId, "descricao", { empresa_id, armazem_id })`, que já aplica os filtros corretos automaticamente.
 
--- 2) Inserir 4 permissões (CREATE/READ/UPDATE/DELETE) para cada módulo recém-criado
-WITH novos_modulos AS (
-  SELECT id, tenant_id FROM modulo
-  WHERE codigo IN (
-    'web.atividades.abastecimento','web.relatorios.ocupacao',
-    'web.relatorios.produtividade','web.relatorios.cortes',
-    'web.relatorios.curva-abc','web.relatorios.validade-lote',
-    'web.relatorios.baixo-giro','web.relatorios.inventario',
-    'web.relatorios.recebimento','web.relatorios.ciclo-pedido'
-  )
-),
-acoes(acao) AS (VALUES ('CREATE'),('READ'),('UPDATE'),('DELETE'))
-INSERT INTO permissao (id, tenant_id, modulo_id, acao, descricao)
-SELECT gen_random_uuid(), nm.tenant_id, nm.id, a.acao::enum_acao_permissao, a.acao
-FROM novos_modulos nm CROSS JOIN acoes a
-WHERE NOT EXISTS (
-  SELECT 1 FROM permissao p
-  WHERE p.modulo_id = nm.id AND p.acao::text = a.acao
-);
+**Arquivos:**
+- `src/modules/reports/estoque/EstoqueReportPage.tsx` → `setor`, `tipo_estoque` filtrados por `armazem_id` ativo
+- `src/modules/reports/validade-lote/ValidadeLoteReportPage.tsx` → `setor` por armazém; `grupo_produto`/`subgrupo_produto` por empresa
+- `src/modules/reports/curva-abc/CurvaAbcReportPage.tsx` → idem grupo/subgrupo
+- `src/modules/reports/baixo-giro/BaixoGiroReportPage.tsx` → idem grupo/subgrupo
+- `src/modules/reports/recebimento/RecebimentoReportPage.tsx` → `parceiro` por empresa
+- `src/modules/reports/ciclo-pedido/CicloPedidoReportPage.tsx` → `parceiro` por empresa
+- `src/modules/reports/produtividade/ProdutividadeDashboardPage.tsx` → adicionar `tenant_id`; usar `armazemId` do contexto como default
+- `src/modules/reports/produtividade/ProdutividadeOperadorPage.tsx` → `usuario` filtrado por `tenant_id` + `empresa_id`
+- `src/modules/reports/cortes/cortes.service.ts` → `fetchMotivosOcorrencia` recebe `armazem_id` e filtra por `tenant_id` + `armazem_id`
 
--- 3) Conceder automaticamente as novas permissões ao perfil ADMINISTRADOR (sistema=true)
-WITH novas_perms AS (
-  SELECT p.id AS permissao_id, p.tenant_id
-  FROM permissao p JOIN modulo m ON m.id = p.modulo_id
-  WHERE m.codigo IN (
-    'web.atividades.abastecimento','web.relatorios.ocupacao',
-    'web.relatorios.produtividade','web.relatorios.cortes',
-    'web.relatorios.curva-abc','web.relatorios.validade-lote',
-    'web.relatorios.baixo-giro','web.relatorios.inventario',
-    'web.relatorios.recebimento','web.relatorios.ciclo-pedido'
-  )
-)
-INSERT INTO perfil_permissao (id, tenant_id, perfil_id, permissao_id)
-SELECT gen_random_uuid(), pf.tenant_id, pf.id, np.permissao_id
-FROM perfil pf JOIN novas_perms np ON np.tenant_id = pf.tenant_id
-WHERE pf.sistema = true
-  AND NOT EXISTS (
-    SELECT 1 FROM perfil_permissao pp
-    WHERE pp.perfil_id = pf.id AND pp.permissao_id = np.permissao_id
-  );
-```
+### 2. Reagir à troca de empresa nos relatórios
+Em todos os relatórios acima, garantir que o `useEffect` de carregamento dos lookups dependa de `[tenantId, empresaId, armazemId, empresaVersion]` (hoje muitos só dependem de `tenantId`). Limpar os filtros selecionados que se referem a registros da empresa anterior ao trocar.
 
-> Validar antes da migração o tipo exato do enum `acao` em `permissao` (provável `enum_acao_permissao`) — ajustar o cast se necessário.
+### 3. Filtros do Dashboard (`DashboardFilters.tsx`)
+- Adicionar prop `empresaId` e filtrar `armazem` por empresa ativa
+- Filtrar `turnos` por `tenant_id` + `armazem_id` (já filtra por armazém quando selecionado, ok)
+- Resetar `armazemId` quando trocar empresa
 
-### 2. Atualizar `src/hooks/useRoutePermission.ts`
-Acrescentar ao `routeToModuleMap` as entradas faltantes para que o gate de permissão funcione:
+### 4. Modais de Entradas / Abastecimento
+- `EntradasPage.openModal()` → adicionar `.eq("empresa_id", empresaId)` no `armazem` e `.eq("armazem_id", armazemId)` no `box`
+- `AbastecimentoPage` → carregar `armazem` filtrado por `empresa_id`
+
+### 5. Modais operacionais de Movimento Entrada/Saída
+- Ao carregar `motivo_ocorrencia` para erro de transporte / divergência / corte de separação, adicionar `.eq("armazem_id", armazemId)` (motivo de ocorrência é por armazém)
+
+### 6. Página `NovoInventarioPage` — busca de produtos
+- Linha 179: `supabase.from("produto")` ao buscar produtos não filtra por `empresa_id`. Adicionar `.eq("empresa_id", empresaId)` para isolar produtos da empresa ativa.
+
+### 7. Modal Reatribuir Tarefas
+- Tornar o filtro `empresa_id` obrigatório (hoje é condicional). Após o guard global isso é redundante mas reforça segurança defensiva.
+
+### 8. Estender `fetchOptions` com label customizável
+Hoje `fetchOptions` recebe `labelField` mas não suporta o caso de `parceiro` (cujo label é `razaosocial`). Já é compatível pois aceita `labelField` como parâmetro — só precisa ser usado corretamente nas chamadas novas.
+
+### 9. Corrigir build errors em edge functions
+Os erros TS18046 em `supabase/functions/create-usuario/index.ts` (linha 122) e `reset-password/index.ts` (linha 108) são pré-existentes mas bloqueiam a build. Tipar `err` como `any`:
 ```ts
-"/atividades/abastecimento": "web.atividades.abastecimento",
-"/relatorios/ocupacao": "web.relatorios.ocupacao",
-"/relatorios/produtividade": "web.relatorios.produtividade",
-"/relatorios/curva-abc": "web.relatorios.curva-abc",
-"/relatorios/validade-lote": "web.relatorios.validade-lote",
-"/relatorios/baixo-giro": "web.relatorios.baixo-giro",
-"/relatorios/inventario": "web.relatorios.inventario",
-"/relatorios/recebimento": "web.relatorios.recebimento",
-"/relatorios/ciclo-pedido": "web.relatorios.ciclo-pedido",
+} catch (err: any) {
+  return new Response(
+    JSON.stringify({ success: false, error: err?.message || "Erro interno" }),
+    ...
+  );
+}
 ```
-(`web.relatorios.cortes` já existe.)
 
-### 3. Atualizar `src/pages/PerfisAcessoPage.tsx`
-Adicionar `"web.relatorios": "Relatórios"` ao objeto `groupLabels` para que o grupo de relatórios apareça com label amigável (atualmente só está mapeado por outros prefixos).
+---
 
-### 4. Limpar cache de permissões (orientação ao usuário)
-Após aplicar a migration, o cache em `sessionStorage` (`core_rbac_permissions`, TTL 5 min) será atualizado automaticamente no próximo login ou após 5 minutos. Usuários ADMIN podem fazer logout/login para liberação imediata.
+## 📋 Resumo das alterações
 
-## Validação pós-execução
-1. Abrir **Configurações → Perfis de Acesso** e confirmar que aparece um novo grupo **Relatórios** com 9 módulos e que **Atividades** agora mostra **Abastecimento**.
-2. Selecionar um perfil não-sistema e marcar/salvar permissões em uma das novas entradas — confirmar persistência.
-3. Para um usuário com perfil restrito, navegar à rota `/relatorios/baixo-giro` e validar que `useRoutePermission` bloqueia/libera conforme esperado.
+| Categoria | Arquivos |
+|---|---|
+| Relatórios (lookups) | 9 arquivos em `src/modules/reports/` |
+| Service layer | `cortes.service.ts` (assinatura `fetchMotivosOcorrencia`) |
+| Dashboard | `DashboardFilters.tsx`, possivelmente `Dashboard.tsx` |
+| Páginas operacionais | `EntradasPage`, `AbastecimentoPage`, `MovimentoEntradaPage`, `MovimentoSaidaPage`, `NovoInventarioPage`, `ReatribuirTarefasModal` |
+| Edge functions (build fix) | `create-usuario/index.ts`, `reset-password/index.ts` |
 
-## Arquivos impactados
-- **Nova migration**: `supabase/migrations/<timestamp>_modulos_faltantes_rbac.sql`
-- **Modificado**: `src/hooks/useRoutePermission.ts`
-- **Modificado**: `src/pages/PerfisAcessoPage.tsx`
+Sem migração de banco — toda a correção é frontend, aproveitando os triggers de validação `trg_validar_empresa_usuario` e `trg_validar_armazem_empresa_usuario` já criados nas iterações anteriores como segunda camada de defesa.
+
+## ✅ Resultado esperado
+Após aprovação:
+- Todos os dropdowns de filtros refletem **estritamente** a empresa/armazém selecionados no TopNav
+- Trocar empresa no TopNav recarrega automaticamente todos os lookups e zera filtros que referenciam registros da empresa anterior
+- Build do projeto passa sem erros TS
