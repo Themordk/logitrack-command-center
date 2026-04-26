@@ -113,7 +113,21 @@ Deno.serve(async (req) => {
     }
 
     // ========== 5) Criar conta Auth se senha fornecida ==========
-    const email = `${login}@internal.logitrack`;
+    // Buscar nome do tenant para compor o domínio do e-mail sintético
+    const { data: tenantRow } = await supabaseAdmin
+      .from("tenant")
+      .select("nome")
+      .eq("id", tenant_id)
+      .maybeSingle();
+
+    const tenantSlug = ((tenantRow?.nome ?? "") as string)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // remove acentos
+      .replace(/\s+/g, "")              // remove espaços
+      .replace(/[^a-zA-Z0-9]/g, "")     // mantém apenas alfanumérico
+      .toLowerCase() || "internal";
+
+    const email = `${String(login).toLowerCase()}@${tenantSlug}.logitrack`;
     let authUserId: string | null = null;
 
     if (senha && senha.length >= 6) {
