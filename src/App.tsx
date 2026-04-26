@@ -396,7 +396,7 @@ function AppContent() {
       && currentPath !== "/suporte-login"
       && !isColetor
       && !authenticated) {
-    return <TenantPickerPage />;
+    return <TenantPickerPage onNavigateSupport={() => navigate("/suporte-login")} />;
   }
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground">Carregando...</span></div>;
