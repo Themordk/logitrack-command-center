@@ -3971,18 +3971,21 @@ export type Database = {
           created_at: string
           id: string
           nome: string
+          slug: string
         }
         Insert: {
           ativo?: boolean
           created_at?: string
           id?: string
           nome: string
+          slug: string
         }
         Update: {
           ativo?: boolean
           created_at?: string
           id?: string
           nome?: string
+          slug?: string
         }
         Relationships: []
       }
@@ -5977,7 +5980,10 @@ export type Database = {
           varios_pickings: string
         }[]
       }
-      fn_buscar_email_por_login: { Args: { p_login: string }; Returns: string }
+      fn_buscar_email_por_login: {
+        Args: { p_login: string; p_tenant_id?: string }
+        Returns: string
+      }
       fn_cancelar_movimento_entrada: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
         Returns: Json
@@ -6095,9 +6101,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_resolve_tenant_by_slug: {
+        Args: { p_slug: string }
+        Returns: {
+          ativo: boolean
+          id: string
+          nome: string
+          slug: string
+        }[]
+      }
       fn_seed_rbac_para_tenant: {
         Args: { p_tenant_id: string }
         Returns: undefined
+      }
+      fn_user_belongs_to_tenant: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
       }
       fn_usuario_permissoes: {
         Args: { p_usuario_id: string }
