@@ -110,6 +110,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("core_armazem_id");
     localStorage.removeItem("core_usuario_id");
     localStorage.removeItem("core_usuario_nome");
+    localStorage.removeItem("core_is_platform_support");
+    localStorage.removeItem("core_tipo_usuario");
     setTenantId(null);
     setEmpresaId(null);
     setArmazemId(null);

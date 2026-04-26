@@ -20,6 +20,8 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
   const [loading, setLoading] = useState(false);
   const [forceChange, setForceChange] = useState(false);
   const [pendingUsuario, setPendingUsuario] = useState<any>(null);
+  // Overlay anti-flash exibido enquanto o redirect pós-login do suporte é aplicado
+  const [redirectingSupport, setRedirectingSupport] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,11 +53,24 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
           throw new Error("Conta não autorizada para o painel de suporte.");
         }
 
+        // === Redirecionamento limpo (sem reload) — define hash ANTES de notificar o app ===
+        // 1) Marca a flag de suporte ANTES de qualquer render para o guard anti-flash do AppContent.
         localStorage.setItem("core_is_platform_support", "1");
         localStorage.setItem("core_usuario_nome", who.nome || "Suporte");
+        // 2) Limpa caches que pertencem ao fluxo de tenant comum.
+        sessionStorage.removeItem("core_rbac_permissions");
+        Object.keys(sessionStorage)
+          .filter((k) => k.startsWith("core_is_admin_"))
+          .forEach((k) => sessionStorage.removeItem(k));
+        // 3) Garante que o destino correto já está no hash antes do React reagir.
+        if (window.location.hash.replace("#", "") !== "/suporte/tenants") {
+          window.location.hash = "/suporte/tenants";
+        }
+        // 4) Mostra overlay anti-flash enquanto o AppContent reage e renderiza SupportRoute.
+        setRedirectingSupport(true);
         toast.success(`Bem-vindo, ${who.nome || "Suporte"}!`);
-        window.location.hash = "/suporte/tenants";
-        window.location.reload();
+        // 5) Notifica o TenantContext (sem reload da página).
+        onLogin();
         return;
       }
 
@@ -145,6 +160,23 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
     toast.success(`Bem-vindo, ${usuario.nome}!`);
     onLogin();
   };
+
+  // Overlay anti-flash: cobre toda a tela enquanto o AppContent reage ao login do suporte
+  // e renderiza a área protegida /suporte/tenants. Sem isso, o usuário vê 1-2 frames de
+  // TenantPicker ou Dashboard antes do destino correto.
+  if (redirectingSupport) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center">
+            <Boxes size={28} className="text-primary-foreground" />
+          </div>
+          <Loader2 className="text-primary animate-spin" size={24} />
+          <div className="text-sm text-muted-foreground">Acessando painel de suporte…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">

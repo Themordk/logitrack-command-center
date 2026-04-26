@@ -386,11 +386,36 @@ function AppContent() {
   const isSupportLogin = currentPath === "/suporte-login";
   const isSupportArea = currentPath === "/suporte" || currentPath.startsWith("/suporte/");
 
-  // ===== Gate: identificação do tenant via subdomínio =====
+  // Flag persistente que indica que o usuário autenticado é do suporte da plataforma.
+  // Usada para evitar que páginas de tenant (Dashboard, TenantPicker) sejam renderizadas
+  // em qualquer "janela de transição" entre login e SupportRoute.
+  const isPlatformSupport = typeof window !== "undefined" && !!localStorage.getItem("core_is_platform_support");
+
+  // ===== Gate 1: identificação do tenant via subdomínio =====
   if (boot.status === "loading") return <TenantBootSplash />;
   if (boot.status === "not-found" || boot.status === "inactive" || boot.status === "error") {
     return <TenantBootError />;
   }
+
+  // ===== Gate 2: sessão Supabase ainda restaurando =====
+  // Bloqueia QUALQUER render de página final enquanto useTenant.loading=true.
+  // Sem este gate, há janela de 1-3 frames onde authenticated muda mas o resto do estado
+  // ainda não está pronto, causando flashes de Dashboard/TenantPicker.
+  if (loading) return <TenantBootSplash />;
+
+  // ===== Gate 3: anti-flash do SUPORTE DA PLATAFORMA =====
+  // Se o usuário é do suporte e está autenticado mas o hash atual não é uma rota de
+  // suporte (caso típico: pós-login com hash ainda em "/" antes do hashchange propagar,
+  // ou recarga com hash em "/"), redireciona para /suporte/tenants e mostra splash.
+  // NÃO bloqueia /suporte-login (ele precisa renderizar para o usuário entrar).
+  if (isPlatformSupport && authenticated && !isSupportArea && !isSupportLogin) {
+    if (currentPath !== "/suporte/tenants") {
+      // Schedule navigation no próximo tick para evitar setState durante render
+      Promise.resolve().then(() => navigate("/suporte/tenants"));
+    }
+    return <TenantBootSplash />;
+  }
+
   // boot.status === "no-subdomain" → portal neutro, exceto:
   //  - rotas de suporte da plataforma (acessíveis em app.*)
   //  - rota dedicada ao login do suporte
@@ -416,8 +441,6 @@ function AppContent() {
       />
     );
   }
-
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground">Carregando...</span></div>;
 
   // Rotas de SUPORTE DA PLATAFORMA (independentes do tenant) — área protegida apenas
   if (isSupportArea) {

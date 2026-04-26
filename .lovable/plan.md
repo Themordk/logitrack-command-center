@@ -1,154 +1,139 @@
-# Plano para corrigir o acesso ao login do suporte
+# Eliminar páginas intermediárias no login do suporte da plataforma
 
-## Causa principal identificada
+## 🔍 Diagnóstico — Por que aparecem páginas erradas antes do destino correto
 
-O botão **"Sou do suporte da plataforma"** já está chamando a navegação para `#/suporte-login`, porém a rota está sendo capturada pelo bloco errado em `App.tsx`.
+Ao logar como suporte da plataforma em `#/suporte-login`, o usuário vê 1 ou 2 "flashes" de páginas incorretas (TenantPicker, Dashboard ou tela de Carregando) antes de cair em `#/suporte/tenants`. Isso acontece por **três causas combinadas**, todas reproduzíveis no fluxo atual:
 
-Hoje existe esta condição:
+### Causa 1 — `window.location.reload()` recarrega ANTES da nova rota ser aplicada
+Em `src/pages/LoginPage.tsx` (linhas 57-58):
+```ts
+window.location.hash = "/suporte/tenants";
+window.location.reload();
+```
+O `reload()` é síncrono e o navegador aplica o reload imediatamente. Em alguns navegadores/condições, o hash novo nem chega a ser persistido antes do reload, ou o reload acontece e a UI inicial (que ainda não recebeu o estado autenticado nem o hash novo no estado React) renderiza por alguns frames a tela errada.
+
+### Causa 2 — `AppContent` decide a rota inicial antes do `TenantContext` confirmar a sessão
+No `App.tsx`:
+- `useTenant()` começa com `loading=true, authenticated=false`.
+- O guard `boot.status === "no-subdomain" && !isSupportArea && !isSupportLogin && !authenticated` **não bloqueia em `loading`**, mas também não trata a transição: assim que `boot.status` vira `no-subdomain`, se o hash ainda for `/` (porque o reload preservou o hash anterior) e `authenticated` ainda for `false` por uma fração de segundo, o `TenantPickerPage` aparece como flash.
+- Logo depois, quando `useTenant.loading` muda para `false` e `authenticated` para `true`, mas o hash continua `/` (rota raiz), o `Dashboard` é renderizado por um instante — porque o caminho `/` não é uma rota de suporte e cai no `renderPage` padrão. Esse é o "Dashboard piscando" antes de `#/suporte/tenants`.
+
+### Causa 3 — `TenantBootSplash` é o único loader; após `boot=ready`, qualquer "indecisão" cai em UI real
+Não há um estado de "sessão sendo restaurada / decidindo destino pós-login". O `loading` do `TenantContext` só é exibido como texto puro `"Carregando..."` em uma única condição muito estreita; em outras transições, a UI já renderiza páginas finais.
+
+### Bônus — Warnings de `forwardRef` no console
+Os componentes `TenantBootSplash`, `TenantPickerPage`, `LoginPage` e `ForcePasswordChangeModal` recebem refs implicitamente do React DevTools/StrictMode, gerando warnings (não causam o bug, mas serão eliminados como limpeza).
+
+---
+
+## ✅ Solução — Estratégia em 4 camadas
+
+### Camada 1 — Não recarregar a página após login do suporte
+Em `src/pages/LoginPage.tsx`, no fluxo do suporte:
+- Remover o `window.location.reload()`.
+- Definir o hash **antes** de chamar `onLogin()`.
+- Chamar `onLogin()` (que dispara `useTenant.login()`), permitindo que o React reaja sem recarregar.
 
 ```ts
-if (currentPath.startsWith("/suporte")) {
-  return <SupportRoute>...</SupportRoute>;
+// Antes do onLogin, garantir que o hash já é o destino final
+window.location.hash = "/suporte/tenants";
+localStorage.setItem("core_is_platform_support", "1");
+localStorage.setItem("core_usuario_nome", who.nome || "Suporte");
+toast.success(`Bem-vindo, ${who.nome || "Suporte"}!`);
+// Sem reload — o AppContent reage ao hashchange + onAuthStateChange
+onLogin();
+```
+
+### Camada 2 — Tela de transição dedicada para "Pós-login do Suporte"
+Criar um estado local `redirectingSupport` no `LoginPage` que, durante a janela entre `signInWithPassword.success` e a primeira renderização de `SupportTenantsPage`, exibe um overlay full-screen com:
+- Logo CORE LogiTrack
+- Spinner
+- Texto "Acessando painel de suporte..."
+
+Isso garante que **nenhuma página intermediária seja vista**, mesmo que haja pequenos atrasos de reidratação.
+
+### Camada 3 — Guarda anti-flash no `AppContent`
+Em `src/App.tsx`, adicionar uma "porta de saída" que retém o splash enquanto a decisão de rota não está estável:
+
+1. **Bloquear render durante `useTenant.loading`** mesmo quando a rota não é suporte (hoje só bloqueia em uma condição parcial). Mover o `if (loading) return <Splash />;` para **antes** do guard de `no-subdomain`.
+2. **Detectar "intenção de rota suporte" via flag** `core_is_platform_support` no `localStorage`. Se essa flag existir mas `currentPath` ainda não estiver em `/suporte/...`, redirecionar (via `useEffect`) para `/suporte/tenants` e renderizar splash neste meio-tempo — em vez de renderizar Dashboard ou TenantPicker.
+
+```tsx
+// Em AppContent, logo após detectar paths
+const isPlatformSupport = !!localStorage.getItem("core_is_platform_support");
+
+useEffect(() => {
+  if (isPlatformSupport && authenticated && !isSupportArea && !isSupportLogin) {
+    navigate("/suporte/tenants");
+  }
+}, [isPlatformSupport, authenticated, isSupportArea, isSupportLogin]);
+
+// Render splash enquanto o redirect não acontece
+if (isPlatformSupport && !isSupportArea && !isSupportLogin) {
+  return <TenantBootSplash />;
 }
 ```
 
-O problema é que:
+### Camada 4 — Splash unificado para "pós-login decidindo destino"
+Reaproveitar `TenantBootSplash` (renomeando internamente para `AppLoadingSplash` quando usado fora do boot do tenant) para todas as três janelas:
+- Boot do tenant (já existe)
+- `useTenant.loading=true` (atualmente texto puro)
+- "Suporte autenticado, redirecionando" (novo)
 
-```ts
-"/suporte-login".startsWith("/suporte") === true
-```
+Com isso, o usuário verá apenas: **Login do Suporte → Splash unificado → Painel de Suporte**.
 
-Ou seja, quando o usuário clica no botão:
+### Limpeza extra — Warnings de `forwardRef`
+Envolver os componentes de tela com `React.forwardRef` (ou ignorar o `ref` explicitamente) para silenciar os warnings vistos no console:
+- `TenantBootSplash`
+- `TenantPickerPage`
+- `LoginPage`
+- `ForcePasswordChangeModal`
 
-```text
-/#/  ->  /#/suporte-login
-```
+---
 
-A aplicação interpreta `/suporte-login` como se fosse uma rota protegida do painel `/suporte/*`, renderiza `SupportRoute`, detecta que o usuário ainda não está autenticado, e redireciona de volta para `/`. Por isso visualmente parece que “não navegou”.
+## 📂 Arquivos que serão modificados
 
-## Causas secundárias que podem contribuir
+1. **`src/pages/LoginPage.tsx`**
+   - Remover `window.location.reload()` no fluxo do suporte.
+   - Definir hash antes de `onLogin()`.
+   - Adicionar estado `redirectingSupport` + overlay full-screen.
 
-1. **Prefixo ambíguo da rota**
-   - `/suporte-login` começa com `/suporte`, então entra no guard errado.
+2. **`src/App.tsx`**
+   - Mover `if (loading) return <Splash />` para antes dos guards de rota.
+   - Adicionar guarda anti-flash baseada em `core_is_platform_support`.
+   - Trocar o texto puro `"Carregando..."` por `<TenantBootSplash />`.
 
-2. **Ordem dos guards no `App.tsx`**
-   - O bloco de rotas protegidas `/suporte` roda antes do render explícito do login de suporte.
+3. **`src/components/tenant/TenantBootScreens.tsx`**
+   - Exportar splash genérico reutilizável.
+   - (Opcional) Envolver componentes com `forwardRef` para silenciar warnings.
 
-3. **Fallback de não autorizado do `SupportRoute`**
-   - Como `/suporte-login` é tratado por engano como rota protegida, `SupportRoute` chama `onUnauthorized={() => navigate("/")}` e volta para o `TenantPickerPage`.
+4. **`src/contexts/TenantContext.tsx`**
+   - Garantir que `setAuthenticated(true)` aconteça **antes** de `setLoading(false)` (já é o caso, mas reforçar a ordem para evitar renders intermediários onde `authenticated=true && loading=true` causam decisões parciais).
 
-4. **Aparência de validação obrigatória do campo cliente**
-   - O campo não é o bloqueio real neste estado atual. O botão está fora do `<form>`, tem `type="button"`, `formNoValidate`, `preventDefault()` e `stopPropagation()`.
-   - O comportamento observado é causado pelo redirecionamento automático de volta para `/`.
+---
 
-## Correção proposta
+## 🎯 Resultado esperado
 
-### 1. Tornar a rota de suporte protegida mais específica
+Sequência visual ao clicar em "Entrar" como suporte:
 
-Em `src/App.tsx`, substituir o teste genérico:
+| Antes (com flashes) | Depois (limpo) |
+|---|---|
+| Login → flash TenantPicker → flash Dashboard → SupportTenants | Login → Splash unificado → SupportTenants |
 
-```ts
-currentPath.startsWith("/suporte")
-```
+E, ao recarregar `#/suporte/tenants` com sessão já existente:
 
-por uma verificação que não capture `/suporte-login`:
+| Antes | Depois |
+|---|---|
+| Splash boot → flash Dashboard → SupportTenants | Splash boot → Splash "redirecionando" → SupportTenants |
 
-```ts
-const isSupportLogin = currentPath === "/suporte-login";
-const isSupportArea = currentPath === "/suporte" || currentPath.startsWith("/suporte/");
-```
+Sem reloads de página, sem "Dashboard piscando", sem "TenantPicker piscando".
 
-Assim:
+---
 
-```text
-/suporte-login       -> login público do suporte
-/suporte             -> área protegida do suporte
-/suporte/tenants     -> área protegida do suporte
-/suporte/chamados    -> área protegida do suporte
-```
+## ⚠️ Riscos e mitigação
 
-### 2. Renderizar `/suporte-login` antes do `SupportRoute`
+- **Risco**: remover `reload()` pode deixar caches antigos (RBAC, permissões). 
+  **Mitigação**: já invalidamos `sessionStorage.removeItem("core_rbac_permissions")` no logout; no fluxo de suporte podemos limpar caches do tenant antes de `onLogin()`.
 
-Adicionar um tratamento explícito antes das rotas protegidas:
-
-```ts
-if (!authenticated && isSupportLogin) {
-  return (
-    <LoginPage
-      mode="support"
-      onLogin={() => login()}
-      onNavigateColetor={() => navigate("/coletor/login")}
-      onBackToPicker={() => navigate("/")}
-    />
-  );
-}
-```
-
-Isso impede que o `SupportRoute` intercepte a tela de login.
-
-### 3. Manter o `TenantPickerPage` como fallback seguro
-
-Manter a exceção já existente na guarda do domínio neutro:
-
-```ts
-currentPath !== "/suporte-login"
-```
-
-Assim, em domínio sem subdomínio:
-
-```text
-/#/                  -> TenantPickerPage
-/#/suporte-login     -> LoginPage em modo suporte
-/#/suporte/tenants   -> SupportRoute protegido
-```
-
-### 4. Ajustar o bloco de rotas protegidas do suporte
-
-Trocar:
-
-```ts
-if (currentPath.startsWith("/suporte")) {
-```
-
-por:
-
-```ts
-if (isSupportArea) {
-```
-
-Isso garante que apenas `/suporte` e `/suporte/*` sejam protegidos pelo `SupportRoute`, sem capturar `/suporte-login`.
-
-### 5. Opcional, para blindagem adicional
-
-Adicionar uma constante centralizada para evitar novos erros de prefixo no futuro:
-
-```ts
-const SUPPORT_LOGIN_PATH = "/suporte-login";
-const isSupportAreaPath = (path: string) => path === "/suporte" || path.startsWith("/suporte/");
-```
-
-## Resultado esperado após a correção
-
-Fluxo correto:
-
-```text
-1. Usuário acessa /#/
-2. Sistema mostra TenantPickerPage
-3. Usuário clica em "Sou do suporte da plataforma"
-4. URL muda para /#/suporte-login
-5. App renderiza LoginPage em mode="support"
-6. Campo de e-mail vem preenchido com suporte.corelogitrack@gmail.com
-7. Usuário informa senha
-8. Login valida support-whoami
-9. Sistema redireciona para /#/suporte/tenants
-10. SupportRoute protege apenas o painel autenticado
-```
-
-## Arquivo a editar
-
-- `src/App.tsx`
-  - Criar `isSupportLogin` e `isSupportArea`.
-  - Renderizar `/suporte-login` antes do bloco protegido `/suporte`.
-  - Trocar `currentPath.startsWith("/suporte")` por `isSupportArea`.
-
-Não será necessário alterar banco de dados, edge functions ou a lógica de autenticação do suporte.
+- **Risco**: usuário comum logado no mesmo navegador depois acessa suporte e fica preso no redirect.
+  **Mitigação**: limpar `core_is_platform_support` no logout (já é feito) e ao detectar `authenticated=false` no guard.
