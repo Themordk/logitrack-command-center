@@ -8,11 +8,14 @@ import { useTenantBoot } from "@/contexts/TenantBootContext";
 interface LoginPageProps {
   onLogin: () => void;
   onNavigateColetor: () => void;
+  mode?: "tenant" | "support";
+  onBackToPicker?: () => void;
 }
 
-export function LoginPage({ onLogin, onNavigateColetor }: LoginPageProps) {
+export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackToPicker }: LoginPageProps) {
   const { tenant: bootTenant, status: bootStatus } = useTenantBoot();
-  const [login, setLogin] = useState("");
+  const isSupportMode = mode === "support";
+  const [login, setLogin] = useState(isSupportMode ? "suporte.corelogitrack@gmail.com" : "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [forceChange, setForceChange] = useState(false);
