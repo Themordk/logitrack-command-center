@@ -417,6 +417,7 @@ export function MovimentoEntradaPage() {
       .from("motivo_ocorrencia")
       .select("id, descricao")
       .eq("tenant_id", tenantId)
+      .eq("armazem_id", armazemId)
       .eq("ativo", true)
       .order("descricao");
     setMotivos(data || []);
@@ -462,6 +463,7 @@ export function MovimentoEntradaPage() {
       .from("motivo_ocorrencia")
       .select("id, descricao")
       .eq("tenant_id", tenantId)
+      .eq("armazem_id", armazemId)
       .eq("ativo", true)
       .eq("etapa_ocorrencia", "RECEBIMENTO")
       .order("descricao");

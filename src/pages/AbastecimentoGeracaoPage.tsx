@@ -96,17 +96,18 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
     load();
   }, [tenantId, empresaId, armazemId, tipo]);
 
-  // Load operators
+  // Load operators (escopo: tenant + empresa ativa)
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) { setUsuarios([]); return; }
     (supabase as any)
       .from("usuario")
       .select("id, login, nome")
       .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
       .eq("ativo", true)
       .order("nome")
       .then(({ data: u }: any) => setUsuarios(u || []));
-  }, [tenantId]);
+  }, [tenantId, empresaId]);
 
   // Unique sectors
   const setores = useMemo(() => {
