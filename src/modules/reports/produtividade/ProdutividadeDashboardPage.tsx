@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportHeader } from "../components/ReportHeader";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ const PIE_COLORS = [
 ];
 
 export function ProdutividadeDashboardPage({ onNavigate }: Props) {
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [armazemId, setArmazemId] = useState("");
@@ -45,17 +47,33 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
   const [operadores, setOperadores] = useState<OperadorResumo[]>([]);
   const [porTipo, setPorTipo] = useState<ProdutividadePorTipo[]>([]);
 
-  // Load armazens on mount
-  useState(() => {
+  // Load armazens (filtrado por tenant + empresa ativa)
+  useEffect(() => {
+    if (!tenantId || !empresaId) {
+      setArmazens([]);
+      setArmazemId("");
+      return;
+    }
     (async () => {
       const { data } = await (supabase as any)
         .from("armazem")
         .select("id, descricao")
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
         .eq("ativo", true)
         .order("descricao");
-      if (data) setArmazens(data);
+      setArmazens(data || []);
+      setArmazemId("");
     })();
-  });
+  }, [tenantId, empresaId, empresaVersion]);
+
+  // Reset resultado ao trocar empresa
+  useEffect(() => {
+    setKpis(null);
+    setOperadores([]);
+    setPorTipo([]);
+    setGenerated(false);
+  }, [empresaId, empresaVersion]);
 
   const handleGerar = async () => {
     if (!dataInicio || !dataFim) {
