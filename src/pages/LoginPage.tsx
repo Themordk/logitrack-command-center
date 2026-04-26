@@ -20,6 +20,8 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
   const [loading, setLoading] = useState(false);
   const [forceChange, setForceChange] = useState(false);
   const [pendingUsuario, setPendingUsuario] = useState<any>(null);
+  // Overlay anti-flash exibido enquanto o redirect pós-login do suporte é aplicado
+  const [redirectingSupport, setRedirectingSupport] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
