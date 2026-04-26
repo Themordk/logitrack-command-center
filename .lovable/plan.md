@@ -1,59 +1,154 @@
-# Corrigir acesso ao login do suporte da plataforma
+# Plano para corrigir o acesso ao login do suporte
 
-## Problema identificado
+## Causa principal identificada
 
-Na tela de identificação do cliente (`TenantPickerPage`), o botão **"Sou do suporte da plataforma"** apenas executa `window.location.hash = "/"`. Como o usuário já está em `/` no domínio neutro (sem subdomínio), a guarda em `App.tsx` (linhas 393-398) renderiza **a mesma tela de novo** — o usuário fica preso, sem acesso ao formulário de login do suporte.
+O botão **"Sou do suporte da plataforma"** já está chamando a navegação para `#/suporte-login`, porém a rota está sendo capturada pelo bloco errado em `App.tsx`.
+
+Hoje existe esta condição:
 
 ```ts
-// App.tsx — guarda atual
-if (boot.status === "no-subdomain"
-    && !currentPath.startsWith("/suporte")
-    && !isColetor
-    && !authenticated) {
-  return <TenantPickerPage />;   // ⚠️ Sempre cai aqui no domínio neutro
+if (currentPath.startsWith("/suporte")) {
+  return <SupportRoute>...</SupportRoute>;
 }
 ```
 
-## Solução
+O problema é que:
 
-Criar uma "via de escape" explícita para o login do suporte, sem afrouxar a regra do tenant picker.
+```ts
+"/suporte-login".startsWith("/suporte") === true
+```
 
-### 1. `src/components/tenant/TenantBootScreens.tsx`
-- Mudar o `goSupport()` para navegar a uma rota dedicada: `window.location.hash = "/suporte-login"`.
+Ou seja, quando o usuário clica no botão:
 
-### 2. `src/App.tsx`
-- Adicionar `"/suporte-login"` à lista de exceções da guarda do `TenantPickerPage`:
-  ```ts
-  if (boot.status === "no-subdomain"
-      && !currentPath.startsWith("/suporte")
-      && currentPath !== "/suporte-login"
-      && !isColetor
-      && !authenticated) { ... }
-  ```
-- Quando `currentPath === "/suporte-login"` e usuário não autenticado, renderizar diretamente o `LoginPage` em modo suporte.
-- O `LoginPage` já reconhece o e-mail `suporte.corelogitrack@gmail.com` e redireciona para `/suporte/tenants` após login.
+```text
+/#/  ->  /#/suporte-login
+```
 
-### 3. `src/pages/LoginPage.tsx`
-- Aceitar prop opcional `mode?: "support"` para:
-  - Pré-preencher placeholder com `suporte.corelogitrack@gmail.com`.
-  - Ocultar o link "Acessar Coletor de Dados".
-  - Exibir um chip "Acesso: Suporte da Plataforma" no lugar do badge de tenant.
-  - Mostrar link "Voltar à identificação do cliente" → `navigate("/")`.
-- A lógica de autenticação **não muda** — o fluxo `isSupportEmail` em `handleLogin` já trata o redirect para `/suporte/tenants` após `support-whoami`.
+A aplicação interpreta `/suporte-login` como se fosse uma rota protegida do painel `/suporte/*`, renderiza `SupportRoute`, detecta que o usuário ainda não está autenticado, e redireciona de volta para `/`. Por isso visualmente parece que “não navegou”.
 
-## Fluxo final
+## Causas secundárias que podem contribuir
 
-1. Usuário acessa `corelogitrack.com.br` → vê `TenantPickerPage`.
-2. Clica em "Sou do suporte da plataforma" → vai para `#/suporte-login`.
-3. `App.tsx` renderiza `LoginPage` em modo suporte.
-4. Usuário digita `suporte.corelogitrack@gmail.com` + senha → autentica.
-5. `LoginPage` detecta o e-mail, chama `support-whoami`, redireciona para `#/suporte/tenants`.
-6. `SupportRoute` valida e mostra o painel.
+1. **Prefixo ambíguo da rota**
+   - `/suporte-login` começa com `/suporte`, então entra no guard errado.
 
-## Arquivos a editar
+2. **Ordem dos guards no `App.tsx`**
+   - O bloco de rotas protegidas `/suporte` roda antes do render explícito do login de suporte.
 
-- `src/components/tenant/TenantBootScreens.tsx` — alterar `goSupport()`.
-- `src/App.tsx` — exceção da guarda + render do `LoginPage` em `/suporte-login`.
-- `src/pages/LoginPage.tsx` — prop `mode="support"` com pequenos ajustes visuais e link de voltar.
+3. **Fallback de não autorizado do `SupportRoute`**
+   - Como `/suporte-login` é tratado por engano como rota protegida, `SupportRoute` chama `onUnauthorized={() => navigate("/")}` e volta para o `TenantPickerPage`.
 
-Sem alterações em banco de dados ou edge functions.
+4. **Aparência de validação obrigatória do campo cliente**
+   - O campo não é o bloqueio real neste estado atual. O botão está fora do `<form>`, tem `type="button"`, `formNoValidate`, `preventDefault()` e `stopPropagation()`.
+   - O comportamento observado é causado pelo redirecionamento automático de volta para `/`.
+
+## Correção proposta
+
+### 1. Tornar a rota de suporte protegida mais específica
+
+Em `src/App.tsx`, substituir o teste genérico:
+
+```ts
+currentPath.startsWith("/suporte")
+```
+
+por uma verificação que não capture `/suporte-login`:
+
+```ts
+const isSupportLogin = currentPath === "/suporte-login";
+const isSupportArea = currentPath === "/suporte" || currentPath.startsWith("/suporte/");
+```
+
+Assim:
+
+```text
+/suporte-login       -> login público do suporte
+/suporte             -> área protegida do suporte
+/suporte/tenants     -> área protegida do suporte
+/suporte/chamados    -> área protegida do suporte
+```
+
+### 2. Renderizar `/suporte-login` antes do `SupportRoute`
+
+Adicionar um tratamento explícito antes das rotas protegidas:
+
+```ts
+if (!authenticated && isSupportLogin) {
+  return (
+    <LoginPage
+      mode="support"
+      onLogin={() => login()}
+      onNavigateColetor={() => navigate("/coletor/login")}
+      onBackToPicker={() => navigate("/")}
+    />
+  );
+}
+```
+
+Isso impede que o `SupportRoute` intercepte a tela de login.
+
+### 3. Manter o `TenantPickerPage` como fallback seguro
+
+Manter a exceção já existente na guarda do domínio neutro:
+
+```ts
+currentPath !== "/suporte-login"
+```
+
+Assim, em domínio sem subdomínio:
+
+```text
+/#/                  -> TenantPickerPage
+/#/suporte-login     -> LoginPage em modo suporte
+/#/suporte/tenants   -> SupportRoute protegido
+```
+
+### 4. Ajustar o bloco de rotas protegidas do suporte
+
+Trocar:
+
+```ts
+if (currentPath.startsWith("/suporte")) {
+```
+
+por:
+
+```ts
+if (isSupportArea) {
+```
+
+Isso garante que apenas `/suporte` e `/suporte/*` sejam protegidos pelo `SupportRoute`, sem capturar `/suporte-login`.
+
+### 5. Opcional, para blindagem adicional
+
+Adicionar uma constante centralizada para evitar novos erros de prefixo no futuro:
+
+```ts
+const SUPPORT_LOGIN_PATH = "/suporte-login";
+const isSupportAreaPath = (path: string) => path === "/suporte" || path.startsWith("/suporte/");
+```
+
+## Resultado esperado após a correção
+
+Fluxo correto:
+
+```text
+1. Usuário acessa /#/
+2. Sistema mostra TenantPickerPage
+3. Usuário clica em "Sou do suporte da plataforma"
+4. URL muda para /#/suporte-login
+5. App renderiza LoginPage em mode="support"
+6. Campo de e-mail vem preenchido com suporte.corelogitrack@gmail.com
+7. Usuário informa senha
+8. Login valida support-whoami
+9. Sistema redireciona para /#/suporte/tenants
+10. SupportRoute protege apenas o painel autenticado
+```
+
+## Arquivo a editar
+
+- `src/App.tsx`
+  - Criar `isSupportLogin` e `isSupportArea`.
+  - Renderizar `/suporte-login` antes do bloco protegido `/suporte`.
+  - Trocar `currentPath.startsWith("/suporte")` por `isSupportArea`.
+
+Não será necessário alterar banco de dados, edge functions ou a lógica de autenticação do suporte.
