@@ -388,10 +388,12 @@ function AppContent() {
   }
   // boot.status === "no-subdomain" → portal neutro, exceto:
   //  - rotas de suporte da plataforma (acessíveis em app.*)
+  //  - rota dedicada ao login do suporte
   //  - rotas do coletor (modo dev/legado)
   // Caso o usuário já esteja autenticado (legado em preview/lovable.app), permite seguir.
   if (boot.status === "no-subdomain"
       && !currentPath.startsWith("/suporte")
+      && currentPath !== "/suporte-login"
       && !isColetor
       && !authenticated) {
     return <TenantPickerPage />;
@@ -425,10 +427,13 @@ function AppContent() {
   }
 
   if (!authenticated) {
+    const isSupportLogin = currentPath === "/suporte-login";
     return (
       <LoginPage
+        mode={isSupportLogin ? "support" : "tenant"}
         onLogin={() => login()}
         onNavigateColetor={() => navigate("/coletor/login")}
+        onBackToPicker={() => navigate("/")}
       />
     );
   }
