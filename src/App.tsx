@@ -381,6 +381,11 @@ function AppContent() {
   // Detect if we're in coletor mode
   const isColetor = currentPath.startsWith("/coletor");
 
+  // Distinção entre rota PÚBLICA de login do suporte e ÁREA PROTEGIDA do suporte.
+  // Importante: "/suporte-login" começa com "/suporte" mas NÃO faz parte da área protegida.
+  const isSupportLogin = currentPath === "/suporte-login";
+  const isSupportArea = currentPath === "/suporte" || currentPath.startsWith("/suporte/");
+
   // ===== Gate: identificação do tenant via subdomínio =====
   if (boot.status === "loading") return <TenantBootSplash />;
   if (boot.status === "not-found" || boot.status === "inactive" || boot.status === "error") {
@@ -392,17 +397,30 @@ function AppContent() {
   //  - rotas do coletor (modo dev/legado)
   // Caso o usuário já esteja autenticado (legado em preview/lovable.app), permite seguir.
   if (boot.status === "no-subdomain"
-      && !currentPath.startsWith("/suporte")
-      && currentPath !== "/suporte-login"
+      && !isSupportArea
+      && !isSupportLogin
       && !isColetor
       && !authenticated) {
     return <TenantPickerPage onNavigateSupport={() => navigate("/suporte-login")} />;
   }
 
+  // Login PÚBLICO do suporte da plataforma — precisa vir ANTES do guard de área protegida
+  // para evitar que SupportRoute redirecione o usuário não autenticado de volta para "/".
+  if (!authenticated && isSupportLogin) {
+    return (
+      <LoginPage
+        mode="support"
+        onLogin={() => login()}
+        onNavigateColetor={() => navigate("/coletor/login")}
+        onBackToPicker={() => navigate("/")}
+      />
+    );
+  }
+
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground">Carregando...</span></div>;
 
-  // Rotas de SUPORTE DA PLATAFORMA (independentes do tenant)
-  if (currentPath.startsWith("/suporte")) {
+  // Rotas de SUPORTE DA PLATAFORMA (independentes do tenant) — área protegida apenas
+  if (isSupportArea) {
     const renderSupport = () => {
       const detalheMatch = currentPath.match(/^\/suporte\/tenants\/([^/?]+)/);
       if (detalheMatch) {
@@ -415,7 +433,7 @@ function AppContent() {
       return <SupportTenantsPage onNavigate={navigate} />;
     };
     return (
-      <SupportRoute onUnauthorized={() => navigate("/")}>
+      <SupportRoute onUnauthorized={() => navigate("/suporte-login")}>
         {renderSupport()}
       </SupportRoute>
     );
@@ -427,10 +445,9 @@ function AppContent() {
   }
 
   if (!authenticated) {
-    const isSupportLogin = currentPath === "/suporte-login";
     return (
       <LoginPage
-        mode={isSupportLogin ? "support" : "tenant"}
+        mode="tenant"
         onLogin={() => login()}
         onNavigateColetor={() => navigate("/coletor/login")}
         onBackToPicker={() => navigate("/")}
