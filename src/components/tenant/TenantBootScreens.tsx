@@ -72,8 +72,8 @@ export function TenantPickerPage() {
   const [error, setError] = useState<string | null>(null);
 
   const goSupport = () => {
-    // Mantém no domínio neutro; o login do suporte é detectado pelo e-mail
-    window.location.hash = "/";
+    // Rota dedicada ao login do suporte da plataforma
+    window.location.hash = "/suporte-login";
   };
 
   const submit = (e: React.FormEvent) => {
