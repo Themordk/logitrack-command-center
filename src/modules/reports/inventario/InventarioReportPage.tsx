@@ -46,8 +46,12 @@ export function InventarioReportPage() {
 
   // Lookups
   useEffect(() => {
-    if (!tenantId) return;
-    supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+    if (!tenantId || !empresaId) {
+      setArmazens([]); setInventarios([]);
+      return;
+    }
+    supabase.from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }) => setArmazens(data || []));
     fetchInventariosLookup(tenantId, empresaId || undefined).then((rows) => {
       setInventarios(rows);
@@ -56,7 +60,7 @@ export function InventarioReportPage() {
       if (lastFinal) setInventarioId(lastFinal.id);
       else if (rows[0]) setInventarioId(rows[0].id);
     });
-  }, [tenantId, empresaId]);
+  }, [tenantId, empresaId, empresaVersion]);
 
   // Reset relatório ao trocar empresa
   useEffect(() => {
@@ -64,6 +68,7 @@ export function InventarioReportPage() {
     setKpis(null);
     setGenerated(false);
     setGeneratedAt("");
+    setFilterArmazemId("");
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {

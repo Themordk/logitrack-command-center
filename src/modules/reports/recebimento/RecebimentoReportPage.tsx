@@ -41,15 +41,19 @@ export function RecebimentoReportPage() {
   const [parceiros, setParceiros] = useState<{ id: string; razaosocial: string }[]>([]);
 
   useEffect(() => {
-    if (!tenantId) return;
-    supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+    if (!tenantId || !empresaId) {
+      setArmazens([]); setParceiros([]);
+      return;
+    }
+    supabase.from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }) => setArmazens(data || []));
     (supabase as any).from("parceiro")
       .select("id, razaosocial, tipo_parceiro")
-      .eq("tenant_id", tenantId).eq("ativo", true)
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true)
       .order("razaosocial").limit(500)
       .then(({ data }: any) => setParceiros(data || []));
-  }, [tenantId]);
+  }, [tenantId, empresaId, empresaVersion]);
 
   // Reset relatório ao trocar empresa
   useEffect(() => {
@@ -57,6 +61,7 @@ export function RecebimentoReportPage() {
     setKpis(null);
     setGenerated(false);
     setGeneratedAt("");
+    setFilterArmazemId(""); setFilterParceiroId("");
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {

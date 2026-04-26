@@ -75,7 +75,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
 
       {/* Filtros */}
       {tenantId && (
-        <DashboardFilters tenantId={tenantId} defaultArmazemId={armazemId} value={filters} onChange={setFilters} />
+        <DashboardFilters tenantId={tenantId} empresaId={empresaId} defaultArmazemId={armazemId} value={filters} onChange={setFilters} />
       )}
 
       {/* KPIs */}

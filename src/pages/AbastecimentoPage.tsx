@@ -78,15 +78,16 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || !empresaId) { setArmazens([]); return; }
     (supabase as any)
       .from("armazem")
       .select("id, descricao")
       .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
       .eq("ativo", true)
       .order("descricao")
       .then(({ data: a }: any) => setArmazens(a || []));
-  }, [tenantId]);
+  }, [tenantId, empresaId]);
 
   const openGerarModal = (tipo: "PREVENTIVO" | "CORRETIVO") => {
     setArmazemModalTipo(tipo);

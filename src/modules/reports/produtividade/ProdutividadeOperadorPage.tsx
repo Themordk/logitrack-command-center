@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { toast } from "sonner";
 import { Loader2, Clock, TrendingUp, CheckCircle, ArrowLeft } from "lucide-react";
@@ -34,6 +35,7 @@ function getTaskColor(codigo: string): string {
 }
 
 export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, dataFim }: Props) {
+  const { tenantId, empresaId } = useTenant();
   const [loading, setLoading] = useState(true);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [operadorNome, setOperadorNome] = useState("");
@@ -44,17 +46,19 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
 
   useEffect(() => {
     loadData();
-  }, [usuarioId, inicio, fim]);
+  }, [usuarioId, inicio, fim, tenantId, empresaId]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch user info
-      const { data: user } = await (supabase as any)
+      // Fetch user info — escopado por tenant + empresa ativa para evitar vazamento
+      let q = (supabase as any)
         .from("usuario")
         .select("nome, turno_id, turnos:turno_id(descricao, hora_inicio, hora_fim)")
-        .eq("id", usuarioId)
-        .single();
+        .eq("id", usuarioId);
+      if (tenantId) q = q.eq("tenant_id", tenantId);
+      if (empresaId) q = q.eq("empresa_id", empresaId);
+      const { data: user } = await q.maybeSingle();
 
       if (user) {
         setOperadorNome(user.nome);
