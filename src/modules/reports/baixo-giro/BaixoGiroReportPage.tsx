@@ -34,20 +34,27 @@ export function BaixoGiroReportPage() {
   const [subgrupos, setSubgrupos] = useState<{ id: string; descricao: string }[]>([]);
 
   useEffect(() => {
-    if (!tenantId) return;
-    supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+    if (!tenantId || !empresaId) {
+      setArmazens([]); setGrupos([]); setSubgrupos([]);
+      return;
+    }
+    supabase.from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }) => setArmazens(data || []));
-    (supabase as any).from("grupo_produto").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+    (supabase as any).from("grupo_produto").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }: any) => setGrupos(data || []));
-    (supabase as any).from("subgrupo_produto").select("id, descricao").eq("tenant_id", tenantId)
+    (supabase as any).from("subgrupo_produto").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).order("descricao")
       .then(({ data }: any) => setSubgrupos(data || []));
-  }, [tenantId]);
+  }, [tenantId, empresaId, empresaVersion]);
 
   // Reset relatório ao trocar empresa
   useEffect(() => {
     setData([]);
     setGenerated(false);
     setGeneratedAt("");
+    setFilterArmazemId(""); setFilterGrupoId(""); setFilterSubgrupoId("");
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
