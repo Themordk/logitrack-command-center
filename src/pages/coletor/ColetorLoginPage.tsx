@@ -6,11 +6,13 @@ import { nowBrasilia } from "@/lib/dateUtils";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 import { useTenant } from "@/contexts/TenantContext";
+import { useTenantBoot } from "@/contexts/TenantBootContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function ColetorLoginPage({ onNavigate }: Props) {
   const { login: syncTenantSession } = useTenant();
+  const { tenant: bootTenant } = useTenantBoot();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,8 +24,19 @@ export function ColetorLoginPage({ onNavigate }: Props) {
     if (!login.trim() || !password.trim()) return;
     setLoading(true);
     try {
-      const { data: email, error: lookupError } = await supabase.rpc("fn_buscar_email_por_login", { p_login: login.trim() });
-      if (lookupError || !email) throw new Error("Usuário não encontrado.");
+      // Trava por subdomínio quando aplicável
+      const rpcArgs: { p_login: string; p_tenant_id?: string } = { p_login: login.trim() };
+      if (bootTenant) rpcArgs.p_tenant_id = bootTenant.id;
+
+      const { data: email, error: lookupError } = await supabase.rpc(
+        "fn_buscar_email_por_login",
+        rpcArgs as any
+      );
+      if (lookupError || !email) {
+        throw new Error(
+          bootTenant ? "Usuário não encontrado neste cliente." : "Usuário não encontrado."
+        );
+      }
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
@@ -31,11 +44,25 @@ export function ColetorLoginPage({ onNavigate }: Props) {
       const userId = authData.user?.id;
       if (!userId) throw new Error("Usuário não encontrado.");
 
-      const { data: usuario, error: userError } = await (supabase as any)
+      // Defesa em profundidade pós-auth
+      if (bootTenant) {
+        const { data: belongs, error: belongsErr } = await supabase.rpc(
+          "fn_user_belongs_to_tenant",
+          { p_tenant_id: bootTenant.id }
+        );
+        if (belongsErr || belongs !== true) {
+          await supabase.auth.signOut();
+          throw new Error("Este usuário não pertence ao cliente acessado.");
+        }
+      }
+
+      const usuarioQuery = (supabase as any)
         .from("usuario")
         .select("id, tenant_id, empresa_id, armazem_id, ativo, nome, tipo_usuario, deve_trocar_senha")
-        .eq("auth_user_id", userId)
-        .single();
+        .eq("auth_user_id", userId);
+      if (bootTenant) usuarioQuery.eq("tenant_id", bootTenant.id);
+
+      const { data: usuario, error: userError } = await usuarioQuery.single();
 
       if (userError || !usuario) {
         await supabase.auth.signOut();
@@ -92,6 +119,13 @@ export function ColetorLoginPage({ onNavigate }: Props) {
           </div>
           <h1 className="text-2xl font-bold text-white">CORE <span className="text-[hsl(217,91%,60%)]">Coletor</span></h1>
           <p className="text-sm text-[hsl(213,31%,55%)]">WMS – Login do Operador</p>
+          {bootTenant && (
+            <div className="mt-1 px-3 py-1 rounded-full bg-[hsl(217,91%,50%)]/15 border border-[hsl(217,91%,50%)]/30">
+              <span className="text-[11px] uppercase tracking-wide text-[hsl(217,91%,70%)] font-semibold">
+                Cliente: {bootTenant.nome}
+              </span>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
 import { PermissionsProvider } from "./contexts/PermissionsContext";
+import { TenantBootProvider, useTenantBoot } from "./contexts/TenantBootContext";
+import { TenantBootSplash, TenantBootError, TenantPickerPage } from "./components/tenant/TenantBootScreens";
 import { UpdatePrompt } from "./components/pwa/UpdatePrompt";
 import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
@@ -357,6 +359,7 @@ function getInitialPath() {
 
 function AppContent() {
   const { tenantId, empresaId, loading, authenticated, login } = useTenant();
+  const boot = useTenantBoot();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
 
   // Sync hash with state
@@ -377,6 +380,22 @@ function AppContent() {
 
   // Detect if we're in coletor mode
   const isColetor = currentPath.startsWith("/coletor");
+
+  // ===== Gate: identificação do tenant via subdomínio =====
+  if (boot.status === "loading") return <TenantBootSplash />;
+  if (boot.status === "not-found" || boot.status === "inactive" || boot.status === "error") {
+    return <TenantBootError />;
+  }
+  // boot.status === "no-subdomain" → portal neutro, exceto:
+  //  - rotas de suporte da plataforma (acessíveis em app.*)
+  //  - rotas do coletor (modo dev/legado)
+  // Caso o usuário já esteja autenticado (legado em preview/lovable.app), permite seguir.
+  if (boot.status === "no-subdomain"
+      && !currentPath.startsWith("/suporte")
+      && !isColetor
+      && !authenticated) {
+    return <TenantPickerPage />;
+  }
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground">Carregando...</span></div>;
 
@@ -428,11 +447,13 @@ function AppContent() {
 
 export default function App() {
   return (
-    <TenantProvider>
-      <PermissionsProvider>
-        <UpdatePrompt />
-        <AppContent />
-      </PermissionsProvider>
-    </TenantProvider>
+    <TenantBootProvider>
+      <TenantProvider>
+        <PermissionsProvider>
+          <UpdatePrompt />
+          <AppContent />
+        </PermissionsProvider>
+      </TenantProvider>
+    </TenantBootProvider>
   );
 }
