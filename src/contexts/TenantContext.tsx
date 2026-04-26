@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSubdomainTenantSlug } from "@/lib/tenantSubdomain";
 
 interface TenantContextType {
   tenantId: string | null;
