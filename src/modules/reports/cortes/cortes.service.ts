@@ -78,11 +78,14 @@ export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow
   return rows;
 }
 
-export async function fetchMotivosOcorrencia(tenantId: string) {
-  const { data } = await supabase
+export async function fetchMotivosOcorrencia(tenantId: string, armazemId?: string | null) {
+  let q = supabase
     .from("motivo_ocorrencia")
     .select("id, descricao")
+    .eq("tenant_id", tenantId)
     .eq("ativo", true)
     .order("descricao");
+  if (armazemId) q = q.eq("armazem_id", armazemId);
+  const { data } = await q;
   return data ?? [];
 }
