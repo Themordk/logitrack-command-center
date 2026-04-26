@@ -6,11 +6,13 @@ import { nowBrasilia } from "@/lib/dateUtils";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 import { useTenant } from "@/contexts/TenantContext";
+import { useTenantBoot } from "@/contexts/TenantBootContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function ColetorLoginPage({ onNavigate }: Props) {
   const { login: syncTenantSession } = useTenant();
+  const { tenant: bootTenant } = useTenantBoot();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
