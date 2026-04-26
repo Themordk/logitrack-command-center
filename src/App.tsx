@@ -99,6 +99,12 @@ import { InventarioListPage } from "./pages/coletor/InventarioListPage";
 import { InventarioEnderecoPage } from "./pages/coletor/InventarioEnderecoPage";
 import { InventarioProdutoPage } from "./pages/coletor/InventarioProdutoPage";
 
+// Suporte da plataforma
+import { SupportRoute } from "./components/suporte/SupportRoute";
+import { SupportTenantsPage } from "./pages/suporte/SupportTenantsPage";
+import { SupportTenantDetailPage } from "./pages/suporte/SupportTenantDetailPage";
+import { SupportChamadosPage } from "./pages/suporte/SupportChamadosPage";
+
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
   "/rastreabilidade": [{ label: "CORE LogiTrack" }, { label: "Rastreabilidade" }],
@@ -373,6 +379,26 @@ function AppContent() {
   const isColetor = currentPath.startsWith("/coletor");
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-muted-foreground">Carregando...</span></div>;
+
+  // Rotas de SUPORTE DA PLATAFORMA (independentes do tenant)
+  if (currentPath.startsWith("/suporte")) {
+    const renderSupport = () => {
+      const detalheMatch = currentPath.match(/^\/suporte\/tenants\/([^/?]+)/);
+      if (detalheMatch) {
+        return <SupportTenantDetailPage tenantId={detalheMatch[1]} onNavigate={navigate} />;
+      }
+      if (currentPath.startsWith("/suporte/chamados")) {
+        const params = new URLSearchParams(currentPath.split("?")[1] || "");
+        return <SupportChamadosPage onNavigate={navigate} tenantId={params.get("tenant_id") || undefined} />;
+      }
+      return <SupportTenantsPage onNavigate={navigate} />;
+    };
+    return (
+      <SupportRoute onUnauthorized={() => navigate("/")}>
+        {renderSupport()}
+      </SupportRoute>
+    );
+  }
 
   // Coletor routes handle their own auth
   if (isColetor) {
