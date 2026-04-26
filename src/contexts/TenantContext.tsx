@@ -52,9 +52,35 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setUsuarioNome(localStorage.getItem("core_usuario_nome"));
   };
 
+  // Verifica se o tenant gravado no localStorage bate com o tenant resolvido pelo subdomínio.
+  // Se houver mismatch, derruba a sessão imediatamente (defesa contra adulteração de localStorage
+  // ou troca de subdomínio com sessão antiga).
+  const enforceTenantSubdomainGuard = async (): Promise<boolean> => {
+    const slug = getSubdomainTenantSlug();
+    if (!slug) return true; // sem subdomínio (preview/dev/portal neutro) → sem trava
+    try {
+      const raw = sessionStorage.getItem("core_boot_tenant");
+      const boot = raw ? JSON.parse(raw) : null;
+      if (!boot?.id) return true; // boot ainda não resolveu
+      const stored = localStorage.getItem("core_tenant_id");
+      if (stored && stored !== boot.id) {
+        console.warn("[TenantContext] Mismatch tenant subdomínio×sessão. Encerrando sessão.");
+        await supabase.auth.signOut();
+        clearStorage();
+        setAuthenticated(false);
+        return false;
+      }
+    } catch {
+      /* ignore */
+    }
+    return true;
+  };
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        const ok = await enforceTenantSubdomainGuard();
+        if (!ok) { setLoading(false); return; }
         loadFromStorage();
         setAuthenticated(true);
       } else {
@@ -64,10 +90,13 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        loadFromStorage();
-        setAuthenticated(true);
+        const ok = await enforceTenantSubdomainGuard();
+        if (ok) {
+          loadFromStorage();
+          setAuthenticated(true);
+        }
       }
       setLoading(false);
     });
