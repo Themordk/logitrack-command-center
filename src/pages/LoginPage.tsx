@@ -53,11 +53,24 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
           throw new Error("Conta não autorizada para o painel de suporte.");
         }
 
+        // === Redirecionamento limpo (sem reload) — define hash ANTES de notificar o app ===
+        // 1) Marca a flag de suporte ANTES de qualquer render para o guard anti-flash do AppContent.
         localStorage.setItem("core_is_platform_support", "1");
         localStorage.setItem("core_usuario_nome", who.nome || "Suporte");
+        // 2) Limpa caches que pertencem ao fluxo de tenant comum.
+        sessionStorage.removeItem("core_rbac_permissions");
+        Object.keys(sessionStorage)
+          .filter((k) => k.startsWith("core_is_admin_"))
+          .forEach((k) => sessionStorage.removeItem(k));
+        // 3) Garante que o destino correto já está no hash antes do React reagir.
+        if (window.location.hash.replace("#", "") !== "/suporte/tenants") {
+          window.location.hash = "/suporte/tenants";
+        }
+        // 4) Mostra overlay anti-flash enquanto o AppContent reage e renderiza SupportRoute.
+        setRedirectingSupport(true);
         toast.success(`Bem-vindo, ${who.nome || "Suporte"}!`);
-        window.location.hash = "/suporte/tenants";
-        window.location.reload();
+        // 5) Notifica o TenantContext (sem reload da página).
+        onLogin();
         return;
       }
 
