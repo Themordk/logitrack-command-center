@@ -20,11 +20,13 @@ const sb = supabase as any;
 
 export function DashboardFilters({
   tenantId,
+  empresaId,
   defaultArmazemId,
   value,
   onChange,
 }: {
   tenantId: string;
+  empresaId?: string | null;
   defaultArmazemId: string | null;
   value: FiltersState;
   onChange: (v: FiltersState) => void;
@@ -38,9 +40,10 @@ export function DashboardFilters({
 
   useEffect(() => {
     if (!tenantId) return;
-    sb.from("armazem").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao")
-      .then(({ data }: any) => setArmazens(data || []));
-  }, [tenantId]);
+    let q = sb.from("armazem").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    if (empresaId) q = q.eq("empresa_id", empresaId);
+    q.then(({ data }: any) => setArmazens(data || []));
+  }, [tenantId, empresaId]);
 
   useEffect(() => {
     if (!tenantId) return;
