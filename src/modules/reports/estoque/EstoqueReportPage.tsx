@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
 
 export function EstoqueReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -35,20 +35,35 @@ export function EstoqueReportPage() {
 
 
   useEffect(() => {
-    if (!tenantId) return;
-    supabase.from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
+    if (!tenantId || !empresaId) {
+      setArmazens([]); setTiposEstoque([]); setSetores([]);
+      return;
+    }
+    supabase.from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }) => setArmazens(data || []));
-    (supabase as any).from("tipo_estoque").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
-      .then(({ data }: any) => setTiposEstoque(data || []));
-    (supabase as any).from("setor").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true)
-      .then(({ data }: any) => setSetores(data || []));
-  }, [tenantId]);
+
+    const armazemFiltro = filterArmazemId || armazemId;
+    if (armazemFiltro) {
+      (supabase as any).from("tipo_estoque").select("id, descricao")
+        .eq("tenant_id", tenantId).eq("armazem_id", armazemFiltro).eq("ativo", true).order("descricao")
+        .then(({ data }: any) => setTiposEstoque(data || []));
+      (supabase as any).from("setor").select("id, descricao")
+        .eq("tenant_id", tenantId).eq("armazem_id", armazemFiltro).eq("ativo", true).order("descricao")
+        .then(({ data }: any) => setSetores(data || []));
+    } else {
+      setTiposEstoque([]); setSetores([]);
+    }
+  }, [tenantId, empresaId, armazemId, filterArmazemId, empresaVersion]);
 
   // Reset relatório ao trocar empresa
   useEffect(() => {
     setData([]);
     setGenerated(false);
     setGeneratedAt("");
+    setFilterArmazemId("");
+    setFilterTipoEstoqueId("");
+    setFilterSetorId("");
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
