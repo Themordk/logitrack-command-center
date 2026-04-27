@@ -154,7 +154,7 @@ export function useCrud<T extends Record<string, any>>({
 
   const create = async (record: Partial<T>) => {
     try {
-      const payload: any = { ...record, tenant_id: tenantId };
+      const payload: any = { ...record, tenant_id: safeTenantId };
       if (requiresEmpresa && empresaId && payload.empresa_id == null) {
         payload.empresa_id = empresaId;
       }
