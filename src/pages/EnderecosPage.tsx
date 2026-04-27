@@ -169,6 +169,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         title={editItem ? "Editar Endereço" : "Novo Endereço"}
         fields={fields}
         initialData={editItem}
+        onFormChange={(form) => setFormArmazemId(form.armazem_id || "")}
         onSave={handleSave}
       />
       <DeleteConfirmDialog
