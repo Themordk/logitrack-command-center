@@ -9,42 +9,25 @@ import { Printer, Layers } from "lucide-react";
 import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
-  const { tenantId, armazemId, empresaVersion } = useTenant();
-  const crud = useCrud({ table: "endereco", tenantId, orderBy: "descricao" });
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
-  const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
-  const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
-
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
-  const [printOpen, setPrintOpen] = useState(false);
-
-  const handlePrintSelected = () => {
-    const selected = crud.data.filter((r) => selectedIds.has(r.id));
-    if (selected.length === 0) return;
-    setPrintEnderecos(selected);
-    setPrintOpen(true);
-  };
-
-  const handlePrintSingle = (row: any) => {
-    setPrintEnderecos([row]);
-    setPrintOpen(true);
-  };
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
+  // ... keep existing code
+  // (a linha original `const { tenantId, armazemId, empresaVersion } = useTenant();` foi expandida)
 
   useEffect(() => {
     if (tenantId && armazemId) {
       fetchOptions("setor", tenantId, "descricao", { armazem_id: armazemId }).then(setSetorOptions);
-      fetchOptions("tipo_estoque", tenantId, "descricao", { armazem_id: armazemId }).then(setTipoEstoqueOptions);
     } else {
       setSetorOptions([]);
+    }
+    if (tenantId && empresaId) {
+      fetchOptions("tipo_estoque", tenantId, "descricao", { empresa_id: empresaId }).then(setTipoEstoqueOptions);
+    } else {
       setTipoEstoqueOptions([]);
     }
     setSelectedIds(new Set());
     setModalOpen(false);
     setEditItem(null);
-  }, [tenantId, armazemId, empresaVersion]);
+  }, [tenantId, empresaId, armazemId, empresaVersion]);
 
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
