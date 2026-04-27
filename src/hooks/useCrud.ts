@@ -35,8 +35,9 @@ const TABLES_WITH_EMPRESA_AND_ARMAZEM = new Set([
 ]);
 
 // Tabelas sem empresa_id direto, mas que pertencem a um armazém — filtradas pelo armazém ativo
+// OBS: "setor" foi removido daqui porque o armazém é selecionado manualmente no formulário
+// (a tela lista setores de todos os armazéns do tenant — RLS garante o isolamento).
 const TABLES_WITH_ARMAZEM = new Set([
-  "setor",
   "endereco",
   "box",
   "turnos",
