@@ -10,8 +10,28 @@ import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaE
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
-  // ... keep existing code
-  // (a linha original `const { tenantId, armazemId, empresaVersion } = useTenant();` foi expandida)
+  const crud = useCrud({ table: "endereco", tenantId, orderBy: "descricao" });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
+  const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
+  const [printOpen, setPrintOpen] = useState(false);
+
+  const handlePrintSelected = () => {
+    const selected = crud.data.filter((r) => selectedIds.has(r.id));
+    if (selected.length === 0) return;
+    setPrintEnderecos(selected);
+    setPrintOpen(true);
+  };
+
+  const handlePrintSingle = (row: any) => {
+    setPrintEnderecos([row]);
+    setPrintOpen(true);
+  };
 
   useEffect(() => {
     if (tenantId && armazemId) {
