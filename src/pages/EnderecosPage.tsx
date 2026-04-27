@@ -9,7 +9,7 @@ import { Printer, Layers } from "lucide-react";
 import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
-  const { tenantId, armazemId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const crud = useCrud({ table: "endereco", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -36,15 +36,18 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   useEffect(() => {
     if (tenantId && armazemId) {
       fetchOptions("setor", tenantId, "descricao", { armazem_id: armazemId }).then(setSetorOptions);
-      fetchOptions("tipo_estoque", tenantId, "descricao", { armazem_id: armazemId }).then(setTipoEstoqueOptions);
     } else {
       setSetorOptions([]);
+    }
+    if (tenantId && empresaId) {
+      fetchOptions("tipo_estoque", tenantId, "descricao", { empresa_id: empresaId }).then(setTipoEstoqueOptions);
+    } else {
       setTipoEstoqueOptions([]);
     }
     setSelectedIds(new Set());
     setModalOpen(false);
     setEditItem(null);
-  }, [tenantId, armazemId, empresaVersion]);
+  }, [tenantId, empresaId, armazemId, empresaVersion]);
 
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
