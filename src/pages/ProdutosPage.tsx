@@ -509,7 +509,7 @@ function ProdutoDetailModal({
 
 // ─── Main Produtos Page ────────────────────────────────────────────
 export function ProdutosPage() {
-  const { tenantId, empresaId, armazemId } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const crud = useCrud({ table: "produto", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
