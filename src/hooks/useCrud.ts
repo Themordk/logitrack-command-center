@@ -221,26 +221,37 @@ export function useCrud<T extends Record<string, any>>({
   };
 }
 
+// Tabelas que NÃO possuem coluna `ativo` — fetchOptions deve pular o filtro nelas.
+const TABLES_WITHOUT_ATIVO = new Set(["zona_atividade"]);
+
 // Helper de selects: filtra opções por tenant + ativo + filters extras.
 // Aceita filters como { empresa_id, armazem_id, ... } para escopo correto.
+// Use opts.activeOnly = false para tabelas sem coluna ativo (ou deixe automático via TABLES_WITHOUT_ATIVO).
 export async function fetchOptions(
   table: string,
   tenantId: string,
   labelField = "descricao",
-  filters?: Record<string, any>
+  filters?: Record<string, any>,
+  opts?: { activeOnly?: boolean }
 ) {
+  const activeOnly = opts?.activeOnly ?? !TABLES_WITHOUT_ATIVO.has(table);
   let query = (supabase as any)
     .from(table)
     .select(`id, ${labelField}`)
     .eq("tenant_id", tenantId)
-    .eq("ativo", true)
     .order(labelField);
+  if (activeOnly) {
+    query = query.eq("ativo", true);
+  }
   if (filters) {
     Object.entries(filters).forEach(([k, v]) => {
       if (v) query = query.eq(k, v);
     });
   }
   const { data, error } = await query;
-  if (error) return [];
+  if (error) {
+    console.warn(`[fetchOptions] erro ao carregar ${table}:`, error.message);
+    return [];
+  }
   return (data || []).map((d: any) => ({ value: d.id, label: d[labelField] || d.id }));
 }
