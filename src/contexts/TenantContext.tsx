@@ -72,11 +72,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const switchTimer = useRef<number | null>(null);
 
   const loadFromStorage = () => {
-    setTenantId(localStorage.getItem("core_tenant_id"));
-    setEmpresaId(localStorage.getItem("core_empresa_id"));
-    setArmazemId(localStorage.getItem("core_armazem_id"));
-    setUsuarioId(localStorage.getItem("core_usuario_id"));
-    setUsuarioNome(localStorage.getItem("core_usuario_nome"));
+    setTenantId(readSanitizedId("core_tenant_id"));
+    setEmpresaId(readSanitizedId("core_empresa_id"));
+    setArmazemId(readSanitizedId("core_armazem_id"));
+    setUsuarioId(readSanitizedId("core_usuario_id"));
+    setUsuarioNome(readPlainString("core_usuario_nome"));
   };
 
   // Verifica se o tenant gravado no localStorage bate com o tenant resolvido pelo subdomínio.
