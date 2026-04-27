@@ -1,71 +1,99 @@
-## Criar Tenant a partir do módulo de Suporte
 
-Adicionar fluxo para que o suporte da plataforma cadastre um novo cliente (tenant) já com sua primeira empresa, diretamente em `/#/suporte/tenants`.
+# Revisão geral dos dropdowns do sistema
 
----
+## Diagnóstico
 
-### 1) UI — botão e modal em `SupportTenantsPage.tsx`
+Após as mudanças recentes (mover `tipo_estoque` para escopo de empresa, remover `setor` do escopo automático de armazém, isolamento por empresa no TopNav, etc.), vários dropdowns de cadastros administrativos ficaram vazios. As causas se enquadram em 4 padrões:
 
-- Adicionar botão **"+ Novo Tenant"** no cabeçalho do card (à esquerda do campo de busca), no mesmo padrão visual usado em outras telas administrativas (ícone `Plus`, primário).
-- Ao clicar, abrir um novo modal `SupportCreateTenantModal` (componente novo em `src/components/suporte/SupportCreateTenantModal.tsx`), seguindo o mesmo design do `SupportCreateUsuarioModal` (overlay escuro + card com bordas/cores do tema).
+1. **Filtro por coluna inexistente** — `fetchOptions` é chamado com `armazem_id` em tabelas que só têm `empresa_id` (ou vice-versa), produzindo `0 linhas` sem erro visível.
+2. **`fetchOptions` força `eq("ativo", true)`** em tabelas que não possuem coluna `ativo` — gera erro de coluna e o select volta `[]`.
+3. **Falta de filtro por empresa em tabelas multi-empresa** — listagens dropdown vazam ou ficam vazias quando contexto muda.
+4. **Falta de re-fetch ao trocar empresa no TopNav** — alguns `useEffect` não dependem de `empresaVersion`/`empresaId`.
 
-**Campos do formulário** (todos obrigatórios salvo indicação):
+### Mapa banco × código (problemas confirmados)
 
-Seção **Tenant**
-- Nome do Tenant (texto)
-- Slug (texto, lowercase, `[a-z0-9-]{2,40}`) — usado no subdomínio `{slug}.corelogitrack.com.br`. Sugerir slug automaticamente a partir do nome (normaliza acentos, espaços → `-`), mas editável.
+| Tabela | Tem `empresa_id` | Tem `armazem_id` | Tem `ativo` | Filtro usado hoje | Status |
+|---|---|---|---|---|---|
+| armazem | ✅ | ❌ | ✅ | `empresa_id` | OK |
+| empresa | ❌ | ❌ | ✅ | nenhum | OK |
+| perfil | ❌ | ❌ | ✅ | nenhum | OK |
+| grupo_produto | ✅ | ❌ | ✅ | nenhum em ProdutosPage | **Falta filtro empresa** |
+| subgrupo_produto | ✅ | ❌ | ✅ | nenhum em ProdutosPage | **Falta filtro empresa** |
+| parceiro | ✅ | ❌ | ✅ | nenhum em ProdutosPage | **Falta filtro empresa** |
+| tipo_estoque | ✅ | ✅ | ✅ | `empresa_id` | OK |
+| setor | ❌ | ✅ | ✅ | `armazem_id` | OK |
+| box | ❌ | ✅ | ✅ | `armazem_id` | OK |
+| tipo_box | ❌ | ✅ | ✅ | `armazem_id` | OK |
+| turnos | ❌ | ✅ | ✅ | `armazem_id` | OK |
+| motivo_ocorrencia | ❌ | ✅ | ✅ | `armazem_id` | OK |
+| rotas | ✅ | ✅ | ✅ | varia | **Inconsistente** (SaidasPage/ParceirosPage) |
+| veiculos | ✅ | ❌ | ✅ | nenhum (SaidasPage) | **Falta filtro empresa** |
+| zona_atividade | ❌ | ❌ | ❌ (sem coluna ativo) | n/a | **`fetchOptions` quebra** se chamado |
+| picking_produto | ❌ | ✅ | ✅ | — | OK |
 
-Seção **Primeira Empresa**
-- Razão Social (texto)
-- CNPJ (texto, máscara opcional)
-- Código (texto curto, exibido no seletor de empresa do TopNav)
+### Pontos específicos quebrados / fragilizados
 
-Validações no front (zod ou inline): nome ≥ 2 chars, slug com regex acima, CNPJ não vazio (apenas dígitos, 14), razão social ≥ 2 chars, código não vazio.
+1. **`UsuariosPage`** — `empresa` e `perfil` carregam OK, mas se usuário trocar de empresa no TopNav o `armazemOptions` só atualiza se houver `armazemId` do contexto novo (o `useEffect` já tem `empresaVersion`, OK). Verificar caso `armazemId` ficar nulo após troca.
 
-Após sucesso: fechar modal, exibir `toast.success`, chamar `fetchTenants(filtro)` para refletir o novo tenant na lista.
+2. **`ProdutosPage`** — `grupo_produto`, `subgrupo_produto` e `parceiro` são chamados sem filtro de `empresa_id`. Em ambiente multi-empresa, lista dados de outras empresas (vazamento) ou aparece vazio quando RLS filtrar (depende do contexto). Adicionar filtro `empresa_id` e dependência `empresaVersion`.
 
----
+3. **`SaidasPage`** — `fetchOptions("veiculos", ...)` sem filtro: tabela tem `empresa_id`. Adicionar `{ empresa_id: empresaId }`. `rotas` filtra só por `armazem_id` mas deveria também filtrar por `empresa_id` (consistência com `ParceirosPage`).
 
-### 2) Edge function nova — `support-create-tenant`
+4. **`ParceirosPage`** — só chama `fetchOptions("rotas")` quando `armazemId && empresaId` existem; OK, mas agora exige rotas com **ambos** preenchidos. Confirmado que rotas tem ambos no banco.
 
-Local: `supabase/functions/support-create-tenant/index.ts`.
-Reutiliza `authenticateSupport` e `corsHeaders` do `_shared/support-auth.ts` (mesmo padrão das outras edge functions de suporte, usando service role para contornar RLS).
+5. **`fetchOptions` (helper)** — força `.eq("ativo", true)` em todas as tabelas. Quebra silenciosamente em qualquer tabela sem coluna `ativo` (ex.: `zona_atividade`). Tornar a flag condicional: detectar se a tabela suporta `ativo` ou aceitar parâmetro `{ activeOnly?: boolean }`.
 
-Fluxo:
-1. `OPTIONS` → CORS.
-2. Autenticar via `authenticateSupport(req)` (whitelist + `platform_support_user.ativo`).
-3. Validar body com zod: `nome`, `slug`, `razaosocial`, `cnpj`, `codigo`.
-4. Normalizar: `slug.toLowerCase().trim()`, `cnpj` apenas dígitos.
-5. Verificar unicidade:
-   - `tenant.slug` já existente → 409 "Slug já em uso".
-   - `empresa.cnpj` (globalmente, ou ao menos dentro do tenant — manter consistente com regra atual; usar global por segurança) → 409 se existir.
-6. Inserir em `tenant` (`nome`, `slug`, `ativo: true`) → obter `tenant.id`.
-7. Inserir em `empresa` (`tenant_id`, `razaosocial`, `cnpj`, `codigo`, `ativo: true`).
-8. Em caso de erro no insert da empresa: rollback manual deletando o tenant recém-criado para não deixar tenant órfão.
-9. Retornar `{ success: true, tenant: { id, nome, slug }, empresa: { id, codigo } }`.
+6. **`SetoresPage` listagem** — já corrigido em mensagem anterior (removido de `TABLES_WITH_ARMAZEM`), mas a aba de "Endereços > Cadastro em Lote" e seleção de setor no formulário precisam mostrar setores de TODOS os armazéns da empresa (visto que o usuário escolhe o armazém manualmente). Hoje filtra só pelo `armazemId` do contexto, escondendo setores quando o usuário trocar de armazém depois.
 
-Não cria usuário nesta etapa — o suporte já tem o botão "Cadastrar usuário" por linha na lista para popular o tenant em seguida.
+7. **Re-fetch em troca de empresa** — várias páginas dependem só de `[tenantId]` e não de `empresaVersion`. Lista: `ProdutosPage`, `SubgruposPage` (parcial — depende de `empresaId` mas não de `empresaVersion`).
 
----
+## Correções propostas
 
-### 3) Sem migrações de banco
+### A. Helper `fetchOptions` (`src/hooks/useCrud.ts`)
+- Adicionar 5º argumento opcional `options?: { activeOnly?: boolean; orderBy?: string }`.
+- Default `activeOnly = true`, mas tornar `false` para tabelas sem coluna `ativo`.
+- Manter assinatura retrocompatível.
 
-As tabelas `tenant` e `empresa` já têm todas as colunas necessárias (`tenant`: `nome`, `slug`, `ativo`; `empresa`: `tenant_id`, `razaosocial`, `cnpj`, `codigo`, `ativo`). A edge function usa `service_role`, então as RLS de tenant_id não bloqueiam o insert.
+### B. `ProdutosPage.tsx`
+- Filtrar `grupo_produto`, `subgrupo_produto` e `parceiro` por `empresa_id`.
+- Incluir `empresaId` e `empresaVersion` nas dependências do `useEffect`.
 
----
+### C. `SaidasPage.tsx`
+- `fetchOptions("veiculos", ...)` → adicionar `{ empresa_id: empresaId }`.
+- `fetchOptions("rotas", ...)` → adicionar `empresa_id` ao filtro (manter `armazem_id`).
+- Validar `empresaId` antes de abrir o modal.
 
-### 4) Memória
+### D. `ParceirosPage.tsx`
+- Manter como está — funcional. Apenas garantir que mensagem clara aparece se `armazemId`/`empresaId` faltarem (rotas exige ambos).
 
-Atualizar `mem://features/platform-support-module.md` (sem alterar `mem://index.md`) acrescentando que o módulo de suporte agora também provisiona novos tenants (tenant + 1ª empresa) via `support-create-tenant`.
+### E. `EnderecosPage.tsx` e `EnderecosBatchPage.tsx`
+- Já corrigidos em iterações anteriores. Sem alteração.
 
----
+### F. `UsuariosPage.tsx`
+- Sem alteração estrutural; adicionar comentário explicativo. (Já depende de `empresaVersion`.)
 
-### Arquivos
+### G. `NovoInventarioPage.tsx`
+- `zona_atividade` é consultado direto via `supabase.from("zona_atividade").select(...)` sem `.eq("ativo", ...)` — OK, não passa por `fetchOptions`. Sem alteração.
 
-**Novos**
-- `supabase/functions/support-create-tenant/index.ts`
-- `src/components/suporte/SupportCreateTenantModal.tsx`
+### H. Documentar padrão na memória
+- Atualizar `mem://logic/master-data-logistics` ou criar nota curta com regra: "Sempre filtrar dropdowns pelo escopo correto da tabela (empresa_id vs armazem_id) e re-fetch em `empresaVersion`".
 
-**Editados**
-- `src/pages/suporte/SupportTenantsPage.tsx` (botão + estado do modal + refresh)
-- `mem://features/platform-support-module.md`
+## Resumo dos arquivos a alterar
+
+```
+src/hooks/useCrud.ts          → fetchOptions: parâmetro activeOnly opcional
+src/pages/ProdutosPage.tsx    → filtrar dropdowns por empresa_id + empresaVersion
+src/pages/SaidasPage.tsx      → filtrar veiculos/rotas por empresa_id
+mem://logic/dropdown-scoping  → nova nota de regra (ou append em existente)
+```
+
+Sem mudanças de banco, sem migrações, sem novas edge functions.
+
+## Validação após implementação
+
+1. Tela **Produtos** → modal mostra grupos/subgrupos/parceiros da empresa atual; troca de empresa atualiza listas.
+2. Tela **Saídas** → botão "Gerar Onda" mostra Box/Rotas do armazém e Veículos da empresa.
+3. Tela **Endereços** (novo + lote) → Setor (do armazém ativo) e Tipo de Estoque (da empresa ativa) populados.
+4. Tela **Setores** → lista renderiza, campo Armazém no modal aparece preenchido.
+5. Tela **Box / Tipo Box / Turnos / Motivos** → dropdowns dependentes de `armazem_id` populados.
+6. Trocar empresa no TopNav refaz todas as consultas acima.
