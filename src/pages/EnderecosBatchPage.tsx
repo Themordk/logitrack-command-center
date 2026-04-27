@@ -81,12 +81,15 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
     setTipoEstoqueId("");
     if (tenantId && armazemId) {
       fetchOptions("setor", tenantId, "descricao", { armazem_id: armazemId }).then(setSetorOptions);
-      fetchOptions("tipo_estoque", tenantId, "descricao", { armazem_id: armazemId }).then(setTipoEstoqueOptions);
     } else {
       setSetorOptions([]);
+    }
+    if (tenantId && empresaId) {
+      fetchOptions("tipo_estoque", tenantId, "descricao", { empresa_id: empresaId }).then(setTipoEstoqueOptions);
+    } else {
       setTipoEstoqueOptions([]);
     }
-  }, [tenantId, armazemId, empresaVersion]);
+  }, [tenantId, empresaId, armazemId, empresaVersion]);
 
   const combos = useMemo(() => {
     const rIni = parseInt(ruaIni), rFim = parseInt(ruaFim);
