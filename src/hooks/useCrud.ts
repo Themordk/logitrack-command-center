@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/contexts/TenantContext";
+import { sanitizeId, isEmptyFilter } from "@/lib/uuid";
 
 // Tabelas com coluna empresa_id direta — filtradas/criadas vinculadas à empresa ativa
 const TABLES_WITH_EMPRESA = new Set([
@@ -66,7 +67,10 @@ export function useCrud<T extends Record<string, any>>({
   select = "*",
   filters = {},
 }: UseCrudOptions) {
-  const { empresaId, armazemId, empresaVersion } = useTenant();
+  const { empresaId: rawEmpresaId, armazemId: rawArmazemId, empresaVersion } = useTenant();
+  const empresaId = sanitizeId(rawEmpresaId);
+  const armazemId = sanitizeId(rawArmazemId);
+  const safeTenantId = sanitizeId(tenantId);
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -78,13 +82,14 @@ export function useCrud<T extends Record<string, any>>({
   const requiresEmpresa = TABLES_WITH_EMPRESA.has(table) || requiresBoth;
 
   const fetchData = useCallback(async () => {
-    if (!tenantId) {
+    if (!safeTenantId) {
       setData([]);
       setLoading(false);
       return;
     }
-    // Proteção contra vazamento de dados: se a tabela depende de armazém/empresa
-    // e o contexto ainda não está pronto, não consulta o tenant inteiro.
+    // Proteção contra vazamento de dados E contra filtros inválidos ("null", "undefined").
+    // Se a tabela depende de armazém/empresa e o contexto está faltando ou inválido,
+    // não consulta — evita 22P02 (invalid input syntax for type uuid).
     if (requiresArmazem && !armazemId) {
       setData([]);
       setTotal(0);
@@ -101,7 +106,7 @@ export function useCrud<T extends Record<string, any>>({
     setLoading(true);
     try {
       let query = (supabase as any).from(table).select(select, { count: "exact" });
-      query = query.eq("tenant_id", tenantId);
+      query = query.eq("tenant_id", safeTenantId);
 
       if (requiresEmpresa && empresaId) {
         query = query.eq("empresa_id", empresaId);
@@ -111,9 +116,8 @@ export function useCrud<T extends Record<string, any>>({
       }
 
       Object.entries(filters).forEach(([key, val]) => {
-        if (val !== undefined && val !== null && val !== "" && val !== "all") {
-          query = query.eq(key, val);
-        }
+        if (isEmptyFilter(val)) return;
+        query = query.eq(key, val);
       });
 
       if (search) {
@@ -150,7 +154,7 @@ export function useCrud<T extends Record<string, any>>({
 
   const create = async (record: Partial<T>) => {
     try {
-      const payload: any = { ...record, tenant_id: tenantId };
+      const payload: any = { ...record, tenant_id: safeTenantId };
       if (requiresEmpresa && empresaId && payload.empresa_id == null) {
         payload.empresa_id = empresaId;
       }
@@ -234,18 +238,37 @@ export async function fetchOptions(
   filters?: Record<string, any>,
   opts?: { activeOnly?: boolean }
 ) {
+  // Bloqueia chamada com tenant inválido (ex.: "null" preservado em localStorage antigo).
+  const safeTenant = sanitizeId(tenantId);
+  if (!safeTenant) {
+    console.warn(`[fetchOptions] tenant_id inválido para ${table}; retornando []`);
+    return [];
+  }
+
+  // Se algum filtro foi PEDIDO mas veio vazio/inválido (null, "null", "", "all"...),
+  // não queremos consultar o tenant inteiro nem disparar 22P02 enviando "null" como UUID.
+  // Comportamento: retorna [] de forma segura.
+  if (filters) {
+    for (const [k, v] of Object.entries(filters)) {
+      if (isEmptyFilter(v)) {
+        console.warn(`[fetchOptions] ${table}: filtro "${k}" vazio/inválido — retornando []`);
+        return [];
+      }
+    }
+  }
+
   const activeOnly = opts?.activeOnly ?? !TABLES_WITHOUT_ATIVO.has(table);
   let query = (supabase as any)
     .from(table)
     .select(`id, ${labelField}`)
-    .eq("tenant_id", tenantId)
+    .eq("tenant_id", safeTenant)
     .order(labelField);
   if (activeOnly) {
     query = query.eq("ativo", true);
   }
   if (filters) {
     Object.entries(filters).forEach(([k, v]) => {
-      if (v) query = query.eq(k, v);
+      query = query.eq(k, v);
     });
   }
   const { data, error } = await query;

@@ -1,99 +1,248 @@
+# Plano de revisão e correção de consultas com `armazem_id='null'`
 
-# Revisão geral dos dropdowns do sistema
+## Diagnóstico confirmado
 
-## Diagnóstico
+A falha não está apenas na tela de Endereços. A causa raiz é que o sistema pode gravar o valor literal `"null"` no `localStorage` quando o usuário não possui `armazem_id` no cadastro.
 
-Após as mudanças recentes (mover `tipo_estoque` para escopo de empresa, remover `setor` do escopo automático de armazém, isolamento por empresa no TopNav, etc.), vários dropdowns de cadastros administrativos ficaram vazios. As causas se enquadram em 4 padrões:
+Exemplo atual:
 
-1. **Filtro por coluna inexistente** — `fetchOptions` é chamado com `armazem_id` em tabelas que só têm `empresa_id` (ou vice-versa), produzindo `0 linhas` sem erro visível.
-2. **`fetchOptions` força `eq("ativo", true)`** em tabelas que não possuem coluna `ativo` — gera erro de coluna e o select volta `[]`.
-3. **Falta de filtro por empresa em tabelas multi-empresa** — listagens dropdown vazam ou ficam vazias quando contexto muda.
-4. **Falta de re-fetch ao trocar empresa no TopNav** — alguns `useEffect` não dependem de `empresaVersion`/`empresaId`.
-
-### Mapa banco × código (problemas confirmados)
-
-| Tabela | Tem `empresa_id` | Tem `armazem_id` | Tem `ativo` | Filtro usado hoje | Status |
-|---|---|---|---|---|---|
-| armazem | ✅ | ❌ | ✅ | `empresa_id` | OK |
-| empresa | ❌ | ❌ | ✅ | nenhum | OK |
-| perfil | ❌ | ❌ | ✅ | nenhum | OK |
-| grupo_produto | ✅ | ❌ | ✅ | nenhum em ProdutosPage | **Falta filtro empresa** |
-| subgrupo_produto | ✅ | ❌ | ✅ | nenhum em ProdutosPage | **Falta filtro empresa** |
-| parceiro | ✅ | ❌ | ✅ | nenhum em ProdutosPage | **Falta filtro empresa** |
-| tipo_estoque | ✅ | ✅ | ✅ | `empresa_id` | OK |
-| setor | ❌ | ✅ | ✅ | `armazem_id` | OK |
-| box | ❌ | ✅ | ✅ | `armazem_id` | OK |
-| tipo_box | ❌ | ✅ | ✅ | `armazem_id` | OK |
-| turnos | ❌ | ✅ | ✅ | `armazem_id` | OK |
-| motivo_ocorrencia | ❌ | ✅ | ✅ | `armazem_id` | OK |
-| rotas | ✅ | ✅ | ✅ | varia | **Inconsistente** (SaidasPage/ParceirosPage) |
-| veiculos | ✅ | ❌ | ✅ | nenhum (SaidasPage) | **Falta filtro empresa** |
-| zona_atividade | ❌ | ❌ | ❌ (sem coluna ativo) | n/a | **`fetchOptions` quebra** se chamado |
-| picking_produto | ❌ | ✅ | ✅ | — | OK |
-
-### Pontos específicos quebrados / fragilizados
-
-1. **`UsuariosPage`** — `empresa` e `perfil` carregam OK, mas se usuário trocar de empresa no TopNav o `armazemOptions` só atualiza se houver `armazemId` do contexto novo (o `useEffect` já tem `empresaVersion`, OK). Verificar caso `armazemId` ficar nulo após troca.
-
-2. **`ProdutosPage`** — `grupo_produto`, `subgrupo_produto` e `parceiro` são chamados sem filtro de `empresa_id`. Em ambiente multi-empresa, lista dados de outras empresas (vazamento) ou aparece vazio quando RLS filtrar (depende do contexto). Adicionar filtro `empresa_id` e dependência `empresaVersion`.
-
-3. **`SaidasPage`** — `fetchOptions("veiculos", ...)` sem filtro: tabela tem `empresa_id`. Adicionar `{ empresa_id: empresaId }`. `rotas` filtra só por `armazem_id` mas deveria também filtrar por `empresa_id` (consistência com `ParceirosPage`).
-
-4. **`ParceirosPage`** — só chama `fetchOptions("rotas")` quando `armazemId && empresaId` existem; OK, mas agora exige rotas com **ambos** preenchidos. Confirmado que rotas tem ambos no banco.
-
-5. **`fetchOptions` (helper)** — força `.eq("ativo", true)` em todas as tabelas. Quebra silenciosamente em qualquer tabela sem coluna `ativo` (ex.: `zona_atividade`). Tornar a flag condicional: detectar se a tabela suporta `ativo` ou aceitar parâmetro `{ activeOnly?: boolean }`.
-
-6. **`SetoresPage` listagem** — já corrigido em mensagem anterior (removido de `TABLES_WITH_ARMAZEM`), mas a aba de "Endereços > Cadastro em Lote" e seleção de setor no formulário precisam mostrar setores de TODOS os armazéns da empresa (visto que o usuário escolhe o armazém manualmente). Hoje filtra só pelo `armazemId` do contexto, escondendo setores quando o usuário trocar de armazém depois.
-
-7. **Re-fetch em troca de empresa** — várias páginas dependem só de `[tenantId]` e não de `empresaVersion`. Lista: `ProdutosPage`, `SubgruposPage` (parcial — depende de `empresaId` mas não de `empresaVersion`).
-
-## Correções propostas
-
-### A. Helper `fetchOptions` (`src/hooks/useCrud.ts`)
-- Adicionar 5º argumento opcional `options?: { activeOnly?: boolean; orderBy?: string }`.
-- Default `activeOnly = true`, mas tornar `false` para tabelas sem coluna `ativo`.
-- Manter assinatura retrocompatível.
-
-### B. `ProdutosPage.tsx`
-- Filtrar `grupo_produto`, `subgrupo_produto` e `parceiro` por `empresa_id`.
-- Incluir `empresaId` e `empresaVersion` nas dependências do `useEffect`.
-
-### C. `SaidasPage.tsx`
-- `fetchOptions("veiculos", ...)` → adicionar `{ empresa_id: empresaId }`.
-- `fetchOptions("rotas", ...)` → adicionar `empresa_id` ao filtro (manter `armazem_id`).
-- Validar `empresaId` antes de abrir o modal.
-
-### D. `ParceirosPage.tsx`
-- Manter como está — funcional. Apenas garantir que mensagem clara aparece se `armazemId`/`empresaId` faltarem (rotas exige ambos).
-
-### E. `EnderecosPage.tsx` e `EnderecosBatchPage.tsx`
-- Já corrigidos em iterações anteriores. Sem alteração.
-
-### F. `UsuariosPage.tsx`
-- Sem alteração estrutural; adicionar comentário explicativo. (Já depende de `empresaVersion`.)
-
-### G. `NovoInventarioPage.tsx`
-- `zona_atividade` é consultado direto via `supabase.from("zona_atividade").select(...)` sem `.eq("ativo", ...)` — OK, não passa por `fetchOptions`. Sem alteração.
-
-### H. Documentar padrão na memória
-- Atualizar `mem://logic/master-data-logistics` ou criar nota curta com regra: "Sempre filtrar dropdowns pelo escopo correto da tabela (empresa_id vs armazem_id) e re-fetch em `empresaVersion`".
-
-## Resumo dos arquivos a alterar
-
-```
-src/hooks/useCrud.ts          → fetchOptions: parâmetro activeOnly opcional
-src/pages/ProdutosPage.tsx    → filtrar dropdowns por empresa_id + empresaVersion
-src/pages/SaidasPage.tsx      → filtrar veiculos/rotas por empresa_id
-mem://logic/dropdown-scoping  → nova nota de regra (ou append em existente)
+```ts
+localStorage.setItem("core_armazem_id", usuario.armazem_id)
 ```
 
-Sem mudanças de banco, sem migrações, sem novas edge functions.
+Quando `usuario.armazem_id` vem como `null` do banco, o navegador salva a string `"null"`. Depois o `TenantContext` lê isso como se fosse um ID válido:
+
+```ts
+setArmazemId(localStorage.getItem("core_armazem_id"))
+```
+
+Como `"null"` é uma string preenchida, várias consultas executam:
+
+```ts
+.eq("armazem_id", "null")
+```
+
+Isso gera a URL que você trouxe:
+
+```text
+armazem_id=eq.null
+```
+
+E o Postgres retorna:
+
+```text
+invalid input syntax for type uuid: "null"
+```
+
+Também confirmei no banco que existem usuários com `armazem_id` nulo, então esse cenário é real e recorrente.
+
+## Correção proposta
+
+### 1. Sanitizar o contexto global de armazém
+
+Ajustar `TenantContext` para nunca expor `armazemId = "null"`, `"undefined"` ou string vazia.
+
+Regras:
+
+```text
+null, undefined, "", "null", "undefined" => null
+UUID válido => mantém o valor
+valor inválido => null
+```
+
+Também limpar o `localStorage` se encontrar valor inválido, evitando que o erro volte ao recarregar a página.
+
+Arquivo:
+
+```text
+src/contexts/TenantContext.tsx
+```
+
+### 2. Corrigir gravação no login web e coletor
+
+Alterar os logins para só salvar `core_armazem_id` quando houver um UUID real. Caso contrário, remover a chave.
+
+Arquivos:
+
+```text
+src/pages/LoginPage.tsx
+src/pages/coletor/ColetorLoginPage.tsx
+```
+
+Resultado esperado:
+
+```ts
+if (usuario.armazem_id) {
+  localStorage.setItem("core_armazem_id", usuario.armazem_id);
+} else {
+  localStorage.removeItem("core_armazem_id");
+}
+```
+
+### 3. Blindar o helper `fetchOptions`
+
+Ajustar `fetchOptions` para ignorar filtros inválidos antes de montar a query.
+
+Hoje ele ignora apenas valores falsy, mas `"null"` é truthy. Será ajustado para ignorar:
+
+```text
+null, undefined, "", "all", "null", "undefined"
+```
+
+Arquivo:
+
+```text
+src/hooks/useCrud.ts
+```
+
+Isso corrige dropdowns como:
+
+```text
+setor
+box
+tipo_box
+turnos
+motivo_ocorrencia
+rotas
+```
+
+quando algum filtro opcional vier contaminado.
+
+### 4. Blindar o `useCrud` para listagens
+
+Mesmo que algum componente envie contexto inválido, o `useCrud` deve tratar `armazemId` e `empresaId` sanitizados antes de filtrar.
+
+Correções:
+
+- Se a tabela exige armazém e o armazém não é válido, não consultar a tabela inteira.
+- Retornar lista vazia com segurança.
+- Nunca montar `.eq("armazem_id", "null")`.
+
+Arquivo:
+
+```text
+src/hooks/useCrud.ts
+```
+
+Esse ponto cobre listagens como:
+
+```text
+Localizações / Endereços
+Box
+Turnos
+Motivos de Ocorrência
+Zonas de Atividade
+Picking Produto
+Rotas
+```
+
+### 5. Revisar consultas diretas com `.eq("armazem_id", armazemId)`
+
+Além do `useCrud` e `fetchOptions`, há consultas diretas que podem sofrer o mesmo erro se receberem `"null"`.
+
+Cenários identificados para revisão:
+
+```text
+src/pages/ProdutosPage.tsx
+- carrega endereços para picking por armazém
+
+src/pages/NovoInventarioPage.tsx
+- estima endereços
+- busca endereços
+- busca zonas por armazém
+- cria inventário com p_armazem_id
+
+src/pages/ZonasAtividadePage.tsx
+- carrega endereços vinculáveis à zona
+
+src/pages/IntegracaoPage.tsx
+- carrega/salva configuração ERP por armazém
+
+src/pages/EntradasPage.tsx
+- filtra documentos/boxes/armazéns em geração de entrada
+
+src/pages/MovimentoEntradaPage.tsx
+- carrega motivos por armazém
+
+src/pages/MovimentoSaidaPage.tsx
+- carrega motivos por armazém
+- gera abastecimento usando armazém do localStorage
+
+src/pages/SaidasPage.tsx
+- carrega box/rotas para gerar onda
+
+src/modules/reports/*
+- filtros de relatórios por armazém, especialmente Estoque, Validade/Lote, Ocupação e Ciclo do Pedido
+
+src/pages/coletor/*
+- telas que ainda leem `core_armazem_id` diretamente do localStorage
+```
+
+Aplicar o mesmo padrão: antes de qualquer `.eq("armazem_id", valor)` ou `p_armazem_id`, validar que o valor é um UUID real. Se for inválido, bloquear a ação com mensagem clara ou não executar a consulta.
+
+### 6. Mensagem amigável quando não houver armazém ativo
+
+Em telas que dependem obrigatoriamente de armazém, evitar erro técnico e exibir orientação operacional:
+
+```text
+Nenhum armazém ativo selecionado para a empresa atual. Cadastre/ative um armazém ou vincule um armazém ao usuário.
+```
+
+Aplicar prioritariamente em:
+
+```text
+Localizações / Endereços
+Box
+Turnos
+Motivos
+Zonas de Atividade
+Integração ERP
+Novo Inventário
+Movimentos operacionais
+```
+
+### 7. Ajuste opcional de dados existentes
+
+Sem migração obrigatória. Porém, como existem usuários com `armazem_id` nulo, a correção de código impedirá erro técnico, mas esses usuários continuarão sem armazém operacional.
+
+Depois da correção, será necessário revisar no cadastro de Usuários quais usuários devem ter armazém vinculado.
+
+## Arquivos principais a alterar
+
+```text
+src/contexts/TenantContext.tsx
+src/hooks/useCrud.ts
+src/pages/LoginPage.tsx
+src/pages/coletor/ColetorLoginPage.tsx
+src/pages/EnderecosPage.tsx
+src/pages/EnderecosBatchPage.tsx
+src/pages/BoxPage.tsx
+src/pages/SaidasPage.tsx
+src/pages/ProdutosPage.tsx
+src/pages/NovoInventarioPage.tsx
+src/pages/ZonasAtividadePage.tsx
+src/pages/IntegracaoPage.tsx
+src/pages/MovimentoEntradaPage.tsx
+src/pages/MovimentoSaidaPage.tsx
+src/modules/reports/* onde houver filtro direto por armazém
+```
 
 ## Validação após implementação
 
-1. Tela **Produtos** → modal mostra grupos/subgrupos/parceiros da empresa atual; troca de empresa atualiza listas.
-2. Tela **Saídas** → botão "Gerar Onda" mostra Box/Rotas do armazém e Veículos da empresa.
-3. Tela **Endereços** (novo + lote) → Setor (do armazém ativo) e Tipo de Estoque (da empresa ativa) populados.
-4. Tela **Setores** → lista renderiza, campo Armazém no modal aparece preenchido.
-5. Tela **Box / Tipo Box / Turnos / Motivos** → dropdowns dependentes de `armazem_id` populados.
-6. Trocar empresa no TopNav refaz todas as consultas acima.
+1. Entrar com usuário que tem `armazem_id` nulo.
+2. Confirmar que o `localStorage` não grava `core_armazem_id = "null"`.
+3. Abrir **Armazém > Localizações / Endereços**.
+4. Confirmar que a UI não faz request com `armazem_id=eq.null`.
+5. Abrir dropdowns de **Setor**, **Tipo de Estoque**, **Box**, **Rotas**, **Turnos** e **Motivos**.
+6. Trocar empresa no TopNav como ADMINISTRADOR.
+7. Confirmar que o armazém ativo é recalculado, e se não existir armazém na empresa, nenhuma query inválida é enviada.
+8. Revisar no Network que não existe mais nenhum request contendo:
+
+```text
+armazem_id=eq.null
+armazem_id=eq.undefined
+```
+
+## Resultado esperado
+
+Após a correção, o sistema não enviará mais `armazem_id='null'` para o Supabase. As telas dependentes de armazém passarão a ter comportamento seguro: carregar dados quando houver armazém válido ou exibir estado vazio/mensagem clara quando não houver armazém ativo.

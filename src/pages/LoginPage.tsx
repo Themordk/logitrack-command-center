@@ -151,8 +151,16 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
 
   const completeLogin = (usuario: any) => {
     localStorage.setItem("core_tenant_id", usuario.tenant_id);
-    localStorage.setItem("core_empresa_id", usuario.empresa_id);
-    localStorage.setItem("core_armazem_id", usuario.armazem_id);
+    if (usuario.empresa_id) {
+      localStorage.setItem("core_empresa_id", usuario.empresa_id);
+    } else {
+      localStorage.removeItem("core_empresa_id");
+    }
+    if (usuario.armazem_id) {
+      localStorage.setItem("core_armazem_id", usuario.armazem_id);
+    } else {
+      localStorage.removeItem("core_armazem_id");
+    }
     localStorage.setItem("core_usuario_id", usuario.id);
     localStorage.setItem("core_usuario_nome", usuario.nome);
     localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");

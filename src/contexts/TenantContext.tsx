@@ -1,6 +1,33 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSubdomainTenantSlug } from "@/lib/tenantSubdomain";
+import { sanitizeId } from "@/lib/uuid";
+
+/**
+ * Lê uma chave do localStorage, sanitizando contra strings inválidas como
+ * "null"/"undefined"/"" gravadas indevidamente em logins anteriores.
+ * Para chaves de ID (UUID), só retorna se for um UUID válido. Caso contrário,
+ * limpa a chave do storage e retorna null.
+ */
+function readSanitizedId(key: string): string | null {
+  const raw = localStorage.getItem(key);
+  const clean = sanitizeId(raw);
+  if (raw && !clean) {
+    // strings inválidas ("null", "undefined", "") são removidas para não voltarem após reload
+    localStorage.removeItem(key);
+  }
+  return clean;
+}
+
+function readPlainString(key: string): string | null {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return null;
+  if (raw === "null" || raw === "undefined") {
+    localStorage.removeItem(key);
+    return null;
+  }
+  return raw;
+}
 
 interface TenantContextType {
   tenantId: string | null;
@@ -45,11 +72,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const switchTimer = useRef<number | null>(null);
 
   const loadFromStorage = () => {
-    setTenantId(localStorage.getItem("core_tenant_id"));
-    setEmpresaId(localStorage.getItem("core_empresa_id"));
-    setArmazemId(localStorage.getItem("core_armazem_id"));
-    setUsuarioId(localStorage.getItem("core_usuario_id"));
-    setUsuarioNome(localStorage.getItem("core_usuario_nome"));
+    setTenantId(readSanitizedId("core_tenant_id"));
+    setEmpresaId(readSanitizedId("core_empresa_id"));
+    setArmazemId(readSanitizedId("core_armazem_id"));
+    setUsuarioId(readSanitizedId("core_usuario_id"));
+    setUsuarioNome(readPlainString("core_usuario_nome"));
   };
 
   // Verifica se o tenant gravado no localStorage bate com o tenant resolvido pelo subdomínio.
