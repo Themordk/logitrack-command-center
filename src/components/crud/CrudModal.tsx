@@ -26,9 +26,10 @@ interface CrudModalProps {
   fields: FieldSpec[];
   initialData?: Record<string, any> | null;
   onSave: (data: Record<string, any>) => Promise<boolean>;
+  onFormChange?: (form: Record<string, any>) => void;
 }
 
-export function CrudModal({ open, onClose, title, fields, initialData, onSave }: CrudModalProps) {
+export function CrudModal({ open, onClose, title, fields, initialData, onSave, onFormChange }: CrudModalProps) {
   const [form, setForm] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -48,12 +49,17 @@ export function CrudModal({ open, onClose, title, fields, initialData, onSave }:
         }
       });
       setForm(defaults);
+      onFormChange?.(defaults);
       setErrors({});
     }
   }, [open, initialData]);
 
   const set = (name: string, value: any) => {
-    setForm((p) => ({ ...p, [name]: value }));
+    setForm((p) => {
+      const next = { ...p, [name]: value };
+      onFormChange?.(next);
+      return next;
+    });
     setErrors((e) => { const n = { ...e }; delete n[name]; return n; });
   };
 

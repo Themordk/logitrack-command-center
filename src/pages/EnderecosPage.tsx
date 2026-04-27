@@ -14,6 +14,8 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [formArmazemId, setFormArmazemId] = useState("");
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
   const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
 
@@ -34,20 +36,26 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   };
 
   useEffect(() => {
-    if (tenantId && armazemId) {
-      fetchOptions("setor", tenantId, "descricao", { armazem_id: armazemId }).then(setSetorOptions);
-    } else {
-      setSetorOptions([]);
-    }
     if (tenantId && empresaId) {
+      fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(setArmazemOptions);
       fetchOptions("tipo_estoque", tenantId, "descricao", { empresa_id: empresaId }).then(setTipoEstoqueOptions);
     } else {
+      setArmazemOptions([]);
       setTipoEstoqueOptions([]);
     }
+    setFormArmazemId(armazemId || "");
     setSelectedIds(new Set());
     setModalOpen(false);
     setEditItem(null);
   }, [tenantId, empresaId, armazemId, empresaVersion]);
+
+  useEffect(() => {
+    if (tenantId && formArmazemId) {
+      fetchOptions("setor", tenantId, "descricao", { armazem_id: formArmazemId }).then(setSetorOptions);
+    } else {
+      setSetorOptions([]);
+    }
+  }, [tenantId, formArmazemId]);
 
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
@@ -71,6 +79,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   ];
 
   const fields: FieldSpec[] = [
+    { name: "armazem_id", label: "Armazém", type: "select", required: true, options: armazemOptions, defaultValue: armazemId || "" },
     { name: "setor_id", label: "Setor", type: "select", required: true, options: setorOptions },
     { name: "tipo_estoque_id", label: "Tipo de Estoque", type: "select", required: true, options: tipoEstoqueOptions },
     { name: "rua", label: "Rua", type: "number", required: true, placeholder: "1" },
@@ -98,7 +107,6 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
       String(data.nivel || "0"),
       String(data.apto || "0")
     );
-    if (armazemId) data.armazem_id = armazemId;
     if (editItem) return crud.update(editItem.id, data);
     return crud.create(data);
   };
@@ -161,6 +169,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         title={editItem ? "Editar Endereço" : "Novo Endereço"}
         fields={fields}
         initialData={editItem}
+        onFormChange={(form) => setFormArmazemId(form.armazem_id || "")}
         onSave={handleSave}
       />
       <DeleteConfirmDialog
