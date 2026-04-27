@@ -238,18 +238,37 @@ export async function fetchOptions(
   filters?: Record<string, any>,
   opts?: { activeOnly?: boolean }
 ) {
+  // Bloqueia chamada com tenant inválido (ex.: "null" preservado em localStorage antigo).
+  const safeTenant = sanitizeId(tenantId);
+  if (!safeTenant) {
+    console.warn(`[fetchOptions] tenant_id inválido para ${table}; retornando []`);
+    return [];
+  }
+
+  // Se algum filtro foi PEDIDO mas veio vazio/inválido (null, "null", "", "all"...),
+  // não queremos consultar o tenant inteiro nem disparar 22P02 enviando "null" como UUID.
+  // Comportamento: retorna [] de forma segura.
+  if (filters) {
+    for (const [k, v] of Object.entries(filters)) {
+      if (isEmptyFilter(v)) {
+        console.warn(`[fetchOptions] ${table}: filtro "${k}" vazio/inválido — retornando []`);
+        return [];
+      }
+    }
+  }
+
   const activeOnly = opts?.activeOnly ?? !TABLES_WITHOUT_ATIVO.has(table);
   let query = (supabase as any)
     .from(table)
     .select(`id, ${labelField}`)
-    .eq("tenant_id", tenantId)
+    .eq("tenant_id", safeTenant)
     .order(labelField);
   if (activeOnly) {
     query = query.eq("ativo", true);
   }
   if (filters) {
     Object.entries(filters).forEach(([k, v]) => {
-      if (v) query = query.eq(k, v);
+      query = query.eq(k, v);
     });
   }
   const { data, error } = await query;
