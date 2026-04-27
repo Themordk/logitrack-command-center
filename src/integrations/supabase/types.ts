@@ -1846,7 +1846,7 @@ export type Database = {
       }
       motivo_ocorrencia: {
         Row: {
-          armazem_id: string
+          armazem_id: string | null
           ativo: boolean
           bloqueio_estoque: boolean
           descricao: string
@@ -1855,7 +1855,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
-          armazem_id: string
+          armazem_id?: string | null
           ativo?: boolean
           bloqueio_estoque?: boolean
           descricao: string
@@ -1864,7 +1864,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
-          armazem_id?: string
+          armazem_id?: string | null
           ativo?: boolean
           bloqueio_estoque?: boolean
           descricao?: string

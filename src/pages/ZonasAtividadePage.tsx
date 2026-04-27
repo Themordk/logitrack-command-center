@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useCrud } from "@/hooks/useCrud";
+import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Plus, Trash2, Loader2, Link2 } from "lucide-react";
 
 export function ZonasAtividadePage() {
-  const { tenantId, armazemId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const crud = useCrud({ table: "zona_atividade", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
 
   const [vinculoZona, setVinculoZona] = useState<any>(null);
   const [vinculos, setVinculos] = useState<any[]>([]);
@@ -22,6 +23,15 @@ export function ZonasAtividadePage() {
   const [addEndOpen, setAddEndOpen] = useState(false);
   const [enderecoOptions, setEnderecoOptions] = useState<{ value: string; label: string }[]>([]);
   const [selectedEnderecos, setSelectedEnderecos] = useState<string[]>([]);
+
+  // Carregar armazéns para dropdown do form
+  useEffect(() => {
+    if (tenantId && empresaId) {
+      fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(setArmazemOptions);
+    } else {
+      setArmazemOptions([]);
+    }
+  }, [tenantId, empresaId, empresaVersion]);
 
   // Resetar estado local ao trocar empresa/armazém
   useEffect(() => {
@@ -80,18 +90,31 @@ export function ZonasAtividadePage() {
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
+    { key: "armazem_id", label: "Armazém", render: (row) => {
+      const opt = armazemOptions.find((o) => o.value === row.armazem_id);
+      return <span className="text-sm text-muted-foreground">{opt?.label || "—"}</span>;
+    }},
     { key: "tipo_grupo", label: "Tipo" },
     { key: "Ativo", label: "Status", type: "badge" },
   ];
 
-  const fields: FieldSpec[] = [
+  const fields: FieldSpec[] = useMemo(() => [
+    {
+      name: "armazem_id",
+      label: "Armazém",
+      type: "select",
+      required: true,
+      options: armazemOptions,
+      placeholder: "Selecione o armazém...",
+      defaultValue: armazemId || "",
+    },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Zona Picking A" },
     { name: "tipo_grupo", label: "Tipo do Grupo", type: "enum", required: true, enumValues: ["PICKING", "ARMAZENAGEM", "INVENTARIO"] },
     { name: "Ativo", label: "Ativo", type: "switch", defaultValue: true },
-  ];
+  ], [armazemOptions, armazemId]);
 
   const handleSave = async (data: Record<string, any>) => {
-    if (armazemId) data.armazem_id = armazemId;
+    // armazem_id vem do form
     if (editItem) return crud.update(editItem.id, data);
     return crud.create(data);
   };

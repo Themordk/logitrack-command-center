@@ -14,8 +14,9 @@ export function BoxPage() {
   const [tipoBoxOptions, setTipoBoxOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    if (tenantId && armazemId) {
-      fetchOptions("tipo_box", tenantId, "descricao", { armazem_id: armazemId }).then(setTipoBoxOptions);
+    if (tenantId) {
+      // tipo_box é cadastro do tenant — não filtra por armazém aqui
+      fetchOptions("tipo_box", tenantId, "descricao").then(setTipoBoxOptions);
     } else {
       setTipoBoxOptions([]);
     }
