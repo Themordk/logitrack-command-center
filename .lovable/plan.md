@@ -1,93 +1,71 @@
-## Ajustes em Cadastros: Tipo de Estoque e Setor
+## Criar Tenant a partir do módulo de Suporte
 
-Dois ajustes pequenos e independentes nas telas de cadastro administrativo.
-
----
-
-### 1) Tipo de Estoque — vincular à Empresa do TopNav (e não ao Armazém)
-
-**Comportamento atual**
-- Hoje a página injeta manualmente `armazem_id` no save e o hook `useCrud` também trata `tipo_estoque` como tabela "de armazém", reinjetando `armazem_id`. Nenhum `empresa_id` é enviado, embora a coluna seja **NOT NULL** no banco — funciona hoje só porque o BD aceita o que vier ou porque há trigger; o ajuste corrige isso e alinha ao seletor do TopNav.
-
-**Mudanças**
-
-- `src/pages/TiposEstoquePage.tsx`
-  - Remover a injeção de `armazem_id` no `handleSave`.
-  - Passar `empresa_id` (do `useTenant`) no payload de criação e edição.
-  - O componente continua usando `useCrud` normalmente (filtros de listagem permanecem como hoje).
-
-- `src/hooks/useCrud.ts`
-  - Mover `"tipo_estoque"` de `TABLES_WITH_ARMAZEM` para `TABLES_WITH_EMPRESA`.
-  - Efeitos: a listagem passa a ser filtrada por `empresa_id` (acompanha o seletor do TopNav, com refetch via `empresaVersion`) e o create injeta `empresa_id` automaticamente, sem `armazem_id`.
-
-**Coluna `armazem_id` em `tipo_estoque`**: é nullable no banco — registros novos ficarão sem armazém atrelado, conforme solicitado. Registros antigos não são tocados.
+Adicionar fluxo para que o suporte da plataforma cadastre um novo cliente (tenant) já com sua primeira empresa, diretamente em `/#/suporte/tenants`.
 
 ---
 
-### 2) Setor — adicionar dropdown de Armazém no formulário
+### 1) UI — botão e modal em `SupportTenantsPage.tsx`
 
-**Comportamento atual**
-- O formulário não pede armazém; o `useCrud` injeta o `armazem_id` ativo do contexto. Isso impede cadastrar setor em outro armazém da mesma empresa sem trocar o contexto.
+- Adicionar botão **"+ Novo Tenant"** no cabeçalho do card (à esquerda do campo de busca), no mesmo padrão visual usado em outras telas administrativas (ícone `Plus`, primário).
+- Ao clicar, abrir um novo modal `SupportCreateTenantModal` (componente novo em `src/components/suporte/SupportCreateTenantModal.tsx`), seguindo o mesmo design do `SupportCreateUsuarioModal` (overlay escuro + card com bordas/cores do tema).
 
-**Mudanças**
+**Campos do formulário** (todos obrigatórios salvo indicação):
 
-- `src/pages/SetoresPage.tsx`
-  - Carregar opções de armazém via `fetchOptions("armazem", tenantId, "descricao", { empresa_id })`, no padrão já usado em `UsuariosPage.tsx`.
-  - Adicionar um campo `armazem_id` do tipo `select` (obrigatório) na lista `fields`, posicionado antes de `descricao`.
-  - No `handleSave`, enviar o `armazem_id` informado no formulário (substituindo o uso do `armazem_id` do contexto). O `useCrud` só injeta o do contexto quando o payload vem vazio, então enviar o valor escolhido tem precedência natural.
-  - Recarregar opções quando `empresaId` mudar (TopNav).
+Seção **Tenant**
+- Nome do Tenant (texto)
+- Slug (texto, lowercase, `[a-z0-9-]{2,40}`) — usado no subdomínio `{slug}.corelogitrack.com.br`. Sugerir slug automaticamente a partir do nome (normaliza acentos, espaços → `-`), mas editável.
 
-**Sem mudanças no banco**: `setor.armazem_id` já é NOT NULL e continuará sendo preenchido — apenas a origem do valor muda (form em vez de contexto).
+Seção **Primeira Empresa**
+- Razão Social (texto)
+- CNPJ (texto, máscara opcional)
+- Código (texto curto, exibido no seletor de empresa do TopNav)
 
----
+Validações no front (zod ou inline): nome ≥ 2 chars, slug com regex acima, CNPJ não vazio (apenas dígitos, 14), razão social ≥ 2 chars, código não vazio.
 
-### Detalhes técnicos
-
-**`useCrud` — antes**
-```ts
-const TABLES_WITH_ARMAZEM = new Set([
-  "tipo_estoque", "setor", "endereco", "box", ...
-]);
-```
-**depois**
-```ts
-const TABLES_WITH_EMPRESA = new Set([..., "tipo_estoque"]);
-const TABLES_WITH_ARMAZEM = new Set([
-  "setor", "endereco", "box", ... // sem tipo_estoque
-]);
-```
-
-**`SetoresPage` — esboço**
-```ts
-const [armazens, setArmazens] = useState<{value:string;label:string}[]>([]);
-useEffect(() => {
-  if (tenantId && empresaId) {
-    fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId })
-      .then(setArmazens);
-  }
-}, [tenantId, empresaId]);
-
-const fields: FieldSpec[] = [
-  { name: "armazem_id", label: "Armazém", type: "select", required: true,
-    options: armazens, placeholder: "Selecione o armazém..." },
-  { name: "descricao", label: "Descrição", type: "text", required: true, ... },
-  { name: "tipo", label: "Tipo", type: "enum", enumValues: [...] },
-  { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
-];
-
-const handleSave = async (data: Record<string, any>) => {
-  // armazem_id já vem do form; useCrud não sobrescreve quando há valor
-  if (editItem) return crud.update(editItem.id, data);
-  return crud.create(data);
-};
-```
+Após sucesso: fechar modal, exibir `toast.success`, chamar `fetchTenants(filtro)` para refletir o novo tenant na lista.
 
 ---
 
-### Arquivos editados
+### 2) Edge function nova — `support-create-tenant`
 
-- `src/hooks/useCrud.ts`
-- `src/pages/TiposEstoquePage.tsx`
-- `src/pages/SetoresPage.tsx`
+Local: `supabase/functions/support-create-tenant/index.ts`.
+Reutiliza `authenticateSupport` e `corsHeaders` do `_shared/support-auth.ts` (mesmo padrão das outras edge functions de suporte, usando service role para contornar RLS).
 
-Sem migração de banco.
+Fluxo:
+1. `OPTIONS` → CORS.
+2. Autenticar via `authenticateSupport(req)` (whitelist + `platform_support_user.ativo`).
+3. Validar body com zod: `nome`, `slug`, `razaosocial`, `cnpj`, `codigo`.
+4. Normalizar: `slug.toLowerCase().trim()`, `cnpj` apenas dígitos.
+5. Verificar unicidade:
+   - `tenant.slug` já existente → 409 "Slug já em uso".
+   - `empresa.cnpj` (globalmente, ou ao menos dentro do tenant — manter consistente com regra atual; usar global por segurança) → 409 se existir.
+6. Inserir em `tenant` (`nome`, `slug`, `ativo: true`) → obter `tenant.id`.
+7. Inserir em `empresa` (`tenant_id`, `razaosocial`, `cnpj`, `codigo`, `ativo: true`).
+8. Em caso de erro no insert da empresa: rollback manual deletando o tenant recém-criado para não deixar tenant órfão.
+9. Retornar `{ success: true, tenant: { id, nome, slug }, empresa: { id, codigo } }`.
+
+Não cria usuário nesta etapa — o suporte já tem o botão "Cadastrar usuário" por linha na lista para popular o tenant em seguida.
+
+---
+
+### 3) Sem migrações de banco
+
+As tabelas `tenant` e `empresa` já têm todas as colunas necessárias (`tenant`: `nome`, `slug`, `ativo`; `empresa`: `tenant_id`, `razaosocial`, `cnpj`, `codigo`, `ativo`). A edge function usa `service_role`, então as RLS de tenant_id não bloqueiam o insert.
+
+---
+
+### 4) Memória
+
+Atualizar `mem://features/platform-support-module.md` (sem alterar `mem://index.md`) acrescentando que o módulo de suporte agora também provisiona novos tenants (tenant + 1ª empresa) via `support-create-tenant`.
+
+---
+
+### Arquivos
+
+**Novos**
+- `supabase/functions/support-create-tenant/index.ts`
+- `src/components/suporte/SupportCreateTenantModal.tsx`
+
+**Editados**
+- `src/pages/suporte/SupportTenantsPage.tsx` (botão + estado do modal + refresh)
+- `mem://features/platform-support-module.md`

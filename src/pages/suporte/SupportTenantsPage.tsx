@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Loader2, Building2, Info, UserPlus, MessageSquare, Power, PowerOff } from "lucide-react";
+import { Search, Loader2, Building2, Info, UserPlus, MessageSquare, Power, PowerOff, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { SupportLayout } from "@/components/suporte/SupportLayout";
 import { SupportCreateUsuarioModal } from "@/components/suporte/SupportCreateUsuarioModal";
+import { SupportCreateTenantModal } from "@/components/suporte/SupportCreateTenantModal";
 
 interface TenantRow {
   id: string;
@@ -25,6 +26,7 @@ export function SupportTenantsPage({ onNavigate }: Props) {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [createUserTenant, setCreateUserTenant] = useState<TenantRow | null>(null);
+  const [showCreateTenant, setShowCreateTenant] = useState(false);
 
   const fetchTenants = async (nome = "") => {
     setLoading(true);
@@ -92,15 +94,24 @@ export function SupportTenantsPage({ onNavigate }: Props) {
             </h1>
             <p className="text-xs text-muted-foreground">{tenants.length} cliente(s) cadastrado(s)</p>
           </div>
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              placeholder="Buscar por nome..."
-              className="h-9 w-64 pl-8 pr-3 rounded-md border border-border bg-secondary/40 text-xs outline-none focus:border-primary"
-            />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateTenant(true)}
+              className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1.5"
+            >
+              <Plus size={13} />
+              Novo Tenant
+            </button>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                placeholder="Buscar por nome..."
+                className="h-9 w-64 pl-8 pr-3 rounded-md border border-border bg-secondary/40 text-xs outline-none focus:border-primary"
+              />
+            </div>
           </div>
         </div>
 
@@ -191,6 +202,16 @@ export function SupportTenantsPage({ onNavigate }: Props) {
           onClose={() => setCreateUserTenant(null)}
           onCreated={() => {
             setCreateUserTenant(null);
+            fetchTenants(filtro);
+          }}
+        />
+      )}
+
+      {showCreateTenant && (
+        <SupportCreateTenantModal
+          onClose={() => setShowCreateTenant(false)}
+          onCreated={() => {
+            setShowCreateTenant(false);
             fetchTenants(filtro);
           }}
         />
