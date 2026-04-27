@@ -206,6 +206,16 @@ export function SupportTenantsPage({ onNavigate }: Props) {
           }}
         />
       )}
+
+      {showCreateTenant && (
+        <SupportCreateTenantModal
+          onClose={() => setShowCreateTenant(false)}
+          onCreated={() => {
+            setShowCreateTenant(false);
+            fetchTenants(filtro);
+          }}
+        />
+      )}
     </SupportLayout>
   );
 }
