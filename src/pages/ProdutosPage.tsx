@@ -519,12 +519,17 @@ export function ProdutosPage() {
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
-    if (tenantId) {
-      fetchOptions("grupo_produto", tenantId).then(setGrupoOptions);
-      fetchOptions("subgrupo_produto", tenantId).then(setSubgrupoOptions);
-      fetchOptions("parceiro", tenantId, "razaosocial").then(setParceiroOptions);
+    if (tenantId && empresaId) {
+      const f = { empresa_id: empresaId };
+      fetchOptions("grupo_produto", tenantId, "descricao", f).then(setGrupoOptions);
+      fetchOptions("subgrupo_produto", tenantId, "descricao", f).then(setSubgrupoOptions);
+      fetchOptions("parceiro", tenantId, "razaosocial", f).then(setParceiroOptions);
+    } else {
+      setGrupoOptions([]);
+      setSubgrupoOptions([]);
+      setParceiroOptions([]);
     }
-  }, [tenantId]);
+  }, [tenantId, empresaId, empresaVersion]);
 
   const columns: ColumnSpec[] = [
     { key: "sku", label: "SKU", type: "mono" },
