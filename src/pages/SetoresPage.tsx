@@ -1,16 +1,25 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
-import { useCrud } from "@/hooks/useCrud";
+import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function SetoresPage() {
-  const { tenantId, armazemId } = useTenant();
+  const { tenantId, empresaId, armazemId } = useTenant();
   const crud = useCrud({ table: "setor", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    if (tenantId && empresaId) {
+      fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(setArmazemOptions);
+    } else {
+      setArmazemOptions([]);
+    }
+  }, [tenantId, empresaId]);
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
@@ -18,14 +27,23 @@ export function SetoresPage() {
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
-  const fields: FieldSpec[] = [
+  const fields: FieldSpec[] = useMemo(() => [
+    {
+      name: "armazem_id",
+      label: "Armazém",
+      type: "select",
+      required: true,
+      options: armazemOptions,
+      placeholder: "Selecione o armazém...",
+      defaultValue: armazemId || "",
+    },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Setor A – Recebimento" },
     { name: "tipo", label: "Tipo", type: "enum", enumValues: ["PICKING", "PULMAO", "RECEBIMENTO", "QUARENTENA", "EXPEDICAO"] },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
-  ];
+  ], [armazemOptions, armazemId]);
 
   const handleSave = async (data: Record<string, any>) => {
-    if (armazemId) data.armazem_id = armazemId;
+    // armazem_id vem do formulário; useCrud só injeta o do contexto quando vazio.
     if (editItem) return crud.update(editItem.id, data);
     return crud.create(data);
   };

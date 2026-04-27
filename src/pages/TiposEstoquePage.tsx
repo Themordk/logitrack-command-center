@@ -6,7 +6,7 @@ import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function TiposEstoquePage() {
-  const { tenantId, armazemId } = useTenant();
+  const { tenantId, empresaId } = useTenant();
   const crud = useCrud({ table: "tipo_estoque", tenantId, orderBy: "descricao" });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -27,7 +27,8 @@ export function TiposEstoquePage() {
   ];
 
   const handleSave = async (data: Record<string, any>) => {
-    if (armazemId) data.armazem_id = armazemId;
+    // Vincula à empresa selecionada no TopNav; não envia armazem_id.
+    if (empresaId) data.empresa_id = empresaId;
     if (editItem) return crud.update(editItem.id, data);
     return crud.create(data);
   };

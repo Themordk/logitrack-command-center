@@ -4089,28 +4089,31 @@ export type Database = {
       }
       tipo_estoque: {
         Row: {
-          armazem_id: string
+          armazem_id: string | null
           ativo: boolean
           codigo_erp: string
           descricao: string
+          empresa_id: string
           id: string
           sigla: string | null
           tenant_id: string
         }
         Insert: {
-          armazem_id: string
+          armazem_id?: string | null
           ativo?: boolean
           codigo_erp: string
           descricao: string
+          empresa_id: string
           id?: string
           sigla?: string | null
           tenant_id: string
         }
         Update: {
-          armazem_id?: string
+          armazem_id?: string | null
           ativo?: boolean
           codigo_erp?: string
           descricao?: string
+          empresa_id?: string
           id?: string
           sigla?: string | null
           tenant_id?: string
@@ -4121,6 +4124,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tipo_estoque_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {

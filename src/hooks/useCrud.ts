@@ -26,6 +26,7 @@ const TABLES_WITH_EMPRESA = new Set([
   "veiculos",
   "produto_embalagem",
   "volume_expedicao",
+  "tipo_estoque",
 ]);
 
 // Tabelas com empresa_id E armazem_id (filtradas pelos dois)
@@ -35,7 +36,6 @@ const TABLES_WITH_EMPRESA_AND_ARMAZEM = new Set([
 
 // Tabelas sem empresa_id direto, mas que pertencem a um armazém — filtradas pelo armazém ativo
 const TABLES_WITH_ARMAZEM = new Set([
-  "tipo_estoque",
   "setor",
   "endereco",
   "box",
