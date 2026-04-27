@@ -39,8 +39,8 @@ const range = (ini: number, fim: number) => {
 export function EnderecosBatchPage({ onNavigate }: Props) {
   const { tenantId, empresaId, armazemId: ctxArmazemId, empresaVersion } = useTenant();
 
-  // Common (armazém vem do contexto, não é editável)
-  const armazemId = ctxArmazemId || "";
+  // Common
+  const [armazemId, setArmazemId] = useState(ctxArmazemId || "");
   const [setorId, setSetorId] = useState("");
   const [tipoEstoqueId, setTipoEstoqueId] = useState("");
   const [tipoEndereco, setTipoEndereco] = useState("PICKING");
@@ -67,6 +67,7 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
   const [lado, setLado] = useState("TODOS");
 
   // Options
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
   const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
 
@@ -76,20 +77,26 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Limpar seleções ao trocar empresa/armazém para evitar inconsistência
+    setArmazemId(ctxArmazemId || "");
     setSetorId("");
     setTipoEstoqueId("");
+    if (tenantId && empresaId) {
+      fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(setArmazemOptions);
+      fetchOptions("tipo_estoque", tenantId, "descricao", { empresa_id: empresaId }).then(setTipoEstoqueOptions);
+    } else {
+      setArmazemOptions([]);
+      setTipoEstoqueOptions([]);
+    }
+  }, [tenantId, empresaId, ctxArmazemId, empresaVersion]);
+
+  useEffect(() => {
+    setSetorId("");
     if (tenantId && armazemId) {
       fetchOptions("setor", tenantId, "descricao", { armazem_id: armazemId }).then(setSetorOptions);
     } else {
       setSetorOptions([]);
     }
-    if (tenantId && empresaId) {
-      fetchOptions("tipo_estoque", tenantId, "descricao", { empresa_id: empresaId }).then(setTipoEstoqueOptions);
-    } else {
-      setTipoEstoqueOptions([]);
-    }
-  }, [tenantId, empresaId, armazemId, empresaVersion]);
+  }, [tenantId, armazemId]);
 
   const combos = useMemo(() => {
     const rIni = parseInt(ruaIni), rFim = parseInt(ruaFim);
@@ -258,9 +265,7 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Configurações Comuns</h3>
 
             <Field label="Armazém *">
-              <div className="h-9 px-3 rounded-md bg-secondary/40 border border-border flex items-center text-sm text-muted-foreground">
-                {armazemId ? "Armazém ativo da empresa selecionada" : "Selecione um armazém no topo"}
-              </div>
+              <SelectInput value={armazemId} onChange={setArmazemId} options={armazemOptions} placeholder="Selecione o armazém" />
             </Field>
             <Field label="Setor *">
               <SelectInput value={setorId} onChange={setSetorId} options={setorOptions} placeholder="Selecione o setor" />
