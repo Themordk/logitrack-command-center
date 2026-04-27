@@ -67,7 +67,10 @@ export function useCrud<T extends Record<string, any>>({
   select = "*",
   filters = {},
 }: UseCrudOptions) {
-  const { empresaId, armazemId, empresaVersion } = useTenant();
+  const { empresaId: rawEmpresaId, armazemId: rawArmazemId, empresaVersion } = useTenant();
+  const empresaId = sanitizeId(rawEmpresaId);
+  const armazemId = sanitizeId(rawArmazemId);
+  const safeTenantId = sanitizeId(tenantId);
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -79,13 +82,14 @@ export function useCrud<T extends Record<string, any>>({
   const requiresEmpresa = TABLES_WITH_EMPRESA.has(table) || requiresBoth;
 
   const fetchData = useCallback(async () => {
-    if (!tenantId) {
+    if (!safeTenantId) {
       setData([]);
       setLoading(false);
       return;
     }
-    // Proteção contra vazamento de dados: se a tabela depende de armazém/empresa
-    // e o contexto ainda não está pronto, não consulta o tenant inteiro.
+    // Proteção contra vazamento de dados E contra filtros inválidos ("null", "undefined").
+    // Se a tabela depende de armazém/empresa e o contexto está faltando ou inválido,
+    // não consulta — evita 22P02 (invalid input syntax for type uuid).
     if (requiresArmazem && !armazemId) {
       setData([]);
       setTotal(0);
@@ -102,7 +106,7 @@ export function useCrud<T extends Record<string, any>>({
     setLoading(true);
     try {
       let query = (supabase as any).from(table).select(select, { count: "exact" });
-      query = query.eq("tenant_id", tenantId);
+      query = query.eq("tenant_id", safeTenantId);
 
       if (requiresEmpresa && empresaId) {
         query = query.eq("empresa_id", empresaId);
@@ -112,9 +116,8 @@ export function useCrud<T extends Record<string, any>>({
       }
 
       Object.entries(filters).forEach(([key, val]) => {
-        if (val !== undefined && val !== null && val !== "" && val !== "all") {
-          query = query.eq(key, val);
-        }
+        if (isEmptyFilter(val)) return;
+        query = query.eq(key, val);
       });
 
       if (search) {
