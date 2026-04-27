@@ -89,8 +89,8 @@ export function SaidasPage() {
     if (tenantId) {
       const [bx, rt, vc] = await Promise.all([
         fetchOptions("box", tenantId, "descricao", { armazem_id: armazemId }),
-        fetchOptions("rotas", tenantId, "descricao", { armazem_id: armazemId }),
-        fetchOptions("veiculos", tenantId, "descricao"),
+        fetchOptions("rotas", tenantId, "descricao", { empresa_id: empresaId, armazem_id: armazemId }),
+        fetchOptions("veiculos", tenantId, "descricao", { empresa_id: empresaId }),
       ]);
       setBoxOptions(bx);
       setRotaOptions(rt);
