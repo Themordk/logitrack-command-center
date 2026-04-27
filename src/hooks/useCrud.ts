@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/contexts/TenantContext";
+import { sanitizeId, isEmptyFilter } from "@/lib/uuid";
 
 // Tabelas com coluna empresa_id direta — filtradas/criadas vinculadas à empresa ativa
 const TABLES_WITH_EMPRESA = new Set([
