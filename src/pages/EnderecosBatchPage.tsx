@@ -37,7 +37,7 @@ const range = (ini: number, fim: number) => {
 };
 
 export function EnderecosBatchPage({ onNavigate }: Props) {
-  const { tenantId, armazemId: ctxArmazemId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId: ctxArmazemId, empresaVersion } = useTenant();
 
   // Common (armazém vem do contexto, não é editável)
   const armazemId = ctxArmazemId || "";
