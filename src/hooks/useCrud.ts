@@ -41,7 +41,6 @@ const TABLES_WITH_EMPRESA_AND_ARMAZEM = new Set([
 // e/ou a tela permite filtrar livremente — RLS por tenant_id garante o isolamento.
 // Mantemos o auto-filtro apenas onde o escopo de armazém é estritamente operacional.
 const TABLES_WITH_ARMAZEM = new Set([
-  "box",
   "picking_produto",
 ]);
 
