@@ -270,7 +270,8 @@ export type Database = {
           descricao: string
           id: string
           tenant_id: string
-          tipo_box_id: string
+          tipo_box: Database["public"]["Enums"]["enum_tipo_box"] | null
+          tipo_box_id: string | null
         }
         Insert: {
           armazem_id: string
@@ -278,7 +279,8 @@ export type Database = {
           descricao: string
           id?: string
           tenant_id: string
-          tipo_box_id: string
+          tipo_box?: Database["public"]["Enums"]["enum_tipo_box"] | null
+          tipo_box_id?: string | null
         }
         Update: {
           armazem_id?: string
@@ -286,7 +288,8 @@ export type Database = {
           descricao?: string
           id?: string
           tenant_id?: string
-          tipo_box_id?: string
+          tipo_box?: Database["public"]["Enums"]["enum_tipo_box"] | null
+          tipo_box_id?: string | null
         }
         Relationships: [
           {
@@ -3991,27 +3994,27 @@ export type Database = {
       }
       tipo_box: {
         Row: {
-          armazem_id: string
+          armazem_id: string | null
           ativo: boolean
           descricao: string
           id: string
-          tenant_id: string
+          tenant_id: string | null
           tipo: Database["public"]["Enums"]["enum_tipo_box"]
         }
         Insert: {
-          armazem_id: string
+          armazem_id?: string | null
           ativo?: boolean
           descricao: string
           id?: string
-          tenant_id: string
+          tenant_id?: string | null
           tipo: Database["public"]["Enums"]["enum_tipo_box"]
         }
         Update: {
-          armazem_id?: string
+          armazem_id?: string | null
           ativo?: boolean
           descricao?: string
           id?: string
-          tenant_id?: string
+          tenant_id?: string | null
           tipo?: Database["public"]["Enums"]["enum_tipo_box"]
         }
         Relationships: [
