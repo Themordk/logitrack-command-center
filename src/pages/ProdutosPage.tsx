@@ -45,6 +45,7 @@ function ProdutoDetailModal({
   const [pickForm, setPickForm] = useState<Record<string, any>>({});
   const [pickSaving, setPickSaving] = useState(false);
   const [enderecoOptions, setEnderecoOptions] = useState<{ value: string; label: string }[]>([]);
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -68,8 +69,13 @@ function ProdutoDetailModal({
   // Load embalagens when tab changes
   useEffect(() => {
     if (tab === "embalagens" && produto?.id) loadEmbalagens();
-    if (tab === "picking" && produto?.id) { loadPickings(); loadEnderecos(); }
+    if (tab === "picking" && produto?.id) { loadPickings(); loadArmazens(); }
   }, [tab, produto?.id]);
+
+  // Reload addresses when warehouse selection changes in picking form
+  useEffect(() => {
+    if (tab === "picking" && pickModalOpen) loadEnderecos(pickForm.armazem_id);
+  }, [pickForm.armazem_id, pickModalOpen, tab]);
 
   const loadEmbalagens = async () => {
     if (!produto?.id) return;
@@ -90,11 +96,22 @@ function ProdutoDetailModal({
     setPickLoading(false);
   };
 
-  const loadEnderecos = async () => {
-    if (!tenantId || !armazemId) return;
-    const { data } = await (supabase as any).from("endereco").select("id, descricao")
-      .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true).order("descricao");
+  const loadEnderecos = async (armId?: string) => {
+    if (!tenantId) return;
+    let q = (supabase as any).from("endereco").select("id, descricao, armazem_id")
+      .eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    if (armId) q = q.eq("armazem_id", armId);
+    const { data } = await q;
     setEnderecoOptions((data || []).map((e: any) => ({ value: e.id, label: e.descricao })));
+  };
+
+  const loadArmazens = async () => {
+    if (!tenantId) return;
+    let q = (supabase as any).from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    if (empresaId) q = q.eq("empresa_id", empresaId);
+    const { data } = await q;
+    setArmazemOptions((data || []).map((a: any) => ({ value: a.id, label: a.descricao })));
   };
 
   const set = (name: string, value: any) => {
@@ -475,9 +492,16 @@ function ProdutoDetailModal({
           <DialogHeader><DialogTitle>{editPick ? "Editar Picking" : "Novo Picking"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="col-span-2">
-              <label className={labelClass}>Endereço *</label>
-              <select value={pickForm.endereco_id || ""} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass}>
+              <label className={labelClass}>Armazém *</label>
+              <select value={pickForm.armazem_id || ""} onChange={(e) => setPickForm({ ...pickForm, armazem_id: e.target.value, endereco_id: "" })} className={inputClass}>
                 <option value="">Selecionar...</option>
+                {armazemOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className={labelClass}>Endereço *</label>
+              <select value={pickForm.endereco_id || ""} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass} disabled={!pickForm.armazem_id}>
+                <option value="">{pickForm.armazem_id ? "Selecionar..." : "Selecione o armazém primeiro"}</option>
                 {enderecoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
