@@ -69,8 +69,13 @@ function ProdutoDetailModal({
   // Load embalagens when tab changes
   useEffect(() => {
     if (tab === "embalagens" && produto?.id) loadEmbalagens();
-    if (tab === "picking" && produto?.id) { loadPickings(); loadEnderecos(); }
+    if (tab === "picking" && produto?.id) { loadPickings(); loadArmazens(); }
   }, [tab, produto?.id]);
+
+  // Reload addresses when warehouse selection changes in picking form
+  useEffect(() => {
+    if (tab === "picking" && pickModalOpen) loadEnderecos(pickForm.armazem_id);
+  }, [pickForm.armazem_id, pickModalOpen, tab]);
 
   const loadEmbalagens = async () => {
     if (!produto?.id) return;
