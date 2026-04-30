@@ -492,9 +492,16 @@ function ProdutoDetailModal({
           <DialogHeader><DialogTitle>{editPick ? "Editar Picking" : "Novo Picking"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="col-span-2">
-              <label className={labelClass}>Endereço *</label>
-              <select value={pickForm.endereco_id || ""} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass}>
+              <label className={labelClass}>Armazém *</label>
+              <select value={pickForm.armazem_id || ""} onChange={(e) => setPickForm({ ...pickForm, armazem_id: e.target.value, endereco_id: "" })} className={inputClass}>
                 <option value="">Selecionar...</option>
+                {armazemOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className={labelClass}>Endereço *</label>
+              <select value={pickForm.endereco_id || ""} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass} disabled={!pickForm.armazem_id}>
+                <option value="">{pickForm.armazem_id ? "Selecionar..." : "Selecione o armazém primeiro"}</option>
                 {enderecoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
