@@ -116,15 +116,17 @@ export function EntradasPage() {
   };
 
   const openModal = async () => {
-    // Fetch boxes (por armazém ativo) e armazens (por empresa ativa) em paralelo
+    // Fetch boxes (filtra por armazém ativo se houver) e armazens (por empresa ativa) em paralelo
+    let boxQuery = (supabase as any)
+      .from("box")
+      .select("id, descricao, armazem_id")
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true)
+      .order("descricao");
+    if (armazemId) boxQuery = boxQuery.eq("armazem_id", armazemId);
+
     const [boxRes, armRes] = await Promise.all([
-      (supabase as any)
-        .from("box")
-        .select("id, descricao")
-        .eq("tenant_id", tenantId)
-        .eq("armazem_id", armazemId)
-        .eq("ativo", true)
-        .order("descricao"),
+      boxQuery,
       (supabase as any)
         .from("armazem")
         .select("id, descricao")
@@ -133,6 +135,7 @@ export function EntradasPage() {
         .eq("ativo", true)
         .order("descricao"),
     ]);
+    if (boxRes.error) toast.error(`Erro ao carregar boxes: ${boxRes.error.message}`);
     setBoxes(boxRes.data || []);
     setArmazens(armRes.data || []);
     setFormData({
