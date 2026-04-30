@@ -96,11 +96,22 @@ function ProdutoDetailModal({
     setPickLoading(false);
   };
 
-  const loadEnderecos = async () => {
-    if (!tenantId || !armazemId) return;
-    const { data } = await (supabase as any).from("endereco").select("id, descricao")
-      .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true).order("descricao");
+  const loadEnderecos = async (armId?: string) => {
+    if (!tenantId) return;
+    let q = (supabase as any).from("endereco").select("id, descricao, armazem_id")
+      .eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    if (armId) q = q.eq("armazem_id", armId);
+    const { data } = await q;
     setEnderecoOptions((data || []).map((e: any) => ({ value: e.id, label: e.descricao })));
+  };
+
+  const loadArmazens = async () => {
+    if (!tenantId) return;
+    let q = (supabase as any).from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    if (empresaId) q = q.eq("empresa_id", empresaId);
+    const { data } = await q;
+    setArmazemOptions((data || []).map((a: any) => ({ value: a.id, label: a.descricao })));
   };
 
   const set = (name: string, value: any) => {
