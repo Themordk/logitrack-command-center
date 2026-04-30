@@ -201,7 +201,7 @@ function ProdutoDetailModal({
     setPickModalOpen(true);
   };
   const savePick = async () => {
-    if (!pickForm.endereco_id || !pickForm.tipo_picking) { toast.error("Endereço e Tipo são obrigatórios."); return; }
+    if (!pickForm.armazem_id || !pickForm.endereco_id || !pickForm.tipo_picking) { toast.error("Armazém, Endereço e Tipo são obrigatórios."); return; }
     setPickSaving(true);
     const data: any = { ...pickForm };
     delete data.id; delete data.tenant_id; delete data.produto_id; delete data.endereco;
@@ -212,7 +212,7 @@ function ProdutoDetailModal({
         const { error } = await (supabase as any).from("picking_produto").update(data).eq("id", editPick.id);
         if (error) throw error;
       } else {
-        data.produto_id = produto.id; data.tenant_id = tenantId; data.armazem_id = armazemId;
+        data.produto_id = produto.id; data.tenant_id = tenantId;
         const { error } = await (supabase as any).from("picking_produto").insert(data);
         if (error) throw error;
       }
