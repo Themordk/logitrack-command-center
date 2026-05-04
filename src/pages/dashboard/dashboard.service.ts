@@ -118,22 +118,29 @@ export async function fetchBacklog(f: DashboardFilters) {
   return { value: total, tempoMedioMin };
 }
 
-// ---------- Top Operadores ----------
+// ---------- Top Operadores (fonte: tarefa_execucao) ----------
 export async function fetchTopOperadores(f: DashboardFilters, limit = 8) {
-  let q = sb.from("lms_metrica_diaria")
-    .select("usuario_id,tarefas_concluidas,tempo_produtivo,usuario:usuario_id(nome)")
+  const dIni = `${f.dataIni}T00:00:00`;
+  const dFim = `${f.dataFim}T23:59:59`;
+  let q = sb.from("tarefa_execucao")
+    .select("usuario_id,iniciado_em,concluido_em,usuario:usuario_id(nome),tarefa:tarefa_id(armazem_id)")
     .eq("tenant_id", f.tenantId)
-    .gte("data_referencia", f.dataIni).lte("data_referencia", f.dataFim);
-  if (f.empresaId) q = q.eq("empresa_id", f.empresaId);
-  if (f.armazemId) q = q.eq("armazem_id", f.armazemId);
-  if (f.turnoId) q = q.eq("turno_id", f.turnoId);
+    .eq("status", "CONCLUIDA")
+    .not("usuario_id", "is", null)
+    .gte("concluido_em", dIni).lte("concluido_em", dFim);
   const { data } = await q;
+  const rows = (data || []).filter((r: any) =>
+    !f.armazemId || r.tarefa?.armazem_id === f.armazemId
+  );
   const map = new Map<string, { nome: string; tarefas: number; segs: number }>();
-  for (const r of data || []) {
+  for (const r of rows) {
     const id = r.usuario_id;
     const cur = map.get(id) || { nome: r.usuario?.nome || "—", tarefas: 0, segs: 0 };
-    cur.tarefas += Number(r.tarefas_concluidas) || 0;
-    cur.segs += Number(r.tempo_produtivo) || 0;
+    cur.tarefas += 1;
+    if (r.iniciado_em && r.concluido_em) {
+      const dt = (new Date(r.concluido_em).getTime() - new Date(r.iniciado_em).getTime()) / 1000;
+      if (dt > 0) cur.segs += dt;
+    }
     map.set(id, cur);
   }
   return Array.from(map.entries())

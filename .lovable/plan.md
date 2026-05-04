@@ -1,95 +1,40 @@
-## Modernização Visual — Tela de Login (CORE LogiTrack)
+## Diagnóstico
 
-Aplicar o conceito **Warehouse Intelligence** apenas na camada visual de `src/pages/LoginPage.tsx`. Toda a lógica de autenticação, fluxo de suporte, troca de senha forçada, validação de tenant por subdomínio e overlay anti-flash será **preservada integralmente**.
+**Top Operadores** (`fetchTopOperadores` em `dashboard.service.ts`)
+- Hoje consulta `lms_metrica_diaria` — tabela está **vazia** (0 linhas), por isso o painel exibe placeholders/dados fictícios.
+- A fonte correta de "tarefas concluídas por usuário" é `tarefa_execucao` (status `CONCLUIDA`, `concluido_em` no período), conforme indicado pelo usuário. Já existem 18 execuções concluídas.
 
-### Escopo
+**Ocorrências Operacionais** (`fetchOcorrencias`)
+- Já consulta `tarefa_execucao` filtrando `motivo_ocorrencia IS NOT NULL` no período, agregando pela descrição do motivo. Lógica está correta — apenas validar e manter.
 
-- Atualizar **somente** o portal administrativo (`LoginPage.tsx`).
-- **Não** alterar `ColetorLoginPage.tsx` (mantém visual atual do coletor).
-- **Não** alterar fluxos, RPCs, contextos (`TenantBootContext`, `TenantContext`), nem `ForcePasswordChangeModal`.
+**Layout (referência da imagem)**
+- A imagem reflete o layout já existente (avatar com iniciais, nome, contagem de tarefas, barra de progresso à direita). Apenas garantir que os dados venham reais e a barra de progresso seja proporcional ao líder do ranking.
 
-### Mudanças
+## Mudanças
 
-**1. Fontes (Google Fonts)**
-- Adicionar `Syne` (400, 700) e manter `JetBrains Mono` (400, 500) no `@import` de `src/index.css`.
-- `Inter` permanece como fonte global (resto do app usa Inter).
-- Aplicar Syne/JetBrains Mono **localmente** no LoginPage via classes utilitárias inline (`style={{ fontFamily: '...' }}` ou classes `font-syne`, `font-mono`).
+### 1. `src/pages/dashboard/dashboard.service.ts`
+Reescrever `fetchTopOperadores`:
+- Query: `tarefa_execucao` filtrando `tenant_id`, `status='CONCLUIDA'`, `concluido_em` entre `dataIni 00:00:00` e `dataFim 23:59:59`.
+- Filtro adicional opcional por `armazem_id`/`empresa_id` via join na `tarefa` (usar select aninhado `tarefa:tarefa_id(armazem_id, empresa_id)` e filtrar em memória, já que `tarefa_execucao` não tem esses campos diretamente).
+- Resolver o nome do operador via `usuario:usuario_id(nome)`.
+- Agrupar por `usuario_id`, contar execuções concluídas → `tarefas`.
+- Calcular `produtividade` (tarefas/h) usando `iniciado_em`/`concluido_em` somados por usuário (segundos produtivos).
+- Ordenar desc por `tarefas`, `slice(0, limit)`.
+- Retornar shape compatível com `RankingOperadores`: `{ id, nome, tarefas, produtividade }`.
 
-**2. Background animado (Canvas)**
-- Novo componente local (dentro do mesmo arquivo ou `src/components/login/WarehouseCanvas.tsx`):
-  - `<canvas>` fullscreen, `position: fixed`, `z-index: 0`, base `#05101f`.
-  - Grid 80px (`rgba(30,70,130,0.18)`, 0.5px).
-  - Dots nas interseções (`rgba(59,130,246,0.25)`, r=1.5).
-  - Pulsos radiais a cada ~1.8s a partir de interseções aleatórias (`rgba(96,165,250,0.6)`, fade out ao expandir).
-  - 18 partículas flutuantes (`rgba(96,165,250,0.35)`, r=0.5–2px), movimento lento aleatório.
-  - Loop com `requestAnimationFrame`, cleanup no `useEffect` return, redimensionamento com `resize` listener e `devicePixelRatio` para nitidez.
-  - Respeita `prefers-reduced-motion` (estático se ativo).
+Manter `fetchOcorrencias` como está (apenas validado).
 
-**3. Card de login**
-- Container central, `z-index: 10`, `width: 360px`, `padding: 40px`.
-- `background: rgba(8,20,40,0.82)`, `backdrop-filter: blur(16px)`.
-- `border: 1px solid rgba(59,130,246,0.25)`, `border-radius: 16px`.
-- `box-shadow: 0 0 60px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.06)`.
-- Animação de entrada: fade-in + `translateY(16px → 0)` em 0.5s ease-out (keyframe novo em `tailwind.config.ts` ou inline `<style>`).
+### 2. `src/pages/dashboard/components/RankingOperadores.tsx`
+- Adicionar barra de progresso horizontal à direita do nome (proporcional ao líder), conforme imagem.
+- Manter avatar com iniciais (gerar a partir do nome) ao invés do ícone genérico para os fora do pódio — alinhado à imagem (badges JR, MS, CA, FL).
+- Manter contagem de tarefas alinhada à direita.
 
-**4. Logo + título**
-- Ícone (Boxes lucide) 46x46, `border-radius: 12px`, `background: linear-gradient(135deg,#1d4ed8,#3b82f6)`.
-- Anel orbital ao redor: `border-radius: 50%`, `border: 2px solid transparent`, `border-top-color: #60a5fa`, gira 360° / 3s linear infinite.
-- Título "CORE LogiTrack" — Syne 700, 18px, `#e2e8f0`; "LogiTrack" em `#60a5fa`.
-- Subtítulo "Sistema de Gestão de Armazém" — uppercase, 10px, `letter-spacing: 0.1em`, `#4b6fa8`.
-- No modo `support`, subtítulo vira "Painel de Suporte".
+### 3. `Dashboard.tsx`
+Sem alteração estrutural. Apenas garantir que o painel recarregue ao mudar filtros (já implementado via `dfArgs`).
 
-**5. Badge de acesso**
-- Pill: `background: rgba(59,130,246,0.1)`, `border: 1px solid rgba(59,130,246,0.3)`, `border-radius: 20px`, padding horizontal.
-- Dot verde pulsante 6px `#22c55e` (scale 0.7↔1.0, opacity 0.5↔1.0, 2s).
-- Texto: `ACESSO: {bootTenant.nome.toUpperCase()}` em JetBrains Mono 10px, `letter-spacing: 0.12em`, `#93c5fd`.
-- No modo support: `ACESSO: SUPORTE DA PLATAFORMA` (com cor âmbar mantida ou azul — usar âmbar para diferenciar).
-- Sem tenant e sem support: badge oculto.
+## Detalhes técnicos
 
-**6. Campos do formulário**
-- Labels: uppercase, 9px, `letter-spacing: 0.14em`, JetBrains Mono, `#4b6fa8`.
-- Inputs: `background: rgba(255,255,255,0.04)`, `border: 1px solid rgba(59,130,246,0.2)`, `border-radius: 8px`, padding `10px 12px`, font 13px JetBrains Mono `#cbd5e1`.
-- Foco: `border-color: rgba(96,165,250,0.6)`, `background: rgba(59,130,246,0.06)`.
-
-**7. Botão Entrar**
-- Full width, padding 12px, `border-radius: 8px`, `background: linear-gradient(90deg,#1d4ed8,#3b82f6)`.
-- Texto "Entrar" + ícone `LogIn` (lucide).
-- Shimmer: pseudo-elemento (ou span absoluto) com banda branca translúcida varrendo da esquerda para direita a cada 3s no hover (keyframe).
-- Font: Syne 600, 14px, branco, `letter-spacing: 0.03em`.
-- Estado loading: spinner Loader2 mantido.
-
-**8. Footer link**
-- "Acessar Coletor de Dados" — 11px, `#4b6fa8`, sublinhado, centralizado.
-- No modo support: "← Voltar à identificação do cliente" mantém comportamento.
-
-**9. Overlay anti-flash do redirect de suporte**
-- Aplicar mesmo background `#05101f` + canvas (ou versão simplificada estática) para consistência visual durante o redirect.
-
-### Detalhes técnicos
-
-- **Keyframes novos** em `tailwind.config.ts`:
-  - `orbit-spin` (360° / 3s linear)
-  - `dot-pulse` (scale + opacity, 2s)
-  - `card-enter` (fade + translateY, 0.5s ease-out)
-  - `btn-shimmer` (translateX -100% → 200%, 3s)
-- Alternativa: definir keyframes em `<style>` inline dentro do componente para isolar do resto do app.
-- **z-index**: canvas `z-0`, card `z-10`.
-- **Acessibilidade**: manter `<label>`, `required`, `type="password"`; `aria-hidden` no canvas.
-- **Performance**: canvas pausado quando aba inativa (`document.hidden` check no RAF loop).
-- **Sem dependências novas** — apenas Google Fonts já compatível com o `@import` existente.
-
-### Arquivos modificados
-
-```text
-src/index.css                  -> +Syne no @import; opcional: classe .font-syne
-src/pages/LoginPage.tsx        -> reescrita da camada visual; lógica intacta
-tailwind.config.ts             -> +keyframes/animations (orbit, pulse-dot, card-enter, shimmer)
-```
-
-### Critérios de aceite
-
-- Login admin (tenant + support) funciona idêntico ao atual.
-- Fluxo de troca de senha forçada continua disparando o modal.
-- Visual reflete spec: canvas animado, card glass, badge, fontes corretas.
-- Coletor (`/coletor`) permanece com visual atual.
-- Sem novos warnings no console; animações suaves a 60fps em desktop.
+- `tarefa_execucao` não possui `empresa_id`/`armazem_id`. Para filtrar por armazém, fazer select aninhado `tarefa:tarefa_id(armazem_id)` e filtrar `r.tarefa?.armazem_id === f.armazemId` no client (consistente com padrão usado em outras partes).
+- Produtividade: `segundos = sum(EXTRACT EPOCH FROM (concluido_em - iniciado_em))` agregado em JS após o fetch.
+- Avatar com iniciais: pegar primeira letra do primeiro e último token do nome (`João Ribeiro → JR`).
+- Barra de progresso: `width = (op.tarefas / max(tarefas)) * 100%`, fundo `bg-secondary/40`, preenchimento `bg-primary`.
