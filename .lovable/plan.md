@@ -1,61 +1,95 @@
-## Diagnóstico
+## Modernização Visual — Tela de Login (CORE LogiTrack)
 
-Após inspecionar `useCrud.ts`, as páginas envolvidas e o schema do banco, identifiquei a causa raiz comum: **o hook `useCrud` força o filtro `armazem_id = <contexto>` em todas as tabelas listadas em `TABLES_WITH_ARMAZEM`**, e injeta esse mesmo valor automaticamente em `INSERT`s. Isso quebra os fluxos abaixo quando:
-- o usuário não tem armazém ativo no contexto (gera erro 23502 / lista vazia);
-- registros antigos foram cadastrados com `armazem_id` diferente/`NULL` (não aparecem na lista, ex.: `motivo_ocorrencia` que é nullable);
-- o cadastro precisa permitir escolher o armazém manualmente (turnos, zonas).
+Aplicar o conceito **Warehouse Intelligence** apenas na camada visual de `src/pages/LoginPage.tsx`. Toda a lógica de autenticação, fluxo de suporte, troca de senha forçada, validação de tenant por subdomínio e overlay anti-flash será **preservada integralmente**.
 
-## Correções por item
+### Escopo
 
-### 1. Lista de Endereços vazia (Armazém → Localizações)
-- **Causa:** `useCrud` filtra por `armazem_id = contexto`. Se o usuário trocou de empresa/armazém ou tem endereços vinculados a outro armazém, eles somem. Também trava se o contexto não tem armazém.
-- **Correção:** Adicionar **filtro de Armazém na toolbar da página** (dropdown no topo), default = armazém do contexto, mas permitindo trocar/limpar. Passar esse valor como `filters: { armazem_id }` para `useCrud` e **remover `endereco` do auto-filtro de `TABLES_WITH_ARMAZEM`** (passa a ser controlado pela tela). Manter validação de obrigatoriedade no form.
+- Atualizar **somente** o portal administrativo (`LoginPage.tsx`).
+- **Não** alterar `ColetorLoginPage.tsx` (mantém visual atual do coletor).
+- **Não** alterar fluxos, RPCs, contextos (`TenantBootContext`, `TenantContext`), nem `ForcePasswordChangeModal`.
 
-### 2. Box → Dropdown "Tipo de Box" vazio
-- **Causa:** `BoxPage` chama `fetchOptions("tipo_box", ..., { armazem_id: armazemId })` somente quando há armazém selecionado. Sem armazém ativo, o dropdown fica vazio. Além disso, se os tipos foram cadastrados em outro armazém, não aparecem.
-- **Correção:** Buscar `tipo_box` por **tenant** (sem filtro de armazém) — `tipo_box` é cadastro genérico do tenant. Remover o filtro `{ armazem_id }` da chamada `fetchOptions`. Mesmo tratamento aplicado à coluna de exibição.
+### Mudanças
 
-### 3. Turnos → erro 23502 ao criar
-- **Causa:** `turnos.armazem_id` é `NOT NULL`. O form não tem campo de armazém; depende do contexto. Sem armazém no contexto → INSERT falha.
-- **Correção:**
-  - Adicionar campo **Armazém** (dropdown obrigatório) no `CrudModal` da `TurnosPage`, populado por `fetchOptions("armazem", tenantId, "descricao", { empresa_id })` — mesmo padrão de `SetoresPage`.
-  - Default = `armazemId` do contexto quando existir.
-  - Em `handleSave`, deixar o `armazem_id` vir do form (não sobrescrever pelo contexto).
-  - Adicionar coluna "Armazém" na lista (resolvido via `armazemOptions`).
+**1. Fontes (Google Fonts)**
+- Adicionar `Syne` (400, 700) e manter `JetBrains Mono` (400, 500) no `@import` de `src/index.css`.
+- `Inter` permanece como fonte global (resto do app usa Inter).
+- Aplicar Syne/JetBrains Mono **localmente** no LoginPage via classes utilitárias inline (`style={{ fontFamily: '...' }}` ou classes `font-syne`, `font-mono`).
 
-### 4. Motivos de ocorrência → lista vazia
-- **Causa:** `motivo_ocorrencia.armazem_id` é **nullable**, mas a tabela está em `TABLES_WITH_ARMAZEM` — `useCrud` aplica `.eq('armazem_id', contexto)`, escondendo registros com `armazem_id IS NULL` ou de outro armazém.
-- **Correção:** Remover `motivo_ocorrencia` de `TABLES_WITH_ARMAZEM` no `useCrud.ts` (cadastro genérico do tenant, escopo por tenant_id já isola). Manter campo opcional de armazém no form (pode adicionar depois se desejado). Lista voltará a exibir todos os motivos do tenant.
+**2. Background animado (Canvas)**
+- Novo componente local (dentro do mesmo arquivo ou `src/components/login/WarehouseCanvas.tsx`):
+  - `<canvas>` fullscreen, `position: fixed`, `z-index: 0`, base `#05101f`.
+  - Grid 80px (`rgba(30,70,130,0.18)`, 0.5px).
+  - Dots nas interseções (`rgba(59,130,246,0.25)`, r=1.5).
+  - Pulsos radiais a cada ~1.8s a partir de interseções aleatórias (`rgba(96,165,250,0.6)`, fade out ao expandir).
+  - 18 partículas flutuantes (`rgba(96,165,250,0.35)`, r=0.5–2px), movimento lento aleatório.
+  - Loop com `requestAnimationFrame`, cleanup no `useEffect` return, redimensionamento com `resize` listener e `devicePixelRatio` para nitidez.
+  - Respeita `prefers-reduced-motion` (estático se ativo).
 
-### 5. Zonas de atividade → criar com armazém + revisar lista
-- **5.1 Criação:**
-  - `zona_atividade.armazem_id` é `NOT NULL`. Hoje o form não tem campo; depende do contexto. Sem armazém ativo → erro.
-  - Adicionar campo **Armazém** (dropdown obrigatório) no `CrudModal` da `ZonasAtividadePage`, populado por `fetchOptions("armazem", tenantId, "descricao", { empresa_id })`.
-  - Default = `armazemId` do contexto.
-  - Em `handleSave`, usar `armazem_id` vindo do form.
-  - Corrigir o nome da coluna `Ativo` (com A maiúsculo no schema) — manter consistência usando `"Ativo"` no FieldSpec/columns como já está, mas validar.
-- **5.2 Lista:**
-  - `useCrud` filtra por `armazem_id = contexto`. Se contexto sem armazém → lista vazia. Se zonas estão em outros armazéns → não aparecem.
-  - Adicionar **filtro de Armazém na toolbar** da `ZonasAtividadePage` (mesmo padrão do item 1), passar como `filters: { armazem_id }` ao `useCrud`, e remover `zona_atividade` de `TABLES_WITH_ARMAZEM`.
+**3. Card de login**
+- Container central, `z-index: 10`, `width: 360px`, `padding: 40px`.
+- `background: rgba(8,20,40,0.82)`, `backdrop-filter: blur(16px)`.
+- `border: 1px solid rgba(59,130,246,0.25)`, `border-radius: 16px`.
+- `box-shadow: 0 0 60px rgba(59,130,246,0.08), inset 0 1px 0 rgba(255,255,255,0.06)`.
+- Animação de entrada: fade-in + `translateY(16px → 0)` em 0.5s ease-out (keyframe novo em `tailwind.config.ts` ou inline `<style>`).
 
-## Resumo de mudanças no `useCrud.ts`
-Reduzir `TABLES_WITH_ARMAZEM` para apenas tabelas onde o filtro automático realmente deve ocorrer:
-```ts
-// Antes: endereco, box, turnos, motivo_ocorrencia, zona_atividade, tipo_box, picking_produto
-// Depois: box, picking_produto
-// (endereco/zona_atividade passam a ter filtro controlado pela tela;
-//  turnos/motivo_ocorrencia/tipo_box são cadastros do tenant — escopo só por tenant_id;
-//  o INSERT continua exigindo armazem_id quando o schema é NOT NULL — vindo do form.)
+**4. Logo + título**
+- Ícone (Boxes lucide) 46x46, `border-radius: 12px`, `background: linear-gradient(135deg,#1d4ed8,#3b82f6)`.
+- Anel orbital ao redor: `border-radius: 50%`, `border: 2px solid transparent`, `border-top-color: #60a5fa`, gira 360° / 3s linear infinite.
+- Título "CORE LogiTrack" — Syne 700, 18px, `#e2e8f0`; "LogiTrack" em `#60a5fa`.
+- Subtítulo "Sistema de Gestão de Armazém" — uppercase, 10px, `letter-spacing: 0.1em`, `#4b6fa8`.
+- No modo `support`, subtítulo vira "Painel de Suporte".
+
+**5. Badge de acesso**
+- Pill: `background: rgba(59,130,246,0.1)`, `border: 1px solid rgba(59,130,246,0.3)`, `border-radius: 20px`, padding horizontal.
+- Dot verde pulsante 6px `#22c55e` (scale 0.7↔1.0, opacity 0.5↔1.0, 2s).
+- Texto: `ACESSO: {bootTenant.nome.toUpperCase()}` em JetBrains Mono 10px, `letter-spacing: 0.12em`, `#93c5fd`.
+- No modo support: `ACESSO: SUPORTE DA PLATAFORMA` (com cor âmbar mantida ou azul — usar âmbar para diferenciar).
+- Sem tenant e sem support: badge oculto.
+
+**6. Campos do formulário**
+- Labels: uppercase, 9px, `letter-spacing: 0.14em`, JetBrains Mono, `#4b6fa8`.
+- Inputs: `background: rgba(255,255,255,0.04)`, `border: 1px solid rgba(59,130,246,0.2)`, `border-radius: 8px`, padding `10px 12px`, font 13px JetBrains Mono `#cbd5e1`.
+- Foco: `border-color: rgba(96,165,250,0.6)`, `background: rgba(59,130,246,0.06)`.
+
+**7. Botão Entrar**
+- Full width, padding 12px, `border-radius: 8px`, `background: linear-gradient(90deg,#1d4ed8,#3b82f6)`.
+- Texto "Entrar" + ícone `LogIn` (lucide).
+- Shimmer: pseudo-elemento (ou span absoluto) com banda branca translúcida varrendo da esquerda para direita a cada 3s no hover (keyframe).
+- Font: Syne 600, 14px, branco, `letter-spacing: 0.03em`.
+- Estado loading: spinner Loader2 mantido.
+
+**8. Footer link**
+- "Acessar Coletor de Dados" — 11px, `#4b6fa8`, sublinhado, centralizado.
+- No modo support: "← Voltar à identificação do cliente" mantém comportamento.
+
+**9. Overlay anti-flash do redirect de suporte**
+- Aplicar mesmo background `#05101f` + canvas (ou versão simplificada estática) para consistência visual durante o redirect.
+
+### Detalhes técnicos
+
+- **Keyframes novos** em `tailwind.config.ts`:
+  - `orbit-spin` (360° / 3s linear)
+  - `dot-pulse` (scale + opacity, 2s)
+  - `card-enter` (fade + translateY, 0.5s ease-out)
+  - `btn-shimmer` (translateX -100% → 200%, 3s)
+- Alternativa: definir keyframes em `<style>` inline dentro do componente para isolar do resto do app.
+- **z-index**: canvas `z-0`, card `z-10`.
+- **Acessibilidade**: manter `<label>`, `required`, `type="password"`; `aria-hidden` no canvas.
+- **Performance**: canvas pausado quando aba inativa (`document.hidden` check no RAF loop).
+- **Sem dependências novas** — apenas Google Fonts já compatível com o `@import` existente.
+
+### Arquivos modificados
+
+```text
+src/index.css                  -> +Syne no @import; opcional: classe .font-syne
+src/pages/LoginPage.tsx        -> reescrita da camada visual; lógica intacta
+tailwind.config.ts             -> +keyframes/animations (orbit, pulse-dot, card-enter, shimmer)
 ```
-Manter o `create` injetando `armazem_id` do contexto **somente** quando o payload não traz; não vamos mais bloquear o `fetchData` se não houver armazém para essas tabelas.
 
-## Arquivos a editar
-- `src/hooks/useCrud.ts` — reduzir `TABLES_WITH_ARMAZEM`.
-- `src/pages/EnderecosPage.tsx` — toolbar com filtro de armazém + `filters` no `useCrud`.
-- `src/pages/BoxPage.tsx` — `fetchOptions("tipo_box")` sem filtro de armazém.
-- `src/pages/TurnosPage.tsx` — campo Armazém no form + coluna na lista + carregar `armazemOptions`.
-- `src/pages/MotivosOcorrenciaPage.tsx` — sem mudança no form (lista volta automática após ajuste no hook). Opcional: adicionar campo Armazém opcional.
-- `src/pages/ZonasAtividadePage.tsx` — campo Armazém no form + toolbar com filtro de armazém + `filters` no `useCrud`.
+### Critérios de aceite
 
-## Validação
-Após a alteração, testar com usuário **sem armazém ativo no contexto** e com usuário trocando entre empresas/armazéns; confirmar que listas exibem registros e cadastros funcionam sem erro 23502/22P02.
+- Login admin (tenant + support) funciona idêntico ao atual.
+- Fluxo de troca de senha forçada continua disparando o modal.
+- Visual reflete spec: canvas animado, card glass, badge, fontes corretas.
+- Coletor (`/coletor`) permanece com visual atual.
+- Sem novos warnings no console; animações suaves a 60fps em desktop.
