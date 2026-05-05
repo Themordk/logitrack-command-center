@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Boxes, Loader2 } from "lucide-react";
+import { Boxes, Loader2, User, Lock } from "lucide-react";
+import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { toast } from "sonner";
 import { nowBrasilia } from "@/lib/dateUtils";
 import { ActionButton } from "@/components/coletor/ActionButton";
@@ -119,59 +120,184 @@ export function ColetorLoginPage({ onNavigate }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f1117] flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-16 h-16 rounded-2xl bg-[hsl(217,91%,50%)] flex items-center justify-center">
-            <Boxes size={32} className="text-white" />
+    <div
+      className="relative min-h-screen overflow-hidden flex items-center justify-center px-5"
+      style={{
+        background: "#020c1b",
+        fontFamily: "'Syne', sans-serif",
+        paddingTop: "max(1.25rem, env(safe-area-inset-top))",
+        paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))",
+      }}
+    >
+      <style>{`
+        @keyframes wi-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes wi-dot-pulse { 0%,100% { transform: scale(0.7); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } }
+        @keyframes wi-shimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
+        @keyframes wi-card-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .wi-orbit { animation: wi-orbit 3s linear infinite; }
+        .wi-dot { animation: wi-dot-pulse 2s ease-in-out infinite; }
+        .wi-card { animation: wi-card-in 0.5s ease-out both; }
+        .wi-shimmer-band { animation: wi-shimmer 3s ease-in-out infinite; }
+        .wi-input:focus { border-color: hsl(217 91% 60%); box-shadow: 0 0 0 4px rgba(59,130,246,0.15); }
+        .wi-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 0.08em; }
+      `}</style>
+
+      <WarehouseCanvas />
+
+      {/* radial vignette */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(800px circle at 15% 10%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(700px circle at 90% 100%, rgba(96,165,250,0.10), transparent 65%)",
+        }}
+      />
+
+      <main className="relative z-10 w-full max-w-[360px] wi-card">
+        {/* Header */}
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            <div
+              aria-hidden
+              className="wi-orbit absolute inset-0 rounded-full"
+              style={{
+                border: "1.5px solid rgba(96,165,250,0.35)",
+                borderTopColor: "hsl(217 91% 60%)",
+                borderRightColor: "transparent",
+              }}
+            />
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(217 91% 40%))",
+                boxShadow: "0 10px 30px -10px rgba(59,130,246,0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
+              }}
+            >
+              <Boxes size={30} className="text-white" />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-white">CORE <span className="text-[hsl(217,91%,60%)]">Coletor</span></h1>
-          <p className="text-sm text-[hsl(213,31%,55%)]">WMS – Login do Operador</p>
+
+          <h1 className="text-3xl font-bold text-white tracking-tight">
+            CORE <span style={{ color: "hsl(217 91% 65%)" }}>Coletor</span>
+          </h1>
+
+          <p className="wi-mono text-[11px] uppercase" style={{ color: "hsl(213 31% 60%)" }}>
+            WMS · LOGIN DO OPERADOR
+          </p>
+
+          <div className="flex items-center gap-2 mt-1">
+            <span
+              className="wi-dot block w-2 h-2 rounded-full"
+              style={{ background: "hsl(142 76% 50%)", boxShadow: "0 0 10px hsl(142 76% 50%)" }}
+            />
+            <span className="wi-mono text-[10px] uppercase" style={{ color: "hsl(142 60% 65%)" }}>
+              Sistema Online
+            </span>
+          </div>
+
           {bootTenant && (
-            <div className="mt-1 px-3 py-1 rounded-full bg-[hsl(217,91%,50%)]/15 border border-[hsl(217,91%,50%)]/30">
-              <span className="text-[11px] uppercase tracking-wide text-[hsl(217,91%,70%)] font-semibold">
-                Cliente: {bootTenant.nome}
+            <div
+              className="mt-1 px-3 py-1 rounded-full"
+              style={{
+                background: "rgba(59,130,246,0.12)",
+                border: "1px solid rgba(96,165,250,0.35)",
+              }}
+            >
+              <span className="wi-mono text-[10px] uppercase font-semibold" style={{ color: "hsl(217 91% 75%)" }}>
+                Cliente · {bootTenant.nome}
               </span>
             </div>
           )}
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-[hsl(213,31%,65%)] mb-1.5 uppercase">Login</label>
-            <input
-              type="text"
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
-              placeholder="Seu login"
-              className="w-full h-14 px-4 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)] transition-colors"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-[hsl(213,31%,65%)] mb-1.5 uppercase">Senha</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full h-14 px-4 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)] transition-colors"
-              required
-            />
-          </div>
-          <ActionButton type="submit" loading={loading} disabled={!login.trim() || !password.trim()}>
-            Entrar
-          </ActionButton>
-        </form>
+        {/* Glass card */}
+        <div
+          className="rounded-2xl p-6"
+          style={{
+            background: "rgba(10,22,40,0.6)",
+            backdropFilter: "blur(18px)",
+            WebkitBackdropFilter: "blur(18px)",
+            border: "1px solid rgba(96,165,250,0.18)",
+            boxShadow: "0 20px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
+          }}
+        >
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label className="wi-mono block text-[10px] font-semibold mb-2 uppercase" style={{ color: "hsl(213 31% 65%)" }}>
+                Login
+              </label>
+              <div className="relative">
+                <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "hsl(213 31% 50%)" }} />
+                <input
+                  type="text"
+                  value={login}
+                  onChange={(e) => setLogin(e.target.value)}
+                  placeholder="Seu login"
+                  className="wi-input w-full h-14 pl-12 pr-4 rounded-xl text-base text-white outline-none transition-all"
+                  style={{
+                    background: "rgba(2,12,27,0.6)",
+                    border: "1px solid rgba(96,165,250,0.2)",
+                    fontFamily: "'Syne', sans-serif",
+                  }}
+                  autoComplete="username"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="wi-mono block text-[10px] font-semibold mb-2 uppercase" style={{ color: "hsl(213 31% 65%)" }}>
+                Senha
+              </label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "hsl(213 31% 50%)" }} />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="wi-input w-full h-14 pl-12 pr-4 rounded-xl text-base text-white outline-none transition-all"
+                  style={{
+                    background: "rgba(2,12,27,0.6)",
+                    border: "1px solid rgba(96,165,250,0.2)",
+                    fontFamily: "'Syne', sans-serif",
+                  }}
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-xl">
+              <ActionButton type="submit" loading={loading} disabled={!login.trim() || !password.trim()}>
+                Entrar
+              </ActionButton>
+              {!loading && (
+                <div
+                  aria-hidden
+                  className="wi-shimmer-band pointer-events-none absolute inset-y-0 w-1/3"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent)",
+                  }}
+                />
+              )}
+            </div>
+          </form>
+        </div>
 
         <button
           type="button"
           onClick={() => onNavigate("/")}
-          className="w-full text-center text-sm text-[hsl(213,31%,55%)] hover:text-[hsl(217,91%,60%)] transition-colors"
+          className="wi-mono mt-6 w-full text-center text-[11px] uppercase transition-colors"
+          style={{ color: "hsl(213 31% 50%)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(217 91% 65%)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(213 31% 50%)")}
         >
           Acessar Painel Administrativo
         </button>
-      </div>
+      </main>
 
       <ForcePasswordChangeModal
         open={forceChange}
