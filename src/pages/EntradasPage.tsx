@@ -27,7 +27,7 @@ export function EntradasPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 15;
+  const pageSize = 20;
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
 
@@ -55,38 +55,38 @@ export function EntradasPage() {
 
       let query = (supabase as any)
         .from("documento_entrada")
-        .select("id, numero_nota, data_emissao, parceiro_id, tipo_entrada_id, valor_total_nota, qtd_volume", { count: "exact" })
+        .select(
+          `id, numero_nota, data_emissao, parceiro_id, tipo_entrada_id, valor_total_nota, qtd_volume,
+           parceiro:parceiro_id ( razaosocial ),
+           tipo_entrada:tipo_entrada_id ( descricao ),
+           itens:documento_entrada_item ( count )`,
+          { count: "exact" }
+        )
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .eq("status", 0)
         .order("data_emissao", { ascending: false })
         .range(from, to);
 
-      // armazem_id é opcional: incluir docs do armazém ativo OU sem armazém definido
       if (armazemId) {
         query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
       }
 
       const { data, error, count } = await query;
-
       if (error) throw error;
 
-      // Fetch parceiro names and item counts
-      const enriched = await Promise.all(
-        (data || []).map(async (doc: any) => {
-          const [parceiroRes, itemRes, tipoRes] = await Promise.all([
-            (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single(),
-            (supabase as any).from("documento_entrada_item").select("id", { count: "exact" }).eq("documento_entrada_id", doc.id),
-            doc.tipo_entrada_id ? (supabase as any).from("tipo_entrada").select("descricao").eq("id", doc.tipo_entrada_id).single() : Promise.resolve({ data: null }),
-          ]);
-          return {
-            ...doc,
-            parceiro_nome: parceiroRes.data?.razaosocial || "—",
-            total_skus: itemRes.count || 0,
-            tipo_entrada_descricao: tipoRes.data?.descricao || "—",
-          };
-        })
-      );
+      const enriched: DocEntry[] = (data || []).map((doc: any) => ({
+        id: doc.id,
+        numero_nota: doc.numero_nota,
+        data_emissao: doc.data_emissao,
+        parceiro_id: doc.parceiro_id,
+        tipo_entrada_id: doc.tipo_entrada_id,
+        valor_total_nota: doc.valor_total_nota,
+        qtd_volume: doc.qtd_volume,
+        parceiro_nome: doc.parceiro?.razaosocial || "—",
+        tipo_entrada_descricao: doc.tipo_entrada?.descricao || "—",
+        total_skus: doc.itens?.[0]?.count ?? 0,
+      }));
 
       setDocs(enriched);
       setTotal(count || 0);
@@ -98,6 +98,7 @@ export function EntradasPage() {
   }, [tenantId, empresaId, armazemId, page]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
+  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -194,15 +195,13 @@ export function EntradasPage() {
       const { error: linkError } = await (supabase as any).from("movimento_entrada_documento").insert(docLinks);
       if (linkError) throw linkError;
 
-      // 3. Fetch all items from selected documents, consolidate by produto_id
-      const allItems: { produto_id: string; quantidade: number }[] = [];
-      for (const docId of docIds) {
-        const { data: items } = await (supabase as any)
-          .from("documento_entrada_item")
-          .select("produto_id, quantidade")
-          .eq("documento_entrada_id", docId);
-        if (items) allItems.push(...items);
-      }
+      // 3. Fetch all items in a single query and consolidate by produto_id
+      const { data: items, error: itemsErr } = await (supabase as any)
+        .from("documento_entrada_item")
+        .select("produto_id, quantidade, documento_entrada_id")
+        .in("documento_entrada_id", docIds);
+      if (itemsErr) throw itemsErr;
+      const allItems: { produto_id: string; quantidade: number }[] = items || [];
 
       // Group by produto_id and sum quantities
       const grouped = allItems.reduce<Record<string, number>>((acc, item) => {
@@ -277,7 +276,7 @@ export function EntradasPage() {
         </div>
       </div>
 
-      <div className="card-surface overflow-hidden">
+      <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={20} className="animate-spin text-muted-foreground" />
@@ -288,62 +287,64 @@ export function EntradasPage() {
             <p className="text-sm">Nenhum documento pendente encontrado.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-secondary/30">
-                <th className="px-4 py-2.5 text-left w-10">
-                  <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Nº Nota</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Data Emissão</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Tipo Entrada</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Valor Total</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {docs.map((doc) => (
-                <tr key={doc.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => toggleSelect(doc.id)}>
-                  <td className="px-4 py-2.5">
-                    <input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" />
-                  </td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_nota}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
-                  <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
-                  <td className="px-4 py-2.5 text-foreground text-xs">{doc.tipo_entrada_descricao}</td>
-                  <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
-                  <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-foreground">
-                    {doc.valor_total_nota.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </td>
-                  <td className="px-4 py-2.5 text-center">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
-                      className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                      title="Ver detalhes"
-                    >
-                      <Eye size={14} />
-                    </button>
-                  </td>
+          <div className="flex-1 min-h-0 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-border bg-secondary backdrop-blur">
+                  <th className="px-4 py-2.5 text-left w-10 bg-secondary">
+                    <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Nº Nota</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Data Emissão</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Parceiro</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Tipo Entrada</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">SKUs</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">Volumes</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase bg-secondary">Valor Total</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16 bg-secondary">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
-            <span className="text-xs text-muted-foreground">{total} documentos</span>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
-              <span className="text-xs text-muted-foreground px-2">{page} / {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
-            </div>
+              </thead>
+              <tbody>
+                {docs.map((doc) => (
+                  <tr key={doc.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => toggleSelect(doc.id)}>
+                    <td className="px-4 py-2.5">
+                      <input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" />
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_nota}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
+                    <td className="px-4 py-2.5 text-foreground text-xs">{doc.tipo_entrada_descricao}</td>
+                    <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
+                    <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-foreground">
+                      {doc.valor_total_nota.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
+                        className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        title="Ver detalhes"
+                      >
+                        <Eye size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
+
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
+          <span className="text-xs text-muted-foreground">
+            {total} documento{total === 1 ? "" : "s"}
+          </span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
+            <span className="text-xs text-muted-foreground px-2">{page} / {Math.max(1, totalPages)}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
+          </div>
+        </div>
       </div>
 
       {/* Modal Gerar Movimento */}
