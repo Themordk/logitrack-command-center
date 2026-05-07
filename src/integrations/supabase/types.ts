@@ -6206,6 +6206,24 @@ export type Database = {
         }
         Returns: Json
       }
+      middleware_consultar_parceiro_omie: {
+        Args: {
+          p_codigo_cliente_omie?: number
+          p_codigo_integracao?: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
+      middleware_consultar_produto_omie: {
+        Args: {
+          p_codigo?: string
+          p_codigo_produto?: number
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: number
+      }
       middleware_get_sync_configs: {
         Args: {
           p_empresa_id?: string
@@ -6224,6 +6242,33 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      middleware_get_wms_id: {
+        Args: {
+          p_empresa_id: string
+          p_entidade: string
+          p_omie_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      middleware_importar_parceiro: {
+        Args: {
+          p_codigo_cliente_omie?: number
+          p_codigo_integracao?: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      middleware_importar_produto: {
+        Args: {
+          p_codigo?: string
+          p_codigo_produto?: number
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       middleware_log_sync: {
         Args: {
           p_duration_ms?: number
@@ -6240,6 +6285,22 @@ export type Database = {
           p_updated?: number
         }
         Returns: string
+      }
+      middleware_processar_parceiro_omie: {
+        Args: {
+          p_empresa_id: string
+          p_request_id: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      middleware_processar_produto_omie: {
+        Args: {
+          p_empresa_id: string
+          p_request_id: number
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       middleware_save_last_id: {
         Args: {
