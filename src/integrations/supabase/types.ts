@@ -325,6 +325,8 @@ export type Database = {
       documento_entrada: {
         Row: {
           armazem_id: string | null
+          chave_nfe: string | null
+          codigo_erp: string | null
           created_at: string | null
           data_emissao: string
           data_entrada: string
@@ -341,6 +343,8 @@ export type Database = {
         }
         Insert: {
           armazem_id?: string | null
+          chave_nfe?: string | null
+          codigo_erp?: string | null
           created_at?: string | null
           data_emissao: string
           data_entrada: string
@@ -357,6 +361,8 @@ export type Database = {
         }
         Update: {
           armazem_id?: string | null
+          chave_nfe?: string | null
+          codigo_erp?: string | null
           created_at?: string | null
           data_emissao?: string
           data_entrada?: string
@@ -2677,6 +2683,7 @@ export type Database = {
           cidade: string
           cnpj: string
           codigo_erp: string | null
+          codigo_erp_omie: string | null
           dias_shelf: number | null
           empresa_id: string
           endereco: string
@@ -2693,6 +2700,7 @@ export type Database = {
           cidade: string
           cnpj: string
           codigo_erp?: string | null
+          codigo_erp_omie?: string | null
           dias_shelf?: number | null
           empresa_id: string
           endereco: string
@@ -2709,6 +2717,7 @@ export type Database = {
           cidade?: string
           cnpj?: string
           codigo_erp?: string | null
+          codigo_erp_omie?: string | null
           dias_shelf?: number | null
           empresa_id?: string
           endereco?: string
@@ -2991,6 +3000,7 @@ export type Database = {
         Row: {
           ativo: boolean
           camada: number | null
+          codigo_erp: string | null
           curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
           curva_venda: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
@@ -3020,6 +3030,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           camada?: number | null
+          codigo_erp?: string | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           curva_venda?: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
@@ -3049,6 +3060,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           camada?: number | null
+          codigo_erp?: string | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           curva_venda?: Database["public"]["Enums"]["enum_curva"] | null
           descricao?: string
@@ -3124,6 +3136,7 @@ export type Database = {
         Row: {
           altura: number | null
           ativo: boolean
+          codigo_erp: string | null
           comprimento: number | null
           ean: string
           embalagem: string
@@ -3140,6 +3153,7 @@ export type Database = {
         Insert: {
           altura?: number | null
           ativo?: boolean
+          codigo_erp?: string | null
           comprimento?: number | null
           ean: string
           embalagem: string
@@ -3156,6 +3170,7 @@ export type Database = {
         Update: {
           altura?: number | null
           ativo?: boolean
+          codigo_erp?: string | null
           comprimento?: number | null
           ean?: string
           embalagem?: string
@@ -6190,6 +6205,162 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: Json
+      }
+      middleware_get_sync_configs: {
+        Args: {
+          p_empresa_id?: string
+          p_entidade: string
+          p_modulo: string
+          p_tenant_id?: string
+        }
+        Returns: {
+          app_key: string
+          app_secret: string
+          config_id: string
+          empresa_id: string
+          interval_minutes: number
+          last_sync_at: string
+          omie_base_url: string
+          tenant_id: string
+        }[]
+      }
+      middleware_log_sync: {
+        Args: {
+          p_duration_ms?: number
+          p_empresa_id: string
+          p_entidade: string
+          p_error?: number
+          p_error_msg?: string
+          p_fetched?: number
+          p_inserted?: number
+          p_modulo: string
+          p_payload_sample?: Json
+          p_status: string
+          p_tenant_id: string
+          p_updated?: number
+        }
+        Returns: string
+      }
+      middleware_save_last_id: {
+        Args: {
+          p_empresa_id: string
+          p_entidade: string
+          p_last_id: number
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
+      middleware_save_pagina: {
+        Args: {
+          p_concluido?: boolean
+          p_empresa_id: string
+          p_entidade: string
+          p_pagina: number
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
+      middleware_upsert_documento_entrada: {
+        Args: {
+          p_chave_nfe: string
+          p_codigo_erp: string
+          p_data_emissao: string
+          p_data_entrada: string
+          p_empresa_id: string
+          p_numero_nota: string
+          p_parceiro_id: string
+          p_qtd_volume: number
+          p_status: number
+          p_tenant_id: string
+          p_tipo_entrada_id: string
+          p_valor_total_nota: number
+          p_valor_total_prod: number
+        }
+        Returns: string
+      }
+      middleware_upsert_documento_entrada_item: {
+        Args: {
+          p_documento_entrada_id: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+          p_valor_total: number
+          p_valor_unidade: number
+        }
+        Returns: string
+      }
+      middleware_upsert_embalagem: {
+        Args: {
+          p_altura: number
+          p_ativo: boolean
+          p_codigo_erp: string
+          p_comprimento: number
+          p_ean: string
+          p_embalagem: string
+          p_empresa_id: string
+          p_fator: number
+          p_largura: number
+          p_peso_bruto: number
+          p_peso_liq: number
+          p_produto_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      middleware_upsert_id_map: {
+        Args: {
+          p_empresa_id: string
+          p_entidade: string
+          p_omie_codigo?: string
+          p_omie_id: string
+          p_tenant_id: string
+          p_wms_id: string
+        }
+        Returns: undefined
+      }
+      middleware_upsert_parceiro: {
+        Args: {
+          p_ativo: boolean
+          p_bairro: string
+          p_cep: string
+          p_cidade: string
+          p_cnpj: string
+          p_codigo_erp: string
+          p_codigo_erp_omie: string
+          p_complemento: string
+          p_email: string
+          p_empresa_id: string
+          p_endereco: string
+          p_estado: string
+          p_nome_fantasia: string
+          p_numero: string
+          p_razao_social: string
+          p_rota_id?: string
+          p_telefone: string
+          p_tenant_id: string
+          p_tipo_parceiro: string
+        }
+        Returns: string
+      }
+      middleware_upsert_produto: {
+        Args: {
+          p_ativo: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_marca: string
+          p_parceiro_id: string
+          p_peso_variavel: boolean
+          p_preco_custo: number
+          p_referencia: string
+          p_sku: string
+          p_tenant_id: string
+          p_tipo_controle: string
+          p_tipo_separacao: string
+          p_usa_picking: boolean
+          p_varios_pickings: boolean
+        }
+        Returns: string
       }
       processar_movimento_estoque: {
         Args: { p_tarefa_execucao_id: string }
