@@ -276,7 +276,7 @@ export function EntradasPage() {
         </div>
       </div>
 
-      <div className="card-surface overflow-hidden">
+      <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={20} className="animate-spin text-muted-foreground" />
@@ -287,62 +287,64 @@ export function EntradasPage() {
             <p className="text-sm">Nenhum documento pendente encontrado.</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-secondary/30">
-                <th className="px-4 py-2.5 text-left w-10">
-                  <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Nº Nota</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Data Emissão</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Tipo Entrada</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Valor Total</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {docs.map((doc) => (
-                <tr key={doc.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => toggleSelect(doc.id)}>
-                  <td className="px-4 py-2.5">
-                    <input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" />
-                  </td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_nota}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
-                  <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
-                  <td className="px-4 py-2.5 text-foreground text-xs">{doc.tipo_entrada_descricao}</td>
-                  <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
-                  <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-foreground">
-                    {doc.valor_total_nota.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </td>
-                  <td className="px-4 py-2.5 text-center">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
-                      className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                      title="Ver detalhes"
-                    >
-                      <Eye size={14} />
-                    </button>
-                  </td>
+          <div className="flex-1 min-h-0 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-border bg-secondary backdrop-blur">
+                  <th className="px-4 py-2.5 text-left w-10 bg-secondary">
+                    <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Nº Nota</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Data Emissão</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Parceiro</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Tipo Entrada</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">SKUs</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">Volumes</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase bg-secondary">Valor Total</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16 bg-secondary">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
-            <span className="text-xs text-muted-foreground">{total} documentos</span>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
-              <span className="text-xs text-muted-foreground px-2">{page} / {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
-            </div>
+              </thead>
+              <tbody>
+                {docs.map((doc) => (
+                  <tr key={doc.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => toggleSelect(doc.id)}>
+                    <td className="px-4 py-2.5">
+                      <input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" />
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_nota}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
+                    <td className="px-4 py-2.5 text-foreground text-xs">{doc.tipo_entrada_descricao}</td>
+                    <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
+                    <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-foreground">
+                      {doc.valor_total_nota.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
+                        className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        title="Ver detalhes"
+                      >
+                        <Eye size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
+
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
+          <span className="text-xs text-muted-foreground">
+            {total} documento{total === 1 ? "" : "s"}
+          </span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
+            <span className="text-xs text-muted-foreground px-2">{page} / {Math.max(1, totalPages)}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
+          </div>
+        </div>
       </div>
 
       {/* Modal Gerar Movimento */}
