@@ -195,15 +195,13 @@ export function EntradasPage() {
       const { error: linkError } = await (supabase as any).from("movimento_entrada_documento").insert(docLinks);
       if (linkError) throw linkError;
 
-      // 3. Fetch all items from selected documents, consolidate by produto_id
-      const allItems: { produto_id: string; quantidade: number }[] = [];
-      for (const docId of docIds) {
-        const { data: items } = await (supabase as any)
-          .from("documento_entrada_item")
-          .select("produto_id, quantidade")
-          .eq("documento_entrada_id", docId);
-        if (items) allItems.push(...items);
-      }
+      // 3. Fetch all items in a single query and consolidate by produto_id
+      const { data: items, error: itemsErr } = await (supabase as any)
+        .from("documento_entrada_item")
+        .select("produto_id, quantidade, documento_entrada_id")
+        .in("documento_entrada_id", docIds);
+      if (itemsErr) throw itemsErr;
+      const allItems: { produto_id: string; quantidade: number }[] = items || [];
 
       // Group by produto_id and sum quantities
       const grouped = allItems.reduce<Record<string, number>>((acc, item) => {
