@@ -55,38 +55,38 @@ export function EntradasPage() {
 
       let query = (supabase as any)
         .from("documento_entrada")
-        .select("id, numero_nota, data_emissao, parceiro_id, tipo_entrada_id, valor_total_nota, qtd_volume", { count: "exact" })
+        .select(
+          `id, numero_nota, data_emissao, parceiro_id, tipo_entrada_id, valor_total_nota, qtd_volume,
+           parceiro:parceiro_id ( razaosocial ),
+           tipo_entrada:tipo_entrada_id ( descricao ),
+           itens:documento_entrada_item ( count )`,
+          { count: "exact" }
+        )
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .eq("status", 0)
         .order("data_emissao", { ascending: false })
         .range(from, to);
 
-      // armazem_id é opcional: incluir docs do armazém ativo OU sem armazém definido
       if (armazemId) {
         query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
       }
 
       const { data, error, count } = await query;
-
       if (error) throw error;
 
-      // Fetch parceiro names and item counts
-      const enriched = await Promise.all(
-        (data || []).map(async (doc: any) => {
-          const [parceiroRes, itemRes, tipoRes] = await Promise.all([
-            (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single(),
-            (supabase as any).from("documento_entrada_item").select("id", { count: "exact" }).eq("documento_entrada_id", doc.id),
-            doc.tipo_entrada_id ? (supabase as any).from("tipo_entrada").select("descricao").eq("id", doc.tipo_entrada_id).single() : Promise.resolve({ data: null }),
-          ]);
-          return {
-            ...doc,
-            parceiro_nome: parceiroRes.data?.razaosocial || "—",
-            total_skus: itemRes.count || 0,
-            tipo_entrada_descricao: tipoRes.data?.descricao || "—",
-          };
-        })
-      );
+      const enriched: DocEntry[] = (data || []).map((doc: any) => ({
+        id: doc.id,
+        numero_nota: doc.numero_nota,
+        data_emissao: doc.data_emissao,
+        parceiro_id: doc.parceiro_id,
+        tipo_entrada_id: doc.tipo_entrada_id,
+        valor_total_nota: doc.valor_total_nota,
+        qtd_volume: doc.qtd_volume,
+        parceiro_nome: doc.parceiro?.razaosocial || "—",
+        tipo_entrada_descricao: doc.tipo_entrada?.descricao || "—",
+        total_skus: doc.itens?.[0]?.count ?? 0,
+      }));
 
       setDocs(enriched);
       setTotal(count || 0);
