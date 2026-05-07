@@ -98,6 +98,7 @@ export function EntradasPage() {
   }, [tenantId, empresaId, armazemId, page]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
+  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
