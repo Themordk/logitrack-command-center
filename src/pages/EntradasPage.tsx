@@ -62,9 +62,9 @@ export function EntradasPage() {
         .order("data_emissao", { ascending: false })
         .range(from, to);
 
-      // armazem_id is optional filter
+      // armazem_id é opcional: incluir docs do armazém ativo OU sem armazém definido
       if (armazemId) {
-        query = query.eq("armazem_id", armazemId);
+        query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
       }
 
       const { data, error, count } = await query;
