@@ -186,13 +186,57 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
           `Documento não encontrado no ERP (Recebimentos: ${erroRecebimento}; Notas de Entrada: ${erroNota}).`,
         );
       } else if (config.entidade === "pedido_saida") {
-        const body = { tenant_id: tenantId, empresa_id: empresaId, numero_pedido: valor.trim() };
+        const v = valor.trim();
+        const body = { tenant_id: tenantId, empresa_id: empresaId, numero_pedido: v };
         const { data, error } = await supabase.functions.invoke("sync-pedidos-saida", { body });
-        if (error) {
-          throw new Error("Módulo em desenvolvimento. Disponível em breve.");
+        if (error) throw new Error(error.message || "Falha ao consultar pedidos");
+        const res = data?.results?.[0] || data || {};
+        const importados = Number(res.pedidos_importados || 0);
+        const ignorados = Number(res.ignorados || 0);
+        const erros = Number(res.erros || 0);
+
+        if (importados === 0 && ignorados === 0) {
+          throw new Error(res.mensagem || res.erro || (erros > 0 ? "Erro ao importar pedido" : "Pedido não encontrado no ERP"));
         }
-        if (data?.sucesso === false) throw new Error(data?.erro || "Pedido não encontrado");
-        setRegistro(data);
+
+        // Buscar documento recém criado/existente
+        const { data: doc } = await (supabase as any)
+          .from("documento_saida")
+          .select("id, numero_pedido, parceiro_nome, data_previsao, valor_total, qtd_itens, rota_nome")
+          .eq("empresa_id", empresaId)
+          .eq("numero_pedido", v)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        setRegistro({ ...(doc || { numero_pedido: v }), _jaExistia: importados === 0 && ignorados > 0 });
+        setEstado("PREVIA");
+      } else if (config.entidade === "grupo_produto") {
+        const codigo = parseInt(valor.trim(), 10);
+        if (!codigo) throw new Error("Código do grupo inválido");
+
+        // Verificar se já existe no WMS
+        const { data: existente } = await (supabase as any)
+          .from("grupo_produto")
+          .select("id, descricao, codigo_erp, ativo")
+          .eq("empresa_id", empresaId)
+          .eq("codigo_erp", String(codigo))
+          .maybeSingle();
+
+        const body = { tenant_id: tenantId, empresa_id: empresaId, codigo_grupo: codigo };
+        const { data, error } = await supabase.functions.invoke("sync-grupo-produto", { body });
+        if (error) throw new Error(error.message || "Falha ao consultar grupo");
+        if (data?.sucesso === false) throw new Error(data?.erro || "Grupo não encontrado no ERP");
+
+        // Recarregar registro do WMS pós-sync
+        const { data: pos } = await (supabase as any)
+          .from("grupo_produto")
+          .select("id, descricao, codigo_erp, ativo")
+          .eq("empresa_id", empresaId)
+          .eq("codigo_erp", String(codigo))
+          .maybeSingle();
+
+        setRegistro({ ...(pos || data || {}), _jaExistia: !!existente });
         setEstado("PREVIA");
       }
     } catch (e: any) {
