@@ -149,11 +149,41 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
         const body: any = { tenant_id: tenantId, empresa_id: empresaId };
         if (v.length === 44) body.chave_nfe = v;
         else body.numero_nota = v;
-        const { data, error } = await supabase.functions.invoke("sync-notas-entrada", { body });
-        if (error) throw new Error(error.message || "Falha ao consultar nota");
-        if (data?.sucesso === false) throw new Error(data?.erro || "Nota não encontrada");
-        setRegistro(data);
-        setEstado("PREVIA");
+
+        const isNotFound = (errMsg?: string, data?: any) => {
+          if (data?.sucesso === false) return true;
+          const m = (errMsg || "").toLowerCase();
+          return m.includes("não encontrad") || m.includes("nao encontrad") || m.includes("not found") || m.includes("404");
+        };
+
+        // Passo 1: sync-recebimentos (compra/revenda - prioritário)
+        const r1 = await supabase.functions.invoke("sync-recebimentos", { body });
+        if (!r1.error && r1.data?.sucesso === true) {
+          setRegistro({ ...r1.data, _origem: "recebimento" });
+          setEstado("PREVIA");
+          return;
+        }
+        // Erro real (não "não encontrado") → interrompe sem fallback
+        if (r1.error && !isNotFound(r1.error.message, r1.data)) {
+          throw new Error(r1.error.message || "Falha ao consultar recebimentos");
+        }
+        const erroRecebimento = r1.data?.erro || r1.error?.message || "não encontrado";
+
+        // Passo 2: sync-notas-entrada (NF-e de entrada - fallback)
+        const r2 = await supabase.functions.invoke("sync-notas-entrada", { body });
+        if (!r2.error && r2.data?.sucesso === true) {
+          setRegistro({ ...r2.data, _origem: "nota_entrada" });
+          setEstado("PREVIA");
+          return;
+        }
+        if (r2.error && !isNotFound(r2.error.message, r2.data)) {
+          throw new Error(r2.error.message || "Falha ao consultar notas de entrada");
+        }
+        const erroNota = r2.data?.erro || r2.error?.message || "não encontrado";
+
+        throw new Error(
+          `Documento não encontrado no ERP (Recebimentos: ${erroRecebimento}; Notas de Entrada: ${erroNota}).`,
+        );
       } else if (config.entidade === "pedido_saida") {
         const body = { tenant_id: tenantId, empresa_id: empresaId, numero_pedido: valor.trim() };
         const { data, error } = await supabase.functions.invoke("sync-pedidos-saida", { body });
