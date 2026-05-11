@@ -4,6 +4,7 @@ import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 
 export function GruposProdutoPage() {
   const { tenantId } = useTenant();
@@ -11,6 +12,7 @@ export function GruposProdutoPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
@@ -40,6 +42,21 @@ export function GruposProdutoPage() {
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Grupo"
+        headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
+      />
+      <ImportarDoERPModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => crud.refresh()}
+        config={{
+          titulo: "Importar Grupo de Produto do ERP",
+          labelCampo: "código do grupo no ERP",
+          placeholderCampo: "Ex: 1001",
+          tipoCampo: "text",
+          entidade: "redirect_sync",
+          mensagemRedirect:
+            "A importação de grupos é feita automaticamente pelo sincronizador de cadastros. Acesse Configurações > Integração ERP > Sincronização e execute manualmente a entidade 'grupo_produto'.",
+        }}
       />
       <CrudModal
         open={modalOpen}

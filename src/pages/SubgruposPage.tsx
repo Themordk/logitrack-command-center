@@ -4,6 +4,7 @@ import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 
 export function SubgruposPage() {
   const { tenantId, empresaId } = useTenant();
@@ -16,6 +17,7 @@ export function SubgruposPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -64,6 +66,21 @@ export function SubgruposPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Subgrupo"
         searchPlaceholder="Buscar subgrupo..."
+        headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
+      />
+      <ImportarDoERPModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => crud.refresh()}
+        config={{
+          titulo: "Importar Subgrupo de Produto do ERP",
+          labelCampo: "código do subgrupo no ERP",
+          placeholderCampo: "Ex: 2001",
+          tipoCampo: "text",
+          entidade: "redirect_sync",
+          mensagemRedirect:
+            "A importação de subgrupos é feita automaticamente pelo sincronizador de cadastros. Acesse Configurações > Integração ERP > Sincronização e execute manualmente a entidade 'subgrupo_produto'.",
+        }}
       />
       <CrudModal
         open={modalOpen}
