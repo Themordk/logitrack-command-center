@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { fetchOptions } from "@/hooks/useCrud";
 import { CadastroDocSaidaPage } from "./CadastroDocSaidaPage";
 import { DocSaidaDetalhePage } from "./DocSaidaDetalhePage";
+import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 
 interface DocSaida {
   id: string;
@@ -28,6 +29,7 @@ export function SaidasPage() {
   const pageSize = 15;
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -150,6 +152,7 @@ export function SaidasPage() {
           <button onClick={() => setShowCadastro(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors">
             <Plus size={14} /> Novo Documento
           </button>
+          <BotaoImportarERP onClick={() => setImportOpen(true)} />
           <button onClick={openModal} disabled={selected.size === 0} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             <Truck size={14} /> Gerar Onda ({selected.size})
           </button>
@@ -266,6 +269,29 @@ export function SaidasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ImportarDoERPModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => fetchDocs()}
+        config={{
+          titulo: "Importar Pedido de Venda do ERP",
+          labelCampo: "número do pedido de venda",
+          placeholderCampo: "Ex: 000456",
+          tipoCampo: "text",
+          entidade: "pedido_saida",
+          camposPrevia: [
+            { label: "Número Pedido", campo: "numero_pedido" },
+            { label: "Cliente", campo: "parceiro_nome" },
+            { label: "Data Previsão", campo: "data_previsao" },
+            { label: "Valor Total", campo: "valor_total" },
+            { label: "Qtd Itens", campo: "qtd_itens" },
+            { label: "Rota", campo: "rota_nome" },
+          ],
+          avisoConfirmacao:
+            "O pedido será importado como Documento de Saída com status 'Aguardando'. A Ordem de Expedição deverá ser criada manualmente.",
+          verRegistroPath: (id) => `/atividades/saidas?documento_id=${id}`,
+        }}
+      />
     </div>
   );
 }
