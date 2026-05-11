@@ -6,6 +6,7 @@ import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye } from "
 import { CadastroDocEntradaPage } from "./CadastroDocEntradaPage";
 import { DocEntradaDetalhePage } from "./DocEntradaDetalhePage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 
 interface DocEntry {
   id: string;
@@ -30,6 +31,7 @@ export function EntradasPage() {
   const pageSize = 20;
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -265,6 +267,7 @@ export function EntradasPage() {
             <Plus size={14} />
             Novo Documento
           </button>
+          <BotaoImportarERP onClick={() => setImportOpen(true)} />
           <button
             onClick={openModal}
             disabled={selected.size === 0}
