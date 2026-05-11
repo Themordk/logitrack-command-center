@@ -321,10 +321,17 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
     </div>
   );
 
-  const renderPrevia = () => (
+  const renderPrevia = () => {
+    const jaExistia = !!registro?._jaExistia;
+    return (
     <>
       {renderHeader(<CheckCircle2 size={20} className="text-emerald-500" />, "Registro encontrado")}
       <div className="space-y-4">
+        {jaExistia && (
+          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <AlertTriangle size={12} /> Já cadastrado
+          </div>
+        )}
         <div className="rounded-lg border border-border bg-secondary/40 p-4 space-y-2">
           {(config.camposPrevia || []).map((c) => {
             const v = registro?.[c.campo];
@@ -352,12 +359,13 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
             <ArrowLeft size={14} /> Buscar outro
           </Button>
           <Button onClick={handleConfirmar}>
-            <CheckCircle2 size={14} /> Confirmar
+            <CheckCircle2 size={14} /> {jaExistia ? "Atualizar" : "Confirmar"}
           </Button>
         </div>
       </div>
     </>
-  );
+    );
+  };
 
   const renderImportando = () => (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
