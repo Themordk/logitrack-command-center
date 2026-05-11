@@ -4,6 +4,7 @@ import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 
 export function ParceirosPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
@@ -11,6 +12,7 @@ export function ParceirosPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [rotaOptions, setRotaOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -64,6 +66,26 @@ export function ParceirosPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Parceiro"
         searchPlaceholder="Buscar por razão social..."
+        headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
+      />
+      <ImportarDoERPModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => crud.refresh()}
+        config={{
+          titulo: "Importar Parceiro do ERP",
+          labelCampo: "código do cliente/fornecedor no Omie",
+          placeholderCampo: "Ex: 11192937501",
+          tipoCampo: "number",
+          entidade: "parceiro",
+          camposPrevia: [
+            { label: "Razão Social", campo: "razao_social" },
+            { label: "CNPJ/CPF", campo: "cnpj_cpf" },
+            { label: "Tipo", campo: "tipo_parceiro" },
+            { label: "Código Omie", campo: "codigo_cliente_omie" },
+          ],
+          verRegistroPath: (id) => `/dados-mestres/parceiros?id=${id}`,
+        }}
       />
       <CrudModal
         open={modalOpen}
