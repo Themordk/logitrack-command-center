@@ -26,7 +26,7 @@ export function StatusBar({ tenantId, empresaId, refreshKey }: Props) {
       const todayIso = today.toISOString();
 
       const [cfgRes, scRes, errRes, impRes] = await Promise.all([
-        mw.from("omie_config").select("ativo").eq("tenant_id", tenantId).eq("empresa_id", empresaId).maybeSingle(),
+        mw.from("omie_config_public").select("ativo").eq("tenant_id", tenantId).eq("empresa_id", empresaId).maybeSingle(),
         mw.from("sync_config").select("ativo,last_sync_at").eq("tenant_id", tenantId).eq("empresa_id", empresaId),
         mw
           .from("sync_log")
