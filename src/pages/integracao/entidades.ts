@@ -31,6 +31,7 @@ export const MODULOS: ModuloDef[] = [
     entidades: [
       { id: "movimentos_entrada", label: "Movimentos de Entrada", fn: "sync-recebimentos" },
       { id: "notas_entrada", label: "Notas de Entrada", fn: "sync-notas-entrada" },
+      { id: "pedidos_saida", label: "Pedidos de Venda", fn: "sync-pedidos-saida" },
       { id: "movimentos_saida", label: "Movimentos de Saída", fn: null },
     ],
   },
