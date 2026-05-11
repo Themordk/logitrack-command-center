@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
+import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -538,6 +539,7 @@ export function ProdutosPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
@@ -584,6 +586,26 @@ export function ProdutosPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
         searchPlaceholder="Buscar por SKU ou descrição..."
+        headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
+      />
+      <ImportarDoERPModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => crud.refresh()}
+        config={{
+          titulo: "Importar Produto do ERP",
+          labelCampo: "código do produto (SKU)",
+          placeholderCampo: "Ex: 4400619",
+          tipoCampo: "text",
+          entidade: "produto",
+          camposPrevia: [
+            { label: "SKU", campo: "sku" },
+            { label: "Descrição", campo: "descricao" },
+            { label: "Código ERP", campo: "codigo_produto" },
+            { label: "Status", campo: "ativo" },
+          ],
+          verRegistroPath: (id) => `/dados-mestres/produtos?id=${id}`,
+        }}
       />
       {tenantId && (
         <ProdutoDetailModal
