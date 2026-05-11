@@ -6548,6 +6548,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      user_has_empresa_access: {
+        Args: { _empresa: string; _tenant: string }
+        Returns: boolean
+      }
     }
     Enums: {
       enum_acao_permissao: "CREATE" | "READ" | "UPDATE" | "DELETE" | "EXECUTE"

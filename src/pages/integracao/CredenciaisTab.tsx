@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { mw } from "./entidades";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Eye, EyeOff, Loader2, Save, Plug } from "lucide-react";
 import { toast } from "sonner";
-import { nowBrasilia } from "@/lib/dateUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   tenantId: string;
@@ -32,21 +31,19 @@ export function CredenciaisTab({ tenantId, empresaId, onSaved }: Props) {
     (async () => {
       setLoading(true);
       setTestResult(null);
-      const { data, error } = await mw
-        .from("omie_config")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .eq("empresa_id", empresaId)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke("omie-config-get", {
+        body: { tenant_id: tenantId, empresa_id: empresaId },
+      });
       if (!alive) return;
       if (error) toast.error(`Erro ao carregar credenciais: ${error.message}`);
-      if (data) {
-        setId(data.id);
-        setAppKey(data.app_key || "");
-        setHasSecret(!!data.app_secret);
+      const cfg = (data as any)?.config;
+      if (cfg) {
+        setId(cfg.id);
+        setAppKey(cfg.app_key || "");
+        setHasSecret(!!cfg.has_secret);
         setAppSecret("");
-        setUrlBase(data.omie_base_url || DEFAULT_URL);
-        setAtivo(!!data.ativo);
+        setUrlBase(cfg.omie_base_url || DEFAULT_URL);
+        setAtivo(!!cfg.ativo);
       } else {
         setId(null);
         setAppKey("");
@@ -63,34 +60,24 @@ export function CredenciaisTab({ tenantId, empresaId, onSaved }: Props) {
   }, [tenantId, empresaId]);
 
   const handleSave = async () => {
-    if (!appKey) {
-      toast.error("Informe o APP KEY");
-      return;
-    }
-    if (!id && !appSecret) {
-      toast.error("Informe o APP SECRET");
-      return;
-    }
+    if (!appKey) { toast.error("Informe o APP KEY"); return; }
+    if (!id && !appSecret) { toast.error("Informe o APP SECRET"); return; }
     setSaving(true);
     try {
-      const payload: any = {
-        tenant_id: tenantId,
-        empresa_id: empresaId,
-        app_key: appKey,
-        omie_base_url: urlBase,
-        ativo,
-        updated_at: nowBrasilia(),
-      };
-      if (appSecret) payload.app_secret = appSecret;
-      let error: any;
-      if (id) {
-        ({ error } = await mw.from("omie_config").update(payload).eq("id", id));
-      } else {
-        const res = await mw.from("omie_config").insert(payload).select("id").single();
-        error = res.error;
-        if (res.data) setId(res.data.id);
-      }
+      const { data, error } = await supabase.functions.invoke("omie-config-save", {
+        body: {
+          tenant_id: tenantId,
+          empresa_id: empresaId,
+          app_key: appKey,
+          app_secret: appSecret || undefined,
+          omie_base_url: urlBase,
+          ativo,
+        },
+      });
       if (error) throw error;
+      const resp = data as any;
+      if (resp?.error) throw new Error(resp.error);
+      if (resp?.id) setId(resp.id);
       setHasSecret(true);
       setAppSecret("");
       toast.success("Credenciais salvas!");
@@ -106,36 +93,18 @@ export function CredenciaisTab({ tenantId, empresaId, onSaved }: Props) {
     setTesting(true);
     setTestResult(null);
     try {
-      // Use saved secret if user didn't type one and we have one
-      let secretToUse = appSecret;
-      if (!secretToUse && id && hasSecret) {
-        const { data } = await mw
-          .from("omie_config")
-          .select("app_secret")
-          .eq("id", id)
-          .maybeSingle();
-        secretToUse = data?.app_secret || "";
-      }
-      if (!appKey || !secretToUse) {
-        setTestResult({ ok: false, msg: "Informe APP KEY e APP SECRET" });
-        return;
-      }
-      const resp = await fetch(`${urlBase.replace(/\/$/, "")}/geral/produtos/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          call: "ListarProdutos",
-          app_key: appKey,
-          app_secret: secretToUse,
-          param: [{ pagina: 1, registros_por_pagina: 1, apenas_importado_api: "N" }],
-        }),
+      const { data, error } = await supabase.functions.invoke("omie-test-connection", {
+        body: {
+          tenant_id: tenantId,
+          empresa_id: empresaId,
+          ...(appKey ? { app_key: appKey } : {}),
+          ...(appSecret ? { app_secret: appSecret } : {}),
+          ...(urlBase ? { omie_base_url: urlBase } : {}),
+        },
       });
-      const json = await resp.json().catch(() => ({}));
-      if (!resp.ok || json?.faultstring) {
-        setTestResult({ ok: false, msg: json?.faultstring || `HTTP ${resp.status}` });
-      } else {
-        setTestResult({ ok: true, msg: "Conexão OK" });
-      }
+      if (error) throw error;
+      const resp = data as any;
+      setTestResult({ ok: !!resp?.ok, msg: resp?.message || (resp?.ok ? "Conexão OK" : "Falha") });
     } catch (e: any) {
       setTestResult({ ok: false, msg: e.message || "Falha na requisição" });
     } finally {
