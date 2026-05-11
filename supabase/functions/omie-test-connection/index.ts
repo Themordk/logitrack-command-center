@@ -17,10 +17,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
-    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(
+    const { data: userData, error: userErr } = await userClient.auth.getUser(
       authHeader.replace("Bearer ", ""),
     );
-    if (claimsErr || !claims?.claims) return json({ ok: false, message: "Unauthorized" }, 401);
+    if (userErr || !userData?.user) return json({ ok: false, message: "Unauthorized" }, 401);
+    const authUserId = userData.user.id;
 
     const body = await req.json().catch(() => ({}));
     const { tenant_id, empresa_id, app_key: bodyKey, app_secret: bodySecret, omie_base_url: bodyUrl } = body || {};
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
     const { data: u } = await admin
       .from("usuario")
       .select("id")
-      .eq("auth_user_id", claims.claims.sub)
+      .eq("auth_user_id", authUserId)
       .eq("tenant_id", tenant_id)
       .eq("empresa_id", empresa_id)
       .eq("ativo", true)
