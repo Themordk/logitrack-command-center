@@ -538,6 +538,7 @@ export type Database = {
       }
       documento_saida: {
         Row: {
+          codigo_erp: string | null
           data_emissao: string
           empresa_id: string
           id: string
@@ -553,6 +554,7 @@ export type Database = {
           vendedor: string | null
         }
         Insert: {
+          codigo_erp?: string | null
           data_emissao: string
           empresa_id: string
           id?: string
@@ -568,6 +570,7 @@ export type Database = {
           vendedor?: string | null
         }
         Update: {
+          codigo_erp?: string | null
           data_emissao?: string
           empresa_id?: string
           id?: string
@@ -6350,6 +6353,34 @@ export type Database = {
         }
         Returns: string
       }
+      middleware_upsert_documento_saida: {
+        Args: {
+          p_codigo_erp: string
+          p_data_emissao: string
+          p_empresa_id: string
+          p_numero_pedido: number
+          p_observacao: string
+          p_parceiro_id: string
+          p_rota_id: string
+          p_status: number
+          p_tenant_id: string
+          p_tipo_pedido_id: string
+          p_transportador: string
+          p_valor_pedido: number
+        }
+        Returns: string
+      }
+      middleware_upsert_documento_saida_item: {
+        Args: {
+          p_documento_saida_id: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+          p_valor_total: number
+          p_valor_unit: number
+        }
+        Returns: string
+      }
       middleware_upsert_embalagem: {
         Args: {
           p_altura: number
@@ -6364,6 +6395,17 @@ export type Database = {
           p_peso_bruto: number
           p_peso_liq: number
           p_produto_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      middleware_upsert_grupo_produto: {
+        Args: {
+          p_ativo: boolean
+          p_cod_int: string
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
           p_tenant_id: string
         }
         Returns: string
