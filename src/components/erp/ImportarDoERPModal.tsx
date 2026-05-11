@@ -23,6 +23,7 @@ export type ImportEntidade =
   | "parceiro"
   | "nota_entrada"
   | "pedido_saida"
+  | "grupo_produto"
   | "redirect_sync";
 
 export interface ImportarDoERPConfig {
