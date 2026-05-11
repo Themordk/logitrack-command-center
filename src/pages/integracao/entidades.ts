@@ -19,7 +19,7 @@ export const MODULOS: ModuloDef[] = [
     entidades: [
       { id: "produtos", label: "Produtos", fn: "sync-produtos" },
       { id: "parceiros", label: "Parceiros", fn: "sync-parceiros" },
-      { id: "grupo_produto", label: "Grupo de Produto", fn: null },
+      { id: "grupo_produto", label: "Grupo de Produto", fn: "sync-grupo-produto" },
       { id: "subgrupo_produto", label: "Subgrupo de Produto", fn: null },
       { id: "tipo_entrada", label: "Tipo de Entrada", fn: null },
       { id: "tipo_saida", label: "Tipo de Saída", fn: null },
