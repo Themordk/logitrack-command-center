@@ -50,12 +50,15 @@ export function GruposProdutoPage() {
         onSuccess={() => crud.refresh()}
         config={{
           titulo: "Importar Grupo de Produto do ERP",
-          labelCampo: "código do grupo no ERP",
-          placeholderCampo: "Ex: 1001",
-          tipoCampo: "text",
-          entidade: "redirect_sync",
-          mensagemRedirect:
-            "A importação de grupos é feita automaticamente pelo sincronizador de cadastros. Acesse Configurações > Integração ERP > Sincronização e execute manualmente a entidade 'grupo_produto'.",
+          labelCampo: "código do grupo no Omie",
+          placeholderCampo: "Ex: 11209768439",
+          tipoCampo: "number",
+          entidade: "grupo_produto",
+          camposPrevia: [
+            { label: "Nome do Grupo", campo: "descricao" },
+            { label: "Código ERP", campo: "codigo_erp" },
+            { label: "Status", campo: "ativo" },
+          ],
         }}
       />
       <CrudModal

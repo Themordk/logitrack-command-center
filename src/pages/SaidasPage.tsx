@@ -276,7 +276,7 @@ export function SaidasPage() {
         config={{
           titulo: "Importar Pedido de Venda do ERP",
           labelCampo: "número do pedido de venda",
-          placeholderCampo: "Ex: 000456",
+          placeholderCampo: "Ex: 35",
           tipoCampo: "text",
           entidade: "pedido_saida",
           camposPrevia: [
