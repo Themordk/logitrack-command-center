@@ -1,29 +1,22 @@
-## Objetivo
-Corrigir a paginação em `Atividades → Gerar Saída` (`src/pages/SaidasPage.tsx`) para mostrar todos os documentos, alinhando o comportamento ao de `Atividades → Gerar Entrada` (`src/pages/EntradasPage.tsx`).
+Atualizar tipagem TypeScript da RPC `middleware_get_sync_configs` em `src/integrations/supabase/types.ts` para refletir campos nullable corrigidos no backend.
 
-## Problemas identificados em SaidasPage
-1. `pageSize = 15` (Entradas usa 20).
-2. Rodapé de paginação só aparece quando `totalPages > 1`, escondendo o contador "X documentos" e impedindo navegação quando o cálculo de total estiver inconsistente.
-3. Botão "Próximo" usa `disabled={page === totalPages}` — quando `totalPages = 0` (loading inicial / vazio) trava em estados estranhos.
-4. Falta `useEffect` para resetar `page` ao trocar `empresaId`/`armazemId`, podendo deixar `page` fora do range e exibir lista vazia.
-5. Enriquecimento via `Promise.all` por linha (N+1) — não é o foco, mas será trocado pelo padrão embed da Entradas para garantir contagem correta de SKUs e nome do parceiro sem múltiplas requisições.
+**Alteração no arquivo `src/integrations/supabase/types.ts` (linhas ~6241-6246):**
 
-## Mudanças (apenas frontend)
-Arquivo: `src/pages/SaidasPage.tsx`
+```text
+De:
+  data_fim: string
+  data_inicio: string
+  last_omie_id: number
+  last_omie_page: number
 
-1. `pageSize`: 15 → **20**.
-2. Trocar enriquecimento por select com embed (mesmo padrão de Entradas):
-   ```ts
-   .select(`id, numero_pedido, data_emissao, parceiro_id, valor_pedido,
-            parceiro:parceiro_id ( razaosocial ),
-            itens:documento_saida_item ( count )`,
-           { count: "exact" })
-   ```
-   e mapear `parceiro_nome` / `total_skus` a partir do retorno.
-3. Adicionar `useEffect(() => { setPage(1); }, [empresaId, armazemId]);`.
-4. Renderizar o rodapé de paginação **sempre** (remover `totalPages > 1`), exibindo `{total} documento(s)` e `page / Math.max(1, totalPages)`.
-5. Botão "Próximo": `disabled={page >= totalPages}`.
+Para:
+  data_fim: string | null
+  data_inicio: string | null
+  last_omie_id: number | null
+  last_omie_page: number | null
+```
 
-## Fora de escopo
-- Lógica de geração de onda, modal, importação ERP.
-- Backend / RLS / migrations.
+**Verificação em `SincronizacaoTab.tsx`:**
+- O tipo local `ConfigRow` já declara os 4 campos como nullable.
+- O `handleRun` já passa `cfg?.data_inicio ?? null` e `cfg?.data_fim ?? null`.
+- Nenhuma alteração de lógica, layout ou comportamento será feita.
