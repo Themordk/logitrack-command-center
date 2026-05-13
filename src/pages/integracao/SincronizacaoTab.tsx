@@ -87,6 +87,8 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
         last_sync_at: null,
         last_omie_id: null,
         last_omie_page: null,
+        data_inicio: null,
+        data_fim: null,
       }),
       ...patch,
     };
