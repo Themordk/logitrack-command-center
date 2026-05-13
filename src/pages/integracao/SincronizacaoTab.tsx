@@ -21,6 +21,8 @@ interface ConfigRow {
   last_sync_at: string | null;
   last_omie_id: number | null;
   last_omie_page: number | null;
+  data_inicio: string | null;
+  data_fim: string | null;
 }
 
 interface LastLog {
