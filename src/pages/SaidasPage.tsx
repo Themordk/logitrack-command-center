@@ -26,7 +26,7 @@ export function SaidasPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 15;
+  const pageSize = 20;
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -52,7 +52,12 @@ export function SaidasPage() {
       const to = from + pageSize - 1;
       const { data, error, count } = await (supabase as any)
         .from("documento_saida")
-        .select("id, numero_pedido, data_emissao, parceiro_id, valor_pedido", { count: "exact" })
+        .select(
+          `id, numero_pedido, data_emissao, parceiro_id, valor_pedido,
+           parceiro:parceiro_id ( razaosocial ),
+           itens:documento_saida_item ( count )`,
+          { count: "exact" }
+        )
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .eq("status", 0)
@@ -60,15 +65,15 @@ export function SaidasPage() {
         .range(from, to);
       if (error) throw error;
 
-      const enriched = await Promise.all(
-        (data || []).map(async (doc: any) => {
-          const [parceiroRes, itemRes] = await Promise.all([
-            (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single(),
-            (supabase as any).from("documento_saida_item").select("id", { count: "exact" }).eq("documento_saida_id", doc.id),
-          ]);
-          return { ...doc, parceiro_nome: parceiroRes.data?.razaosocial || "—", total_skus: itemRes.count || 0 };
-        })
-      );
+      const enriched: DocSaida[] = (data || []).map((doc: any) => ({
+        id: doc.id,
+        numero_pedido: doc.numero_pedido,
+        data_emissao: doc.data_emissao,
+        parceiro_id: doc.parceiro_id,
+        valor_pedido: doc.valor_pedido,
+        parceiro_nome: doc.parceiro?.razaosocial || "—",
+        total_skus: doc.itens?.[0]?.count ?? 0,
+      }));
       setDocs(enriched);
       setTotal(count || 0);
     } catch (err: any) {
@@ -79,6 +84,7 @@ export function SaidasPage() {
   }, [tenantId, empresaId, page]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
+  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -205,16 +211,14 @@ export function SaidasPage() {
             </tbody>
           </table>
         )}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
-            <span className="text-xs text-muted-foreground">{total} documentos</span>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
-              <span className="text-xs text-muted-foreground px-2">{page} / {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
-            </div>
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
+          <span className="text-xs text-muted-foreground">{total} documento{total === 1 ? "" : "s"}</span>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
+            <span className="text-xs text-muted-foreground px-2">{page} / {Math.max(1, totalPages)}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
           </div>
-        )}
+        </div>
       </div>
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
