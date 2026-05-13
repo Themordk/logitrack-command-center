@@ -21,6 +21,8 @@ interface ConfigRow {
   last_sync_at: string | null;
   last_omie_id: number | null;
   last_omie_page: number | null;
+  data_inicio: string | null;
+  data_fim: string | null;
 }
 
 interface LastLog {
@@ -85,6 +87,8 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
         last_sync_at: null,
         last_omie_id: null,
         last_omie_page: null,
+        data_inicio: null,
+        data_fim: null,
       }),
       ...patch,
     };
@@ -119,11 +123,15 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
   const handleRun = async (modulo: string, entidade: string, fn: string | null) => {
     if (!fn) return;
     const k = key(modulo, entidade);
+    const cfg = configs[k];
     setRunning((p) => ({ ...p, [k]: true }));
     try {
-      const { error } = await supabase.functions.invoke(fn, {
-        body: { tenant_id: tenantId, empresa_id: empresaId },
-      });
+      const body: Record<string, unknown> = { tenant_id: tenantId, empresa_id: empresaId };
+      if (modulo === "movimentos") {
+        body.data_inicio = cfg?.data_inicio ?? null;
+        body.data_fim = cfg?.data_fim ?? null;
+      }
+      const { error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
       toast.success(`${entidade}: execução iniciada`);
     } catch (e: any) {
@@ -164,6 +172,12 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                   <th className="text-left px-3 py-2 font-medium">Entidade</th>
                   <th className="text-left px-3 py-2 font-medium">Status</th>
                   <th className="text-left px-3 py-2 font-medium">Intervalo</th>
+                  {mod.key === "movimentos" && (
+                    <>
+                      <th className="text-left px-3 py-2 font-medium">Data De</th>
+                      <th className="text-left px-3 py-2 font-medium">Data Até</th>
+                    </>
+                  )}
                   <th className="text-left px-3 py-2 font-medium">Últ. exec</th>
                   <th className="text-left px-3 py-2 font-medium">Próx. exec</th>
                   <th className="text-left px-3 py-2 font-medium">Últ. lote</th>
@@ -223,6 +237,30 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                           ))}
                         </select>
                       </td>
+                      {mod.key === "movimentos" && (
+                        <>
+                          <td className="px-3 py-2">
+                            <input
+                              type="date"
+                              value={cfg?.data_inicio ?? ""}
+                              onChange={(e) =>
+                                upsertConfig(mod.key, ent.id, { data_inicio: e.target.value || null })
+                              }
+                              className="h-7 px-2 rounded border border-border bg-secondary/40 text-foreground text-xs outline-none"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="date"
+                              value={cfg?.data_fim ?? ""}
+                              onChange={(e) =>
+                                upsertConfig(mod.key, ent.id, { data_fim: e.target.value || null })
+                              }
+                              className="h-7 px-2 rounded border border-border bg-secondary/40 text-foreground text-xs outline-none"
+                            />
+                          </td>
+                        </>
+                      )}
                       <td className="px-3 py-2 text-muted-foreground">
                         {cfg?.last_sync_at ? relativeTime(cfg.last_sync_at) : "Nunca"}
                       </td>
