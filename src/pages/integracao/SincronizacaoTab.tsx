@@ -237,6 +237,30 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                           ))}
                         </select>
                       </td>
+                      {mod.key === "movimentos" && (
+                        <>
+                          <td className="px-3 py-2">
+                            <input
+                              type="date"
+                              value={cfg?.data_inicio ?? ""}
+                              onChange={(e) =>
+                                upsertConfig(mod.key, ent.id, { data_inicio: e.target.value || null })
+                              }
+                              className="h-7 px-2 rounded border border-border bg-secondary/40 text-foreground text-xs outline-none"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="date"
+                              value={cfg?.data_fim ?? ""}
+                              onChange={(e) =>
+                                upsertConfig(mod.key, ent.id, { data_fim: e.target.value || null })
+                              }
+                              className="h-7 px-2 rounded border border-border bg-secondary/40 text-foreground text-xs outline-none"
+                            />
+                          </td>
+                        </>
+                      )}
                       <td className="px-3 py-2 text-muted-foreground">
                         {cfg?.last_sync_at ? relativeTime(cfg.last_sync_at) : "Nunca"}
                       </td>
