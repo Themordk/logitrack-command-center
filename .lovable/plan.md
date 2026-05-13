@@ -1,121 +1,59 @@
-## Objetivo
+# Tornar MODULO e PERMISSAO globais (sem filtro de tenant)
 
-Habilitar duas novas integrações ERP Omie no CORE LogiTrack: **Grupo de Produto** (cadastros) e **Pedidos de Venda** (movimentos), expostas tanto no painel de sincronização quanto via importação manual nas telas de Grupos e Saídas.
+## Contexto
+As tabelas `modulo` e `permissao` definem os módulos e ações do sistema WMS. Hoje todos os registros estão vinculados a um único `tenant_id`, e a UI filtra por tenant. Isso força duplicação de dados mestres para cada novo tenant. O objetivo é tornar essas tabelas visíveis globalmente.
 
-## Arquivos a alterar (frontend apenas)
+## Escopo
+- Apenas tabelas `modulo` e `permissao` (dados mestres de RBAC)
+- Não alterar `perfil`, `perfil_permissao`, `usuario_perfil` (continuam por tenant)
+- Não alterar layout, rotas ou funcionalidades
 
-1. `src/pages/integracao/entidades.ts`
-2. `src/components/erp/ImportarDoERPModal.tsx`
-3. `src/pages/GruposProdutoPage.tsx`
-4. `src/pages/SaidasPage.tsx` (apenas refinos no `camposPrevia`/aviso, fluxo já está wired)
-5. `src/pages/integracao/SincronizacaoTab.tsx` (apenas se o reset de cursor precisar comportamento por-entidade)
+## Plano de execução
 
-Nenhuma migration, RLS, RPC ou Edge Function nova.
+### 1. Ajustar RLS no banco de dados
 
----
+Criar migration com os seguintes ajustes:
 
-## Tarefa 1 — Painel Sincronização
+**Tabela `modulo`:**
+- Drop da policy `tenant_full_access` existente (ALL → `get_current_tenant()`)
+- Nova policy SELECT: `USING (true)` — qualquer usuário autenticado visualiza todos os módulos
+- Nova policy INSERT: `WITH CHECK (tenant_id = get_current_tenant())` — criação vinculada ao tenant
+- Nova policy UPDATE: `USING (tenant_id = get_current_tenant())` — edição apenas do tenant dono
+- Nova policy DELETE: `USING (tenant_id = get_current_tenant())` — exclusão apenas do tenant dono
 
-Em `entidades.ts`:
+**Tabela `permissao`:**
+- Drop da policy `tenant_full_access` existente (ALL → `get_current_tenant()`)
+- Nova policy SELECT: `USING (true)` — qualquer usuário autenticado visualiza todas as permissões
+- Nova policy INSERT: `WITH CHECK (tenant_id = get_current_tenant())` — criação vinculada ao tenant
+- Nova policy UPDATE: `USING (tenant_id = get_current_tenant())` — edição apenas do tenant dono
+- Nova policy DELETE: `USING (tenant_id = get_current_tenant())` — exclusão apenas do tenant dono
 
-- Em `cadastros`, trocar a entidade existente `grupo_produto` (hoje `fn: null`) para `fn: "sync-grupo-produto"`.
-- Em `movimentos`, adicionar nova entidade `{ id: "pedidos_saida", label: "Pedidos de Venda", fn: "sync-pedidos-saida" }`.
+> Nota: `tenant_id` continua existindo nas tabelas. Registros legados mantêm seu `tenant_id`, mas serão visíveis a todos. Novos registros de módulos/permissoes customizados por tenant continuam possíveis.
 
-Não tocar nas demais linhas. O `SincronizacaoTab` já consome `MODULOS` e habilita botões ▶/⏸/↺ automaticamente quando `fn` existe.
+### 2. Ajustar queries no frontend
 
-Reset de cursor: o handler atual zera `last_omie_id` **e** `last_omie_page` simultaneamente, o que cobre os dois casos pedidos pelo spec (page para grupo, id para pedidos). Manter como está; sem mudança.
+**Arquivo: `src/pages/PerfisAcessoPage.tsx`**
 
-Auto-criação de linha em `sync_config` já é feita pelo `upsertConfig` ao primeiro toggle de intervalo/ativo.
-
----
-
-## Tarefa 2 — Importar Grupo de Produto (Dados Mestres > Grupos)
-
-### `ImportarDoERPModal.tsx`
-
-- Adicionar `"grupo_produto"` ao tipo `ImportEntidade`.
-- Novo branch em `handleBuscar`:
-  ```text
-  body = { tenant_id, empresa_id, codigo_grupo: parseInt(valor) }
-  invoke("sync-grupo-produto", { body })
-  - se data.sucesso === true → setRegistro(data); setEstado("PREVIA")
-  - se data.sucesso === false → throw new Error(data.erro || "Grupo não encontrado")
-  - se error → throw error.message
-  ```
-- Detecção "já cadastrado": consultar `public.grupo_produto` por `codigo_erp = codigo` (ou usar flag retornada pela função se já vier como `data.ja_existia` / `data.atualizado`). Marcar `registro._jaExistia = true` quando aplicável e exibir badge **"Já cadastrado"** com botão **"Atualizar"** (ambos chamam `handleConfirmar`, que só dispara `onSuccess`).
-
-### `GruposProdutoPage.tsx`
-
-Trocar config do modal:
-
-```ts
-config={{
-  titulo: "Importar Grupo de Produto do ERP",
-  icone: <Tag size={28} />,
-  labelCampo: "código do grupo no Omie",
-  placeholderCampo: "Ex: 11209768439",
-  tipoCampo: "number",
-  entidade: "grupo_produto",
-  camposPrevia: [
-    { label: "Nome do Grupo", campo: "descricao" }, // mapear pelo nome real do retorno (nomeFamilia)
-    { label: "Código ERP", campo: "codigo_erp" },
-    { label: "Status", campo: "ativo" },
-  ],
-}}
+Na função `fetchAll`, alterar as duas queries de:
+```
+(supabase as any).from("modulo").select("*").eq("tenant_id", tenantId).order("codigo")
+(supabase as any).from("permissao").select("*").eq("tenant_id", tenantId)
 ```
 
-Remover o uso anterior de `entidade: "redirect_sync"` e `mensagemRedirect`.
-
----
-
-## Tarefa 3 — Importar Pedido de Venda (Atividades > Gerar Saída)
-
-### `ImportarDoERPModal.tsx`
-
-Reescrever o branch `pedido_saida` para o novo contrato da edge function:
-
-```text
-body = { tenant_id, empresa_id, numero_pedido: valor.trim() }
-{ data, error } = invoke("sync-pedidos-saida", { body })
-
-- se error → throw
-- res = data?.results?.[0] || {}
-- se res.pedidos_importados > 0:
-    buscar documento em public.documento_saida
-    select id, numero_pedido, parceiro_nome, data_previsao, valor_total, qtd_itens
-    where empresa_id = empresaId AND numero_pedido = valor.trim()
-    order by created_at desc limit 1
-    setRegistro({ ...doc, _jaExistia: false }); setEstado("PREVIA")
-- senão se res.ignorados > 0:
-    mesma busca; setRegistro({ ...doc, _jaExistia: true }); setEstado("PREVIA")
-- senão (res.erros > 0 ou nada):
-    throw new Error(res.mensagem || "Pedido não encontrado no ERP")
+Para:
+```
+(supabase as any).from("modulo").select("*").order("codigo")
+(supabase as any).from("permissao").select("*")
 ```
 
-A tela de PREVIA já existente renderiza `camposPrevia`; adicionar badge **"Já cadastrado"** quando `registro._jaExistia`. Botão de confirmação:
-- novo → "Confirmar importação" (já importado pela edge; só fecha + `onSuccess` + navega)
-- existente → "Ver documento"
+Remove o filtro `tenantId` dessas duas chamadas apenas. As queries de `perfil`, `perfil_permissao` e `usuario_perfil` mantêm o filtro de tenant.
 
-Aviso na PREVIA já existe via `avisoConfirmacao`.
+### 3. Validar compatibilidade com `fn_usuario_permissoes`
 
-### `SaidasPage.tsx`
+A função `fn_usuario_permissoes` já faz JOIN com `permissao` e `modulo` **sem** filtrar `tenant_id` nessas tabelas (apenas em `perfil_permissao` e `usuario_perfil`). Portanto, após liberar o SELECT via RLS, a função continuará funcionando corretamente para todos os tenants.
 
-A config já está praticamente correta. Manter como está; se necessário, ajustar `placeholderCampo` para `"Ex: 35"` para alinhar ao spec. `verRegistroPath` já navega para `/atividades/saidas?documento_id=<id>`.
-
----
-
-## Detalhes técnicos
-
-- Continuar usando `supabase.functions.invoke(fn, { body })` (já injeta auth automaticamente).
-- `tenantId` e `empresaId` vêm de `useTenant()` (padrão do projeto, não há `useAuth`).
-- Busca pós-importação em `documento_saida` usa o client `supabase` direto, com filtro `.eq("empresa_id", empresaId).eq("numero_pedido", v).order("created_at", {ascending:false}).limit(1).maybeSingle()`.
-- Para grupo "já existia": tentar `select id, descricao, codigo_erp, ativo from grupo_produto where empresa_id = empresaId and codigo_erp = String(codigo_grupo)` antes de chamar a função, ou após — o que for mais simples; preferir **antes**, para já marcar o badge sem depender do payload da edge.
-- Reset visual de estado e tratamento de `BUSCA/BUSCANDO/PREVIA/IMPORTANDO/SUCESSO/ERRO` reaproveita o que já existe; nenhuma mudança estrutural no Dialog.
-- Rotas, layout, cores, componentes de UI (`Dialog`, `Input`, `Button`, `toast`) permanecem inalterados.
-
-## Fora do escopo
-
-- Edge Functions (`sync-grupo-produto`, `sync-pedidos-saida`) — já existem e estão deployadas.
-- RPCs novas, migrations, RLS.
-- Mudanças em outras telas (Produtos, Parceiros, Entradas, Subgrupos, Rotas).
-- Alterações no fluxo `nota_entrada` (já implementado em iteração anterior).
+### 4. Fora de escopo
+- Não remover a coluna `tenant_id` das tabelas
+- Não alterar `PermissionsContext.tsx` (usa RPC, já compatível)
+- Não alterar outras páginas ou componentes
+- Não alterar `perfil`, `perfil_permissao`, `usuario_perfil`
