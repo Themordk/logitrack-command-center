@@ -52,7 +52,12 @@ export function SaidasPage() {
       const to = from + pageSize - 1;
       const { data, error, count } = await (supabase as any)
         .from("documento_saida")
-        .select("id, numero_pedido, data_emissao, parceiro_id, valor_pedido", { count: "exact" })
+        .select(
+          `id, numero_pedido, data_emissao, parceiro_id, valor_pedido,
+           parceiro:parceiro_id ( razaosocial ),
+           itens:documento_saida_item ( count )`,
+          { count: "exact" }
+        )
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .eq("status", 0)
@@ -60,15 +65,15 @@ export function SaidasPage() {
         .range(from, to);
       if (error) throw error;
 
-      const enriched = await Promise.all(
-        (data || []).map(async (doc: any) => {
-          const [parceiroRes, itemRes] = await Promise.all([
-            (supabase as any).from("parceiro").select("razaosocial").eq("id", doc.parceiro_id).single(),
-            (supabase as any).from("documento_saida_item").select("id", { count: "exact" }).eq("documento_saida_id", doc.id),
-          ]);
-          return { ...doc, parceiro_nome: parceiroRes.data?.razaosocial || "—", total_skus: itemRes.count || 0 };
-        })
-      );
+      const enriched: DocSaida[] = (data || []).map((doc: any) => ({
+        id: doc.id,
+        numero_pedido: doc.numero_pedido,
+        data_emissao: doc.data_emissao,
+        parceiro_id: doc.parceiro_id,
+        valor_pedido: doc.valor_pedido,
+        parceiro_nome: doc.parceiro?.razaosocial || "—",
+        total_skus: doc.itens?.[0]?.count ?? 0,
+      }));
       setDocs(enriched);
       setTotal(count || 0);
     } catch (err: any) {
