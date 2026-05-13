@@ -51,8 +51,8 @@ export function PerfisAcessoPage() {
     setLoading(true);
     const [perfisRes, modulosRes, permissoesRes] = await Promise.all([
       (supabase as any).from("perfil").select("*").eq("tenant_id", tenantId).order("nome"),
-      (supabase as any).from("modulo").select("*").eq("tenant_id", tenantId).order("codigo"),
-      (supabase as any).from("permissao").select("*").eq("tenant_id", tenantId),
+      (supabase as any).from("modulo").select("*").order("codigo"),
+      (supabase as any).from("permissao").select("*"),
     ]);
     setPerfis(perfisRes.data || []);
     setModulos(modulosRes.data || []);
