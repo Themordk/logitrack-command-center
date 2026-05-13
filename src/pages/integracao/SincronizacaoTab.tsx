@@ -172,6 +172,12 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                   <th className="text-left px-3 py-2 font-medium">Entidade</th>
                   <th className="text-left px-3 py-2 font-medium">Status</th>
                   <th className="text-left px-3 py-2 font-medium">Intervalo</th>
+                  {mod.key === "movimentos" && (
+                    <>
+                      <th className="text-left px-3 py-2 font-medium">Data De</th>
+                      <th className="text-left px-3 py-2 font-medium">Data Até</th>
+                    </>
+                  )}
                   <th className="text-left px-3 py-2 font-medium">Últ. exec</th>
                   <th className="text-left px-3 py-2 font-medium">Próx. exec</th>
                   <th className="text-left px-3 py-2 font-medium">Últ. lote</th>
