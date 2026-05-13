@@ -84,6 +84,7 @@ export function SaidasPage() {
   }, [tenantId, empresaId, page]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
+  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
