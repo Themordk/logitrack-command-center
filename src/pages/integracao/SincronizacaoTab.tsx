@@ -123,11 +123,15 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
   const handleRun = async (modulo: string, entidade: string, fn: string | null) => {
     if (!fn) return;
     const k = key(modulo, entidade);
+    const cfg = configs[k];
     setRunning((p) => ({ ...p, [k]: true }));
     try {
-      const { error } = await supabase.functions.invoke(fn, {
-        body: { tenant_id: tenantId, empresa_id: empresaId },
-      });
+      const body: Record<string, unknown> = { tenant_id: tenantId, empresa_id: empresaId };
+      if (modulo === "movimentos") {
+        body.data_inicio = cfg?.data_inicio ?? null;
+        body.data_fim = cfg?.data_fim ?? null;
+      }
+      const { error } = await supabase.functions.invoke(fn, { body });
       if (error) throw error;
       toast.success(`${entidade}: execução iniciada`);
     } catch (e: any) {
