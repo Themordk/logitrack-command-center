@@ -1,59 +1,98 @@
-# Tornar MODULO e PERMISSAO globais (sem filtro de tenant)
+## Objetivo
 
-## Contexto
-As tabelas `modulo` e `permissao` definem os módulos e ações do sistema WMS. Hoje todos os registros estão vinculados a um único `tenant_id`, e a UI filtra por tenant. Isso força duplicação de dados mestres para cada novo tenant. O objetivo é tornar essas tabelas visíveis globalmente.
+Permitir, em **Configurações → Integração ERP → Sincronização**, que cada entidade do módulo **Movimentos** (Movimentos de Entrada, Notas de Entrada, Pedidos de Venda, Movimentos de Saída) tenha um **intervalo de data (De / Até)** configurável. As Edge Functions de sincronização passarão a usar esse intervalo como filtro ao consultar o Omie, evitando reimportar dados antigos já processados.
 
-## Escopo
-- Apenas tabelas `modulo` e `permissao` (dados mestres de RBAC)
-- Não alterar `perfil`, `perfil_permissao`, `usuario_perfil` (continuam por tenant)
-- Não alterar layout, rotas ou funcionalidades
+---
 
-## Plano de execução
+## 1. Banco de dados (migration)
 
-### 1. Ajustar RLS no banco de dados
+Adicionar duas colunas opcionais em `middleware.sync_config`:
 
-Criar migration com os seguintes ajustes:
+```sql
+ALTER TABLE middleware.sync_config
+  ADD COLUMN data_inicio date NULL,
+  ADD COLUMN data_fim    date NULL;
 
-**Tabela `modulo`:**
-- Drop da policy `tenant_full_access` existente (ALL → `get_current_tenant()`)
-- Nova policy SELECT: `USING (true)` — qualquer usuário autenticado visualiza todos os módulos
-- Nova policy INSERT: `WITH CHECK (tenant_id = get_current_tenant())` — criação vinculada ao tenant
-- Nova policy UPDATE: `USING (tenant_id = get_current_tenant())` — edição apenas do tenant dono
-- Nova policy DELETE: `USING (tenant_id = get_current_tenant())` — exclusão apenas do tenant dono
-
-**Tabela `permissao`:**
-- Drop da policy `tenant_full_access` existente (ALL → `get_current_tenant()`)
-- Nova policy SELECT: `USING (true)` — qualquer usuário autenticado visualiza todas as permissões
-- Nova policy INSERT: `WITH CHECK (tenant_id = get_current_tenant())` — criação vinculada ao tenant
-- Nova policy UPDATE: `USING (tenant_id = get_current_tenant())` — edição apenas do tenant dono
-- Nova policy DELETE: `USING (tenant_id = get_current_tenant())` — exclusão apenas do tenant dono
-
-> Nota: `tenant_id` continua existindo nas tabelas. Registros legados mantêm seu `tenant_id`, mas serão visíveis a todos. Novos registros de módulos/permissoes customizados por tenant continuam possíveis.
-
-### 2. Ajustar queries no frontend
-
-**Arquivo: `src/pages/PerfisAcessoPage.tsx`**
-
-Na função `fetchAll`, alterar as duas queries de:
-```
-(supabase as any).from("modulo").select("*").eq("tenant_id", tenantId).order("codigo")
-(supabase as any).from("permissao").select("*").eq("tenant_id", tenantId)
+COMMENT ON COLUMN middleware.sync_config.data_inicio IS
+  'Filtro de data inicial (somente Movimentos). NULL = sem limite inferior.';
+COMMENT ON COLUMN middleware.sync_config.data_fim IS
+  'Filtro de data final (somente Movimentos). NULL = sem limite superior.';
 ```
 
-Para:
+As colunas ficam disponíveis para todas as entidades, mas só serão usadas pelas de Movimentos. Não há mudança de RLS — herdam as policies existentes.
+
+---
+
+## 2. Frontend
+
+### 2.1 `src/pages/integracao/SincronizacaoTab.tsx`
+
+- Estender a interface `ConfigRow` com `data_inicio: string | null` e `data_fim: string | null`.
+- Na renderização da tabela, **somente quando `mod.key === 'movimentos'**`, renderizar duas colunas adicionais entre **Intervalo** e **Últ. exec**: `Data De` e `Data Até`, cada uma com `<input type="date">` controlado.
+  - `onChange` chama `upsertConfig(mod.key, ent.id, { data_inicio: value || null })` (ou `data_fim`), reaproveitando o mesmo padrão otimista já existente.
+  - Para os outros módulos (Cadastros, Retorno) as colunas aparecem vazias (`—`) ou são suprimidas via `colSpan` — manteremos cabeçalho condicional por módulo (cada `<table>` é renderizada por módulo, então o header de Movimentos terá +2 colunas).
+- Visual: mesma classe dos selects (`h-7 px-2 rounded border border-border bg-secondary/40 text-foreground text-xs`).
+
+### 2.2 `src/pages/integracao/SincronizacaoTab.tsx` — execução manual
+
+Ao clicar em **Play** (`handleRun`), enviar também `data_inicio` e `data_fim` no body para a Edge Function quando o módulo for `movimentos`:
+
+```ts
+supabase.functions.invoke(fn, {
+  body: {
+    tenant_id, empresa_id,
+    data_inicio: cfg?.data_inicio ?? null,
+    data_fim:    cfg?.data_fim ?? null,
+  },
+});
 ```
-(supabase as any).from("modulo").select("*").order("codigo")
-(supabase as any).from("permissao").select("*")
-```
 
-Remove o filtro `tenantId` dessas duas chamadas apenas. As queries de `perfil`, `perfil_permissao` e `usuario_perfil` mantêm o filtro de tenant.
+Nenhuma alteração em rotas, layout geral ou outros módulos.
 
-### 3. Validar compatibilidade com `fn_usuario_permissoes`
+---
 
-A função `fn_usuario_permissoes` já faz JOIN com `permissao` e `modulo` **sem** filtrar `tenant_id` nessas tabelas (apenas em `perfil_permissao` e `usuario_perfil`). Portanto, após liberar o SELECT via RLS, a função continuará funcionando corretamente para todos os tenants.
+## 3. Edge Functions (alteração manual pelo usuário)
 
-### 4. Fora de escopo
-- Não remover a coluna `tenant_id` das tabelas
-- Não alterar `PermissionsContext.tsx` (usa RPC, já compatível)
-- Não alterar outras páginas ou componentes
-- Não alterar `perfil`, `perfil_permissao`, `usuario_perfil`
+As três Edge Functions de Movimentos (`sync-recebimentos`, `sync-notas-entrada`, `sync-pedidos-saida`) — e futuramente `sync-movimentos-saida` — precisam:
+
+1. **Ler do body** (execução manual) **ou da `sync_config**` (execução agendada) os campos `data_inicio` e `data_fim`:
+  ```ts
+   const { data: cfg } = await mw
+     .from("sync_config")
+     .select("data_inicio, data_fim, last_omie_page, last_omie_id")
+     .eq("tenant_id", tenant_id)
+     .eq("empresa_id", empresa_id)
+     .eq("modulo", "movimentos")
+     .eq("entidade", entidade)
+     .maybeSingle();
+
+   const dInicio = body.data_inicio ?? cfg?.data_inicio ?? null;
+   const dFim    = body.data_fim    ?? cfg?.data_fim    ?? null;
+  ```
+2. **Repassar ao Omie** os filtros de data conforme o endpoint:
+
+  | Entidade                                   | Endpoint Omie                           | Campos de filtro                                                          |
+  | ------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------- |
+  | `movimentos_entrada` (`sync-recebimentos`) | `ListarMovimentosEstoque` / equivalente | `dDtEntradaDe`, `dDtEntradaAte`                                           |
+  | `notas_entrada` (`sync-notas-entrada`)     | `ListarNF`                              | `dEmiInicial`, `dEmiFinal` (ou `dDtEntradaDe/Ate` conforme NF de entrada) |
+  | `pedidos_saida` (`sync-pedidos-saida`)     | `ListarPedidos`                         | `dDtInicial`, `dDtFinal`                                                  |
+
+   Formato exigido pelo Omie: `dd/mm/aaaa`. Converter `YYYY-MM-DD` antes de enviar:
+3. **Quando ambos forem `null**`, não enviar os campos ao Omie (mantém comportamento atual).
+4. **Logs** (`sync_log`): incluir `data_inicio`/`data_fim` no payload de detalhe quando presentes, para rastreabilidade.
+5. Cron/scheduler agendado **não muda** — ele apenas invoca a função sem body, e a função lê da `sync_config`.
+
+---
+
+## 4. Tipagem
+
+Após a migration ser aplicada, o `src/integrations/supabase/types.ts` será regenerado automaticamente expondo `data_inicio` / `data_fim`. Nenhuma edição manual nesse arquivo.
+
+---
+
+## Fora de escopo
+
+- Não alterar Cadastros nem Retorno.
+- Não alterar layout, rotas, StatusBar, CredenciaisTab, LogsFilasTab.
+- Não alterar lógica de cursor (`last_omie_id` / `last_omie_page`).
+- Não alterar permissões/RLS.
