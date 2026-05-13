@@ -6238,8 +6238,12 @@ export type Database = {
           app_key: string
           app_secret: string
           config_id: string
+          data_fim: string
+          data_inicio: string
           empresa_id: string
           interval_minutes: number
+          last_omie_id: number
+          last_omie_page: number
           last_sync_at: string
           omie_base_url: string
           tenant_id: string
