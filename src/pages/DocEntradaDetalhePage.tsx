@@ -74,7 +74,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
         setLoading(true);
         const { data: doc, error: docErr } = await (supabase as any)
           .from("documento_entrada")
-          .select("id, numero_nota, data_emissao, data_entrada, status, qtd_volume, valor_total_produtos, valor_total_nota, created_at, parceiro_id, tipo_entrada_id, armazem_id")
+          .select("id, numero_nota, data_emissao, data_entrada, status, qtd_volume, valor_total_produtos, valor_total_nota, created_at, parceiro_id, tipo_entrada_id, armazem_id, chave_nfe")
           .eq("id", documentoId)
           .single();
         if (docErr) throw docErr;
