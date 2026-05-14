@@ -32,6 +32,7 @@ export const MODULOS: ModuloDef[] = [
       { id: "movimentos_entrada", label: "Movimentos de Entrada", fn: "sync-recebimentos" },
       { id: "notas_entrada", label: "Notas de Entrada", fn: "sync-notas-entrada" },
       { id: "pedidos_saida", label: "Pedidos de Venda", fn: "sync-pedidos-saida" },
+      { id: "nf_saida", label: "NFs de Devolução", fn: "sync-nf-devolucoes" },
       { id: "movimentos_saida", label: "Movimentos de Saída", fn: null },
     ],
   },
