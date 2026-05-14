@@ -24,7 +24,7 @@ interface Header {
   created_at: string | null;
   parceiro_id: string;
   tipo_entrada_id: string;
-  armazem_id: string | null;
+  chave_nfe: string | null;
 }
 
 interface ItemRow {
