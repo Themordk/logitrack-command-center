@@ -24,7 +24,7 @@ interface Header {
   created_at: string | null;
   parceiro_id: string;
   tipo_entrada_id: string;
-  armazem_id: string | null;
+  chave_nfe: string | null;
 }
 
 interface ItemRow {
@@ -74,7 +74,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
         setLoading(true);
         const { data: doc, error: docErr } = await (supabase as any)
           .from("documento_entrada")
-          .select("id, numero_nota, data_emissao, data_entrada, status, qtd_volume, valor_total_produtos, valor_total_nota, created_at, parceiro_id, tipo_entrada_id, armazem_id")
+          .select("id, numero_nota, data_emissao, data_entrada, status, qtd_volume, valor_total_produtos, valor_total_nota, created_at, parceiro_id, tipo_entrada_id, armazem_id, chave_nfe")
           .eq("id", documentoId)
           .single();
         if (docErr) throw docErr;
@@ -201,6 +201,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
           <InfoItem label="CNPJ" value={parceiro?.cnpj} />
           <InfoItem label="Armazém" value={armazem} icon={<MapPin size={10} />} />
           <InfoItem label="Qtd Volumes" value={header.qtd_volume ?? "—"} icon={<Truck size={10} />} />
+          <InfoItem label="Chave de Acesso" value={header.chave_nfe} icon={<Hash size={10} />} />
           <InfoItem label="Valor Produtos" value={fmtMoney(header.valor_total_produtos)} />
           <InfoItem label="Valor Total Nota" value={fmtMoney(header.valor_total_nota)} />
           <InfoItem label="Criado em" value={formatBrasiliaDateTime(header.created_at)} icon={<Clock size={10} />} />
