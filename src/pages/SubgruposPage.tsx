@@ -38,6 +38,7 @@ export function SubgruposPage() {
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Nome do subgrupo" },
     { name: "grupo_id", label: "Grupo", type: "select", required: true, options: grupoOptions },
+    { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Ex: 2001" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
