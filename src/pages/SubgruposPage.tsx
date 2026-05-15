@@ -32,6 +32,7 @@ export function SubgruposPage() {
       const opt = grupoOptions.find((o) => o.value === row.grupo_id);
       return <span className="text-sm text-muted-foreground">{opt?.label || "—"}</span>;
     }},
+    { key: "codigo_erp", label: "Código ERP", type: "mono" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
