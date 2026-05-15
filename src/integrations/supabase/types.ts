@@ -6455,6 +6455,7 @@ export type Database = {
           p_codigo_erp: string
           p_descricao: string
           p_empresa_id: string
+          p_grupo_id?: string
           p_marca: string
           p_parceiro_id: string
           p_peso_variavel: boolean

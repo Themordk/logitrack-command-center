@@ -21,6 +21,7 @@ export function GruposProdutoPage() {
 
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Eletrônicos" },
+    { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Ex: 11209768439" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
