@@ -685,7 +685,22 @@ export function ProdutosPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
         searchPlaceholder="Buscar por SKU ou descrição..."
-        headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
+        headerActions={
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleImprimirSelecionados}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Printer size={12} /> Imprimir Etiquetas ({selectedIds.size})
+              </button>
+            )}
+            <BotaoImportarERP onClick={() => setImportOpen(true)} />
+          </div>
+        }
+        selectable
+        selectedIds={selectedIds}
+        onSelectChange={setSelectedIds}
       />
       <ImportarDoERPModal
         isOpen={importOpen}
