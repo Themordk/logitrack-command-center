@@ -6,7 +6,8 @@ import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye } from "
 import { CadastroDocEntradaPage } from "./CadastroDocEntradaPage";
 import { DocEntradaDetalhePage } from "./DocEntradaDetalhePage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
+import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
+import { ImportarNfeChaveModal } from "@/components/erp/ImportarNfeChaveModal";
 
 interface DocEntry {
   id: string;
@@ -439,27 +440,10 @@ export function EntradasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <ImportarDoERPModal
+      <ImportarNfeChaveModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
         onSuccess={() => fetchDocs()}
-        config={{
-          titulo: "Importar Nota Fiscal de Entrada do ERP",
-          labelCampo: "chave de acesso da NF-e (44 dígitos) ou número da nota",
-          placeholderCampo: "Ex: 35240300070137000112550010000001231234567890",
-          tipoCampo: "text",
-          entidade: "nota_entrada",
-          camposPrevia: [
-            { label: "Número NF", campo: "numero_nota" },
-            { label: "Fornecedor", campo: "parceiro_nome" },
-            { label: "Data Emissão", campo: "data_emissao" },
-            { label: "Valor Total", campo: "valor_total_nota" },
-            { label: "Qtd Itens", campo: "qtd_itens" },
-          ],
-          avisoConfirmacao:
-            "A nota será importada como Documento de Entrada com status 'Aguardando'. O Movimento de Entrada deverá ser criado manualmente agrupando as notas desejadas.",
-          verRegistroPath: (id) => `/atividades/entradas?documento_id=${id}`,
-        }}
       />
     </div>
   );
