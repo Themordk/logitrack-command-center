@@ -39,6 +39,32 @@ function ProdutoDetailModal({
   const [editEmb, setEditEmb] = useState<any>(null);
   const [embForm, setEmbForm] = useState<Record<string, any>>({});
   const [embSaving, setEmbSaving] = useState(false);
+  const [embSelected, setEmbSelected] = useState<Set<string>>(new Set());
+  const [embPrintOpen, setEmbPrintOpen] = useState(false);
+  const [embPrintItems, setEmbPrintItems] = useState<EtiquetaProdutoItem[]>([]);
+
+  const buildEmbItems = (embs: any[]): EtiquetaProdutoItem[] => embs.map((e) => ({
+    produto_id: produto?.id,
+    sku: produto?.sku || "",
+    descricao: produto?.descricao || "",
+    marca: produto?.marca,
+    embalagem_id: e.id,
+    ean: e.ean,
+    embalagem: e.embalagem,
+    fator: e.fator,
+    altura: e.altura,
+    largura: e.largura,
+    comprimento: e.comprimento,
+    peso_bruto: e.peso_bruto,
+    peso_liquido: e.peso_liquido,
+    m3: e.m3,
+  }));
+
+  const openPrintForEmbs = (embs: any[]) => {
+    if (!embs.length) { toast.error("Nenhuma embalagem para imprimir"); return; }
+    setEmbPrintItems(buildEmbItems(embs));
+    setEmbPrintOpen(true);
+  };
 
   // Picking state
   const [pickings, setPickings] = useState<any[]>([]);
