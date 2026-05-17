@@ -592,6 +592,8 @@ function ProdutoDetailModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintEtiquetaProdutoModal open={embPrintOpen} onClose={() => setEmbPrintOpen(false)} items={embPrintItems} />
     </Dialog>
   );
 }
