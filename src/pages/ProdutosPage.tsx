@@ -391,9 +391,19 @@ function ProdutoDetailModal({
           <TabsContent value="embalagens" className="py-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-foreground">Embalagens do Produto</h3>
-              <button onClick={() => openEmbModal()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-                <Plus size={12} /> Nova Embalagem
-              </button>
+              <div className="flex items-center gap-2">
+                {embSelected.size > 0 && (
+                  <button
+                    onClick={() => openPrintForEmbs(embalagens.filter((e) => embSelected.has(e.id)))}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-medium hover:bg-secondary/80 transition-colors border border-border"
+                  >
+                    <Printer size={12} /> Imprimir Selecionadas ({embSelected.size})
+                  </button>
+                )}
+                <button onClick={() => openEmbModal()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+                  <Plus size={12} /> Nova Embalagem
+                </button>
+              </div>
             </div>
             {embLoading ? (
               <div className="flex justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
@@ -403,6 +413,19 @@ function ProdutoDetailModal({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-secondary/30">
+                    <th className="px-3 py-2 w-8">
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 accent-primary"
+                        checked={embalagens.length > 0 && embalagens.every((e) => embSelected.has(e.id))}
+                        onChange={(ev) => {
+                          const n = new Set(embSelected);
+                          if (ev.target.checked) embalagens.forEach((e) => n.add(e.id));
+                          else embalagens.forEach((e) => n.delete(e.id));
+                          setEmbSelected(n);
+                        }}
+                      />
+                    </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">EAN</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Embalagem</th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Fator</th>
@@ -414,6 +437,18 @@ function ProdutoDetailModal({
                 <tbody>
                   {embalagens.map((e) => (
                     <tr key={e.id} className="border-b border-border/50 table-row-hover">
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 accent-primary"
+                          checked={embSelected.has(e.id)}
+                          onChange={() => {
+                            const n = new Set(embSelected);
+                            if (n.has(e.id)) n.delete(e.id); else n.add(e.id);
+                            setEmbSelected(n);
+                          }}
+                        />
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs">{e.ean}</td>
                       <td className="px-3 py-2 text-xs">{e.embalagem}</td>
                       <td className="px-3 py-2 text-center text-xs">{e.fator}</td>
@@ -421,6 +456,7 @@ function ProdutoDetailModal({
                       <td className="px-3 py-2 text-center text-xs">{e.m3 ?? "—"}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openPrintForEmbs([e])} title="Imprimir etiqueta" className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-primary flex items-center justify-center"><Printer size={12} /></button>
                           <button onClick={() => openEmbModal(e)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"><Edit2 size={12} /></button>
                           <button onClick={() => deleteEmb(e.id)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-destructive flex items-center justify-center"><Trash2 size={12} /></button>
                         </div>
