@@ -6468,7 +6468,10 @@ export type Database = {
           p_usa_picking: boolean
           p_varios_pickings: boolean
         }
-        Returns: string
+        Returns: {
+          inserido: boolean
+          produto_id: string
+        }[]
       }
       processar_movimento_estoque: {
         Args: { p_tarefa_execucao_id: string }
