@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { fetchOptions } from "@/hooks/useCrud";
 import { CadastroDocSaidaPage } from "./CadastroDocSaidaPage";
 import { DocSaidaDetalhePage } from "./DocSaidaDetalhePage";
-import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
+import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
+import { ImportarPedidoSaidaModal } from "@/components/erp/ImportarPedidoSaidaModal";
 
 interface DocSaida {
   id: string;
@@ -275,28 +276,10 @@ export function SaidasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <ImportarDoERPModal
+      <ImportarPedidoSaidaModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
         onSuccess={() => fetchDocs()}
-        config={{
-          titulo: "Importar Pedido de Venda do ERP",
-          labelCampo: "número do pedido de venda",
-          placeholderCampo: "Ex: 35",
-          tipoCampo: "text",
-          entidade: "pedido_saida",
-          camposPrevia: [
-            { label: "Número Pedido", campo: "numero_pedido" },
-            { label: "Cliente", campo: "parceiro_nome" },
-            { label: "Data Previsão", campo: "data_previsao" },
-            { label: "Valor Total", campo: "valor_total" },
-            { label: "Qtd Itens", campo: "qtd_itens" },
-            { label: "Rota", campo: "rota_nome" },
-          ],
-          avisoConfirmacao:
-            "O pedido será importado como Documento de Saída com status 'Aguardando'. A Ordem de Expedição deverá ser criada manualmente.",
-          verRegistroPath: (id) => `/atividades/saidas?documento_id=${id}`,
-        }}
       />
     </div>
   );
