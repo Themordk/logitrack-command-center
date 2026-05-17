@@ -10,7 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package } from "lucide-react";
+import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package, Printer } from "lucide-react";
+import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaProdutoModal";
+import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoPreview";
 
 // ─── Produto Detail Modal with Tabs ────────────────────────────────
 function ProdutoDetailModal({
@@ -37,6 +39,32 @@ function ProdutoDetailModal({
   const [editEmb, setEditEmb] = useState<any>(null);
   const [embForm, setEmbForm] = useState<Record<string, any>>({});
   const [embSaving, setEmbSaving] = useState(false);
+  const [embSelected, setEmbSelected] = useState<Set<string>>(new Set());
+  const [embPrintOpen, setEmbPrintOpen] = useState(false);
+  const [embPrintItems, setEmbPrintItems] = useState<EtiquetaProdutoItem[]>([]);
+
+  const buildEmbItems = (embs: any[]): EtiquetaProdutoItem[] => embs.map((e) => ({
+    produto_id: produto?.id,
+    sku: produto?.sku || "",
+    descricao: produto?.descricao || "",
+    marca: produto?.marca,
+    embalagem_id: e.id,
+    ean: e.ean,
+    embalagem: e.embalagem,
+    fator: e.fator,
+    altura: e.altura,
+    largura: e.largura,
+    comprimento: e.comprimento,
+    peso_bruto: e.peso_bruto,
+    peso_liquido: e.peso_liquido,
+    m3: e.m3,
+  }));
+
+  const openPrintForEmbs = (embs: any[]) => {
+    if (!embs.length) { toast.error("Nenhuma embalagem para imprimir"); return; }
+    setEmbPrintItems(buildEmbItems(embs));
+    setEmbPrintOpen(true);
+  };
 
   // Picking state
   const [pickings, setPickings] = useState<any[]>([]);
@@ -363,9 +391,19 @@ function ProdutoDetailModal({
           <TabsContent value="embalagens" className="py-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-foreground">Embalagens do Produto</h3>
-              <button onClick={() => openEmbModal()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-                <Plus size={12} /> Nova Embalagem
-              </button>
+              <div className="flex items-center gap-2">
+                {embSelected.size > 0 && (
+                  <button
+                    onClick={() => openPrintForEmbs(embalagens.filter((e) => embSelected.has(e.id)))}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-medium hover:bg-secondary/80 transition-colors border border-border"
+                  >
+                    <Printer size={12} /> Imprimir Selecionadas ({embSelected.size})
+                  </button>
+                )}
+                <button onClick={() => openEmbModal()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+                  <Plus size={12} /> Nova Embalagem
+                </button>
+              </div>
             </div>
             {embLoading ? (
               <div className="flex justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
@@ -375,6 +413,19 @@ function ProdutoDetailModal({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-secondary/30">
+                    <th className="px-3 py-2 w-8">
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 accent-primary"
+                        checked={embalagens.length > 0 && embalagens.every((e) => embSelected.has(e.id))}
+                        onChange={(ev) => {
+                          const n = new Set(embSelected);
+                          if (ev.target.checked) embalagens.forEach((e) => n.add(e.id));
+                          else embalagens.forEach((e) => n.delete(e.id));
+                          setEmbSelected(n);
+                        }}
+                      />
+                    </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">EAN</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Embalagem</th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Fator</th>
@@ -386,6 +437,18 @@ function ProdutoDetailModal({
                 <tbody>
                   {embalagens.map((e) => (
                     <tr key={e.id} className="border-b border-border/50 table-row-hover">
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 accent-primary"
+                          checked={embSelected.has(e.id)}
+                          onChange={() => {
+                            const n = new Set(embSelected);
+                            if (n.has(e.id)) n.delete(e.id); else n.add(e.id);
+                            setEmbSelected(n);
+                          }}
+                        />
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs">{e.ean}</td>
                       <td className="px-3 py-2 text-xs">{e.embalagem}</td>
                       <td className="px-3 py-2 text-center text-xs">{e.fator}</td>
@@ -393,6 +456,7 @@ function ProdutoDetailModal({
                       <td className="px-3 py-2 text-center text-xs">{e.m3 ?? "—"}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openPrintForEmbs([e])} title="Imprimir etiqueta" className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-primary flex items-center justify-center"><Printer size={12} /></button>
                           <button onClick={() => openEmbModal(e)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"><Edit2 size={12} /></button>
                           <button onClick={() => deleteEmb(e.id)} className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-destructive flex items-center justify-center"><Trash2 size={12} /></button>
                         </div>
@@ -528,6 +592,8 @@ function ProdutoDetailModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintEtiquetaProdutoModal open={embPrintOpen} onClose={() => setEmbPrintOpen(false)} items={embPrintItems} />
     </Dialog>
   );
 }
@@ -543,6 +609,39 @@ export function ProdutosPage() {
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [listPrintOpen, setListPrintOpen] = useState(false);
+  const [listPrintItems, setListPrintItems] = useState<EtiquetaProdutoItem[]>([]);
+
+  const handleImprimirSelecionados = async () => {
+    if (!tenantId || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const { data, error } = await (supabase as any)
+      .from("produto_embalagem")
+      .select("id, produto_id, ean, embalagem, fator, altura, largura, comprimento, peso_bruto, peso_liquido, m3, produto:produto_id(sku, descricao, marca)")
+      .in("produto_id", ids)
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true);
+    if (error) { toast.error(error.message); return; }
+    const rows = (data || []) as any[];
+    if (!rows.length) { toast.error("Nenhuma embalagem ativa encontrada para os produtos selecionados"); return; }
+    const items: EtiquetaProdutoItem[] = rows.map((e) => ({
+      produto_id: e.produto_id,
+      sku: e.produto?.sku || "",
+      descricao: e.produto?.descricao || "",
+      marca: e.produto?.marca,
+      embalagem_id: e.id,
+      ean: e.ean,
+      embalagem: e.embalagem,
+      fator: e.fator,
+      altura: e.altura, largura: e.largura, comprimento: e.comprimento,
+      peso_bruto: e.peso_bruto, peso_liquido: e.peso_liquido, m3: e.m3,
+    }));
+    const produtosSemEmb = ids.length - new Set(rows.map((r) => r.produto_id)).size;
+    if (produtosSemEmb > 0) toast.info(`${produtosSemEmb} produto(s) sem embalagem ativa foram ignorados`);
+    setListPrintItems(items);
+    setListPrintOpen(true);
+  };
 
   useEffect(() => {
     if (tenantId && empresaId) {
@@ -586,7 +685,22 @@ export function ProdutosPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
         searchPlaceholder="Buscar por SKU ou descrição..."
-        headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
+        headerActions={
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleImprimirSelecionados}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Printer size={12} /> Imprimir Etiquetas ({selectedIds.size})
+              </button>
+            )}
+            <BotaoImportarERP onClick={() => setImportOpen(true)} />
+          </div>
+        }
+        selectable
+        selectedIds={selectedIds}
+        onSelectChange={setSelectedIds}
       />
       <ImportarDoERPModal
         isOpen={importOpen}
@@ -625,6 +739,11 @@ export function ProdutosPage() {
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}
         onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
+      />
+      <PrintEtiquetaProdutoModal
+        open={listPrintOpen}
+        onClose={() => setListPrintOpen(false)}
+        items={listPrintItems}
       />
     </>
   );
