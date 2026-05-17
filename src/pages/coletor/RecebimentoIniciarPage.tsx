@@ -99,7 +99,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
       sessionStorage.setItem("coletor_recebimento_tarefas", JSON.stringify(tarefas));
 
       const selectedMov = movimentos.find((m) => m.id === selectedId);
-      const needsVolumeCheck = !selectedMov?.total_volume_conferido;
+      const needsVolumeCheck = selectedMov?.confirma_volume === true && !selectedMov?.total_volume_conferido;
       if (needsVolumeCheck) {
         toast.success("Conferência iniciada! Confirme os volumes.");
         onNavigate("/coletor/recebimento/volumes");
