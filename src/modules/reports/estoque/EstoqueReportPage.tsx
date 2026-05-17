@@ -43,16 +43,18 @@ export function EstoqueReportPage() {
       .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }) => setArmazens(data || []));
 
+    // Tipo de estoque é cadastrado por empresa (armazem_id pode ser nulo)
+    (supabase as any).from("tipo_estoque").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
+      .then(({ data }: any) => setTiposEstoque(data || []));
+
     const armazemFiltro = filterArmazemId || armazemId;
     if (armazemFiltro) {
-      (supabase as any).from("tipo_estoque").select("id, descricao")
-        .eq("tenant_id", tenantId).eq("armazem_id", armazemFiltro).eq("ativo", true).order("descricao")
-        .then(({ data }: any) => setTiposEstoque(data || []));
       (supabase as any).from("setor").select("id, descricao")
         .eq("tenant_id", tenantId).eq("armazem_id", armazemFiltro).eq("ativo", true).order("descricao")
         .then(({ data }: any) => setSetores(data || []));
     } else {
-      setTiposEstoque([]); setSetores([]);
+      setSetores([]);
     }
   }, [tenantId, empresaId, armazemId, filterArmazemId, empresaVersion]);
 
