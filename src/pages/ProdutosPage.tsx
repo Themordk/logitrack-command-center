@@ -609,6 +609,39 @@ export function ProdutosPage() {
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [listPrintOpen, setListPrintOpen] = useState(false);
+  const [listPrintItems, setListPrintItems] = useState<EtiquetaProdutoItem[]>([]);
+
+  const handleImprimirSelecionados = async () => {
+    if (!tenantId || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const { data, error } = await (supabase as any)
+      .from("produto_embalagem")
+      .select("id, produto_id, ean, embalagem, fator, altura, largura, comprimento, peso_bruto, peso_liquido, m3, produto:produto_id(sku, descricao, marca)")
+      .in("produto_id", ids)
+      .eq("tenant_id", tenantId)
+      .eq("ativo", true);
+    if (error) { toast.error(error.message); return; }
+    const rows = (data || []) as any[];
+    if (!rows.length) { toast.error("Nenhuma embalagem ativa encontrada para os produtos selecionados"); return; }
+    const items: EtiquetaProdutoItem[] = rows.map((e) => ({
+      produto_id: e.produto_id,
+      sku: e.produto?.sku || "",
+      descricao: e.produto?.descricao || "",
+      marca: e.produto?.marca,
+      embalagem_id: e.id,
+      ean: e.ean,
+      embalagem: e.embalagem,
+      fator: e.fator,
+      altura: e.altura, largura: e.largura, comprimento: e.comprimento,
+      peso_bruto: e.peso_bruto, peso_liquido: e.peso_liquido, m3: e.m3,
+    }));
+    const produtosSemEmb = ids.length - new Set(rows.map((r) => r.produto_id)).size;
+    if (produtosSemEmb > 0) toast.info(`${produtosSemEmb} produto(s) sem embalagem ativa foram ignorados`);
+    setListPrintItems(items);
+    setListPrintOpen(true);
+  };
 
   useEffect(() => {
     if (tenantId && empresaId) {
