@@ -740,6 +740,11 @@ export function ProdutosPage() {
         onClose={() => setDeleteItem(null)}
         onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
       />
+      <PrintEtiquetaProdutoModal
+        open={listPrintOpen}
+        onClose={() => setListPrintOpen(false)}
+        items={listPrintItems}
+      />
     </>
   );
 }
