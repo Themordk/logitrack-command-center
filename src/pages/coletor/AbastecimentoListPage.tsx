@@ -190,9 +190,9 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Floating action button */}
+      {/* Sticky action button */}
       {tarefas.length > 0 && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
+        <div className="shrink-0">
           <ActionButton onClick={handleIniciarColeta}>
             <PackageCheck size={20} /> Iniciar Coleta ({selectedIds.size} selecionada{selectedIds.size > 1 ? "s" : ""})
           </ActionButton>
