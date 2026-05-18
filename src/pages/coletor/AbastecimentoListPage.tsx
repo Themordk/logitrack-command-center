@@ -136,7 +136,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
           <p className="text-sm text-muted-foreground">Nenhuma tarefa de abastecimento pendente.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2 pb-20">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">{tarefas.length} tarefa(s) pendente(s)</p>
             <button
