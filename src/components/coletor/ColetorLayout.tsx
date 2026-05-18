@@ -77,7 +77,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", onNavigate, sh
       </header>
 
       {/* Body */}
-      <main className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto min-h-0">
+      <main className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto min-h-0">
         {children}
       </main>
     </div>
