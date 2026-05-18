@@ -24,9 +24,9 @@ export function ActionButton({ children, onClick, disabled, loading, variant = "
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      className={`w-full h-[60px] rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-100 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 ${variantStyles[variant]} ${className}`}
+      className={`w-full h-[52px] rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-100 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 ${variantStyles[variant]} ${className}`}
     >
-      {loading ? <Loader2 size={22} className="animate-spin" /> : children}
+      {loading ? <Loader2 size={20} className="animate-spin" /> : children}
     </button>
   );
 }

@@ -271,7 +271,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/iniciar">
-      <div className="flex flex-col gap-3 flex-1 pb-24">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
         {/* Progress */}
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[hsl(213,31%,55%)]">Endereço {progress}</span>
@@ -325,17 +325,18 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
         />
       </div>
 
-      {/* Floating skip button */}
-      <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
+      {/* Sticky skip button */}
+      <div className="shrink-0">
         <ActionButton onClick={handlePular} variant="secondary">
           <SkipForward size={18} /> Pular Endereço
         </ActionButton>
       </div>
 
+
       {/* Error Dialog */}
       {errorDialog && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex flex-col items-center gap-3">
               <XCircle size={48} className="text-[#E02424]" />
               <h3 className="text-base font-bold text-white text-center">Endereço Incorreto</h3>

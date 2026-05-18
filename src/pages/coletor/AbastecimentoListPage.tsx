@@ -136,7 +136,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
           <p className="text-sm text-muted-foreground">Nenhuma tarefa de abastecimento pendente.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2 pb-20">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">{tarefas.length} tarefa(s) pendente(s)</p>
             <button
@@ -190,9 +190,9 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Floating action button */}
+      {/* Sticky action button */}
       {tarefas.length > 0 && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
+        <div className="shrink-0">
           <ActionButton onClick={handleIniciarColeta}>
             <PackageCheck size={20} /> Iniciar Coleta ({selectedIds.size} selecionada{selectedIds.size > 1 ? "s" : ""})
           </ActionButton>

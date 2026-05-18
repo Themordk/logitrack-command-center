@@ -73,16 +73,16 @@ export function ScanField({
 
   return (
     <div
-      className="relative rounded-xl border-2 border-dashed border-primary/40 bg-card p-4 flex flex-col items-center gap-2 cursor-text"
+      className="relative rounded-xl border-2 border-dashed border-primary/40 bg-card p-3 flex flex-col items-center gap-1.5 cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
-      <ScanLine size={32} className="text-primary" />
-      <span className="text-base font-semibold text-muted-foreground">{label}</span>
+      <ScanLine size={26} className="text-primary" />
+      <span className="text-sm font-semibold text-muted-foreground">{label}</span>
       {lastScanned && (
-        <span className="text-sm text-muted-foreground">Último: <span className="font-mono font-bold text-foreground">{lastScanned}</span></span>
+        <span className="text-xs text-muted-foreground">Último: <span className="font-mono font-bold text-foreground">{lastScanned}</span></span>
       )}
       {!lastScanned && (
-        <span className="text-sm text-muted-foreground/60">{placeholder}</span>
+        <span className="text-xs text-muted-foreground/60">{placeholder}</span>
       )}
       <input
         ref={inputRef}

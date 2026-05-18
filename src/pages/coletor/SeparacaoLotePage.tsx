@@ -151,7 +151,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/endereco">
-      <div className="flex flex-col gap-3 flex-1 pb-24">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
         {/* Produto info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-1">
           <div className="flex items-center gap-2 mb-1">
@@ -217,11 +217,12 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
       </div>
 
       {/* Botão Confirmar */}
-      <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
+      <div className="shrink-0">
         <ActionButton onClick={handleConfirmar} disabled={selectedIdx === null || lotes.length === 0} variant="success">
           Confirmar Lote
         </ActionButton>
       </div>
+
     </ColetorLayout>
   );
 }

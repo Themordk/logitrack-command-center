@@ -169,7 +169,7 @@ export function InventarioListPage({ onNavigate }: Props) {
       {/* Contagem selection popup */}
       {showContagemPopup && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-white text-center">Selecione a Contagem</h3>
             <p className="text-xs text-[hsl(213,31%,55%)] text-center">Escolha qual contagem será realizada</p>
             <div className="flex flex-col gap-2">
@@ -185,7 +185,7 @@ export function InventarioListPage({ onNavigate }: Props) {
 
       {resultDialog && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex flex-col items-center gap-3">
               {resultDialog.sucesso ? (
                 <CheckCircle size={48} className="text-[#22C55E]" />
