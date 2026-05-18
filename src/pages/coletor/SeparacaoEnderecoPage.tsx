@@ -325,12 +325,13 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
         />
       </div>
 
-      {/* Floating skip button */}
-      <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
+      {/* Sticky skip button */}
+      <div className="shrink-0">
         <ActionButton onClick={handlePular} variant="secondary">
           <SkipForward size={18} /> Pular Endereço
         </ActionButton>
       </div>
+
 
       {/* Error Dialog */}
       {errorDialog && (
