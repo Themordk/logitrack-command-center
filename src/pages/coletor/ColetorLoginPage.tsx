@@ -121,12 +121,12 @@ export function ColetorLoginPage({ onNavigate }: Props) {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden flex items-center justify-center px-5"
+      className="relative h-screen overflow-hidden flex items-center justify-center px-4 py-2"
       style={{
         background: "#020c1b",
         fontFamily: "'Syne', sans-serif",
-        paddingTop: "max(1.25rem, env(safe-area-inset-top))",
-        paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))",
+        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
       }}
     >
       <style>{`
@@ -156,8 +156,8 @@ export function ColetorLoginPage({ onNavigate }: Props) {
 
       <main className="relative z-10 w-full max-w-[360px] wi-card">
         {/* Header */}
-        <div className="flex flex-col items-center gap-3 mb-6">
-          <div className="relative w-20 h-20 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2 mb-3">
+          <div className="relative w-14 h-14 flex items-center justify-center">
             <div
               aria-hidden
               className="wi-orbit absolute inset-0 rounded-full"
@@ -168,43 +168,33 @@ export function ColetorLoginPage({ onNavigate }: Props) {
               }}
             />
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              className="w-11 h-11 rounded-xl flex items-center justify-center"
               style={{
                 background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(217 91% 40%))",
                 boxShadow: "0 10px 30px -10px rgba(59,130,246,0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
               }}
             >
-              <Boxes size={30} className="text-white" />
+              <Boxes size={20} className="text-white" />
             </div>
           </div>
 
-          <h1 className="text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl font-bold text-white tracking-tight">
             CORE <span style={{ color: "hsl(217 91% 65%)" }}>Coletor</span>
           </h1>
 
-          <p className="wi-mono text-[11px] uppercase" style={{ color: "hsl(213 31% 60%)" }}>
+          <p className="hidden short:block wi-mono text-[10px] uppercase" style={{ color: "hsl(213 31% 60%)" }}>
             WMS · LOGIN DO OPERADOR
           </p>
 
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className="wi-dot block w-2 h-2 rounded-full"
-              style={{ background: "hsl(142 76% 50%)", boxShadow: "0 0 10px hsl(142 76% 50%)" }}
-            />
-            <span className="wi-mono text-[10px] uppercase" style={{ color: "hsl(142 60% 65%)" }}>
-              Sistema Online
-            </span>
-          </div>
-
           {bootTenant && (
             <div
-              className="mt-1 px-3 py-1 rounded-full"
+              className="px-2.5 py-0.5 rounded-full"
               style={{
                 background: "rgba(59,130,246,0.12)",
                 border: "1px solid rgba(96,165,250,0.35)",
               }}
             >
-              <span className="wi-mono text-[10px] uppercase font-semibold" style={{ color: "hsl(217 91% 75%)" }}>
+              <span className="wi-mono text-[9px] uppercase font-semibold" style={{ color: "hsl(217 91% 75%)" }}>
                 Cliente · {bootTenant.nome}
               </span>
             </div>
@@ -213,7 +203,7 @@ export function ColetorLoginPage({ onNavigate }: Props) {
 
         {/* Glass card */}
         <div
-          className="rounded-2xl p-6"
+          className="rounded-2xl p-4"
           style={{
             background: "rgba(10,22,40,0.6)",
             backdropFilter: "blur(18px)",
@@ -222,19 +212,19 @@ export function ColetorLoginPage({ onNavigate }: Props) {
             boxShadow: "0 20px 60px -20px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
           }}
         >
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-3">
             <div>
-              <label className="wi-mono block text-[10px] font-semibold mb-2 uppercase" style={{ color: "hsl(213 31% 65%)" }}>
+              <label className="wi-mono block text-[10px] font-semibold mb-1 uppercase" style={{ color: "hsl(213 31% 65%)" }}>
                 Login
               </label>
               <div className="relative">
-                <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "hsl(213 31% 50%)" }} />
+                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "hsl(213 31% 50%)" }} />
                 <input
                   type="text"
                   value={login}
                   onChange={(e) => setLogin(e.target.value)}
                   placeholder="Seu login"
-                  className="wi-input w-full h-14 pl-12 pr-4 rounded-xl text-base text-white outline-none transition-all"
+                  className="wi-input w-full h-12 pl-11 pr-4 rounded-xl text-base text-white outline-none transition-all"
                   style={{
                     background: "rgba(2,12,27,0.6)",
                     border: "1px solid rgba(96,165,250,0.2)",
@@ -247,17 +237,17 @@ export function ColetorLoginPage({ onNavigate }: Props) {
             </div>
 
             <div>
-              <label className="wi-mono block text-[10px] font-semibold mb-2 uppercase" style={{ color: "hsl(213 31% 65%)" }}>
+              <label className="wi-mono block text-[10px] font-semibold mb-1 uppercase" style={{ color: "hsl(213 31% 65%)" }}>
                 Senha
               </label>
               <div className="relative">
-                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "hsl(213 31% 50%)" }} />
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "hsl(213 31% 50%)" }} />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="wi-input w-full h-14 pl-12 pr-4 rounded-xl text-base text-white outline-none transition-all"
+                  className="wi-input w-full h-12 pl-11 pr-4 rounded-xl text-base text-white outline-none transition-all"
                   style={{
                     background: "rgba(2,12,27,0.6)",
                     border: "1px solid rgba(96,165,250,0.2)",
@@ -290,7 +280,7 @@ export function ColetorLoginPage({ onNavigate }: Props) {
         <button
           type="button"
           onClick={() => onNavigate("/")}
-          className="wi-mono mt-6 w-full text-center text-[11px] uppercase transition-colors"
+          className="wi-mono mt-3 w-full text-center text-[10px] uppercase transition-colors"
           style={{ color: "hsl(213 31% 50%)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "hsl(217 91% 65%)")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "hsl(213 31% 50%)")}
