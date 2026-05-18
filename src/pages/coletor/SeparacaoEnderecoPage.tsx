@@ -271,7 +271,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/iniciar">
-      <div className="flex flex-col gap-3 flex-1 pb-24">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
         {/* Progress */}
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[hsl(213,31%,55%)]">Endereço {progress}</span>
