@@ -305,7 +305,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath={backPath}>
-      <div className="flex flex-col gap-3 flex-1 pb-24">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
         {/* Product info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
           <div className="flex items-center justify-between mb-1">
@@ -380,8 +380,8 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Floating confirm button */}
-      <div className="fixed bottom-6 left-4 right-4 z-50 max-w-lg mx-auto">
+      {/* Sticky confirm button */}
+      <div className="shrink-0">
         <ActionButton
           onClick={handleConfirmar}
           disabled={!quantidade || confirming || !eanConfirmado}
@@ -391,6 +391,8 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           Confirmar Quantidade
         </ActionButton>
       </div>
+
+
 
       {/* EAN Erro Dialog - produto diferente (only close option, no confirm) */}
       {showEanErroDialog && (
