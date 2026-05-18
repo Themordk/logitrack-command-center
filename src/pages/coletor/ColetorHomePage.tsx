@@ -51,67 +51,69 @@ export function ColetorHomePage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="CORE Coletor" onNavigate={onNavigate} showLogout>
-      <div className="mb-2">
-        <span className="text-lg text-[hsl(213,31%,55%)]">Olá, </span>
-        <span className="text-lg font-bold text-white">{userName}</span>
+      <div className="shrink-0 mb-1">
+        <span className="text-base text-[hsl(213,31%,55%)]">Olá, </span>
+        <span className="text-base font-bold text-white">{userName}</span>
       </div>
 
       {permLoading ? (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 min-h-0 flex items-center justify-center">
           <Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" />
         </div>
       ) : (
-      <div className="grid grid-cols-2 gap-3 flex-1">
-        {allowedModules.map((m) => {
-          const count = pendingCounts[m.label];
-          const isActive = m.path !== "/coletor/home";
-          return (
-            <button
-              key={m.label}
-              onClick={() => onNavigate(m.path)}
-              disabled={!isActive}
-              className={`relative flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border transition-all active:scale-[0.97] ${
-                isActive
-                  ? "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)] active:bg-[hsl(222,35%,16%)]"
-                  : "bg-[hsl(222,40%,10%)] border-[hsl(222,35%,16%)] opacity-50"
-              }`}
-            >
-              <div style={{ color: m.color }}>{m.icon}</div>
-              <span className="text-base font-semibold text-white">{m.label}</span>
-              {count != null && count > 0 && (
-                <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-[#E02424] text-white text-xs font-bold flex items-center justify-center">
-                  {count}
-                </span>
-              )}
-              {!isActive && <span className="text-[10px] text-[hsl(213,31%,45%)]">Em breve</span>}
-            </button>
-          );
-        })}
+      <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+        <div className="grid grid-cols-2 gap-2">
+          {allowedModules.map((m) => {
+            const count = pendingCounts[m.label];
+            const isActive = m.path !== "/coletor/home";
+            return (
+              <button
+                key={m.label}
+                onClick={() => onNavigate(m.path)}
+                disabled={!isActive}
+                className={`relative flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all active:scale-[0.97] ${
+                  isActive
+                    ? "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)] active:bg-[hsl(222,35%,16%)]"
+                    : "bg-[hsl(222,40%,10%)] border-[hsl(222,35%,16%)] opacity-50"
+                }`}
+              >
+                <div style={{ color: m.color }}>{m.icon}</div>
+                <span className="text-sm font-semibold text-white">{m.label}</span>
+                {count != null && count > 0 && (
+                  <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-[#E02424] text-white text-xs font-bold flex items-center justify-center">
+                    {count}
+                  </span>
+                )}
+                {!isActive && <span className="text-[10px] text-[hsl(213,31%,45%)]">Em breve</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
       )}
 
-      {/* Footer Navigation */}
-      <div className="mt-auto pt-4 border-t border-[hsl(222,35%,18%)]">
+      {/* Footer Navigation – fixo */}
+      <div className="shrink-0 pt-2 border-t border-[hsl(222,35%,18%)]">
         <div className="flex justify-around items-center">
           <button
             onClick={() => onNavigate("/coletor/consulta")}
             className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
           >
-            <Search size={24} className="text-[hsl(217,91%,60%)]" />
+            <Search size={22} className="text-[hsl(217,91%,60%)]" />
             <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Consultas</span>
           </button>
           <button
             onClick={() => onNavigate("/coletor/metas")}
             className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
           >
-            <BarChart3 size={24} className="text-[hsl(280,70%,55%)]" />
+            <BarChart3 size={22} className="text-[hsl(280,70%,55%)]" />
             <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Metas</span>
           </button>
           <button
             onClick={() => onNavigate("/coletor/configuracoes")}
             className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
           >
-            <Settings size={24} className="text-[hsl(213,31%,55%)]" />
+            <Settings size={22} className="text-[hsl(213,31%,55%)]" />
             <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Config</span>
           </button>
         </div>

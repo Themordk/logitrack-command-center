@@ -1,57 +1,37 @@
-
 ## Objetivo
 
-Garantir que a tela `src/pages/coletor/ColetorLoginPage.tsx` caiba inteira (sem scroll) em coletores com tela a partir de 3,5"–4" (≈ 320×480 a 360×640 CSS px), mantendo a identidade visual atual.
+Em coletores com tela de até ~4" (320×568 / 360×640), a Home do Coletor (`src/pages/coletor/ColetorHomePage.tsx`) hoje empurra o rodapé (Consultas / Metas / Config) para fora da viewport, obrigando o operador a rolar para acessá-lo. O ajuste deve manter o rodapé **sempre visível e fixo** na parte inferior, com a rolagem ocorrendo **apenas no grid de módulos**.
 
 ## Diagnóstico
 
-A tela hoje empilha verticalmente:
-- Header (logo orbitando 80px + título + subtítulo mono + badge "Sistema Online" + badge do tenant) → ~220px
-- Card glass com padding 24px, dois inputs h-14 (56px) + labels + espaçamentos + botão h-60px → ~340px
-- Link "Painel Administrativo" + margens → ~60px
-- Padding vertical do container (`py-5` + safe-area) → ~40px
+- `ColetorLayout` já usa `h-screen` + `flex-col` e o `<main>` interno é `flex-1 overflow-y-auto` — ou seja, a rolagem hoje acontece no `<main>` inteiro, levando junto o rodapé que está dentro do conteúdo (`mt-auto`).
+- Na Home, a estrutura é: saudação + grid 2×N de módulos + rodapé com 3 botões. Com 6 módulos em 2 colunas (3 linhas) os cards ocupam mais que a altura disponível em telas baixas, e como tudo está dentro do mesmo container rolável, o rodapé desaparece embaixo do fold.
 
-Total ≈ 660px de conteúdo, ultrapassando 480–568px de altura típica de coletores pequenos → força scroll.
+## Mudanças (apenas em `src/pages/coletor/ColetorHomePage.tsx`)
 
-## Mudanças (apenas em `ColetorLoginPage.tsx`)
+1. **Estrutura em 3 regiões dentro do `ColetorLayout`**:
+   - Saudação ("Olá, {nome}") — `shrink-0`.
+   - Área de módulos — `flex-1 min-h-0 overflow-y-auto` com o grid 2 colunas dentro. Essa é a **única** região rolável.
+   - Rodapé (Consultas / Metas / Config) — `shrink-0`, sem `mt-auto` (não é mais necessário), com borda superior mantida.
 
-Tornar a página adaptativa via breakpoints de altura, sem mexer em lógica de auth.
+2. **Compactação leve para caber melhor em 4"**:
+   - Saudação: `mb-2` → `mb-1`, fonte `text-lg` → `text-base`.
+   - Grid: `gap-3` → `gap-2`, padding interno dos cards `p-5` → `p-3`, ícones `size={32}` → `size={28}`, label `text-base` → `text-sm`.
+   - Rodapé: reduzir `pt-4` → `pt-2`, ícones `size={24}` → `size={22}`, manter labels `text-[10px]`.
+   - Loader (permLoading): manter centralizado dentro da área rolável.
 
-1. **Container**
-   - Trocar `min-h-screen` por `h-screen` + `overflow-hidden`.
-   - Reduzir padding vertical: `py-3` em telas baixas, mantendo `env(safe-area-inset-*)` mínimo.
-   - Usar `justify-center` mas permitir encolhimento (`flex-col` com `gap` compacto).
-
-2. **Header (logo + títulos)**
-   - Logo: reduzir wrapper de 80×80 para 56×56 e ícone `Boxes` de 30 → 22.
-   - Título `text-3xl` → `text-2xl`.
-   - Remover (ou esconder via `hidden`) o subtítulo "WMS · LOGIN DO OPERADOR" e o badge "Sistema Online" em telas baixas — informação redundante para o operador.
-   - Badge do tenant: manter, mas com `text-[9px]` e padding menor.
-   - `gap-3 mb-6` → `gap-2 mb-3`.
-
-3. **Card glass**
-   - Padding `p-6` → `p-4`.
-   - `space-y-5` entre campos → `space-y-3`.
-   - Inputs `h-14` → `h-12`; ícones e textos proporcionais.
-   - Label margin `mb-2` → `mb-1`.
-   - Botão "Entrar": manter `ActionButton` (60px) — é o alvo de toque principal, não reduzir.
-
-4. **Rodapé**
-   - Link "Acessar Painel Administrativo": `mt-6` → `mt-3`, `text-[11px]` → `text-[10px]`.
-
-5. **Estratégia responsiva**
-   - Aplicar as reduções acima de forma incondicional (são suaves o suficiente para telas grandes) **ou** condicionadas via Tailwind arbitrary `max-h-[640px]:` para preservar o visual atual em smartphones maiores. Recomendado: aplicar incondicionalmente, pois o coletor é mobile-first e a economia de espaço beneficia todos.
-
-6. **Animação**
-   - Manter shimmer, orbit e pulse — apenas o tamanho da logo muda.
+3. **Comportamento esperado**:
+   - Em telas pequenas: rodapé sempre visível; o grid de 6 módulos rola verticalmente se necessário.
+   - Em telas maiores (≥ 640px): visual praticamente idêntico ao atual, sem aparecer scrollbar pois o conteúdo cabe.
 
 ## Fora de escopo
 
-- Lógica de autenticação, RPCs, tenant boot, modal de troca de senha.
-- Outras páginas do coletor.
+- `ColetorLayout` (não alterar — o comportamento `flex-1 overflow-y-auto` do `<main>` continua válido; quem assume a rolagem interna é a Home).
+- Lógica de permissões, contagem de pendentes, navegação, ícones/cores de módulos.
+- Outras páginas do coletor (cada menu interno como Recebimento/Consultas tem seu próprio layout e não apresenta o mesmo problema de rodapé).
 - Tokens globais do design system.
 
 ## Validação
 
-- Abrir preview no viewport 320×568 (iPhone SE clássico, ~4") e 360×640 — confirmar que logo, inputs e botão "Entrar" cabem sem scroll.
-- Confirmar em 390×844 que o layout continua agradável (não fica "pequeno demais").
+- Preview em 320×568 e 360×640: confirmar que o rodapé Consultas/Metas/Config fica colado embaixo e que o grid rola sozinho.
+- Em 390×844: confirmar que não há scroll desnecessário e o layout segue agradável.
