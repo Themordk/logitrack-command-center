@@ -395,7 +395,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       {/* Cancel Confirm Dialog */}
       {cancelConfirm && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-6 space-y-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
             <div className="flex flex-col items-center gap-3">
               <AlertTriangle size={48} className="text-[hsl(45,93%,47%)]" />
               <h3 className="text-base font-bold text-white text-center">Cancelar Conferência</h3>
