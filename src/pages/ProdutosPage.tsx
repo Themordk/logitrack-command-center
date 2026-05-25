@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package, Printer } from "lucide-react";
+import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package, Printer, AlertTriangle } from "lucide-react";
 import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaProdutoModal";
 import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoPreview";
 
@@ -601,7 +601,16 @@ function ProdutoDetailModal({
 // ─── Main Produtos Page ────────────────────────────────────────────
 export function ProdutosPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
-  const crud = useCrud({ table: "produto", tenantId, orderBy: "descricao" });
+  const [filterSemEan, setFilterSemEan] = useState(false);
+  const crudFilters = filterSemEan ? { tem_ean: false } : {};
+  const crud = useCrud({
+    table: "vw_produto_listagem",
+    writeTable: "produto",
+    tenantId,
+    orderBy: "descricao",
+    filters: crudFilters,
+  });
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -612,6 +621,23 @@ export function ProdutosPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [listPrintOpen, setListPrintOpen] = useState(false);
   const [listPrintItems, setListPrintItems] = useState<EtiquetaProdutoItem[]>([]);
+  const [totalSemEan, setTotalSemEan] = useState<number | null>(null);
+
+  // Totalizador global de produtos sem código de barras (escopo empresa).
+  useEffect(() => {
+    if (!tenantId || !empresaId) { setTotalSemEan(null); return; }
+    (async () => {
+      const { count, error } = await (supabase as any)
+        .from("vw_produto_listagem")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .eq("tem_ean", false);
+      if (!error) setTotalSemEan(count ?? 0);
+    })();
+  }, [tenantId, empresaId, empresaVersion, crud.total]);
+
 
   const handleImprimirSelecionados = async () => {
     if (!tenantId || selectedIds.size === 0) return;
@@ -657,6 +683,15 @@ export function ProdutosPage() {
   }, [tenantId, empresaId, empresaVersion]);
 
   const columns: ColumnSpec[] = [
+    {
+      key: "tem_ean", label: "",
+      className: "w-8",
+      render: (r) => r.tem_ean === false ? (
+        <span title="Sem código de barras cadastrado" className="inline-flex items-center justify-center w-6 h-6 rounded text-amber-500">
+          <AlertTriangle size={14} />
+        </span>
+      ) : null,
+    },
     { key: "sku", label: "SKU", type: "mono" },
     { key: "descricao", label: "Descrição" },
     { key: "referencia", label: "Referência" },
@@ -685,6 +720,25 @@ export function ProdutosPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
         searchPlaceholder="Buscar por SKU ou descrição..."
+        extraFilters={
+          totalSemEan !== null && totalSemEan > 0 ? (
+            <button
+              type="button"
+              onClick={() => { setFilterSemEan((v) => !v); crud.setPage(1); }}
+              title={filterSemEan ? "Mostrando apenas produtos sem código de barras — clique para limpar" : "Filtrar produtos sem código de barras"}
+              className={
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border " +
+                (filterSemEan
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                  : "bg-amber-500/5 border-amber-500/20 text-amber-500 hover:bg-amber-500/10")
+              }
+            >
+              <AlertTriangle size={14} />
+              {totalSemEan.toLocaleString("pt-BR")} sem código de barras
+              {filterSemEan && <span className="ml-1 opacity-70">(filtro ativo)</span>}
+            </button>
+          ) : null
+        }
         headerActions={
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
@@ -702,6 +756,7 @@ export function ProdutosPage() {
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
       />
+
       <ImportarDoERPModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}

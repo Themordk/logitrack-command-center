@@ -46,6 +46,8 @@ const TABLES_WITH_ARMAZEM = new Set([
 
 interface UseCrudOptions {
   table: string;
+  /** Tabela alvo para INSERT/UPDATE/DELETE quando `table` for uma view. Default: `table`. */
+  writeTable?: string;
   tenantId: string | null;
   pageSize?: number;
   orderBy?: string;
@@ -56,6 +58,7 @@ interface UseCrudOptions {
 
 export function useCrud<T extends Record<string, any>>({
   table,
+  writeTable,
   tenantId,
   pageSize = 15,
   orderBy = "descricao",
@@ -63,6 +66,7 @@ export function useCrud<T extends Record<string, any>>({
   select = "*",
   filters = {},
 }: UseCrudOptions) {
+
   const { empresaId: rawEmpresaId, armazemId: rawArmazemId, empresaVersion } = useTenant();
   const empresaId = sanitizeId(rawEmpresaId);
   const armazemId = sanitizeId(rawArmazemId);
@@ -73,9 +77,11 @@ export function useCrud<T extends Record<string, any>>({
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const requiresBoth = TABLES_WITH_EMPRESA_AND_ARMAZEM.has(table);
-  const requiresArmazem = TABLES_WITH_ARMAZEM.has(table) || requiresBoth;
-  const requiresEmpresa = TABLES_WITH_EMPRESA.has(table) || requiresBoth;
+  const wTable = writeTable || table;
+  const requiresBoth = TABLES_WITH_EMPRESA_AND_ARMAZEM.has(wTable);
+  const requiresArmazem = TABLES_WITH_ARMAZEM.has(wTable) || requiresBoth;
+  const requiresEmpresa = TABLES_WITH_EMPRESA.has(wTable) || requiresBoth;
+
 
   const fetchData = useCallback(async () => {
     if (!safeTenantId) {
@@ -120,12 +126,13 @@ export function useCrud<T extends Record<string, any>>({
         const searchFields = ["descricao"];
         if (table === "hu") searchFields.push("codigo_hu");
         if (table === "volume_expedicao") searchFields.push("codigo_volume");
-        if (table === "produto") searchFields.push("sku");
+        if (table === "produto" || table === "vw_produto_listagem") searchFields.push("sku");
         if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("coderp");
         if (table === "veiculos") searchFields.push("placa");
         const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
         query = query.or(orClause);
       }
+
 
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
@@ -157,7 +164,7 @@ export function useCrud<T extends Record<string, any>>({
       if (requiresArmazem && armazemId && payload.armazem_id == null) {
         payload.armazem_id = armazemId;
       }
-      const { error } = await (supabase as any).from(table).insert(payload);
+      const { error } = await (supabase as any).from(wTable).insert(payload);
       if (error) throw error;
       toast.success("Registro criado com sucesso!");
       await fetchData();
@@ -171,7 +178,7 @@ export function useCrud<T extends Record<string, any>>({
 
   const update = async (id: string, record: Partial<T>) => {
     try {
-      const { error } = await (supabase as any).from(table).update(record).eq("id", id);
+      const { error } = await (supabase as any).from(wTable).update(record).eq("id", id);
       if (error) throw error;
       toast.success("Registro atualizado com sucesso!");
       await fetchData();
@@ -186,12 +193,13 @@ export function useCrud<T extends Record<string, any>>({
   const remove = async (id: string, softDelete = true) => {
     try {
       if (softDelete) {
-        const { error } = await (supabase as any).from(table).update({ ativo: false }).eq("id", id);
+        const { error } = await (supabase as any).from(wTable).update({ ativo: false }).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any).from(table).delete().eq("id", id);
+        const { error } = await (supabase as any).from(wTable).delete().eq("id", id);
         if (error) throw error;
       }
+
       toast.success("Registro removido com sucesso!");
       await fetchData();
       return true;

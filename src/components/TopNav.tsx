@@ -111,6 +111,8 @@ const navItems: NavItem[] = [
       { label: "Usuários", path: "/config/usuarios" },
       { label: "Integração ERP", path: "/config/integracao" },
       { label: "Perfis de Acesso", path: "/config/perfis" },
+      { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
+
     ],
   },
 ];

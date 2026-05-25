@@ -40,6 +40,8 @@ import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
+import { TiposTarefaPage } from "./pages/TiposTarefaPage";
+
 import { AbastecimentoPage } from "./pages/AbastecimentoPage";
 import { AbastecimentoGeracaoPage } from "./pages/AbastecimentoGeracaoPage";
 import { AbastecimentoDetalhePage } from "./pages/AbastecimentoDetalhePage";
@@ -142,6 +144,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/usuarios": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Usuários" }],
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
   "/config/perfis": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Perfis de Acesso" }],
+  "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Tipos de Tarefa" }],
+
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
@@ -227,6 +231,8 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/usuarios": return <UsuariosPage />;
     case "/config/integracao": return <IntegracaoPage />;
     case "/config/perfis": return <PerfisAcessoPage />;
+    case "/config/tipos-tarefa": return <TiposTarefaPage />;
+
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;

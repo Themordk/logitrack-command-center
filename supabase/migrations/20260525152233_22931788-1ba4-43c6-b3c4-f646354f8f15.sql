@@ -1,0 +1,1 @@
+ALTER VIEW public.vw_produto_listagem SET (security_invoker = true);
