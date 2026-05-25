@@ -1,90 +1,61 @@
-## Objetivo
+## Diagnóstico
 
-Centralizar a exibição de data/hora num único utilitário `src/utils/dateTime.ts` que converte UTC real → `America/Fortaleza` (UTC-3, sem horário de verão) usando `Intl.DateTimeFormat` nativo, e migrar 100% das telas para usar essa API.
+As duas telas usam corretamente `formatDateTime` de `src/utils/dateTime.ts`. O problema **não está no frontend**, mas na **origem dos dados**:
 
-Migração em **duas fases**, conforme decidido. Esta tarefa cobre **apenas a Fase 1 (exibição)**. A Fase 2 (corrigir `nowBrasilia()` para gravar UTC real + migração de dados antigos) fica como tarefa separada futura.
+- `vw_estoque_movimento_relatorio.criado_em` → `timestamp without time zone`
+- `estoque_geral.atualizado_em` → `timestamp without time zone`
 
-> Aviso importante: durante a Fase 1, dados gravados anteriormente via `nowBrasilia()` (que estão "Brasília mascarado de UTC") serão exibidos **3h atrasados**. Isso é esperado e será resolvido na Fase 2.
+(Confirmado via consulta a `information_schema.columns`.)
 
----
+Como essas colunas **não são `timestamptz`**, o PostgREST devolve o valor **sem offset** (ex.: `"2026-05-25T21:31:30.198549"`). O `formatDateTime` foi desenhado sob a premissa "banco em UTC real" — ele chama `new Date(value)` e converte para `America/Fortaleza`. Quando a string não tem offset:
 
-## Fase 1 — Escopo desta entrega
+- O `new Date()` interpreta como horário **local do navegador** (pela spec ES).
+- Se o navegador está em UTC (ou diferente de UTC-3), o `Intl` reconverte e o valor exibido **fica 3h atrás** do real — exatamente o sintoma relatado ("padrão UTC").
+- Mesmo em navegador Brasília, o resultado é frágil (depende do TZ da máquina, não do dado).
 
-### 1. Criar `src/utils/dateTime.ts`
+Esses dois campos são gravados por triggers/serviços que usam o legado "Brasília mascarado" — então o valor cru já está em horário de Brasília, só falta o offset `-03:00` para ser interpretado corretamente.
 
-Único arquivo, sem dependências externas, usando `Intl.DateTimeFormat` com `timeZone: 'America/Fortaleza'`. Exporta:
+## Plano (Fase 1 — exibição)
 
-- `formatDateTime(v)` → `dd/MM/yyyy HH:mm`
-- `formatDate(v)` → `dd/MM/yyyy`
-- `formatTime(v)` → `HH:mm`
-- `formatDateTimeFull(v)` → `dd/MM/yyyy HH:mm:ss`
+### 1. Adicionar variante `formatDateTimeNaive*` em `src/utils/dateTime.ts`
 
-Regras comuns:
-- Aceita `string | Date | null | undefined`
-- Retorna `'—'` para nulo/indefinido/`Date` inválido
-- Locale `pt-BR`, timezone fixo `America/Fortaleza`
+Helpers que tratam strings sem offset como **Brasília mascarada** (anexa `-03:00` antes de parsear). Para `Date` ou string com offset, comporta-se igual a `formatDateTime`.
 
-### 2. Substituir em todo o projeto
+```ts
+// pseudo
+function parseNaiveAsBrasilia(v) {
+  if (v instanceof Date) return v;
+  if (typeof v === 'string' && /T?\d{2}:\d{2}/.test(v) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(v)) {
+    return new Date(v.replace(' ', 'T') + '-03:00');
+  }
+  return new Date(v);
+}
+export function formatDateTimeNaive(v) { /* mesmo formato dd/MM/yyyy HH:mm */ }
+export function formatDateTimeNaiveFull(v) { /* dd/MM/yyyy HH:mm:ss */ }
+```
 
-Varrer todos os `.ts`/`.tsx` (44 arquivos identificados) e trocar:
+Mantém `formatDateTime` (real UTC) intacto para colunas `timestamptz`.
 
-| Padrão atual | Substituir por |
-|---|---|
-| `new Date(v).toLocaleDateString("pt-BR", …)` | `formatDate(v)` |
-| `new Date(v).toLocaleTimeString("pt-BR", …)` | `formatTime(v)` |
-| `new Date(v).toLocaleString("pt-BR", …)` | `formatDateTime(v)` ou `formatDateTimeFull(v)` conforme granularidade atual |
-| `format(v, "dd/MM/yyyy …")` de `date-fns` (sem tz) | função equivalente do utilitário |
-| Render direto `{row.created_at}` etc. | `formatDateTime(row.created_at)` |
-| `formatBrasiliaDateTime` / `formatBrasiliaDate` / `formatBrasiliaTime` / `formatBrasiliaDateTimeShort` / `nowBrasiliaDisplay` (de `src/lib/dateUtils.ts`) | equivalentes do novo utilitário |
+### 2. Trocar as duas chamadas problemáticas
 
-Manter intactos:
-- `nowBrasilia()` em `src/lib/dateUtils.ts` (é gravação, não exibição) — será tratado na Fase 2.
-- `new Date().toISOString()` usado para envio ao Supabase.
-- Qualquer cálculo de duração (`diff` em ms) — não é formatação.
-- Pickers (`react-day-picker`, `<Calendar>`) que usam `Date` local do navegador para seleção — apenas troque a exibição do valor escolhido se houver.
+- `src/modules/reports/movimentacoes/MovimentacoesReportPage.tsx` → coluna `criado_em` usa `formatDateTimeNaive`.
+- `src/modules/reports/estoque/EstoqueReportPage.tsx` → coluna `atualizado_em` usa `formatDateTimeNaive`.
 
-### 3. Limpeza do `dateUtils.ts`
+Nada mais muda nessas telas.
 
-Após migrar todos os usos, remover os exports `formatBrasiliaDateTime`, `formatBrasiliaDate`, `formatBrasiliaTime`, `formatBrasiliaDateTimeShort`, `nowBrasiliaDisplay` e o helper interno `stripOffset`/`toNaiveDate`. Manter apenas `nowBrasilia()` no arquivo (com comentário marcando-o como gravação legada a ser revista na Fase 2).
+### 3. Atualizar memória do projeto
 
-### 4. Memória do projeto
+Acrescentar regra em `mem://architecture/timestamp-standard`: campos vindos de colunas `timestamp without time zone` devem usar `formatDateTimeNaive*`; campos `timestamptz` continuam com `formatDateTime`. Listar as colunas conhecidas hoje (`estoque_geral.atualizado_em`, `vw_estoque_movimento_relatorio.criado_em`).
 
-Atualizar a Core memory para refletir a nova regra:
+## Fora de escopo (Fase 2)
 
-> "Exibição de data/hora SEMPRE via `src/utils/dateTime.ts` (America/Fortaleza). Nunca usar `toLocaleString`, `date-fns format` cru ou render direto de campo de data."
-
-E atualizar o mem leaf `mem://architecture/timestamp-standard` apontando que gravação (Fase 2) ainda usa `nowBrasilia()` mascarado e que isso é dívida técnica conhecida.
-
----
-
-## Arquivos afetados (Fase 1)
-
-**Novo:** `src/utils/dateTime.ts`
-
-**Edição:** ~44 arquivos. Principais clusters:
-- Páginas admin: `ProdutosPage`, `EntradasPage`, `SaidasPage`, `MovimentoEntradaPage`, `MovimentoSaidaPage`, `DocEntradaDetalhePage`, `DocSaidaDetalhePage`, `CadastroDocEntradaPage`, `CadastroDocSaidaPage`, `InventarioPage`, `NovoInventarioPage`, `InventarioExecucaoPage`, `AbastecimentoPage`, `VolumesPage`, `EnderecosBatchPage`.
-- Coletor: `RecebimentoExecucaoPage`, `SeparacaoLotePage`, `SeparacaoProdutoPage`, `ConsultaHUPage`, `AbastecimentoListPage`.
-- Relatórios (`src/modules/reports/*`): todos os `*ReportPage.tsx` e `TarefaDetalhePage.tsx`.
-- Suporte: `SupportTenantDetailPage`, `SupportChamadosPage`.
-- Integração: `FilasPanel`, `LogsPanel`, `SincronizacaoTab`, `StatusBar`.
-- Modais/erp: `ImportarPedidoSaidaModal`, `CrudTable`.
-
-**Edição final:** `src/lib/dateUtils.ts` (remover exports de formatação).
-
----
-
-## Fora de escopo (vira Fase 2 separada)
-
-- Corrigir `nowBrasilia()` para gravar UTC real (`new Date().toISOString()` puro).
-- Auditar e migrar dados históricos gravados como "Brasília mascarado de UTC" (`UPDATE … SET col = col - INTERVAL '3 hours'` ou similar, por tabela).
-- Auditar funções/triggers SQL que usam `now()` vs valores recebidos pelo cliente.
-- Auditar RPCs que recebem timestamp do cliente.
+- Converter as colunas `timestamp` para `timestamptz` no banco e migrar dados históricos.
+- Corrigir `nowBrasilia()` para gravar UTC real.
+- Após Fase 2, `formatDateTimeNaive*` pode ser deprecado.
 
 ## Critérios de aceite
 
-- [ ] `src/utils/dateTime.ts` criado conforme assinatura solicitada.
-- [ ] `rg "toLocaleDateString|toLocaleTimeString|toLocaleString\\(" src` retorna apenas resultados não-data (ex.: `Number.toLocaleString`) ou zero ocorrências em campos de data.
-- [ ] `rg "formatBrasilia" src` retorna zero.
-- [ ] `rg "from ['\"]date-fns['\"]" src` revisado — apenas usos sem timezone removidos; `Calendar`/`format(range.from, …)` permanecem onde forem entrada de UI.
-- [ ] Build/typecheck verde.
-- [ ] Memória do projeto atualizada.
+- Relatório de Posição de Estoque: coluna "Última Atualização" exibe horário Brasília correto independente do TZ do navegador.
+- Relatório de Histórico de Movimentações: coluna "Data/Hora" exibe horário Brasília correto.
+- `formatDateTime` (UTC real) segue funcionando nas outras telas.
+- Build verde.
