@@ -231,6 +231,8 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/usuarios": return <UsuariosPage />;
     case "/config/integracao": return <IntegracaoPage />;
     case "/config/perfis": return <PerfisAcessoPage />;
+    case "/config/tipos-tarefa": return <TiposTarefaPage />;
+
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
