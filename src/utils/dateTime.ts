@@ -25,6 +25,27 @@ function toValidDate(value: string | Date | null | undefined): Date | null {
   return d;
 }
 
+/**
+ * Para colunas `timestamp without time zone` (sem offset). O valor já está em
+ * Brasília mascarado — anexamos `-03:00` antes do parse para tornar a
+ * interpretação determinística (independente do TZ do navegador).
+ */
+function toValidDateNaive(value: string | Date | null | undefined): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  if (typeof value === "string") {
+    const s = value.trim();
+    const hasOffset = /([zZ]|[+-]\d{2}:?\d{2})$/.test(s);
+    if (!hasOffset && /\d{2}:\d{2}/.test(s)) {
+      const d = new Date(s.replace(" ", "T") + "-03:00");
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
 const fmtDateTime = new Intl.DateTimeFormat(LOCALE, {
   timeZone: TIMEZONE,
   day: "2-digit",
