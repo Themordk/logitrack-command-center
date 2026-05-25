@@ -193,12 +193,13 @@ export function useCrud<T extends Record<string, any>>({
   const remove = async (id: string, softDelete = true) => {
     try {
       if (softDelete) {
-        const { error } = await (supabase as any).from(table).update({ ativo: false }).eq("id", id);
+        const { error } = await (supabase as any).from(wTable).update({ ativo: false }).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any).from(table).delete().eq("id", id);
+        const { error } = await (supabase as any).from(wTable).delete().eq("id", id);
         if (error) throw error;
       }
+
       toast.success("Registro removido com sucesso!");
       await fetchData();
       return true;
