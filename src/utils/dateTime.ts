@@ -129,3 +129,28 @@ export function formatDateTimeShort(value: string | Date | null | undefined): st
 export function nowDisplay(): string {
   return fmtDateTimeFull.format(new Date()).replace(",", "");
 }
+
+/**
+ * Variantes "Naive": use para campos vindos de colunas
+ * `timestamp without time zone` (sem offset no JSON). O valor é tratado como
+ * Brasília mascarada. Para colunas `timestamptz`, continue usando as funções
+ * sem sufixo.
+ */
+export function formatDateTimeNaive(value: string | Date | null | undefined): string {
+  const d = toValidDateNaive(value);
+  if (!d) return EMPTY;
+  return fmtDateTime.format(d).replace(",", "");
+}
+
+export function formatDateTimeNaiveFull(value: string | Date | null | undefined): string {
+  const d = toValidDateNaive(value);
+  if (!d) return EMPTY;
+  return fmtDateTimeFull.format(d).replace(",", "");
+}
+
+export function formatDateTimeNaiveShort(value: string | Date | null | undefined): string {
+  const d = toValidDateNaive(value);
+  if (!d) return EMPTY;
+  return fmtDateTimeShort.format(d).replace(",", "");
+}
+
