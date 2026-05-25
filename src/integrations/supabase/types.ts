@@ -466,6 +466,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "documento_entrada_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "documento_entrada_item_tenant_fk"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -671,6 +678,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_item_prod"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -1020,6 +1034,13 @@ export type Database = {
             referencedRelation: "produto"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "estoque_geral_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
         ]
       }
       estoque_movimento: {
@@ -1117,6 +1138,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -2223,6 +2251,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimento_entrada_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimento_entrada_item_tenant_fk"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2560,6 +2595,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_item_prod"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -2957,6 +2999,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "picking_produto_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "picking_produto_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -3200,6 +3249,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_embalagem_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -3621,6 +3677,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -5797,6 +5860,13 @@ export type Database = {
             referencedRelation: "produto"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_onda_item_prod"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
         ]
       }
       vw_movimento_saida_separacao_detalhe: {
@@ -5823,6 +5893,157 @@ export type Database = {
           validade: string | null
         }
         Relationships: []
+      }
+      vw_produto_listagem: {
+        Row: {
+          ativo: boolean | null
+          camada: number | null
+          codigo_erp: string | null
+          curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
+          curva_venda: Database["public"]["Enums"]["enum_curva"] | null
+          descricao: string | null
+          dias_shelf: number | null
+          empresa_id: string | null
+          fator_caixa: number | null
+          foto: string | null
+          grupo_id: string | null
+          id: string | null
+          lastro: number | null
+          marca: string | null
+          parceiro_id: string | null
+          peso_variavel: boolean | null
+          preco_custo: number | null
+          referencia: string | null
+          shelf_devolucao: number | null
+          shelf_entrada: number | null
+          sku: string | null
+          subgrupo_id: string | null
+          tem_ean: boolean | null
+          tenant_id: string | null
+          tipo_controle:
+            | Database["public"]["Enums"]["enum_tipo_controle"]
+            | null
+          tipo_separacao:
+            | Database["public"]["Enums"]["enum_tipo_separacao"]
+            | null
+          tolerancia: number | null
+          usa_picking: boolean | null
+          varios_pickings: boolean | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          camada?: number | null
+          codigo_erp?: string | null
+          curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
+          curva_venda?: Database["public"]["Enums"]["enum_curva"] | null
+          descricao?: string | null
+          dias_shelf?: number | null
+          empresa_id?: string | null
+          fator_caixa?: number | null
+          foto?: string | null
+          grupo_id?: string | null
+          id?: string | null
+          lastro?: number | null
+          marca?: string | null
+          parceiro_id?: string | null
+          peso_variavel?: boolean | null
+          preco_custo?: number | null
+          referencia?: string | null
+          shelf_devolucao?: number | null
+          shelf_entrada?: number | null
+          sku?: string | null
+          subgrupo_id?: string | null
+          tem_ean?: never
+          tenant_id?: string | null
+          tipo_controle?:
+            | Database["public"]["Enums"]["enum_tipo_controle"]
+            | null
+          tipo_separacao?:
+            | Database["public"]["Enums"]["enum_tipo_separacao"]
+            | null
+          tolerancia?: number | null
+          usa_picking?: boolean | null
+          varios_pickings?: boolean | null
+        }
+        Update: {
+          ativo?: boolean | null
+          camada?: number | null
+          codigo_erp?: string | null
+          curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
+          curva_venda?: Database["public"]["Enums"]["enum_curva"] | null
+          descricao?: string | null
+          dias_shelf?: number | null
+          empresa_id?: string | null
+          fator_caixa?: number | null
+          foto?: string | null
+          grupo_id?: string | null
+          id?: string | null
+          lastro?: number | null
+          marca?: string | null
+          parceiro_id?: string | null
+          peso_variavel?: boolean | null
+          preco_custo?: number | null
+          referencia?: string | null
+          shelf_devolucao?: number | null
+          shelf_entrada?: number | null
+          sku?: string | null
+          subgrupo_id?: string | null
+          tem_ean?: never
+          tenant_id?: string | null
+          tipo_controle?:
+            | Database["public"]["Enums"]["enum_tipo_controle"]
+            | null
+          tipo_separacao?:
+            | Database["public"]["Enums"]["enum_tipo_separacao"]
+            | null
+          tolerancia?: number | null
+          usa_picking?: boolean | null
+          varios_pickings?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupo_produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_subgrupo_id_fkey"
+            columns: ["subgrupo_id"]
+            isOneToOne: false
+            referencedRelation: "subgrupo_produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_tenant_resumo: {
         Row: {
