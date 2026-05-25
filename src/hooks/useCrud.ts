@@ -164,7 +164,7 @@ export function useCrud<T extends Record<string, any>>({
       if (requiresArmazem && armazemId && payload.armazem_id == null) {
         payload.armazem_id = armazemId;
       }
-      const { error } = await (supabase as any).from(table).insert(payload);
+      const { error } = await (supabase as any).from(wTable).insert(payload);
       if (error) throw error;
       toast.success("Registro criado com sucesso!");
       await fetchData();
