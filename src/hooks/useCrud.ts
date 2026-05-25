@@ -126,12 +126,13 @@ export function useCrud<T extends Record<string, any>>({
         const searchFields = ["descricao"];
         if (table === "hu") searchFields.push("codigo_hu");
         if (table === "volume_expedicao") searchFields.push("codigo_volume");
-        if (table === "produto") searchFields.push("sku");
+        if (table === "produto" || table === "vw_produto_listagem") searchFields.push("sku");
         if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("coderp");
         if (table === "veiculos") searchFields.push("placa");
         const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
         query = query.or(orClause);
       }
+
 
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
