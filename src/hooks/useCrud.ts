@@ -46,6 +46,8 @@ const TABLES_WITH_ARMAZEM = new Set([
 
 interface UseCrudOptions {
   table: string;
+  /** Tabela alvo para INSERT/UPDATE/DELETE quando `table` for uma view. Default: `table`. */
+  writeTable?: string;
   tenantId: string | null;
   pageSize?: number;
   orderBy?: string;
@@ -56,6 +58,7 @@ interface UseCrudOptions {
 
 export function useCrud<T extends Record<string, any>>({
   table,
+  writeTable,
   tenantId,
   pageSize = 15,
   orderBy = "descricao",
@@ -63,6 +66,7 @@ export function useCrud<T extends Record<string, any>>({
   select = "*",
   filters = {},
 }: UseCrudOptions) {
+
   const { empresaId: rawEmpresaId, armazemId: rawArmazemId, empresaVersion } = useTenant();
   const empresaId = sanitizeId(rawEmpresaId);
   const armazemId = sanitizeId(rawArmazemId);
