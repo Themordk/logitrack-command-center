@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { nowDisplay } from "@/utils/dateTime";
 
 export function InventarioReportPage() {
   const { tenantId, empresaId, empresaVersion } = useTenant();
@@ -93,7 +93,7 @@ export function InventarioReportPage() {
       const result = await fetchInventarioReport(filters);
       setData(result.rows);
       setKpis(result.kpis);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);

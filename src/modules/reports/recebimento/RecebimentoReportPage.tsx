@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBrasiliaDateTimeShort, nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
 
 export function RecebimentoReportPage() {
   const { tenantId, empresaId, empresaVersion } = useTenant();
@@ -82,7 +82,7 @@ export function RecebimentoReportPage() {
       const result = await fetchRecebimentoReport(filters);
       setData(result.rows);
       setKpis(result.kpis);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -120,8 +120,8 @@ export function RecebimentoReportPage() {
     { key: "numero_movimento", label: "Mov.", width: "70px", align: "center", render: (v) => <span className="font-mono text-foreground">#{v ?? "—"}</span> },
     { key: "documento", label: "NF", width: "110px", render: (v) => <span className="font-mono text-[10px]">{v}</span> },
     { key: "fornecedor", label: "Fornecedor", width: "200px", render: (v) => <span className="truncate block max-w-[200px]" title={v}>{v}</span> },
-    { key: "t0_dock", label: "Dock (T0)", width: "110px", render: (v) => <span className="text-[10px]">{formatBrasiliaDateTimeShort(v)}</span> },
-    { key: "t5_stock", label: "Stock (T5)", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatBrasiliaDateTimeShort(v) : "—"}</span> },
+    { key: "t0_dock", label: "Dock (T0)", width: "110px", render: (v) => <span className="text-[10px]">{formatDateTimeShort(v)}</span> },
+    { key: "t5_stock", label: "Stock (T5)", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatDateTimeShort(v) : "—"}</span> },
     {
       key: "tempo_total_min", label: "Total", align: "right", width: "90px",
       render: (v, row) => <span className={cn("font-semibold", durClass(v, row.sla_horas * 60))}>{formatDuration(v)}</span>,

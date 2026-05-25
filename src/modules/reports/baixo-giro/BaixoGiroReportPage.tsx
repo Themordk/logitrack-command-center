@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBrasiliaDate, nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { formatDate, nowDisplay } from "@/utils/dateTime";
 
 export function BaixoGiroReportPage() {
   const { tenantId, empresaId, empresaVersion } = useTenant();
@@ -75,7 +75,7 @@ export function BaixoGiroReportPage() {
       };
       const results = await fetchBaixoGiroReport(filters);
       setData(results);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -116,7 +116,7 @@ export function BaixoGiroReportPage() {
     { key: "custo_total", label: "Custo Total", align: "right", width: "130px", render: (v) => <span className="font-semibold">{fmtBRL(v)}</span> },
     {
       key: "ultima_saida", label: "Última Saída", width: "110px",
-      render: (v) => v ? formatBrasiliaDate(v) : <span className="text-[hsl(var(--status-blocked))] font-semibold">Nunca</span>,
+      render: (v) => v ? formatDate(v) : <span className="text-[hsl(var(--status-blocked))] font-semibold">Nunca</span>,
     },
     {
       key: "dias_sem_movimento", label: "Dias s/ Mov.", align: "right", width: "100px",

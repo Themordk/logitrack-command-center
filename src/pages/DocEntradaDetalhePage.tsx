@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, FileText, Package, Hash, Clock, MapPin, AlertTriangle, User, Truck } from "lucide-react";
-import { formatBrasiliaDateTime, formatBrasiliaDate } from "@/lib/dateUtils";
+import { formatDateTime, formatDate } from "@/utils/dateTime";
 
 interface Props {
   documentoId: string;
@@ -194,8 +194,8 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <InfoItem label="Nº Nota" value={header.numero_nota} icon={<Hash size={10} />} />
-          <InfoItem label="Data Emissão" value={formatBrasiliaDate(header.data_emissao)} icon={<Clock size={10} />} />
-          <InfoItem label="Data Entrada" value={formatBrasiliaDate(header.data_entrada)} icon={<Clock size={10} />} />
+          <InfoItem label="Data Emissão" value={formatDate(header.data_emissao)} icon={<Clock size={10} />} />
+          <InfoItem label="Data Entrada" value={formatDate(header.data_entrada)} icon={<Clock size={10} />} />
           <InfoItem label="Tipo Entrada" value={tipoEntrada} />
           <InfoItem label="Parceiro" value={parceiro?.razaosocial} icon={<User size={10} />} />
           <InfoItem label="CNPJ" value={parceiro?.cnpj} />
@@ -204,7 +204,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
           <InfoItem label="Chave de Acesso" value={header.chave_nfe} icon={<Hash size={10} />} />
           <InfoItem label="Valor Produtos" value={fmtMoney(header.valor_total_produtos)} />
           <InfoItem label="Valor Total Nota" value={fmtMoney(header.valor_total_nota)} />
-          <InfoItem label="Criado em" value={formatBrasiliaDateTime(header.created_at)} icon={<Clock size={10} />} />
+          <InfoItem label="Criado em" value={formatDateTime(header.created_at)} icon={<Clock size={10} />} />
         </CardContent>
       </Card>
 
@@ -258,8 +258,8 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
                               {it.lotes.map((l) => (
                                 <tr key={l.id} className="text-foreground">
                                   <td className="py-0.5 pr-4 font-mono">{l.lote || "—"}</td>
-                                  <td className="py-0.5 pr-4">{formatBrasiliaDate(l.validade)}</td>
-                                  <td className="py-0.5 pr-4">{formatBrasiliaDate(l.fabricacao)}</td>
+                                  <td className="py-0.5 pr-4">{formatDate(l.validade)}</td>
+                                  <td className="py-0.5 pr-4">{formatDate(l.fabricacao)}</td>
                                   <td className="py-0.5 pr-4 font-mono">{l.serie || "—"}</td>
                                   <td className="py-0.5 text-right font-mono">{Number(l.quantidade).toLocaleString("pt-BR")}</td>
                                 </tr>

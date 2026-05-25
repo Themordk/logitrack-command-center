@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
-import { formatBrasiliaDateTime } from "@/lib/dateUtils";
+import { formatDateTime } from "@/utils/dateTime";
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
@@ -764,7 +764,7 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.quantidade_executada)}</td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{item.lote || "—"}</td>
                         <td className="px-3 py-2 text-xs">{item.status || "—"}</td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{formatBrasiliaDateTime(item.concluido_em)}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{formatDateTime(item.concluido_em)}</td>
                       </tr>
                     ))}
                     {tabSeparacao.length === 0 && (
@@ -796,7 +796,7 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-xs text-muted-foreground">{item.lote || "—"}</td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{item.login || "—"}</td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{item.endereco || "—"}</td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{formatBrasiliaDateTime(item.concluido_em)}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{formatDateTime(item.concluido_em)}</td>
                       </tr>
                     ))}
                     {tabConferencia.length === 0 && (

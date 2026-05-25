@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBrasiliaDateTimeShort, nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
 
 const STATUS_ONDA = ["CRIADA", "EM_SEPARACAO", "SEPARADA", "CONFERIDO", "CONCLUIDA", "CANCELADA"];
 const PRIORIDADES = ["BAIXA", "NORMAL", "ALTA", "URGENTE"];
@@ -90,7 +90,7 @@ export function CicloPedidoReportPage() {
       const result = await fetchCicloPedidoReport(filters);
       setData(result.rows);
       setKpis(result.kpis);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -140,11 +140,11 @@ export function CicloPedidoReportPage() {
     { key: "cliente", label: "Cliente", width: "200px", render: (v) => <span className="truncate block max-w-[200px]" title={v}>{v}</span> },
     { key: "status", label: "Status", width: "110px", render: (v) => <span className="text-[10px] uppercase">{v ?? "—"}</span> },
     { key: "prioridade", label: "Prio.", width: "70px", align: "center", render: (v) => <span className="text-[10px] uppercase">{v ?? "—"}</span> },
-    { key: "t0_criacao", label: "Criação", width: "110px", render: (v) => <span className="text-[10px]">{formatBrasiliaDateTimeShort(v)}</span> },
-    { key: "t2_inicio_sep", label: "Início Sep.", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatBrasiliaDateTimeShort(v) : "—"}</span> },
-    { key: "t3_fim_sep", label: "Fim Sep.", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatBrasiliaDateTimeShort(v) : "—"}</span> },
-    { key: "t4_fim_conf", label: "Fim Conf.", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatBrasiliaDateTimeShort(v) : "—"}</span> },
-    { key: "t5_expedicao", label: "Expedição", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatBrasiliaDateTimeShort(v) : "—"}</span> },
+    { key: "t0_criacao", label: "Criação", width: "110px", render: (v) => <span className="text-[10px]">{formatDateTimeShort(v)}</span> },
+    { key: "t2_inicio_sep", label: "Início Sep.", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatDateTimeShort(v) : "—"}</span> },
+    { key: "t3_fim_sep", label: "Fim Sep.", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatDateTimeShort(v) : "—"}</span> },
+    { key: "t4_fim_conf", label: "Fim Conf.", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatDateTimeShort(v) : "—"}</span> },
+    { key: "t5_expedicao", label: "Expedição", width: "110px", render: (v) => <span className="text-[10px]">{v ? formatDateTimeShort(v) : "—"}</span> },
     {
       key: "tempo_total_min", label: "Total", align: "right", width: "90px",
       render: (v, row) => <span className={cn("font-semibold", durClass(v, row.sla_horas * 60))}>{formatDuration(v)}</span>,

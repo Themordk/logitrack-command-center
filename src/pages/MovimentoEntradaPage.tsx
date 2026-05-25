@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
-import { formatBrasiliaDate, formatBrasiliaDateTime } from "@/lib/dateUtils";
+import { formatDate, formatDateTime } from "@/utils/dateTime";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -571,8 +571,8 @@ export function MovimentoEntradaPage() {
   const totalPages = Math.ceil(total / pageSize);
   const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
-  const fmtDate = (d: string | null) => formatBrasiliaDate(d);
-  const fmtDateTime = (d: string | null) => formatBrasiliaDateTime(d);
+  const fmtDate = (d: string | null) => formatDate(d);
+  const fmtDateTime = (d: string | null) => formatDateTime(d);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
