@@ -6178,6 +6178,7 @@ export type Database = {
           p_movimento_entrada_id: string
           p_quantidade: number
           p_tarefa_id: string
+          p_tenant_id: string
           p_usuario: string
           p_validade: string
         }
@@ -6330,6 +6331,7 @@ export type Database = {
           p_lote: string
           p_quantidade: number
           p_tarefa_id: string
+          p_tenant_id: string
           p_usuario: string
           p_validade: string
         }
@@ -6344,6 +6346,7 @@ export type Database = {
           p_lote?: string
           p_quantidade: number
           p_tarefa_id: string
+          p_tenant_id: string
           p_usuario: string
           p_validade?: string
         }

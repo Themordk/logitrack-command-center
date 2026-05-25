@@ -135,6 +135,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const qtdFinal = Number(quantidade) * fator;
 
       const { data, error } = await supabase.rpc("finalizar_armazenagem" as any, {
+        p_tenant_id: tenantId,
         p_tarefa_id: tarefaId,
         p_movimento_entrada_id: movimentoEntradaId,
         p_usuario: usuarioId,

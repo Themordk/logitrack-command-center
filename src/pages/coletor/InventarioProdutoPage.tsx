@@ -89,6 +89,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       const contagem = Number(sessionStorage.getItem("coletor_inventario_contagem") || "1");
 
       const { data, error } = await supabase.rpc("fn_inventario_registrar_contagem" as any, {
+        p_tenant_id: tenantId,
         p_tarefa_id: tarefa.tarefa_id || tarefa.id,
         p_usuario: usuarioId,
         p_contagem: contagem,
