@@ -6146,6 +6146,7 @@ export type Database = {
         Args: {
           p_motivo_ocorrencia: string
           p_tarefa_id: string
+          p_tenant_id: string
           p_usuario: string
         }
         Returns: Json
@@ -6195,7 +6196,11 @@ export type Database = {
         Returns: string
       }
       finalizar_conferencia_entrada_movimento: {
-        Args: { p_movimento_entrada_id: string; p_usuario: string }
+        Args: {
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario: string
+        }
         Returns: string
       }
       fn_buscar_dados_armazenagem: {
@@ -6782,7 +6787,11 @@ export type Database = {
         Returns: undefined
       }
       separacao_confirmar_endereco: {
-        Args: { p_endereco_lido: string; p_tarefa_id: string }
+        Args: {
+          p_endereco_lido: string
+          p_tarefa_id: string
+          p_tenant_id: string
+        }
         Returns: Json
       }
       separacao_executar_coleta:

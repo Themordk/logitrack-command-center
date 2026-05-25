@@ -112,6 +112,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
     try {
       const { data, error } = await supabase.rpc("separacao_confirmar_endereco" as any, {
+        p_tenant_id: localStorage.getItem("core_tenant_id"),
         p_tarefa_id: tarefa.tarefa_id,
         p_endereco_lido: code,
       });

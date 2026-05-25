@@ -23,6 +23,7 @@ interface ItemResumo {
 export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
   const usuarioId = localStorage.getItem("core_usuario_id");
+  const tenantId = localStorage.getItem("core_tenant_id");
   const [itens, setItens] = useState<ItemResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
@@ -72,6 +73,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     try {
       const { data, error } = await (supabase as any)
         .rpc("finalizar_conferencia_entrada_movimento", {
+          p_tenant_id: tenantId,
           p_movimento_entrada_id: movimentoId,
           p_usuario: usuarioId,
         });
