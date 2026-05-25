@@ -73,6 +73,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     try {
       const { data, error } = await (supabase as any)
         .rpc("finalizar_conferencia_entrada_movimento", {
+          p_tenant_id: tenantId,
           p_movimento_entrada_id: movimentoId,
           p_usuario: usuarioId,
         });
