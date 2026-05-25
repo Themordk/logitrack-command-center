@@ -601,7 +601,17 @@ function ProdutoDetailModal({
 // ─── Main Produtos Page ────────────────────────────────────────────
 export function ProdutosPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
-  const crud = useCrud({ table: "produto", tenantId, orderBy: "descricao" });
+  const [filterSemEan, setFilterSemEan] = useState(false);
+  const crudFilters = filterSemEan
+    ? { empresa_id: empresaId, tem_ean: false }
+    : { empresa_id: empresaId };
+  const crud = useCrud({
+    table: "vw_produto_listagem",
+    writeTable: "produto",
+    tenantId,
+    orderBy: "descricao",
+    filters: crudFilters,
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -612,6 +622,23 @@ export function ProdutosPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [listPrintOpen, setListPrintOpen] = useState(false);
   const [listPrintItems, setListPrintItems] = useState<EtiquetaProdutoItem[]>([]);
+  const [totalSemEan, setTotalSemEan] = useState<number | null>(null);
+
+  // Totalizador global de produtos sem código de barras (escopo empresa).
+  useEffect(() => {
+    if (!tenantId || !empresaId) { setTotalSemEan(null); return; }
+    (async () => {
+      const { count, error } = await (supabase as any)
+        .from("vw_produto_listagem")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .eq("tem_ean", false);
+      if (!error) setTotalSemEan(count ?? 0);
+    })();
+  }, [tenantId, empresaId, empresaVersion, crud.total]);
+
 
   const handleImprimirSelecionados = async () => {
     if (!tenantId || selectedIds.size === 0) return;
