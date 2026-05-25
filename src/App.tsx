@@ -40,6 +40,8 @@ import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
+import { TiposTarefaPage } from "./pages/TiposTarefaPage";
+
 import { AbastecimentoPage } from "./pages/AbastecimentoPage";
 import { AbastecimentoGeracaoPage } from "./pages/AbastecimentoGeracaoPage";
 import { AbastecimentoDetalhePage } from "./pages/AbastecimentoDetalhePage";
