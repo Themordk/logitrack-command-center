@@ -144,6 +144,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/usuarios": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Usuários" }],
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
   "/config/perfis": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Perfis de Acesso" }],
+  "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Tipos de Tarefa" }],
+
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
