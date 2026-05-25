@@ -602,9 +602,7 @@ function ProdutoDetailModal({
 export function ProdutosPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
   const [filterSemEan, setFilterSemEan] = useState(false);
-  const crudFilters = filterSemEan
-    ? { empresa_id: empresaId, tem_ean: false }
-    : { empresa_id: empresaId };
+  const crudFilters = filterSemEan ? { tem_ean: false } : {};
   const crud = useCrud({
     table: "vw_produto_listagem",
     writeTable: "produto",
@@ -612,6 +610,7 @@ export function ProdutosPage() {
     orderBy: "descricao",
     filters: crudFilters,
   });
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
