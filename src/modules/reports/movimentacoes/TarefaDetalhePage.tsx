@@ -179,8 +179,8 @@ function TarefaCard({ tarefa }: { tarefa: any }) {
           )}
           <InfoItem label="Origem" value={endOrig.descricao || "—"} icon={<MapPin size={10} />} />
           <InfoItem label="Destino" value={endDest.descricao || "—"} icon={<MapPin size={10} />} />
-          <InfoItem label="Criado em" value={formatDate(tarefa.criado_em)} icon={<Clock size={10} />} />
-          <InfoItem label="Concluído em" value={formatDate(tarefa.concluido_em)} icon={<Clock size={10} />} />
+          <InfoItem label="Criado em" value={fmtDT(tarefa.criado_em)} icon={<Clock size={10} />} />
+          <InfoItem label="Concluído em" value={fmtDT(tarefa.concluido_em)} icon={<Clock size={10} />} />
         </div>
 
         {/* Progress bar */}
@@ -243,8 +243,8 @@ function ExecucoesCard({ execucoes, highlightId }: { execucoes: any[]; highlight
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <InfoItem label="Qtd Executada" value={qtdExec.toLocaleString("pt-BR")} />
                 <InfoItem label="Lote" value={exec.lote} />
-                <InfoItem label="Validade" value={formatDateShort(exec.validade)} />
-                <InfoItem label="Fabricação" value={formatDateShort(exec.fabricacao)} />
+                <InfoItem label="Validade" value={fmtD(exec.validade)} />
+                <InfoItem label="Fabricação" value={fmtD(exec.fabricacao)} />
                 <InfoItem label="Origem" value={endOrig.descricao || "—"} icon={<MapPin size={10} />} />
                 <InfoItem label="Destino" value={endDest.descricao || "—"} icon={<MapPin size={10} />} />
                 <InfoItem label="Série" value={exec.serie} />
@@ -253,9 +253,9 @@ function ExecucoesCard({ execucoes, highlightId }: { execucoes: any[]; highlight
 
               {/* Timestamps row */}
               <div className="grid grid-cols-3 gap-3">
-                <InfoItem label="Atribuído em" value={formatDate(exec.atribuido_em)} icon={<Clock size={10} />} />
-                <InfoItem label="Iniciado em" value={formatDate(exec.iniciado_em)} icon={<Clock size={10} />} />
-                <InfoItem label="Concluído em" value={formatDate(exec.concluido_em)} icon={<Clock size={10} />} />
+                <InfoItem label="Atribuído em" value={fmtDT(exec.atribuido_em)} icon={<Clock size={10} />} />
+                <InfoItem label="Iniciado em" value={fmtDT(exec.iniciado_em)} icon={<Clock size={10} />} />
+                <InfoItem label="Concluído em" value={fmtDT(exec.concluido_em)} icon={<Clock size={10} />} />
               </div>
 
               {/* Extra info if applicable */}
