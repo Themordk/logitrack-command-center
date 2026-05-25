@@ -26,13 +26,11 @@ function InfoItem({ label, value, icon }: { label: string; value: React.ReactNod
   );
 }
 
-function formatDate(d: string | null | undefined): string {
-  return formatDateTime(d);
-}
+// Aliases locais para clareza semântica (datetime vs date)
+const fmtDT = formatDateTime;
+const fmtD = formatDate;
 
-function formatDateShort(d: string | null | undefined): string {
-  return formatDate(d);
-}
+
 
 const STATUS_TAREFA_COLORS: Record<string, string> = {
   CRIADA: "bg-red-500/15 text-red-400 border-red-500/30",
