@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Filter, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { formatDateTime, nowDisplay } from "@/utils/dateTime";
+import { formatDateTime, formatDate, nowDisplay } from "@/utils/dateTime";
 
 interface MovimentacoesReportPageProps {
   onNavigate?: (path: string) => void;
@@ -136,7 +136,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   ];
 
   const activeFilters: Record<string, string> = {};
-  activeFilters["Período"] = `${new Date(dataInicio).toLocaleDateString("pt-BR")} a ${new Date(dataFim).toLocaleDateString("pt-BR")}`;
+  activeFilters["Período"] = `${formatDate(dataInicio)} a ${formatDate(dataFim)}`;
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterTipoMov) activeFilters["Tipo"] = getTipoMovimentoLabel(Number(filterTipoMov));
 

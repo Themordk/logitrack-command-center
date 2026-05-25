@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Layers, Loader2, CheckCircle2 } from "lucide-react";
+import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -19,9 +20,7 @@ const INVALID_DATE = "1900-01-01";
 
 function fmtDate(iso: string | null): string {
   if (!iso || iso === INVALID_DATE) return "—";
-  const d = new Date(iso + "T00:00:00");
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("pt-BR");
+  return formatDate(iso + "T00:00:00");
 }
 
 export function SeparacaoLotePage({ onNavigate }: Props) {

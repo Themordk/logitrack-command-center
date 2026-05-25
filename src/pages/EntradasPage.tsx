@@ -8,6 +8,7 @@ import { DocEntradaDetalhePage } from "./DocEntradaDetalhePage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { ImportarNfeChaveModal } from "@/components/erp/ImportarNfeChaveModal";
+import { formatDate } from "@/utils/dateTime";
 
 interface DocEntry {
   id: string;
@@ -315,7 +316,7 @@ export function EntradasPage() {
                       <input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" />
                     </td>
                     <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_nota}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{formatDate(doc.data_emissao)}</td>
                     <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
                     <td className="px-4 py-2.5 text-foreground text-xs">{doc.tipo_entrada_descricao}</td>
                     <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>

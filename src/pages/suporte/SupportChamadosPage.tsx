@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, MessageSquare, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { SupportLayout } from "@/components/suporte/SupportLayout";
+import { formatDateTime } from "@/utils/dateTime";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -78,7 +79,7 @@ export function SupportChamadosPage({ onNavigate, tenantId }: Props) {
                   <td className="py-2">{c.titulo}</td>
                   <td className="py-2">{c.prioridade}</td>
                   <td className="py-2">{c.status}</td>
-                  <td className="py-2">{new Date(c.criado_em).toLocaleString("pt-BR")}</td>
+                  <td className="py-2">{formatDateTime(c.criado_em)}</td>
                 </tr>
               ))}
             </tbody>

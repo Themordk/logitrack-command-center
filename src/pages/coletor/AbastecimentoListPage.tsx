@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2, ArrowDownToLine, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -177,7 +178,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
                   </div>
                   <div className="flex justify-between items-center mt-2 pt-2 border-t border-border">
                     <span className="text-xs text-muted-foreground">Qtd: <span className="text-foreground font-bold">{t.quantidade_requerida}</span></span>
-                    <span className="text-[10px] text-muted-foreground">{new Date(t.criado_em).toLocaleDateString("pt-BR")}</span>
+                    <span className="text-[10px] text-muted-foreground">{formatDate(t.criado_em)}</span>
                   </div>
                   <div className="flex gap-4 mt-1.5 text-[10px] text-muted-foreground">
                     <span>Origem: <span className="text-foreground/70">{t.endereco_origem}</span></span>

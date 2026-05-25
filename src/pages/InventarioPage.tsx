@@ -4,6 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, Play, Pause, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/utils/dateTime";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   CRIADO: { label: "Criado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -113,10 +114,7 @@ export function InventarioPage({ onNavigate }: Props) {
   const totalPages = Math.ceil(total / pageSize);
   const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
-  const fmtDate = (d: string | null) => {
-    if (!d) return "—";
-    try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return "—"; }
-  };
+  const fmtDate = (d: string | null) => formatDate(d);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
-import { formatDateTime } from "@/utils/dateTime";
+import { formatDateTime, formatDate } from "@/utils/dateTime";
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
@@ -641,7 +641,7 @@ export function MovimentoSaidaPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
                     <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
-                    <p className="text-xs text-muted-foreground">Box: {mov.box_nome} • {new Date(mov.data_emissao).toLocaleDateString("pt-BR")}</p>
+                    <p className="text-xs text-muted-foreground">Box: {mov.box_nome} • {formatDate(mov.data_emissao)}</p>
                   </div>
                 );
               })
@@ -815,7 +815,7 @@ export function MovimentoSaidaPage() {
                         {[
                           ["Nº Onda", `#${selectedMov.numero_onda}`],
                           ["Status", STATUS_MAP[selectedMov.status]?.label || selectedMov.status],
-                          ["Data Emissão", new Date(selectedMov.data_emissao).toLocaleDateString("pt-BR")],
+                          ["Data Emissão", formatDate(selectedMov.data_emissao)],
                           ["Destino", selectedMov.destino_carga],
                           ["Motorista", selectedMov.motorista || "—"],
                           ["Prioridade", selectedMov.prioridade || "—"],
@@ -851,7 +851,7 @@ export function MovimentoSaidaPage() {
                             <tr key={i} className="border-b border-border/50">
                               <td className="px-3 py-2 text-xs text-foreground">{doc.ordem}</td>
                               <td className="px-3 py-2 font-mono text-xs text-foreground">{doc.numero_pedido}</td>
-                              <td className="px-3 py-2 text-xs text-muted-foreground">{doc.data_emissao ? new Date(doc.data_emissao).toLocaleDateString("pt-BR") : "—"}</td>
+                              <td className="px-3 py-2 text-xs text-muted-foreground">{formatDate(doc.data_emissao)}</td>
                               <td className="px-3 py-2 text-xs text-foreground">{doc.parceiro}</td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-foreground">{doc.valor_pedido ? Number(doc.valor_pedido).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>
                             </tr>

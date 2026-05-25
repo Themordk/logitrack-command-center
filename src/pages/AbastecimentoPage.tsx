@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { formatDate } from "@/utils/dateTime";
 import { Loader2, ArrowDownToLine, ShieldAlert, Eye, Ban } from "lucide-react";
 
 interface Abastecimento {
@@ -178,7 +179,7 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
                   <TableCell className="text-right text-sm font-mono">{Number(row.total_itens)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{row.criado_por_login || "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {new Date(row.criado_em).toLocaleDateString("pt-BR")}
+                    {formatDate(row.criado_em)}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

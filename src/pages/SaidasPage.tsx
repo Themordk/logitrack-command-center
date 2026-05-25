@@ -9,6 +9,7 @@ import { CadastroDocSaidaPage } from "./CadastroDocSaidaPage";
 import { DocSaidaDetalhePage } from "./DocSaidaDetalhePage";
 import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { ImportarPedidoSaidaModal } from "@/components/erp/ImportarPedidoSaidaModal";
+import { formatDate } from "@/utils/dateTime";
 
 interface DocSaida {
   id: string;
@@ -195,7 +196,7 @@ export function SaidasPage() {
                   <tr key={doc.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => toggleSelect(doc.id)}>
                     <td className="px-4 py-2.5"><input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" /></td>
                     <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_pedido}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{new Date(doc.data_emissao).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">{formatDate(doc.data_emissao)}</td>
                     <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
                     <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">{doc.valor_pedido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
