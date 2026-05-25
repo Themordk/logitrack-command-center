@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, FileText, Package, Hash, Clock, User, AlertTriangle, MapPin, Truck } from "lucide-react";
-import { formatBrasiliaDateTime, formatBrasiliaDate } from "@/lib/dateUtils";
+import { formatDateTime, formatDate } from "@/utils/dateTime";
 
 interface Props {
   documentoId: string;
@@ -193,7 +193,7 @@ export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <InfoItem label="Nº Pedido" value={header.numero_pedido} icon={<Hash size={10} />} />
-          <InfoItem label="Data Emissão" value={formatBrasiliaDate(header.data_emissao)} icon={<Clock size={10} />} />
+          <InfoItem label="Data Emissão" value={formatDate(header.data_emissao)} icon={<Clock size={10} />} />
           <InfoItem label="Tipo Pedido" value={tipoPedido} />
           <InfoItem label="Valor Pedido" value={fmtMoney(header.valor_pedido)} />
           <InfoItem label="Parceiro" value={parceiro?.razaosocial} icon={<User size={10} />} />
@@ -257,8 +257,8 @@ export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
                               {it.lotes.map((l) => (
                                 <tr key={l.id} className="text-foreground">
                                   <td className="py-0.5 pr-4 font-mono">{l.lote || "—"}</td>
-                                  <td className="py-0.5 pr-4">{formatBrasiliaDate(l.validade)}</td>
-                                  <td className="py-0.5 pr-4">{formatBrasiliaDate(l.fabricacao)}</td>
+                                  <td className="py-0.5 pr-4">{formatDate(l.validade)}</td>
+                                  <td className="py-0.5 pr-4">{formatDate(l.fabricacao)}</td>
                                   <td className="py-0.5 pr-4 font-mono">{l.serie || "—"}</td>
                                   <td className="py-0.5 text-right font-mono">{Number(l.quantidade).toLocaleString("pt-BR")}</td>
                                 </tr>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2, RotateCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateTime } from "@/utils/dateTime";
 
 interface Props {
   tenantId: string;
@@ -137,7 +138,7 @@ function QueueTable({ table, tenantId, empresaId }: { table: Tab; tenantId: stri
                   <Badge variant="outline" className={STATUS_CLASS[r.status] || ""}>{r.status}</Badge>
                 </td>
                 <td className="px-3 py-1.5 text-right text-muted-foreground">{r.retry_count ?? 0}</td>
-                <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{new Date(r.created_at).toLocaleString("pt-BR")}</td>
+                <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{formatDateTime(r.created_at)}</td>
                 <td className="px-3 py-1.5">
                   <div className="flex items-center justify-end gap-1">
                     <button onClick={() => reprocess(r.id)} title="Reprocessar" className="p-1.5 rounded hover:bg-secondary/60 text-sky-400">

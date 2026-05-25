@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import { formatDateTime } from "@/utils/dateTime";
 
 const PAGE_SIZE = 20;
 
@@ -170,7 +171,7 @@ export function LogsPanel({ tenantId, empresaId }: Props) {
             )}
             {!loading && data.map((r) => (
               <tr key={r.id} onClick={() => setSelected(r)} className="border-t border-border/40 hover:bg-secondary/30 cursor-pointer">
-                <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{new Date(r.executed_at).toLocaleString("pt-BR")}</td>
+                <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{formatDateTime(r.executed_at)}</td>
                 <td className="px-3 py-1.5 text-foreground">{r.modulo}</td>
                 <td className="px-3 py-1.5 text-foreground">{entidadeLabel(r.modulo, r.entidade)}</td>
                 <td className="px-3 py-1.5">{statusBadge(r.status)}</td>
@@ -204,7 +205,7 @@ export function LogsPanel({ tenantId, empresaId }: Props) {
           </SheetHeader>
           {selected && (
             <div className="mt-4 space-y-3 text-sm">
-              <Field label="Data/Hora" v={new Date(selected.executed_at).toLocaleString("pt-BR")} />
+              <Field label="Data/Hora" v={formatDateTime(selected.executed_at)} />
               <Field label="Módulo" v={selected.modulo} />
               <Field label="Entidade" v={entidadeLabel(selected.modulo, selected.entidade)} />
               <Field label="Status" v={selected.status} />

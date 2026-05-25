@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBrasiliaDateTime } from "@/lib/dateUtils";
+import { formatDateTime } from "@/utils/dateTime";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -70,7 +70,7 @@ export function InventarioExecucaoPage({ onNavigate, inventarioId, numeroInventa
   useEffect(() => { fetchExecucoes(); }, [fetchExecucoes]);
 
   const totalPages = Math.ceil(total / pageSize);
-  const fmtDate = (d: string | null) => formatBrasiliaDateTime(d);
+  const fmtDate = (d: string | null) => formatDateTime(d);
 
   const backPath = `/atividades/inventario/${inventarioId}/itens?numero=${numeroInventario}`;
 

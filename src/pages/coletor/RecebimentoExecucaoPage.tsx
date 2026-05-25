@@ -8,6 +8,7 @@ import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
+import { formatDateTimeShort } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -365,7 +366,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
                         {item.operador && <span className="text-[10px] text-[hsl(213,31%,45%)]">Op: {item.operador}</span>}
                         {item.codigo_hu && <span className="text-[10px] text-[hsl(213,31%,45%)]">HU: {item.codigo_hu}</span>}
                         {item.lote && <span className="text-[10px] text-[hsl(213,31%,45%)]">Lote: {item.lote}</span>}
-                        {item.concluido_em && <span className="text-[10px] text-[hsl(213,31%,45%)]">{new Date(item.concluido_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>}
+                        {item.concluido_em && <span className="text-[10px] text-[hsl(213,31%,45%)]">{formatDateTimeShort(item.concluido_em)}</span>}
                       </div>
                     </div>
                     <button

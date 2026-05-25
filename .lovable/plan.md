@@ -1,96 +1,90 @@
-# Plano: Tipos de Tarefa + Produtos sem código de barras
+## Objetivo
 
-## 1) Configurações → Tipos de Tarefa
+Centralizar a exibição de data/hora num único utilitário `src/utils/dateTime.ts` que converte UTC real → `America/Fortaleza` (UTC-3, sem horário de verão) usando `Intl.DateTimeFormat` nativo, e migrar 100% das telas para usar essa API.
 
-Nova rota administrativa para configurar o comportamento dos tipos de tarefa existentes. **Não permite criar nem excluir** — apenas editar campos de comportamento. Código e Descrição são exibidos somente-leitura.
+Migração em **duas fases**, conforme decidido. Esta tarefa cobre **apenas a Fase 1 (exibição)**. A Fase 2 (corrigir `nowBrasilia()` para gravar UTC real + migração de dados antigos) fica como tarefa separada futura.
 
-### Rota e navegação
-- Nova rota: `/config/tipos-tarefa`
-- Adicionar em `src/components/TopNav.tsx`, grupo "Configurações", item "Tipos de Tarefa" (após "Perfis de Acesso").
-- Adicionar entry em `breadcrumbs` e no `renderPage` switch (`src/App.tsx`).
+> Aviso importante: durante a Fase 1, dados gravados anteriormente via `nowBrasilia()` (que estão "Brasília mascarado de UTC") serão exibidos **3h atrasados**. Isso é esperado e será resolvido na Fase 2.
 
-### Página `src/pages/TiposTarefaPage.tsx`
-- Lista todos os registros de `tipo_tarefa` do tenant (RLS por `get_current_tenant()`).
-- Sem coluna `ativo` — listar todos.
-- Tabela (CrudTable, sem ação "Novo" e sem ação "Excluir"):
-  - Código (texto, somente leitura)
-  - Descrição (texto, somente leitura)
-  - Prioridade Padrão
-  - Tempo Estimado (s)
-  - Gera Movimento Estoque (badge sim/não)
-  - Bloqueia Estoque (badge)
-  - Exige Conferência (badge)
-- Ação única por linha: **Editar** (lápis).
+---
 
-### Modal de edição (`CrudModal` ou inline)
-Campos editáveis:
-- `prioridade_padrao` (number, 1–999)
-- `tempo_estimado_segundos` (number)
-- `gera_movimento_estoque` (switch)
-- `bloqueia_estoque` (switch)
-- `exige_conferencia` (switch)
-- `tipo_movimento` (select: 1=Entrada, 2=Saída, 3=Transferência — confirmar valores no uso atual)
+## Fase 1 — Escopo desta entrega
 
-Campos somente-leitura (visíveis, `disabled`):
-- `codigo`
-- `descricao`
+### 1. Criar `src/utils/dateTime.ts`
 
-Update via `supabase.from('tipo_tarefa').update({...}).eq('id', id)` — payload contém só os campos editáveis acima. Toast de sucesso, refresh da lista.
+Único arquivo, sem dependências externas, usando `Intl.DateTimeFormat` com `timeZone: 'America/Fortaleza'`. Exporta:
 
-### Permissões
-- Gate por permissão `configuracoes.editar` (ou novo módulo `tipo_tarefa`), seguindo padrão das demais telas de config.
+- `formatDateTime(v)` → `dd/MM/yyyy HH:mm`
+- `formatDate(v)` → `dd/MM/yyyy`
+- `formatTime(v)` → `HH:mm`
+- `formatDateTimeFull(v)` → `dd/MM/yyyy HH:mm:ss`
 
-## 2) Dados Mestres → Produtos: alerta de produtos sem código de barras
+Regras comuns:
+- Aceita `string | Date | null | undefined`
+- Retorna `'—'` para nulo/indefinido/`Date` inválido
+- Locale `pt-BR`, timezone fixo `America/Fortaleza`
 
-"Sem código de barras" = produto sem **nenhuma** `produto_embalagem` ativa com `ean` preenchido (não-nulo e não-vazio). Hoje 42.752 de 43.059 produtos ativos estão nesse estado — totalmente relevante.
+### 2. Substituir em todo o projeto
 
-### Totalizador no header da página (`src/pages/ProdutosPage.tsx`)
-- Acima/ao lado dos controles atuais, badge de alerta clicável:
-  - Ícone `AlertTriangle` (amarelo/destructive token), texto: `N produtos sem código de barras`.
-  - Loader enquanto consulta.
-- Query (uma chamada head/count):
-  ```ts
-  supabase.from('produto')
-    .select('id', { count: 'exact', head: true })
-    .eq('tenant_id', tenantId).eq('empresa_id', empresaId).eq('ativo', true)
-    .not('id', 'in', `(select produto_id from produto_embalagem where ativo=true and ean is not null and ean<>'')`)
-  ```
-  Como PostgREST não aceita subselect em `in`, criar uma **view** `vw_produto_sem_ean` (apenas SELECT — migration) com colunas `id, tenant_id, empresa_id`, e consultar:
-  ```ts
-  supabase.from('vw_produto_sem_ean').select('id', { count: 'exact', head: true })
-    .eq('tenant_id', tenantId).eq('empresa_id', empresaId)
-  ```
+Varrer todos os `.ts`/`.tsx` (44 arquivos identificados) e trocar:
 
-### Filtro "Apenas sem código de barras"
-- Toggle ao lado do search/totalizador: quando ligado, filtra a listagem.
-- Implementação: quando ativo, troca o `from('produto')` por join com a view (`.in('id', subset)`) — ou mais simples: buscar `select id from vw_produto_sem_ema` paginado e filtrar `.in('id', ids)` na query principal.
-- Alternativa mais limpa: criar **view consolidada** `vw_produto_listagem` que já traz boolean `tem_ean` — e o filtro vira `.eq('tem_ean', false)`. Recomendado.
+| Padrão atual | Substituir por |
+|---|---|
+| `new Date(v).toLocaleDateString("pt-BR", …)` | `formatDate(v)` |
+| `new Date(v).toLocaleTimeString("pt-BR", …)` | `formatTime(v)` |
+| `new Date(v).toLocaleString("pt-BR", …)` | `formatDateTime(v)` ou `formatDateTimeFull(v)` conforme granularidade atual |
+| `format(v, "dd/MM/yyyy …")` de `date-fns` (sem tz) | função equivalente do utilitário |
+| Render direto `{row.created_at}` etc. | `formatDateTime(row.created_at)` |
+| `formatBrasiliaDateTime` / `formatBrasiliaDate` / `formatBrasiliaTime` / `formatBrasiliaDateTimeShort` / `nowBrasiliaDisplay` (de `src/lib/dateUtils.ts`) | equivalentes do novo utilitário |
 
-### Alerta inline na linha (CrudTable)
-- Nova coluna pequena (ícone) na tabela de produtos: badge `AlertTriangle` quando `tem_ean=false`, tooltip "Sem código de barras cadastrado".
-- Trocar `select` da página para usar a view `vw_produto_listagem` (mantém demais campos) e adicionar a coluna.
+Manter intactos:
+- `nowBrasilia()` em `src/lib/dateUtils.ts` (é gravação, não exibição) — será tratado na Fase 2.
+- `new Date().toISOString()` usado para envio ao Supabase.
+- Qualquer cálculo de duração (`diff` em ms) — não é formatação.
+- Pickers (`react-day-picker`, `<Calendar>`) que usam `Date` local do navegador para seleção — apenas troque a exibição do valor escolhido se houver.
 
-### Migration necessária (Supabase)
-```sql
-CREATE OR REPLACE VIEW public.vw_produto_listagem AS
-SELECT p.*,
-  EXISTS (
-    SELECT 1 FROM public.produto_embalagem pe
-    WHERE pe.produto_id = p.id
-      AND pe.ativo = true
-      AND pe.ean IS NOT NULL
-      AND pe.ean <> ''
-  ) AS tem_ean
-FROM public.produto p;
-```
-RLS herda de `produto`. Sem mudanças destrutivas; existente continua igual (página atual lê `produto.*`).
+### 3. Limpeza do `dateUtils.ts`
 
-## Fora de escopo
-- Criação/exclusão de `tipo_tarefa` (reservado ao Suporte).
-- Mudanças no fluxo do coletor.
-- Edição em massa de EAN; permanece edição produto-a-produto via aba Embalagens do produto.
-- Notificações/e-mails sobre produtos sem EAN.
+Após migrar todos os usos, remover os exports `formatBrasiliaDateTime`, `formatBrasiliaDate`, `formatBrasiliaTime`, `formatBrasiliaDateTimeShort`, `nowBrasiliaDisplay` e o helper interno `stripOffset`/`toNaiveDate`. Manter apenas `nowBrasilia()` no arquivo (com comentário marcando-o como gravação legada a ser revista na Fase 2).
 
-## Validação
-- Tipos de Tarefa: editar registro existente, confirmar persistência e que código/descrição não mudam; tentar acessar sem permissão deve bloquear.
-- Produtos: totalizador bate com SQL; filtro reduz lista corretamente; ícone aparece nas linhas certas; após cadastrar uma embalagem com EAN, totalizador e ícone desaparecem do produto.
+### 4. Memória do projeto
+
+Atualizar a Core memory para refletir a nova regra:
+
+> "Exibição de data/hora SEMPRE via `src/utils/dateTime.ts` (America/Fortaleza). Nunca usar `toLocaleString`, `date-fns format` cru ou render direto de campo de data."
+
+E atualizar o mem leaf `mem://architecture/timestamp-standard` apontando que gravação (Fase 2) ainda usa `nowBrasilia()` mascarado e que isso é dívida técnica conhecida.
+
+---
+
+## Arquivos afetados (Fase 1)
+
+**Novo:** `src/utils/dateTime.ts`
+
+**Edição:** ~44 arquivos. Principais clusters:
+- Páginas admin: `ProdutosPage`, `EntradasPage`, `SaidasPage`, `MovimentoEntradaPage`, `MovimentoSaidaPage`, `DocEntradaDetalhePage`, `DocSaidaDetalhePage`, `CadastroDocEntradaPage`, `CadastroDocSaidaPage`, `InventarioPage`, `NovoInventarioPage`, `InventarioExecucaoPage`, `AbastecimentoPage`, `VolumesPage`, `EnderecosBatchPage`.
+- Coletor: `RecebimentoExecucaoPage`, `SeparacaoLotePage`, `SeparacaoProdutoPage`, `ConsultaHUPage`, `AbastecimentoListPage`.
+- Relatórios (`src/modules/reports/*`): todos os `*ReportPage.tsx` e `TarefaDetalhePage.tsx`.
+- Suporte: `SupportTenantDetailPage`, `SupportChamadosPage`.
+- Integração: `FilasPanel`, `LogsPanel`, `SincronizacaoTab`, `StatusBar`.
+- Modais/erp: `ImportarPedidoSaidaModal`, `CrudTable`.
+
+**Edição final:** `src/lib/dateUtils.ts` (remover exports de formatação).
+
+---
+
+## Fora de escopo (vira Fase 2 separada)
+
+- Corrigir `nowBrasilia()` para gravar UTC real (`new Date().toISOString()` puro).
+- Auditar e migrar dados históricos gravados como "Brasília mascarado de UTC" (`UPDATE … SET col = col - INTERVAL '3 hours'` ou similar, por tabela).
+- Auditar funções/triggers SQL que usam `now()` vs valores recebidos pelo cliente.
+- Auditar RPCs que recebem timestamp do cliente.
+
+## Critérios de aceite
+
+- [ ] `src/utils/dateTime.ts` criado conforme assinatura solicitada.
+- [ ] `rg "toLocaleDateString|toLocaleTimeString|toLocaleString\\(" src` retorna apenas resultados não-data (ex.: `Number.toLocaleString`) ou zero ocorrências em campos de data.
+- [ ] `rg "formatBrasilia" src` retorna zero.
+- [ ] `rg "from ['\"]date-fns['\"]" src` revisado — apenas usos sem timezone removidos; `Calendar`/`format(range.from, …)` permanecem onde forem entrada de UI.
+- [ ] Build/typecheck verde.
+- [ ] Memória do projeto atualizada.

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBrasiliaDate, nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { formatDate, nowDisplay } from "@/utils/dateTime";
 
 export function ValidadeLoteReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
@@ -90,7 +90,7 @@ export function ValidadeLoteReportPage() {
       };
       const results = await fetchValidadeLoteReport(filters);
       setData(results);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -122,12 +122,12 @@ export function ValidadeLoteReportPage() {
     { key: "sku", label: "SKU", width: "100px" },
     { key: "descricao", label: "Descrição", width: "240px" },
     { key: "lote", label: "Lote", width: "100px" },
-    { key: "data_fabricacao", label: "Fabricação", width: "100px", render: (v) => formatBrasiliaDate(v) },
+    { key: "data_fabricacao", label: "Fabricação", width: "100px", render: (v) => formatDate(v) },
     {
       key: "data_validade", label: "Validade", width: "100px",
       render: (v, row) => (
         <span className={cn(row.criticidade === "VENCIDO" && "text-[hsl(var(--status-blocked))] font-semibold")}>
-          {formatBrasiliaDate(v)}
+          {formatDate(v)}
         </span>
       ),
     },

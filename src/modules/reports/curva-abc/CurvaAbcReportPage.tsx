@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { nowDisplay } from "@/utils/dateTime";
 
 function defaultDateRange() {
   const fim = new Date();
@@ -84,7 +84,7 @@ export function CurvaAbcReportPage() {
       };
       const results = await fetchCurvaAbcReport(filters);
       setData(results);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);

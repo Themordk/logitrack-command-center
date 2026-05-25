@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ClipboardList, Play, FileText, Package, MapPin, Clock, User, AlertTriangle, Hash } from "lucide-react";
 import { fetchTarefaDetalhe, getPrioridadeLabel, getPrioridadeColor, type TarefaDetalheResult } from "./movimentacoes.service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatBrasiliaDateTime, formatBrasiliaDate } from "@/lib/dateUtils";
+import { formatDateTime, formatDate } from "@/utils/dateTime";
 
 interface TarefaDetalhePageProps {
   tarefaExecucaoId: string;
@@ -26,13 +26,11 @@ function InfoItem({ label, value, icon }: { label: string; value: React.ReactNod
   );
 }
 
-function formatDate(d: string | null | undefined): string {
-  return formatBrasiliaDateTime(d);
-}
+// Aliases locais para clareza semântica (datetime vs date)
+const fmtDT = formatDateTime;
+const fmtD = formatDate;
 
-function formatDateShort(d: string | null | undefined): string {
-  return formatBrasiliaDate(d);
-}
+
 
 const STATUS_TAREFA_COLORS: Record<string, string> = {
   CRIADA: "bg-red-500/15 text-red-400 border-red-500/30",
@@ -181,8 +179,8 @@ function TarefaCard({ tarefa }: { tarefa: any }) {
           )}
           <InfoItem label="Origem" value={endOrig.descricao || "—"} icon={<MapPin size={10} />} />
           <InfoItem label="Destino" value={endDest.descricao || "—"} icon={<MapPin size={10} />} />
-          <InfoItem label="Criado em" value={formatDate(tarefa.criado_em)} icon={<Clock size={10} />} />
-          <InfoItem label="Concluído em" value={formatDate(tarefa.concluido_em)} icon={<Clock size={10} />} />
+          <InfoItem label="Criado em" value={fmtDT(tarefa.criado_em)} icon={<Clock size={10} />} />
+          <InfoItem label="Concluído em" value={fmtDT(tarefa.concluido_em)} icon={<Clock size={10} />} />
         </div>
 
         {/* Progress bar */}
@@ -245,8 +243,8 @@ function ExecucoesCard({ execucoes, highlightId }: { execucoes: any[]; highlight
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <InfoItem label="Qtd Executada" value={qtdExec.toLocaleString("pt-BR")} />
                 <InfoItem label="Lote" value={exec.lote} />
-                <InfoItem label="Validade" value={formatDateShort(exec.validade)} />
-                <InfoItem label="Fabricação" value={formatDateShort(exec.fabricacao)} />
+                <InfoItem label="Validade" value={fmtD(exec.validade)} />
+                <InfoItem label="Fabricação" value={fmtD(exec.fabricacao)} />
                 <InfoItem label="Origem" value={endOrig.descricao || "—"} icon={<MapPin size={10} />} />
                 <InfoItem label="Destino" value={endDest.descricao || "—"} icon={<MapPin size={10} />} />
                 <InfoItem label="Série" value={exec.serie} />
@@ -255,9 +253,9 @@ function ExecucoesCard({ execucoes, highlightId }: { execucoes: any[]; highlight
 
               {/* Timestamps row */}
               <div className="grid grid-cols-3 gap-3">
-                <InfoItem label="Atribuído em" value={formatDate(exec.atribuido_em)} icon={<Clock size={10} />} />
-                <InfoItem label="Iniciado em" value={formatDate(exec.iniciado_em)} icon={<Clock size={10} />} />
-                <InfoItem label="Concluído em" value={formatDate(exec.concluido_em)} icon={<Clock size={10} />} />
+                <InfoItem label="Atribuído em" value={fmtDT(exec.atribuido_em)} icon={<Clock size={10} />} />
+                <InfoItem label="Iniciado em" value={fmtDT(exec.iniciado_em)} icon={<Clock size={10} />} />
+                <InfoItem label="Concluído em" value={fmtDT(exec.concluido_em)} icon={<Clock size={10} />} />
               </div>
 
               {/* Extra info if applicable */}

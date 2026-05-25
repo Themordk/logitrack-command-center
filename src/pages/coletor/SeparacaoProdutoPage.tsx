@@ -6,6 +6,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { toast } from "sonner";
 import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
+import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -299,8 +300,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
   const fmtDate = (iso: string | null | undefined) => {
     if (!iso || iso === "1900-01-01") return "—";
-    const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
-    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+    return formatDate(iso.length === 10 ? iso + "T00:00:00" : iso);
   };
 
   return (

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { formatDateTime, formatDate, nowDisplay } from "@/utils/dateTime";
 
 export function EstoqueReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
@@ -84,7 +84,7 @@ export function EstoqueReportPage() {
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -116,7 +116,7 @@ export function EstoqueReportPage() {
       render: (v) => {
         if (!v || v === "1900-01-01") return "—";
         const expired = isExpired(v);
-        return <span className={cn(expired && "text-[hsl(var(--status-blocked))] font-semibold")}>{new Date(v).toLocaleDateString("pt-BR")}</span>;
+        return <span className={cn(expired && "text-[hsl(var(--status-blocked))] font-semibold")}>{formatDate(v)}</span>;
       },
     },
     { key: "codigo_endereco", label: "Endereço", width: "100px" },
@@ -135,7 +135,7 @@ export function EstoqueReportPage() {
     },
     {
       key: "atualizado_em", label: "Última Atualização", width: "150px",
-      render: (v) => formatBrasiliaDateTime(v),
+      render: (v) => formatDateTime(v),
     },
   ];
 

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Building2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { SupportLayout } from "@/components/suporte/SupportLayout";
+import { formatDate, formatDateTime } from "@/utils/dateTime";
 
 interface Props {
   tenantId: string;
@@ -70,7 +71,7 @@ export function SupportTenantDetailPage({ tenantId, onNavigate }: Props) {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   ID: <span className="font-mono">{data.tenant.id}</span> · Criado em{" "}
-                  {new Date(data.tenant.created_at).toLocaleDateString("pt-BR")}
+                  {formatDate(data.tenant.created_at)}
                 </p>
               </div>
             </div>
@@ -96,7 +97,7 @@ export function SupportTenantDetailPage({ tenantId, onNavigate }: Props) {
               <p className="mt-4 text-xs text-muted-foreground">
                 Última atividade:{" "}
                 <span className="text-foreground">
-                  {new Date(data.ultima_sessao.ultimo_heartbeat).toLocaleString("pt-BR")}
+                  {formatDateTime(data.ultima_sessao.ultimo_heartbeat)}
                 </span>
               </p>
             )}

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Filter, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { formatDateTime, formatDate, nowDisplay } from "@/utils/dateTime";
 
 interface MovimentacoesReportPageProps {
   onNavigate?: (path: string) => void;
@@ -60,7 +60,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       };
       const results = await fetchMovimentacoesReport(filters);
       setData(results);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -78,7 +78,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   const columns: ReportColumn[] = [
     {
       key: "criado_em", label: "Data/Hora", width: "150px",
-      render: (v) => formatBrasiliaDateTime(v),
+      render: (v) => formatDateTime(v),
     },
     { key: "sku", label: "SKU", width: "100px" },
     { key: "descricao", label: "Descrição", width: "200px" },
@@ -136,7 +136,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   ];
 
   const activeFilters: Record<string, string> = {};
-  activeFilters["Período"] = `${new Date(dataInicio).toLocaleDateString("pt-BR")} a ${new Date(dataFim).toLocaleDateString("pt-BR")}`;
+  activeFilters["Período"] = `${formatDate(dataInicio)} a ${formatDate(dataFim)}`;
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterTipoMov) activeFilters["Tipo"] = getTipoMovimentoLabel(Number(filterTipoMov));
 

@@ -3,6 +3,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { StatusBadge } from "@/components/StatusBadge";
+import { formatDate } from "@/utils/dateTime";
 
 export function VolumesPage() {
   const { tenantId } = useTenant();
@@ -18,7 +19,7 @@ export function VolumesPage() {
       return <StatusBadge status={map[row.status] ?? 0} type="volume-status" />;
     }},
     { key: "created_at", label: "Criado em", render: (row) => (
-      <span className="text-xs text-muted-foreground">{new Date(row.created_at).toLocaleDateString("pt-BR")}</span>
+      <span className="text-xs text-muted-foreground">{formatDate(row.created_at)}</span>
     )},
   ];
 

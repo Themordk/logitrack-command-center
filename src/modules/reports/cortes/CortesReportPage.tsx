@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Filter, Search, X, Scissors, PackageX, DollarSign } from "lucide-react";
 import { toast } from "sonner";
-import { formatBrasiliaDateTime, nowBrasiliaDisplay } from "@/lib/dateUtils";
+import { formatDateTime, formatDate, nowDisplay } from "@/utils/dateTime";
 
 export function CortesReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
@@ -65,7 +65,7 @@ export function CortesReportPage() {
       };
       const results = await fetchCortesReport(filters);
       setData(results);
-      setGeneratedAt(nowBrasiliaDisplay());
+      setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
@@ -109,12 +109,12 @@ export function CortesReportPage() {
     { key: "usuario", label: "Autorizado por", width: "120px" },
     {
       key: "autorizado_em", label: "Autorizado em", width: "150px",
-      render: (v) => formatBrasiliaDateTime(v),
+      render: (v) => formatDateTime(v),
     },
   ];
 
   const activeFilters: Record<string, string> = {};
-  activeFilters["Período"] = `${new Date(dataInicio).toLocaleDateString("pt-BR")} a ${new Date(dataFim).toLocaleDateString("pt-BR")}`;
+  activeFilters["Período"] = `${formatDate(dataInicio)} a ${formatDate(dataFim)}`;
   if (filterMotivo) {
     const m = motivos.find((x) => x.id === filterMotivo);
     activeFilters["Motivo"] = m?.descricao ?? filterMotivo;
