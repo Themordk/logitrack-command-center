@@ -96,6 +96,7 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
       if (showMotivoModal === "cortar") {
         // Call cortar_item_separacao RPC
         const { data, error } = await supabase.rpc("cortar_item_separacao" as any, {
+          p_tenant_id: tenantId,
           p_tarefa_id: tarefa.tarefa_id,
           p_usuario: usuarioId,
           p_motivo_ocorrencia: selectedMotivo,
