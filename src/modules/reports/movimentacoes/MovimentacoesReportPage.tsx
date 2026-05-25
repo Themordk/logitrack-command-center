@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Filter, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { formatDateTime, formatDate, nowDisplay } from "@/utils/dateTime";
+import { formatDateTime, formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
 
 interface MovimentacoesReportPageProps {
   onNavigate?: (path: string) => void;
@@ -78,7 +78,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   const columns: ReportColumn[] = [
     {
       key: "criado_em", label: "Data/Hora", width: "150px",
-      render: (v) => formatDateTime(v),
+      render: (v) => formatDateTimeNaive(v),
     },
     { key: "sku", label: "SKU", width: "100px" },
     { key: "descricao", label: "Descrição", width: "200px" },

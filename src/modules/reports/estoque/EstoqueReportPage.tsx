@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateTime, formatDate, nowDisplay } from "@/utils/dateTime";
+import { formatDateTime, formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
 
 export function EstoqueReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
@@ -135,7 +135,7 @@ export function EstoqueReportPage() {
     },
     {
       key: "atualizado_em", label: "Última Atualização", width: "150px",
-      render: (v) => formatDateTime(v),
+      render: (v) => formatDateTimeNaive(v),
     },
   ];
 
