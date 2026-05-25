@@ -684,6 +684,15 @@ export function ProdutosPage() {
   }, [tenantId, empresaId, empresaVersion]);
 
   const columns: ColumnSpec[] = [
+    {
+      key: "tem_ean", label: "",
+      className: "w-8",
+      render: (r) => r.tem_ean === false ? (
+        <span title="Sem código de barras cadastrado" className="inline-flex items-center justify-center w-6 h-6 rounded text-amber-500">
+          <AlertTriangle size={14} />
+        </span>
+      ) : null,
+    },
     { key: "sku", label: "SKU", type: "mono" },
     { key: "descricao", label: "Descrição" },
     { key: "referencia", label: "Referência" },
@@ -712,6 +721,25 @@ export function ProdutosPage() {
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
         searchPlaceholder="Buscar por SKU ou descrição..."
+        extraFilters={
+          totalSemEan !== null && totalSemEan > 0 ? (
+            <button
+              type="button"
+              onClick={() => { setFilterSemEan((v) => !v); crud.setPage(1); }}
+              title={filterSemEan ? "Mostrando apenas produtos sem código de barras — clique para limpar" : "Filtrar produtos sem código de barras"}
+              className={
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border " +
+                (filterSemEan
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                  : "bg-amber-500/5 border-amber-500/20 text-amber-500 hover:bg-amber-500/10")
+              }
+            >
+              <AlertTriangle size={14} />
+              {totalSemEan.toLocaleString("pt-BR")} sem código de barras
+              {filterSemEan && <span className="ml-1 opacity-70">(filtro ativo)</span>}
+            </button>
+          ) : null
+        }
         headerActions={
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
@@ -729,6 +757,7 @@ export function ProdutosPage() {
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
       />
+
       <ImportarDoERPModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
