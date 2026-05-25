@@ -178,7 +178,7 @@ export function useCrud<T extends Record<string, any>>({
 
   const update = async (id: string, record: Partial<T>) => {
     try {
-      const { error } = await (supabase as any).from(table).update(record).eq("id", id);
+      const { error } = await (supabase as any).from(wTable).update(record).eq("id", id);
       if (error) throw error;
       toast.success("Registro atualizado com sucesso!");
       await fetchData();
