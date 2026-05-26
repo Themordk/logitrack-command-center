@@ -161,6 +161,7 @@ function ProdutoDetailModal({
     // Remove read-only / computed fields
     delete cleanData.id;
     delete cleanData.tenant_id;
+    delete cleanData.tem_ean;
     // Ensure empresa_id
     cleanData.empresa_id = empresaId;
     // Number conversions
