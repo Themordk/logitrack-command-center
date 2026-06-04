@@ -216,12 +216,17 @@ export function MovimentoSaidaPage() {
 
   const handleLiberar = async (movId: string) => {
     setActionMenuId(null);
+    if (!usuarioId) {
+      toast.error("Usuário não identificado na sessão. Faça login novamente.");
+      return;
+    }
     const mov = movimentos.find(m => m.id === movId);
     try {
       const { data, error } = await supabase.rpc("liberar_onda_separacao" as any, {
         p_movimento_saida_id: movId,
         p_tenant_id: tenantId,
         p_empresa_id: mov?.empresa_id || empresaId,
+        p_usuario_id: usuarioId,
       });
       if (error) throw error;
 
