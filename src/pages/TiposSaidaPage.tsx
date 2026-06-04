@@ -22,6 +22,13 @@ export function TiposSaidaPage() {
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Tipo de saída" },
     { name: "caderp", label: "Código ERP", type: "text", placeholder: "Código no ERP" },
     { name: "realiza_conferencia", label: "Realiza Conferência", type: "switch", defaultValue: true },
+    {
+      name: "conferencia_checkout",
+      label: "Conferência Checkout",
+      type: "switch",
+      defaultValue: false,
+      disabledWhen: (f) => !f.realiza_conferencia,
+    },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
