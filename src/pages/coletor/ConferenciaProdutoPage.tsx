@@ -353,28 +353,32 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Input quantidade */}
-        <div>
-          <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">Quantidade a conferir</label>
-          <input
-            ref={quantidadeRef}
-            type="number"
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-            className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
-            placeholder="0"
-          />
-        </div>
+        {!modoCheckout && (
+          <>
+            {/* Input quantidade */}
+            <div>
+              <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">Quantidade a conferir</label>
+              <input
+                ref={quantidadeRef}
+                type="number"
+                value={quantidade}
+                onChange={(e) => setQuantidade(e.target.value)}
+                className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
+                placeholder="0"
+              />
+            </div>
 
-        {/* Confirm button */}
-        <ActionButton
-          onClick={handleConfirmar}
-          disabled={!eanConfirmado || !quantidade || Number(quantidade) <= 0}
-          loading={confirming}
-          variant="success"
-        >
-          Confirmar Conferência
-        </ActionButton>
+            {/* Confirm button */}
+            <ActionButton
+              onClick={handleConfirmar}
+              disabled={!eanConfirmado || !quantidade || Number(quantidade) <= 0}
+              loading={confirming}
+              variant="success"
+            >
+              Confirmar Conferência
+            </ActionButton>
+          </>
+        )}
       </div>
 
       {/* EAN Error Dialog */}
