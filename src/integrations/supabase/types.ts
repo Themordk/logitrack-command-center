@@ -548,13 +548,20 @@ export type Database = {
           codigo_erp: string | null
           data_emissao: string
           empresa_id: string
+          erro_integracao: string | null
           id: string
+          id_externo: string | null
           numero_pedido: number
           observacao: string | null
           parceiro_id: string
+          prioridade_externa: string | null
           rota_id: string | null
+          sincronizado_em: string | null
+          sistema_origem: string | null
           status: number
+          status_integracao: string
           tenant_id: string
+          tentativas_processamento: number
           tipo_pedido_id: string
           transportador: string | null
           valor_pedido: number
@@ -564,13 +571,20 @@ export type Database = {
           codigo_erp?: string | null
           data_emissao: string
           empresa_id: string
+          erro_integracao?: string | null
           id?: string
+          id_externo?: string | null
           numero_pedido: number
           observacao?: string | null
           parceiro_id: string
+          prioridade_externa?: string | null
           rota_id?: string | null
+          sincronizado_em?: string | null
+          sistema_origem?: string | null
           status: number
+          status_integracao?: string
           tenant_id: string
+          tentativas_processamento?: number
           tipo_pedido_id: string
           transportador?: string | null
           valor_pedido: number
@@ -580,13 +594,20 @@ export type Database = {
           codigo_erp?: string | null
           data_emissao?: string
           empresa_id?: string
+          erro_integracao?: string | null
           id?: string
+          id_externo?: string | null
           numero_pedido?: number
           observacao?: string | null
           parceiro_id?: string
+          prioridade_externa?: string | null
           rota_id?: string | null
+          sincronizado_em?: string | null
+          sistema_origem?: string | null
           status?: number
+          status_integracao?: string
           tenant_id?: string
+          tentativas_processamento?: number
           tipo_pedido_id?: string
           transportador?: string | null
           valor_pedido?: number
@@ -639,28 +660,37 @@ export type Database = {
       }
       documento_saida_item: {
         Row: {
+          codigo_erp_produto: string | null
           documento_saida_id: string
           id: string
           produto_id: string
           quantidade: number
+          sistema_origem: string | null
+          status_mapeamento: string
           tenant_id: string
           valor_total: number
           valor_unit: number
         }
         Insert: {
+          codigo_erp_produto?: string | null
           documento_saida_id: string
           id?: string
           produto_id: string
           quantidade: number
+          sistema_origem?: string | null
+          status_mapeamento?: string
           tenant_id: string
           valor_total: number
           valor_unit: number
         }
         Update: {
+          codigo_erp_produto?: string | null
           documento_saida_id?: string
           id?: string
           produto_id?: string
           quantidade?: number
+          sistema_origem?: string | null
+          status_mapeamento?: string
           tenant_id?: string
           valor_total?: number
           valor_unit?: number
@@ -1323,40 +1353,55 @@ export type Database = {
       }
       integracao_config: {
         Row: {
-          armazem_id: string
-          banco: string
+          armazem_id: string | null
+          banco: string | null
           created_at: string
-          host: string
+          empresa_id: string | null
+          host: string | null
           id: string
-          senha_criptografada: string
+          senha_criptografada: string | null
+          sistema: string | null
           tenant_id: string
-          tipo_banco: string
+          tipo_banco: string | null
           updated_at: string
-          usuario_bd: string
+          usuario_bd: string | null
+          webhook_ativo: boolean
+          webhook_descricao: string | null
+          webhook_secret: string | null
         }
         Insert: {
-          armazem_id: string
-          banco: string
+          armazem_id?: string | null
+          banco?: string | null
           created_at?: string
-          host: string
+          empresa_id?: string | null
+          host?: string | null
           id?: string
-          senha_criptografada: string
+          senha_criptografada?: string | null
+          sistema?: string | null
           tenant_id: string
-          tipo_banco: string
+          tipo_banco?: string | null
           updated_at?: string
-          usuario_bd: string
+          usuario_bd?: string | null
+          webhook_ativo?: boolean
+          webhook_descricao?: string | null
+          webhook_secret?: string | null
         }
         Update: {
-          armazem_id?: string
-          banco?: string
+          armazem_id?: string | null
+          banco?: string | null
           created_at?: string
-          host?: string
+          empresa_id?: string | null
+          host?: string | null
           id?: string
-          senha_criptografada?: string
+          senha_criptografada?: string | null
+          sistema?: string | null
           tenant_id?: string
-          tipo_banco?: string
+          tipo_banco?: string | null
           updated_at?: string
-          usuario_bd?: string
+          usuario_bd?: string | null
+          webhook_ativo?: boolean
+          webhook_descricao?: string | null
+          webhook_secret?: string | null
         }
         Relationships: [
           {
@@ -6430,14 +6475,24 @@ export type Database = {
         Args: { p_auth_user_id: string }
         Returns: boolean
       }
-      liberar_onda_separacao: {
-        Args: {
-          p_empresa_id: string
-          p_movimento_saida_id: string
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
+      liberar_onda_separacao:
+        | {
+            Args: {
+              p_empresa_id: string
+              p_movimento_saida_id: string
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_empresa_id: string
+              p_movimento_saida_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: Json
+          }
       middleware_consultar_parceiro_omie: {
         Args: {
           p_codigo_cliente_omie?: number
@@ -6937,6 +6992,7 @@ export type Database = {
         | "EM_CARREGAMENTO"
         | "CONCLUIDA"
         | "CANCELADA"
+        | "EXPORTADA_ERP"
       enum_status_tarefa:
         | "CRIADA"
         | "ATRIBUIDA"
@@ -7252,6 +7308,7 @@ export const Constants = {
         "EM_CARREGAMENTO",
         "CONCLUIDA",
         "CANCELADA",
+        "EXPORTADA_ERP",
       ],
       enum_status_tarefa: [
         "CRIADA",
