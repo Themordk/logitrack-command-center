@@ -59,6 +59,7 @@ export function TiposSaidaPage() {
         initialData={editItem}
         onSave={async (data) => {
           const payload = { ...data, empresa_id: empresaId };
+          if (!payload.realiza_conferencia) payload.conferencia_checkout = false;
           return editItem ? crud.update(editItem.id, payload) : crud.create(payload);
         }}
       />
