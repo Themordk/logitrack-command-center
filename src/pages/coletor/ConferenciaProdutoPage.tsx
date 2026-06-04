@@ -29,9 +29,11 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [modoCheckout, setModoCheckout] = useState(false);
   const quantidadeRef = useRef<HTMLInputElement>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_conferencia_numero_onda") || "";
+  const movimentoId = sessionStorage.getItem("coletor_conferencia_movimento_id");
   const tenantId = localStorage.getItem("core_tenant_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
