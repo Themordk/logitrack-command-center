@@ -48,6 +48,29 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         loadTarefa(parsed[idx]);
       }
     }
+    // Detecta modo Checkout uma única vez ao abrir a conferência
+    (async () => {
+      if (!movimentoId || !usuarioId) return;
+      try {
+        const [movRes, usrRes] = await Promise.all([
+          (supabase as any)
+            .from("movimento_saida")
+            .select("tipo_saida:tipo_saida_id(conferencia_checkout)")
+            .eq("id", movimentoId)
+            .single(),
+          (supabase as any)
+            .from("usuario")
+            .select("permite_checkout")
+            .eq("id", usuarioId)
+            .single(),
+        ]);
+        const checkoutTipo = !!movRes?.data?.tipo_saida?.conferencia_checkout;
+        const checkoutUsr = !!usrRes?.data?.permite_checkout;
+        setModoCheckout(checkoutTipo && checkoutUsr);
+      } catch {
+        setModoCheckout(false);
+      }
+    })();
   }, []);
 
   const loadTarefa = (t: any) => {
