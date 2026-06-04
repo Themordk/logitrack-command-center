@@ -17,6 +17,7 @@ export interface FieldSpec {
   hidden?: boolean;
   visibleWhen?: (form: Record<string, any>) => boolean;
   requiredWhen?: (form: Record<string, any>) => boolean;
+  disabledWhen?: (form: Record<string, any>) => boolean;
 }
 
 interface CrudModalProps {
