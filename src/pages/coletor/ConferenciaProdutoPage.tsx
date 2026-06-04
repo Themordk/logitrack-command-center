@@ -274,7 +274,15 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   }
 
   return (
-    <ColetorLayout title={`Conferência #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/conferencia/iniciar">
+    <ColetorLayout
+      title={`Conferência #${numeroOnda}`}
+      titleBadge={modoCheckout ? (
+        <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wide">CHECKOUT</span>
+      ) : undefined}
+      onNavigate={onNavigate}
+      showBack
+      backPath="/coletor/conferencia/iniciar"
+    >
       <div className="flex flex-col gap-3 flex-1">
         {/* Options button */}
         <div className="flex justify-end relative">
