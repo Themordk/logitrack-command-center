@@ -6,13 +6,14 @@ import { Wifi, WifiOff, LogOut } from "lucide-react";
 interface ColetorLayoutProps {
   children: React.ReactNode;
   title?: string;
+  titleBadge?: React.ReactNode;
   onNavigate: (path: string) => void;
   showBack?: boolean;
   backPath?: string;
   showLogout?: boolean;
 }
 
-export function ColetorLayout({ children, title = "CORE Coletor", onNavigate, showBack, backPath, showLogout }: ColetorLayoutProps) {
+export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, onNavigate, showBack, backPath, showLogout }: ColetorLayoutProps) {
   const [online, setOnline] = useState(navigator.onLine);
   const sessionIdRef = useRef<string | null>(localStorage.getItem("coletor_session_id"));
 
