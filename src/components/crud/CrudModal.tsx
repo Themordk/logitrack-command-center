@@ -162,12 +162,20 @@ export function CrudModal({ open, onClose, title, fields, initialData, onSave, o
                 </select>
               )}
 
-              {f.type === "switch" && (
-                <>
-                  <Switch checked={!!form[f.name]} onCheckedChange={(v) => set(f.name, v)} />
-                  <label className="text-sm text-foreground">{f.label}</label>
-                </>
-              )}
+              {f.type === "switch" && (() => {
+                const isDisabled = f.disabledWhen ? f.disabledWhen(form) : false;
+                return (
+                  <>
+                    <Switch
+                      checked={!!form[f.name]}
+                      onCheckedChange={(v) => set(f.name, v)}
+                      disabled={isDisabled}
+                      className={isDisabled ? "opacity-50" : ""}
+                    />
+                    <label className={cn("text-sm text-foreground", isDisabled && "opacity-50")}>{f.label}</label>
+                  </>
+                );
+              })()}
 
               {errors[f.name] && f.type !== "switch" && (
                 <p className="flex items-center gap-1 mt-1 text-xs text-destructive">
