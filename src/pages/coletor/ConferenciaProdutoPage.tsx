@@ -144,7 +144,20 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
     setEanConfirmado(true);
 
-    // Focus quantity field after successful scan
+    if (modoCheckout) {
+      const restante = qtdRequerida - qtdConferida;
+      if (restante <= 0) {
+        toast.warning("Item já conferido");
+        setEanScanned("");
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        return;
+      }
+      await executarConfirmacao(restante, "checkout");
+      return;
+    }
+
+    // Focus quantity field after successful scan (modo manual)
     setTimeout(() => {
       quantidadeRef.current?.focus();
     }, 100);
@@ -155,9 +168,13 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       toast.error("Informe a quantidade.");
       return;
     }
-
     const fator = embalagemInfo?.fator || 1;
     const qtdFinal = Number(quantidade) * fator;
+    await executarConfirmacao(qtdFinal, "manual");
+  };
+
+  const executarConfirmacao = async (qtdFinal: number, modo: "manual" | "checkout") => {
+    if (!tarefa) return;
     const tarefaId = tarefa.id || tarefa.tarefa_id;
 
     setConfirming(true);
@@ -167,6 +184,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         p_tarefa_id: tarefaId,
         p_quantidade: qtdFinal,
         p_usuario_id: usuarioId,
+        p_modo_conferencia: modo,
       });
       if (error) throw error;
 
