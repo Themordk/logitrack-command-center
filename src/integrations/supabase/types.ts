@@ -3599,6 +3599,7 @@ export type Database = {
           concluido_em: string | null
           contagem_inventario: number | null
           criado_em: string
+          criado_por: string | null
           empresa_id: string
           id: string
           id_documento_origem: string | null
@@ -3628,6 +3629,7 @@ export type Database = {
           concluido_em?: string | null
           contagem_inventario?: number | null
           criado_em?: string
+          criado_por?: string | null
           empresa_id: string
           id?: string
           id_documento_origem?: string | null
@@ -3657,6 +3659,7 @@ export type Database = {
           concluido_em?: string | null
           contagem_inventario?: number | null
           criado_em?: string
+          criado_por?: string | null
           empresa_id?: string
           id?: string
           id_documento_origem?: string | null
@@ -3687,6 +3690,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
           {
@@ -4282,6 +4292,7 @@ export type Database = {
         Row: {
           ativo: boolean
           caderp: string | null
+          conferencia_checkout: boolean
           descricao: string
           empresa_id: string
           id: string
@@ -4291,6 +4302,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           caderp?: string | null
+          conferencia_checkout?: boolean
           descricao: string
           empresa_id: string
           id?: string
@@ -4300,6 +4312,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           caderp?: string | null
+          conferencia_checkout?: boolean
           descricao?: string
           empresa_id?: string
           id?: string
@@ -4453,6 +4466,7 @@ export type Database = {
           id: string
           login: string
           nome: string
+          permite_checkout: boolean
           tenant_id: string
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario: Database["public"]["Enums"]["enum_tipo_usuario"] | null
@@ -4471,6 +4485,7 @@ export type Database = {
           id?: string
           login: string
           nome: string
+          permite_checkout?: boolean
           tenant_id: string
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
@@ -4489,6 +4504,7 @@ export type Database = {
           id?: string
           login?: string
           nome?: string
+          permite_checkout?: boolean
           tenant_id?: string
           tipo_operacao?: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
@@ -6475,24 +6491,15 @@ export type Database = {
         Args: { p_auth_user_id: string }
         Returns: boolean
       }
-      liberar_onda_separacao:
-        | {
-            Args: {
-              p_empresa_id: string
-              p_movimento_saida_id: string
-              p_tenant_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_empresa_id: string
-              p_movimento_saida_id: string
-              p_tenant_id: string
-              p_usuario_id: string
-            }
-            Returns: Json
-          }
+      liberar_onda_separacao: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       middleware_consultar_parceiro_omie: {
         Args: {
           p_codigo_cliente_omie?: number
