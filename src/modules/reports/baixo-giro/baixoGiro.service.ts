@@ -55,34 +55,46 @@ export async function fetchBaixoGiroReport(filters: BaixoGiroFilter): Promise<Ba
 
   const produtoIds = Array.from(saldoMap.keys());
 
-  // 2. Última saída por produto (busca em batch)
-  let ultSaidaQuery = (supabase as any)
-    .from("estoque_movimento")
-    .select("produto_id, criado_em")
-    .eq("tenant_id", filters.tenant_id)
-    .eq("tipo_movimento", 2)
-    .in("produto_id", produtoIds)
-    .order("criado_em", { ascending: false })
-    .limit(50000);
-  if (filters.empresa_id) ultSaidaQuery = ultSaidaQuery.eq("empresa_id", filters.empresa_id);
-  const { data: movs } = await ultSaidaQuery;
+  // Helper: chunk array para evitar URL gigante no PostgREST (.in com milhares de UUIDs)
+  const chunk = <T,>(arr: T[], size: number): T[][] => {
+    const out: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  };
+  const ID_BATCH = 300;
 
+  // 2. Última saída por produto (busca em batch)
   const ultimaSaidaMap = new Map<string, string>();
-  for (const m of (movs || [])) {
-    if (!ultimaSaidaMap.has(m.produto_id)) {
-      ultimaSaidaMap.set(m.produto_id, m.criado_em);
+  for (const ids of chunk(produtoIds, ID_BATCH)) {
+    let ultSaidaQuery = (supabase as any)
+      .from("estoque_movimento")
+      .select("produto_id, criado_em")
+      .eq("tenant_id", filters.tenant_id)
+      .eq("tipo_movimento", 2)
+      .in("produto_id", ids)
+      .order("criado_em", { ascending: false })
+      .limit(50000);
+    if (filters.empresa_id) ultSaidaQuery = ultSaidaQuery.eq("empresa_id", filters.empresa_id);
+    const { data: movs, error: errMov } = await ultSaidaQuery;
+    if (errMov) throw errMov;
+    for (const m of (movs || [])) {
+      if (!ultimaSaidaMap.has(m.produto_id)) {
+        ultimaSaidaMap.set(m.produto_id, m.criado_em);
+      }
     }
   }
 
-  // 3. Metadados dos produtos
-  const { data: produtos } = await (supabase as any)
-    .from("produto")
-    .select("id, sku, descricao, marca, grupo_id, subgrupo_id, preco_custo")
-    .eq("tenant_id", filters.tenant_id)
-    .in("id", produtoIds);
-
+  // 3. Metadados dos produtos (em batch)
   const produtoMap = new Map<string, any>();
-  for (const p of (produtos || [])) produtoMap.set(p.id, p);
+  for (const ids of chunk(produtoIds, ID_BATCH)) {
+    const { data: produtos, error: errProd } = await (supabase as any)
+      .from("produto")
+      .select("id, sku, descricao, marca, grupo_id, subgrupo_id, preco_custo")
+      .eq("tenant_id", filters.tenant_id)
+      .in("id", ids);
+    if (errProd) throw errProd;
+    for (const p of (produtos || [])) produtoMap.set(p.id, p);
+  }
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
