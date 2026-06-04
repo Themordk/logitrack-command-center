@@ -3964,6 +3964,7 @@ export type Database = {
           id: string
           iniciado_em: string | null
           lote: string | null
+          modo_conferencia: string
           motivo_ocorrencia: string | null
           quantidade_cortada: number | null
           quantidade_executada: number | null
@@ -3985,6 +3986,7 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           lote?: string | null
+          modo_conferencia?: string
           motivo_ocorrencia?: string | null
           quantidade_cortada?: number | null
           quantidade_executada?: number | null
@@ -4006,6 +4008,7 @@ export type Database = {
           id?: string
           iniciado_em?: string | null
           lote?: string | null
+          modo_conferencia?: string
           motivo_ocorrencia?: string | null
           quantidade_cortada?: number | null
           quantidade_executada?: number | null
@@ -6194,15 +6197,26 @@ export type Database = {
           status: string
         }[]
       }
-      conferencia_saida_confirmacao: {
-        Args: {
-          p_quantidade: number
-          p_tarefa_id: string
-          p_tenant_id: string
-          p_usuario_id: string
-        }
-        Returns: string
-      }
+      conferencia_saida_confirmacao:
+        | {
+            Args: {
+              p_quantidade: number
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_modo_conferencia?: string
+              p_quantidade: number
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: string
+          }
       cortar_item_separacao: {
         Args: {
           p_motivo_ocorrencia: string

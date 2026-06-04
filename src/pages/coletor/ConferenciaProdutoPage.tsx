@@ -29,9 +29,11 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [modoCheckout, setModoCheckout] = useState(false);
   const quantidadeRef = useRef<HTMLInputElement>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_conferencia_numero_onda") || "";
+  const movimentoId = sessionStorage.getItem("coletor_conferencia_movimento_id");
   const tenantId = localStorage.getItem("core_tenant_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
@@ -46,6 +48,29 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         loadTarefa(parsed[idx]);
       }
     }
+    // Detecta modo Checkout uma única vez ao abrir a conferência
+    (async () => {
+      if (!movimentoId || !usuarioId) return;
+      try {
+        const [movRes, usrRes] = await Promise.all([
+          (supabase as any)
+            .from("movimento_saida")
+            .select("tipo_saida:tipo_saida_id(conferencia_checkout)")
+            .eq("id", movimentoId)
+            .single(),
+          (supabase as any)
+            .from("usuario")
+            .select("permite_checkout")
+            .eq("id", usuarioId)
+            .single(),
+        ]);
+        const checkoutTipo = !!movRes?.data?.tipo_saida?.conferencia_checkout;
+        const checkoutUsr = !!usrRes?.data?.permite_checkout;
+        setModoCheckout(checkoutTipo && checkoutUsr);
+      } catch {
+        setModoCheckout(false);
+      }
+    })();
   }, []);
 
   const loadTarefa = (t: any) => {
@@ -119,7 +144,20 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
     setEanConfirmado(true);
 
-    // Focus quantity field after successful scan
+    if (modoCheckout) {
+      const restante = qtdRequerida - qtdConferida;
+      if (restante <= 0) {
+        toast.warning("Item já conferido");
+        setEanScanned("");
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        return;
+      }
+      await executarConfirmacao(restante, "checkout");
+      return;
+    }
+
+    // Focus quantity field after successful scan (modo manual)
     setTimeout(() => {
       quantidadeRef.current?.focus();
     }, 100);
@@ -130,9 +168,13 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       toast.error("Informe a quantidade.");
       return;
     }
-
     const fator = embalagemInfo?.fator || 1;
     const qtdFinal = Number(quantidade) * fator;
+    await executarConfirmacao(qtdFinal, "manual");
+  };
+
+  const executarConfirmacao = async (qtdFinal: number, modo: "manual" | "checkout") => {
+    if (!tarefa) return;
     const tarefaId = tarefa.id || tarefa.tarefa_id;
 
     setConfirming(true);
@@ -142,6 +184,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         p_tarefa_id: tarefaId,
         p_quantidade: qtdFinal,
         p_usuario_id: usuarioId,
+        p_modo_conferencia: modo,
       });
       if (error) throw error;
 
@@ -231,7 +274,15 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   }
 
   return (
-    <ColetorLayout title={`Conferência #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/conferencia/iniciar">
+    <ColetorLayout
+      title={`Conferência #${numeroOnda}`}
+      titleBadge={modoCheckout ? (
+        <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wide">CHECKOUT</span>
+      ) : undefined}
+      onNavigate={onNavigate}
+      showBack
+      backPath="/coletor/conferencia/iniciar"
+    >
       <div className="flex flex-col gap-3 flex-1">
         {/* Options button */}
         <div className="flex justify-end relative">
@@ -310,28 +361,32 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Input quantidade */}
-        <div>
-          <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">Quantidade a conferir</label>
-          <input
-            ref={quantidadeRef}
-            type="number"
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-            className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
-            placeholder="0"
-          />
-        </div>
+        {!modoCheckout && (
+          <>
+            {/* Input quantidade */}
+            <div>
+              <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">Quantidade a conferir</label>
+              <input
+                ref={quantidadeRef}
+                type="number"
+                value={quantidade}
+                onChange={(e) => setQuantidade(e.target.value)}
+                className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
+                placeholder="0"
+              />
+            </div>
 
-        {/* Confirm button */}
-        <ActionButton
-          onClick={handleConfirmar}
-          disabled={!eanConfirmado || !quantidade || Number(quantidade) <= 0}
-          loading={confirming}
-          variant="success"
-        >
-          Confirmar Conferência
-        </ActionButton>
+            {/* Confirm button */}
+            <ActionButton
+              onClick={handleConfirmar}
+              disabled={!eanConfirmado || !quantidade || Number(quantidade) <= 0}
+              loading={confirming}
+              variant="success"
+            >
+              Confirmar Conferência
+            </ActionButton>
+          </>
+        )}
       </div>
 
       {/* EAN Error Dialog */}

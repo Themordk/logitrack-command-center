@@ -86,6 +86,7 @@ export function UsuariosPage() {
     { name: "habilidade", label: "Habilidade", type: "enum", enumValues: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"] },
     { name: "tipo_operacao", label: "Tipo de Operação", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "MOVIMENTOS", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "AUDITORIA"] },
     { name: "cod_erp", label: "Código ERP", type: "text", placeholder: "Opcional" },
+    { name: "permite_checkout", label: "Permite Checkout", type: "switch", defaultValue: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
