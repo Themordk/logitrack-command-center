@@ -61,6 +61,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
             </button>
           )}
           <span className="text-white font-bold text-lg truncate">{title}</span>
+          {titleBadge}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
