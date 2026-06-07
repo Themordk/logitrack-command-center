@@ -193,8 +193,18 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Detalhe do Operador" },
     ];
   }
+  const erpMatch = path.match(/^\/config\/integracao\/([^/?]+)/);
+  if (erpMatch) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Configurações" },
+      { label: "Integração", path: "/config/integracao" },
+      { label: erpMatch[1].toUpperCase() },
+    ];
+  }
   return null;
 }
+
 
 function renderPage(path: string, onNavigate: (p: string) => void) {
   switch (path) {
@@ -229,7 +239,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/dados-mestres/tipos-saida": return <TiposSaidaPage />;
     case "/config/empresas": return <EmpresasPage />;
     case "/config/usuarios": return <UsuariosPage />;
-    case "/config/integracao": return <IntegracaoPage />;
+    case "/config/integracao": return <IntegracaoPage onNavigate={onNavigate} />;
     case "/config/perfis": return <PerfisAcessoPage />;
     case "/config/tipos-tarefa": return <TiposTarefaPage />;
 
@@ -285,6 +295,11 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
         const params = new URLSearchParams(path.split("?")[1] || "");
         const numero = Number(params.get("numero") || "0");
         return <InventarioItensPage onNavigate={onNavigate} inventarioId={invId} numeroInventario={numero} />;
+      }
+      // Dynamic route: /config/integracao/:erpProvedorId
+      const erpMatch = path.match(/^\/config\/integracao\/([^/?]+)/);
+      if (erpMatch) {
+        return <IntegracaoPage onNavigate={onNavigate} erpProvedorId={erpMatch[1]} />;
       }
       const label = path.split("/").pop()?.replace(/-/g, " ") ?? path;
       return (
