@@ -3,7 +3,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, KeyRound, RefreshCw, ListChecks } from "lucide-react";
 import { StatusBar } from "./StatusBar";
-import { CredenciaisTab } from "./CredenciaisTab";
+import { CredenciaisDinamicasTab } from "./CredenciaisDinamicasTab";
 import { SincronizacaoTab } from "./SincronizacaoTab";
 import { LogsFilasTab } from "./LogsFilasTab";
 import { mw } from "./entidades";
@@ -32,9 +32,7 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
       setNome((data as any).nome || erpProvedorId);
       setDisponivel((data as any).disponivel !== false);
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [erpProvedorId]);
 
   if (!tenantId || !empresaId) {
@@ -74,12 +72,8 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
         <div className="card-surface p-6 text-sm text-muted-foreground">
           Este provedor ainda não está disponível para configuração.
         </div>
-      ) : !isOmie ? (
-        <div className="card-surface p-6 text-sm text-muted-foreground">
-          Configuração específica deste provedor em breve.
-        </div>
       ) : (
-        <Tabs defaultValue="sync" className="w-full flex-1 flex flex-col min-h-0">
+        <Tabs defaultValue="cred" className="w-full flex-1 flex flex-col min-h-0">
           <TabsList className="bg-secondary border border-border self-start">
             <TabsTrigger value="cred" className="flex items-center gap-2">
               <KeyRound size={14} /> Credenciais
@@ -93,13 +87,30 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
           </TabsList>
 
           <TabsContent value="cred" className="flex-1 min-h-0">
-            <CredenciaisTab key={`c-${k}`} tenantId={tenantId} empresaId={empresaId} onSaved={bump} />
+            <CredenciaisDinamicasTab
+              key={`c-${k}`}
+              erpId={erpProvedorId}
+              tenantId={tenantId}
+              empresaId={empresaId}
+              onSaved={bump}
+            />
           </TabsContent>
           <TabsContent value="sync" className="flex-1 min-h-0">
-            <SincronizacaoTab key={`s-${k}`} tenantId={tenantId} empresaId={empresaId} onChanged={bump} />
+            {isOmie ? (
+              <SincronizacaoTab key={`s-${k}`} tenantId={tenantId} empresaId={empresaId} onChanged={bump} />
+            ) : (
+              <div className="card-surface p-6 text-sm text-muted-foreground">
+                Configuração de sincronização disponível após ativação da integração.
+              </div>
+            )}
           </TabsContent>
           <TabsContent value="logs" className="flex-1 min-h-0 overflow-auto">
-            <LogsFilasTab key={`l-${k}`} tenantId={tenantId} empresaId={empresaId} />
+            <LogsFilasTab
+              key={`l-${k}`}
+              tenantId={tenantId}
+              empresaId={empresaId}
+              sistemaOrigem={erpProvedorId}
+            />
           </TabsContent>
         </Tabs>
       )}
