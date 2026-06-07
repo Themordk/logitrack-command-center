@@ -1,65 +1,76 @@
 ## Objetivo
-Tornar a rota `/config/integracao/:erpId` (já existente como hash route) totalmente funcional para qualquer ERP do catálogo `middleware.erp_provedor`, renderizando o formulário de credenciais a partir de `esquema_credencial`, com salvamento via edge function dedicada e Logs/Filas filtrados por `sistema_origem`.
+Refatorar `supabase/functions/salvar-erp-credenciais/index.ts` para seguir o contrato definido (payload `{ erp_id, empresa_id, credenciais, ativo }`, response `{ sucesso, id }`), com validações estritas, uso de `service_role`, mascaramento em logs e compatibilidade Omie.
 
-> Observação de rota: a descrição menciona `/configuracoes/integracao-erp/:erpId`, mas a rota efetiva já implementada e ligada ao menu/breadcrumbs é `/config/integracao/:erpId`. Mantenho esse caminho para não quebrar navegação atual.
+## Alterações no arquivo `supabase/functions/salvar-erp-credenciais/index.ts`
 
-## Novos arquivos
+1. **Payload de entrada** (snake_case oficial; manter aceite de camelCase para não quebrar o frontend já implementado):
+   - Aceitar `erp_id` (e fallback `erpId`)
+   - Aceitar `empresa_id` (e fallback `empresaId`)
+   - `credenciais: Record<string, unknown>`
+   - `ativo: boolean` (default `true`)
+   - `tenant_id` **não é mais lido do body** — extraído do JWT/`public.usuario`
 
-- `src/pages/integracao/useErpProvedor.ts` — hook que busca `middleware.erp_provedor` por id e devolve `{ nome, disponivel, esquema_credencial }`.
-- `src/pages/integracao/CredenciaisDinamicasTab.tsx` — substitui `CredenciaisTab` para qualquer ERP; monta o form a partir do `esquema_credencial`.
-- `supabase/functions/salvar-erp-credenciais/index.ts` — edge function que valida JWT + vínculo do usuário, valida campos obrigatórios e persiste em `middleware.erp_integracao` com `service_role`. Para `erpId='omie'`, replica também em `middleware.omie_config` (compatibilidade legada).
+2. **Autenticação (401)**:
+   - Exigir `Authorization: Bearer <jwt>`
+   - Validar via `supabase.auth.getClaims(token)` (signing-keys) usando `SUPABASE_URL` + `SUPABASE_ANON_KEY`
+   - Em falha → `401 { sucesso: false, codigo: "unauthorized", mensagem }`
 
-## Arquivos alterados
+3. **Resolução de tenant + autorização (403)**:
+   - Com `service_role`, buscar `public.usuario` por `(auth_user_id, ativo=true)` para obter `tenant_id` e `empresa_id` do usuário
+   - Validar que `empresa_id` recebido **existe em `public.empresa` e pertence ao `tenant_id` do usuário**
+   - Para usuários não-administradores, exigir que `empresa_id` recebido == `empresa_id` do usuário (mantém a regra de isolamento 1:1 já existente no projeto)
+   - Em falha → `403 { sucesso: false, codigo: "forbidden", mensagem: "empresa_id não pertence ao tenant" }`
 
-- `src/pages/integracao/IntegracaoErpDetalhePage.tsx`
-  - Título "Integração ERP — {nome}" e subtítulo "Painel de gerenciamento do middleware de integração via API REST."
-  - Botão "← Voltar para provedores" (já é SPA via `onNavigate("/config/integracao")`).
-  - `StatusBar` no topo.
-  - Tabs sempre visíveis para ERPs com `disponivel=true`.
-  - Usa `CredenciaisDinamicasTab` no lugar do antigo `CredenciaisTab`.
-  - Repassa `sistemaOrigem={erpId}` para `LogsFilasTab`.
-- `src/pages/integracao/LogsFilasTab.tsx`, `LogsPanel.tsx`, `FilasPanel.tsx`
-  - Aceitam prop opcional `sistemaOrigem`. Quando informado, aplicam `.eq("sistema_origem", sistemaOrigem)` em `sync_log` e `sync_queue`.
+4. **Validação do ERP**:
+   - Buscar `middleware.erp_provedor` por `id = erp_id`
+   - Se inexistente → `404 { sucesso: false, codigo: "erp_nao_encontrado" }`
+   - Se `disponivel = false` → `400 { sucesso: false, codigo: "erp_indisponivel" }`
+   - Ler `esquema_credencial` (array)
 
-## Aba Credenciais — regras
+5. **Validação de campos obrigatórios (400)**:
+   - Para cada campo com `obrigatorio = true`:
+     - Se `tipo='senha'` e vazio: aceitar se já existe valor anterior em `erp_integracao.credenciais` (padrão "deixe em branco para manter")
+     - Caso contrário, exigir valor não vazio
+   - Coletar **todos os campos faltantes** e retornar de uma vez:
+     ```
+     400 { sucesso: false, codigo: "campos_obrigatorios", campos: ["app_key","app_secret"], mensagem }
+     ```
 
-1. Carrega `esquema_credencial` via `useErpProvedor(erpId)`.
-2. Carrega valores existentes em `middleware.erp_integracao` por `(tenant_id, empresa_id, erp_provedor_id)`. Se `erpId='omie'` e não existir, fallback via `omie-config-get` (mapeando `app_key`, `omie_base_url`, `has_secret`).
-3. Renderização dinâmica:
-   - `tipo='texto'`: input text.
-   - `tipo='senha'`: input password com toggle Eye/EyeOff.
-   - `rotulo` → label; `placeholder` → placeholder; `padrao` → valor inicial; `obrigatorio` → validação no salvar.
-4. Toggle "Integração ativa" controla `ativo`.
-5. Botão **Testar Conexão**:
-   - `erpId='omie'`: chama `omie-test-connection` com os valores correntes do form.
-   - Demais: mensagem inline "Teste de conexão disponível após configuração completa".
-   - Resultado inline em Badge (sucesso/erro).
-6. Botão **Salvar Configurações**:
-   - Validação client de obrigatórios (toast).
-   - Chama `supabase.functions.invoke("salvar-erp-credenciais", { body: { erpId, empresaId, credenciais } })`.
-   - Toast de sucesso/erro; recarrega valores.
-   - Nunca grava direto do frontend.
+6. **Persistência (UPSERT em `middleware.erp_integracao`)**:
+   - Chave de conflito: `(tenant_id, empresa_id, erp_provedor_id)`
+   - Implementação: `select` por essas 3 chaves; se existe → `update`; senão → `insert`
+   - Campos gravados: `credenciais` (objeto final, com senhas preservadas), `ativo`, `status='ativo'`, `mensagem_erro=null`, `atualizado_em=now()`, `atualizado_por=auth_user_id`; no insert também `criado_por`
+   - Em erro de DB → log detalhado no servidor, response `500 { sucesso: false, codigo: "erro_persistencia", mensagem: "Erro ao salvar credenciais" }`
 
-## Edge function `salvar-erp-credenciais`
+7. **Compatibilidade Omie (`erp_id === 'omie'`)**:
+   - Upsert também em `middleware.omie_config` por `(tenant_id, empresa_id)`
+   - Mapear: `app_key ← credenciais.app_key`, `app_secret ← credenciais.app_secret` (se informado), `omie_base_url ← credenciais.url_base || 'https://app.omie.com.br/api/v1'`, `ativo`, `updated_at`
+   - No insert, exigir `app_key` e `app_secret` presentes (regra atual do legado); caso só haja update, não sobrescreve `app_secret` quando vazio
 
-- CORS via `npm:@supabase/supabase-js@2/cors`.
-- Valida `Bearer` token; confirma `public.usuario` com `(auth_user_id, tenant_id, empresa_id, ativo=true)` — mesmo padrão de `omie-test-connection`.
-- Lê `middleware.erp_provedor` pelo `erpId` (`disponivel=true`) e usa `esquema_credencial` para validar `obrigatorio` server-side.
-- Para campos `tipo='senha'` vazios, preserva o valor anterior (suporta o padrão "deixe em branco para manter").
-- Faz upsert em `middleware.erp_integracao` por `(tenant_id, empresa_id, erp_provedor_id)` com `credenciais`, `ativo`, `status='ativo'`, `mensagem_erro=null`.
-- Quando `erpId='omie'`: também upsert em `middleware.omie_config` mapeando `app_key`/`app_secret`/`omie_base_url`/`ativo`, para manter `StatusBar`, `omie-test-connection` e funções legadas funcionando.
-- Retorna `{ ok: true, id }` ou `{ ok: false, message }`.
+8. **Logging com mascaramento**:
+   - Helper `mask(v)`: retorna `v.slice(0,4) + '***'` para strings com `length > 4`, senão `'***'`
+   - Aplicar mascaramento em **todo** valor cuja chave contenha `secret|senha|password|token|key` (case-insensitive) antes de qualquer `console.log`
+   - Logar: `{ acao: 'salvar-erp-credenciais', auth_user_id, tenant_id, empresa_id, erp_id, campos: <obj mascarado>, ativo }` no início; no fim, `{ resultado: 'ok'|'erro', id, codigo? }`
+   - **Nunca** retornar `credenciais` no response
 
-## Aba Sincronização
-- `erpId='omie'`: `SincronizacaoTab` atual sem mudanças (já filtra por `tenant_id`+`empresa_id`).
-- Demais: painel informativo "Configuração de sincronização disponível após ativação da integração".
+9. **Response de sucesso**:
+   - `200 { sucesso: true, id: "<uuid_do_registro_erp_integracao>" }`
 
-## Aba Logs e Filas
-- `LogsPanel` filtra `sync_log` por `tenant_id` + `empresa_id` + `sistema_origem=erpId`.
-- `FilasPanel` filtra `sync_queue` por `tenant_id` + `empresa_id` + `sistema_origem=erpId`.
-- Para Omie, o `DEFAULT 'omie'` em `sistema_origem` cobre registros antigos.
+10. **CORS**:
+    - Manter cabeçalhos atuais; responder `OPTIONS` com 204/200
+
+## Ajuste no frontend (mínimo, para casar com o novo contrato)
+
+- `src/pages/integracao/CredenciaisDinamicasTab.tsx`:
+  - Alterar a chamada para enviar `{ erp_id: erpId, empresa_id: empresaId, credenciais, ativo }`
+  - Tratar `data.sucesso === true` (em vez de `data.ok`), mantendo `toast` de erro com `data.mensagem` / `data.campos`
+  - Sem mudança visual; apenas chaves do payload e leitura do response
 
 ## Fora de escopo
-- Sem migrações de schema/RLS.
-- Sem alterações de menu lateral, permissões ou outras telas.
-- `CredenciaisTab.tsx` (Omie estático) permanece no repo mas deixa de ser usado pela tela; pode ser removido em outro passo se desejado.
+- Sem alterações em `middleware.erp_provedor`, `middleware.erp_integracao` ou `middleware.omie_config` (schema/RLS)
+- Sem criar tabela `audit_log`: como ela não existe no projeto, item 8 do enunciado é atendido via `console.log` estruturado e mascarado (logs ficam em Edge Function Logs)
+- Sem mudanças em outras edge functions (`omie-config-get`, `omie-test-connection`)
+
+## Riscos / Observações
+- O frontend atual envia `erpId/tenantId/empresaId` (camelCase). A função aceitará ambos os formatos durante a transição, mas o frontend será atualizado para o contrato novo no mesmo passo para evitar ambiguidade.
+- `tenant_id` deixará de ser aceito via body — sempre derivado do JWT (mais seguro). Qualquer caller que enviava `tenant_id` no body será ignorado.

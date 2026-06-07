@@ -115,11 +115,16 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
       for (const c of esquema) payload[c.chave] = values[c.chave] ?? "";
 
       const { data, error } = await supabase.functions.invoke("salvar-erp-credenciais", {
-        body: { erpId, tenantId, empresaId, credenciais: payload, ativo },
+        body: { erp_id: erpId, empresa_id: empresaId, credenciais: payload, ativo },
       });
       if (error) throw error;
       const resp = data as any;
-      if (!resp?.ok) throw new Error(resp?.message || "Falha ao salvar");
+      if (!resp?.sucesso) {
+        const msg = resp?.campos?.length
+          ? `${resp.mensagem || "Campos obrigatórios"}: ${resp.campos.join(", ")}`
+          : resp?.mensagem || "Falha ao salvar";
+        throw new Error(msg);
+      }
 
       // Limpa senhas locais e marca que existe segredo
       const nextSecret = { ...hasSecret };
