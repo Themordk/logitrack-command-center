@@ -9,6 +9,7 @@ import { formatDateTime } from "@/utils/dateTime";
 interface Props {
   tenantId: string;
   empresaId: string;
+  sistemaOrigem?: string;
 }
 
 type Tab = "sync_queue" | "return_queue";
@@ -20,7 +21,7 @@ const STATUS_CLASS: Record<string, string> = {
   error: "bg-rose-500/15 text-rose-400 border-rose-500/30",
 };
 
-export function FilasPanel({ tenantId, empresaId }: Props) {
+export function FilasPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
   const [tab, setTab] = useState<Tab>("sync_queue");
 
   return (
@@ -34,23 +35,25 @@ export function FilasPanel({ tenantId, empresaId }: Props) {
           <TabsTrigger value="return_queue">Fila de Retorno</TabsTrigger>
         </TabsList>
         <TabsContent value="sync_queue" className="flex-1 min-h-0 mt-0">
-          <QueueTable table="sync_queue" tenantId={tenantId} empresaId={empresaId} />
+          <QueueTable table="sync_queue" tenantId={tenantId} empresaId={empresaId} sistemaOrigem={sistemaOrigem} />
         </TabsContent>
         <TabsContent value="return_queue" className="flex-1 min-h-0 mt-0">
-          <QueueTable table="return_queue" tenantId={tenantId} empresaId={empresaId} />
+          <QueueTable table="return_queue" tenantId={tenantId} empresaId={empresaId} sistemaOrigem={sistemaOrigem} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function QueueTable({ table, tenantId, empresaId }: { table: Tab; tenantId: string; empresaId: string }) {
+function QueueTable({ table, tenantId, empresaId, sistemaOrigem }: { table: Tab; tenantId: string; empresaId: string; sistemaOrigem?: string }) {
   const [rows, setRows] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({ pending: 0, processing: 0, done: 0, error: 0 });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const baseFilter = (q: any) => q.eq("tenant_id", tenantId).eq("empresa_id", empresaId);
+    // sync_queue tem sistema_origem; return_queue não tem.
+    const applyOrigem = (q: any) => (sistemaOrigem && table === "sync_queue") ? q.eq("sistema_origem", sistemaOrigem) : q;
+    const baseFilter = (q: any) => applyOrigem(q.eq("tenant_id", tenantId).eq("empresa_id", empresaId));
     const [list, ...countsRes] = await Promise.all([
       baseFilter(mw.from(table).select("*"))
         .order("created_at", { ascending: false })
@@ -67,7 +70,7 @@ function QueueTable({ table, tenantId, empresaId }: { table: Tab; tenantId: stri
       error: countsRes[3].count || 0,
     });
     setLoading(false);
-  }, [table, tenantId, empresaId]);
+  }, [table, tenantId, empresaId, sistemaOrigem]);
 
   useEffect(() => {
     setLoading(true);

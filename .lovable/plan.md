@@ -1,77 +1,65 @@
-# Refatoração — Integração ERP como Galeria
+## Objetivo
+Tornar a rota `/config/integracao/:erpId` (já existente como hash route) totalmente funcional para qualquer ERP do catálogo `middleware.erp_provedor`, renderizando o formulário de credenciais a partir de `esquema_credencial`, com salvamento via edge function dedicada e Logs/Filas filtrados por `sistema_origem`.
 
-## Observação de rota
-No código atual, a rota é `/config/integracao` (hash router). A descrição usa `/configuracoes/integracao-erp`. Vou manter o caminho existente para não quebrar menu/breadcrumbs/permissões: **galeria em `/config/integracao`** e **detalhe em `/config/integracao/:erpProvedorId`**. Se preferir renomear para `/configuracoes/integracao-erp`, ajusto na implementação.
+> Observação de rota: a descrição menciona `/configuracoes/integracao-erp/:erpId`, mas a rota efetiva já implementada e ligada ao menu/breadcrumbs é `/config/integracao/:erpId`. Mantenho esse caminho para não quebrar navegação atual.
 
-## Escopo
-- A página `IntegracaoPage` deixa de abrir direto Credenciais/Sincronização/Logs do Omie.
-- Passa a renderizar uma **galeria de cards** (um por `middleware.erp_provedor`).
-- O conteúdo atual (StatusBar + Tabs Credenciais/Sincronização/Logs) é movido para uma nova página de detalhe acionada pela sub-rota com `erpProvedorId`.
+## Novos arquivos
 
-## Arquivos
+- `src/pages/integracao/useErpProvedor.ts` — hook que busca `middleware.erp_provedor` por id e devolve `{ nome, disponivel, esquema_credencial }`.
+- `src/pages/integracao/CredenciaisDinamicasTab.tsx` — substitui `CredenciaisTab` para qualquer ERP; monta o form a partir do `esquema_credencial`.
+- `supabase/functions/salvar-erp-credenciais/index.ts` — edge function que valida JWT + vínculo do usuário, valida campos obrigatórios e persiste em `middleware.erp_integracao` com `service_role`. Para `erpId='omie'`, replica também em `middleware.omie_config` (compatibilidade legada).
 
-### Novos
-- `src/pages/integracao/IntegracaoGalleryPage.tsx` — galeria de ERPs (componente principal da rota).
-- `src/pages/integracao/ErpCard.tsx` — card individual com badge/estado/ação.
-- `src/pages/integracao/IntegracaoErpDetalhePage.tsx` — wrapper com StatusBar + Tabs (Credenciais/Sincronização/Logs) parametrizado por `erpProvedorId` (hoje fixo em "omie" para compatibilidade).
-- `src/pages/integracao/useErpGallery.ts` — hook de fetch (provedores + integrações + fallback `omie_config`).
+## Arquivos alterados
 
-### Alterados
-- `src/pages/IntegracaoPage.tsx` — passa a apenas decidir: se há `:erpProvedorId` na rota, renderiza Detalhe; senão, renderiza Galeria.
-- `src/App.tsx` — adicionar match para `/config/integracao/<erpId>` em `renderPage` e breadcrumb dinâmico em `getDynamicBreadcrumb`.
-- `src/pages/integracao/entidades.ts` — sem mudança estrutural (helper `mw` reaproveitado).
+- `src/pages/integracao/IntegracaoErpDetalhePage.tsx`
+  - Título "Integração ERP — {nome}" e subtítulo "Painel de gerenciamento do middleware de integração via API REST."
+  - Botão "← Voltar para provedores" (já é SPA via `onNavigate("/config/integracao")`).
+  - `StatusBar` no topo.
+  - Tabs sempre visíveis para ERPs com `disponivel=true`.
+  - Usa `CredenciaisDinamicasTab` no lugar do antigo `CredenciaisTab`.
+  - Repassa `sistemaOrigem={erpId}` para `LogsFilasTab`.
+- `src/pages/integracao/LogsFilasTab.tsx`, `LogsPanel.tsx`, `FilasPanel.tsx`
+  - Aceitam prop opcional `sistemaOrigem`. Quando informado, aplicam `.eq("sistema_origem", sistemaOrigem)` em `sync_log` e `sync_queue`.
 
-### Não alterados
-- `StatusBar.tsx`, `CredenciaisTab.tsx`, `SincronizacaoTab.tsx`, `LogsFilasTab.tsx`, `LogsPanel.tsx`, `FilasPanel.tsx` — comportamento atual preservado dentro do Detalhe.
-- Nenhuma alteração de schema/RLS/edge functions.
+## Aba Credenciais — regras
 
-## Fluxo de dados da galeria
-Dentro de `useErpGallery(tenantId, empresaId, empresaVersion)`:
+1. Carrega `esquema_credencial` via `useErpProvedor(erpId)`.
+2. Carrega valores existentes em `middleware.erp_integracao` por `(tenant_id, empresa_id, erp_provedor_id)`. Se `erpId='omie'` e não existir, fallback via `omie-config-get` (mapeando `app_key`, `omie_base_url`, `has_secret`).
+3. Renderização dinâmica:
+   - `tipo='texto'`: input text.
+   - `tipo='senha'`: input password com toggle Eye/EyeOff.
+   - `rotulo` → label; `placeholder` → placeholder; `padrao` → valor inicial; `obrigatorio` → validação no salvar.
+4. Toggle "Integração ativa" controla `ativo`.
+5. Botão **Testar Conexão**:
+   - `erpId='omie'`: chama `omie-test-connection` com os valores correntes do form.
+   - Demais: mensagem inline "Teste de conexão disponível após configuração completa".
+   - Resultado inline em Badge (sucesso/erro).
+6. Botão **Salvar Configurações**:
+   - Validação client de obrigatórios (toast).
+   - Chama `supabase.functions.invoke("salvar-erp-credenciais", { body: { erpId, empresaId, credenciais } })`.
+   - Toast de sucesso/erro; recarrega valores.
+   - Nunca grava direto do frontend.
 
-1. `mw.from("erp_provedor").select("id,nome,disponivel,ordem,esquema_credencial").order("ordem")`.
-2. `mw.from("erp_integracao").select("erp_provedor_id,ativo,status,ultimo_teste_em,ultimo_teste_ok,mensagem_erro").eq("tenant_id", tenantId).eq("empresa_id", empresaId)`.
-3. `mw.from("omie_config").select("id, atualizado_em").eq("tenant_id", tenantId).eq("empresa_id", empresaId).maybeSingle()` — apenas para fallback do card Omie.
-4. Combina em uma lista `ErpCardData[]` com `{ provedor, integracao | null, legadoOmie?: boolean, ultimoTeste?: string }`.
-5. Auto-refresh a cada 30 s (igual à `StatusBar`) e refetch quando `empresaVersion` muda.
+## Edge function `salvar-erp-credenciais`
 
-## Regras de exibição do card (resolvidas em `ErpCard.tsx`)
-Prioridade ao decidir o estado visual:
+- CORS via `npm:@supabase/supabase-js@2/cors`.
+- Valida `Bearer` token; confirma `public.usuario` com `(auth_user_id, tenant_id, empresa_id, ativo=true)` — mesmo padrão de `omie-test-connection`.
+- Lê `middleware.erp_provedor` pelo `erpId` (`disponivel=true`) e usa `esquema_credencial` para validar `obrigatorio` server-side.
+- Para campos `tipo='senha'` vazios, preserva o valor anterior (suporta o padrão "deixe em branco para manter").
+- Faz upsert em `middleware.erp_integracao` por `(tenant_id, empresa_id, erp_provedor_id)` com `credenciais`, `ativo`, `status='ativo'`, `mensagem_erro=null`.
+- Quando `erpId='omie'`: também upsert em `middleware.omie_config` mapeando `app_key`/`app_secret`/`omie_base_url`/`ativo`, para manter `StatusBar`, `omie-test-connection` e funções legadas funcionando.
+- Retorna `{ ok: true, id }` ou `{ ok: false, message }`.
 
-```text
-if !provedor.disponivel              -> EM_BREVE  (cinza, opacidade-50, sem botão, não clicável)
-else if integracao?.status == 'erro' -> ERRO      (borda destructive, badge vermelho "Erro de conexão",
-                                                   mensagem_erro truncada, botão "Revisar configuração")
-else if integracao?.status == 'ativo'-> CONECTADO (borda emerald, badge verde "Conectado",
-                                                   "Última sync: <formatado>", botão "Editar configuração")
-else if provedor.id == 'omie'
-        && legadoOmie                -> CONECTADO_LEGADO (borda emerald sutil, badge "Conectado (legado)",
-                                                          botão "Editar configuração")
-else                                 -> NAO_CONFIGURADO (borda neutra, badge "Não configurado",
-                                                         botão "Configurar")
-```
+## Aba Sincronização
+- `erpId='omie'`: `SincronizacaoTab` atual sem mudanças (já filtra por `tenant_id`+`empresa_id`).
+- Demais: painel informativo "Configuração de sincronização disponível após ativação da integração".
 
-Cores via tokens semânticos do design system (sem cores hard-coded): `border-emerald-500/40`, `border-destructive/60`, `bg-muted/40`, etc. — mesmas convenções já usadas em `StatusBar.tsx`.
+## Aba Logs e Filas
+- `LogsPanel` filtra `sync_log` por `tenant_id` + `empresa_id` + `sistema_origem=erpId`.
+- `FilasPanel` filtra `sync_queue` por `tenant_id` + `empresa_id` + `sistema_origem=erpId`.
+- Para Omie, o `DEFAULT 'omie'` em `sistema_origem` cobre registros antigos.
 
-Formatação de `ultimo_teste_em`: reutiliza `relativeTime` exportada por `StatusBar.tsx` + `formatDateTimeBrasilia` de `src/utils/dateTime.ts` para o tooltip (regra de exibição UTC-3 já vigente no projeto).
-
-## Layout
-- Header (mesmo do atual): título "Integração ERP", subtítulo "Selecione e configure a integração com o seu sistema ERP".
-- `StatusBar` permanece **no topo da galeria** (já agrega entidades ativas/erros/registros importados a partir das integrações do tenant — independente de ERP selecionado).
-- `Tabs` (Credenciais/Sincronização/Logs) são **removidas da galeria** e só aparecem em `IntegracaoErpDetalhePage`.
-- Grid responsivo: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3`.
-
-## Navegação
-- Clique no botão de qualquer card → `window.location.hash = "#/config/integracao/" + provedor.id`.
-- `IntegracaoPage` detecta o segmento adicional e renderiza `IntegracaoErpDetalhePage` (que monta `StatusBar` + Tabs já existentes; por enquanto todas as Tabs funcionam apenas para `omie`, demais ERPs ficam atrás de `disponivel=false` e portanto não chegam ao detalhe).
-- Botão "Voltar" no Detalhe leva para `#/config/integracao`.
-- Breadcrumb dinâmico: `CORE LogiTrack › Configurações › Integração › <Nome do ERP>`.
-
-## Compatibilidade Omie
-- Se `erp_integracao` para o Omie não existir mas `omie_config` existir → card "Conectado (legado)" para sinalizar que ainda não migrou para o novo modelo, mas a integração antiga continua válida.
-- O detalhe do Omie continua lendo/gravando em `omie_config` exatamente como hoje (sem mexer em `CredenciaisTab`, `SincronizacaoTab`, `LogsFilasTab`).
-
-## Regras gerais
-- Nenhuma alteração de banco, RLS, edge functions ou tipos gerados.
-- Sem novas dependências.
-- Sem mudança no menu lateral nem nas permissões da rota `/config/integracao`.
-- Toasts, erros e loadings seguem o padrão das demais páginas (`Loader2` + `card-surface`).
+## Fora de escopo
+- Sem migrações de schema/RLS.
+- Sem alterações de menu lateral, permissões ou outras telas.
+- `CredenciaisTab.tsx` (Omie estático) permanece no repo mas deixa de ser usado pela tela; pode ser removido em outro passo se desejado.
