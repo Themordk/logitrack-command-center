@@ -11,6 +11,7 @@ const PAGE_SIZE = 20;
 interface Props {
   tenantId: string;
   empresaId: string;
+  sistemaOrigem?: string;
 }
 
 const STATUS_OPTIONS = ["success", "error", "partial", "running"];
@@ -29,7 +30,7 @@ function statusBadge(s: string) {
   );
 }
 
-export function LogsPanel({ tenantId, empresaId }: Props) {
+export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
   const [modulo, setModulo] = useState<string>("");
   const [entidade, setEntidade] = useState<string>("");
   const [status, setStatus] = useState<string>("");
@@ -52,6 +53,7 @@ export function LogsPanel({ tenantId, empresaId }: Props) {
       .select("*", forCount ? { count: "exact" } : undefined)
       .eq("tenant_id", tenantId)
       .eq("empresa_id", empresaId);
+    if (sistemaOrigem) q = q.eq("sistema_origem", sistemaOrigem);
     if (modulo) q = q.eq("modulo", modulo);
     if (entidade) q = q.eq("entidade", entidade);
     if (status) q = q.eq("status", status);
@@ -76,7 +78,7 @@ export function LogsPanel({ tenantId, empresaId }: Props) {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, empresaId, modulo, entidade, status, from, to, page]);
+  }, [tenantId, empresaId, sistemaOrigem, modulo, entidade, status, from, to, page]);
 
   useEffect(() => setPage(1), [modulo, entidade, status, from, to]);
 
