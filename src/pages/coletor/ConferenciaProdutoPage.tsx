@@ -27,10 +27,12 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [qtdConferida, setQtdConferida] = useState(0);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
+  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string; ondaConcluida?: boolean } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
+  const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string } | null>(null);
+  const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
   const quantidadeRef = useRef<HTMLInputElement>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_conferencia_numero_onda") || "";
