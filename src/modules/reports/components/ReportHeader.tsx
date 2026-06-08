@@ -8,15 +8,29 @@ interface ReportHeaderProps {
   filters?: Record<string, string>;
   generatedAt: string;
   total?: number;
+  onExportExcel?: () => void;
+  onExportPdf?: () => void;
+  onPrint?: () => void;
+  exportDisabled?: boolean;
 }
 
-export function ReportHeader({ title, subtitle, filters, generatedAt, total }: ReportHeaderProps) {
+export function ReportHeader({
+  title,
+  subtitle,
+  filters,
+  generatedAt,
+  total,
+  onExportExcel,
+  onExportPdf,
+  onPrint,
+  exportDisabled,
+}: ReportHeaderProps) {
   const { usuarioNome } = useTenant();
 
   return (
     <div className="space-y-3 print:space-y-1">
       {/* Title bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
             <FileText size={18} className="text-primary" />
@@ -27,15 +41,33 @@ export function ReportHeader({ title, subtitle, filters, generatedAt, total }: R
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Em breve">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportPdf}
+            disabled={exportDisabled || !onExportPdf}
+            title={onExportPdf ? "Exportar PDF" : "Gere o relatório primeiro"}
+          >
             <FileDown size={14} />
             <span className="hidden sm:inline">Exportar PDF</span>
           </Button>
-          <Button variant="outline" size="sm" disabled title="Em breve">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportExcel}
+            disabled={exportDisabled || !onExportExcel}
+            title={onExportExcel ? "Exportar Excel" : "Gere o relatório primeiro"}
+          >
             <FileSpreadsheet size={14} />
             <span className="hidden sm:inline">Exportar Excel</span>
           </Button>
-          <Button variant="outline" size="sm" disabled title="Em breve">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onPrint}
+            disabled={exportDisabled || !onPrint}
+            title={onPrint ? "Imprimir" : "Gere o relatório primeiro"}
+          >
             <Printer size={14} />
             <span className="hidden sm:inline">Imprimir</span>
           </Button>
