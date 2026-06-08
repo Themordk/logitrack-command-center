@@ -142,7 +142,10 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">{tarefas.length} tarefa(s) pendente(s)</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">{tarefas.length} tarefa(s) pendente(s)</p>
+              <RefreshListButton onRefresh={loadTarefas} />
+            </div>
             <button
               onClick={toggleSelectAll}
               className="text-xs text-primary font-medium"
