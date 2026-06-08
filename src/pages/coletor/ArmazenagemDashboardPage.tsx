@@ -21,28 +21,30 @@ export function ArmazenagemDashboardPage({ onNavigate }: Props) {
   const [data, setData] = useState<DashData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(async () => {
     if (!tenantId || !empresaId) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const { data: result, error } = await supabase.rpc("rpc_coletor_armazenagem_dashboard" as any, {
-          p_tenant_id: tenantId,
-          p_empresa_id: empresaId,
-        });
-        if (error) throw error;
-        if (result && result.length > 0) {
-          setData(result[0]);
-        } else {
-          setData({ documentos_pendentes: 0, produtos_pendentes: 0, total_a_armazenar: 0, total_armazenado: 0, percentual_concluido: 0 });
-        }
-      } catch (err: any) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    try {
+      const { data: result, error } = await supabase.rpc("rpc_coletor_armazenagem_dashboard" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+      });
+      if (error) throw error;
+      if (result && result.length > 0) {
+        setData(result[0]);
+      } else {
+        setData({ documentos_pendentes: 0, produtos_pendentes: 0, total_a_armazenar: 0, total_armazenado: 0, percentual_concluido: 0 });
       }
-    })();
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [tenantId, empresaId]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   const stats = [
     { icon: <Package size={20} />, label: "Movimentos Pendentes", value: data?.documentos_pendentes ?? 0, color: "hsl(217,91%,50%)" },
