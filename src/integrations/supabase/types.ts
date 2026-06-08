@@ -7007,26 +7007,16 @@ export type Database = {
             }
             Returns: string
           }
-      separacao_limpar_item:
-        | {
-            Args: {
-              p_empresa_id: string
-              p_movimento_saida_id: string
-              p_produto_id: string
-              p_tenant_id: string
-              p_usuario_id: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_movimento_saida_id: string
-              p_produto_id: string
-              p_tenant_id: string
-              p_usuario_id: string
-            }
-            Returns: undefined
-          }
+      separacao_limpar_item: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
       user_has_empresa_access: {
         Args: { _empresa: string; _tenant: string }
         Returns: boolean
