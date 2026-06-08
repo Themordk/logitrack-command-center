@@ -1,46 +1,70 @@
-# Correção: Modo Checkout não ativa na Conferência do Coletor
+# Plan — Refresh visual e finalização no Checkout da Conferência
 
 ## Diagnóstico
 
-Validei direto no banco com os IDs informados:
+Arquivo: `src/pages/coletor/ConferenciaProdutoPage.tsx`, função `executarConfirmacao` (lin. ~176–260).
 
-- `usuario.permite_checkout` = **true** ✅
-- `tipo_saida.conferencia_checkout` = **true** ✅ (VENDAS 1)
-- `tipo_saida.realiza_conferencia` = **true** ✅
+Foram identificados dois defeitos que produzem exatamente os sintomas relatados:
 
-Ou seja, os dados estão corretos. O bug está **no frontend**.
+### 1) Container REQUERIDA/CONFERIDA/RESTANTE não atualiza após o scan
 
-## Causa raiz
-
-Em `src/pages/coletor/ConferenciaProdutoPage.tsx` (linhas ~60-65), a query usa:
+Hoje o estado `qtdConferida` (que alimenta o container) **só é atualizado dentro de `if (tarefaAtualizada)`**:
 
 ```ts
-.from("movimento_saida")
-.select("tipo_saida:tipo_saida_id(conferencia_checkout)")
+const newQtdConferida = Number(tarefaAtualizada?.quantidade_executada || qtdConferida + qtdFinal);
+const newQtdRequerida = Number(tarefaAtualizada?.quantidade_requerida || qtdRequerida);
+
+if (tarefaAtualizada) {
+  setQtdConferida(newQtdConferida);          // <- só roda se o refetch voltou
+  ...
+}
 ```
 
-Isso pede ao PostgREST para fazer o embed via a coluna **`tipo_saida_id`**, que **não existe** na tabela. A coluna correta é **`tipo_saida`** (é simultaneamente o nome da FK e o nome do campo). Como o embed falha silenciosamente, `movRes.data.tipo_saida` vem `null`, `checkoutTipo` fica `false` e o `modoCheckout` nunca ativa — por isso a tela continua exibindo o input "Quantidade a conferir" e o botão verde, em vez do fluxo automático com badge CHECKOUT.
+O refetch direto em `from("tarefa").select(...)` pode retornar `null` para o coletor (RLS, sessão sem JWT válido, ou simplesmente quando o trigger ainda não terminou). Quando isso ocorre, `setQtdConferida` **nunca é chamado**, embora a RPC tenha gravado com sucesso — o usuário vê CONFERIDA = 0 e acha que não conferiu (falso negativo).
 
-## Correção
+### 2) Não há mensagem de sucesso ao concluir a tarefa/onda
 
-Arquivo: `src/pages/coletor/ConferenciaProdutoPage.tsx`
+Quando `newQtdConferida >= newQtdRequerida` e não há próxima tarefa, o código apenas dispara um `toast.success(...)` e chama `onNavigate("/coletor/conferencia/iniciar")` imediatamente. No modo Checkout (1 scan → conclui tudo), a navegação acontece antes do React pintar o estado atualizado e antes do usuário registrar o toast — o efeito visível é "nada aconteceu, voltei para a tela anterior".
 
-1. Trocar o select do `movimento_saida` para usar o nome real da coluna FK, renomeando o embed para evitar colisão com a própria coluna:
+Há também um caso intermediário: quando conclui a tarefa atual mas existe próxima, hoje só aparece um `toast.success("Item conferido! Próximo item...")` muito rápido, sem feedback visual forte.
 
-   ```ts
-   .select("tipo_saida_rel:tipo_saida(conferencia_checkout)")
-   ```
+## Mudanças (apenas UI/presentation)
 
-2. Ajustar a leitura do resultado:
+Arquivo único: `src/pages/coletor/ConferenciaProdutoPage.tsx`.
 
-   ```ts
-   const checkoutTipo = !!movRes?.data?.tipo_saida_rel?.conferencia_checkout;
-   ```
+### A. Atualizar contadores sempre, com fallback
 
-Nenhuma outra alteração é necessária — o restante do fluxo (`executarConfirmacao("checkout")`, badge no header, ocultação do input de quantidade) já está implementado e passa a funcionar assim que `modoCheckout` recebe `true`.
+Mover `setQtdConferida(newQtdConferida)` e o `setTarefas([...])` para **fora** do `if (tarefaAtualizada)`. O cálculo de fallback `qtdConferida + qtdFinal` já está correto e cobre o caso de refetch nulo. Assim o container REQUERIDA / CONFERIDA / RESTANTE atualiza imediatamente após o RPC retornar sucesso, independentemente do refetch.
 
-## Verificação pós-fix
+Também tratar o caso `quantidade_executada = 0` corretamente (hoje `|| qtdConferida + qtdFinal` interpreta `0` como falsy — trocar por checagem `?? `).
 
-1. Abrir a conferência da onda #82 com o usuário de teste.
-2. Conferir que aparece o badge amarelo **CHECKOUT** no header.
-3. Escanear o EAN do produto → a quantidade restante deve ser confirmada automaticamente, sem exibir o campo "Quantidade a conferir" nem o botão "Confirmar Conferência".
+### B. Feedback visual forte no sucesso
+
+Reutilizar o componente já existente `StatusOverlay` (`src/components/coletor/StatusOverlay.tsx`, que mostra ícone/cor por 800 ms em tela cheia):
+
+- Após cada confirmação bem-sucedida: disparar overlay `success` com mensagem "Item conferido" (modo checkout) ou "Quantidade registrada".
+- Quando a tarefa atual encerra e há próxima: overlay `success` "Item conferido — próximo" e só então `loadTarefa(next)`.
+- Quando a onda inteira encerra: substituir o `toast + onNavigate` imediato por:
+  1. Atualizar contadores na tela (`setQtdConferida(newQtdRequerida)`).
+  2. Abrir o `resultDialog` (modal já existente) com `sucesso: true` e mensagem **"Conferência da Onda #N finalizada com sucesso"** + botão "Fechar".
+  3. Navegar para `/coletor/conferencia/iniciar` apenas no `onClick` do botão Fechar (handler `handleDialogClose` já existente, ajustado para navegar quando `resultDialog.sucesso === true` e onda concluída).
+
+### C. Pequeno ajuste no checkout para evitar dupla execução
+
+No bloco `if (modoCheckout)` de `handleEanScan`, usar a versão **mais recente** de `qtdConferida`/`qtdRequerida` (estado atual via leitura direta de `tarefas[tarefaIdx]`) para calcular `restante`, evitando que valores em closure travem o cálculo se o usuário escanear de novo muito rápido.
+
+## Fora de escopo
+
+- Nenhuma alteração em RPC, migrations ou edge functions.
+- Nenhuma alteração na lógica de negócio do checkout (continua: scan único → executa `restante`).
+- Sem mudanças no modo manual além do reuso do `StatusOverlay` para sucesso (consistência visual).
+
+## Validação
+
+1. Logar como o usuário de teste (`7c937c97-…`) com tipo de saída checkout.
+2. Iniciar conferência da onda, abrir uma tarefa.
+3. Escanear o EAN do produto:
+   - Container deve mostrar CONFERIDA = REQUERIDA, RESTANTE = 0 imediatamente.
+   - Overlay verde "Item conferido" aparece por ~800 ms.
+   - Se for última tarefa: modal de sucesso com "Conferência da Onda finalizada com sucesso" e botão Fechar; só sai da tela ao clicar Fechar.
+   - Se houver próxima: avança automaticamente para a próxima após o overlay.
