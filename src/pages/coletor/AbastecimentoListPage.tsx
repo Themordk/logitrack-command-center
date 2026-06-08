@@ -36,38 +36,40 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
   const [tarefas, setTarefas] = useState<TarefaAbast[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
+  const loadTarefas = useCallback(async () => {
     if (!tenantId || !empresaId) return;
-    (async () => {
-      setLoading(true);
-      const { data } = await (supabase as any)
-        .from("tarefa")
-        .select("id, produto_id, quantidade_requerida, quantidade_executada, status, criado_em, id_local_origem, id_local_destino, prioridade_tarefa, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao, rua)")
-        .eq("tenant_id", tenantId)
-        .eq("empresa_id", empresaId)
-        .eq("tipo_tarefa_id", TIPO_TAREFA_ABAST)
-        .in("status", ["CRIADA", "ATRIBUIDA", "EM_ANDAMENTO"])
-        .order("criado_em", { ascending: false });
+    setLoading(true);
+    const { data } = await (supabase as any)
+      .from("tarefa")
+      .select("id, produto_id, quantidade_requerida, quantidade_executada, status, criado_em, id_local_origem, id_local_destino, prioridade_tarefa, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao, rua)")
+      .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
+      .eq("tipo_tarefa_id", TIPO_TAREFA_ABAST)
+      .in("status", ["CRIADA", "ATRIBUIDA", "EM_ANDAMENTO"])
+      .order("criado_em", { ascending: false });
 
-      setTarefas((data || []).map((t: any) => ({
-        id: t.id,
-        produto_id: t.produto_id,
-        produto_desc: t.produto?.descricao || "—",
-        produto_sku: t.produto?.sku || "—",
-        quantidade_requerida: Number(t.quantidade_requerida),
-        quantidade_executada: Number(t.quantidade_executada || 0),
-        status: t.status,
-        criado_em: t.criado_em,
-        endereco_origem_id: t.id_local_origem,
-        endereco_origem: t.origem?.descricao || "—",
-        endereco_destino_id: t.id_local_destino,
-        endereco_destino: t.destino?.descricao || "—",
-        endereco_destino_rua: t.destino?.rua || 0,
-        prioridade_tarefa: t.prioridade_tarefa || "NORMAL",
-      })));
-      setLoading(false);
-    })();
+    setTarefas((data || []).map((t: any) => ({
+      id: t.id,
+      produto_id: t.produto_id,
+      produto_desc: t.produto?.descricao || "—",
+      produto_sku: t.produto?.sku || "—",
+      quantidade_requerida: Number(t.quantidade_requerida),
+      quantidade_executada: Number(t.quantidade_executada || 0),
+      status: t.status,
+      criado_em: t.criado_em,
+      endereco_origem_id: t.id_local_origem,
+      endereco_origem: t.origem?.descricao || "—",
+      endereco_destino_id: t.id_local_destino,
+      endereco_destino: t.destino?.descricao || "—",
+      endereco_destino_rua: t.destino?.rua || 0,
+      prioridade_tarefa: t.prioridade_tarefa || "NORMAL",
+    })));
+    setLoading(false);
   }, [tenantId, empresaId]);
+
+  useEffect(() => {
+    loadTarefas();
+  }, [loadTarefas]);
 
   const statusColor: Record<string, string> = {
     CRIADA: "bg-red-500/20 text-red-300",
