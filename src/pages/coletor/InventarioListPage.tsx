@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -120,7 +121,10 @@ export function InventarioListPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Inventário" onNavigate={onNavigate} showBack backPath="/coletor/home">
       <div className="flex flex-col gap-3 flex-1 min-h-0">
-        <p className="text-xs text-[hsl(213,31%,55%)] shrink-0">Selecione um inventário para iniciar a contagem</p>
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <p className="text-xs text-[hsl(213,31%,55%)]">Selecione um inventário para iniciar a contagem</p>
+          <RefreshListButton onRefresh={loadInventarios} />
+        </div>
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center">

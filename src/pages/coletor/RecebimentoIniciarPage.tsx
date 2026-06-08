@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { nowBrasilia } from "@/lib/dateUtils";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -124,6 +125,10 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Selecionar Movimento" onNavigate={onNavigate} showBack backPath="/coletor/recebimento">
       <div className="flex flex-col flex-1 min-h-0 gap-3">
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <p className="text-xs text-[hsl(213,31%,55%)]">Selecione um movimento para iniciar a conferência</p>
+          <RefreshListButton onRefresh={loadMovimentos} />
+        </div>
         {loading ? (
           <div className="flex-1 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
         ) : movimentos.length === 0 ? (

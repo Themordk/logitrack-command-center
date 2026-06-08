@@ -1,33 +1,59 @@
-## Ajustes — Configurações do Armazém
+## Objetivo
 
-### 1. Busca de endereço não retorna resultados
+Adicionar botão de **Atualizar lista** nas 4 telas de início de atividades do coletor, com cooldown de 3s para evitar spam de queries.
 
-**Causa:** A coluna `public.endereco.codigo_endereco` é do tipo `numeric`, e o filtro atual usa `.ilike('codigo_endereco', '%termo%')`, que falha porque `ILIKE` não opera sobre `numeric` (o PostgREST retorna erro silencioso e a lista fica vazia).
+## Telas afetadas
 
-**Correção em `src/components/armazem/EnderecoSearchInput.tsx`:**
+| Rota | Arquivo | Função de carga |
+|---|---|---|
+| /coletor/separacao/iniciar | `src/pages/coletor/SeparacaoIniciarPage.tsx` | `loadOndas()` |
+| /coletor/recebimento/iniciar | `src/pages/coletor/RecebimentoIniciarPage.tsx` | `loadMovimentos()` |
+| /coletor/conferencia/iniciar | `src/pages/coletor/ConferenciaIniciarPage.tsx` | `loadOndas()` |
+| /coletor/inventario | `src/pages/coletor/InventarioListPage.tsx` | (verificar nome da função de fetch) |
 
-- Trocar o filtro `ilike` por uma chamada que faça cast para texto. Como PostgREST não permite cast direto no filtro, usar o operador `or` com `cs`/`like` não resolve — a abordagem mais simples é:
-  - Se o termo digitado for puramente numérico: usar `.eq('codigo_endereco', Number(termo))` para match exato, e adicionalmente um `OR` com prefixo via `gte/lt` para "começa com" (ex.: termo `10` → `gte 10 AND lt 11` por faixa decimal), **ou** mais simples e robusto: criar uma RPC/visão.
-- Solução pragmática escolhida: usar `.or()` com `codigo_endereco.eq.<num>` quando o termo for numérico, e quando o usuário ainda estiver digitando parcial, fazer client-side fallback buscando uma faixa via `gte/lte` calculada (ex.: `1010` → eq 1010; `10` → gte 10 e lte 109 expandido). Para manter a UX próxima de "contém", a opção mais limpa é criar um índice/coluna gerada `codigo_endereco_txt` — porém isso muda schema.
-- **Abordagem final (sem alterar schema):**
-  - Se o termo for todo dígitos: aplicar `.eq('codigo_endereco', Number(term))` retornando match exato (caso de uso real do operador que digita o código completo). Mostrar resultado.
-  - Caso o termo não case numericamente, exibir mensagem "Digite o código numérico do endereço".
-- Ordenar por `codigo_endereco` (numérico). Manter limite 20.
+## UX proposta
 
-Isso resolve o cenário do print: digitar `1010` passa a retornar o endereço `1010` se existir naquele armazém/tenant.
+Botão **flutuante circular** no canto superior direito da área de conteúdo do `ColetorLayout`, alinhado ao texto guia ("Selecione uma onda..."):
 
-### 2. Habilitar Endereço de Avaria e Endereço de Quarentena
+- Ícone `RefreshCw` (lucide-react), tamanho 36x36
+- Posicionado **inline** ao lado do texto descritivo (não no header global, para não competir com o título e o botão Voltar)
+- Estados visuais:
+  - **Idle**: borda azul `hsl(217,91%,60%)`, ícone azul
+  - **Loading**: ícone girando (`animate-spin`), desabilitado
+  - **Cooldown** (3s pós-load): ícone cinza `hsl(213,31%,45%)`, desabilitado, com pequeno timer numérico (ex.: "3", "2", "1") no canto inferior direito do botão
+- Toast discreto `toast.success("Lista atualizada")` quando completar (apenas em refresh manual, não no load inicial)
+- Touch target ≥40px (compatível com tablets/coletores)
 
-**Em `src/components/armazem/ArmazemConfigModal.tsx`:**
+Justificativa do posicionamento: alinhado ao padrão tower-control do CORE LOGITRACK — ação contextual perto do conteúdo que afeta, sem poluir o header. Operador identifica imediatamente que o botão atua sobre a lista.
 
-- Adicionar state `enderecoAvariaId` e `enderecoQuarentenaId`.
-- Carregar `endereco_avaria_id` e `endereco_quarentena_id` no `select` do `armazem_config`.
-- Persistir ambos no payload do `upsert`.
-- Remover `disabled` e `badge="Em breve"` dos dois `EnderecoSearchInput`, passando `value`/`onChange` reais.
+## Lógica de cooldown
 
-### Arquivos alterados
+Hook reutilizável `useRefreshCooldown(loadFn, cooldownMs = 3000)`:
 
-- `src/components/armazem/EnderecoSearchInput.tsx` — ajustar filtro para `numeric` (eq quando termo for numérico) + mensagem de orientação.
-- `src/components/armazem/ArmazemConfigModal.tsx` — habilitar e gravar Avaria/Quarentena.
+```text
+estado: 'idle' | 'loading' | 'cooldown'
+- onClick: se 'idle' → chama loadFn → 'loading'
+- ao terminar load → 'cooldown' com countdown (setInterval 1s)
+- countdown chega a 0 → 'idle'
+```
 
-Nenhuma alteração de banco necessária — colunas `endereco_avaria_id` e `endereco_quarentena_id` já existem em `armazem_config`.
+Retorna `{ refresh, state, secondsLeft }` consumido pelo botão.
+
+## Componente novo
+
+`src/components/coletor/RefreshListButton.tsx` — wrapper visual que consome o hook e renderiza o botão circular com os 3 estados.
+
+`src/hooks/useRefreshCooldown.ts` — lógica de estado/timer.
+
+## Mudanças por tela
+
+Em cada uma das 4 páginas:
+1. Importar `RefreshListButton` e passar a função de fetch existente
+2. Inserir o botão no header da lista (linha do texto descritivo "Selecione...")
+3. Sem alterar nenhuma lógica de negócio, fetch, ou navegação
+
+## Fora de escopo
+
+- Não alterar RPCs ou queries
+- Não adicionar polling automático
+- Não mexer em outras telas do coletor
