@@ -1,6 +1,6 @@
 ## Objetivo
 
-Adicionar botão de **Atualizar lista** nas 4 telas de início de atividades do coletor, com cooldown de 3s para evitar spam de queries.
+Adicionar botão de **Atualizar lista** nas 6 telas de início de atividades do coletor, com cooldown de 3s para evitar spam de queries.
 
 ## Telas afetadas
 
@@ -9,7 +9,9 @@ Adicionar botão de **Atualizar lista** nas 4 telas de início de atividades do 
 | /coletor/separacao/iniciar | `src/pages/coletor/SeparacaoIniciarPage.tsx` | `loadOndas()` |
 | /coletor/recebimento/iniciar | `src/pages/coletor/RecebimentoIniciarPage.tsx` | `loadMovimentos()` |
 | /coletor/conferencia/iniciar | `src/pages/coletor/ConferenciaIniciarPage.tsx` | `loadOndas()` |
-| /coletor/inventario | `src/pages/coletor/InventarioListPage.tsx` | (verificar nome da função de fetch) |
+| /coletor/inventario | `src/pages/coletor/InventarioListPage.tsx` | `loadInventarios()` |
+| /coletor/movimentos/abastecimento | `src/pages/coletor/AbastecimentoListPage.tsx` | `loadTarefas()` |
+| /coletor/armazenagem | `src/pages/coletor/ArmazenagemDashboardPage.tsx` | `loadDashboard()` |
 
 ## UX proposta
 
