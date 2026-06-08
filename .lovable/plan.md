@@ -1,76 +1,46 @@
-## Objetivo
-Refatorar `supabase/functions/salvar-erp-credenciais/index.ts` para seguir o contrato definido (payload `{ erp_id, empresa_id, credenciais, ativo }`, response `{ sucesso, id }`), com validações estritas, uso de `service_role`, mascaramento em logs e compatibilidade Omie.
+# Correção: Modo Checkout não ativa na Conferência do Coletor
 
-## Alterações no arquivo `supabase/functions/salvar-erp-credenciais/index.ts`
+## Diagnóstico
 
-1. **Payload de entrada** (snake_case oficial; manter aceite de camelCase para não quebrar o frontend já implementado):
-   - Aceitar `erp_id` (e fallback `erpId`)
-   - Aceitar `empresa_id` (e fallback `empresaId`)
-   - `credenciais: Record<string, unknown>`
-   - `ativo: boolean` (default `true`)
-   - `tenant_id` **não é mais lido do body** — extraído do JWT/`public.usuario`
+Validei direto no banco com os IDs informados:
 
-2. **Autenticação (401)**:
-   - Exigir `Authorization: Bearer <jwt>`
-   - Validar via `supabase.auth.getClaims(token)` (signing-keys) usando `SUPABASE_URL` + `SUPABASE_ANON_KEY`
-   - Em falha → `401 { sucesso: false, codigo: "unauthorized", mensagem }`
+- `usuario.permite_checkout` = **true** ✅
+- `tipo_saida.conferencia_checkout` = **true** ✅ (VENDAS 1)
+- `tipo_saida.realiza_conferencia` = **true** ✅
 
-3. **Resolução de tenant + autorização (403)**:
-   - Com `service_role`, buscar `public.usuario` por `(auth_user_id, ativo=true)` para obter `tenant_id` e `empresa_id` do usuário
-   - Validar que `empresa_id` recebido **existe em `public.empresa` e pertence ao `tenant_id` do usuário**
-   - Para usuários não-administradores, exigir que `empresa_id` recebido == `empresa_id` do usuário (mantém a regra de isolamento 1:1 já existente no projeto)
-   - Em falha → `403 { sucesso: false, codigo: "forbidden", mensagem: "empresa_id não pertence ao tenant" }`
+Ou seja, os dados estão corretos. O bug está **no frontend**.
 
-4. **Validação do ERP**:
-   - Buscar `middleware.erp_provedor` por `id = erp_id`
-   - Se inexistente → `404 { sucesso: false, codigo: "erp_nao_encontrado" }`
-   - Se `disponivel = false` → `400 { sucesso: false, codigo: "erp_indisponivel" }`
-   - Ler `esquema_credencial` (array)
+## Causa raiz
 
-5. **Validação de campos obrigatórios (400)**:
-   - Para cada campo com `obrigatorio = true`:
-     - Se `tipo='senha'` e vazio: aceitar se já existe valor anterior em `erp_integracao.credenciais` (padrão "deixe em branco para manter")
-     - Caso contrário, exigir valor não vazio
-   - Coletar **todos os campos faltantes** e retornar de uma vez:
-     ```
-     400 { sucesso: false, codigo: "campos_obrigatorios", campos: ["app_key","app_secret"], mensagem }
-     ```
+Em `src/pages/coletor/ConferenciaProdutoPage.tsx` (linhas ~60-65), a query usa:
 
-6. **Persistência (UPSERT em `middleware.erp_integracao`)**:
-   - Chave de conflito: `(tenant_id, empresa_id, erp_provedor_id)`
-   - Implementação: `select` por essas 3 chaves; se existe → `update`; senão → `insert`
-   - Campos gravados: `credenciais` (objeto final, com senhas preservadas), `ativo`, `status='ativo'`, `mensagem_erro=null`, `atualizado_em=now()`, `atualizado_por=auth_user_id`; no insert também `criado_por`
-   - Em erro de DB → log detalhado no servidor, response `500 { sucesso: false, codigo: "erro_persistencia", mensagem: "Erro ao salvar credenciais" }`
+```ts
+.from("movimento_saida")
+.select("tipo_saida:tipo_saida_id(conferencia_checkout)")
+```
 
-7. **Compatibilidade Omie (`erp_id === 'omie'`)**:
-   - Upsert também em `middleware.omie_config` por `(tenant_id, empresa_id)`
-   - Mapear: `app_key ← credenciais.app_key`, `app_secret ← credenciais.app_secret` (se informado), `omie_base_url ← credenciais.url_base || 'https://app.omie.com.br/api/v1'`, `ativo`, `updated_at`
-   - No insert, exigir `app_key` e `app_secret` presentes (regra atual do legado); caso só haja update, não sobrescreve `app_secret` quando vazio
+Isso pede ao PostgREST para fazer o embed via a coluna **`tipo_saida_id`**, que **não existe** na tabela. A coluna correta é **`tipo_saida`** (é simultaneamente o nome da FK e o nome do campo). Como o embed falha silenciosamente, `movRes.data.tipo_saida` vem `null`, `checkoutTipo` fica `false` e o `modoCheckout` nunca ativa — por isso a tela continua exibindo o input "Quantidade a conferir" e o botão verde, em vez do fluxo automático com badge CHECKOUT.
 
-8. **Logging com mascaramento**:
-   - Helper `mask(v)`: retorna `v.slice(0,4) + '***'` para strings com `length > 4`, senão `'***'`
-   - Aplicar mascaramento em **todo** valor cuja chave contenha `secret|senha|password|token|key` (case-insensitive) antes de qualquer `console.log`
-   - Logar: `{ acao: 'salvar-erp-credenciais', auth_user_id, tenant_id, empresa_id, erp_id, campos: <obj mascarado>, ativo }` no início; no fim, `{ resultado: 'ok'|'erro', id, codigo? }`
-   - **Nunca** retornar `credenciais` no response
+## Correção
 
-9. **Response de sucesso**:
-   - `200 { sucesso: true, id: "<uuid_do_registro_erp_integracao>" }`
+Arquivo: `src/pages/coletor/ConferenciaProdutoPage.tsx`
 
-10. **CORS**:
-    - Manter cabeçalhos atuais; responder `OPTIONS` com 204/200
+1. Trocar o select do `movimento_saida` para usar o nome real da coluna FK, renomeando o embed para evitar colisão com a própria coluna:
 
-## Ajuste no frontend (mínimo, para casar com o novo contrato)
+   ```ts
+   .select("tipo_saida_rel:tipo_saida(conferencia_checkout)")
+   ```
 
-- `src/pages/integracao/CredenciaisDinamicasTab.tsx`:
-  - Alterar a chamada para enviar `{ erp_id: erpId, empresa_id: empresaId, credenciais, ativo }`
-  - Tratar `data.sucesso === true` (em vez de `data.ok`), mantendo `toast` de erro com `data.mensagem` / `data.campos`
-  - Sem mudança visual; apenas chaves do payload e leitura do response
+2. Ajustar a leitura do resultado:
 
-## Fora de escopo
-- Sem alterações em `middleware.erp_provedor`, `middleware.erp_integracao` ou `middleware.omie_config` (schema/RLS)
-- Sem criar tabela `audit_log`: como ela não existe no projeto, item 8 do enunciado é atendido via `console.log` estruturado e mascarado (logs ficam em Edge Function Logs)
-- Sem mudanças em outras edge functions (`omie-config-get`, `omie-test-connection`)
+   ```ts
+   const checkoutTipo = !!movRes?.data?.tipo_saida_rel?.conferencia_checkout;
+   ```
 
-## Riscos / Observações
-- O frontend atual envia `erpId/tenantId/empresaId` (camelCase). A função aceitará ambos os formatos durante a transição, mas o frontend será atualizado para o contrato novo no mesmo passo para evitar ambiguidade.
-- `tenant_id` deixará de ser aceito via body — sempre derivado do JWT (mais seguro). Qualquer caller que enviava `tenant_id` no body será ignorado.
+Nenhuma outra alteração é necessária — o restante do fluxo (`executarConfirmacao("checkout")`, badge no header, ocultação do input de quantidade) já está implementado e passa a funcionar assim que `modoCheckout` recebe `true`.
+
+## Verificação pós-fix
+
+1. Abrir a conferência da onda #82 com o usuário de teste.
+2. Conferir que aparece o badge amarelo **CHECKOUT** no header.
+3. Escanear o EAN do produto → a quantidade restante deve ser confirmada automaticamente, sem exibir o campo "Quantidade a conferir" nem o botão "Confirmar Conferência".
