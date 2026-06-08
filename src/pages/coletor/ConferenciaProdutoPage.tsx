@@ -31,7 +31,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
-  const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string } | null>(null);
+  const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
   const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
   const quantidadeRef = useRef<HTMLInputElement>(null);
 
