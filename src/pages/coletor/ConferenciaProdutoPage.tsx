@@ -55,7 +55,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         const [movRes, usrRes] = await Promise.all([
           (supabase as any)
             .from("movimento_saida")
-            .select("tipo_saida:tipo_saida_id(conferencia_checkout)")
+            .select("tipo_saida_rel:tipo_saida(conferencia_checkout)")
             .eq("id", movimentoId)
             .single(),
           (supabase as any)
@@ -64,7 +64,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
             .eq("id", usuarioId)
             .single(),
         ]);
-        const checkoutTipo = !!movRes?.data?.tipo_saida?.conferencia_checkout;
+        const checkoutTipo = !!movRes?.data?.tipo_saida_rel?.conferencia_checkout;
         const checkoutUsr = !!usrRes?.data?.permite_checkout;
         setModoCheckout(checkoutTipo && checkoutUsr);
       } catch {
