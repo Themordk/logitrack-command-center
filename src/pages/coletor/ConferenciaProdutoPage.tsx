@@ -160,7 +160,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         setEanConfirmado(false);
         return;
       }
-      await executarConfirmacao(restanteAtual, "checkout");
+      // Incrementa pelo FATOR da embalagem escaneada, sem ultrapassar o restante
+      const fator = Number(emb.fator || 1);
+      const qtdIncremento = Math.min(fator, restanteAtual);
+      await executarConfirmacao(qtdIncremento, "checkout");
       return;
     }
 
