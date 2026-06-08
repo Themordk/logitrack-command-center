@@ -6980,15 +6980,20 @@ export type Database = {
           criado_em: string
           endereco_destino: string
           endereco_origem: string
+          hu_id: string
           id: string
           lote: string
+          produto_descricao: string
           quantidade: number
           saldo_final: number
           saldo_inicial: number
           sku: string
+          tarefa_execucao_id: string
+          tarefa_execucao_status: string
           tipo_documento_origem: string
           tipo_movimento: number
           tipo_tarefa_codigo: string
+          tipo_tarefa_descricao: string
           usuario_nome: string
         }[]
       }

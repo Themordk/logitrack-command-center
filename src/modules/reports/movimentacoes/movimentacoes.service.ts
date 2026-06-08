@@ -11,44 +11,20 @@ export interface MovimentacoesFilter {
 }
 
 export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
-  let query = supabase
-    .from("vw_estoque_movimento_relatorio")
-    .select(`
-      id,
-      criado_em,
-      tipo_movimento,
-      quantidade,
-      lote,
-      hu_id,
-      tarefa_execucao_id,
-      sku,
-      produto_descricao,
-      endereco_origem,
-      endereco_destino,
-      usuario_nome,
-      tipo_documento_origem,
-      tipo_tarefa_codigo,
-      tipo_tarefa_descricao,
-      tarefa_execucao_status
-    `)
-    .eq("tenant_id", filters.tenant_id)
-    .gte("criado_em", filters.data_inicio)
-    .lte("criado_em", filters.data_fim + "T23:59:59")
-    .order("criado_em", { ascending: false })
-    .limit(500);
-
-  if (filters.empresa_id) query = query.eq("empresa_id", filters.empresa_id);
-  if (filters.tipo_movimento) query = query.eq("tipo_movimento", filters.tipo_movimento);
-  if (filters.usuario_id) query = query.eq("usuario_id", filters.usuario_id);
-
-  const { data, error } = await query;
+  const { data, error } = await (supabase as any).rpc("rpc_historico_movimento_com_saldo", {
+    p_tenant_id: filters.tenant_id,
+    p_empresa_id: filters.empresa_id || null,
+    p_data_inicio: filters.data_inicio,
+    p_data_fim: filters.data_fim,
+    p_sku: filters.sku || null,
+    p_tipo_mov: filters.tipo_movimento ?? null,
+  });
   if (error) throw error;
 
   let results = (data || []).map((row: any) => ({
     id: row.id,
     criado_em: row.criado_em,
     sku: row.sku || "",
-    descricao: row.produto_descricao || "",
     lote: row.lote || "",
     hu_id: row.hu_id || "",
     origem: row.endereco_origem ?? "—",
@@ -61,9 +37,16 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
     tipo_tarefa_codigo: row.tipo_tarefa_codigo || "",
     tipo_tarefa_descricao: row.tipo_tarefa_descricao || "",
     tarefa_execucao_status: row.tarefa_execucao_status || "",
+    saldo_inicial: Number(row.saldo_inicial ?? 0),
+    saldo_final: Number(row.saldo_final ?? 0),
   }));
 
-  if (filters.sku) results = results.filter(r => r.sku.toLowerCase().includes(filters.sku!.toLowerCase()));
+  // RPC já filtra por SKU exato; mantém ILIKE no client p/ compat. com busca parcial.
+  if (filters.sku) {
+    results = results.filter((r) =>
+      r.sku.toLowerCase().includes(filters.sku!.toLowerCase()),
+    );
+  }
 
   return results;
 }
@@ -75,7 +58,6 @@ export interface TarefaDetalheResult {
 }
 
 export async function fetchTarefaDetalhe(tarefaExecucaoId: string): Promise<TarefaDetalheResult | null> {
-  // 1. Fetch the tarefa_execucao to get the tarefa_id
   const { data: execucao, error: execError } = await supabase
     .from("tarefa_execucao")
     .select("tarefa_id")
@@ -87,19 +69,12 @@ export async function fetchTarefaDetalhe(tarefaExecucaoId: string): Promise<Tare
 
   const tarefaId = execucao.tarefa_id;
 
-  // 2. Fetch tarefa with joins
   const { data: tarefa, error: tarefaError } = await supabase
     .from("tarefa")
     .select(`
       *,
-      tipo_tarefa:tipo_tarefa_id (
-        codigo,
-        descricao
-      ),
-      produto:produto_id (
-        sku,
-        descricao
-      )
+      tipo_tarefa:tipo_tarefa_id ( codigo, descricao ),
+      produto:produto_id ( sku, descricao )
     `)
     .eq("id", tarefaId)
     .maybeSingle();
@@ -107,7 +82,6 @@ export async function fetchTarefaDetalhe(tarefaExecucaoId: string): Promise<Tare
   if (tarefaError) throw tarefaError;
   if (!tarefa) return null;
 
-  // 3. Fetch tarefa enderecos (id_local_origem / id_local_destino)
   const endIds = [tarefa.id_local_origem, tarefa.id_local_destino].filter(Boolean);
   if (endIds.length > 0) {
     const { data: enderecos } = await supabase
@@ -121,7 +95,6 @@ export async function fetchTarefaDetalhe(tarefaExecucaoId: string): Promise<Tare
     }
   }
 
-  // 4. Fetch ALL executions for this tarefa
   const { data: execucoes, error: execListError } = await supabase
     .from("tarefa_execucao")
     .select(`
@@ -135,10 +108,9 @@ export async function fetchTarefaDetalhe(tarefaExecucaoId: string): Promise<Tare
 
   if (execListError) throw execListError;
 
-  // 5. Fetch source document info
   const docOrigem = await fetchDocumentoOrigem(
     tarefa.tipo_documento_origem,
-    tarefa.id_documento_origem
+    tarefa.id_documento_origem,
   );
 
   return {

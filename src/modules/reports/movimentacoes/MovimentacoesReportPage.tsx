@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
-import { fetchMovimentacoesReport, getTipoMovimentoLabel, getTipoMovimentoColor, getTipoDocumentoLabel, type MovimentacoesFilter } from "./movimentacoes.service";
+import {
+  fetchMovimentacoesReport,
+  getTipoMovimentoLabel,
+  getTipoMovimentoColor,
+  getTipoDocumentoLabel,
+  type MovimentacoesFilter,
+} from "./movimentacoes.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,14 +17,21 @@ import { Badge } from "@/components/ui/badge";
 import { Filter, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { formatDateTime, formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
+import { formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
+import {
+  exportToExcel,
+  exportToPdf,
+  fmtDateTimeBR,
+  fmtNumberBR,
+  type ExportColumn,
+} from "../utils/exporters";
 
 interface MovimentacoesReportPageProps {
   onNavigate?: (path: string) => void;
 }
 
 export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageProps) {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -81,7 +94,6 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       render: (v) => formatDateTimeNaive(v),
     },
     { key: "sku", label: "SKU", width: "100px" },
-    { key: "descricao", label: "Descrição", width: "200px" },
     { key: "lote", label: "Lote", width: "100px" },
     { key: "hu_id", label: "HU", width: "100px", render: (v) => v && v !== "00000000-0000-0000-0000-000000000000" ? v.substring(0, 8) + "..." : "—" },
     { key: "origem", label: "Origem", width: "100px" },
@@ -132,6 +144,14 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       key: "quantidade", label: "Quantidade", align: "right", width: "100px",
       render: (v) => Number(v).toLocaleString("pt-BR"),
     },
+    {
+      key: "saldo_inicial", label: "Saldo Inicial", align: "right", width: "110px",
+      render: (v) => <span className="text-muted-foreground">{Number(v).toLocaleString("pt-BR")}</span>,
+    },
+    {
+      key: "saldo_final", label: "Saldo Final", align: "right", width: "110px",
+      render: (v) => <span className="text-foreground font-semibold">{Number(v).toLocaleString("pt-BR")}</span>,
+    },
     { key: "usuario", label: "Usuário", width: "120px" },
   ];
 
@@ -139,6 +159,35 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   activeFilters["Período"] = `${formatDate(dataInicio)} a ${formatDate(dataFim)}`;
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterTipoMov) activeFilters["Tipo"] = getTipoMovimentoLabel(Number(filterTipoMov));
+
+  const exportColumns: ExportColumn[] = [
+    { key: "criado_em", label: "Data/Hora", format: (r) => fmtDateTimeBR(r.criado_em) },
+    { key: "sku", label: "SKU" },
+    { key: "lote", label: "Lote" },
+    { key: "hu_id", label: "HU",
+      format: (r) => (r.hu_id && r.hu_id !== "00000000-0000-0000-0000-000000000000" ? r.hu_id : "") },
+    { key: "origem", label: "Origem" },
+    { key: "destino", label: "Destino" },
+    { key: "tipo_movimento", label: "Tipo Movimento", format: (r) => getTipoMovimentoLabel(r.tipo_movimento) },
+    { key: "tipo_documento_origem", label: "Doc. Origem", format: (r) => getTipoDocumentoLabel(r.tipo_documento_origem) },
+    { key: "tipo_tarefa_codigo", label: "Tarefa", format: (r) => r.tipo_tarefa_codigo || "" },
+    { key: "quantidade", label: "Quantidade", align: "right", format: (r) => fmtNumberBR(r.quantidade) },
+    { key: "saldo_inicial", label: "Saldo Inicial", align: "right", format: (r) => fmtNumberBR(r.saldo_inicial) },
+    { key: "saldo_final", label: "Saldo Final", align: "right", format: (r) => fmtNumberBR(r.saldo_final) },
+    { key: "usuario", label: "Usuário" },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("historico_movimentos", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("historico_movimentos", exportColumns, data, {
+      title: "Histórico de Movimentações",
+      generatedAt,
+      usuario: usuarioNome || "—",
+      total: data.length,
+      filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
@@ -148,10 +197,14 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
 
       {/* Filters */}
-      <div className="border border-border rounded-lg bg-card overflow-hidden">
+      <div className="border border-border rounded-lg bg-card overflow-hidden print:hidden">
         <button
           onClick={() => setShowFilters(!showFilters)}
           className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-secondary/50 transition-colors"

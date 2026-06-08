@@ -12,6 +12,8 @@ export interface EstoqueFilter {
   ean?: string;
   tipo_estoque_id?: string;
   setor_id?: string;
+  codigo_endereco?: number;
+  marca?: string;
 }
 
 export async function fetchEstoqueReport(filters: EstoqueFilter) {
@@ -75,7 +77,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     lote: row.lote || "",
     data_validade: row.data_validade,
     numero_serie: row.numero_serie || "",
-    codigo_endereco: row.endereco?.descricao || "",
+    codigo_endereco: row.endereco?.codigo_endereco ?? null,
     endereco_descricao: row.endereco?.descricao || "",
     tipo_endereco: row.endereco?.tipo_endereco || "",
     armazem_id: row.endereco?.armazem_id || "",
@@ -98,6 +100,13 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
   if (filters.grupo_id) results = results.filter(r => r.grupo_id === filters.grupo_id);
   if (filters.subgrupo_id) results = results.filter(r => r.subgrupo_id === filters.subgrupo_id);
   if (filters.parceiro_id) results = results.filter(r => r.parceiro_id === filters.parceiro_id);
+  if (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null) {
+    results = results.filter(r => Number(r.codigo_endereco) === Number(filters.codigo_endereco));
+  }
+  if (filters.marca) {
+    const m = filters.marca.toLowerCase();
+    results = results.filter(r => (r.marca || "").toLowerCase().includes(m));
+  }
 
   // Sort: sku, descricao, data_validade, quantidade_total DESC
   results.sort((a, b) => {
