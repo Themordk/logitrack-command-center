@@ -59,6 +59,10 @@ export function ArmazenagemDashboardPage({ onNavigate }: Props) {
         <div className="flex-1 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
       ) : (
         <>
+          <div className="flex justify-end">
+            <RefreshListButton onRefresh={loadDashboard} successMessage="Dashboard atualizado" />
+          </div>
+
           {/* Stats grid */}
           <div className="grid grid-cols-2 gap-3">
             {stats.map((s) => (
