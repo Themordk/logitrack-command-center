@@ -263,6 +263,115 @@ export type Database = {
           },
         ]
       }
+      armazem_config: {
+        Row: {
+          armazem_id: string
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          endereco_avaria_id: string | null
+          endereco_cancelamento_id: string | null
+          endereco_quarentena_id: string | null
+          id: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          armazem_id: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id: string
+          endereco_avaria_id?: string | null
+          endereco_cancelamento_id?: string | null
+          endereco_quarentena_id?: string | null
+          id?: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          armazem_id?: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          endereco_avaria_id?: string | null
+          endereco_cancelamento_id?: string | null
+          endereco_quarentena_id?: string | null
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "armazem_config_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_endereco_avaria_id_fkey"
+            columns: ["endereco_avaria_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_endereco_cancelamento_id_fkey"
+            columns: ["endereco_cancelamento_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_endereco_quarentena_id_fkey"
+            columns: ["endereco_quarentena_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       box: {
         Row: {
           armazem_id: string
@@ -6898,15 +7007,26 @@ export type Database = {
             }
             Returns: string
           }
-      separacao_limpar_item: {
-        Args: {
-          p_movimento_saida_id: string
-          p_produto_id: string
-          p_tenant_id: string
-          p_usuario_id: string
-        }
-        Returns: undefined
-      }
+      separacao_limpar_item:
+        | {
+            Args: {
+              p_empresa_id: string
+              p_movimento_saida_id: string
+              p_produto_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_movimento_saida_id: string
+              p_produto_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: undefined
+          }
       user_has_empresa_access: {
         Args: { _empresa: string; _tenant: string }
         Returns: boolean
