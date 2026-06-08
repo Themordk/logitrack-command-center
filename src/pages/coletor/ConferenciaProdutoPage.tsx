@@ -77,7 +77,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   }, []);
 
   const loadTarefa = (t: any) => {
-    setQtdConferida(Number(t.conferido || t.separado || 0));
+    setQtdConferida(Number(t.conferido ?? t.separado ?? 0));
     setEanScanned("");
     setEmbalagemInfo(null);
     setEanConfirmado(false);
