@@ -53,6 +53,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       empresa_id: armazem.empresa_id,
       armazem_id: armazem.id,
       endereco_cancelamento_id: enderecoCancelamentoId,
+      endereco_avaria_id: enderecoAvariaId,
+      endereco_quarentena_id: enderecoQuarentenaId,
       ativo: true,
       updated_by: usuarioId,
     };
