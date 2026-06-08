@@ -474,6 +474,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       <StatusOverlay
         type={overlay?.type ?? null}
         message={overlay?.message}
+        duration={overlay?.duration}
         onDone={handleOverlayDone}
       />
     </ColetorLayout>
