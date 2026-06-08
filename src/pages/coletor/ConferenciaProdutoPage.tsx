@@ -31,7 +31,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
-  const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string } | null>(null);
+  const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
   const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
   const quantidadeRef = useRef<HTMLInputElement>(null);
 
@@ -77,7 +77,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   }, []);
 
   const loadTarefa = (t: any) => {
-    setQtdConferida(Number(t.conferido || t.separado || 0));
+    setQtdConferida(Number(t.conferido ?? t.separado ?? 0));
     setEanScanned("");
     setEmbalagemInfo(null);
     setEanConfirmado(false);
@@ -160,7 +160,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         setEanConfirmado(false);
         return;
       }
-      await executarConfirmacao(restanteAtual, "checkout");
+      // Incrementa pelo FATOR da embalagem escaneada, sem ultrapassar o restante
+      const fator = Number(emb.fator || 1);
+      const qtdIncremento = Math.min(fator, restanteAtual);
+      await executarConfirmacao(qtdIncremento, "checkout");
       return;
     }
 
@@ -235,6 +238,11 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       setEmbalagemInfo(null);
       setEanConfirmado(false);
 
+      // Defer overlay to next frame so the counters paint BEFORE the full-screen overlay covers the UI
+      const showOverlay = (payload: { type: OverlayType; message?: string; duration?: number }) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => setOverlay(payload)));
+      };
+
       // Check if task is complete
       if (newQtdConferida >= newQtdRequerida) {
         // Find next incomplete task
@@ -248,12 +256,12 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         }
 
         if (nextIdx >= 0) {
-          // Show success overlay, then move to next task
+          // Show success overlay (after paint), then move to next task
           pendingNextRef.current = { idx: nextIdx, tarefas: newTarefas };
-          setOverlay({ type: "success", message: "Item conferido — próximo" });
+          showOverlay({ type: "success", message: "Item conferido — próximo", duration: 600 });
         } else {
           // All tasks completed - show modal; navigation only on close
-          setOverlay({ type: "success", message: "Onda finalizada!" });
+          showOverlay({ type: "success", message: "Onda finalizada!", duration: 800 });
           setTimeout(() => {
             setResultDialog({
               sucesso: true,
@@ -263,9 +271,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           }, 850);
         }
       } else {
-        setOverlay({
+        showOverlay({
           type: "success",
           message: modo === "checkout" ? "Item conferido" : "Quantidade registrada",
+          duration: 500,
         });
       }
     } catch (err: any) {
@@ -465,6 +474,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       <StatusOverlay
         type={overlay?.type ?? null}
         message={overlay?.message}
+        duration={overlay?.duration}
         onDone={handleOverlayDone}
       />
     </ColetorLayout>

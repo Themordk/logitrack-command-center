@@ -1,70 +1,72 @@
-# Plan — Refresh visual e finalização no Checkout da Conferência
-
-## Diagnóstico
-
-Arquivo: `src/pages/coletor/ConferenciaProdutoPage.tsx`, função `executarConfirmacao` (lin. ~176–260).
-
-Foram identificados dois defeitos que produzem exatamente os sintomas relatados:
-
-### 1) Container REQUERIDA/CONFERIDA/RESTANTE não atualiza após o scan
-
-Hoje o estado `qtdConferida` (que alimenta o container) **só é atualizado dentro de `if (tarefaAtualizada)`**:
-
-```ts
-const newQtdConferida = Number(tarefaAtualizada?.quantidade_executada || qtdConferida + qtdFinal);
-const newQtdRequerida = Number(tarefaAtualizada?.quantidade_requerida || qtdRequerida);
-
-if (tarefaAtualizada) {
-  setQtdConferida(newQtdConferida);          // <- só roda se o refetch voltou
-  ...
-}
-```
-
-O refetch direto em `from("tarefa").select(...)` pode retornar `null` para o coletor (RLS, sessão sem JWT válido, ou simplesmente quando o trigger ainda não terminou). Quando isso ocorre, `setQtdConferida` **nunca é chamado**, embora a RPC tenha gravado com sucesso — o usuário vê CONFERIDA = 0 e acha que não conferiu (falso negativo).
-
-### 2) Não há mensagem de sucesso ao concluir a tarefa/onda
-
-Quando `newQtdConferida >= newQtdRequerida` e não há próxima tarefa, o código apenas dispara um `toast.success(...)` e chama `onNavigate("/coletor/conferencia/iniciar")` imediatamente. No modo Checkout (1 scan → conclui tudo), a navegação acontece antes do React pintar o estado atualizado e antes do usuário registrar o toast — o efeito visível é "nada aconteceu, voltei para a tela anterior".
-
-Há também um caso intermediário: quando conclui a tarefa atual mas existe próxima, hoje só aparece um `toast.success("Item conferido! Próximo item...")` muito rápido, sem feedback visual forte.
-
-## Mudanças (apenas UI/presentation)
+# Plan — Checkout por FATOR + refresh imediato dos contadores
 
 Arquivo único: `src/pages/coletor/ConferenciaProdutoPage.tsx`.
 
-### A. Atualizar contadores sempre, com fallback
+## Diagnóstico
 
-Mover `setQtdConferida(newQtdConferida)` e o `setTarefas([...])` para **fora** do `if (tarefaAtualizada)`. O cálculo de fallback `qtdConferida + qtdFinal` já está correto e cobre o caso de refetch nulo. Assim o container REQUERIDA / CONFERIDA / RESTANTE atualiza imediatamente após o RPC retornar sucesso, independentemente do refetch.
+### Falha 1 — Contadores ainda não atualizam ao escanear
 
-Também tratar o caso `quantidade_executada = 0` corretamente (hoje `|| qtdConferida + qtdFinal` interpreta `0` como falsy — trocar por checagem `?? `).
+Apesar de o plano anterior ter movido `setQtdConferida` para fora do `if (tarefaAtualizada)`, o usuário continua vendo CONFERIDA = 0 logo após o scan. Causas reais:
 
-### B. Feedback visual forte no sucesso
+- O `StatusOverlay` (full-screen ~800 ms) é disparado **imediatamente** após o `setQtdConferida`, cobrindo a tela antes do React pintar o novo valor. Quando o overlay sai, em muitos casos o `pendingNextRef` troca a tarefa atual (`loadTarefa(next)` chama `setQtdConferida(Number(t.conferido || 0))` — e como o `newTarefas[tarefaIdx]` foi atualizado mas o `t.conferido` pode estar zerado na próxima, parece que "voltou a zero").
+- Em modo checkout (1 tarefa por scan), a chamada `setEanScanned("")` + `setEmbalagemInfo(null)` + `setEanConfirmado(false)` ocorre **antes** do `setQtdConferida`, e o React faz batch — porém o overlay tampa a UI. O usuário literalmente nunca vê o número novo.
 
-Reutilizar o componente já existente `StatusOverlay` (`src/components/coletor/StatusOverlay.tsx`, que mostra ícone/cor por 800 ms em tela cheia):
+### Falha 2 — Checkout está conferindo o restante inteiro
 
-- Após cada confirmação bem-sucedida: disparar overlay `success` com mensagem "Item conferido" (modo checkout) ou "Quantidade registrada".
-- Quando a tarefa atual encerra e há próxima: overlay `success` "Item conferido — próximo" e só então `loadTarefa(next)`.
-- Quando a onda inteira encerra: substituir o `toast + onNavigate` imediato por:
-  1. Atualizar contadores na tela (`setQtdConferida(newQtdRequerida)`).
-  2. Abrir o `resultDialog` (modal já existente) com `sucesso: true` e mensagem **"Conferência da Onda #N finalizada com sucesso"** + botão "Fechar".
-  3. Navegar para `/coletor/conferencia/iniciar` apenas no `onClick` do botão Fechar (handler `handleDialogClose` já existente, ajustado para navegar quando `resultDialog.sucesso === true` e onda concluída).
+Hoje, em `handleEanScan`, quando `modoCheckout = true`:
 
-### C. Pequeno ajuste no checkout para evitar dupla execução
+```ts
+await executarConfirmacao(restanteAtual, "checkout");
+```
 
-No bloco `if (modoCheckout)` de `handleEanScan`, usar a versão **mais recente** de `qtdConferida`/`qtdRequerida` (estado atual via leitura direta de `tarefas[tarefaIdx]`) para calcular `restante`, evitando que valores em closure travem o cálculo se o usuário escanear de novo muito rápido.
+Isso lança a quantidade total que falta de uma vez. O correto é incrementar **pelo fator da embalagem escaneada** (`produto_embalagem.fator`), permitindo múltiplos scans:
+
+- EAN da caixa (fator 12) → +12 unidades.
+- EAN do display (fator 6) → +6 unidades.
+- EAN da unidade (fator 1) → +1 unidade.
+
+A conferência só finaliza quando `qtdConferida >= qtdRequerida` (após N scans).
+
+## Mudanças
+
+### A. Checkout passa a usar `fator` por scan
+
+Em `handleEanScan`, bloco `if (modoCheckout)`:
+
+```ts
+const fator = Number(emb.fator || 1);
+const restanteAtual = reqAtual - confAtual;
+if (restanteAtual <= 0) { /* já conferido */ return; }
+// Incrementa pelo fator, sem ultrapassar o restante
+const qtdIncremento = Math.min(fator, restanteAtual);
+await executarConfirmacao(qtdIncremento, "checkout");
+```
+
+Isso preserva o RPC atual (que recebe quantidade absoluta a adicionar) e permite scans sucessivos.
+
+### B. Garantir que o usuário VEJA o contador atualizado
+
+1. Mostrar o overlay **somente depois** do paint dos contadores. Trocar a sequência em `executarConfirmacao`:
+   - `setQtdConferida(newQtdConferida)` + `setTarefas(newTarefas)` primeiro.
+   - `requestAnimationFrame(() => setOverlay({...}))` para garantir um frame de renderização antes do overlay full-screen aparecer.
+2. **Não trocar de tarefa enquanto o overlay está visível**. Hoje `handleOverlayDone` chama `loadTarefa(next)` que zera `qtdConferida` para o estado da próxima tarefa — correto, mas precisa acontecer só após o overlay sair. Já está; apenas garantir que o overlay de "Item conferido — próximo" use a mesma técnica de `requestAnimationFrame` para mostrar `CONFERIDA = REQUERIDA` da tarefa atual antes da troca.
+3. Reduzir a duração do overlay de sucesso intermediário (não-final) para ~500 ms para o usuário enxergar o número rapidamente. Manter 800 ms só no encerramento da onda.
+
+### C. Pequenos ajustes correlatos
+
+- No fallback `Number(execFromDb ?? (qtdConferida + qtdFinal))`, usar `qtdConferida` do estado lido no início da função (já está OK), garantindo soma correta em scans rápidos sucessivos no checkout.
+- Em `loadTarefa`, ler `t.conferido ?? t.separado ?? 0` (não `||`) para não zerar quando `0`.
 
 ## Fora de escopo
 
-- Nenhuma alteração em RPC, migrations ou edge functions.
-- Nenhuma alteração na lógica de negócio do checkout (continua: scan único → executa `restante`).
-- Sem mudanças no modo manual além do reuso do `StatusOverlay` para sucesso (consistência visual).
+- RPC, migrations, edge functions: sem alterações.
+- Modo manual continua usando `quantidade * fator` digitada.
+- Lógica de finalização da onda (modal "Conferência da Onda #N finalizada com sucesso") permanece como no plano anterior.
 
 ## Validação
 
-1. Logar como o usuário de teste (`7c937c97-…`) com tipo de saída checkout.
-2. Iniciar conferência da onda, abrir uma tarefa.
-3. Escanear o EAN do produto:
-   - Container deve mostrar CONFERIDA = REQUERIDA, RESTANTE = 0 imediatamente.
-   - Overlay verde "Item conferido" aparece por ~800 ms.
-   - Se for última tarefa: modal de sucesso com "Conferência da Onda finalizada com sucesso" e botão Fechar; só sai da tela ao clicar Fechar.
-   - Se houver próxima: avança automaticamente para a próxima após o overlay.
+1. Tarefa com `quantidade_requerida = 24`, EAN da caixa (fator 12).
+2. 1º scan → CONFERIDA = 12, RESTANTE = 12, overlay "Item conferido" (~500 ms). Usuário vê o número antes do overlay.
+3. 2º scan → CONFERIDA = 24, RESTANTE = 0, overlay 800 ms, modal "Conferência da Onda finalizada com sucesso".
+4. Caso misto: scan caixa (fator 12) + scan unidade (fator 1) × 12 → também totaliza 24.
+5. Se restante < fator (ex.: restante 5, fator 12) → adiciona somente 5 (cap em restante).
