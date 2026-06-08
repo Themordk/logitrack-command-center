@@ -238,6 +238,11 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       setEmbalagemInfo(null);
       setEanConfirmado(false);
 
+      // Defer overlay to next frame so the counters paint BEFORE the full-screen overlay covers the UI
+      const showOverlay = (payload: { type: OverlayType; message?: string; duration?: number }) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => setOverlay(payload)));
+      };
+
       // Check if task is complete
       if (newQtdConferida >= newQtdRequerida) {
         // Find next incomplete task
@@ -251,12 +256,12 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         }
 
         if (nextIdx >= 0) {
-          // Show success overlay, then move to next task
+          // Show success overlay (after paint), then move to next task
           pendingNextRef.current = { idx: nextIdx, tarefas: newTarefas };
-          setOverlay({ type: "success", message: "Item conferido — próximo" });
+          showOverlay({ type: "success", message: "Item conferido — próximo", duration: 600 });
         } else {
           // All tasks completed - show modal; navigation only on close
-          setOverlay({ type: "success", message: "Onda finalizada!" });
+          showOverlay({ type: "success", message: "Onda finalizada!", duration: 800 });
           setTimeout(() => {
             setResultDialog({
               sucesso: true,
@@ -266,9 +271,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           }, 850);
         }
       } else {
-        setOverlay({
+        showOverlay({
           type: "success",
           message: modo === "checkout" ? "Item conferido" : "Quantidade registrada",
+          duration: 500,
         });
       }
     } catch (err: any) {
