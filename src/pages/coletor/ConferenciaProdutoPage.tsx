@@ -205,23 +205,30 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         return;
       }
 
-      // Refresh tarefa data
+      // Refresh tarefa data (best-effort; may return null under RLS/timing)
       const { data: tarefaAtualizada } = await (supabase as any)
         .from("tarefa")
         .select("quantidade_executada, quantidade_requerida, status")
         .eq("id", tarefaId)
         .single();
 
-      const newQtdConferida = Number(tarefaAtualizada?.quantidade_executada || qtdConferida + qtdFinal);
-      const newQtdRequerida = Number(tarefaAtualizada?.quantidade_requerida || qtdRequerida);
+      const execFromDb = tarefaAtualizada?.quantidade_executada;
+      const reqFromDb = tarefaAtualizada?.quantidade_requerida;
+      const newQtdConferida = Number(execFromDb ?? (qtdConferida + qtdFinal));
+      const newQtdRequerida = Number(reqFromDb ?? qtdRequerida);
+      const statusFromDb = tarefaAtualizada?.status
+        ?? (newQtdConferida >= newQtdRequerida ? "CONCLUIDA" : tarefa.status);
 
-      if (tarefaAtualizada) {
-        setQtdConferida(newQtdConferida);
-        const newTarefas = [...tarefas];
-        newTarefas[tarefaIdx] = { ...newTarefas[tarefaIdx], conferido: tarefaAtualizada.quantidade_executada, status: tarefaAtualizada.status };
-        setTarefas(newTarefas);
-        sessionStorage.setItem("coletor_conferencia_tarefas", JSON.stringify(newTarefas));
-      }
+      // Always update counters, even if refetch returned null
+      setQtdConferida(newQtdConferida);
+      const newTarefas = [...tarefas];
+      newTarefas[tarefaIdx] = {
+        ...newTarefas[tarefaIdx],
+        conferido: newQtdConferida,
+        status: statusFromDb,
+      };
+      setTarefas(newTarefas);
+      sessionStorage.setItem("coletor_conferencia_tarefas", JSON.stringify(newTarefas));
 
       setQuantidade("");
       setEanScanned("");
@@ -230,16 +237,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
       // Check if task is complete
       if (newQtdConferida >= newQtdRequerida) {
-        // Check if there are more incomplete tasks
-        const updatedTarefas = [...tarefas];
-        if (tarefaAtualizada) {
-          updatedTarefas[tarefaIdx] = { ...updatedTarefas[tarefaIdx], conferido: tarefaAtualizada.quantidade_executada, status: tarefaAtualizada.status };
-        }
-
         // Find next incomplete task
         let nextIdx = -1;
-        for (let i = tarefaIdx + 1; i < updatedTarefas.length; i++) {
-          const t = updatedTarefas[i];
+        for (let i = tarefaIdx + 1; i < newTarefas.length; i++) {
+          const t = newTarefas[i];
           if (Number(t.conferido || 0) < Number(t.quantidade_requerida || 0) && t.status !== "CONCLUIDA") {
             nextIdx = i;
             break;
@@ -247,22 +248,42 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         }
 
         if (nextIdx >= 0) {
-          setTarefaIdx(nextIdx);
-          sessionStorage.setItem("coletor_conferencia_tarefa_idx", String(nextIdx));
-          loadTarefa(updatedTarefas[nextIdx]);
-          toast.success("Item conferido! Próximo item...");
+          // Show success overlay, then move to next task
+          pendingNextRef.current = { idx: nextIdx, tarefas: newTarefas };
+          setOverlay({ type: "success", message: "Item conferido — próximo" });
         } else {
-          // All tasks completed - navigate to list
-          toast.success("Conferência da onda finalizada com sucesso!");
-          onNavigate("/coletor/conferencia/iniciar");
+          // All tasks completed - show modal; navigation only on close
+          setOverlay({ type: "success", message: "Onda finalizada!" });
+          setTimeout(() => {
+            setResultDialog({
+              sucesso: true,
+              mensagem: `Conferência da Onda #${numeroOnda} finalizada com sucesso`,
+              ondaConcluida: true,
+            });
+          }, 850);
         }
       } else {
-        toast.success("Quantidade registrada!");
+        setOverlay({
+          type: "success",
+          message: modo === "checkout" ? "Item conferido" : "Quantidade registrada",
+        });
       }
     } catch (err: any) {
+      setOverlay({ type: "error", message: "Erro" });
       setResultDialog({ sucesso: false, mensagem: err.message });
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handleOverlayDone = () => {
+    setOverlay(null);
+    const pending = pendingNextRef.current;
+    if (pending) {
+      pendingNextRef.current = null;
+      setTarefaIdx(pending.idx);
+      sessionStorage.setItem("coletor_conferencia_tarefa_idx", String(pending.idx));
+      loadTarefa(pending.tarefas[pending.idx]);
     }
   };
 
