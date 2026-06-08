@@ -123,23 +123,17 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
               />
               <EnderecoSearchInput
                 label="Endereço de Avaria"
-                value={null}
-                onChange={() => {}}
+                value={enderecoAvariaId}
+                onChange={(id) => setEnderecoAvariaId(id)}
                 armazemId={armazem?.id ?? null}
                 tenantId={tenantId}
-                disabled
-                badge="Em breve"
-                placeholder="Disponível em breve"
               />
               <EnderecoSearchInput
                 label="Endereço de Quarentena"
-                value={null}
-                onChange={() => {}}
+                value={enderecoQuarentenaId}
+                onChange={(id) => setEnderecoQuarentenaId(id)}
                 armazemId={armazem?.id ?? null}
                 tenantId={tenantId}
-                disabled
-                badge="Em breve"
-                placeholder="Disponível em breve"
               />
             </div>
           )}
