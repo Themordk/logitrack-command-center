@@ -1207,16 +1207,25 @@ export function MovimentoSaidaPage() {
             <button
               disabled={limparSepItemLoading}
               onClick={async () => {
-                if (!limparSepItemDialog || !tenantId || !usuarioId) return;
+                if (!limparSepItemDialog || !tenantId || !empresaId || !usuarioId) return;
                 setLimparSepItemLoading(true);
                 try {
                   const { error } = await supabase.rpc("separacao_limpar_item" as any, {
                     p_tenant_id: tenantId,
+                    p_empresa_id: empresaId,
+                    p_usuario_id: usuarioId,
                     p_movimento_saida_id: limparSepItemDialog.movId,
                     p_produto_id: limparSepItemDialog.produtoId,
-                    p_usuario_id: usuarioId,
                   });
-                  if (error) throw error;
+                  if (error) {
+                    if (error.message?.includes("Endereço de cancelamento não configurado")) {
+                      toast.error(
+                        "Endereço de cancelamento não configurado para este armazém. Acesse Armazém > Configurações para configurar antes de continuar."
+                      );
+                      return;
+                    }
+                    throw error;
+                  }
                   toast.success("Separação do item limpa com sucesso!");
                   setLimparSepItemDialog(null);
                   if (selectedId) loadTabData(selectedId);

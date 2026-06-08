@@ -1,72 +1,117 @@
-# Plan — Checkout por FATOR + refresh imediato dos contadores
+# Plano — Configurações de Armazém + ajuste `separacao_limpar_item`
 
-Arquivo único: `src/pages/coletor/ConferenciaProdutoPage.tsx`.
+## 1. UI — Configurações do Armazém
 
-## Diagnóstico
+### 1.1 Acesso
+Converter o modal `Editar Armazém` (em `src/pages/ArmazensPage.tsx`) num modal com **abas** (`Tabs` shadcn):
+- **Dados gerais** — formulário atual (`CrudModal` reaproveitado via fields existentes).
+- **Configurações** — só visível em modo edição (quando há `armazem_id`); oculto em "Novo Armazém".
 
-### Falha 1 — Contadores ainda não atualizam ao escanear
+Como o `CrudModal` genérico não suporta abas, criar um wrapper `ArmazemEditModal` específico que:
+- Em "Novo": renderiza só o form de dados gerais (mantendo `CrudModal` ou replicando os campos).
+- Em "Editar": renderiza `Tabs` com as duas abas acima. A aba "Configurações" monta `<ArmazemConfigForm armazemId={...} />`.
 
-Apesar de o plano anterior ter movido `setQtdConferida` para fora do `if (tarefaAtualizada)`, o usuário continua vendo CONFERIDA = 0 logo após o scan. Causas reais:
+### 1.2 Componente `ArmazemConfigForm`
+Local: `src/components/armazem/ArmazemConfigForm.tsx`.
 
-- O `StatusOverlay` (full-screen ~800 ms) é disparado **imediatamente** após o `setQtdConferida`, cobrindo a tela antes do React pintar o novo valor. Quando o overlay sai, em muitos casos o `pendingNextRef` troca a tarefa atual (`loadTarefa(next)` chama `setQtdConferida(Number(t.conferido || 0))` — e como o `newTarefas[tarefaIdx]` foi atualizado mas o `t.conferido` pode estar zerado na próxima, parece que "voltou a zero").
-- Em modo checkout (1 tarefa por scan), a chamada `setEanScanned("")` + `setEmbalagemInfo(null)` + `setEanConfirmado(false)` ocorre **antes** do `setQtdConferida`, e o React faz batch — porém o overlay tampa a UI. O usuário literalmente nunca vê o número novo.
+Estado: carrega `armazem_config` por `armazem_id` (maybeSingle). Se não existir, formulário em branco; ao salvar, `upsert` com `onConflict: 'tenant_id,armazem_id'`.
 
-### Falha 2 — Checkout está conferindo o restante inteiro
+Campos:
+| Campo | Componente | Estado |
+|---|---|---|
+| `endereco_cancelamento_id` | `EnderecoSearchInput` (novo) | Ativo |
+| `endereco_avaria_id` | `EnderecoSearchInput` disabled + badge "Em breve" | Desabilitado |
+| `endereco_quarentena_id` | `EnderecoSearchInput` disabled + badge "Em breve" | Desabilitado |
 
-Hoje, em `handleEanScan`, quando `modoCheckout = true`:
+Footer: botão **Salvar** (upsert) e **Remover configuração** (delete com `DeleteConfirmDialog`, só visível quando registro existe).
 
+Toasts via `sonner` (`toast.success` / `toast.error`).
+
+### 1.3 Componente `EnderecoSearchInput`
+Local: `src/components/armazem/EnderecoSearchInput.tsx`.
+
+Props: `value: string | null`, `onChange(id, codigo)`, `armazemId`, `tenantId`, `disabled?`, `placeholder?`.
+
+Comportamento:
+- Input de texto com debounce ~250 ms.
+- Query Supabase:
+  ```ts
+  supabase.from('endereco')
+    .select('id, codigo_endereco, descricao')
+    .eq('armazem_id', armazemId)
+    .eq('tenant_id', tenantId)
+    .eq('ativo', true)
+    .ilike('codigo_endereco', `%${termo}%`)
+    .order('codigo_endereco')
+    .limit(20)
+  ```
+- Dropdown estilo combobox (padrão dark já usado no projeto) com `codigo_endereco — descricao`.
+- Ao selecionar: grava UUID em estado; exibe chip ao lado com `codigo_endereco` + botão `×` para limpar.
+- Ao montar com `value` preenchido, fazer `select ... eq('id', value)` para hidratar o chip.
+- Estados: loading, sem resultados, erro.
+
+### 1.4 Persistência (upsert)
 ```ts
-await executarConfirmacao(restanteAtual, "checkout");
+supabase.from('armazem_config').upsert({
+  tenant_id, empresa_id, armazem_id,
+  endereco_cancelamento_id,
+  ativo: true,
+  updated_by: usuarioId,
+  created_by: usuarioId, // ignorado pelo PG no UPDATE
+}, { onConflict: 'tenant_id,armazem_id' });
 ```
 
-Isso lança a quantidade total que falta de uma vez. O correto é incrementar **pelo fator da embalagem escaneada** (`produto_embalagem.fator`), permitindo múltiplos scans:
+Delete: `supabase.from('armazem_config').delete().eq('armazem_id', armazemId).eq('tenant_id', tenantId)`.
 
-- EAN da caixa (fator 12) → +12 unidades.
-- EAN do display (fator 6) → +6 unidades.
-- EAN da unidade (fator 1) → +1 unidade.
+## 2. Ajuste em `separacao_limpar_item`
 
-A conferência só finaliza quando `qtdConferida >= qtdRequerida` (após N scans).
+Arquivo: `src/pages/MovimentoSaidaPage.tsx` (única chamada — linha 1213).
 
-## Mudanças
-
-### A. Checkout passa a usar `fator` por scan
-
-Em `handleEanScan`, bloco `if (modoCheckout)`:
+A chamada atual **não** envia `p_armazem_id` (já está correto nesse aspecto), porém **falta enviar `p_empresa_id`** que a nova assinatura espera. Atualizar para:
 
 ```ts
-const fator = Number(emb.fator || 1);
-const restanteAtual = reqAtual - confAtual;
-if (restanteAtual <= 0) { /* já conferido */ return; }
-// Incrementa pelo fator, sem ultrapassar o restante
-const qtdIncremento = Math.min(fator, restanteAtual);
-await executarConfirmacao(qtdIncremento, "checkout");
+const { error } = await supabase.rpc("separacao_limpar_item" as any, {
+  p_tenant_id: tenantId,
+  p_empresa_id: empresaId,
+  p_usuario_id: usuarioId,
+  p_movimento_saida_id: limparSepItemDialog.movId,
+  p_produto_id: limparSepItemDialog.produtoId,
+});
 ```
 
-Isso preserva o RPC atual (que recebe quantidade absoluta a adicionar) e permite scans sucessivos.
+Obter `empresaId` via `useTenant()` (já importado no arquivo? confirmar e adicionar se faltar).
 
-### B. Garantir que o usuário VEJA o contador atualizado
+Tratamento do erro novo (mantendo handler atual como fallback):
 
-1. Mostrar o overlay **somente depois** do paint dos contadores. Trocar a sequência em `executarConfirmacao`:
-   - `setQtdConferida(newQtdConferida)` + `setTarefas(newTarefas)` primeiro.
-   - `requestAnimationFrame(() => setOverlay({...}))` para garantir um frame de renderização antes do overlay full-screen aparecer.
-2. **Não trocar de tarefa enquanto o overlay está visível**. Hoje `handleOverlayDone` chama `loadTarefa(next)` que zera `qtdConferida` para o estado da próxima tarefa — correto, mas precisa acontecer só após o overlay sair. Já está; apenas garantir que o overlay de "Item conferido — próximo" use a mesma técnica de `requestAnimationFrame` para mostrar `CONFERIDA = REQUERIDA` da tarefa atual antes da troca.
-3. Reduzir a duração do overlay de sucesso intermediário (não-final) para ~500 ms para o usuário enxergar o número rapidamente. Manter 800 ms só no encerramento da onda.
+```ts
+if (error) {
+  if (error.message?.includes('Endereço de cancelamento não configurado')) {
+    toast.error(
+      'Endereço de cancelamento não configurado para este armazém. ' +
+      'Acesse Armazém > Configurações para configurar antes de continuar.'
+    );
+    return;
+  }
+  throw error;
+}
+```
 
-### C. Pequenos ajustes correlatos
+Conferir `separacao_conferencia_limpar_item` (linha 1254) — fora do escopo desta solicitação, **não alterar**.
 
-- No fallback `Number(execFromDb ?? (qtdConferida + qtdFinal))`, usar `qtdConferida` do estado lido no início da função (já está OK), garantindo soma correta em scans rápidos sucessivos no checkout.
-- Em `loadTarefa`, ler `t.conferido ?? t.separado ?? 0` (não `||`) para não zerar quando `0`.
+## 3. Padrões / RLS
+- Confiar em RLS — não filtrar manualmente `tenant_id` em SELECTs além dos exemplos acima (necessários para escopo de busca).
+- Reaproveitar tokens semânticos (`bg-secondary/40`, `border-border`, `text-foreground`) — mesmo visual do `CrudModal`.
+- Loading com `Loader2` (já padrão no projeto).
+- Responsivo: form em `grid-cols-1` (mobile) / `md:grid-cols-2`.
 
-## Fora de escopo
+## 4. Fora do escopo
+- Avaria e Quarentena ficam apenas visíveis (disabled + badge).
+- Nenhuma migração de banco (tabela já criada).
+- Nenhuma alteração em outras chamadas RPC.
 
-- RPC, migrations, edge functions: sem alterações.
-- Modo manual continua usando `quantidade * fator` digitada.
-- Lógica de finalização da onda (modal "Conferência da Onda #N finalizada com sucesso") permanece como no plano anterior.
-
-## Validação
-
-1. Tarefa com `quantidade_requerida = 24`, EAN da caixa (fator 12).
-2. 1º scan → CONFERIDA = 12, RESTANTE = 12, overlay "Item conferido" (~500 ms). Usuário vê o número antes do overlay.
-3. 2º scan → CONFERIDA = 24, RESTANTE = 0, overlay 800 ms, modal "Conferência da Onda finalizada com sucesso".
-4. Caso misto: scan caixa (fator 12) + scan unidade (fator 1) × 12 → também totaliza 24.
-5. Se restante < fator (ex.: restante 5, fator 12) → adiciona somente 5 (cap em restante).
+## Arquivos afetados
+- **Novo:** `src/components/armazem/ArmazemConfigForm.tsx`
+- **Novo:** `src/components/armazem/EnderecoSearchInput.tsx`
+- **Novo/alterado:** `src/components/armazem/ArmazemEditModal.tsx` (wrapper com Tabs) — `ArmazensPage.tsx` passa a usá-lo no modo edição.
+- **Alterado:** `src/pages/ArmazensPage.tsx` (troca do `CrudModal` no caminho de edição).
+- **Alterado:** `src/pages/MovimentoSaidaPage.tsx` (adiciona `p_empresa_id` + handler de erro amigável).
