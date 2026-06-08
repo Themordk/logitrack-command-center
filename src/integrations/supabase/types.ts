@@ -1191,6 +1191,7 @@ export type Database = {
           empresa_id: string
           endereco_destino_id: string | null
           endereco_origem_id: string | null
+          estorno_da_execucao_id: string | null
           hu_id: string | null
           id: string
           lote: string | null
@@ -1211,6 +1212,7 @@ export type Database = {
           empresa_id: string
           endereco_destino_id?: string | null
           endereco_origem_id?: string | null
+          estorno_da_execucao_id?: string | null
           hu_id?: string | null
           id?: string
           lote?: string | null
@@ -1231,6 +1233,7 @@ export type Database = {
           empresa_id?: string
           endereco_destino_id?: string | null
           endereco_origem_id?: string | null
+          estorno_da_execucao_id?: string | null
           hu_id?: string | null
           id?: string
           lote?: string | null
@@ -1264,6 +1267,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "endereco"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_estorno_da_execucao_id_fkey"
+            columns: ["estorno_da_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_estorno_da_execucao_id_fkey"
+            columns: ["estorno_da_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inventario_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_estorno_da_execucao_id_fkey"
+            columns: ["estorno_da_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_lms_timeline_operador"
+            referencedColumns: ["execucao_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_estorno_da_execucao_id_fkey"
+            columns: ["estorno_da_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_estorno_da_execucao_id_fkey"
+            columns: ["estorno_da_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
           },
           {
             foreignKeyName: "estoque_movimento_hu_id_fkey"
@@ -6927,6 +6965,31 @@ export type Database = {
           estoque_pulmao: number
           total_a_armazenar: number
           total_armazenado: number
+        }[]
+      }
+      rpc_historico_movimento_com_saldo: {
+        Args: {
+          p_data_fim: string
+          p_data_inicio: string
+          p_empresa_id: string
+          p_sku?: string
+          p_tenant_id: string
+          p_tipo_mov?: number
+        }
+        Returns: {
+          criado_em: string
+          endereco_destino: string
+          endereco_origem: string
+          id: string
+          lote: string
+          quantidade: number
+          saldo_final: number
+          saldo_inicial: number
+          sku: string
+          tipo_documento_origem: string
+          tipo_movimento: number
+          tipo_tarefa_codigo: string
+          usuario_nome: string
         }[]
       }
       separacao_buscar_ondas: {
