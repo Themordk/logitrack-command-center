@@ -148,15 +148,19 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     setEanConfirmado(true);
 
     if (modoCheckout) {
-      const restante = qtdRequerida - qtdConferida;
-      if (restante <= 0) {
+      // Use latest tarefa state to avoid stale closure values on rapid scans
+      const currentTarefa = tarefas[tarefaIdx] || tarefa;
+      const reqAtual = Number(currentTarefa?.quantidade_requerida || qtdRequerida);
+      const confAtual = Number(currentTarefa?.conferido ?? qtdConferida);
+      const restanteAtual = reqAtual - confAtual;
+      if (restanteAtual <= 0) {
         toast.warning("Item já conferido");
         setEanScanned("");
         setEmbalagemInfo(null);
         setEanConfirmado(false);
         return;
       }
-      await executarConfirmacao(restante, "checkout");
+      await executarConfirmacao(restanteAtual, "checkout");
       return;
     }
 
