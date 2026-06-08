@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { Settings } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { ArmazemConfigModal } from "@/components/armazem/ArmazemConfigModal";
 
 export function ArmazensPage() {
   const { tenantId, empresaId } = useTenant();
@@ -11,6 +13,7 @@ export function ArmazensPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [configItem, setConfigItem] = useState<any>(null);
   const [empresaOptions, setEmpresaOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -53,6 +56,15 @@ export function ArmazensPage() {
         onNew={() => { setEditItem(null); setModalOpen(true); }}
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
+        extraRowActions={(row) => (
+          <button
+            onClick={() => setConfigItem(row)}
+            className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors flex items-center justify-center"
+            title="Configurações"
+          >
+            <Settings size={13} />
+          </button>
+        )}
         newLabel="Novo Armazém"
         searchPlaceholder="Buscar armazém..."
       />
@@ -69,6 +81,11 @@ export function ArmazensPage() {
         onClose={() => setDeleteItem(null)}
         onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
         description="O armazém será inativado."
+      />
+      <ArmazemConfigModal
+        open={!!configItem}
+        onClose={() => setConfigItem(null)}
+        armazem={configItem ? { id: configItem.id, descricao: configItem.descricao, empresa_id: configItem.empresa_id } : null}
       />
     </>
   );
