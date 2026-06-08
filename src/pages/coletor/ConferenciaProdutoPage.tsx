@@ -460,6 +460,13 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           </div>
         </div>
       )}
+
+      {/* Success/error overlay for visual feedback */}
+      <StatusOverlay
+        type={overlay?.type ?? null}
+        message={overlay?.message}
+        onDone={handleOverlayDone}
+      />
     </ColetorLayout>
   );
 }
