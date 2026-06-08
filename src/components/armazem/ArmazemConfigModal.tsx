@@ -90,6 +90,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
     toast.success("Configuração removida.");
     setConfigId(null);
     setEnderecoCancelamentoId(null);
+    setEnderecoAvariaId(null);
+    setEnderecoQuarentenaId(null);
     setConfirmRemove(false);
     onClose();
     return true;
