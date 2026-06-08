@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
