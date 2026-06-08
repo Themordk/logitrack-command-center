@@ -57,10 +57,15 @@ export function EnderecoSearchInput({
     return () => { cancelled = true; };
   }, [value]);
 
-  // Debounced search
+  // Debounced search — codigo_endereco is numeric, so we fetch a window and filter client-side
   useEffect(() => {
     if (disabled || !armazemId || !tenantId) return;
-    if (!term.trim()) {
+    const t = term.trim();
+    if (!t) {
+      setResults([]);
+      return;
+    }
+    if (!/^\d+$/.test(t)) {
       setResults([]);
       return;
     }
@@ -73,11 +78,15 @@ export function EnderecoSearchInput({
         .eq("armazem_id", armazemId)
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
-        .ilike("codigo_endereco", `%${term.trim()}%`)
         .order("codigo_endereco")
-        .limit(20);
+        .limit(500);
       setLoading(false);
-      if (!error) setResults(data || []);
+      if (!error && data) {
+        const filtered = (data as any[])
+          .filter((r) => String(r.codigo_endereco ?? "").includes(t))
+          .slice(0, 20);
+        setResults(filtered as Endereco[]);
+      }
     }, 250);
   }, [term, armazemId, tenantId, disabled]);
 
