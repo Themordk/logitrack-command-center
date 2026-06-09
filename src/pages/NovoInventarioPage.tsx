@@ -89,7 +89,13 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [progresso, setProgresso] = useState<{ geradas: number; finalizado: boolean } | null>(null);
 
+  // --- Resumo (prévia)
+  const [resumo, setResumo] = useState<{ enderecos: number; skus: number; loading: boolean; truncado: boolean }>({
+    enderecos: 0, skus: 0, loading: false, truncado: false,
+  });
+
   const debounceRef = useRef<any>(null);
+  const previewRef = useRef<any>(null);
 
   // Reset escopo ao trocar tipo
   useEffect(() => {
