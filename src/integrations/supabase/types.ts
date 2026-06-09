@@ -1644,16 +1644,23 @@ export type Database = {
             | Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
             | null
           cursor_processamento: number | null
+          curva: Database["public"]["Enums"]["enum_curva"] | null
+          data_planejada: string | null
           descricao: string | null
           empresa_id: string
+          endereco_id: string | null
           finalizado_em: string | null
           finalizado_por: string | null
+          grupo_produto_id: string | null
           id: string
           iniciado_em: string | null
+          max_enderecos_dia: number | null
           numero_inventario: number
           observacao: string | null
           origem: Database["public"]["Enums"]["enum_origem_inventario"] | null
           permite_recontagem: boolean | null
+          priorizar_picking: boolean | null
+          produto_id: string | null
           quantidade_max_recontagem: number | null
           status: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id: string
@@ -1663,6 +1670,9 @@ export type Database = {
           tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
           total_divergencias: number | null
           total_itens: number | null
+          updated_at: string | null
+          updated_by: string | null
+          zona_atividade_id: string | null
         }
         Insert: {
           acuracidade?: number | null
@@ -1675,16 +1685,23 @@ export type Database = {
             | Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
             | null
           cursor_processamento?: number | null
+          curva?: Database["public"]["Enums"]["enum_curva"] | null
+          data_planejada?: string | null
           descricao?: string | null
           empresa_id: string
+          endereco_id?: string | null
           finalizado_em?: string | null
           finalizado_por?: string | null
+          grupo_produto_id?: string | null
           id?: string
           iniciado_em?: string | null
+          max_enderecos_dia?: number | null
           numero_inventario?: never
           observacao?: string | null
           origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
           permite_recontagem?: boolean | null
+          priorizar_picking?: boolean | null
+          produto_id?: string | null
           quantidade_max_recontagem?: number | null
           status?: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id: string
@@ -1694,6 +1711,9 @@ export type Database = {
           tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
           total_divergencias?: number | null
           total_itens?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          zona_atividade_id?: string | null
         }
         Update: {
           acuracidade?: number | null
@@ -1706,16 +1726,23 @@ export type Database = {
             | Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
             | null
           cursor_processamento?: number | null
+          curva?: Database["public"]["Enums"]["enum_curva"] | null
+          data_planejada?: string | null
           descricao?: string | null
           empresa_id?: string
+          endereco_id?: string | null
           finalizado_em?: string | null
           finalizado_por?: string | null
+          grupo_produto_id?: string | null
           id?: string
           iniciado_em?: string | null
+          max_enderecos_dia?: number | null
           numero_inventario?: never
           observacao?: string | null
           origem?: Database["public"]["Enums"]["enum_origem_inventario"] | null
           permite_recontagem?: boolean | null
+          priorizar_picking?: boolean | null
+          produto_id?: string | null
           quantidade_max_recontagem?: number | null
           status?: Database["public"]["Enums"]["enum_status_inventario"]
           tenant_id?: string
@@ -1725,8 +1752,46 @@ export type Database = {
           tipo_inventario?: Database["public"]["Enums"]["enum_tipo_inventario"]
           total_divergencias?: number | null
           total_itens?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          zona_atividade_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_inventario_endereco"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventario_grupo_produto"
+            columns: ["grupo_produto_id"]
+            isOneToOne: false
+            referencedRelation: "grupo_produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventario_produto"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventario_produto"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventario_zona_atividade"
+            columns: ["zona_atividade_id"]
+            isOneToOne: false
+            referencedRelation: "zona_atividade"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventario_armazem_fk"
             columns: ["armazem_id"]
@@ -1753,6 +1818,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
           {
@@ -6498,6 +6570,28 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_criar_inventario_v2: {
+        Args: {
+          p_armazem_id: string
+          p_bloquear_movimentacao?: boolean
+          p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+          p_curva?: Database["public"]["Enums"]["enum_curva"]
+          p_data_planejada?: string
+          p_descricao: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_grupo_produto_id?: string
+          p_max_enderecos_dia?: number
+          p_priorizar_picking?: boolean
+          p_produto_id?: string
+          p_tenant_id: string
+          p_tipo_execucao: Database["public"]["Enums"]["enum_execucao_inventario"]
+          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          p_usuario_id: string
+          p_zona_atividade_id?: string
+        }
+        Returns: Json
+      }
       fn_gerar_abastecimento: {
         Args: {
           p_armazem_id: string
@@ -6524,6 +6618,14 @@ export type Database = {
       fn_gerar_conferencia_saida: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: undefined
+      }
+      fn_gerar_tarefas_inventario: {
+        Args: {
+          p_chunk_size?: number
+          p_inventario_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       fn_inventario_buscar_tarefas: {
         Args: {
