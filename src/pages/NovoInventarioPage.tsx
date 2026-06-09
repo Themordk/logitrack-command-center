@@ -633,11 +633,15 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                   <span className="text-xs text-muted-foreground">Total Endereços</span>
-                  <span className="text-sm font-bold text-primary">0</span>
+                  <span className="text-sm font-bold text-primary flex items-center gap-1">
+                    {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : <>{resumo.enderecos}{resumo.truncado && "+"}</>}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                   <span className="text-xs text-muted-foreground">Total SKUs</span>
-                  <span className="text-sm font-bold text-primary">0</span>
+                  <span className="text-sm font-bold text-primary flex items-center gap-1">
+                    {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : <>{resumo.skus}{resumo.truncado && "+"}</>}
+                  </span>
                 </div>
                 {progresso && (
                   <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
