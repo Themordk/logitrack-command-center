@@ -659,8 +659,8 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       <div className="lg:hidden shrink-0 card-surface p-3 flex items-center justify-around text-xs">
         <div className="flex flex-col items-center"><span className="text-muted-foreground">Tipo</span><span className="font-semibold text-foreground">{tipoLabel}</span></div>
         <div className="flex flex-col items-center"><span className="text-muted-foreground">Execução</span><span className="font-semibold text-foreground">{execLabel}</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">0</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">0</span></div>
+        <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">{resumo.loading ? "…" : `${resumo.enderecos}${resumo.truncado ? "+" : ""}`}</span></div>
+        <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">{resumo.loading ? "…" : `${resumo.skus}${resumo.truncado ? "+" : ""}`}</span></div>
       </div>
     </div>
   );
