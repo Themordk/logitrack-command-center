@@ -1,126 +1,64 @@
-## Objetivo
+# Refatoração — Novo Inventário (`/inventario/novo`)
 
-Refatorar os 2 relatórios principais conforme prompt anexo:
-1. **Posição de Estoque** (`/relatorios/posicao-estoque`) — 4 novos filtros + exportações
-2. **Histórico de Movimentações** (`/relatorios/historico-movimentos`) — remover Descrição, adicionar Saldo Inicial/Final via RPC + exportações
+Reescrever `src/pages/NovoInventarioPage.tsx` para um formulário **condicional e guiado** baseado no tipo, mantendo o visual dark atual (cards `card-surface`, labels em maiúsculas, switches azul `#3b82f6`).
 
-Migrations (índices + RPC) aplicadas via `supabase--migration`. Frontend ajustado nos arquivos existentes em `src/modules/reports/`.
+## Mudanças de comportamento principais
 
-## Parte 1 — Migrations no Supabase
+1. **Escopo condicional por tipo** — só renderiza os campos do tipo selecionado, com transição `transition-all duration-200`. Tipos suportados: `GERAL | ROTATIVO | ZONA | ENDERECO | PRODUTO | GRUPO_PRODUTO` (adicionar GRUPO_PRODUTO que hoje não existe como tipo separado).
+2. **Seleção única** — Zona/Endereço/Produto/Grupo passam a ser **single-select** (remover lógica de múltipla seleção, checkboxes "selecionar todos", listas `selectedEnderecos[]`, etc.).
+3. **Form library** — migrar de `useState` solto para **React Hook Form + Zod**, com schema discriminado por `tipo_inventario` espelhando as regras do backend.
+4. **Trocar RPC** — de `fn_criar_inventario` para **`fn_criar_inventario_v2`** com a assinatura nova (inclui `p_bloquear_movimentacao`, `p_data_planejada`, `p_criterio_selecao`, `p_curva`, `p_max_enderecos_dia`, `p_priorizar_picking`).
+5. **Geração em loop** — após criar, chamar `fn_gerar_tarefas_inventario` em loop com `p_chunk_size: 200` até `finalizado === true`, exibindo progresso no botão (`Gerando tarefas... (X%)`).
+6. **Remover campos fora de escopo**: "Permitir Execução Paralela", "Quantidade máxima de recontagens", filtros de rua/prédio/grupo/subgrupo do escopo Endereço/Produto, toggles `incluirPicking/incluirPulmao/incluirBloqueados` do GERAL.
 
-### Migration A — Índices de performance
-```sql
-CREATE INDEX IF NOT EXISTS idx_produto_grupo_id
-  ON public.produto(tenant_id, grupo_id) WHERE grupo_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_produto_subgrupo_id
-  ON public.produto(tenant_id, subgrupo_id) WHERE subgrupo_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_produto_marca
-  ON public.produto(tenant_id, marca) WHERE marca IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_estoque_geral_tenant_empresa_produto
-  ON public.estoque_geral(tenant_id, empresa_id, produto_id);
-CREATE INDEX IF NOT EXISTS idx_estoque_movimento_tenant_empresa_data
-  ON public.estoque_movimento(tenant_id, empresa_id, criado_em DESC);
-CREATE INDEX IF NOT EXISTS idx_estoque_movimento_produto_id
-  ON public.estoque_movimento(tenant_id, produto_id, criado_em DESC);
-CREATE INDEX IF NOT EXISTS idx_estoque_movimento_tipo
-  ON public.estoque_movimento(tenant_id, tipo_movimento);
-```
+## Seções do formulário
 
-### Migration B — RPC `rpc_historico_movimento_com_saldo`
-Window function `SUM() OVER (PARTITION BY produto_id ORDER BY criado_em)` para calcular `saldo_inicial` (linhas anteriores) e `saldo_final` (até a linha atual). `SECURITY INVOKER` para preservar RLS. Sinais por `tipo_movimento`:
-- Entradas (+): 1 (Entrada), 4 (Armazenagem), 99 estorno-de-saída
-- Saídas (−): 2 (Saída), 5 (Separação)
-- Neutros/ajustes: 3 (Transferência), 6 (Inventário) — somam com sinal da própria `quantidade`
+### Dados Gerais (sempre visível)
+- `Tipo Inventário*` (Select: 6 opções)
+- `Data Planejada` (DatePicker dd/mm/aaaa, opcional)
+- `Descrição` (Input texto)
+- `Tipo de Execução*` (Select: Auditoria | Atualização) — com tooltip explicativo no label
+- `Bloquear Movimentações` (Switch, default ON)
 
-Antes de gravar a RPC, validar os códigos reais do enum `tipo_movimento` consultando `estoque_movimento` via `supabase--read_query` e ajustar o `CASE`.
-
-Confirmar via `supabase--read_query` se já existem `GRANT EXECUTE` automáticos para `authenticated`; se não, adicionar `GRANT EXECUTE ON FUNCTION ... TO authenticated, service_role;` na migration.
-
-## Parte 2 — Posição de Estoque (frontend)
-
-### `src/modules/reports/estoque/estoque.service.ts`
-- Adicionar parâmetro `codigo_endereco?: number` em `EstoqueFilter`
-- Estender `produto` no select para incluir `marca`, `grupo_id`, `subgrupo_id` (já presente parcialmente)
-- Aplicar filtros client-side por `codigo_endereco`, `grupo_id`, `subgrupo_id`, `marca`
-- Manter `.limit(500)` atual
-
-### `src/modules/reports/estoque/EstoqueReportPage.tsx`
-- States novos: `filterCodigoEndereco`, `filterGrupoId`, `filterSubgrupoId`, `filterMarca`
-- Listas auxiliares: `grupos` (de `grupo_produto` ativo do tenant/empresa), `subgrupos` (filtrado por `grupo_id` quando preenchido), `marcas` (distinct de `produto.marca`)
-- Carregar listas no `useEffect` existente (tenant/empresa/empresaVersion)
-- 4 novos campos no grid de filtros: Código Endereço (input number), Grupo (select), Subgrupo (select cascata), Marca (select com distinct)
-- Resetar `filterSubgrupoId` quando `filterGrupoId` muda
-- `handleClear` limpa os 4 novos filtros
-- `activeFilters` exibe rótulos dos 4 novos filtros quando preenchidos
-
-### Coluna Endereço
-Atualmente exibe `descricao` em coluna rotulada "Endereço". Adicionar coluna **Código** com `codigo_endereco` (numérico) antes da coluna Endereço, mantendo a descrição.
-
-## Parte 3 — Histórico de Movimentações (frontend)
-
-### `src/modules/reports/movimentacoes/movimentacoes.service.ts`
-- Substituir consulta da view pela `supabase.rpc('rpc_historico_movimento_com_saldo', {...})`
-- Tipar resposta com `saldo_inicial` e `saldo_final` (numeric)
-- Manter helpers `getTipoMovimentoLabel`/`Color`/`getTipoDocumentoLabel`
-
-### `MovimentacoesReportPage.tsx`
-- **Remover** coluna `descricao` do array `columns`
-- **Adicionar** colunas `saldo_inicial` e `saldo_final` ao final (align right, format `Number.toLocaleString("pt-BR")`)
-- Layout/filtros existentes preservados
-
-## Parte 4 — Exportações (Excel + PDF) — compartilhado
-
-### Dependências
-- `bun add xlsx jspdf jspdf-autotable`
-
-### Novo módulo `src/modules/reports/utils/exporters.ts`
-Funções genéricas:
-- `exportToExcel(filename, columns, rows)` — usa `XLSX.utils.aoa_to_sheet`, header com labels em PT, auto-width por coluna
-- `exportToPdf(opts)` — `jsPDF` paisagem A4 + `autoTable`:
-  - Cabeçalho: título, "Gerado em", "Usuário", "Registros", "Período"
-  - Linha de "Filtros aplicados: K: V | K: V"
-  - Tabela: fonte 8pt, header fundo `#1E3A5F` texto branco, zebra `#F8FAFC`
-  - Rodapé fixo: "Página X de N · CORE LogiTrack — Confidencial"
-
-### `ReportHeader.tsx`
-Trocar a assinatura para receber callbacks opcionais `onExportExcel`, `onExportPdf`, `onPrint` (mantém `disabled` quando ausentes). Os botões existentes acionam estas funções.
-
-### Páginas
-Cada página passa para `ReportHeader`:
-- `onExportExcel`: chama `exportToExcel('posicao_estoque_…', visibleColumns, data)`
-- `onExportPdf`: chama `exportToPdf({ title, generatedAt, usuario, filters, columns, rows })`
-- `onPrint`: `window.print()`
-
-Para reaproveitar as definições, derivar a lista exportável (label + key + formatter) das `ReportColumn[]` já declaradas. Campos com `render` JSX recebem um formatter texto paralelo declarado junto da coluna (ex.: `exportValue?: (row) => string`) — adicionar essa propriedade opcional ao tipo `ReportColumn`.
-
-### CSS de impressão
-Adicionar em `src/index.css` um bloco `@media print` (landscape A4, esconder `.no-print`, header colorido, zebra, fonte 8pt). Marcar topnav/breadcrumb/filtros com `print:hidden`.
-
-## Estrutura de arquivos
-
-| Ação | Caminho |
+### Escopo (condicional)
+| Tipo | Campos |
 |---|---|
-| Editar | `src/modules/reports/estoque/EstoqueReportPage.tsx` |
-| Editar | `src/modules/reports/estoque/estoque.service.ts` |
-| Editar | `src/modules/reports/movimentacoes/MovimentacoesReportPage.tsx` |
-| Editar | `src/modules/reports/movimentacoes/movimentacoes.service.ts` |
-| Editar | `src/modules/reports/components/ReportHeader.tsx` |
-| Editar | `src/modules/reports/components/ReportTable.tsx` (tipo `ReportColumn` ganha `exportValue?`) |
-| Editar | `src/index.css` (regras `@media print`) |
-| Criar | `src/modules/reports/utils/exporters.ts` |
-| Migration | índices |
-| Migration | RPC `rpc_historico_movimento_com_saldo` |
+| GERAL | apenas info card "conta todos os endereços com saldo" |
+| ROTATIVO | `Critério*` (RadioGroup: Curva Vendas/Acesso/Cortes/Estornos), `Curva*` (Select A/B/C/D — só se critério for CURVA_*, animar entrada/saída), `Máx. Endereços/Dia` (number), `Priorizar Picking` (Switch off) + linha "Estimativa diária: N endereços/dia" |
+| ZONA | `Zona de Atividade*` (Select buscando `zona_atividade` por tenant+armazem; vazio → mensagem) |
+| ENDERECO | `Endereço*` (Combobox shadcn buscando `endereco.codigo_endereco` por armazem) |
+| PRODUTO | `Produto*` (Combobox buscando `produto` por sku/descricao, display "SKU — Descrição") |
+| GRUPO_PRODUTO | `Grupo de Produto*` (Select de `grupo_produto` por tenant) |
 
-## Fora de escopo
+### Painel Resumo (lateral direito, sticky)
+- Atualiza com `watch()`: Tipo, Execução (labels amigáveis), Total Endereços (0), Total SKUs (0). Em mobile colapsa em banner inferior fixo.
 
-- Não alterar a view `vw_estoque_movimento_relatorio`
-- Não tocar outros relatórios (curva ABC, produtividade, etc.)
-- Não mexer em RLS nem em outras telas
-- Não adicionar paginação server-side (mantém `.limit(500)` atual)
+## Fluxo de submissão
+1. `handleSubmit` valida via Zod → botão `Loader2 + "Criando..."`.
+2. `await supabase.rpc('fn_criar_inventario_v2', payload)` — payload monta apenas o campo de escopo do tipo selecionado, demais como `null`.
+3. Em sucesso, botão vira `Gerando tarefas... (X%)` e loop:
+   ```ts
+   while (!finalizado) {
+     const { data } = await supabase.rpc('fn_gerar_tarefas_inventario', { p_tenant_id, p_inventario_id, p_chunk_size: 200 });
+     acumulado += data.tarefas_geradas; finalizado = data.finalizado;
+     setProgresso(...);
+   }
+   ```
+4. Toast sucesso → `onNavigate('/inventario/' + inventario_id)`.
 
-## Pontos de validação antes de implementar
+## Mapeamento de erros (toast destrutivo)
+`TIPO_TAREFA_NAO_CONFIGURADO`, `ESCOPO_ZONA_OBRIGATORIO`, `ESCOPO_ENDERECO_OBRIGATORIO`, `ESCOPO_PRODUTO_OBRIGATORIO`, `ESCOPO_GRUPO_OBRIGATORIO`, `CRITERIO_ROTATIVO_OBRIGATORIO`, `CURVA_OBRIGATORIA`, `ARMAZEM_OBRIGATORIO` → mensagens PT amigáveis conforme tabela do prompt.
 
-1. Confirmar enum real de `tipo_movimento` (códigos 1..6 e 99) via `supabase--read_query` para ajustar o `CASE` da RPC com precisão.
-2. Confirmar se `produto.marca` tem valores suficientes para popular um select; caso contrário, usar input texto com `ILIKE`.
+## Arquivo afetado
+- **Editar (reescrever)**: `src/pages/NovoInventarioPage.tsx` (~740 linhas → ~350-400 linhas, com componente único usando shadcn `Form`, `Select`, `Popover+Calendar`, `Switch`, `RadioGroup`, `Command/Combobox`).
 
-Verificarei ambos antes de criar a migration da RPC.
+Nenhuma migration, nenhum service novo, nenhuma alteração em outras telas.
+
+## Validação após implementar
+- Cada tipo monta payload correto (campos de escopo de outros tipos = `null`).
+- Toggle de critério ROTATIVO mostra/oculta Curva e limpa valor ao ocultar.
+- Loop de geração avança e redireciona ao final.
+- Resumo lateral reage a `watch()`.
+
+## Pontos a confirmar antes de codar
+- A RPC `fn_criar_inventario_v2` já existe no banco (o prompt afirma "backend já implementado"). Verificarei via `supabase--read_query` em pg_proc antes de gravar a chamada.

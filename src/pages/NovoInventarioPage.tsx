@@ -1,285 +1,196 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, X, Search, Package, MapPin, BarChart3, CheckSquare, Square } from "lucide-react";
+import { Loader2, Info, BarChart3, Search, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TIPO_OPTIONS = [
   { value: "GERAL", label: "Geral" },
-  { value: "ENDERECO", label: "Por Endereço" },
-  { value: "PRODUTO", label: "Por Produto" },
   { value: "ROTATIVO", label: "Rotativo" },
   { value: "ZONA", label: "Por Zona" },
-];
+  { value: "ENDERECO", label: "Por Endereço" },
+  { value: "PRODUTO", label: "Por Produto" },
+  { value: "GRUPO_PRODUTO", label: "Por Grupo de Produto" },
+] as const;
+type Tipo = typeof TIPO_OPTIONS[number]["value"] | "";
 
 const CRITERIO_OPTIONS = [
   { value: "CURVA_VENDAS", label: "Curva de Vendas" },
   { value: "CURVA_ACESSO", label: "Curva de Acesso" },
   { value: "CORTES", label: "Cortes" },
   { value: "ESTORNOS", label: "Estornos" },
-];
+] as const;
 
-interface EnderecoOption { id: string; descricao: string; tipo_endereco: string; rua: number; predio: number; }
-interface ProdutoOption { id: string; sku: string; descricao: string; }
-interface ZonaOption { id: string; descricao: string; }
-interface GrupoOption { id: string; descricao: string; }
-interface SubgrupoOption { id: string; descricao: string; }
+const ERROR_MAP: Record<string, string> = {
+  TIPO_TAREFA_NAO_CONFIGURADO: "Tipo de execução não configurado. Acesse Configurações > Inventário.",
+  ESCOPO_ZONA_OBRIGATORIO: "Selecione uma zona de atividade.",
+  ESCOPO_ENDERECO_OBRIGATORIO: "Selecione um endereço.",
+  ESCOPO_PRODUTO_OBRIGATORIO: "Selecione um produto.",
+  ESCOPO_GRUPO_OBRIGATORIO: "Selecione um grupo de produto.",
+  CRITERIO_ROTATIVO_OBRIGATORIO: "Selecione o critério do inventário rotativo.",
+  CURVA_OBRIGATORIA: "Selecione a curva (A, B, C ou D).",
+  ARMAZEM_OBRIGATORIO: "Armazém não identificado. Recarregue a página.",
+  TENANT_OBRIGATORIO: "Empresa não identificada. Recarregue a página.",
+};
 
+interface Option { id: string; label: string; sublabel?: string; }
 interface Props { onNavigate: (path: string) => void; }
 
 export function NovoInventarioPage({ onNavigate }: Props) {
   const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
 
-  // Step 1 - General
-  const [tipo, setTipo] = useState("");
+  // --- Dados Gerais
+  const [tipo, setTipo] = useState<Tipo>("");
   const [descricao, setDescricao] = useState("");
   const [dataPlanejada, setDataPlanejada] = useState("");
-  const [bloquearMov, setBloquearMov] = useState(true);
-  const [permitirParalela, setPermitirParalela] = useState(false);
   const [tipoExecucao, setTipoExecucao] = useState("");
-  const [tiposExecucaoOptions, setTiposExecucaoOptions] = useState<{ tipo_execucao: string }[]>([]);
+  const [bloquearMov, setBloquearMov] = useState(true);
 
-  // GERAL scope
-  const [incluirPicking, setIncluirPicking] = useState(true);
-  const [incluirPulmao, setIncluirPulmao] = useState(true);
-  const [incluirBloqueados, setIncluirBloqueados] = useState(false);
-  const [estimativaEnderecos, setEstimativaEnderecos] = useState<number | null>(null);
-  const [estimativaLoading, setEstimativaLoading] = useState(false);
+  // --- Escopo ROTATIVO
+  const [criterio, setCriterio] = useState<"" | "CURVA_VENDAS" | "CURVA_ACESSO" | "CORTES" | "ESTORNOS">("");
+  const [curva, setCurva] = useState<"" | "A" | "B" | "C" | "D">("");
+  const [maxEnderecosDia, setMaxEnderecosDia] = useState("");
+  const [priorizarPicking, setPriorizarPicking] = useState(false);
 
-  // ENDERECO scope
+  // --- Escopo ZONA / GRUPO (select simples)
+  const [zonas, setZonas] = useState<Option[]>([]);
+  const [zonaId, setZonaId] = useState("");
+  const [grupos, setGrupos] = useState<Option[]>([]);
+  const [grupoId, setGrupoId] = useState("");
+
+  // --- Escopo ENDERECO / PRODUTO (combobox com busca)
+  const [enderecoId, setEnderecoId] = useState("");
+  const [enderecoLabel, setEnderecoLabel] = useState("");
   const [enderecoSearch, setEnderecoSearch] = useState("");
-  const [enderecoFilterRua, setEnderecoFilterRua] = useState("");
-  const [enderecoFilterPredio, setEnderecoFilterPredio] = useState("");
-  const [enderecoFilterTipo, setEnderecoFilterTipo] = useState("");
-  const [enderecoResults, setEnderecoResults] = useState<EnderecoOption[]>([]);
+  const [enderecoResults, setEnderecoResults] = useState<Option[]>([]);
   const [enderecoLoading, setEnderecoLoading] = useState(false);
-  const [selectedEnderecos, setSelectedEnderecos] = useState<EnderecoOption[]>([]);
+  const [enderecoOpen, setEnderecoOpen] = useState(false);
 
-  // PRODUTO scope
+  const [produtoId, setProdutoId] = useState("");
+  const [produtoLabel, setProdutoLabel] = useState("");
   const [produtoSearch, setProdutoSearch] = useState("");
-  const [produtoResults, setProdutoResults] = useState<ProdutoOption[]>([]);
+  const [produtoResults, setProdutoResults] = useState<Option[]>([]);
   const [produtoLoading, setProdutoLoading] = useState(false);
-  const [selectedProdutos, setSelectedProdutos] = useState<ProdutoOption[]>([]);
-  const [produtoLocais, setProdutoLocais] = useState<number | null>(null);
-  const [grupos, setGrupos] = useState<GrupoOption[]>([]);
-  const [subgrupos, setSubgrupos] = useState<SubgrupoOption[]>([]);
-  const [filterGrupo, setFilterGrupo] = useState("");
-  const [filterSubgrupo, setFilterSubgrupo] = useState("");
+  const [produtoOpen, setProdutoOpen] = useState(false);
 
-  // ROTATIVO scope
-  const [criterioRotativo, setCriterioRotativo] = useState("CURVA_VENDAS");
-  const [curvaInput, setCurvaInput] = useState("");
-  const [rotativoDataInicio, setRotativoDataInicio] = useState("");
-  const [rotativoDataFim, setRotativoDataFim] = useState("");
-  const [maxEnderecosDia, setMaxEnderecosDia] = useState("50");
-  const [prioPickingRotativo, setPrioPickingRotativo] = useState(true);
-
-  // ZONA scope
-  const [zonas, setZonas] = useState<ZonaOption[]>([]);
-  const [selectedZonas, setSelectedZonas] = useState<string[]>([]);
-  const [zonaLoading, setZonaLoading] = useState(false);
-
-  // Summary
-  const [summaryData, setSummaryData] = useState({ enderecos: 0, skus: 0, saldoEstimado: 0 });
-  const [summaryLoading, setSummaryLoading] = useState(false);
-
-  // Saving
+  // --- Submissão
   const [saving, setSaving] = useState(false);
+  const [progresso, setProgresso] = useState<{ geradas: number; finalizado: boolean } | null>(null);
 
   const debounceRef = useRef<any>(null);
 
-  // --- Load tipo_execucao options from inventario_tipo_tarefa ---
+  // Reset escopo ao trocar tipo
   useEffect(() => {
-    if (!tenantId) return;
-    (async () => {
-      const { data } = await (supabase as any).from("inventario_tipo_tarefa").select("tipo_execucao")
-        .eq("tenant_id", tenantId);
-      const unique = Array.from(new Set((data || []).map((d: any) => d.tipo_execucao))).map(t => ({ tipo_execucao: t as string }));
-      setTiposExecucaoOptions(unique);
-    })();
-  }, [tenantId]);
+    setCriterio(""); setCurva(""); setMaxEnderecosDia(""); setPriorizarPicking(false);
+    setZonaId(""); setGrupoId("");
+    setEnderecoId(""); setEnderecoLabel(""); setEnderecoSearch(""); setEnderecoResults([]);
+    setProdutoId(""); setProdutoLabel(""); setProdutoSearch(""); setProdutoResults([]);
+  }, [tipo]);
 
-  // --- GERAL: estimate addresses ---
+  // Limpa curva quando critério não exige
   useEffect(() => {
-    if (tipo !== "GERAL" || !tenantId || !armazemId) return;
-    setEstimativaLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const tiposEndereco: string[] = [];
-        if (incluirPicking) tiposEndereco.push("PICKING");
-        if (incluirPulmao) tiposEndereco.push("PULMAO");
-        if (tiposEndereco.length === 0) { setEstimativaEnderecos(0); setEstimativaLoading(false); return; }
+    if (criterio !== "CURVA_VENDAS" && criterio !== "CURVA_ACESSO") setCurva("");
+  }, [criterio]);
 
-        let q = (supabase as any).from("endereco").select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true)
-          .in("tipo_endereco", tiposEndereco);
-        if (!incluirBloqueados) q = q.eq("situacao", "LIVRE");
+  // Tipos de execução disponíveis
+  const TIPOS_EXEC = useMemo(() => [
+    { value: "AUDITORIA", label: "Auditoria" },
+    { value: "ATUALIZACAO", label: "Atualização" },
+  ], []);
 
-        const { count } = await q;
-        setEstimativaEnderecos(count || 0);
-      } catch { setEstimativaEnderecos(0); }
-      setEstimativaLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [tipo, incluirPicking, incluirPulmao, incluirBloqueados, tenantId, armazemId]);
-
-  // --- ENDERECO: search ---
-  const searchEnderecos = useCallback(async () => {
-    if (!tenantId || !armazemId) return;
-    setEnderecoLoading(true);
-    try {
-      let q = (supabase as any).from("endereco").select("id, descricao, tipo_endereco, rua, predio")
-        .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true)
-        .order("descricao").limit(100);
-      if (enderecoSearch) q = q.ilike("descricao", `%${enderecoSearch}%`);
-      if (enderecoFilterRua) q = q.eq("rua", Number(enderecoFilterRua));
-      if (enderecoFilterPredio) q = q.eq("predio", Number(enderecoFilterPredio));
-      if (enderecoFilterTipo) q = q.eq("tipo_endereco", enderecoFilterTipo);
-
-      const { data } = await q;
-      setEnderecoResults((data || []).filter((e: EnderecoOption) => !selectedEnderecos.some(s => s.id === e.id)));
-    } catch { setEnderecoResults([]); }
-    setEnderecoLoading(false);
-  }, [tenantId, armazemId, enderecoSearch, enderecoFilterRua, enderecoFilterPredio, enderecoFilterTipo, selectedEnderecos]);
-
-  useEffect(() => {
-    if (tipo !== "ENDERECO") return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(searchEnderecos, 400);
-    return () => clearTimeout(debounceRef.current);
-  }, [tipo, searchEnderecos]);
-
-  // --- PRODUTO: load grupos ---
-  useEffect(() => {
-    if (tipo !== "PRODUTO" || !tenantId || !empresaId) return;
-    (async () => {
-      const { data } = await (supabase as any).from("grupo_produto").select("id, descricao")
-        .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao");
-      setGrupos(data || []);
-    })();
-  }, [tipo, tenantId, empresaId]);
-
-  // --- PRODUTO: load subgrupos based on grupo ---
-  useEffect(() => {
-    if (tipo !== "PRODUTO" || !tenantId || !empresaId) { setSubgrupos([]); return; }
-    if (!filterGrupo) { setSubgrupos([]); setFilterSubgrupo(""); return; }
-    (async () => {
-      const { data } = await (supabase as any).from("subgrupo_produto").select("id, descricao")
-        .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("grupo_id", filterGrupo).eq("ativo", true).order("descricao");
-      setSubgrupos(data || []);
-    })();
-  }, [tipo, tenantId, empresaId, filterGrupo]);
-
-  // --- PRODUTO: search ---
-  const searchProdutos = useCallback(async () => {
-    if (!tenantId) { setProdutoResults([]); return; }
-    setProdutoLoading(true);
-    try {
-      let q = (supabase as any).from("produto").select("id, sku, descricao")
-        .eq("tenant_id", tenantId).eq("ativo", true).limit(100);
-      
-      if (produtoSearch && produtoSearch.length >= 2) {
-        q = q.or(`sku.ilike.%${produtoSearch}%,descricao.ilike.%${produtoSearch}%`);
-      }
-      if (filterGrupo) q = q.eq("grupo_id", filterGrupo);
-      if (filterSubgrupo) q = q.eq("subgrupo_id", filterSubgrupo);
-
-      // Only search if we have at least a filter or search term
-      if (!produtoSearch && !filterGrupo && !filterSubgrupo) {
-        setProdutoResults([]);
-        setProdutoLoading(false);
-        return;
-      }
-
-      const { data } = await q;
-      setProdutoResults((data || []).filter((p: ProdutoOption) => !selectedProdutos.some(s => s.id === p.id)));
-    } catch { setProdutoResults([]); }
-    setProdutoLoading(false);
-  }, [tenantId, produtoSearch, selectedProdutos, filterGrupo, filterSubgrupo]);
-
-  useEffect(() => {
-    if (tipo !== "PRODUTO") return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(searchProdutos, 400);
-    return () => clearTimeout(debounceRef.current);
-  }, [tipo, searchProdutos]);
-
-  // --- PRODUTO: count locations ---
-  useEffect(() => {
-    if (tipo !== "PRODUTO" || selectedProdutos.length === 0 || !tenantId) { setProdutoLocais(null); return; }
-    const run = async () => {
-      const ids = selectedProdutos.map(p => p.id);
-      const { count } = await (supabase as any).from("estoque_geral").select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId).in("produto_id", ids).gt("quantidade_total", 0);
-      setProdutoLocais(count || 0);
-    };
-    run();
-  }, [tipo, selectedProdutos, tenantId]);
-
-  // --- ZONA: load zones (fix: column is "Ativo" with capital A) ---
+  // Carregar zonas
   useEffect(() => {
     if (tipo !== "ZONA" || !tenantId || !armazemId) return;
-    setZonaLoading(true);
     (async () => {
-      const { data } = await (supabase as any).from("zona_atividade").select("id, descricao")
-        .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("Ativo", true).order("descricao");
-      setZonas(data || []);
-      setZonaLoading(false);
+      const { data } = await (supabase as any).from("zona_atividade")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId).eq("armazem_id", armazemId)
+        .order("descricao");
+      setZonas((data || []).map((z: any) => ({ id: z.id, label: z.descricao })));
     })();
   }, [tipo, tenantId, armazemId]);
 
-  // --- Summary card ---
+  // Carregar grupos
   useEffect(() => {
-    if (!tipo || !tenantId) return;
-    setSummaryLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        let endCount = 0, skuCount = 0, saldoEst = 0;
+    if (tipo !== "GRUPO_PRODUTO" || !tenantId || !empresaId) return;
+    (async () => {
+      const { data } = await (supabase as any).from("grupo_produto")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true)
+        .order("descricao");
+      setGrupos((data || []).map((g: any) => ({ id: g.id, label: g.descricao })));
+    })();
+  }, [tipo, tenantId, empresaId]);
 
-        if (tipo === "GERAL") {
-          endCount = estimativaEnderecos || 0;
-          const { count: sc } = await (supabase as any).from("estoque_geral").select("produto_id", { count: "exact", head: true })
-            .eq("tenant_id", tenantId).gt("quantidade_total", 0);
-          skuCount = sc || 0;
-        } else if (tipo === "ENDERECO") {
-          endCount = selectedEnderecos.length;
-          if (selectedEnderecos.length > 0) {
-            const ids = selectedEnderecos.map(e => e.id);
-            const { data } = await (supabase as any).from("estoque_geral").select("produto_id, quantidade_total")
-              .eq("tenant_id", tenantId).in("endereco_id", ids).gt("quantidade_total", 0);
-            const prodSet = new Set((data || []).map((d: any) => d.produto_id));
-            skuCount = prodSet.size;
-            saldoEst = (data || []).reduce((s: number, d: any) => s + Number(d.quantidade_total || 0), 0);
-          }
-        } else if (tipo === "PRODUTO") {
-          skuCount = selectedProdutos.length;
-          endCount = produtoLocais || 0;
-        } else if (tipo === "ZONA") {
-          if (selectedZonas.length > 0) {
-            const { count } = await (supabase as any).from("endereco_zona_atividade").select("id", { count: "exact", head: true })
-              .eq("tenant_id", tenantId).in("zona_atividade_id", selectedZonas);
-            endCount = count || 0;
-          }
-        } else if (tipo === "ROTATIVO") {
-          endCount = Number(maxEnderecosDia) || 0;
-        }
+  // Busca endereços (debounce)
+  useEffect(() => {
+    if (tipo !== "ENDERECO" || !tenantId || !armazemId) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setEnderecoLoading(true);
+      let q = (supabase as any).from("endereco")
+        .select("id, codigo_endereco, descricao")
+        .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true)
+        .order("codigo_endereco").limit(50);
+      if (enderecoSearch) q = q.or(`codigo_endereco.ilike.%${enderecoSearch}%,descricao.ilike.%${enderecoSearch}%`);
+      const { data } = await q;
+      setEnderecoResults((data || []).map((e: any) => ({
+        id: e.id,
+        label: String(e.codigo_endereco ?? ""),
+        sublabel: e.descricao || undefined,
+      })));
+      setEnderecoLoading(false);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [tipo, tenantId, armazemId, enderecoSearch]);
 
-        setSummaryData({ enderecos: endCount, skus: skuCount, saldoEstimado: saldoEst });
-      } catch { /* ignore */ }
-      setSummaryLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [tipo, estimativaEnderecos, selectedEnderecos, selectedProdutos, produtoLocais, selectedZonas, maxEnderecosDia, tenantId]);
+  // Busca produtos (debounce)
+  useEffect(() => {
+    if (tipo !== "PRODUTO" || !tenantId) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      if (!produtoSearch || produtoSearch.length < 2) { setProdutoResults([]); return; }
+      setProdutoLoading(true);
+      let q = (supabase as any).from("produto")
+        .select("id, sku, descricao")
+        .eq("tenant_id", tenantId).eq("ativo", true).limit(50);
+      if (empresaId) q = q.eq("empresa_id", empresaId);
+      q = q.or(`sku.ilike.%${produtoSearch}%,descricao.ilike.%${produtoSearch}%`);
+      const { data } = await q;
+      setProdutoResults((data || []).map((p: any) => ({ id: p.id, label: p.sku, sublabel: p.descricao })));
+      setProdutoLoading(false);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [tipo, tenantId, empresaId, produtoSearch]);
 
-  // --- SAVE ---
+  // Validação
+  const isValid = useMemo(() => {
+    if (!tipo || !tipoExecucao) return false;
+    if (tipo === "ZONA") return !!zonaId;
+    if (tipo === "ENDERECO") return !!enderecoId;
+    if (tipo === "PRODUTO") return !!produtoId;
+    if (tipo === "GRUPO_PRODUTO") return !!grupoId;
+    if (tipo === "ROTATIVO") {
+      if (!criterio) return false;
+      if ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva) return false;
+    }
+    return true;
+  }, [tipo, tipoExecucao, zonaId, enderecoId, produtoId, grupoId, criterio, curva]);
+
+  const mapError = (err: any): string => {
+    const raw = err?.message || String(err);
+    for (const code in ERROR_MAP) if (raw.includes(code)) return ERROR_MAP[code];
+    return raw;
+  };
+
   const handleSave = async () => {
-    if (!tipo) { toast.error("Selecione o tipo de inventário."); return; }
-    if (!tipoExecucao) { toast.error("Selecione o tipo de execução."); return; }
-    if (!tenantId || !empresaId || !armazemId) { toast.error("Contexto não carregado."); return; }
+    if (!isValid) { toast.error("Preencha todos os campos obrigatórios."); return; }
+    if (!tenantId || !empresaId || !armazemId) { toast.error(ERROR_MAP.ARMAZEM_OBRIGATORIO); return; }
     setSaving(true);
+    setProgresso(null);
     try {
-      const { data, error } = await supabase.rpc("fn_criar_inventario" as any, {
+      const payload: any = {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_armazem_id: armazemId,
@@ -287,74 +198,112 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         p_descricao: descricao || null,
         p_tipo_inventario: tipo,
         p_tipo_execucao: tipoExecucao,
-        p_zona_atividade_id: (tipo === "ZONA" && selectedZonas.length === 1) ? selectedZonas[0] : null,
-        p_endereco_id: (tipo === "ENDERECO" && selectedEnderecos.length === 1) ? selectedEnderecos[0].id : null,
-        p_produto_id: (tipo === "PRODUTO" && selectedProdutos.length === 1) ? selectedProdutos[0].id : null,
-        p_grupo_produto_id: (tipo === "PRODUTO" && filterGrupo) ? filterGrupo : null,
-        p_chunk_size: 1000,
-        p_inventario_id: null,
-      });
+        p_bloquear_movimentacao: bloquearMov,
+        p_data_planejada: dataPlanejada || null,
+        p_zona_atividade_id: tipo === "ZONA" ? zonaId : null,
+        p_endereco_id: tipo === "ENDERECO" ? enderecoId : null,
+        p_produto_id: tipo === "PRODUTO" ? produtoId : null,
+        p_grupo_produto_id: tipo === "GRUPO_PRODUTO" ? grupoId : null,
+        p_criterio_selecao: tipo === "ROTATIVO" ? criterio : null,
+        p_curva: tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") ? curva : null,
+        p_max_enderecos_dia: tipo === "ROTATIVO" && maxEnderecosDia ? Number(maxEnderecosDia) : null,
+        p_priorizar_picking: tipo === "ROTATIVO" ? priorizarPicking : false,
+      };
+      const { data, error } = await supabase.rpc("fn_criar_inventario_v2" as any, payload);
       if (error) throw error;
+      const inv: any = Array.isArray(data) ? data[0] : data;
+      const inventarioId = inv?.inventario_id;
+      if (!inventarioId) throw new Error("Inventário não retornado pelo backend.");
+
+      // Loop de geração de tarefas
+      let acumulado = 0;
+      let finalizado = false;
+      let safety = 1000;
+      while (!finalizado && safety-- > 0) {
+        const { data: gen, error: genErr } = await supabase.rpc("fn_gerar_tarefas_inventario" as any, {
+          p_tenant_id: tenantId,
+          p_inventario_id: inventarioId,
+          p_chunk_size: 200,
+        });
+        if (genErr) throw genErr;
+        const g: any = Array.isArray(gen) ? gen[0] : gen;
+        acumulado += Number(g?.tarefas_geradas || 0);
+        finalizado = !!g?.finalizado;
+        setProgresso({ geradas: acumulado, finalizado });
+      }
       toast.success("Inventário criado com sucesso!");
-      onNavigate("/atividades/inventario");
+      onNavigate(`/inventario/${inventarioId}`);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(mapError(err));
     } finally {
       setSaving(false);
     }
   };
 
+  // --- estilos
   const inputClass = "h-9 px-3 rounded-md border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary w-full";
   const labelClass = "block text-[10px] font-medium text-muted-foreground mb-1 uppercase tracking-wider";
 
-  const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
-    <label className="flex items-center gap-3 cursor-pointer group">
-      <div className={cn("w-10 h-5 rounded-full transition-colors relative", checked ? "bg-primary" : "bg-secondary")} onClick={() => onChange(!checked)}>
+  const Toggle = ({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) => (
+    <label className={cn("flex items-center gap-3 group", disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+      <div className={cn("w-10 h-5 rounded-full transition-colors relative", checked ? "bg-primary" : "bg-secondary")} onClick={() => !disabled && onChange(!checked)}>
         <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform", checked ? "translate-x-5" : "translate-x-0.5")} />
       </div>
-      <span className="text-sm text-foreground group-hover:text-primary transition-colors">{label}</span>
+      <span className="text-sm text-foreground">{label}</span>
     </label>
   );
 
-  // --- Checkbox helpers for ENDERECO results ---
-  const toggleEnderecoResult = (e: EnderecoOption) => {
-    if (selectedEnderecos.some(s => s.id === e.id)) {
-      setSelectedEnderecos(prev => prev.filter(s => s.id !== e.id));
-    } else {
-      setSelectedEnderecos(prev => [...prev, e]);
-    }
-  };
-  const selectAllEnderecos = () => {
-    const unselected = enderecoResults.filter(e => !selectedEnderecos.some(s => s.id === e.id));
-    setSelectedEnderecos(prev => [...prev, ...unselected]);
-  };
-  const allEnderecosSelected = enderecoResults.length > 0 && enderecoResults.every(e => selectedEnderecos.some(s => s.id === e.id));
+  // Combobox component
+  const Combobox = ({ value, label, results, loading, open, setOpen, search, setSearch, onPick, placeholder, emptyMsg }: any) => (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(inputClass, "text-left flex items-center justify-between")}
+      >
+        <span className={cn(!value && "text-muted-foreground")}>{label || placeholder}</span>
+        <Search size={12} className="text-muted-foreground" />
+      </button>
+      {open && (
+        <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-popover border border-border rounded-md shadow-lg max-h-72 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-border">
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={placeholder}
+              className="w-full h-8 px-2 bg-secondary/40 rounded text-sm text-foreground outline-none border border-border focus:border-primary"
+            />
+          </div>
+          <div className="overflow-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-4"><Loader2 size={14} className="animate-spin text-muted-foreground" /></div>
+            ) : results.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">{emptyMsg}</p>
+            ) : results.map((r: Option) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => { onPick(r); setOpen(false); }}
+                className={cn("w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 border-b border-border/30 last:border-0 flex items-center gap-2", value === r.id && "bg-primary/5")}
+              >
+                {value === r.id && <Check size={12} className="text-primary shrink-0" />}
+                <span className="font-mono font-semibold text-primary">{r.label}</span>
+                {r.sublabel && <span className="text-muted-foreground truncate">{r.sublabel}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
-  // --- Checkbox helpers for PRODUTO results ---
-  const toggleProdutoResult = (p: ProdutoOption) => {
-    if (selectedProdutos.some(s => s.id === p.id)) {
-      setSelectedProdutos(prev => prev.filter(s => s.id !== p.id));
-    } else {
-      setSelectedProdutos(prev => [...prev, p]);
-    }
-  };
-  const selectAllProdutos = () => {
-    const unselected = produtoResults.filter(p => !selectedProdutos.some(s => s.id === p.id));
-    setSelectedProdutos(prev => [...prev, ...unselected]);
-  };
-  const allProdutosSelected = produtoResults.length > 0 && produtoResults.every(p => selectedProdutos.some(s => s.id === p.id));
+  const tipoLabel = TIPO_OPTIONS.find(t => t.value === tipo)?.label || "—";
+  const execLabel = TIPOS_EXEC.find(t => t.value === tipoExecucao)?.label || "—";
 
-  // --- Checkbox helpers for ZONA ---
-  const toggleZona = (id: string) => {
-    setSelectedZonas(prev => prev.includes(id) ? prev.filter(z => z !== id) : [...prev, id]);
-  };
-  const selectAllZonas = () => {
-    setSelectedZonas(zonas.map(z => z.id));
-  };
-  const deselectAllZonas = () => {
-    setSelectedZonas([]);
-  };
-  const allZonasSelected = zonas.length > 0 && zonas.every(z => selectedZonas.includes(z.id));
+  const buttonText = saving
+    ? (progresso ? `Gerando tarefas... (${progresso.geradas})` : "Criando...")
+    : "Criar Inventário";
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
@@ -362,28 +311,33 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       <div className="shrink-0 flex items-center justify-between">
         <h1 className="text-lg font-bold text-foreground">Novo Inventário</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => onNavigate("/atividades/inventario")} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+          <button onClick={() => onNavigate("/atividades/inventario")} disabled={saving}
+            className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
             Cancelar
           </button>
-          <button onClick={handleSave} disabled={saving || !tipo} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !isValid}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
             {saving && <Loader2 size={14} className="animate-spin" />}
-            Criar Inventário
+            {buttonText}
           </button>
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 min-h-0 overflow-auto">
         <div className="flex gap-4 min-h-full">
-          {/* Main form */}
+          {/* Form */}
           <div className="flex-1 flex flex-col gap-4">
-            {/* Step 1 */}
+            {/* Dados Gerais */}
             <div className="card-surface p-5">
               <h2 className="text-sm font-semibold text-foreground mb-4">Dados Gerais</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>Tipo Inventário *</label>
-                  <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputClass}>
+                  <select value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)} className={inputClass}>
                     <option value="">Selecione...</option>
                     {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -392,241 +346,62 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <label className={labelClass}>Data Planejada</label>
                   <input type="date" value={dataPlanejada} onChange={(e) => setDataPlanejada(e.target.value)} className={inputClass} />
                 </div>
-                <div className="col-span-2 flex gap-4">
-                  <div className="flex-1">
-                    <label className={labelClass}>Descrição</label>
-                    <input type="text" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descrição do inventário" className={inputClass} />
-                  </div>
-                  <div className="w-52">
-                    <label className={labelClass}>Tipo de Execução *</label>
-                    <select value={tipoExecucao} onChange={(e) => setTipoExecucao(e.target.value)} className={inputClass}>
-                      <option value="">Selecione...</option>
-                      {tiposExecucaoOptions.map(t => (
-                        <option key={t.tipo_execucao} value={t.tipo_execucao}>{t.tipo_execucao}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label className={labelClass}>Descrição</label>
+                  <input type="text" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Descrição do inventário" className={inputClass} />
                 </div>
-                <div className="col-span-2 flex gap-8">
-                  <Toggle checked={bloquearMov} onChange={setBloquearMov} label="Bloquear Movimentações" />
-                  <Toggle checked={permitirParalela} onChange={setPermitirParalela} label="Permitir Execução Paralela" />
+                <div>
+                  <label className={labelClass} title="Auditoria: registra divergência sem alterar estoque. Atualização: atualiza o saldo ao confirmar.">
+                    Tipo de Execução *
+                  </label>
+                  <select value={tipoExecucao} onChange={(e) => setTipoExecucao(e.target.value)} className={inputClass}>
+                    <option value="">Selecione...</option>
+                    {TIPOS_EXEC.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <Toggle checked={bloquearMov} onChange={setBloquearMov} label="Bloquear movimentações do endereço durante a contagem" />
                 </div>
               </div>
             </div>
 
-            {/* Step 2 - Dynamic scope */}
+            {/* Escopo */}
             {tipo && (
-              <div className="card-surface p-5">
+              <div className="card-surface p-5 transition-all duration-200">
                 <h2 className="text-sm font-semibold text-foreground mb-4">Escopo do Inventário</h2>
 
-                {/* GERAL */}
                 {tipo === "GERAL" && (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex gap-6">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={incluirPicking} onChange={(e) => setIncluirPicking(e.target.checked)} className="w-4 h-4 rounded border-border accent-primary" />
-                        <span className="text-sm text-foreground">Incluir Picking</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={incluirPulmao} onChange={(e) => setIncluirPulmao(e.target.checked)} className="w-4 h-4 rounded border-border accent-primary" />
-                        <span className="text-sm text-foreground">Incluir Pulmão</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={incluirBloqueados} onChange={(e) => setIncluirBloqueados(e.target.checked)} className="w-4 h-4 rounded border-border accent-primary" />
-                        <span className="text-sm text-foreground">Incluir Bloqueados</span>
-                      </label>
-                    </div>
-                    <div className="p-3 rounded-lg bg-secondary/30 border border-border">
-                      {estimativaLoading ? (
-                        <div className="flex items-center gap-2"><Loader2 size={14} className="animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Calculando...</span></div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <MapPin size={14} className="text-primary" />
-                          <span className="text-sm text-foreground font-medium">{estimativaEnderecos ?? 0} endereços serão inventariados</span>
-                        </div>
-                      )}
-                    </div>
+                  <div className="p-3 rounded-lg bg-secondary/30 border border-border flex items-start gap-2">
+                    <Info size={14} className="text-primary shrink-0 mt-0.5" />
+                    <span className="text-sm text-foreground">
+                      O inventário geral conta todos os endereços com saldo no armazém selecionado.
+                    </span>
                   </div>
                 )}
 
-                {/* ENDERECO */}
-                {tipo === "ENDERECO" && (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex gap-2 flex-wrap">
-                      <div className="flex-1 min-w-[150px]">
-                        <label className={labelClass}>Buscar Endereço</label>
-                        <div className="flex items-center gap-2 bg-secondary/40 rounded-md border border-border px-3">
-                          <Search size={12} className="text-muted-foreground" />
-                          <input type="text" value={enderecoSearch} onChange={(e) => setEnderecoSearch(e.target.value)} placeholder="Descrição..." className="bg-transparent h-9 text-sm text-foreground outline-none flex-1" />
-                        </div>
-                      </div>
-                      <div className="w-20">
-                        <label className={labelClass}>Rua</label>
-                        <input type="number" value={enderecoFilterRua} onChange={(e) => setEnderecoFilterRua(e.target.value)} className={inputClass} />
-                      </div>
-                      <div className="w-20">
-                        <label className={labelClass}>Prédio</label>
-                        <input type="number" value={enderecoFilterPredio} onChange={(e) => setEnderecoFilterPredio(e.target.value)} className={inputClass} />
-                      </div>
-                      <div className="w-32">
-                        <label className={labelClass}>Tipo</label>
-                        <select value={enderecoFilterTipo} onChange={(e) => setEnderecoFilterTipo(e.target.value)} className={inputClass}>
-                          <option value="">Todos</option>
-                          <option value="PICKING">Picking</option>
-                          <option value="PULMAO">Pulmão</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Results with checkboxes */}
-                    <div className="border border-border rounded-lg max-h-48 overflow-auto">
-                      {enderecoLoading ? (
-                        <div className="flex items-center justify-center py-4"><Loader2 size={14} className="animate-spin text-muted-foreground" /></div>
-                      ) : enderecoResults.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-4">Nenhum endereço encontrado.</p>
-                      ) : (
-                        <>
-                          {/* Select All */}
-                          <button
-                            onClick={allEnderecosSelected ? () => setSelectedEnderecos(prev => prev.filter(s => !enderecoResults.some(e => e.id === s.id))) : selectAllEnderecos}
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 border-b border-border font-semibold flex items-center gap-2 text-primary sticky top-0 bg-popover z-10"
-                          >
-                            {allEnderecosSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                            Selecionar Todos ({enderecoResults.length})
-                          </button>
-                          {enderecoResults.map(e => {
-                            const isSelected = selectedEnderecos.some(s => s.id === e.id);
-                            return (
-                              <button key={e.id} onClick={() => toggleEnderecoResult(e)}
-                                className={cn("w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 border-b border-border/30 last:border-0 transition-colors flex items-center gap-2", isSelected && "bg-primary/5")}>
-                                {isSelected ? <CheckSquare size={14} className="text-primary shrink-0" /> : <Square size={14} className="text-muted-foreground shrink-0" />}
-                                <span className="font-mono font-semibold text-primary">{e.descricao}</span>
-                                <span className="text-muted-foreground">{e.tipo_endereco}</span>
-                              </button>
-                            );
-                          })}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Selected */}
-                    {selectedEnderecos.length > 0 && (
-                      <div>
-                        <span className="text-xs font-medium text-muted-foreground mb-1 block">{selectedEnderecos.length} endereços selecionados</span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {selectedEnderecos.map(e => (
-                            <span key={e.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-xs text-primary">
-                              {e.descricao}
-                              <button onClick={() => setSelectedEnderecos(prev => prev.filter(s => s.id !== e.id))} className="hover:text-destructive"><X size={10} /></button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* PRODUTO */}
-                {tipo === "PRODUTO" && (
-                  <div className="flex flex-col gap-3">
-                    {/* Filters: Grupo + Subgrupo */}
-                    <div className="flex gap-2 flex-wrap">
-                      <div className="flex-1 min-w-[150px]">
-                        <label className={labelClass}>Grupo</label>
-                        <select value={filterGrupo} onChange={(e) => { setFilterGrupo(e.target.value); setFilterSubgrupo(""); }} className={inputClass}>
-                          <option value="">Todos</option>
-                          {grupos.map(g => <option key={g.id} value={g.id}>{g.descricao}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex-1 min-w-[150px]">
-                        <label className={labelClass}>Subgrupo</label>
-                        <select value={filterSubgrupo} onChange={(e) => setFilterSubgrupo(e.target.value)} className={inputClass} disabled={!filterGrupo}>
-                          <option value="">Todos</option>
-                          {subgrupos.map(s => <option key={s.id} value={s.id}>{s.descricao}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={labelClass}>Buscar Produto (SKU ou Descrição)</label>
-                      <div className="flex items-center gap-2 bg-secondary/40 rounded-md border border-border px-3">
-                        <Search size={12} className="text-muted-foreground" />
-                        <input type="text" value={produtoSearch} onChange={(e) => setProdutoSearch(e.target.value)} placeholder="Digite ao menos 2 caracteres..." className="bg-transparent h-9 text-sm text-foreground outline-none flex-1" />
-                      </div>
-                    </div>
-
-                    <div className="border border-border rounded-lg max-h-48 overflow-auto">
-                      {produtoLoading ? (
-                        <div className="flex items-center justify-center py-4"><Loader2 size={14} className="animate-spin text-muted-foreground" /></div>
-                      ) : produtoResults.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-4">{!produtoSearch && !filterGrupo && !filterSubgrupo ? "Use os filtros ou busca para listar produtos." : "Nenhum produto encontrado."}</p>
-                      ) : (
-                        <>
-                          {/* Select All */}
-                          <button
-                            onClick={allProdutosSelected ? () => setSelectedProdutos(prev => prev.filter(s => !produtoResults.some(p => p.id === s.id))) : selectAllProdutos}
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 border-b border-border font-semibold flex items-center gap-2 text-primary sticky top-0 bg-popover z-10"
-                          >
-                            {allProdutosSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                            Selecionar Todos ({produtoResults.length})
-                          </button>
-                          {produtoResults.map(p => {
-                            const isSelected = selectedProdutos.some(s => s.id === p.id);
-                            return (
-                              <button key={p.id} onClick={() => toggleProdutoResult(p)}
-                                className={cn("w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 border-b border-border/30 last:border-0 transition-colors flex items-center gap-2", isSelected && "bg-primary/5")}>
-                                {isSelected ? <CheckSquare size={14} className="text-primary shrink-0" /> : <Square size={14} className="text-muted-foreground shrink-0" />}
-                                <span className="font-mono font-semibold text-primary">{p.sku}</span>
-                                <span className="text-muted-foreground">{p.descricao}</span>
-                              </button>
-                            );
-                          })}
-                        </>
-                      )}
-                    </div>
-
-                    {selectedProdutos.length > 0 && (
-                      <div>
-                        <span className="text-xs font-medium text-muted-foreground mb-1 block">{selectedProdutos.length} produtos selecionados</span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {selectedProdutos.map(p => (
-                            <span key={p.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-xs text-primary">
-                              {p.sku}
-                              <button onClick={() => setSelectedProdutos(prev => prev.filter(s => s.id !== p.id))} className="hover:text-destructive"><X size={10} /></button>
-                            </span>
-                          ))}
-                        </div>
-                        {produtoLocais != null && (
-                          <div className="mt-2 p-3 rounded-lg bg-secondary/30 border border-border flex items-center gap-2">
-                            <Package size={14} className="text-primary" />
-                            <span className="text-sm text-foreground font-medium">{produtoLocais} locais com saldo encontrados</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ROTATIVO */}
                 {tipo === "ROTATIVO" && (
                   <div className="flex flex-col gap-4">
                     <div>
-                      <label className={labelClass}>Critério de Seleção</label>
+                      <label className={labelClass}>Critério de Seleção *</label>
                       <div className="flex flex-col gap-2 mt-1">
                         {CRITERIO_OPTIONS.map(c => (
                           <label key={c.value} className="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="criterio" value={c.value} checked={criterioRotativo === c.value} onChange={(e) => { setCriterioRotativo(e.target.value); setCurvaInput(""); setRotativoDataInicio(""); setRotativoDataFim(""); }} className="w-4 h-4 accent-primary" />
+                            <input
+                              type="radio" name="criterio" value={c.value}
+                              checked={criterio === c.value}
+                              onChange={() => setCriterio(c.value)}
+                              className="w-4 h-4 accent-primary"
+                            />
                             <span className="text-sm text-foreground">{c.label}</span>
                           </label>
                         ))}
                       </div>
                     </div>
 
-                    {/* Dynamic inputs based on criterio */}
-                    {(criterioRotativo === "CURVA_VENDAS" || criterioRotativo === "CURVA_ACESSO") && (
-                      <div className="w-48">
-                        <label className={labelClass}>Curva</label>
-                        <select value={curvaInput} onChange={(e) => setCurvaInput(e.target.value)} className={inputClass}>
+                    {(criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && (
+                      <div className="w-48 transition-all duration-200">
+                        <label className={labelClass}>Curva *</label>
+                        <select value={curva} onChange={(e) => setCurva(e.target.value as any)} className={inputClass}>
                           <option value="">Selecione...</option>
                           <option value="A">A</option>
                           <option value="B">B</option>
@@ -636,105 +411,130 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                       </div>
                     )}
 
-                    {(criterioRotativo === "CORTES" || criterioRotativo === "ESTORNOS") && (
-                      <div className="flex gap-3">
-                        <div className="flex-1">
-                          <label className={labelClass}>Data Início</label>
-                          <input type="date" value={rotativoDataInicio} onChange={(e) => setRotativoDataInicio(e.target.value)} className={inputClass} />
-                        </div>
-                        <div className="flex-1">
-                          <label className={labelClass}>Data Fim</label>
-                          <input type="date" value={rotativoDataFim} onChange={(e) => setRotativoDataFim(e.target.value)} className={inputClass} />
-                        </div>
-                      </div>
-                    )}
-
                     <div className="w-48">
                       <label className={labelClass}>Máx. Endereços/Dia</label>
-                      <input type="number" value={maxEnderecosDia} onChange={(e) => setMaxEnderecosDia(e.target.value)} className={inputClass} />
+                      <input type="number" min={1} value={maxEnderecosDia}
+                        onChange={(e) => setMaxEnderecosDia(e.target.value)}
+                        placeholder="Ex: 50" className={inputClass} />
                     </div>
-                    <Toggle checked={prioPickingRotativo} onChange={setPrioPickingRotativo} label="Priorizar Picking" />
-                    <div className="p-3 rounded-lg bg-secondary/30 border border-border flex items-center gap-2">
-                      <BarChart3 size={14} className="text-primary" />
-                      <span className="text-sm text-foreground font-medium">Estimativa diária: {maxEnderecosDia || 0} endereços/dia</span>
-                    </div>
+
+                    <Toggle checked={priorizarPicking} onChange={setPriorizarPicking} label="Priorizar endereços de Picking" />
+
+                    {maxEnderecosDia && (
+                      <div className="p-3 rounded-lg bg-secondary/30 border border-border flex items-center gap-2">
+                        <BarChart3 size={14} className="text-primary" />
+                        <span className="text-sm text-foreground font-medium">
+                          Estimativa diária: {maxEnderecosDia} endereços/dia
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* ZONA */}
                 {tipo === "ZONA" && (
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <label className={labelClass}>Zonas de Atividade</label>
-                      {zonaLoading ? (
-                        <div className="flex items-center gap-2 py-2"><Loader2 size={14} className="animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Carregando...</span></div>
-                      ) : zonas.length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-4">Nenhuma zona de atividade cadastrada para este armazém.</p>
-                      ) : (
-                        <div className="border border-border rounded-lg max-h-48 overflow-auto mt-1">
-                          {/* Select All */}
-                          <button
-                            onClick={allZonasSelected ? deselectAllZonas : selectAllZonas}
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 border-b border-border font-semibold flex items-center gap-2 text-primary sticky top-0 bg-popover z-10"
-                          >
-                            {allZonasSelected ? <CheckSquare size={14} /> : <Square size={14} />}
-                            Selecionar Todas ({zonas.length})
-                          </button>
-                          {zonas.map(z => {
-                            const isSelected = selectedZonas.includes(z.id);
-                            return (
-                              <button key={z.id} onClick={() => toggleZona(z.id)}
-                                className={cn("w-full text-left px-3 py-2 text-xs hover:bg-secondary/50 border-b border-border/30 last:border-0 transition-colors flex items-center gap-2", isSelected && "bg-primary/5")}>
-                                {isSelected ? <CheckSquare size={14} className="text-primary shrink-0" /> : <Square size={14} className="text-muted-foreground shrink-0" />}
-                                <span className="text-foreground">{z.descricao}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {selectedZonas.length > 0 && (
-                      <span className="text-xs font-medium text-muted-foreground">{selectedZonas.length} zona(s) selecionada(s)</span>
+                  <div>
+                    <label className={labelClass}>Zona de Atividade *</label>
+                    {zonas.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">Nenhuma zona cadastrada para este armazém.</p>
+                    ) : (
+                      <select value={zonaId} onChange={(e) => setZonaId(e.target.value)} className={inputClass}>
+                        <option value="">Selecione a zona</option>
+                        {zonas.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
+                      </select>
                     )}
+                  </div>
+                )}
+
+                {tipo === "ENDERECO" && (
+                  <div>
+                    <label className={labelClass}>Endereço *</label>
+                    <Combobox
+                      value={enderecoId}
+                      label={enderecoLabel}
+                      results={enderecoResults}
+                      loading={enderecoLoading}
+                      open={enderecoOpen}
+                      setOpen={setEnderecoOpen}
+                      search={enderecoSearch}
+                      setSearch={setEnderecoSearch}
+                      onPick={(o: Option) => { setEnderecoId(o.id); setEnderecoLabel(o.label); }}
+                      placeholder="Buscar endereço..."
+                      emptyMsg="Nenhum endereço encontrado."
+                    />
+                  </div>
+                )}
+
+                {tipo === "PRODUTO" && (
+                  <div>
+                    <label className={labelClass}>Produto *</label>
+                    <Combobox
+                      value={produtoId}
+                      label={produtoLabel}
+                      results={produtoResults}
+                      loading={produtoLoading}
+                      open={produtoOpen}
+                      setOpen={setProdutoOpen}
+                      search={produtoSearch}
+                      setSearch={setProdutoSearch}
+                      onPick={(o: Option) => { setProdutoId(o.id); setProdutoLabel(`${o.label} — ${o.sublabel || ""}`); }}
+                      placeholder="Buscar por SKU ou descrição..."
+                      emptyMsg={produtoSearch.length < 2 ? "Digite ao menos 2 caracteres." : "Nenhum produto encontrado."}
+                    />
+                  </div>
+                )}
+
+                {tipo === "GRUPO_PRODUTO" && (
+                  <div>
+                    <label className={labelClass}>Grupo de Produto *</label>
+                    <select value={grupoId} onChange={(e) => setGrupoId(e.target.value)} className={inputClass}>
+                      <option value="">Selecione o grupo</option>
+                      {grupos.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                    </select>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Sidebar summary */}
-          <div className="w-72 shrink-0">
+          {/* Resumo */}
+          <div className="w-72 shrink-0 hidden lg:block">
             <div className="card-surface p-5 sticky top-0">
-              <h2 className="text-sm font-semibold text-foreground mb-4">Resumo</h2>
-              {!tipo ? (
-                <p className="text-xs text-muted-foreground">Selecione o tipo de inventário para ver o resumo.</p>
-              ) : summaryLoading ? (
-                <div className="flex items-center gap-2 py-4"><Loader2 size={14} className="animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Calculando...</span></div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                    <span className="text-xs text-muted-foreground">Tipo</span>
-                    <span className="text-xs font-semibold text-foreground">{TIPO_OPTIONS.find(t => t.value === tipo)?.label}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                    <span className="text-xs text-muted-foreground">Total Endereços</span>
-                    <span className="text-sm font-bold text-primary">{summaryData.enderecos.toLocaleString("pt-BR")}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                    <span className="text-xs text-muted-foreground">Total SKUs</span>
-                    <span className="text-sm font-bold text-primary">{summaryData.skus.toLocaleString("pt-BR")}</span>
-                  </div>
-                  {summaryData.saldoEstimado > 0 && (
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                      <span className="text-xs text-muted-foreground">Saldo Estimado</span>
-                      <span className="text-sm font-bold text-primary">{summaryData.saldoEstimado.toLocaleString("pt-BR")}</span>
-                    </div>
-                  )}
+              <h2 className="text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-widest">Resumo</h2>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                  <span className="text-xs text-muted-foreground">Tipo</span>
+                  <span className="text-xs font-semibold text-foreground">{tipoLabel}</span>
                 </div>
-              )}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                  <span className="text-xs text-muted-foreground">Execução</span>
+                  <span className="text-xs font-semibold text-foreground">{execLabel}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                  <span className="text-xs text-muted-foreground">Total Endereços</span>
+                  <span className="text-sm font-bold text-primary">0</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                  <span className="text-xs text-muted-foreground">Total SKUs</span>
+                  <span className="text-sm font-bold text-primary">0</span>
+                </div>
+                {progresso && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
+                    <span className="text-xs text-muted-foreground">Tarefas geradas</span>
+                    <span className="text-sm font-bold text-primary">{progresso.geradas}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile summary banner */}
+      <div className="lg:hidden shrink-0 card-surface p-3 flex items-center justify-around text-xs">
+        <div className="flex flex-col items-center"><span className="text-muted-foreground">Tipo</span><span className="font-semibold text-foreground">{tipoLabel}</span></div>
+        <div className="flex flex-col items-center"><span className="text-muted-foreground">Execução</span><span className="font-semibold text-foreground">{execLabel}</span></div>
+        <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">0</span></div>
+        <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">0</span></div>
       </div>
     </div>
   );
