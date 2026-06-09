@@ -302,6 +302,14 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     setSaving(true);
     setProgresso(null);
     try {
+      // Pré-checagem: tipo de execução precisa estar configurado para o tenant
+      const { data: cfg } = await (supabase as any).from("inventario_tipo_tarefa")
+        .select("tipo_tarefa_id")
+        .eq("tenant_id", tenantId)
+        .eq("tipo_execucao", tipoExecucao)
+        .maybeSingle();
+      if (!cfg) throw new Error("TIPO_TAREFA_NAO_CONFIGURADO");
+
       const payload: any = {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
@@ -323,14 +331,14 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       };
       const { data, error } = await supabase.rpc("fn_criar_inventario_v2" as any, payload);
       if (error) throw error;
-      const inv: any = Array.isArray(data) ? data[0] : data;
+      const inv = unwrap(data);
       const inventarioId = inv?.inventario_id;
       if (!inventarioId) throw new Error("Inventário não retornado pelo backend.");
 
       // Loop de geração de tarefas
       let acumulado = 0;
       let finalizado = false;
-      let safety = 1000;
+      let safety = 500;
       while (!finalizado && safety-- > 0) {
         const { data: gen, error: genErr } = await supabase.rpc("fn_gerar_tarefas_inventario" as any, {
           p_tenant_id: tenantId,
@@ -338,12 +346,14 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           p_chunk_size: 200,
         });
         if (genErr) throw genErr;
-        const g: any = Array.isArray(gen) ? gen[0] : gen;
-        acumulado += Number(g?.tarefas_geradas || 0);
+        const g: any = unwrap(gen);
+        const geradasChunk = Number(g?.tarefas_geradas || 0);
+        acumulado += geradasChunk;
         finalizado = !!g?.finalizado;
         setProgresso({ geradas: acumulado, finalizado });
+        if (!finalizado && geradasChunk === 0) throw new Error("LOOP_SEM_PROGRESSO");
       }
-      toast.success("Inventário criado com sucesso!");
+      toast.success(`Inventário criado com ${acumulado} ${acumulado === 1 ? "tarefa" : "tarefas"}.`);
       onNavigate(`/inventario/${inventarioId}`);
     } catch (err: any) {
       toast.error(mapError(err));
