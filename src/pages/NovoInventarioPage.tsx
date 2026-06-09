@@ -32,6 +32,17 @@ const ERROR_MAP: Record<string, string> = {
   CURVA_OBRIGATORIA: "Selecione a curva (A, B, C ou D).",
   ARMAZEM_OBRIGATORIO: "Armazém não identificado. Recarregue a página.",
   TENANT_OBRIGATORIO: "Empresa não identificada. Recarregue a página.",
+  INVENTARIO_NAO_ENCONTRADO: "Inventário não encontrado.",
+  INVENTARIO_STATUS_INVALIDO: "Inventário em status inválido para gerar tarefas.",
+  LOOP_SEM_PROGRESSO: "Geração de tarefas não avançou. Verifique os filtros e tente novamente.",
+  ERRO_DESCONHECIDO: "Ocorreu um erro inesperado.",
+};
+
+// RPCs retornam { sucesso: boolean, codigo?: string, ... } — converte falha em throw.
+const unwrap = (data: any) => {
+  const j = Array.isArray(data) ? data[0] : data;
+  if (j && j.sucesso === false) throw new Error(j.codigo || "ERRO_DESCONHECIDO");
+  return j;
 };
 
 interface Option { id: string; label: string; sublabel?: string; }
