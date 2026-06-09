@@ -181,6 +181,101 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     return () => clearTimeout(debounceRef.current);
   }, [tipo, tenantId, empresaId, produtoSearch]);
 
+  // Prévia: Total Endereços / SKUs por escopo (consulta estoque_geral)
+  useEffect(() => {
+    if (!tenantId || !empresaId || !armazemId || !tipo) {
+      setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
+      return;
+    }
+    // Tipos que exigem seleção antes de calcular
+    if (tipo === "ZONA" && !zonaId) return;
+    if (tipo === "ENDERECO" && !enderecoId) return;
+    if (tipo === "PRODUTO" && !produtoId) return;
+    if (tipo === "GRUPO_PRODUTO" && !grupoId) return;
+    if (tipo === "ROTATIVO") {
+      if (!criterio) return;
+      if ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva) return;
+    }
+
+    if (previewRef.current) clearTimeout(previewRef.current);
+    const cancelled = { v: false };
+    previewRef.current = setTimeout(async () => {
+      setResumo((r) => ({ ...r, loading: true }));
+      try {
+        const LIMIT = 2000;
+        // Pré-filtros: produtos por grupo / curva quando aplicável
+        let produtoIdsFilter: string[] | null = null;
+        if (tipo === "GRUPO_PRODUTO") {
+          const { data: ps } = await (supabase as any).from("produto")
+            .select("id").eq("tenant_id", tenantId).eq("grupo_id", grupoId).eq("ativo", true).limit(5000);
+          produtoIdsFilter = (ps || []).map((p: any) => p.id);
+          if (produtoIdsFilter.length === 0) {
+            if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
+            return;
+          }
+        }
+        if (tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO")) {
+          const col = criterio === "CURVA_VENDAS" ? "curva_venda" : "curva_acesso";
+          const { data: ps } = await (supabase as any).from("produto")
+            .select("id").eq("tenant_id", tenantId).eq(col, curva).eq("ativo", true).limit(5000);
+          produtoIdsFilter = (ps || []).map((p: any) => p.id);
+          if (produtoIdsFilter.length === 0) {
+            if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
+            return;
+          }
+        }
+
+        // Atalhos por tipo de escopo único
+        if (tipo === "ENDERECO") {
+          const { data } = await (supabase as any).from("estoque_geral")
+            .select("produto_id")
+            .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("endereco_id", enderecoId)
+            .limit(LIMIT);
+          const skus = new Set((data || []).map((r: any) => r.produto_id));
+          if (!cancelled.v) setResumo({ enderecos: 1, skus: skus.size, loading: false, truncado: false });
+          return;
+        }
+
+        // Query genérica via embed em endereco (filtra armazem + situação)
+        let q = (supabase as any).from("estoque_geral")
+          .select("endereco_id, produto_id, endereco!inner(armazem_id, situacao)")
+          .eq("tenant_id", tenantId)
+          .eq("empresa_id", empresaId)
+          .eq("endereco.armazem_id", armazemId)
+          .neq("endereco.situacao", "BLOQUEADO_INVENTARIO")
+          .limit(LIMIT);
+
+        if (tipo === "PRODUTO") q = q.eq("produto_id", produtoId);
+        if (tipo === "ZONA") {
+          const { data: ez } = await (supabase as any).from("endereco_zona_atividade")
+            .select("endereco_id").eq("tenant_id", tenantId).eq("zona_atividade_id", zonaId).limit(5000);
+          const ids = (ez || []).map((r: any) => r.endereco_id);
+          if (ids.length === 0) {
+            if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
+            return;
+          }
+          q = q.in("endereco_id", ids);
+        }
+        if (produtoIdsFilter) q = q.in("produto_id", produtoIdsFilter);
+
+        const { data } = await q;
+        const rows = data || [];
+        const setE = new Set<string>(); const setP = new Set<string>();
+        for (const r of rows) { setE.add(r.endereco_id); setP.add(r.produto_id); }
+        if (!cancelled.v) setResumo({
+          enderecos: tipo === "PRODUTO" ? setE.size : setE.size,
+          skus: tipo === "PRODUTO" ? 1 : setP.size,
+          loading: false,
+          truncado: rows.length >= LIMIT,
+        });
+      } catch {
+        if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
+      }
+    }, 250);
+    return () => { cancelled.v = true; clearTimeout(previewRef.current); };
+  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva]);
+
+
   // Validação
   const isValid = useMemo(() => {
     if (!tipo || !tipoExecucao) return false;
