@@ -12,7 +12,8 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
-import { formatDateTimeShort } from "@/utils/dateTime";
+import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
 
 interface Props {
   usuarioId: string;
