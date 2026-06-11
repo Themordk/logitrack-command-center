@@ -114,6 +114,25 @@ function ProdutoDetailModal({
     // No-op kept for compatibility; EnderecoSearchInput handles its own queries.
   }, [pickForm.armazem_id, pickModalOpen, tab]);
 
+  const loadEmbalagens = async () => {
+    if (!produto?.id) return;
+    setEmbLoading(true);
+    const { data } = await (supabase as any).from("produto_embalagem")
+      .select("*").eq("produto_id", produto.id).eq("tenant_id", tenantId).order("embalagem");
+    setEmbalagens(data || []);
+    setEmbLoading(false);
+  };
+
+  const loadPickings = async () => {
+    if (!produto?.id) return;
+    setPickLoading(true);
+    const { data } = await (supabase as any).from("picking_produto")
+      .select("*, endereco:endereco_id(descricao, codigo_endereco)")
+      .eq("produto_id", produto.id).eq("tenant_id", tenantId).order("tipo_picking");
+    setPickings(data || []);
+    setPickLoading(false);
+  };
+
   const loadArmazens = async () => {
     if (!tenantId) return;
     let q = (supabase as any).from("armazem").select("id, descricao")
