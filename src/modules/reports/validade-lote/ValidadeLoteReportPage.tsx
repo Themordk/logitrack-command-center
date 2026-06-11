@@ -14,7 +14,7 @@ import { formatDate, nowDisplay } from "@/utils/dateTime";
 import { exportToExcel, exportToPdf, fmtDateBR, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 
 export function ValidadeLoteReportPage() {
-  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<ValidadeLoteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
