@@ -1,86 +1,66 @@
+# Plano — Performance e exatidão do relatório Posição de Estoque
 
-# Correções — Novo Inventário (`src/pages/NovoInventarioPage.tsx`)
+## Diagnóstico (causa raiz confirmada)
 
-## Diagnóstico
+A tabela `estoque_geral` tem **39.127 linhas**. O serviço atual (`src/modules/reports/estoque/estoque.service.ts`) faz:
 
-Investiguei as RPCs no banco. As duas causas são independentes:
-
-### 1) Inventário criado sem itens (root cause)
-`fn_criar_inventario_v2` e `fn_gerar_tarefas_inventario` retornam `json` no formato `{ sucesso: boolean, codigo?: string, ... }`. **Não lançam exceção** — o `supabase.rpc().error` continua `null` mesmo quando a operação falha.
-
-No código atual:
-- `handleSave` só verifica `error`; quando o JSON traz `sucesso:false` (ex.: `TIPO_TAREFA_NAO_CONFIGURADO`, `ESCOPO_*_OBRIGATORIO`, `INVENTARIO_STATUS_INVALIDO`), o campo `inventario_id` ainda existe na criação, então passa.
-- No loop de geração, quando `fn_gerar_tarefas_inventario` retorna `{sucesso:false, codigo:'TIPO_TAREFA_NAO_CONFIGURADO'}`, `g.tarefas_geradas` é `undefined` → `Number(undefined)=NaN` e `g.finalizado=undefined→false`. O loop roda 1000x silenciosamente, sai pelo `safety`, dispara `toast.success` e navega para um inventário vazio.
-
-Cenário muito provável no print do usuário: não há registro em `inventario_tipo_tarefa` para o `tipo_execucao` AUDITORIA daquele tenant, e o erro nunca é mostrado.
-
-### 2) Resumo (Total Endereços / Total SKUs) sempre 0
-O painel lateral está com valores **hardcoded em 0**. Não existe nenhum `useEffect`/query que calcule a prévia ao trocar tipo/escopo. Não há RPC de prévia no backend — precisa ser calculado no client a partir de `estoque_geral` + `endereco` (já há filtros equivalentes aos usados pela `fn_gerar_tarefas_inventario`).
-
----
-
-## Mudanças
-
-Edição única em `src/pages/NovoInventarioPage.tsx` (sem migrations, sem novos arquivos).
-
-### A. Tratar `sucesso:false` nas RPCs
-Helper local:
 ```ts
-const unwrap = (data: any) => {
-  const j = Array.isArray(data) ? data[0] : data;
-  if (j && j.sucesso === false) {
-    const code = j.codigo || "ERRO_DESCONHECIDO";
-    throw new Error(code);
-  }
-  return j;
-};
+.from("estoque_geral").select(... produto(...), endereco(...))
+.eq("tenant_id", ...).order("atualizado_em", desc).limit(500)
 ```
-Aplicar em ambas chamadas:
-- `const inv = unwrap(data);` após `fn_criar_inventario_v2`.
-- `const g = unwrap(gen);` dentro do loop; sair se `g.sucesso===false`.
 
-Expandir `ERROR_MAP` com `INVENTARIO_NAO_ENCONTRADO`, `INVENTARIO_STATUS_INVALIDO`, `ERRO_DESCONHECIDO`. `mapError` já cobre via `includes`.
+…e **só depois, em memória**, aplica `sku`, `marca`, `armazem_id`, `tipo_endereco`, `tipo_estoque_id`, `setor_id`, `grupo_id`, `subgrupo_id`, `codigo_endereco`.
 
-Como `fn_gerar_tarefas_inventario` agora vai lançar, se a primeira chamada retornar `TIPO_TAREFA_NAO_CONFIGURADO` o usuário verá toast destrutivo e a navegação **não** acontece.
+Consequências:
+1. **Inexatidão (bug reportado):** o SKU `9026358` existe em `produto` (2 registros) mas não aparece entre as 500 linhas mais recentes de `estoque_geral` → resultado vazio. O filtro EAN funciona porque ele já resolve `produto_id` no servidor (`.in("produto_id", ...)`) antes do `limit(500)`.
+2. **Performance:** trazemos sempre 500 linhas + joins de `produto` e `endereco` mesmo quando o usuário filtra por 1 SKU. Em tenants maiores, isso desperdiça payload e CPU.
+3. **Filtros silenciosamente ignorados** quando o registro alvo está fora da janela das 500 mais recentes (mesmo problema para Grupo, Subgrupo, Marca, Setor, Armazém, Código de Endereço).
 
-### B. Quebra de segurança extra no loop
-Trocar `safety=1000` por `safety=500` e, se `g.tarefas_geradas === 0 && !g.finalizado`, abortar com `Error("LOOP_SEM_PROGRESSO")` — evita silenciar bugs futuros.
+## Correção (somente `estoque.service.ts`)
 
-### C. Prévia de Endereços/SKUs no Resumo
-Novo `useEffect` que dispara sempre que `tipo`, escopo selecionado ou `armazemId`/`empresaId` mudam. Estado:
-```ts
-const [resumo, setResumo] = useState({ enderecos: 0, skus: 0, loading: false });
-```
-Para cada tipo, montar query em `estoque_geral` filtrada por `tenant_id+empresa_id+armazem_id` (join com `endereco` quando necessário para `armazem_id` e situação ≠ `BLOQUEADO_INVENTARIO`):
+Replicar o padrão já usado para EAN: **resolver filtros de tabelas relacionadas no servidor** antes de consultar `estoque_geral`, e empurrar o máximo para a query principal.
 
-| Tipo | Filtro adicional | Cálculo |
-|---|---|---|
-| `GERAL` | nenhum | distinct endereco_id, distinct produto_id |
-| `ZONA` | `endereco_zona_atividade.zona_atividade_id = zonaId` | idem |
-| `ENDERECO` | `endereco_id = enderecoId` | enderecos=1, distinct produto_id |
-| `PRODUTO` | `produto_id = produtoId` | distinct endereco_id, skus=1 |
-| `GRUPO_PRODUTO` | `produto.grupo_id = grupoId` (sub-select) | distinct endereco_id, distinct produto_id |
-| `ROTATIVO` | curva/cortes/estornos espelhando a RPC | distinct endereco_id, distinct produto_id |
+### A. Pré-resolução server-side de `produto_id`
+Quando houver qualquer um destes filtros: `sku`, `ean`, `marca`, `grupo_id`, `subgrupo_id`, `parceiro_id`:
+- Consultar `produto` com `.eq("tenant_id")`, `.eq("empresa_id")` quando aplicável.
+- `sku`: usar `.ilike("sku", `%${sku}%`)` (case-insensitive, mantém busca parcial atual).
+- `marca`: `.ilike("marca", `%${marca}%`)`.
+- `grupo_id`, `subgrupo_id`, `parceiro_id`: `.eq(...)`.
+- Se houver EAN, intersectar com os `produto_id` vindos de `produto_embalagem`.
+- Coletar `produto.id` (limit alto, ex.: 5000) e aplicar `.in("produto_id", ids)` na query principal. Se vier vazio → retornar `[]` (igual ao tratamento atual do EAN).
 
-Estratégia simples e suficiente para o volume de prévia: buscar até 2000 linhas com `select('endereco_id, produto_id')` aplicando os filtros e calcular cardinalidade no JS via `new Set()`. Quando atingir 2000, exibir `2000+`. Para PRODUTO/ENDERECO (escopo já único), a query é trivial.
+### B. Pré-resolução server-side de `endereco_id`
+Quando houver `armazem_id`, `tipo_endereco`, `tipo_estoque_id`, `setor_id` ou `codigo_endereco`:
+- Consultar `endereco` com esses filtros + `tenant_id`.
+- Aplicar `.in("endereco_id", ids)` na query principal. Vazio → `[]`.
+- Para evitar estourar payload com endereços, paginar internamente em lotes de 1000 ids se necessário (na prática, com `armazem_id` informado já fica pequeno; sem ele e com `tipo_endereco`, restringimos por `armazem_id` quando disponível no contexto).
 
-Debounce de 250ms no efeito; cancelar com flag `cancelled` no cleanup. Mostrar `Loader2` no número enquanto carrega.
+### C. Limite e ordenação
+- Aumentar `limit` para **2000** quando há filtros restritivos (SKU/EAN/endereço/grupo) — suficiente para qualquer caso unitário e mantém o teto. Sem filtros restritivos, manter 500 e exibir aviso na UI já existente.
+- Manter `order("atualizado_em", desc)` apenas como tie-breaker; ordenação final continua no cliente (sku, descricao, validade, total desc).
 
-Substituir os `<span>0</span>` do painel pelos valores de `resumo`.
+### D. Higienização de filtros
+- `trim()` em `sku`, `ean`, `marca`, `codigo_endereco` antes de aplicar (evita strings com espaço quebrando o match).
+- `sku` e `ean` com `length === 0` após trim → ignorar.
 
-### D. (Opcional defensivo) Pré-checar `inventario_tipo_tarefa`
-Antes de chamar `fn_criar_inventario_v2`, fazer `select('id').from('inventario_tipo_tarefa').eq('tenant_id', tenantId).eq('tipo_execucao', tipoExecucao).maybeSingle()` — se vazio, toast com mensagem amigável e abortar. Evita criar um inventário "CRIADO" que nunca sai do status por falta de configuração.
+## Índices recomendados (opcional, segunda etapa)
+Se a query continuar lenta após o fix, criar índices via migration:
+- `produto (tenant_id, sku)` — busca por SKU.
+- `produto_embalagem (ean)` — já provavelmente existe; verificar.
+- `estoque_geral (tenant_id, produto_id)` e `estoque_geral (tenant_id, endereco_id)`.
 
----
+Esses não são necessários para resolver o bug; só entram se `EXPLAIN ANALYZE` mostrar seq scan custoso. Confirmar com `supabase--slow_queries` antes.
+
+## O que NÃO muda
+- UI (`EstoqueReportPage.tsx`) permanece igual — mesmos filtros, mesmas colunas, mesmos exports.
+- Schema do banco não muda nesta primeira etapa.
+- Comportamento do filtro EAN preservado.
+
+## Arquivos
+- `src/modules/reports/estoque/estoque.service.ts` (único arquivo editado)
 
 ## Validação após implementar
-
-1. Selecionar **Por Produto** + produto válido → Resumo mostra `Total Endereços: N` (contagem real em `estoque_geral`) e `Total SKUs: 1`.
-2. Selecionar **Geral** → Resumo carrega contagem (com `+` se >2000).
-3. Clicar **Criar Inventário** sem `inventario_tipo_tarefa` configurado → toast destrutivo "Tipo de execução não configurado…", **não navega**, não cria inventário órfão.
-4. Com configuração ok → inventário criado com itens, loop progride, navega para detalhe.
-
-## Arquivos afetados
-- `src/pages/NovoInventarioPage.tsx` (única edição)
-
-Sem alterações em backend, migrations, outros serviços ou rotas.
+1. Filtrar SKU `9026358` → deve retornar as linhas de `estoque_geral` correspondentes (se houver saldo).
+2. Filtrar EAN equivalente → mesmo resultado.
+3. Filtrar por Armazém + Tipo Endereço PICKING → conferir contagem.
+4. Sem filtros → comportamento atual (top 500 recentes).
