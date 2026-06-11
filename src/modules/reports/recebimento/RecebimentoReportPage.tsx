@@ -18,9 +18,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
 
 export function RecebimentoReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<RecebimentoRow[]>([]);
   const [kpis, setKpis] = useState<RecebimentoKpis | null>(null);
   const [loading, setLoading] = useState(false);
