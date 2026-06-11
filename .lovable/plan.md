@@ -1,83 +1,88 @@
-# Refatoração — Zonas de Atividade
 
 ## Objetivo
-Reescrever `src/pages/ZonasAtividadePage.tsx` e seus modais para entregar uma experiência densa, performática e visualmente alinhada às demais telas de cadastro (referência: `EnderecosPage.tsx`), com suporte a milhares de endereços vinculados por zona.
 
-## Pontos a confirmar antes de codificar
-1. **Enum `tipo_grupo`**: o schema atual aceita `PICKING | ARMAZENAGEM | INVENTARIO`. O briefing pede `PICKING / RECEBIMENTO / EXPEDIÇÃO / INVENTÁRIO`. Vou manter os valores do banco (`PICKING / ARMAZENAGEM / INVENTARIO`) e apenas exibir os rótulos solicitados quando houver correspondência — adicionar novos valores exigiria migração de enum. Confirmar se devo gerar migração para expandir o enum.
-2. **Campo do código de endereço**: na tabela `endereco`, o padrão `R01-P01-N02-A01` vive em `descricao` (e existe também `codigo_endereco` opcional). Vou usar `descricao` como "código" exibido e parsear daí.
+Replicar nos demais relatórios o padrão de exportação já implementado em **Posição de Estoque** (`EstoqueReportPage`) e **Histórico de Movimentações** (`MovimentacoesReportPage`):
 
-## Estrutura de arquivos
-- `src/pages/ZonasAtividadePage.tsx` — reescrita completa
-- `src/pages/zonas/ZonaEnderecosSheet.tsx` — novo (gerenciador lateral)
-- `src/pages/zonas/AddEnderecosDialog.tsx` — novo (dialog de vínculo em lote)
-- `src/pages/zonas/utils.ts` — `parseEndereco(desc)` → `{ ruela, predio, nivel, andar }`
-- `src/hooks/useDebounce.ts` — criar se não existir
+- Botões **Exportar PDF**, **Exportar Excel** e **Imprimir** no `ReportHeader` totalmente funcionais.
+- Botões só ficam habilitados quando o relatório foi gerado e há linhas (`canExport = generated && data.length > 0`).
+- Reutiliza `exportToExcel`, `exportToPdf`, `fmtNumberBR`, `fmtDateBR`, `fmtDateTimeBR` de `src/modules/reports/utils/exporters.ts` (sem novas dependências).
+- Mesmo metadado no PDF: título, `generatedAt`, `usuário`, total de registros e bloco de filtros ativos.
+- `handlePrint = () => window.print()` (CSS de impressão já existente no `ReportHeader`/`ReportTable`).
 
-## Parte 1 — Página principal
-- Layout idêntico a `EnderecosPage`: `CrudTable` com título "Zonas de Atividade", subtítulo dinâmico de contagem, toolbar com busca + filtros `Tipo` e `Status` + botão "+ Nova Zona".
-- Colunas: `descricao`, `armazem_nome` (lookup em `armazemOptions`), `tipo` (badge outline), `total_enderecos` (badge circular `bg-muted`), `ativo` (`StatusBadge`), ações.
-- `total_enderecos`: buscar via RPC agregada única — `select zona_atividade_id, count(*) from endereco_zona_atividade where tenant_id=... group by zona_atividade_id` — e mapear em memória para evitar N+1. Refetch após vincular/desvincular.
-- Ações: `Link2` (abre Sheet), `Pencil` (editar), `Trash2` (delete) — todos `ghost` com `Tooltip` e `aria-label`.
-- Linha clicável (exceto coluna ações) → abre Sheet.
-- Empty state com `MapPin`; loading com skeleton rows.
+## Escopo (relatórios a atualizar)
 
-## Parte 2 — Sheet lateral de gerenciamento
-- `Sheet side="right"` com `sm:max-w-[720px]`, header (nome + armazém · tipo + badge contagem), Separator, toolbar sticky (busca + filtros Ruela/Prédio/Nível/Andar + Limpar + "Exibindo X de Y"), tabela com `ScrollArea h-[calc(100vh-280px)]`, footer sticky (paginação + "+ Adicionar Endereços").
-- **Paginação server-side**, 50/pág. Query:
-  ```ts
-  supabase.from('endereco_zona_atividade')
-    .select('id, endereco_id, created_at, endereco!inner(id, descricao, armazem_id)', { count: 'exact' })
-    .eq('tenant_id', tenantId)
-    .eq('zona_atividade_id', zonaId)
-    .eq('endereco.armazem_id', zona.armazem_id)
-    .ilike('endereco.descricao', `%${search}%`)
-    .order('descricao', { foreignTable: 'endereco', ascending: true })
-    .range(offset, offset + 49);
-  ```
-- Filtros Ruela/Prédio/Nível/Andar derivam do `parseEndereco(descricao)`. Como vivem em string, aplicar via `ilike` no padrão (`R01-%`, `%-P02-%` etc.) para manter filtragem server-side.
-- Colunas: `CÓDIGO` (font-mono primary), `RUELA` (badge), `PRÉDIO/NÍVEL/ANDAR` (text-center muted), `VINCULADO EM` (dd/mm/aaaa via `dateUtils`), ação `Unlink2`.
-- Desvincular: sem dialog — `toast(`Desvincular ${cod}?`, { action: { label: 'Confirmar', onClick: ... } })`; sucesso → remove da lista (otimista) + refetch contador.
-- Empty state com `Link2Off`.
-- Busca/filtros com `useDebounce(300ms)`. Refetch preserva scroll (não desmontar `ScrollArea`).
+Todos os que já usam `ReportHeader` mas ainda não passam `onExportExcel/onExportPdf/onPrint`:
 
-## Parte 3 — Dialog "Adicionar Endereços"
-- `Dialog` `max-w-3xl` por cima do Sheet.
-- Toolbar: busca, badge "X selecionado(s) · Limpar seleção", filtros Ruela/Prédio/Nível + "Limpar filtros" + contagem, linha "Selecionar todos os visíveis (X)".
-- Lista server-side, 100/pág, `ScrollArea h-[420px]`. Query usa `endereco` filtrado por `armazem_id` da zona + `ativo=true` + busca/filtros, **excluindo** os já vinculados.
-  - Para evitar `not in` com listas gigantes: buscar todos `endereco_id` vinculados uma vez (já temos `total_enderecos`; aqui carregamos array completo só desta zona) e enviar `.not('id','in','(...)')`. Se passar de ~1k ids, fallback: criar view/RPC `enderecos_disponiveis_para_zona(zona_id, search, ...)`. Marcar como item de atenção e implementar fallback se necessário.
-- Linha: checkbox + badge ruela + descrição font-mono + prédio/nível/andar; hover/selected estilizados; clique na linha = toggle.
-- Seleção **cross-página** persistida em `Set<string>` no state do dialog.
-- Footer: paginação | "X selecionado(s) no total" | Cancelar / "Vincular X endereço(s)" com `Loader2`.
-- Vincular: `insert` em lote (`endereco_zona_atividade`) com `onConflict: 'endereco_id,zona_atividade_id'` ignorado; calcular ignorados e exibir `toast.warning` se houver duplicatas; `toast.success` com total efetivo; fecha dialog, refetch Sheet + contador da tabela principal.
+1. `validade-lote/ValidadeLoteReportPage.tsx`
+2. `inventario/InventarioReportPage.tsx`
+3. `curva-abc/CurvaAbcReportPage.tsx`
+4. `recebimento/RecebimentoReportPage.tsx`
+5. `cortes/CortesReportPage.tsx`
+6. `baixo-giro/BaixoGiroReportPage.tsx`
+7. `ciclo-pedido/CicloPedidoReportPage.tsx`
+8. `produtividade/ProdutividadeOperadorPage.tsx`
 
-## Parte 4 — CRUD Modal Nova/Editar Zona
-- `CrudModal` com `descricao` (text, min 2), `armazem_id` (select), `tipo_grupo` (enum atual), `Ativo` (switch). Toasts de sucesso.
+**Fora do escopo nesta etapa:** `produtividade/ProdutividadeDashboardPage.tsx` é um dashboard analítico (KPIs/charts), sem tabela única exportável. Aplico apenas **Imprimir** (`window.print()`), deixando PDF/Excel desabilitados, salvo orientação em contrário.
 
-## Parte 5 — Performance, A11y, Erros
-- `useDebounce(300ms)` em todas as buscas.
-- Paginação server-side em Sheet (50) e Dialog (100); nunca carregar tudo.
-- Refetch silencioso (sem reset de scroll) usando `keepPreviousData`-like manual: manter array atual até nova resposta.
-- `aria-label` + `Tooltip` em todos os botões icon-only.
-- Sem cores hardcoded — apenas tokens do design system.
-- Erros: `toast.error` legível; conflito → `toast.warning`; zona inexistente fecha Sheet com `toast.error`.
+## Padrão técnico aplicado em cada arquivo
 
-## ASCII — layout do Sheet
-```text
-┌─────────────────── Sheet (720px, side=right) ──────────────────┐
-│ ZONA A                                                  [ X ]  │
-│ Armazém 01 · PICKING       [247 endereços vinculados]          │
-├────────────────────────────────────────────────────────────────┤
-│ [🔍 Buscar por código...                                    ]  │
-│ [Ruela▾][Prédio▾][Nível▾][Andar▾][Limpar]   Exibindo 50 de 247│
-├────────────────────────────────────────────────────────────────┤
-│ CÓDIGO          R   P   N   A   VINCULADO EM         AÇÕES     │
-│ R01-P01-N02-A01 01  01  02  01  10/06/2026           [⛓✕]      │
-│ ...                                                            │
-├────────────────────────────────────────────────────────────────┤
-│ ‹ Anterior   Página 1 de 5   Próximo ›    [+ Adicionar Endereços]│
-└────────────────────────────────────────────────────────────────┘
-```
+Para cada página acima, fazer apenas alterações de presentation/wiring (sem mexer em service ou regras de negócio):
 
-## Checklist final
-Cobre todos os itens listados pelo usuário (Sheet não-bloqueante, paginação server-side, seleção cross-página, parsing automático, debounce, skeletons, tooltips/aria, contagem reativa, tokens do design system, font-mono, toast inline para desvincular, empty states, Esc isolado entre Dialog/Sheet).
+1. Importar helpers:
+   ```ts
+   import { exportToExcel, exportToPdf, fmtNumberBR, fmtDateBR, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
+   ```
+2. Pegar `usuarioNome` de `useTenant()` (já disponível no contexto).
+3. Definir `exportColumns: ExportColumn[]` espelhando as colunas visíveis da tela, com `format()` usando os mesmos helpers de formatação já usados no `render` (datas BR, números BR, labels de status, classes ABC, severidade, SLA, etc.). Sem render de JSX — apenas strings.
+4. Acrescentar:
+   ```ts
+   const canExport = generated && data.length > 0;
+   const handleExcel = () => exportToExcel("<slug>", exportColumns, data);
+   const handlePdf   = () => exportToPdf("<slug>", exportColumns, data, {
+     title: "<Título do relatório>",
+     generatedAt, usuario: usuarioNome || "—",
+     total: data.length, filters: activeFilters,
+   });
+   const handlePrint = () => window.print();
+   ```
+5. Passar ao `<ReportHeader>`:
+   ```tsx
+   onExportExcel={canExport ? handleExcel : undefined}
+   onExportPdf={canExport ? handlePdf : undefined}
+   onPrint={canExport ? handlePrint : undefined}
+   exportDisabled={!canExport}
+   ```
+
+### Slugs e títulos sugeridos para os arquivos
+
+| Página | filename slug | título PDF |
+|---|---|---|
+| ValidadeLote | `validade_lote` | Validade e Lotes |
+| Inventario | `inventario` | Inventário – Apuração |
+| CurvaAbc | `curva_abc` | Curva ABC |
+| Recebimento | `recebimento_sla` | Recebimento (SLA) |
+| Cortes | `cortes` | Cortes de Separação |
+| BaixoGiro | `baixo_giro` | Produtos de Baixo Giro |
+| CicloPedido | `ciclo_pedido` | Ciclo do Pedido |
+| ProdutividadeOperador | `produtividade_operador` | Produtividade por Operador |
+
+### Tratamento de colunas especiais
+
+- **Status/Badges** (Recebimento SLA, Inventário status/severidade, Curva ABC classe): exportar como **texto** usando o mesmo label/getter já usado no `render`.
+- **Durações** (Recebimento `tempo_*_min`, Ciclo do Pedido): reutilizar a função `formatDuration` local do arquivo.
+- **Percentuais** (Curva ABC, Inventário acuracidade): manter `fmtPct` local.
+- **Datas/validade**: `fmtDateBR`; **timestamps**: `fmtDateTimeBR`.
+- **HU / IDs UUID**: aplicar o mesmo truncamento usado no render (ou string vazia quando UUID nulo `00000000-…`).
+- **Colunas só visuais** (ícones, ações): omitidas do export.
+
+## Validação
+
+- Build/typecheck automático.
+- Smoke manual: em cada relatório gerar com filtros, conferir que os 3 botões habilitam, baixar `.xlsx`/`.pdf` e verificar header (título, usuário, filtros, total) e alinhamento numérico à direita.
+- Confirmar que ao trocar empresa ou alterar filtros (que limpa `data`), os botões voltam a ficar desabilitados.
+
+## Riscos / observações
+
+- Nenhuma mudança em services, queries, schema ou estado global — somente camada de apresentação.
+- Sem novas libs: `xlsx` e `jspdf`/`jspdf-autotable` já são usados pelos relatórios atuais.
+- `ProdutividadeDashboardPage` fica só com Imprimir; se desejar exportar tabelas/gráficos do dashboard, abrir tarefa separada (precisa decidir o que vai no Excel/PDF).
