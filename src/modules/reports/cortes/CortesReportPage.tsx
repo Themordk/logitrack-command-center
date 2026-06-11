@@ -122,6 +122,30 @@ export function CortesReportPage() {
   }
   if (filterSku) activeFilters["SKU"] = filterSku;
 
+  const fmtBRL = (v: any) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const exportColumns: ExportColumn[] = [
+    { key: "numero_onda", label: "Nº Onda" },
+    { key: "sku", label: "SKU" },
+    { key: "descricao", label: "Descrição" },
+    { key: "qtde_cortada", label: "Qtd Cortada", align: "right", format: (r) => fmtNumberBR(r.qtde_cortada) },
+    { key: "preco_custo", label: "Preço Custo", align: "right", format: (r) => fmtBRL(r.preco_custo) },
+    { key: "custo_total_item", label: "Custo Total", align: "right", format: (r) => fmtBRL(r.custo_total_item) },
+    { key: "motivo", label: "Motivo" },
+    { key: "usuario", label: "Autorizado por" },
+    { key: "autorizado_em", label: "Autorizado em", format: (r) => fmtDateTimeBR(r.autorizado_em) },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("cortes", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("cortes", exportColumns, data, {
+      title: "Cortes de Separação",
+      generatedAt, usuario: usuarioNome || "—",
+      total: data.length, filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
@@ -130,7 +154,12 @@ export function CortesReportPage() {
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
+
 
       {/* Filters */}
       <div className="border border-border rounded-lg bg-card overflow-hidden">
