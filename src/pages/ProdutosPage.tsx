@@ -494,8 +494,8 @@ function ProdutoDetailModal({
                 <tbody>
                   {pickings.map((p) => (
                     <tr key={p.id} className="border-b border-border/50 table-row-hover">
-                      <td className="px-3 py-2 font-mono text-xs">{p.endereco?.descricao ?? "—"}</td>
-                      <td className="px-3 py-2 text-center text-xs">{p.tipo_picking}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{p.endereco?.codigo_endereco ?? p.endereco?.descricao ?? "—"}</td>
+                      <td className="px-3 py-2 text-center text-xs">{formatTipoPicking(p.tipo_picking)}</td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_minimo}</td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_maximo}</td>
                       <td className="px-3 py-2 text-right">
