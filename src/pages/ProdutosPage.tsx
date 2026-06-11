@@ -82,7 +82,6 @@ function ProdutoDetailModal({
   const [editPick, setEditPick] = useState<any>(null);
   const [pickForm, setPickForm] = useState<Record<string, any>>({});
   const [pickSaving, setPickSaving] = useState(false);
-  const [enderecoOptions, setEnderecoOptions] = useState<{ value: string; label: string }[]>([]);
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
