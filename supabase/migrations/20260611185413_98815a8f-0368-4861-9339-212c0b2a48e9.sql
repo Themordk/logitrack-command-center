@@ -1,0 +1,1 @@
+ALTER TABLE public.endereco_zona_atividade ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
