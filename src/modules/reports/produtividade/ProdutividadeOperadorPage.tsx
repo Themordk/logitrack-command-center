@@ -36,11 +36,12 @@ function getTaskColor(codigo: string): string {
 }
 
 export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, dataFim }: Props) {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, usuarioNome } = useTenant();
   const [loading, setLoading] = useState(true);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [operadorNome, setOperadorNome] = useState("");
   const [turnoInfo, setTurnoInfo] = useState<{ descricao: string; inicio: string; fim: string } | null>(null);
+  const [generatedAt, setGeneratedAt] = useState("");
 
   const inicio = dataInicio || new Date().toISOString().split("T")[0];
   const fim = dataFim || new Date().toISOString().split("T")[0];
