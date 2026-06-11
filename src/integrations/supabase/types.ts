@@ -1047,18 +1047,21 @@ export type Database = {
       }
       endereco_zona_atividade: {
         Row: {
+          created_at: string
           endereco_id: string
           id: string
           tenant_id: string
           zona_atividade_id: string
         }
         Insert: {
+          created_at?: string
           endereco_id: string
           id?: string
           tenant_id: string
           zona_atividade_id: string
         }
         Update: {
+          created_at?: string
           endereco_id?: string
           id?: string
           tenant_id?: string

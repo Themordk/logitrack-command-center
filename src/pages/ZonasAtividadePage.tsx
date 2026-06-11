@@ -1,30 +1,36 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud, fetchOptions } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Loader2, Link2 } from "lucide-react";
+import { ZonaEnderecosSheet } from "./zonas/ZonaEnderecosSheet";
 
 export function ZonasAtividadePage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
-  const crud = useCrud({ table: "zona_atividade", tenantId, orderBy: "descricao" });
+  const [filterTipo, setFilterTipo] = useState<string>("ALL");
+  const [filterAtivo, setFilterAtivo] = useState<string>("ALL");
+
+  const crudFilters = useMemo(() => {
+    const f: Record<string, any> = {};
+    if (filterTipo !== "ALL") f.tipo_grupo = filterTipo;
+    if (filterAtivo !== "ALL") f.Ativo = filterAtivo === "true";
+    return f;
+  }, [filterTipo, filterAtivo]);
+
+  const crud = useCrud({ table: "zona_atividade", tenantId, orderBy: "descricao", filters: crudFilters });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
+  const [sheetZona, setSheetZona] = useState<any>(null);
+  const [counts, setCounts] = useState<Record<string, number>>({});
 
-  const [vinculoZona, setVinculoZona] = useState<any>(null);
-  const [vinculos, setVinculos] = useState<any[]>([]);
-  const [vinculoLoading, setVinculoLoading] = useState(false);
-  const [addEndOpen, setAddEndOpen] = useState(false);
-  const [enderecoOptions, setEnderecoOptions] = useState<{ value: string; label: string }[]>([]);
-  const [selectedEnderecos, setSelectedEnderecos] = useState<string[]>([]);
-
-  // Carregar armazéns para dropdown do form
   useEffect(() => {
     if (tenantId && empresaId) {
       fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(setArmazemOptions);
@@ -33,69 +39,46 @@ export function ZonasAtividadePage() {
     }
   }, [tenantId, empresaId, empresaVersion]);
 
-  // Resetar estado local ao trocar empresa/armazém
   useEffect(() => {
-    setVinculoZona(null);
-    setVinculos([]);
-    setAddEndOpen(false);
-    setSelectedEnderecos([]);
+    setSheetZona(null);
     setModalOpen(false);
     setEditItem(null);
   }, [tenantId, armazemId, empresaVersion]);
 
-  const loadVinculos = async (zonaId: string) => {
-    setVinculoLoading(true);
-    const { data, error } = await (supabase as any)
-      .from("endereco_zona_atividade")
-      .select("id, endereco_id, endereco:endereco_id(descricao)")
-      .eq("zona_atividade_id", zonaId)
-      .eq("tenant_id", tenantId);
-    if (!error) setVinculos(data || []);
-    setVinculoLoading(false);
-  };
+  const refreshCounts = useCallback(async () => {
+    if (!tenantId || crud.data.length === 0) { setCounts({}); return; }
+    const results = await Promise.all(
+      crud.data.map(async (z: any) => {
+        const { count } = await (supabase as any)
+          .from("endereco_zona_atividade")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("zona_atividade_id", z.id);
+        return [z.id, count || 0] as const;
+      })
+    );
+    setCounts(Object.fromEntries(results));
+  }, [tenantId, crud.data]);
 
-  const openVinculos = (zona: any) => {
-    setVinculoZona(zona);
-    loadVinculos(zona.id);
-  };
+  useEffect(() => { refreshCounts(); }, [refreshCounts]);
 
-  const loadEnderecoOptions = async () => {
-    if (!tenantId || !armazemId) return;
-    const { data } = await (supabase as any).from("endereco").select("id, descricao").eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true).order("descricao");
-    const existingIds = new Set(vinculos.map((v: any) => v.endereco_id));
-    setEnderecoOptions((data || []).filter((e: any) => !existingIds.has(e.id)).map((e: any) => ({ value: e.id, label: e.descricao })));
-  };
-
-  const addVinculos = async () => {
-    if (selectedEnderecos.length === 0 || !vinculoZona) return;
-    const inserts = selectedEnderecos.map((endId) => ({
-      endereco_id: endId,
-      zona_atividade_id: vinculoZona.id,
-      tenant_id: tenantId,
-    }));
-    const { error } = await (supabase as any).from("endereco_zona_atividade").insert(inserts);
-    if (error) { toast.error(`Erro: ${error.message}`); return; }
-    toast.success("Endereços vinculados!");
-    setSelectedEnderecos([]);
-    setAddEndOpen(false);
-    loadVinculos(vinculoZona.id);
-  };
-
-  const removeVinculo = async (vinculoId: string) => {
-    const { error } = await (supabase as any).from("endereco_zona_atividade").delete().eq("id", vinculoId);
-    if (error) { toast.error(`Erro: ${error.message}`); return; }
-    toast.success("Vínculo removido!");
-    if (vinculoZona) loadVinculos(vinculoZona.id);
-  };
+  const armazemNomeById = useCallback(
+    (id: string) => armazemOptions.find((o) => o.value === id)?.label || "—",
+    [armazemOptions]
+  );
 
   const columns: ColumnSpec[] = [
-    { key: "descricao", label: "Descrição" },
-    { key: "armazem_id", label: "Armazém", render: (row) => {
-      const opt = armazemOptions.find((o) => o.value === row.armazem_id);
-      return <span className="text-sm text-muted-foreground">{opt?.label || "—"}</span>;
-    }},
-    { key: "tipo_grupo", label: "Tipo" },
-    { key: "Ativo", label: "Status", type: "badge" },
+    { key: "descricao", label: "Descrição", render: (row) => <span className="text-sm font-medium text-foreground truncate">{row.descricao}</span> },
+    { key: "armazem_id", label: "Armazém", render: (row) => <span className="text-sm text-muted-foreground">{armazemNomeById(row.armazem_id)}</span> },
+    { key: "tipo_grupo", label: "Tipo", render: (row) => (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">{row.tipo_grupo}</span>
+    )},
+    { key: "total_enderecos", label: "Endereços", render: (row) => (
+      <span className="inline-flex items-center justify-center min-w-[2.25rem] h-6 px-2 rounded-full text-xs font-semibold bg-muted text-foreground">
+        {counts[row.id] ?? "·"}
+      </span>
+    )},
+    { key: "Ativo", label: "Status", render: (row) => <StatusBadge status={row.Ativo ? "ativo" : "inativo"} type="generic" /> },
   ];
 
   const fields: FieldSpec[] = useMemo(() => [
@@ -108,26 +91,49 @@ export function ZonasAtividadePage() {
       placeholder: "Selecione o armazém...",
       defaultValue: armazemId || "",
     },
-    { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Zona Picking A" },
+    { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: ZONA A" },
     { name: "tipo_grupo", label: "Tipo do Grupo", type: "enum", required: true, enumValues: ["PICKING", "ARMAZENAGEM", "INVENTARIO"] },
     { name: "Ativo", label: "Ativo", type: "switch", defaultValue: true },
   ], [armazemOptions, armazemId]);
 
   const handleSave = async (data: Record<string, any>) => {
-    // armazem_id vem do form
     if (editItem) return crud.update(editItem.id, data);
     return crud.create(data);
   };
 
-  return (
+  const extraFilters = (
     <>
+      <Select value={filterTipo} onValueChange={setFilterTipo}>
+        <SelectTrigger className="h-9 w-[180px] text-sm bg-secondary border-border"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">Todos os tipos</SelectItem>
+          <SelectItem value="PICKING">PICKING</SelectItem>
+          <SelectItem value="ARMAZENAGEM">ARMAZENAGEM</SelectItem>
+          <SelectItem value="INVENTARIO">INVENTÁRIO</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={filterAtivo} onValueChange={setFilterAtivo}>
+        <SelectTrigger className="h-9 w-[140px] text-sm bg-secondary border-border"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">Todos</SelectItem>
+          <SelectItem value="true">Ativo</SelectItem>
+          <SelectItem value="false">Inativo</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
+  );
+
+  return (
+    <TooltipProvider>
       <CrudTable
         title="Zonas de Atividade"
+        subtitle={`${crud.total} registro${crud.total === 1 ? "" : "s"} encontrado${crud.total === 1 ? "" : "s"}`}
         columns={columns}
         data={crud.data}
         loading={crud.loading}
         search={crud.search}
         onSearchChange={crud.setSearch}
+        searchPlaceholder="Buscar por descrição..."
         page={crud.page}
         totalPages={crud.totalPages}
         total={crud.total}
@@ -137,14 +143,20 @@ export function ZonasAtividadePage() {
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Nova Zona"
+        extraFilters={extraFilters}
         extraRowActions={(row) => (
-          <button
-            onClick={() => openVinculos(row)}
-            className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors flex items-center justify-center"
-            title="Gerenciar Vínculos"
-          >
-            <Link2 size={13} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                aria-label={`Gerenciar endereços da ${row.descricao}`}
+                onClick={() => setSheetZona(row)}
+                className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors flex items-center justify-center"
+              >
+                <Link2 size={13} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Gerenciar Endereços</TooltipContent>
+          </Tooltip>
         )}
       />
 
@@ -162,65 +174,13 @@ export function ZonasAtividadePage() {
         onConfirm={async () => deleteItem ? crud.remove(deleteItem.id, false) : false}
       />
 
-      <Dialog open={!!vinculoZona} onOpenChange={(v) => !v && setVinculoZona(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Endereços Vinculados – {vinculoZona?.descricao}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <button
-              onClick={() => { loadEnderecoOptions(); setAddEndOpen(true); }}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Plus size={14} /> Adicionar Endereço
-            </button>
-            {vinculoLoading ? (
-              <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-primary" /></div>
-            ) : vinculos.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Nenhum endereço vinculado.</p>
-            ) : (
-              <div className="space-y-1">
-                {vinculos.map((v: any) => (
-                  <div key={v.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/30 border border-border">
-                    <span className="font-mono text-sm text-foreground">{v.endereco?.descricao ?? v.endereco_id}</span>
-                    <button onClick={() => removeVinculo(v.id)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={addEndOpen} onOpenChange={(v) => !v && setAddEndOpen(false)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Adicionar Endereços</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <select
-              multiple
-              value={selectedEnderecos}
-              onChange={(e) => setSelectedEnderecos(Array.from(e.target.selectedOptions, (o) => o.value))}
-              className="w-full h-48 rounded-lg border border-border bg-secondary/40 text-sm text-foreground p-2"
-            >
-              {enderecoOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground">Segure Ctrl/Cmd para selecionar múltiplos.</p>
-            <button
-              onClick={addVinculos}
-              disabled={selectedEnderecos.length === 0}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              Vincular {selectedEnderecos.length} endereço(s)
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+      <ZonaEnderecosSheet
+        zona={sheetZona}
+        tenantId={tenantId}
+        armazemNome={sheetZona ? armazemNomeById(sheetZona.armazem_id) : undefined}
+        onClose={() => setSheetZona(null)}
+        onCountChanged={refreshCounts}
+      />
+    </TooltipProvider>
   );
 }
