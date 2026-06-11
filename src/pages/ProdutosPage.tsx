@@ -13,6 +13,15 @@ import { Switch } from "@/components/ui/switch";
 import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package, Printer, AlertTriangle } from "lucide-react";
 import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaProdutoModal";
 import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoPreview";
+import { EnderecoSearchInput } from "@/components/armazem/EnderecoSearchInput";
+
+const TIPO_PICKING_OPTIONS = [
+  { value: "MASTER", label: "Master" },
+  { value: "FRACIONADO", label: "Fracionado" },
+  { value: "PDV", label: "PDV" },
+];
+const formatTipoPicking = (v?: string) =>
+  TIPO_PICKING_OPTIONS.find((o) => o.value === v)?.label ?? (v ?? "—");
 
 // ─── Produto Detail Modal with Tabs ────────────────────────────────
 function ProdutoDetailModal({
