@@ -1,66 +1,83 @@
-# Plano — Performance e exatidão do relatório Posição de Estoque
+# Refatoração — Zonas de Atividade
 
-## Diagnóstico (causa raiz confirmada)
+## Objetivo
+Reescrever `src/pages/ZonasAtividadePage.tsx` e seus modais para entregar uma experiência densa, performática e visualmente alinhada às demais telas de cadastro (referência: `EnderecosPage.tsx`), com suporte a milhares de endereços vinculados por zona.
 
-A tabela `estoque_geral` tem **39.127 linhas**. O serviço atual (`src/modules/reports/estoque/estoque.service.ts`) faz:
+## Pontos a confirmar antes de codificar
+1. **Enum `tipo_grupo`**: o schema atual aceita `PICKING | ARMAZENAGEM | INVENTARIO`. O briefing pede `PICKING / RECEBIMENTO / EXPEDIÇÃO / INVENTÁRIO`. Vou manter os valores do banco (`PICKING / ARMAZENAGEM / INVENTARIO`) e apenas exibir os rótulos solicitados quando houver correspondência — adicionar novos valores exigiria migração de enum. Confirmar se devo gerar migração para expandir o enum.
+2. **Campo do código de endereço**: na tabela `endereco`, o padrão `R01-P01-N02-A01` vive em `descricao` (e existe também `codigo_endereco` opcional). Vou usar `descricao` como "código" exibido e parsear daí.
 
-```ts
-.from("estoque_geral").select(... produto(...), endereco(...))
-.eq("tenant_id", ...).order("atualizado_em", desc).limit(500)
+## Estrutura de arquivos
+- `src/pages/ZonasAtividadePage.tsx` — reescrita completa
+- `src/pages/zonas/ZonaEnderecosSheet.tsx` — novo (gerenciador lateral)
+- `src/pages/zonas/AddEnderecosDialog.tsx` — novo (dialog de vínculo em lote)
+- `src/pages/zonas/utils.ts` — `parseEndereco(desc)` → `{ ruela, predio, nivel, andar }`
+- `src/hooks/useDebounce.ts` — criar se não existir
+
+## Parte 1 — Página principal
+- Layout idêntico a `EnderecosPage`: `CrudTable` com título "Zonas de Atividade", subtítulo dinâmico de contagem, toolbar com busca + filtros `Tipo` e `Status` + botão "+ Nova Zona".
+- Colunas: `descricao`, `armazem_nome` (lookup em `armazemOptions`), `tipo` (badge outline), `total_enderecos` (badge circular `bg-muted`), `ativo` (`StatusBadge`), ações.
+- `total_enderecos`: buscar via RPC agregada única — `select zona_atividade_id, count(*) from endereco_zona_atividade where tenant_id=... group by zona_atividade_id` — e mapear em memória para evitar N+1. Refetch após vincular/desvincular.
+- Ações: `Link2` (abre Sheet), `Pencil` (editar), `Trash2` (delete) — todos `ghost` com `Tooltip` e `aria-label`.
+- Linha clicável (exceto coluna ações) → abre Sheet.
+- Empty state com `MapPin`; loading com skeleton rows.
+
+## Parte 2 — Sheet lateral de gerenciamento
+- `Sheet side="right"` com `sm:max-w-[720px]`, header (nome + armazém · tipo + badge contagem), Separator, toolbar sticky (busca + filtros Ruela/Prédio/Nível/Andar + Limpar + "Exibindo X de Y"), tabela com `ScrollArea h-[calc(100vh-280px)]`, footer sticky (paginação + "+ Adicionar Endereços").
+- **Paginação server-side**, 50/pág. Query:
+  ```ts
+  supabase.from('endereco_zona_atividade')
+    .select('id, endereco_id, created_at, endereco!inner(id, descricao, armazem_id)', { count: 'exact' })
+    .eq('tenant_id', tenantId)
+    .eq('zona_atividade_id', zonaId)
+    .eq('endereco.armazem_id', zona.armazem_id)
+    .ilike('endereco.descricao', `%${search}%`)
+    .order('descricao', { foreignTable: 'endereco', ascending: true })
+    .range(offset, offset + 49);
+  ```
+- Filtros Ruela/Prédio/Nível/Andar derivam do `parseEndereco(descricao)`. Como vivem em string, aplicar via `ilike` no padrão (`R01-%`, `%-P02-%` etc.) para manter filtragem server-side.
+- Colunas: `CÓDIGO` (font-mono primary), `RUELA` (badge), `PRÉDIO/NÍVEL/ANDAR` (text-center muted), `VINCULADO EM` (dd/mm/aaaa via `dateUtils`), ação `Unlink2`.
+- Desvincular: sem dialog — `toast(`Desvincular ${cod}?`, { action: { label: 'Confirmar', onClick: ... } })`; sucesso → remove da lista (otimista) + refetch contador.
+- Empty state com `Link2Off`.
+- Busca/filtros com `useDebounce(300ms)`. Refetch preserva scroll (não desmontar `ScrollArea`).
+
+## Parte 3 — Dialog "Adicionar Endereços"
+- `Dialog` `max-w-3xl` por cima do Sheet.
+- Toolbar: busca, badge "X selecionado(s) · Limpar seleção", filtros Ruela/Prédio/Nível + "Limpar filtros" + contagem, linha "Selecionar todos os visíveis (X)".
+- Lista server-side, 100/pág, `ScrollArea h-[420px]`. Query usa `endereco` filtrado por `armazem_id` da zona + `ativo=true` + busca/filtros, **excluindo** os já vinculados.
+  - Para evitar `not in` com listas gigantes: buscar todos `endereco_id` vinculados uma vez (já temos `total_enderecos`; aqui carregamos array completo só desta zona) e enviar `.not('id','in','(...)')`. Se passar de ~1k ids, fallback: criar view/RPC `enderecos_disponiveis_para_zona(zona_id, search, ...)`. Marcar como item de atenção e implementar fallback se necessário.
+- Linha: checkbox + badge ruela + descrição font-mono + prédio/nível/andar; hover/selected estilizados; clique na linha = toggle.
+- Seleção **cross-página** persistida em `Set<string>` no state do dialog.
+- Footer: paginação | "X selecionado(s) no total" | Cancelar / "Vincular X endereço(s)" com `Loader2`.
+- Vincular: `insert` em lote (`endereco_zona_atividade`) com `onConflict: 'endereco_id,zona_atividade_id'` ignorado; calcular ignorados e exibir `toast.warning` se houver duplicatas; `toast.success` com total efetivo; fecha dialog, refetch Sheet + contador da tabela principal.
+
+## Parte 4 — CRUD Modal Nova/Editar Zona
+- `CrudModal` com `descricao` (text, min 2), `armazem_id` (select), `tipo_grupo` (enum atual), `Ativo` (switch). Toasts de sucesso.
+
+## Parte 5 — Performance, A11y, Erros
+- `useDebounce(300ms)` em todas as buscas.
+- Paginação server-side em Sheet (50) e Dialog (100); nunca carregar tudo.
+- Refetch silencioso (sem reset de scroll) usando `keepPreviousData`-like manual: manter array atual até nova resposta.
+- `aria-label` + `Tooltip` em todos os botões icon-only.
+- Sem cores hardcoded — apenas tokens do design system.
+- Erros: `toast.error` legível; conflito → `toast.warning`; zona inexistente fecha Sheet com `toast.error`.
+
+## ASCII — layout do Sheet
+```text
+┌─────────────────── Sheet (720px, side=right) ──────────────────┐
+│ ZONA A                                                  [ X ]  │
+│ Armazém 01 · PICKING       [247 endereços vinculados]          │
+├────────────────────────────────────────────────────────────────┤
+│ [🔍 Buscar por código...                                    ]  │
+│ [Ruela▾][Prédio▾][Nível▾][Andar▾][Limpar]   Exibindo 50 de 247│
+├────────────────────────────────────────────────────────────────┤
+│ CÓDIGO          R   P   N   A   VINCULADO EM         AÇÕES     │
+│ R01-P01-N02-A01 01  01  02  01  10/06/2026           [⛓✕]      │
+│ ...                                                            │
+├────────────────────────────────────────────────────────────────┤
+│ ‹ Anterior   Página 1 de 5   Próximo ›    [+ Adicionar Endereços]│
+└────────────────────────────────────────────────────────────────┘
 ```
 
-…e **só depois, em memória**, aplica `sku`, `marca`, `armazem_id`, `tipo_endereco`, `tipo_estoque_id`, `setor_id`, `grupo_id`, `subgrupo_id`, `codigo_endereco`.
-
-Consequências:
-1. **Inexatidão (bug reportado):** o SKU `9026358` existe em `produto` (2 registros) mas não aparece entre as 500 linhas mais recentes de `estoque_geral` → resultado vazio. O filtro EAN funciona porque ele já resolve `produto_id` no servidor (`.in("produto_id", ...)`) antes do `limit(500)`.
-2. **Performance:** trazemos sempre 500 linhas + joins de `produto` e `endereco` mesmo quando o usuário filtra por 1 SKU. Em tenants maiores, isso desperdiça payload e CPU.
-3. **Filtros silenciosamente ignorados** quando o registro alvo está fora da janela das 500 mais recentes (mesmo problema para Grupo, Subgrupo, Marca, Setor, Armazém, Código de Endereço).
-
-## Correção (somente `estoque.service.ts`)
-
-Replicar o padrão já usado para EAN: **resolver filtros de tabelas relacionadas no servidor** antes de consultar `estoque_geral`, e empurrar o máximo para a query principal.
-
-### A. Pré-resolução server-side de `produto_id`
-Quando houver qualquer um destes filtros: `sku`, `ean`, `marca`, `grupo_id`, `subgrupo_id`, `parceiro_id`:
-- Consultar `produto` com `.eq("tenant_id")`, `.eq("empresa_id")` quando aplicável.
-- `sku`: usar `.ilike("sku", `%${sku}%`)` (case-insensitive, mantém busca parcial atual).
-- `marca`: `.ilike("marca", `%${marca}%`)`.
-- `grupo_id`, `subgrupo_id`, `parceiro_id`: `.eq(...)`.
-- Se houver EAN, intersectar com os `produto_id` vindos de `produto_embalagem`.
-- Coletar `produto.id` (limit alto, ex.: 5000) e aplicar `.in("produto_id", ids)` na query principal. Se vier vazio → retornar `[]` (igual ao tratamento atual do EAN).
-
-### B. Pré-resolução server-side de `endereco_id`
-Quando houver `armazem_id`, `tipo_endereco`, `tipo_estoque_id`, `setor_id` ou `codigo_endereco`:
-- Consultar `endereco` com esses filtros + `tenant_id`.
-- Aplicar `.in("endereco_id", ids)` na query principal. Vazio → `[]`.
-- Para evitar estourar payload com endereços, paginar internamente em lotes de 1000 ids se necessário (na prática, com `armazem_id` informado já fica pequeno; sem ele e com `tipo_endereco`, restringimos por `armazem_id` quando disponível no contexto).
-
-### C. Limite e ordenação
-- Aumentar `limit` para **2000** quando há filtros restritivos (SKU/EAN/endereço/grupo) — suficiente para qualquer caso unitário e mantém o teto. Sem filtros restritivos, manter 500 e exibir aviso na UI já existente.
-- Manter `order("atualizado_em", desc)` apenas como tie-breaker; ordenação final continua no cliente (sku, descricao, validade, total desc).
-
-### D. Higienização de filtros
-- `trim()` em `sku`, `ean`, `marca`, `codigo_endereco` antes de aplicar (evita strings com espaço quebrando o match).
-- `sku` e `ean` com `length === 0` após trim → ignorar.
-
-## Índices recomendados (opcional, segunda etapa)
-Se a query continuar lenta após o fix, criar índices via migration:
-- `produto (tenant_id, sku)` — busca por SKU.
-- `produto_embalagem (ean)` — já provavelmente existe; verificar.
-- `estoque_geral (tenant_id, produto_id)` e `estoque_geral (tenant_id, endereco_id)`.
-
-Esses não são necessários para resolver o bug; só entram se `EXPLAIN ANALYZE` mostrar seq scan custoso. Confirmar com `supabase--slow_queries` antes.
-
-## O que NÃO muda
-- UI (`EstoqueReportPage.tsx`) permanece igual — mesmos filtros, mesmas colunas, mesmos exports.
-- Schema do banco não muda nesta primeira etapa.
-- Comportamento do filtro EAN preservado.
-
-## Arquivos
-- `src/modules/reports/estoque/estoque.service.ts` (único arquivo editado)
-
-## Validação após implementar
-1. Filtrar SKU `9026358` → deve retornar as linhas de `estoque_geral` correspondentes (se houver saldo).
-2. Filtrar EAN equivalente → mesmo resultado.
-3. Filtrar por Armazém + Tipo Endereço PICKING → conferir contagem.
-4. Sem filtros → comportamento atual (top 500 recentes).
+## Checklist final
+Cobre todos os itens listados pelo usuário (Sheet não-bloqueante, paginação server-side, seleção cross-página, parsing automático, debounce, skeletons, tooltips/aria, contagem reativa, tokens do design system, font-mono, toast inline para desvincular, empty states, Esc isolado entre Dialog/Sheet).
