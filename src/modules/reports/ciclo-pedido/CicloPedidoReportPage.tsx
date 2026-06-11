@@ -19,12 +19,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
 
 const STATUS_ONDA = ["CRIADA", "EM_SEPARACAO", "SEPARADA", "CONFERIDO", "CONCLUIDA", "CANCELADA"];
 const PRIORIDADES = ["BAIXA", "NORMAL", "ALTA", "URGENTE"];
 
 export function CicloPedidoReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<CicloPedidoRow[]>([]);
   const [kpis, setKpis] = useState<CicloPedidoKpis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -204,6 +205,41 @@ export function CicloPedidoReportPage() {
     if (kpis.pior_etapa !== "—") activeFilters["Gargalo"] = kpis.pior_etapa;
   }
 
+  const statusSlaLabel = (s: StatusSla) =>
+    ({ DENTRO: "Dentro SLA", ALERTA: "Alerta", FORA: "Fora SLA", EM_ANDAMENTO: "Em andamento" } as const)[s] || s;
+
+  const exportColumns: ExportColumn[] = [
+    { key: "numero_onda", label: "Onda", format: (r) => r.numero_onda != null ? `#${r.numero_onda}` : "" },
+    { key: "pedidos", label: "Pedido(s)" },
+    { key: "cliente", label: "Cliente" },
+    { key: "status", label: "Status" },
+    { key: "prioridade", label: "Prio." },
+    { key: "t0_criacao", label: "Criação", format: (r) => fmtDateTimeBR(r.t0_criacao) },
+    { key: "t2_inicio_sep", label: "Início Sep.", format: (r) => r.t2_inicio_sep ? fmtDateTimeBR(r.t2_inicio_sep) : "" },
+    { key: "t3_fim_sep", label: "Fim Sep.", format: (r) => r.t3_fim_sep ? fmtDateTimeBR(r.t3_fim_sep) : "" },
+    { key: "t4_fim_conf", label: "Fim Conf.", format: (r) => r.t4_fim_conf ? fmtDateTimeBR(r.t4_fim_conf) : "" },
+    { key: "t5_expedicao", label: "Expedição", format: (r) => r.t5_expedicao ? fmtDateTimeBR(r.t5_expedicao) : "" },
+    { key: "tempo_total_min", label: "Total", align: "right", format: (r) => formatDuration(r.tempo_total_min) },
+    { key: "tempo_fila_min", label: "Fila", align: "right", format: (r) => formatDuration(r.tempo_fila_min) },
+    { key: "tempo_picking_min", label: "Picking", align: "right", format: (r) => formatDuration(r.tempo_picking_min) },
+    { key: "tempo_conferencia_min", label: "Conferência", align: "right", format: (r) => formatDuration(r.tempo_conferencia_min) },
+    { key: "tempo_pos_conf_min", label: "Pós-Conf.", align: "right", format: (r) => formatDuration(r.tempo_pos_conf_min) },
+    { key: "tempo_ocioso_min", label: "Ocioso", align: "right", format: (r) => formatDuration(r.tempo_ocioso_min) },
+    { key: "pior_etapa", label: "Gargalo" },
+    { key: "perc_sla", label: "% SLA", align: "right", format: (r) => r.perc_sla == null ? "" : `${r.perc_sla.toFixed(0)}%` },
+    { key: "status_sla", label: "SLA", format: (r) => statusSlaLabel(r.status_sla) },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("ciclo_pedido", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("ciclo_pedido", exportColumns, data, {
+      title: "Tempo de Ciclo de Pedido",
+      generatedAt, usuario: usuarioNome || "—",
+      total: data.length, filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
@@ -212,7 +248,12 @@ export function CicloPedidoReportPage() {
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
+
 
       <div className="border border-border rounded-lg bg-card overflow-hidden">
         <button

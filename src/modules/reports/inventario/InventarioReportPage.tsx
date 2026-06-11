@@ -19,9 +19,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 
 export function InventarioReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<InventarioRow[]>([]);
   const [kpis, setKpis] = useState<InventarioKpis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -203,6 +204,35 @@ export function InventarioReportPage() {
     activeFilters["Impacto R$"] = fmtBRL(kpis.impacto_total);
   }
 
+  const statusLabel = (s: StatusItem) =>
+    ({ CONFORME: "Conforme", SOBRA: "Sobra", FALTA: "Falta", PENDENTE: "Pendente" } as const)[s] || s;
+
+  const exportColumns: ExportColumn[] = [
+    { key: "numero_inventario", label: "Inventário", format: (r) => `#${r.numero_inventario}` },
+    { key: "sku", label: "SKU" },
+    { key: "descricao", label: "Descrição" },
+    { key: "endereco", label: "Endereço" },
+    { key: "lote", label: "Lote" },
+    { key: "qtd_sistemica", label: "Qtd. Sist.", align: "right", format: (r) => fmtNumberBR(r.qtd_sistemica) },
+    { key: "qtd_contada", label: "Qtd. Cont.", align: "right", format: (r) => fmtNumberBR(r.qtd_contada) },
+    { key: "diferenca", label: "Diferença", align: "right", format: (r) => `${r.diferenca > 0 ? "+" : ""}${fmtNumberBR(r.diferenca)}` },
+    { key: "diferenca_pct", label: "Dif. %", align: "right", format: (r) => r.status_calc === "PENDENTE" ? "" : `${r.diferenca_pct > 0 ? "+" : ""}${fmtPct(r.diferenca_pct)}` },
+    { key: "impacto_financeiro", label: "Impacto R$", align: "right", format: (r) => fmtBRL(r.impacto_financeiro) },
+    { key: "acuracidade_item", label: "Acur. %", align: "right", format: (r) => r.status_calc === "PENDENTE" ? "" : fmtPct(r.acuracidade_item) },
+    { key: "status_calc", label: "Status", format: (r) => statusLabel(r.status_calc) },
+    { key: "severidade", label: "Severidade" },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("inventario", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("inventario", exportColumns, data, {
+      title: "Inventário – Apuração",
+      generatedAt, usuario: usuarioNome || "—",
+      total: data.length, filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
@@ -211,7 +241,12 @@ export function InventarioReportPage() {
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
+
 
       <div className="border border-border rounded-lg bg-card overflow-hidden">
         <button

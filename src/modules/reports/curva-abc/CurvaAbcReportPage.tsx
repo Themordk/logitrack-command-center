@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, type ExportColumn } from "../utils/exporters";
 
 function defaultDateRange() {
   const fim = new Date();
@@ -21,7 +22,7 @@ function defaultDateRange() {
 }
 
 export function CurvaAbcReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const def = defaultDateRange();
   const [data, setData] = useState<CurvaAbcRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -145,6 +146,27 @@ export function CurvaAbcReportPage() {
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterClasse) activeFilters["Classe"] = filterClasse;
 
+  const exportColumns: ExportColumn[] = [
+    { key: "sku", label: "SKU" },
+    { key: "descricao", label: "Descrição" },
+    { key: "marca", label: "Marca" },
+    { key: "qtd_saida", label: "Qtd. Saída", align: "right", format: (r) => fmtNum(r.qtd_saida) },
+    { key: "participacao", label: "% Particip.", align: "right", format: (r) => fmtPct(r.participacao) },
+    { key: "acumulado", label: "% Acum.", align: "right", format: (r) => fmtPct(r.acumulado) },
+    { key: "saldo_atual", label: "Saldo Atual", align: "right", format: (r) => fmtNum(r.saldo_atual) },
+    { key: "classe", label: "Classe" },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("curva_abc", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("curva_abc", exportColumns, data, {
+      title: "Curva ABC",
+      generatedAt, usuario: usuarioNome || "—",
+      total: data.length, filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
@@ -153,7 +175,12 @@ export function CurvaAbcReportPage() {
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
+
 
       <div className="border border-border rounded-lg bg-card overflow-hidden">
         <button

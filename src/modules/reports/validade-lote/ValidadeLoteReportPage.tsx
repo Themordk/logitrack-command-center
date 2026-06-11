@@ -11,9 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtDateBR, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 
 export function ValidadeLoteReportPage() {
-  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<ValidadeLoteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -167,6 +168,32 @@ export function ValidadeLoteReportPage() {
     activeFilters["Crítico ≤30d"] = `${fmtNum(totalCritico)}`;
   }
 
+  const criticidadeLabel = (c: ValidadeLoteRow["criticidade"]) =>
+    ({ VENCIDO: "Vencido", CRITICO: "Crítico", ATENCAO: "Atenção", OK: "OK" } as const)[c] || c;
+
+  const exportColumns: ExportColumn[] = [
+    { key: "sku", label: "SKU" },
+    { key: "descricao", label: "Descrição" },
+    { key: "lote", label: "Lote" },
+    { key: "data_fabricacao", label: "Fabricação", format: (r) => fmtDateBR(r.data_fabricacao) },
+    { key: "data_validade", label: "Validade", format: (r) => fmtDateBR(r.data_validade) },
+    { key: "dias_para_vencer", label: "Dias p/ Vencer", align: "right", format: (r) => fmtNumberBR(r.dias_para_vencer) },
+    { key: "saldo", label: "Saldo", align: "right", format: (r) => fmtNumberBR(r.saldo) },
+    { key: "codigo_endereco", label: "Endereço" },
+    { key: "tipo_endereco", label: "Tipo End." },
+    { key: "criticidade", label: "Status", format: (r) => criticidadeLabel(r.criticidade) },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("validade_lote", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("validade_lote", exportColumns, data, {
+      title: "Validade e Lotes",
+      generatedAt, usuario: usuarioNome || "—",
+      total: data.length, filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
@@ -175,7 +202,12 @@ export function ValidadeLoteReportPage() {
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
+
 
       <div className="border border-border rounded-lg bg-card overflow-hidden">
         <button
