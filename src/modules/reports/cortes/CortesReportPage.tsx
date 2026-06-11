@@ -11,9 +11,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Filter, Search, X, Scissors, PackageX, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime, formatDate, nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtDateTimeBR, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 
 export function CortesReportPage() {
-  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<CorteRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
