@@ -146,6 +146,31 @@ export function BaixoGiroReportPage() {
     activeFilters["Capital parado"] = fmtBRL(totalCusto);
   }
 
+  const classLabel = (c: BaixoGiroRow["classificacao"]) =>
+    ({ BAIXO_GIRO: "Baixo Giro", OBSOLETO: "Obsoleto", SEM_MOVIMENTO: "Sem Movimento" } as const)[c] || c;
+
+  const exportColumns: ExportColumn[] = [
+    { key: "sku", label: "SKU" },
+    { key: "descricao", label: "Descrição" },
+    { key: "marca", label: "Marca" },
+    { key: "saldo", label: "Saldo", align: "right", format: (r) => fmtNum(r.saldo) },
+    { key: "preco_custo", label: "Custo Unit.", align: "right", format: (r) => fmtBRL(r.preco_custo) },
+    { key: "custo_total", label: "Custo Total", align: "right", format: (r) => fmtBRL(r.custo_total) },
+    { key: "ultima_saida", label: "Última Saída", format: (r) => r.ultima_saida ? fmtDateBR(r.ultima_saida) : "Nunca" },
+    { key: "dias_sem_movimento", label: "Dias s/ Mov.", align: "right", format: (r) => r.dias_sem_movimento == null ? "∞" : String(r.dias_sem_movimento) },
+    { key: "classificacao", label: "Classificação", format: (r) => classLabel(r.classificacao) },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("baixo_giro", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("baixo_giro", exportColumns, data, {
+      title: "Produtos de Baixo Giro / Obsoletos",
+      generatedAt, usuario: usuarioNome || "—",
+      total: data.length, filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
@@ -154,7 +179,12 @@ export function BaixoGiroReportPage() {
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
+
 
       <div className="border border-border rounded-lg bg-card overflow-hidden">
         <button
