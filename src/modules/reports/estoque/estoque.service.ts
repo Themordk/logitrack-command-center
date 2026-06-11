@@ -16,19 +16,89 @@ export interface EstoqueFilter {
   marca?: string;
 }
 
+const intersect = (a: string[] | null, b: string[]): string[] => {
+  if (a === null) return b;
+  const set = new Set(a);
+  return b.filter((x) => set.has(x));
+};
+
 export async function fetchEstoqueReport(filters: EstoqueFilter) {
-  // If EAN filter is provided, first resolve product IDs
-  let eanProductIds: string[] | null = null;
-  if (filters.ean) {
-    const { data: embData } = await (supabase as any)
-      .from("produto_embalagem")
-      .select("produto_id")
-      .eq("ean", filters.ean);
-    eanProductIds = (embData || []).map((e: any) => e.produto_id);
-    if (eanProductIds!.length === 0) {
-      return []; // No products match this EAN
+  const sku = filters.sku?.trim() || undefined;
+  const ean = filters.ean?.trim() || undefined;
+  const marca = filters.marca?.trim() || undefined;
+
+  // ===== A. Resolver produto_id server-side =====
+  let produtoIds: string[] | null = null;
+  const hasProdutoFilter =
+    !!sku || !!ean || !!marca ||
+    !!filters.grupo_id || !!filters.subgrupo_id || !!filters.parceiro_id;
+
+  if (hasProdutoFilter) {
+    // EAN → produto_embalagem
+    if (ean) {
+      const { data: embData, error: embErr } = await (supabase as any)
+        .from("produto_embalagem")
+        .select("produto_id")
+        .eq("ean", ean);
+      if (embErr) throw embErr;
+      const eanIds = (embData || []).map((e: any) => e.produto_id);
+      if (eanIds.length === 0) return [];
+      produtoIds = intersect(produtoIds, eanIds);
+    }
+
+    // produto: sku/marca/grupo/subgrupo/parceiro
+    if (sku || marca || filters.grupo_id || filters.subgrupo_id || filters.parceiro_id) {
+      let pq = (supabase as any)
+        .from("produto")
+        .select("id")
+        .eq("tenant_id", filters.tenant_id)
+        .limit(5000);
+      if (filters.empresa_id) pq = pq.eq("empresa_id", filters.empresa_id);
+      if (sku) pq = pq.ilike("sku", `%${sku}%`);
+      if (marca) pq = pq.ilike("marca", `%${marca}%`);
+      if (filters.grupo_id) pq = pq.eq("grupo_id", filters.grupo_id);
+      if (filters.subgrupo_id) pq = pq.eq("subgrupo_id", filters.subgrupo_id);
+      if (filters.parceiro_id) pq = pq.eq("parceiro_id", filters.parceiro_id);
+
+      const { data: prods, error: pErr } = await pq;
+      if (pErr) throw pErr;
+      const ids = (prods || []).map((p: any) => p.id);
+      if (ids.length === 0) return [];
+      produtoIds = intersect(produtoIds, ids);
+      if (produtoIds.length === 0) return [];
     }
   }
+
+  // ===== B. Resolver endereco_id server-side =====
+  let enderecoIds: string[] | null = null;
+  const hasEnderecoFilter =
+    !!filters.armazem_id || !!filters.tipo_endereco ||
+    !!filters.tipo_estoque_id || !!filters.setor_id ||
+    (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null);
+
+  if (hasEnderecoFilter) {
+    let eq = (supabase as any)
+      .from("endereco")
+      .select("id")
+      .eq("tenant_id", filters.tenant_id)
+      .limit(10000);
+    if (filters.armazem_id) eq = eq.eq("armazem_id", filters.armazem_id);
+    if (filters.tipo_endereco) eq = eq.eq("tipo_endereco", filters.tipo_endereco);
+    if (filters.tipo_estoque_id) eq = eq.eq("tipo_estoque_id", filters.tipo_estoque_id);
+    if (filters.setor_id) eq = eq.eq("setor_id", filters.setor_id);
+    if (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null) {
+      eq = eq.eq("codigo_endereco", filters.codigo_endereco);
+    }
+
+    const { data: ends, error: eErr } = await eq;
+    if (eErr) throw eErr;
+    enderecoIds = (ends || []).map((e: any) => e.id);
+    if (enderecoIds.length === 0) return [];
+  }
+
+  // ===== C. Query principal =====
+  const hasRestrictiveFilter = produtoIds !== null || enderecoIds !== null;
+  const limit = hasRestrictiveFilter ? 2000 : 500;
 
   let query = supabase
     .from("estoque_geral")
@@ -60,16 +130,16 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     `)
     .eq("tenant_id", filters.tenant_id)
     .order("atualizado_em", { ascending: false })
-    .limit(500);
+    .limit(limit);
 
   if (filters.empresa_id) query = query.eq("empresa_id", filters.empresa_id);
-  if (eanProductIds) query = query.in("produto_id", eanProductIds);
+  if (produtoIds) query = query.in("produto_id", produtoIds);
+  if (enderecoIds) query = query.in("endereco_id", enderecoIds);
 
   const { data, error } = await query;
   if (error) throw error;
 
-  // Client-side filters for joined fields
-  let results = (data || []).map((row: any) => ({
+  const results = (data || []).map((row: any) => ({
     id: row.id,
     sku: row.produto?.sku || "",
     descricao: row.produto?.descricao || "",
@@ -91,22 +161,6 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     subgrupo_id: row.produto?.subgrupo_id,
     parceiro_id: row.produto?.parceiro_id,
   }));
-
-  if (filters.armazem_id) results = results.filter(r => r.armazem_id === filters.armazem_id);
-  if (filters.tipo_endereco) results = results.filter(r => r.tipo_endereco === filters.tipo_endereco);
-  if (filters.tipo_estoque_id) results = results.filter(r => r.tipo_estoque_id === filters.tipo_estoque_id);
-  if (filters.setor_id) results = results.filter(r => r.setor_id === filters.setor_id);
-  if (filters.sku) results = results.filter(r => r.sku.toLowerCase().includes(filters.sku!.toLowerCase()));
-  if (filters.grupo_id) results = results.filter(r => r.grupo_id === filters.grupo_id);
-  if (filters.subgrupo_id) results = results.filter(r => r.subgrupo_id === filters.subgrupo_id);
-  if (filters.parceiro_id) results = results.filter(r => r.parceiro_id === filters.parceiro_id);
-  if (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null) {
-    results = results.filter(r => Number(r.codigo_endereco) === Number(filters.codigo_endereco));
-  }
-  if (filters.marca) {
-    const m = filters.marca.toLowerCase();
-    results = results.filter(r => (r.marca || "").toLowerCase().includes(m));
-  }
 
   // Sort: sku, descricao, data_validade, quantidade_total DESC
   results.sort((a, b) => {
