@@ -22,7 +22,7 @@ function defaultDateRange() {
 }
 
 export function CurvaAbcReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const def = defaultDateRange();
   const [data, setData] = useState<CurvaAbcRow[]>([]);
   const [loading, setLoading] = useState(false);
