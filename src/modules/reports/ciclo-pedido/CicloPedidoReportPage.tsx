@@ -19,12 +19,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
 
 const STATUS_ONDA = ["CRIADA", "EM_SEPARACAO", "SEPARADA", "CONFERIDO", "CONCLUIDA", "CANCELADA"];
 const PRIORIDADES = ["BAIXA", "NORMAL", "ALTA", "URGENTE"];
 
 export function CicloPedidoReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<CicloPedidoRow[]>([]);
   const [kpis, setKpis] = useState<CicloPedidoKpis | null>(null);
   const [loading, setLoading] = useState(false);
