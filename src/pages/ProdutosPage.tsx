@@ -111,36 +111,8 @@ function ProdutoDetailModal({
 
   // Reload addresses when warehouse selection changes in picking form
   useEffect(() => {
-    if (tab === "picking" && pickModalOpen) loadEnderecos(pickForm.armazem_id);
+    // No-op kept for compatibility; EnderecoSearchInput handles its own queries.
   }, [pickForm.armazem_id, pickModalOpen, tab]);
-
-  const loadEmbalagens = async () => {
-    if (!produto?.id) return;
-    setEmbLoading(true);
-    const { data } = await (supabase as any).from("produto_embalagem")
-      .select("*").eq("produto_id", produto.id).eq("tenant_id", tenantId).order("embalagem");
-    setEmbalagens(data || []);
-    setEmbLoading(false);
-  };
-
-  const loadPickings = async () => {
-    if (!produto?.id) return;
-    setPickLoading(true);
-    const { data } = await (supabase as any).from("picking_produto")
-      .select("*, endereco:endereco_id(descricao)")
-      .eq("produto_id", produto.id).eq("tenant_id", tenantId).order("tipo_picking");
-    setPickings(data || []);
-    setPickLoading(false);
-  };
-
-  const loadEnderecos = async (armId?: string) => {
-    if (!tenantId) return;
-    let q = (supabase as any).from("endereco").select("id, descricao, armazem_id")
-      .eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
-    if (armId) q = q.eq("armazem_id", armId);
-    const { data } = await q;
-    setEnderecoOptions((data || []).map((e: any) => ({ value: e.id, label: e.descricao })));
-  };
 
   const loadArmazens = async () => {
     if (!tenantId) return;
