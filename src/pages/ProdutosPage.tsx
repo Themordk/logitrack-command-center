@@ -564,17 +564,21 @@ function ProdutoDetailModal({
               </select>
             </div>
             <div className="col-span-2">
-              <label className={labelClass}>Endereço *</label>
-              <select value={pickForm.endereco_id || ""} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass} disabled={!pickForm.armazem_id}>
-                <option value="">{pickForm.armazem_id ? "Selecionar..." : "Selecione o armazém primeiro"}</option>
-                {enderecoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <EnderecoSearchInput
+                label="Endereço *"
+                value={pickForm.endereco_id || null}
+                onChange={(id) => setPickForm({ ...pickForm, endereco_id: id || "" })}
+                armazemId={pickForm.armazem_id || null}
+                tenantId={tenantId}
+                disabled={!pickForm.armazem_id}
+                placeholder={pickForm.armazem_id ? "Digite o código do endereço..." : "Selecione o armazém primeiro"}
+              />
             </div>
             <div>
               <label className={labelClass}>Tipo Picking *</label>
               <select value={pickForm.tipo_picking || ""} onChange={(e) => setPickForm({ ...pickForm, tipo_picking: e.target.value })} className={inputClass}>
                 <option value="">Selecionar...</option>
-                {[{ value: "MASTER", label: "Principal" }, { value: "FRACIONADO", label: "Fracionado" }, { value: "PDV", label: "PDV" }].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {TIPO_PICKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div><label className={labelClass}>Est. Mínimo</label><input type="number" value={pickForm.est_minimo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} /></div>
