@@ -19,9 +19,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 
 export function InventarioReportPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<InventarioRow[]>([]);
   const [kpis, setKpis] = useState<InventarioKpis | null>(null);
   const [loading, setLoading] = useState(false);
