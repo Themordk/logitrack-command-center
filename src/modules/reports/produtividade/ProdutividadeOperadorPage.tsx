@@ -126,6 +126,29 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   const turnoEndMin = turnoInfo ? parseTime(turnoInfo.fim) : 22 * 60;
   const turnoRange = turnoEndMin > turnoStartMin ? turnoEndMin - turnoStartMin : (24 * 60 - turnoStartMin + turnoEndMin);
 
+  const exportColumns: ExportColumn[] = [
+    { key: "tipo_tarefa_descricao", label: "Tipo" },
+    { key: "status", label: "Status" },
+    { key: "quantidade_executada", label: "Qtd Exec.", align: "right" },
+    { key: "duracao_segundos", label: "Duração", align: "right", format: (r) => r.duracao_segundos != null ? formatSegundos(r.duracao_segundos) : "" },
+    { key: "iniciado_em", label: "Início", format: (r) => r.iniciado_em ? fmtDateTimeBR(r.iniciado_em) : "" },
+    { key: "concluido_em", label: "Conclusão", format: (r) => r.concluido_em ? fmtDateTimeBR(r.concluido_em) : "" },
+  ];
+  const exportFilters: Record<string, string> = {
+    Operador: operadorNome || "—",
+    Período: `${inicio} a ${fim}`,
+    ...(turnoInfo ? { Turno: `${turnoInfo.descricao} (${turnoInfo.inicio}–${turnoInfo.fim})` } : {}),
+  };
+  const canExport = !loading && timeline.length > 0;
+  const handleExcel = () => exportToExcel("produtividade_operador", exportColumns, timeline);
+  const handlePdf = () =>
+    exportToPdf("produtividade_operador", exportColumns, timeline, {
+      title: `Produtividade — ${operadorNome || "Operador"}`,
+      generatedAt, usuario: usuarioNome || "—",
+      total: timeline.length, filters: exportFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
@@ -138,9 +161,15 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         <ReportHeader
           title={operadorNome || "Operador"}
           subtitle={`Timeline de Produtividade — ${inicio} a ${fim}`}
-          generatedAt=""
+          generatedAt={generatedAt || "—"}
+          total={!loading ? timeline.length : undefined}
+          onExportExcel={canExport ? handleExcel : undefined}
+          onExportPdf={canExport ? handlePdf : undefined}
+          onPrint={canExport ? handlePrint : undefined}
+          exportDisabled={!canExport}
         />
       </div>
+
 
       {loading ? (
         <div className="flex justify-center py-12">
