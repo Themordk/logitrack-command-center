@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate, nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, fmtDateBR, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 
 export function ValidadeLoteReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
