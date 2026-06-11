@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, type ExportColumn } from "../utils/exporters";
 
 function defaultDateRange() {
   const fim = new Date();
