@@ -13,6 +13,15 @@ import { Switch } from "@/components/ui/switch";
 import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package, Printer, AlertTriangle } from "lucide-react";
 import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaProdutoModal";
 import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoPreview";
+import { EnderecoSearchInput } from "@/components/armazem/EnderecoSearchInput";
+
+const TIPO_PICKING_OPTIONS = [
+  { value: "MASTER", label: "Master" },
+  { value: "FRACIONADO", label: "Fracionado" },
+  { value: "PDV", label: "PDV" },
+];
+const formatTipoPicking = (v?: string) =>
+  TIPO_PICKING_OPTIONS.find((o) => o.value === v)?.label ?? (v ?? "—");
 
 // ─── Produto Detail Modal with Tabs ────────────────────────────────
 function ProdutoDetailModal({
@@ -73,7 +82,6 @@ function ProdutoDetailModal({
   const [editPick, setEditPick] = useState<any>(null);
   const [pickForm, setPickForm] = useState<Record<string, any>>({});
   const [pickSaving, setPickSaving] = useState(false);
-  const [enderecoOptions, setEnderecoOptions] = useState<{ value: string; label: string }[]>([]);
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -103,7 +111,7 @@ function ProdutoDetailModal({
 
   // Reload addresses when warehouse selection changes in picking form
   useEffect(() => {
-    if (tab === "picking" && pickModalOpen) loadEnderecos(pickForm.armazem_id);
+    // No-op kept for compatibility; EnderecoSearchInput handles its own queries.
   }, [pickForm.armazem_id, pickModalOpen, tab]);
 
   const loadEmbalagens = async () => {
@@ -119,19 +127,10 @@ function ProdutoDetailModal({
     if (!produto?.id) return;
     setPickLoading(true);
     const { data } = await (supabase as any).from("picking_produto")
-      .select("*, endereco:endereco_id(descricao)")
+      .select("*, endereco:endereco_id(descricao, codigo_endereco)")
       .eq("produto_id", produto.id).eq("tenant_id", tenantId).order("tipo_picking");
     setPickings(data || []);
     setPickLoading(false);
-  };
-
-  const loadEnderecos = async (armId?: string) => {
-    if (!tenantId) return;
-    let q = (supabase as any).from("endereco").select("id, descricao, armazem_id")
-      .eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
-    if (armId) q = q.eq("armazem_id", armId);
-    const { data } = await q;
-    setEnderecoOptions((data || []).map((e: any) => ({ value: e.id, label: e.descricao })));
   };
 
   const loadArmazens = async () => {
@@ -495,8 +494,8 @@ function ProdutoDetailModal({
                 <tbody>
                   {pickings.map((p) => (
                     <tr key={p.id} className="border-b border-border/50 table-row-hover">
-                      <td className="px-3 py-2 font-mono text-xs">{p.endereco?.descricao ?? "—"}</td>
-                      <td className="px-3 py-2 text-center text-xs">{p.tipo_picking}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{p.endereco?.codigo_endereco ?? p.endereco?.descricao ?? "—"}</td>
+                      <td className="px-3 py-2 text-center text-xs">{formatTipoPicking(p.tipo_picking)}</td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_minimo}</td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_maximo}</td>
                       <td className="px-3 py-2 text-right">
@@ -565,17 +564,21 @@ function ProdutoDetailModal({
               </select>
             </div>
             <div className="col-span-2">
-              <label className={labelClass}>Endereço *</label>
-              <select value={pickForm.endereco_id || ""} onChange={(e) => setPickForm({ ...pickForm, endereco_id: e.target.value })} className={inputClass} disabled={!pickForm.armazem_id}>
-                <option value="">{pickForm.armazem_id ? "Selecionar..." : "Selecione o armazém primeiro"}</option>
-                {enderecoOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <EnderecoSearchInput
+                label="Endereço *"
+                value={pickForm.endereco_id || null}
+                onChange={(id) => setPickForm({ ...pickForm, endereco_id: id || "" })}
+                armazemId={pickForm.armazem_id || null}
+                tenantId={tenantId}
+                disabled={!pickForm.armazem_id}
+                placeholder={pickForm.armazem_id ? "Digite o código do endereço..." : "Selecione o armazém primeiro"}
+              />
             </div>
             <div>
               <label className={labelClass}>Tipo Picking *</label>
               <select value={pickForm.tipo_picking || ""} onChange={(e) => setPickForm({ ...pickForm, tipo_picking: e.target.value })} className={inputClass}>
                 <option value="">Selecionar...</option>
-                {[{ value: "MASTER", label: "Principal" }, { value: "FRACIONADO", label: "Fracionado" }, { value: "PDV", label: "PDV" }].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {TIPO_PICKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div><label className={labelClass}>Est. Mínimo</label><input type="number" value={pickForm.est_minimo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} /></div>
