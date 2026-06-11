@@ -75,6 +75,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
 
       const data = await fetchTimelineOperador(usuarioId, inicio, fim);
       setTimeline(data);
+      setGeneratedAt(nowDisplay());
     } catch (err: any) {
       toast.error(err.message || "Erro ao carregar dados.");
     } finally {
