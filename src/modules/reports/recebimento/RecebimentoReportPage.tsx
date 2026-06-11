@@ -175,6 +175,34 @@ export function RecebimentoReportPage() {
     if (kpis.pior_etapa !== "—") activeFilters["Gargalo"] = kpis.pior_etapa;
   }
 
+  const statusSlaLabel = (s: StatusSla) =>
+    ({ DENTRO: "Dentro SLA", ALERTA: "Alerta", FORA: "Fora SLA", EM_ANDAMENTO: "Em andamento" } as const)[s] || s;
+
+  const exportColumns: ExportColumn[] = [
+    { key: "numero_movimento", label: "Mov.", format: (r) => r.numero_movimento != null ? `#${r.numero_movimento}` : "" },
+    { key: "documento", label: "NF" },
+    { key: "fornecedor", label: "Fornecedor" },
+    { key: "t0_dock", label: "Dock (T0)", format: (r) => fmtDateTimeBR(r.t0_dock) },
+    { key: "t5_stock", label: "Stock (T5)", format: (r) => r.t5_stock ? fmtDateTimeBR(r.t5_stock) : "" },
+    { key: "tempo_total_min", label: "Total", align: "right", format: (r) => formatDuration(r.tempo_total_min) },
+    { key: "tempo_liberacao_min", label: "Liberação", align: "right", format: (r) => formatDuration(r.tempo_liberacao_min) },
+    { key: "tempo_conferencia_min", label: "Conferência", align: "right", format: (r) => formatDuration(r.tempo_conferencia_min) },
+    { key: "tempo_armazenagem_min", label: "Armazenagem", align: "right", format: (r) => formatDuration(r.tempo_armazenagem_min) },
+    { key: "tempo_ocioso_min", label: "Ocioso", align: "right", format: (r) => formatDuration(r.tempo_ocioso_min) },
+    { key: "perc_sla", label: "% SLA", align: "right", format: (r) => r.perc_sla == null ? "" : `${r.perc_sla.toFixed(0)}%` },
+    { key: "status_sla", label: "Status", format: (r) => statusSlaLabel(r.status_sla) },
+  ];
+
+  const canExport = generated && data.length > 0;
+  const handleExcel = () => exportToExcel("recebimento_sla", exportColumns, data);
+  const handlePdf = () =>
+    exportToPdf("recebimento_sla", exportColumns, data, {
+      title: "Recebimento (SLA Dock-to-Stock)",
+      generatedAt, usuario: usuarioNome || "—",
+      total: data.length, filters: activeFilters,
+    });
+  const handlePrint = () => window.print();
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
@@ -183,7 +211,12 @@ export function RecebimentoReportPage() {
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
         filters={generated ? activeFilters : undefined}
+        onExportExcel={canExport ? handleExcel : undefined}
+        onExportPdf={canExport ? handlePdf : undefined}
+        onPrint={canExport ? handlePrint : undefined}
+        exportDisabled={!canExport}
       />
+
 
       <div className="border border-border rounded-lg bg-card overflow-hidden">
         <button
