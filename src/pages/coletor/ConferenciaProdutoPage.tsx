@@ -29,6 +29,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [qtdConferida, setQtdConferida] = useState(0);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string; ondaConcluida?: boolean } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [eanErroMsg, setEanErroMsg] = useState<string>("");
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
   const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
