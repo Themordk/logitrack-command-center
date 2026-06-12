@@ -283,15 +283,17 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
       // Check if task is complete
       if (newQtdConferida >= newQtdRequerida) {
-        // Find next incomplete task
+        // Find next incomplete task (scan entire list, since user can scan any)
         let nextIdx = -1;
-        for (let i = tarefaIdx + 1; i < newTarefas.length; i++) {
+        for (let i = 0; i < newTarefas.length; i++) {
+          if (i === targetIdx) continue;
           const t = newTarefas[i];
           if (Number(t.conferido || 0) < Number(t.quantidade_requerida || 0) && t.status !== "CONCLUIDA") {
             nextIdx = i;
             break;
           }
         }
+
 
         if (nextIdx >= 0) {
           // Show success overlay (after paint), then move to next task
