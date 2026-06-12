@@ -6414,9 +6414,11 @@ export type Database = {
           fator_caixa: number
           id: string
           ordem_tarefa: number
+          produto_id: string
           quantidade_requerida: number
           sku: string
           status: string
+          tarefa_id: string
         }[]
       }
       conferencia_saida_confirmacao:
