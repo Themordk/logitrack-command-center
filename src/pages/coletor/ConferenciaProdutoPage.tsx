@@ -29,6 +29,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [qtdConferida, setQtdConferida] = useState(0);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string; ondaConcluida?: boolean } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [eanErroMsg, setEanErroMsg] = useState<string>("");
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
   const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
@@ -109,49 +110,69 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const restante = qtdRequerida - qtdConferida;
 
   const handleEanScan = async (ean: string) => {
-    if (!ean || !produtoId) return;
+    if (!ean) return;
     setEanScanned(ean);
-    // LMS: mark task as started on first EAN scan
-    if (tarefa?.tarefa_id) {
-      markTarefaIniciadaByTarefa(tarefa.tarefa_id, usuarioId);
-    }
 
+    // 1) Lookup EAN once (ean + fator + embalagem + produto_id)
     const { data: emb } = await (supabase as any)
       .from("produto_embalagem")
-      .select("ean, fator, embalagem")
+      .select("ean, fator, embalagem, produto_id")
       .eq("ean", ean)
-      .single();
+      .maybeSingle();
 
     if (!emb) {
+      setEanErroMsg("EAN não cadastrado no sistema.");
       setShowEanErroDialog(true);
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
     }
 
-    // Check if EAN belongs to current product
-    const { data: embProd } = await (supabase as any)
-      .from("produto_embalagem")
-      .select("ean")
-      .eq("ean", ean)
-      .eq("produto_id", produtoId)
-      .single();
+    // 2) Locate a pending task in this wave for the scanned product
+    const matchIdx = tarefas.findIndex(
+      (t) =>
+        t.produto_id === emb.produto_id &&
+        Number(t.conferido ?? t.separado ?? 0) < Number(t.quantidade_requerida || 0) &&
+        (t.status || "").toUpperCase() !== "CONCLUIDA"
+    );
 
-    if (!embProd) {
+    if (matchIdx < 0) {
+      const existsInOnda = tarefas.some((t) => t.produto_id === emb.produto_id);
+      if (existsInOnda) {
+        toast.warning("Item já conferido");
+        setEanScanned("");
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        return;
+      }
+      setEanErroMsg("Este EAN não pertence a nenhum item desta conferência.");
       setShowEanErroDialog(true);
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
+    }
+
+    // 3) Switch active task if needed (sync state for confirmacao that follows)
+    const activeTarefa = tarefas[matchIdx];
+    if (matchIdx !== tarefaIdx) {
+      setTarefaIdx(matchIdx);
+      sessionStorage.setItem("coletor_conferencia_tarefa_idx", String(matchIdx));
+      loadTarefa(activeTarefa);
+      // re-set the scanned EAN since loadTarefa clears it
+      setEanScanned(ean);
+    }
+
+    // LMS: mark task as started on first EAN scan
+    if (activeTarefa?.tarefa_id) {
+      markTarefaIniciadaByTarefa(activeTarefa.tarefa_id, usuarioId);
     }
 
     setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
     setEanConfirmado(true);
 
     if (modoCheckout) {
-      // Use latest tarefa state to avoid stale closure values on rapid scans
-      const currentTarefa = tarefas[tarefaIdx] || tarefa;
-      const reqAtual = Number(currentTarefa?.quantidade_requerida || qtdRequerida);
-      const confAtual = Number(currentTarefa?.conferido ?? qtdConferida);
+      const reqAtual = Number(activeTarefa?.quantidade_requerida || 0);
+      const confAtual = Number(activeTarefa?.conferido ?? activeTarefa?.separado ?? 0);
       const restanteAtual = reqAtual - confAtual;
       if (restanteAtual <= 0) {
         toast.warning("Item já conferido");
@@ -160,10 +181,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         setEanConfirmado(false);
         return;
       }
-      // Incrementa pelo FATOR da embalagem escaneada, sem ultrapassar o restante
       const fator = Number(emb.fator || 1);
       const qtdIncremento = Math.min(fator, restanteAtual);
-      await executarConfirmacao(qtdIncremento, "checkout");
+      // Ensure executarConfirmacao uses the active task even before state flush
+      await executarConfirmacaoFor(activeTarefa, qtdIncremento, "checkout");
       return;
     }
 
@@ -172,6 +193,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       quantidadeRef.current?.focus();
     }, 100);
   };
+
 
   const handleConfirmar = async () => {
     if (!tarefa || !quantidade || Number(quantidade) <= 0) {
@@ -184,8 +206,19 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   };
 
   const executarConfirmacao = async (qtdFinal: number, modo: "manual" | "checkout") => {
-    if (!tarefa) return;
-    const tarefaId = tarefa.id || tarefa.tarefa_id;
+    await executarConfirmacaoFor(tarefa, qtdFinal, modo);
+  };
+
+  const executarConfirmacaoFor = async (
+    targetTarefa: any,
+    qtdFinal: number,
+    modo: "manual" | "checkout"
+  ) => {
+    if (!targetTarefa) return;
+    const tarefaId = targetTarefa.id || targetTarefa.tarefa_id;
+    const targetIdx = tarefas.findIndex(
+      (t) => (t.id || t.tarefa_id) === tarefaId
+    );
 
     setConfirming(true);
     try {
@@ -215,23 +248,28 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         .eq("id", tarefaId)
         .single();
 
+      const prevConferido = Number(targetTarefa.conferido ?? targetTarefa.separado ?? 0);
+      const prevRequerida = Number(targetTarefa.quantidade_requerida || 0);
       const execFromDb = tarefaAtualizada?.quantidade_executada;
       const reqFromDb = tarefaAtualizada?.quantidade_requerida;
-      const newQtdConferida = Number(execFromDb ?? (qtdConferida + qtdFinal));
-      const newQtdRequerida = Number(reqFromDb ?? qtdRequerida);
+      const newQtdConferida = Number(execFromDb ?? (prevConferido + qtdFinal));
+      const newQtdRequerida = Number(reqFromDb ?? prevRequerida);
       const statusFromDb = tarefaAtualizada?.status
-        ?? (newQtdConferida >= newQtdRequerida ? "CONCLUIDA" : tarefa.status);
+        ?? (newQtdConferida >= newQtdRequerida ? "CONCLUIDA" : targetTarefa.status);
 
       // Always update counters, even if refetch returned null
       setQtdConferida(newQtdConferida);
       const newTarefas = [...tarefas];
-      newTarefas[tarefaIdx] = {
-        ...newTarefas[tarefaIdx],
-        conferido: newQtdConferida,
-        status: statusFromDb,
-      };
+      if (targetIdx >= 0) {
+        newTarefas[targetIdx] = {
+          ...newTarefas[targetIdx],
+          conferido: newQtdConferida,
+          status: statusFromDb,
+        };
+      }
       setTarefas(newTarefas);
       sessionStorage.setItem("coletor_conferencia_tarefas", JSON.stringify(newTarefas));
+
 
       setQuantidade("");
       setEanScanned("");
@@ -245,15 +283,17 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
       // Check if task is complete
       if (newQtdConferida >= newQtdRequerida) {
-        // Find next incomplete task
+        // Find next incomplete task (scan entire list, since user can scan any)
         let nextIdx = -1;
-        for (let i = tarefaIdx + 1; i < newTarefas.length; i++) {
+        for (let i = 0; i < newTarefas.length; i++) {
+          if (i === targetIdx) continue;
           const t = newTarefas[i];
           if (Number(t.conferido || 0) < Number(t.quantidade_requerida || 0) && t.status !== "CONCLUIDA") {
             nextIdx = i;
             break;
           }
         }
+
 
         if (nextIdx >= 0) {
           // Show success overlay (after paint), then move to next task
@@ -438,8 +478,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
               <XCircle size={48} className="text-[#E02424]" />
               <h3 className="text-base font-bold text-white text-center">EAN Incorreto</h3>
               <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN informado não pertence ao produto da tarefa atual.
+                {eanErroMsg || "O EAN informado não pertence a esta conferência."}
               </p>
+
             </div>
             <ActionButton onClick={() => { setShowEanErroDialog(false); setEanScanned(""); }}>
               Fechar
