@@ -206,8 +206,19 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   };
 
   const executarConfirmacao = async (qtdFinal: number, modo: "manual" | "checkout") => {
-    if (!tarefa) return;
-    const tarefaId = tarefa.id || tarefa.tarefa_id;
+    await executarConfirmacaoFor(tarefa, qtdFinal, modo);
+  };
+
+  const executarConfirmacaoFor = async (
+    targetTarefa: any,
+    qtdFinal: number,
+    modo: "manual" | "checkout"
+  ) => {
+    if (!targetTarefa) return;
+    const tarefaId = targetTarefa.id || targetTarefa.tarefa_id;
+    const targetIdx = tarefas.findIndex(
+      (t) => (t.id || t.tarefa_id) === tarefaId
+    );
 
     setConfirming(true);
     try {
@@ -237,23 +248,28 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         .eq("id", tarefaId)
         .single();
 
+      const prevConferido = Number(targetTarefa.conferido ?? targetTarefa.separado ?? 0);
+      const prevRequerida = Number(targetTarefa.quantidade_requerida || 0);
       const execFromDb = tarefaAtualizada?.quantidade_executada;
       const reqFromDb = tarefaAtualizada?.quantidade_requerida;
-      const newQtdConferida = Number(execFromDb ?? (qtdConferida + qtdFinal));
-      const newQtdRequerida = Number(reqFromDb ?? qtdRequerida);
+      const newQtdConferida = Number(execFromDb ?? (prevConferido + qtdFinal));
+      const newQtdRequerida = Number(reqFromDb ?? prevRequerida);
       const statusFromDb = tarefaAtualizada?.status
-        ?? (newQtdConferida >= newQtdRequerida ? "CONCLUIDA" : tarefa.status);
+        ?? (newQtdConferida >= newQtdRequerida ? "CONCLUIDA" : targetTarefa.status);
 
       // Always update counters, even if refetch returned null
       setQtdConferida(newQtdConferida);
       const newTarefas = [...tarefas];
-      newTarefas[tarefaIdx] = {
-        ...newTarefas[tarefaIdx],
-        conferido: newQtdConferida,
-        status: statusFromDb,
-      };
+      if (targetIdx >= 0) {
+        newTarefas[targetIdx] = {
+          ...newTarefas[targetIdx],
+          conferido: newQtdConferida,
+          status: statusFromDb,
+        };
+      }
       setTarefas(newTarefas);
       sessionStorage.setItem("coletor_conferencia_tarefas", JSON.stringify(newTarefas));
+
 
       setQuantidade("");
       setEanScanned("");
