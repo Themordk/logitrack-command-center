@@ -110,49 +110,69 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const restante = qtdRequerida - qtdConferida;
 
   const handleEanScan = async (ean: string) => {
-    if (!ean || !produtoId) return;
+    if (!ean) return;
     setEanScanned(ean);
-    // LMS: mark task as started on first EAN scan
-    if (tarefa?.tarefa_id) {
-      markTarefaIniciadaByTarefa(tarefa.tarefa_id, usuarioId);
-    }
 
+    // 1) Lookup EAN once (ean + fator + embalagem + produto_id)
     const { data: emb } = await (supabase as any)
       .from("produto_embalagem")
-      .select("ean, fator, embalagem")
+      .select("ean, fator, embalagem, produto_id")
       .eq("ean", ean)
-      .single();
+      .maybeSingle();
 
     if (!emb) {
+      setEanErroMsg("EAN não cadastrado no sistema.");
       setShowEanErroDialog(true);
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
     }
 
-    // Check if EAN belongs to current product
-    const { data: embProd } = await (supabase as any)
-      .from("produto_embalagem")
-      .select("ean")
-      .eq("ean", ean)
-      .eq("produto_id", produtoId)
-      .single();
+    // 2) Locate a pending task in this wave for the scanned product
+    const matchIdx = tarefas.findIndex(
+      (t) =>
+        t.produto_id === emb.produto_id &&
+        Number(t.conferido ?? t.separado ?? 0) < Number(t.quantidade_requerida || 0) &&
+        (t.status || "").toUpperCase() !== "CONCLUIDA"
+    );
 
-    if (!embProd) {
+    if (matchIdx < 0) {
+      const existsInOnda = tarefas.some((t) => t.produto_id === emb.produto_id);
+      if (existsInOnda) {
+        toast.warning("Item já conferido");
+        setEanScanned("");
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        return;
+      }
+      setEanErroMsg("Este EAN não pertence a nenhum item desta conferência.");
       setShowEanErroDialog(true);
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
+    }
+
+    // 3) Switch active task if needed (sync state for confirmacao that follows)
+    const activeTarefa = tarefas[matchIdx];
+    if (matchIdx !== tarefaIdx) {
+      setTarefaIdx(matchIdx);
+      sessionStorage.setItem("coletor_conferencia_tarefa_idx", String(matchIdx));
+      loadTarefa(activeTarefa);
+      // re-set the scanned EAN since loadTarefa clears it
+      setEanScanned(ean);
+    }
+
+    // LMS: mark task as started on first EAN scan
+    if (activeTarefa?.tarefa_id) {
+      markTarefaIniciadaByTarefa(activeTarefa.tarefa_id, usuarioId);
     }
 
     setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
     setEanConfirmado(true);
 
     if (modoCheckout) {
-      // Use latest tarefa state to avoid stale closure values on rapid scans
-      const currentTarefa = tarefas[tarefaIdx] || tarefa;
-      const reqAtual = Number(currentTarefa?.quantidade_requerida || qtdRequerida);
-      const confAtual = Number(currentTarefa?.conferido ?? qtdConferida);
+      const reqAtual = Number(activeTarefa?.quantidade_requerida || 0);
+      const confAtual = Number(activeTarefa?.conferido ?? activeTarefa?.separado ?? 0);
       const restanteAtual = reqAtual - confAtual;
       if (restanteAtual <= 0) {
         toast.warning("Item já conferido");
@@ -161,10 +181,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         setEanConfirmado(false);
         return;
       }
-      // Incrementa pelo FATOR da embalagem escaneada, sem ultrapassar o restante
       const fator = Number(emb.fator || 1);
       const qtdIncremento = Math.min(fator, restanteAtual);
-      await executarConfirmacao(qtdIncremento, "checkout");
+      // Ensure executarConfirmacao uses the active task even before state flush
+      await executarConfirmacaoFor(activeTarefa, qtdIncremento, "checkout");
       return;
     }
 
@@ -173,6 +193,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       quantidadeRef.current?.focus();
     }, 100);
   };
+
 
   const handleConfirmar = async () => {
     if (!tarefa || !quantidade || Number(quantidade) <= 0) {
