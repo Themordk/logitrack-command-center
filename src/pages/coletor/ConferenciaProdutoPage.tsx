@@ -478,8 +478,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
               <XCircle size={48} className="text-[#E02424]" />
               <h3 className="text-base font-bold text-white text-center">EAN Incorreto</h3>
               <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN informado não pertence ao produto da tarefa atual.
+                {eanErroMsg || "O EAN informado não pertence a esta conferência."}
               </p>
+
             </div>
             <ActionButton onClick={() => { setShowEanErroDialog(false); setEanScanned(""); }}>
               Fechar
