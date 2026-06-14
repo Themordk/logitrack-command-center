@@ -1,54 +1,46 @@
-# Conferência — Total conferido + Limpar item (coletor/conferencia/itens)
+# Ajuste: Resumo de Endereços/SKUs do Novo Inventário
 
-## Escopo
-
-Apenas UI/frontend em `src/pages/coletor/ConferenciaItensPage.tsx`. Nenhuma migration (a função `separacao_conferencia_limpar_item(p_tenant_id, p_movimento_saida_id, p_produto_id, p_usuario_id)` já existe e retorna `void`).
-
-## Mudanças
-
-### 1) Exibir total conferido
-
-No container de cada item, mostrar `conferido / quantidade_requerida` (campos já presentes no objeto da sessão `coletor_conferencia_tarefas`).
-
-Formato sugerido (lado direito do card, antes do botão):
+## Problema
+Em `/atividades/inventario/novo`, a prévia do card **Resumo** (Endereços / SKUs a serem contados) faz uma consulta em `estoque_geral` com embed `endereco!inner(...)` aplicando o filtro:
 
 ```
-Conferido
-12 / 30
+endereco.situacao = neq.BLOQUEADO_INVENTARIO
 ```
 
-- Cor verde quando `conferido >= quantidade_requerida`, âmbar quando `> 0`, muted quando `0`.
+Esse filtro exclui qualquer endereço que esteja momentaneamente em situação `BLOQUEADO_INVENTARIO` (ex.: já há outro inventário em andamento), gerando **falso negativo** no totalizador exibido na tela — o usuário vê menos endereços/SKUs do que realmente seriam considerados pela RPC de geração do inventário. O atalho "POR ENDEREÇO" não tem esse problema porque consulta `estoque_geral` direto pelo `endereco_id`, sem embed.
 
-### 2) Botão "Limpar conferência"
+## Escopo da alteração
+Apenas UI/consulta de prévia. Nenhuma mudança em RPC, migration, lógica de geração do inventário ou demais telas.
 
-Ícone `RotateCcw` (lucide) em pill discreto no canto direito do card.
+**Arquivo:** `src/pages/NovoInventarioPage.tsx`
 
-Fluxo ao clicar:
+## Mudança técnica
+No `useEffect` de prévia (linhas ~239–246), remover a cláusula `.neq("endereco.situacao", "BLOQUEADO_INVENTARIO")` da query genérica:
 
-1. `confirm()` nativo: "Limpar toda a conferência do produto {sku}?"
-2. Chamar RPC:
-  ```ts
-   supabase.rpc('separacao_conferencia_limpar_item', {
-     p_tenant_id: tenantId,                                          // useTenant()
-     p_movimento_saida_id: sessionStorage.getItem('coletor_conferencia_movimento_id'),
-     p_produto_id: t.produto_id,
-     p_usuario_id: localStorage.getItem('core_usuario_id'),
-   })
-  ```
-3. Em sucesso:
-  - Toast "Conferência do item limpa."
-  - Atualizar lista local: `conferido = 0`, `status = 'ATRIBUIDA'` para aquele item; persistir de volta em `sessionStorage` (`coletor_conferencia_tarefas`) para a `ConferenciaProdutoPage` enxergar o reset ao voltar.
-4. Em erro: toast com `error.message`.
+Antes:
+```ts
+let q = supabase.from("estoque_geral")
+  .select("endereco_id, produto_id, endereco!inner(armazem_id, situacao)")
+  .eq("tenant_id", tenantId)
+  .eq("empresa_id", empresaId)
+  .eq("endereco.armazem_id", armazemId)
+  .neq("endereco.situacao", "BLOQUEADO_INVENTARIO")
+  .limit(LIMIT);
+```
 
-Estado `clearingId` (uuid do item) desabilita só aquele botão durante a chamada (spinner `Loader2`).
+Depois:
+```ts
+let q = supabase.from("estoque_geral")
+  .select("endereco_id, produto_id, endereco!inner(armazem_id)")
+  .eq("tenant_id", tenantId)
+  .eq("empresa_id", empresaId)
+  .eq("endereco.armazem_id", armazemId)
+  .limit(LIMIT);
+```
 
-### 3) Detalhes UX
+Tira-se também `situacao` do `select` embed (não é mais necessário).
 
-- Botão escondido quando `conferido === 0` (nada a limpar) — opcional, mas evita ruído.
-- Após limpar, manter o card visível com badge `ATRIBUIDA`.
-
-## Verificação
-
-- Onda com item parcialmente conferido → badge mostra `X / Y`, botão visível, clique limpa, badge vai para `0 / Y` e status `ATRIBUIDA`.
-- Voltar para `/coletor/conferencia/produto` → o item aparece como pendente novamente.
-- Erro de RPC → toast vermelho com mensagem.
+## Fora de escopo
+- Lógica/RPC de geração do inventário (permanece como está).
+- Atalho do tipo "POR ENDEREÇO" (já não usa o embed).
+- Demais telas/relatórios que consultam `estoque_geral`.

@@ -238,11 +238,10 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
         // Query genérica via embed em endereco (filtra armazem + situação)
         let q = (supabase as any).from("estoque_geral")
-          .select("endereco_id, produto_id, endereco!inner(armazem_id, situacao)")
+          .select("endereco_id, produto_id, endereco!inner(armazem_id)")
           .eq("tenant_id", tenantId)
           .eq("empresa_id", empresaId)
           .eq("endereco.armazem_id", armazemId)
-          .neq("endereco.situacao", "BLOQUEADO_INVENTARIO")
           .limit(LIMIT);
 
         if (tipo === "PRODUTO") q = q.eq("produto_id", produtoId);
