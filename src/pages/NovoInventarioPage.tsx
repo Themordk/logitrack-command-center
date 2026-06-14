@@ -353,7 +353,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         if (!finalizado && geradasChunk === 0) throw new Error("LOOP_SEM_PROGRESSO");
       }
       toast.success(`Inventário criado com ${acumulado} ${acumulado === 1 ? "tarefa" : "tarefas"}.`);
-      onNavigate(`/inventario/${inventarioId}`);
+      onNavigate("/atividades/inventario");
     } catch (err: any) {
       toast.error(mapError(err));
     } finally {
