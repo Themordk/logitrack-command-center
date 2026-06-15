@@ -24,10 +24,16 @@ const TIPO_MAP: Record<string, string> = {
   ZONA: "Zona",
 };
 
+const TIPO_EXECUCAO_MAP: Record<string, string> = {
+  AUDITORIA: "Auditoria",
+  ATUALIZACAO: "Atualização",
+};
+
 interface Inventario {
   id: string;
   numero_inventario: number;
   tipo_inventario: string;
+  tipo_execucao: string | null;
   descricao: string | null;
   status: string;
   criado_em: string | null;
