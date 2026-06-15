@@ -55,8 +55,8 @@ export function InventarioPage({ onNavigate }: Props) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Filters
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
+  const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterTipo, setFilterTipo] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCodigo, setFilterCodigo] = useState("");
@@ -137,11 +137,11 @@ export function InventarioPage({ onNavigate }: Props) {
       <div className="shrink-0 flex items-end gap-3 flex-wrap">
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data De</label>
-          <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className={inputClass} />
+          <input type="date" required value={filterDateFrom} onChange={(e) => { if (e.target.value) setFilterDateFrom(e.target.value); }} className={inputClass} />
         </div>
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data Até</label>
-          <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className={inputClass} />
+          <input type="date" required value={filterDateTo} onChange={(e) => { if (e.target.value) setFilterDateTo(e.target.value); }} className={inputClass} />
         </div>
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Tipo</label>

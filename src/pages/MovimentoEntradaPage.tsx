@@ -154,8 +154,8 @@ export function MovimentoEntradaPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterDocumento, setFilterDocumento] = useState("");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
+  const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 20;
@@ -582,11 +582,11 @@ export function MovimentoEntradaPage() {
       <div className="flex items-end gap-3 flex-wrap">
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data De</label>
-          <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className={inputClass} />
+          <input type="date" required value={filterDateFrom} onChange={(e) => { if (e.target.value) setFilterDateFrom(e.target.value); }} className={inputClass} />
         </div>
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data Até</label>
-          <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className={inputClass} />
+          <input type="date" required value={filterDateTo} onChange={(e) => { if (e.target.value) setFilterDateTo(e.target.value); }} className={inputClass} />
         </div>
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Movimento</label>

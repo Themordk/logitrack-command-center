@@ -1,43 +1,44 @@
 ## Objetivo
 
-Substituir a query atual de contagem (apenas Recebimento) por uma chamada unificada à RPC `fn_coletor_menu_badges`, exibindo badges vermelhos em todos os 6 botões do menu do coletor.
+Evitar que as listas administrativas consultem todos os registros quando os campos de data ficam vazios. Os filtros DATA DE e DATA ATÉ devem:
 
-## Arquivo afetado
+1. Inicializar sempre com a **data atual** (hoje, fuso America/Fortaleza).
+2. Filtrar a consulta sempre pelo intervalo informado (nada de "se vazio, sem filtro").
+3. **Não permitir ficar em branco** — se o usuário tentar limpar, o campo volta para o último valor válido (ou para hoje, se nunca houve valor).
 
-- `src/pages/coletor/ColetorHomePage.tsx` (único arquivo)
+## Arquivos a alterar
 
-## Mudanças
+### 1. `src/pages/MovimentoEntradaPage.tsx` (rota `/atividades/movimentos`)
+- `useState("")` dos filtros `filterDateFrom`/`filterDateTo` → inicializar com `todayBrasilia()` (string `YYYY-MM-DD`).
+- Remover os `if (filterDateFrom)` / `if (filterDateTo)` condicionais — aplicar sempre `gte`/`lte` em `created_at`.
+- No `onChange` do `<input type="date">`: se `e.target.value` vazio, ignorar (manter estado anterior). Adicionar `required` e `min`/sem `clear` — mas como `type=date` não tem botão clear universal, o guard no onChange é suficiente.
 
-### 1. Substituir o `useEffect` atual de contagem
-Remover a query direta em `tarefa` (linhas 39-50). Em seu lugar, chamar a RPC `fn_coletor_menu_badges` passando `p_tenant_id`, `p_empresa_id` e `p_armazem_id` (null se ausente).
+### 2. `src/pages/MovimentoSaidaPage.tsx` (rota `/atividades/mov-saida`)
+- Mesmo tratamento de `filterDateFrom`/`filterDateTo` (campo de data sobre `data_emissao`).
 
-Obter `empresaId` do `localStorage` (`core_empresa_id`), seguindo o mesmo padrão usado para `tenantId` e `armazemId` no arquivo atual (não trocar para `useTenant()` para manter consistência com o restante do componente).
+### 3. `src/pages/InventarioPage.tsx` (rota `/atividades/inventario`)
+- Mesmo tratamento de `filterDateFrom`/`filterDateTo` (campo `criado_em`).
 
-### 2. Mapear chaves da RPC para os labels dos botões
-Adicionar um campo `badgeKey` em cada item de `modules`:
+### 4. `src/pages/AbastecimentoPage.tsx` (rota `/atividades/abastecimento`)
+Hoje a página **não tem filtros** — faz `select("*").order("criado_em").limit(100)`. Vou:
+- Adicionar estado `filterDateFrom`/`filterDateTo` inicializados com hoje.
+- Adicionar dois inputs `type=date` no header (mesmo padrão visual das outras páginas: label `text-[10px] uppercase`).
+- Incluir `.gte("criado_em", from+"T00:00:00").lte("criado_em", to+"T23:59:59")` no `fetchData`, e adicionar as datas como dependência do `useCallback`.
+- Remover o `.limit(100)` para que o filtro de data passe a ser a barreira de tamanho.
+- Aplicar o mesmo guard no `onChange` (não permitir limpar).
 
-| Label        | badgeKey       |
-|--------------|----------------|
-| Recebimento  | `recebimento`  |
-| Armazenagem  | `armazenagem`  |
-| Movimentos   | `movimentos`   |
-| Separação    | `separacao`    |
-| Conferência  | `conferencia`  |
-| Inventário   | `inventario`   |
+## Detalhes técnicos
 
-O state `pendingCounts` passa a guardar o objeto retornado pela RPC (`Record<string, number>`), e o render usa `pendingCounts[m.badgeKey]`.
-
-### 3. Refresh automático
-- `setInterval` de 30s para re-chamar a RPC.
-- Listener `visibilitychange` para refresh quando o app volta ao foco.
-- Cleanup correto (clearInterval + removeEventListener) no retorno do `useEffect`.
-
-### 4. Estilo do badge
-Manter exatamente o estilo já existente no arquivo (linhas 82-86): círculo vermelho, absolute top-right, esconder quando count = 0. Apenas adicionar tratamento `count > 99 ? "99+" : count`. O badge aparece automaticamente em todos os botões, já que o `allowedModules.map` é compartilhado — sem necessidade de filtrar por permissão (a permissão já filtra o botão antes).
+- Helper inline (sem novo arquivo): `const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });` retorna `YYYY-MM-DD` aceito pelo `<input type="date">`.
+- Guard de limpeza:
+  ```tsx
+  onChange={(e) => { if (e.target.value) setFilterDateFrom(e.target.value); }}
+  ```
+  Adicionar também `required` no input (acessibilidade / form semantics).
+- Nenhuma alteração de schema, RPC, ou backend. Sem mudanças em mobile/coletor.
+- Sem alterar outras rotas além das 4 listadas.
 
 ## Fora de escopo
-
-- Sem migrations (a RPC já existe).
-- Sem novos componentes ou dependências.
-- Sem alterar o footer (Consultas/Metas/Config).
-- Sem alterar permissões ou outras telas do coletor.
+- Outras telas administrativas, dashboard, relatórios.
+- Mudar o campo de data usado (continua `created_at`/`data_emissao`/`criado_em` conforme já está).
+- Validar `from <= to` (pode ser feito depois se necessário).
