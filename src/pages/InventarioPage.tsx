@@ -70,7 +70,7 @@ export function InventarioPage({ onNavigate }: Props) {
 
       let query = (supabase as any)
         .from("vw_inventario_lista")
-        .select("id, numero_inventario, tipo_inventario, descricao, status, criado_em, criado_por, total_itens, total_divergencias, acuracidade, criado_por_nome", { count: "exact" })
+        .select("id, numero_inventario, tipo_inventario, tipo_execucao, descricao, status, criado_em, criado_por, total_itens, total_divergencias, acuracidade, criado_por_nome", { count: "exact" })
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
         .order("numero_inventario", { ascending: false })
