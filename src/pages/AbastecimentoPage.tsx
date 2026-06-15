@@ -143,14 +143,38 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex items-end gap-3 flex-wrap">
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data De</label>
+          <input
+            type="date"
+            required
+            value={filterDateFrom}
+            onChange={(e) => { if (e.target.value) setFilterDateFrom(e.target.value); }}
+            className="h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Data Até</label>
+          <input
+            type="date"
+            required
+            value={filterDateTo}
+            onChange={(e) => { if (e.target.value) setFilterDateTo(e.target.value); }}
+            className="h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+
       {/* Table */}
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" size={32} /></div>
       ) : data.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
           <ArrowDownToLine size={48} className="text-muted-foreground/40" />
-          <p className="text-muted-foreground">Nenhum abastecimento gerado ainda.</p>
-          <p className="text-xs text-muted-foreground/70">Use os botões acima para gerar abastecimento preventivo ou corretivo.</p>
+          <p className="text-muted-foreground">Nenhum abastecimento gerado no período.</p>
+          <p className="text-xs text-muted-foreground/70">Ajuste o intervalo de datas ou gere um novo abastecimento.</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card">
