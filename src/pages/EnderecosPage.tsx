@@ -137,10 +137,72 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Endereço"
-        searchPlaceholder="Buscar por endereço..."
+        searchPlaceholder="Buscar por endereço ou código..."
         selectable
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
+        extraFilters={
+          <>
+            <select
+              value={filterTipo}
+              onChange={(e) => { setFilterTipo(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Tipo: Todos</option>
+              <option value="PULMAO">Pulmão</option>
+              <option value="PICKING">Picking</option>
+            </select>
+            <select
+              value={filterSituacao}
+              onChange={(e) => { setFilterSituacao(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Situação: Todas</option>
+              <option value="LIVRE">Livre</option>
+              <option value="OCUPADO">Ocupado</option>
+              <option value="BLOQUEADO">Bloqueado</option>
+              <option value="BLOQUEADO_INVENTARIO">Bloq. Inventário</option>
+            </select>
+            <select
+              value={filterLado}
+              onChange={(e) => { setFilterLado(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Lado: Todos</option>
+              <option value="PAR">Par</option>
+              <option value="IMPAR">Ímpar</option>
+            </select>
+            <select
+              value={filterCurva}
+              onChange={(e) => { setFilterCurva(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Curva: Todas</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+            <select
+              value={filterAtivo}
+              onChange={(e) => { setFilterAtivo(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Status: Todos</option>
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+            {(filterTipo !== "all" || filterSituacao !== "all" || filterLado !== "all" || filterCurva !== "all" || filterAtivo !== "all") && (
+              <button
+                type="button"
+                onClick={() => { setFilterTipo("all"); setFilterSituacao("all"); setFilterLado("all"); setFilterCurva("all"); setFilterAtivo("all"); crud.setPage(1); }}
+                className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </>
+        }
         headerActions={
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
