@@ -35,13 +35,20 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
       // Find destination address
       const { data: enderecos } = await (supabase as any)
         .from("endereco")
-        .select("id, descricao")
+        .select("id, descricao, situacao")
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
 
       if (!enderecos || enderecos.length === 0) {
         setOverlay("error");
         setOverlayMsg("Endereço destino não encontrado.");
+        setLoading(false);
+        return;
+      }
+
+      if (!["LIVRE", "OCUPADO"].includes(enderecos[0].situacao)) {
+        setOverlay("error");
+        setOverlayMsg(`Endereço ${enderecos[0].descricao} está ${enderecos[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
         setLoading(false);
         return;
       }

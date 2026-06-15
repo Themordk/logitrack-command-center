@@ -106,7 +106,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       // Query endereco table to find the scanned address
       const { data: enderecos } = await (supabase as any)
         .from("endereco")
-        .select("id, descricao, codigo_endereco")
+        .select("id, descricao, codigo_endereco, situacao")
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
 
@@ -115,6 +115,12 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
 
       if (!found || found.id !== expectedId) {
         setErrorDialog("Endereço incorreto! Escaneie o endereço informado.");
+        setLoading(false);
+        return;
+      }
+
+      if (!["LIVRE", "OCUPADO"].includes(found.situacao)) {
+        setErrorDialog(`Endereço ${found.descricao} está ${found.situacao}. Movimentações não são permitidas. Procure a supervisão.`);
         setLoading(false);
         return;
       }

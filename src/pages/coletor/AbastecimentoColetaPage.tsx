@@ -140,13 +140,18 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const handleScanEndereco = async (code: string) => {
     const { data } = await (supabase as any)
       .from("endereco")
-      .select("id, descricao, codigo_endereco")
+      .select("id, descricao, codigo_endereco, situacao")
       .eq("tenant_id", tenantId)
       .eq("codigo_endereco", code)
       .limit(1)
       .maybeSingle();
 
     if (!data) { toast.error("Endereço não encontrado"); return; }
+
+    if (!["LIVRE", "OCUPADO"].includes(data.situacao)) {
+      toast.error(`Endereço ${data.descricao} está ${data.situacao}. Movimentações não são permitidas. Procure a supervisão.`);
+      return;
+    }
 
     const matchesTarefa = pendingTarefas.some(t => t.endereco_origem_id === data.id);
     if (!matchesTarefa) { toast.error("Endereço não corresponde a nenhuma tarefa pendente"); return; }

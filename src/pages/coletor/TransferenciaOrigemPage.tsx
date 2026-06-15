@@ -19,13 +19,19 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
     try {
       const { data } = await (supabase as any)
         .from("endereco")
-        .select("id, descricao, tipo_endereco")
+        .select("id, descricao, tipo_endereco, situacao")
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
 
       if (!data || data.length === 0) {
         setOverlay("error");
         setOverlayMsg("Endereço não encontrado.");
+        return;
+      }
+
+      if (!["LIVRE", "OCUPADO"].includes(data[0].situacao)) {
+        setOverlay("error");
+        setOverlayMsg(`Endereço ${data[0].descricao} está ${data[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
         return;
       }
 

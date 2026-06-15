@@ -111,6 +111,17 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     setLastScanned(code);
 
     try {
+      // Pre-check: endereco situacao
+      const { data: endCheck } = await (supabase as any)
+        .from("endereco")
+        .select("descricao, situacao")
+        .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
+        .limit(1);
+      if (endCheck && endCheck.length > 0 && !["LIVRE", "OCUPADO"].includes(endCheck[0].situacao)) {
+        setErrorDialog(`Endereço ${endCheck[0].descricao} está ${endCheck[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
+        return;
+      }
+
       const { data, error } = await supabase.rpc("separacao_confirmar_endereco" as any, {
         p_tenant_id: localStorage.getItem("core_tenant_id"),
         p_tarefa_id: tarefa.tarefa_id,
