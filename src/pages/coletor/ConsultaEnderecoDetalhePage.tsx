@@ -174,7 +174,7 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
               </div>
               <div className="col-span-2">
                 <span className={labelClass}>Situação</span>
-                <div className="mt-1"><StatusBadge type="endereco-situacao" value={endereco.situacao} /></div>
+                <div className="mt-1"><StatusBadge type="endereco-situacao" status={endereco.situacao} /></div>
               </div>
             </div>
           </div>
