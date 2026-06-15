@@ -8,9 +8,10 @@ interface StatusBadgeProps {
 
 const configs = {
   "endereco-situacao": {
-    0: { label: "Livre", cls: "bg-green-500/15 text-green-400 border-green-500/30" },
-    1: { label: "Ocupado", cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-    2: { label: "Bloqueado", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+    LIVRE: { label: "Livre", cls: "bg-green-500/15 text-green-400 border-green-500/30" },
+    OCUPADO: { label: "Ocupado", cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+    BLOQUEADO: { label: "Bloqueado", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+    BLOQUEADO_INVENTARIO: { label: "Bloq. Inventário", cls: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
   },
   "endereco-tipo": {
     0: { label: "Pulmão", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },

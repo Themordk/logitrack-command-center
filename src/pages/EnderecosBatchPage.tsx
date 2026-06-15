@@ -19,7 +19,7 @@ interface Props {
 const TIPO_ESTRUTURA_OPTIONS = [
   "PORTA PALLET", "BLOCADO", "PRATELEIRA", "FLOW RACK", "DRIVE IN", "MEZANINO", "DOCA",
 ];
-const SITUACAO_OPTIONS = ["LIVRE", "OCUPADO", "BLOQUEADO"];
+const SITUACAO_OPTIONS = ["LIVRE", "OCUPADO", "BLOQUEADO", "BLOQUEADO_INVENTARIO"];
 const CURVA_OPTIONS = ["A", "B", "C", "D"];
 const TIPO_ENDERECO_OPTIONS = ["PULMAO", "PICKING"];
 const LADO_OPTIONS = ["PAR", "IMPAR", "TODOS"];
@@ -414,7 +414,7 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
                       <StatusBadge status={tipoEndereco === "PULMAO" ? 0 : 1} type="endereco-tipo" />
                     </td>
                     <td className="py-2 px-3">
-                      <StatusBadge status={{ LIVRE: 0, OCUPADO: 1, BLOQUEADO: 2 }[situacao] ?? 0} type="endereco-situacao" />
+                      <StatusBadge status={situacao} type="endereco-situacao" />
                     </td>
                   </tr>
                 ))}
