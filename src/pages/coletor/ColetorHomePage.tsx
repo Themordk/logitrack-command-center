@@ -11,17 +11,17 @@ interface ModuleCard {
   icon: React.ReactNode;
   path: string;
   color: string;
-  countKey?: string;
+  badgeKey?: string;
   permModulo?: string;
 }
 
 const modules: ModuleCard[] = [
-  { label: "Recebimento", icon: <ArrowDownToLine size={32} />, path: "/coletor/recebimento", color: "hsl(217,91%,50%)", permModulo: "coletor.recebimento" },
-  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/armazenagem", color: "hsl(142,76%,36%)", permModulo: "coletor.armazenagem" },
-  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)", permModulo: "coletor.movimentos" },
-  { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)", permModulo: "coletor.separacao" },
-  { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)", permModulo: "coletor.conferencia" },
-  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)", permModulo: "coletor.inventario" },
+  { label: "Recebimento", icon: <ArrowDownToLine size={32} />, path: "/coletor/recebimento", color: "hsl(217,91%,50%)", permModulo: "coletor.recebimento", badgeKey: "recebimento" },
+  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/armazenagem", color: "hsl(142,76%,36%)", permModulo: "coletor.armazenagem", badgeKey: "armazenagem" },
+  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)", permModulo: "coletor.movimentos", badgeKey: "movimentos" },
+  { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)", permModulo: "coletor.separacao", badgeKey: "separacao" },
+  { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)", permModulo: "coletor.conferencia", badgeKey: "conferencia" },
+  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)", permModulo: "coletor.inventario", badgeKey: "inventario" },
 ];
 
 export function ColetorHomePage({ onNavigate }: Props) {
