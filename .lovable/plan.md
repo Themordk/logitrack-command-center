@@ -1,44 +1,45 @@
-## Objetivo
+## Refatoração da rota `/armazem/enderecos`
 
-Evitar que as listas administrativas consultem todos os registros quando os campos de data ficam vazios. Os filtros DATA DE e DATA ATÉ devem:
+### 1º Ajuste — Container de filtros
 
-1. Inicializar sempre com a **data atual** (hoje, fuso America/Fortaleza).
-2. Filtrar a consulta sempre pelo intervalo informado (nada de "se vazio, sem filtro").
-3. **Não permitir ficar em branco** — se o usuário tentar limpar, o campo volta para o último valor válido (ou para hoje, se nunca houve valor).
+Adicionar barra de filtros (via `extraFilters` do `CrudTable`, mesmo padrão já usado em `ProdutosPage`) com os seguintes seletores, todos com opção "Todos":
 
-## Arquivos a alterar
+| Filtro | Campo | Tipo |
+|---|---|---|
+| Código | `codigo_endereco` | passa a entrar na busca textual (ilike) ao lado de `descricao` |
+| Endereço (descrição) | `descricao` | busca textual já existente |
+| Tipo | `tipo_endereco` | select: PULMAO, PICKING |
+| Situação | `situacao` | select: LIVRE, OCUPADO, BLOQUEADO, **BLOQUEADO_INVENTARIO** |
+| Lado | `lado` | select: PAR, IMPAR |
+| Curva | `curva_acesso` | select: A, B, C, D |
+| Status | `ativo` | select: Ativo / Inativo |
 
-### 1. `src/pages/MovimentoEntradaPage.tsx` (rota `/atividades/movimentos`)
-- `useState("")` dos filtros `filterDateFrom`/`filterDateTo` → inicializar com `todayBrasilia()` (string `YYYY-MM-DD`).
-- Remover os `if (filterDateFrom)` / `if (filterDateTo)` condicionais — aplicar sempre `gte`/`lte` em `created_at`.
-- No `onChange` do `<input type="date">`: se `e.target.value` vazio, ignorar (manter estado anterior). Adicionar `required` e `min`/sem `clear` — mas como `type=date` não tem botão clear universal, o guard no onChange é suficiente.
+Comportamento:
+- Estado local `filters` (`tipo_endereco`, `situacao`, `lado`, `curva_acesso`, `ativo`) repassado para `useCrud({ filters })`. Valor "all"/"" → não aplica `.eq`.
+- Botão "Limpar filtros" reseta para "all".
+- A busca por código entra junto com a busca por descrição: estender em `src/hooks/useCrud.ts` o bloco de `searchFields` adicionando `if (table === "endereco") searchFields.push("codigo_endereco");`.
 
-### 2. `src/pages/MovimentoSaidaPage.tsx` (rota `/atividades/mov-saida`)
-- Mesmo tratamento de `filterDateFrom`/`filterDateTo` (campo de data sobre `data_emissao`).
+### 2º Ajuste — Novo enum `BLOQUEADO_INVENTARIO`
 
-### 3. `src/pages/InventarioPage.tsx` (rota `/atividades/inventario`)
-- Mesmo tratamento de `filterDateFrom`/`filterDateTo` (campo `criado_em`).
+O enum `enum_situacao_endereco` no banco hoje tem: `LIVRE`, `OCUPADO`, `BLOQUEADO`, **`BLOQUEADO_INVENTARIO`** (novo). Atualizar a UI:
 
-### 4. `src/pages/AbastecimentoPage.tsx` (rota `/atividades/abastecimento`)
-Hoje a página **não tem filtros** — faz `select("*").order("criado_em").limit(100)`. Vou:
-- Adicionar estado `filterDateFrom`/`filterDateTo` inicializados com hoje.
-- Adicionar dois inputs `type=date` no header (mesmo padrão visual das outras páginas: label `text-[10px] uppercase`).
-- Incluir `.gte("criado_em", from+"T00:00:00").lte("criado_em", to+"T23:59:59")` no `fetchData`, e adicionar as datas como dependência do `useCallback`.
-- Remover o `.limit(100)` para que o filtro de data passe a ser a barreira de tamanho.
-- Aplicar o mesmo guard no `onChange` (não permitir limpar).
+1. **`src/components/StatusBadge.tsx`** — `endereco-situacao` hoje é indexado por número (0/1/2). Trocar para indexação por string para suportar os 4 valores:
+   - `LIVRE` → verde "Livre"
+   - `OCUPADO` → amarelo "Ocupado"
+   - `BLOQUEADO` → vermelho "Bloqueado"
+   - `BLOQUEADO_INVENTARIO` → roxo "Bloq. Inventário"
 
-## Detalhes técnicos
+2. **`src/pages/EnderecosPage.tsx`** (lista) — remover o `map` numérico e passar `row.situacao` direto:
+   ```tsx
+   render: (row) => <StatusBadge status={row.situacao} type="endereco-situacao" />
+   ```
 
-- Helper inline (sem novo arquivo): `const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });` retorna `YYYY-MM-DD` aceito pelo `<input type="date">`.
-- Guard de limpeza:
-  ```tsx
-  onChange={(e) => { if (e.target.value) setFilterDateFrom(e.target.value); }}
-  ```
-  Adicionar também `required` no input (acessibilidade / form semantics).
-- Nenhuma alteração de schema, RPC, ou backend. Sem mudanças em mobile/coletor.
-- Sem alterar outras rotas além das 4 listadas.
+3. **`src/pages/EnderecosPage.tsx`** (formulário Novo/Editar) — adicionar `"BLOQUEADO_INVENTARIO"` em `enumValues` do campo `situacao`.
 
-## Fora de escopo
-- Outras telas administrativas, dashboard, relatórios.
-- Mudar o campo de data usado (continua `created_at`/`data_emissao`/`criado_em` conforme já está).
-- Validar `from <= to` (pode ser feito depois se necessário).
+4. **`src/pages/EnderecosBatchPage.tsx`** — se houver seleção de situação no cadastro em lote, incluir também `BLOQUEADO_INVENTARIO` (verificar e ajustar se necessário).
+
+### Padrão visual preservado
+
+- Mesmo layout do `CrudTable` (header → barra de filtros via `extraFilters` → tabela).
+- Selects estilizados como nas demais telas (fundo `bg-secondary`, borda padrão).
+- Nenhuma mudança em rotas, services, schema do banco ou triggers.

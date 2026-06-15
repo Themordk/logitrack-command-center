@@ -10,7 +10,18 @@ import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaE
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
-  const crud = useCrud({ table: "endereco", tenantId, orderBy: "descricao" });
+  const [filterTipo, setFilterTipo] = useState<string>("all");
+  const [filterSituacao, setFilterSituacao] = useState<string>("all");
+  const [filterLado, setFilterLado] = useState<string>("all");
+  const [filterCurva, setFilterCurva] = useState<string>("all");
+  const [filterAtivo, setFilterAtivo] = useState<string>("all");
+  const crudFilters: Record<string, any> = {};
+  if (filterTipo !== "all") crudFilters.tipo_endereco = filterTipo;
+  if (filterSituacao !== "all") crudFilters.situacao = filterSituacao;
+  if (filterLado !== "all") crudFilters.lado = filterLado;
+  if (filterCurva !== "all") crudFilters.curva_acesso = filterCurva;
+  if (filterAtivo !== "all") crudFilters.ativo = filterAtivo === "true";
+  const crud = useCrud({ table: "endereco", tenantId, orderBy: "descricao", filters: crudFilters });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -66,10 +77,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     { key: "descricao", label: "Endereço", type: "mono" },
     { key: "codigo_endereco", label: "Código" },
     { key: "tipo_endereco", label: "Tipo", render: (row) => <StatusBadge status={row.tipo_endereco === "PULMAO" ? 0 : 1} type="endereco-tipo" /> },
-    { key: "situacao", label: "Situação", render: (row) => {
-      const map: Record<string, number> = { LIVRE: 0, OCUPADO: 1, BLOQUEADO: 2 };
-      return <StatusBadge status={map[row.situacao] ?? 0} type="endereco-situacao" />;
-    }},
+    { key: "situacao", label: "Situação", render: (row) => <StatusBadge status={row.situacao} type="endereco-situacao" /> },
     { key: "curva_acesso", label: "Curva" },
     { key: "m3", label: "M³", type: "number" },
     { key: "peso_total", label: "Peso Max", type: "number" },
@@ -89,7 +97,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     { name: "lado", label: "Lado", type: "enum", required: true, enumValues: ["PAR", "IMPAR"] },
     { name: "tipo_endereco", label: "Tipo Endereço", type: "enum", required: true, enumValues: ["PULMAO", "PICKING"] },
     { name: "tipo_estrutura", label: "Tipo Estrutura", type: "enum", enumValues: ["PORTA PALLET", "BLOCADO", "PRATELEIRA", "FLOW RACK", "DRIVE IN", "MEZANINO", "DOCA"] },
-    { name: "situacao", label: "Situação", type: "enum", required: true, enumValues: ["LIVRE", "OCUPADO", "BLOQUEADO"] },
+    { name: "situacao", label: "Situação", type: "enum", required: true, enumValues: ["LIVRE", "OCUPADO", "BLOQUEADO", "BLOQUEADO_INVENTARIO"] },
     { name: "total_pallet", label: "Total Pallets", type: "number", placeholder: "2", visibleWhen: (form) => form.tipo_endereco === "PULMAO", requiredWhen: (form) => form.tipo_endereco === "PULMAO" },
     { name: "curva_acesso", label: "Curva de Acesso", type: "enum", enumValues: ["A", "B", "C", "D"] },
     { name: "altura", label: "Altura (cm)", type: "number" },
@@ -129,10 +137,72 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Endereço"
-        searchPlaceholder="Buscar por endereço..."
+        searchPlaceholder="Buscar por endereço ou código..."
         selectable
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
+        extraFilters={
+          <>
+            <select
+              value={filterTipo}
+              onChange={(e) => { setFilterTipo(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Tipo: Todos</option>
+              <option value="PULMAO">Pulmão</option>
+              <option value="PICKING">Picking</option>
+            </select>
+            <select
+              value={filterSituacao}
+              onChange={(e) => { setFilterSituacao(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Situação: Todas</option>
+              <option value="LIVRE">Livre</option>
+              <option value="OCUPADO">Ocupado</option>
+              <option value="BLOQUEADO">Bloqueado</option>
+              <option value="BLOQUEADO_INVENTARIO">Bloq. Inventário</option>
+            </select>
+            <select
+              value={filterLado}
+              onChange={(e) => { setFilterLado(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Lado: Todos</option>
+              <option value="PAR">Par</option>
+              <option value="IMPAR">Ímpar</option>
+            </select>
+            <select
+              value={filterCurva}
+              onChange={(e) => { setFilterCurva(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Curva: Todas</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+            </select>
+            <select
+              value={filterAtivo}
+              onChange={(e) => { setFilterAtivo(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Status: Todos</option>
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+            {(filterTipo !== "all" || filterSituacao !== "all" || filterLado !== "all" || filterCurva !== "all" || filterAtivo !== "all") && (
+              <button
+                type="button"
+                onClick={() => { setFilterTipo("all"); setFilterSituacao("all"); setFilterLado("all"); setFilterCurva("all"); setFilterAtivo("all"); crud.setPage(1); }}
+                className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </>
+        }
         headerActions={
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (

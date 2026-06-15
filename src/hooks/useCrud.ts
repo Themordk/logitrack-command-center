@@ -129,6 +129,7 @@ export function useCrud<T extends Record<string, any>>({
         if (table === "produto" || table === "vw_produto_listagem") searchFields.push("sku");
         if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("coderp");
         if (table === "veiculos") searchFields.push("placa");
+        if (table === "endereco") searchFields.push("codigo_endereco");
         const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
         query = query.or(orClause);
       }
