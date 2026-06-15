@@ -11,17 +11,17 @@ interface ModuleCard {
   icon: React.ReactNode;
   path: string;
   color: string;
-  countKey?: string;
+  badgeKey?: string;
   permModulo?: string;
 }
 
 const modules: ModuleCard[] = [
-  { label: "Recebimento", icon: <ArrowDownToLine size={32} />, path: "/coletor/recebimento", color: "hsl(217,91%,50%)", permModulo: "coletor.recebimento" },
-  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/armazenagem", color: "hsl(142,76%,36%)", permModulo: "coletor.armazenagem" },
-  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)", permModulo: "coletor.movimentos" },
-  { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)", permModulo: "coletor.separacao" },
-  { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)", permModulo: "coletor.conferencia" },
-  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)", permModulo: "coletor.inventario" },
+  { label: "Recebimento", icon: <ArrowDownToLine size={32} />, path: "/coletor/recebimento", color: "hsl(217,91%,50%)", permModulo: "coletor.recebimento", badgeKey: "recebimento" },
+  { label: "Armazenagem", icon: <Package size={32} />, path: "/coletor/armazenagem", color: "hsl(142,76%,36%)", permModulo: "coletor.armazenagem", badgeKey: "armazenagem" },
+  { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)", permModulo: "coletor.movimentos", badgeKey: "movimentos" },
+  { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)", permModulo: "coletor.separacao", badgeKey: "separacao" },
+  { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)", permModulo: "coletor.conferencia", badgeKey: "conferencia" },
+  { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)", permModulo: "coletor.inventario", badgeKey: "inventario" },
 ];
 
 export function ColetorHomePage({ onNavigate }: Props) {
@@ -29,6 +29,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
   const { can, loading: permLoading } = usePermissions();
   const userName = localStorage.getItem("core_usuario_nome") || "Operador";
   const tenantId = localStorage.getItem("core_tenant_id");
+  const empresaId = localStorage.getItem("core_empresa_id");
   const armazemId = localStorage.getItem("core_armazem_id");
 
   // Filter modules by permission
@@ -37,17 +38,33 @@ export function ColetorHomePage({ onNavigate }: Props) {
   );
 
   useEffect(() => {
-    if (!tenantId || !armazemId) return;
-    (async () => {
-      const { count } = await (supabase as any)
-        .from("tarefa")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("armazem_id", armazemId)
-        .eq("status", "CRIADA");
-      setPendingCounts(prev => ({ ...prev, Recebimento: count || 0 }));
-    })();
-  }, [tenantId, armazemId]);
+    if (!tenantId || !empresaId) return;
+    let cancelled = false;
+
+    const fetchBadges = async () => {
+      const { data, error } = await (supabase as any).rpc("fn_coletor_menu_badges", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_armazem_id: armazemId || null,
+      });
+      if (!cancelled && data && !error) {
+        setPendingCounts(data as Record<string, number>);
+      }
+    };
+
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 30000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchBadges();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [tenantId, empresaId, armazemId]);
 
   return (
     <ColetorLayout title="CORE Coletor" onNavigate={onNavigate} showLogout>
@@ -64,7 +81,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
       <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
         <div className="grid grid-cols-2 gap-2">
           {allowedModules.map((m) => {
-            const count = pendingCounts[m.label];
+            const count = m.badgeKey ? pendingCounts[m.badgeKey] : 0;
             const isActive = m.path !== "/coletor/home";
             return (
               <button
@@ -81,7 +98,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
                 <span className="text-sm font-semibold text-white">{m.label}</span>
                 {count != null && count > 0 && (
                   <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-[#E02424] text-white text-xs font-bold flex items-center justify-center">
-                    {count}
+                    {count > 99 ? "99+" : count}
                   </span>
                 )}
                 {!isActive && <span className="text-[10px] text-[hsl(213,31%,45%)]">Em breve</span>}
