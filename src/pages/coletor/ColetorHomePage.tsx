@@ -81,7 +81,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
       <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
         <div className="grid grid-cols-2 gap-2">
           {allowedModules.map((m) => {
-            const count = pendingCounts[m.label];
+            const count = m.badgeKey ? pendingCounts[m.badgeKey] : 0;
             const isActive = m.path !== "/coletor/home";
             return (
               <button
@@ -98,7 +98,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
                 <span className="text-sm font-semibold text-white">{m.label}</span>
                 {count != null && count > 0 && (
                   <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-[#E02424] text-white text-xs font-bold flex items-center justify-center">
-                    {count}
+                    {count > 99 ? "99+" : count}
                   </span>
                 )}
                 {!isActive && <span className="text-[10px] text-[hsl(213,31%,45%)]">Em breve</span>}
