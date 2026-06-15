@@ -54,6 +54,9 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
   const { tenantId, empresaId } = useTenant();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Abastecimento[]>([]);
+  const todayStr = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });
+  const [filterDateFrom, setFilterDateFrom] = useState(todayStr);
+  const [filterDateTo, setFilterDateTo] = useState(todayStr);
 
   // Armazem selection modal
   const [armazemModalOpen, setArmazemModalOpen] = useState(false);
@@ -70,11 +73,12 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
       .select("*")
       .eq("tenant_id", tenantId)
       .eq("empresa_id", empresaId)
-      .order("criado_em", { ascending: false })
-      .limit(100);
+      .gte("criado_em", filterDateFrom + "T00:00:00")
+      .lte("criado_em", filterDateTo + "T23:59:59")
+      .order("criado_em", { ascending: false });
     setData(rows || []);
     setLoading(false);
-  }, [tenantId, empresaId]);
+  }, [tenantId, empresaId, filterDateFrom, filterDateTo]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
