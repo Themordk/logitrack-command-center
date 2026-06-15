@@ -6549,6 +6549,14 @@ export type Database = {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: Json
       }
+      fn_coletor_menu_badges: {
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_conferencia_buscar_produto_por_barcode: {
         Args: {
           p_codigo_barras: string
