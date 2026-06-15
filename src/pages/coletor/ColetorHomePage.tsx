@@ -29,6 +29,7 @@ export function ColetorHomePage({ onNavigate }: Props) {
   const { can, loading: permLoading } = usePermissions();
   const userName = localStorage.getItem("core_usuario_nome") || "Operador";
   const tenantId = localStorage.getItem("core_tenant_id");
+  const empresaId = localStorage.getItem("core_empresa_id");
   const armazemId = localStorage.getItem("core_armazem_id");
 
   // Filter modules by permission
@@ -37,17 +38,33 @@ export function ColetorHomePage({ onNavigate }: Props) {
   );
 
   useEffect(() => {
-    if (!tenantId || !armazemId) return;
-    (async () => {
-      const { count } = await (supabase as any)
-        .from("tarefa")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("armazem_id", armazemId)
-        .eq("status", "CRIADA");
-      setPendingCounts(prev => ({ ...prev, Recebimento: count || 0 }));
-    })();
-  }, [tenantId, armazemId]);
+    if (!tenantId || !empresaId) return;
+    let cancelled = false;
+
+    const fetchBadges = async () => {
+      const { data, error } = await (supabase as any).rpc("fn_coletor_menu_badges", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_armazem_id: armazemId || null,
+      });
+      if (!cancelled && data && !error) {
+        setPendingCounts(data as Record<string, number>);
+      }
+    };
+
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 30000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchBadges();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [tenantId, empresaId, armazemId]);
 
   return (
     <ColetorLayout title="CORE Coletor" onNavigate={onNavigate} showLogout>
