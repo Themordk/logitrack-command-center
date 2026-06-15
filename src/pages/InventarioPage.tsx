@@ -55,8 +55,8 @@ export function InventarioPage({ onNavigate }: Props) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Filters
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
+  const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterTipo, setFilterTipo] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCodigo, setFilterCodigo] = useState("");
