@@ -80,13 +80,17 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
     if (!currentDestino) return;
     const { data } = await (supabase as any)
       .from("endereco")
-      .select("id, descricao, codigo_endereco")
+      .select("id, descricao, codigo_endereco, situacao")
       .eq("tenant_id", tenantId)
       .eq("codigo_endereco", code)
       .limit(1)
       .maybeSingle();
 
     if (!data) { toast.error("Endereço não encontrado"); return; }
+    if (!["LIVRE", "OCUPADO"].includes(data.situacao)) {
+      toast.error(`Endereço ${data.descricao} está ${data.situacao}. Movimentações não são permitidas. Procure a supervisão.`);
+      return;
+    }
     if (data.id !== currentDestino.endereco_destino_id) {
       toast.error("Endereço não corresponde ao destino esperado"); return;
     }

@@ -19,6 +19,7 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
   const [enderecoDesc, setEnderecoDesc] = useState("");
+  const [enderecoId, setEnderecoId] = useState("");
   const [items, setItems] = useState<EstoqueRow[]>([]);
   const [error, setError] = useState("");
 
@@ -27,6 +28,7 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
     setError("");
     setItems([]);
     setEnderecoDesc("");
+    setEnderecoId("");
     setLoading(true);
     try {
       // Find endereco by descricao or codigo_endereco
@@ -44,6 +46,7 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
 
       const endId = enderecos[0].id;
       setEnderecoDesc(enderecos[0].descricao);
+      setEnderecoId(endId);
 
       const { data: estoque } = await (supabase as any)
         .from("estoque_geral")
@@ -72,6 +75,13 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
     return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
   };
 
+  const handleVerDetalhes = () => {
+    if (!enderecoId) return;
+    sessionStorage.setItem("coletor_consulta_endereco_id", enderecoId);
+    sessionStorage.setItem("coletor_consulta_endereco_back", "/coletor/consulta/endereco");
+    onNavigate("/coletor/consulta/endereco/detalhe");
+  };
+
   return (
     <ColetorLayout title="Consulta Endereço" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
       <ScanField label="Escanear Endereço" onScan={handleScan} lastScanned={scanned} />
@@ -80,10 +90,13 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
       {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
 
       {enderecoDesc && !loading && (
-        <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3">
-          <span className="text-xs text-[hsl(213,31%,55%)]">Endereço</span>
+        <button
+          onClick={handleVerDetalhes}
+          className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 w-full text-left active:bg-[hsl(222,35%,16%)] transition-all"
+        >
+          <span className="text-xs text-[hsl(213,31%,55%)]">Endereço <span className="text-[hsl(217,91%,60%)] ml-1">→ Ver detalhes</span></span>
           <p className="text-sm font-bold text-white">{enderecoDesc}</p>
-        </div>
+        </button>
       )}
 
       {items.length > 0 && !loading && (
