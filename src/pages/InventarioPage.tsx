@@ -185,6 +185,7 @@ export function InventarioPage({ onNavigate }: Props) {
                   <tr className="border-b border-border bg-secondary/30">
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Código</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo Execução</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data Criação</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Criado Por</th>
@@ -198,7 +199,7 @@ export function InventarioPage({ onNavigate }: Props) {
                 <tbody>
                   {inventarios.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                      <td colSpan={11} className="px-4 py-12 text-center text-sm text-muted-foreground">
                         Nenhum inventário encontrado.
                       </td>
                     </tr>
@@ -211,6 +212,7 @@ export function InventarioPage({ onNavigate }: Props) {
                             <span className="font-mono text-sm font-semibold text-primary">#{inv.numero_inventario}</span>
                           </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{TIPO_MAP[inv.tipo_inventario] || inv.tipo_inventario}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{TIPO_EXECUCAO_MAP[inv.tipo_execucao || ""] || (inv.tipo_execucao || "—")}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{inv.descricao || "—"}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{fmtDate(inv.criado_em)}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{inv.criado_por_nome}</td>
