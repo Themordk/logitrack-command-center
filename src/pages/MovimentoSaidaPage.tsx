@@ -86,8 +86,8 @@ export function MovimentoSaidaPage() {
   const [total, setTotal] = useState(0);
   const pageSize = 20;
 
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
+  const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
