@@ -1,45 +1,93 @@
-## Refatoração da rota `/armazem/enderecos`
+# Ajustes Coletor — Bloqueio de Endereços + Detalhe de Endereço
 
-### 1º Ajuste — Container de filtros
+## 1ª Ação — Validar `endereco.situacao` antes de processar
 
-Adicionar barra de filtros (via `extraFilters` do `CrudTable`, mesmo padrão já usado em `ProdutosPage`) com os seguintes seletores, todos com opção "Todos":
+**Regra:** Sempre que o usuário escanear um endereço para movimentação, ler a coluna `endereco.situacao`. Permitir apenas `LIVRE` ou `OCUPADO`. Caso `BLOQUEADO` ou `BLOQUEADO_INVENTARIO`, abortar o fluxo e exibir mensagem padrão:
 
-| Filtro | Campo | Tipo |
-|---|---|---|
-| Código | `codigo_endereco` | passa a entrar na busca textual (ilike) ao lado de `descricao` |
-| Endereço (descrição) | `descricao` | busca textual já existente |
-| Tipo | `tipo_endereco` | select: PULMAO, PICKING |
-| Situação | `situacao` | select: LIVRE, OCUPADO, BLOQUEADO, **BLOQUEADO_INVENTARIO** |
-| Lado | `lado` | select: PAR, IMPAR |
-| Curva | `curva_acesso` | select: A, B, C, D |
-| Status | `ativo` | select: Ativo / Inativo |
+> "Endereço **{descricao}** está **{SITUACAO}**. Movimentações não são permitidas. Procure a supervisão."
 
-Comportamento:
-- Estado local `filters` (`tipo_endereco`, `situacao`, `lado`, `curva_acesso`, `ativo`) repassado para `useCrud({ filters })`. Valor "all"/"" → não aplica `.eq`.
-- Botão "Limpar filtros" reseta para "all".
-- A busca por código entra junto com a busca por descrição: estender em `src/hooks/useCrud.ts` o bloco de `searchFields` adicionando `if (table === "endereco") searchFields.push("codigo_endereco");`.
+A mensagem usará o mesmo padrão de erro já existente em cada tela (overlay `error`, `toast.error` ou `errorDialog`), sem mudar a UX.
 
-### 2º Ajuste — Novo enum `BLOQUEADO_INVENTARIO`
+### Telas afetadas e ponto exato da checagem
 
-O enum `enum_situacao_endereco` no banco hoje tem: `LIVRE`, `OCUPADO`, `BLOQUEADO`, **`BLOQUEADO_INVENTARIO`** (novo). Atualizar a UI:
 
-1. **`src/components/StatusBadge.tsx`** — `endereco-situacao` hoje é indexado por número (0/1/2). Trocar para indexação por string para suportar os 4 valores:
-   - `LIVRE` → verde "Livre"
-   - `OCUPADO` → amarelo "Ocupado"
-   - `BLOQUEADO` → vermelho "Bloqueado"
-   - `BLOQUEADO_INVENTARIO` → roxo "Bloq. Inventário"
+| Rota                                                 | Arquivo                                                                                                                                                                           | Onde inserir                                                                                                                                                                                                 |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/coletor/armazenagem/iniciar` → destino na execução | `ArmazenagemExecucaoPage.tsx` (lookup do destino, ~linha 100, no `.from("endereco")`) — é onde o endereço é de fato escaneado. A página `iniciar` apenas lê EAN/HU, sem endereço. | Após buscar o endereço por `codigo_endereco`, validar `situacao`.                                                                                                                                            |
+| `/coletor/movimentos/transferencia/origem`           | `TransferenciaOrigemPage.tsx` — `handleScan`, após o `.from("endereco")`                                                                                                          | Incluir `situacao` no `.select` e bloquear. (Aplicar mesma checagem em `TransferenciaDestinoPage.tsx` para consistência — destino também não pode ser bloqueado.)                                            |
+| `/coletor/movimentos/abastecimento` (coleta)         | `AbastecimentoColetaPage.tsx` — `handleScanEndereco`                                                                                                                              | Incluir `situacao` no `.select` e bloquear antes do `matchesTarefa`. Aplicar a mesma checagem em `AbastecimentoDestinoPage.tsx` quando o destino for escaneado.                                              |
+| `/coletor/separacao/endereco`                        | `SeparacaoEnderecoPage.tsx` — `handleScan`                                                                                                                                        | Antes de chamar a RPC `separacao_confirmar_endereco`, fazer um `select id, descricao, situacao from endereco` por `codigo_endereco`/`descricao = code` e bloquear se for `BLOQUEADO`/`BLOQUEADO_INVENTARIO`. |
+| `/coletor/inventario/endereco`                       | `InventarioEnderecoPage.tsx` — `handleScan`, no `.from("endereco")` (linha ~107)                                                                                                  | Incluir `situacao` no `.select` e bloquear antes da comparação com `expectedId`.                                                                                                                             |
 
-2. **`src/pages/EnderecosPage.tsx`** (lista) — remover o `map` numérico e passar `row.situacao` direto:
-   ```tsx
-   render: (row) => <StatusBadge status={row.situacao} type="endereco-situacao" />
-   ```
 
-3. **`src/pages/EnderecosPage.tsx`** (formulário Novo/Editar) — adicionar `"BLOQUEADO_INVENTARIO"` em `enumValues` do campo `situacao`.
+### Detalhes técnicos
 
-4. **`src/pages/EnderecosBatchPage.tsx`** — se houver seleção de situação no cadastro em lote, incluir também `BLOQUEADO_INVENTARIO` (verificar e ajustar se necessário).
+- Incluir `situacao` no `select`: `select("id, descricao, codigo_endereco, situacao")`.
+- Função utilitária local em cada tela (sem criar arquivo novo):
+  ```ts
+  const SITUACOES_PERMITIDAS = ["LIVRE", "OCUPADO"];
+  ```
+- Exibição: usar o mecanismo já presente na tela (`setErrorDialog` no Separação/Inventário, `setOverlay("error")` em Transferência/Armazenagem, `toast.error` em Abastecimento).
 
-### Padrão visual preservado
+---
 
-- Mesmo layout do `CrudTable` (header → barra de filtros via `extraFilters` → tabela).
-- Selects estilizados como nas demais telas (fundo `bg-secondary`, borda padrão).
-- Nenhuma mudança em rotas, services, schema do banco ou triggers.
+## 2ª Ação — Detalhe do Endereço (a partir de `/coletor/consulta/endereco`)
+
+### Mudança em `ConsultaEnderecoPage.tsx`
+
+- Após localizar o endereço, guardar `enderecoId` em state.
+- No card que hoje exibe apenas `Endereço · descrição`, adicionar um link **VER DETALHES** alinhado à direita (mesmo padrão visual do botão equivalente em `ConsultaProdutoPage.tsx`).
+- Ao clicar:
+  ```ts
+  sessionStorage.setItem("coletor_consulta_endereco_id", enderecoId);
+  sessionStorage.setItem("coletor_consulta_endereco_back", "/coletor/consulta/endereco");
+  onNavigate("/coletor/consulta/endereco/detalhe");
+  ```
+
+### Nova página `src/pages/coletor/ConsultaEnderecoDetalhePage.tsx`
+
+Espelhar a estrutura visual de `ConsultaProdutoDetalhePage.tsx` (tabs, `cardClass`, `labelClass`, `valClass`, `inputClass`, `btnPrimary`, `ColetorLayout` com `showBack`).
+
+Três abas:
+
+**Aba INFORMAÇÕES** — somente leitura
+
+- `codigo_endereco`
+- `descricao`
+- `situacao` (renderizar como Badge colorido seguindo o mapeamento já definido em `StatusBadge` para `endereco-situacao`)
+- `ativo` (Sim/Não)
+
+**Aba CONFIGURAÇÕES** — editáveis
+
+- `tipo_endereco` (select: PULMAO, PICKING)
+- `curva_acesso` (select: A, B, C, D)
+- `total_pallet` (number)
+- `lado` (select: PAR, IMPAR)
+
+**Aba CUBAGEM** — editáveis
+
+- `altura` (number)
+- `largura` (number)
+- `comprimento` (number)
+- `m3` (number)
+
+Cada aba editável tem botão **Salvar** chamando `supabase.from("endereco").update({...}).eq("id", enderecoId)`, com `toast.success`/`toast.error` e recarregando os dados após salvar. Sem cálculo automático de M³ (campo editável manualmente como solicitado).
+
+### Registro da rota
+
+Em `src/App.tsx`:
+
+```ts
+import { ConsultaEnderecoDetalhePage } from "./pages/coletor/ConsultaEnderecoDetalhePage";
+// ...
+case "/coletor/consulta/endereco/detalhe":
+  return <ConsultaEnderecoDetalhePage onNavigate={onNavigate} />;
+```
+
+---
+
+## Pontos a confirmar
+
+- **Armazenagem**: a checagem prática deve ser na **execução** (onde o endereço é escaneado), e não na `iniciar` (que lê EAN/HU). Vou implementar em `ArmazenagemExecucaoPage.tsx`. OK? - OK
+- **Transferência destino** e **Abastecimento destino**: por simetria, vou aplicar a mesma regra de bloqueio nessas telas também (mesmo não estando na lista). OK? - OK
+  &nbsp;
