@@ -289,6 +289,41 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     }
 
     sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
+
+    // Se o próximo item está no mesmo endereço, evita re-leitura: troca apenas os dados do produto
+    const atual = tarefas[idx] || tarefa;
+    const proxima = tarefas[nextIdx];
+    const keyAtual =
+      atual?.endereco_alternativo_id || atual?.endereco_id || atual?.endereco || null;
+    const keyProx =
+      proxima?.endereco_alternativo_id || proxima?.endereco_id || proxima?.endereco || null;
+
+    if (keyAtual && keyProx && keyAtual === keyProx) {
+      sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(proxima));
+      setTarefa(proxima);
+      setQtdSeparada(Number(proxima.separado || 0));
+      setEanScanned("");
+      setEmbalagemInfo(null);
+      setEanConfirmado(false);
+      setQuantidade("");
+      setLoteSel(null);
+      setProdutoId(proxima.produto_id || null);
+      setReferencia(proxima.referencia || "");
+      setEnderecoId(proxima.endereco_alternativo_id || proxima.endereco_id || null);
+
+      if (proxima.produto_id) {
+        fetchProdutoDetails(proxima.produto_id);
+      } else if (proxima.sku) {
+        fetchProdutoBySku(proxima.sku);
+      }
+      if (!proxima.endereco_alternativo_id && !proxima.endereco_id && proxima.endereco) {
+        lookupEnderecoId(proxima.endereco);
+      }
+
+      toast.success(`Próximo produto: ${proxima.sku || proxima.produto || ""}`);
+      return;
+    }
+
     onNavigate("/coletor/separacao/endereco");
   };
 

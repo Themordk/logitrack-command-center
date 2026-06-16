@@ -1,20 +1,31 @@
-## Objetivo
-Evitar nova confirmação de endereço quando ainda existem produtos a contar no mesmo endereço dentro do inventário.
+# Otimizar navegação na separação do coletor
 
-## Comportamento atual
-Em `InventarioProdutoPage.handleDialogClose`, após sucesso, incrementa `coletor_inventario_tarefa_idx` e sempre navega para `/coletor/inventario/endereco`.
+Replicar a lógica já aplicada no inventário, agora na rotina de separação (`/coletor/separacao/produto` → próxima tarefa): se o próximo item está no mesmo endereço, manter o operador na tela de produto trocando apenas o conteúdo, em vez de exigir nova leitura de endereço.
 
-## Mudança proposta
-Arquivo único: `src/pages/coletor/InventarioProdutoPage.tsx` (função `handleDialogClose`).
+## Escopo
 
-Lógica nova:
-1. Avançar `nextIdx`.
-2. Se `nextIdx >= tarefas.length` → comportamento atual (volta para a lista de inventários).
-3. Pegar `proxima = tarefas[nextIdx]` e a tarefa atual.
-4. Comparar o endereço da próxima tarefa com o da atual (`endereco_id || id_local_origem`, com fallback em `codigo_endereco`).
-   - **Mesmo endereço**: atualizar `coletor_inventario_tarefa_atual` no sessionStorage com `proxima`, atualizar `setTarefa(proxima)`, resetar estados locais (`eanScanned`, `embalagemInfo`, `eanConfirmado`, `quantidade`) e permanecer na rota `/coletor/inventario/produto`. Exibir toast informando próximo produto.
-   - **Endereço diferente**: comportamento atual — navegar para `/coletor/inventario/endereco` (a página de endereço já lê `tarefa_idx` e exigirá nova confirmação).
+Apenas frontend. Sem alterações em RPC, ordenação de tarefas ou na tela `SeparacaoEnderecoPage`.
 
-## Fora do escopo
-- Não alterar `InventarioEnderecoPage` nem a RPC.
-- Não alterar a ordenação das tarefas (assume-se que já vêm agrupadas por endereço; caso não estejam, a otimização simplesmente não dispara).
+## Arquivo alterado
+
+`src/pages/coletor/SeparacaoProdutoPage.tsx` — função `advanceToNext` (linhas ~277-293).
+
+## Lógica nova em `advanceToNext`
+
+1. Calcular `nextIdx = idx + 1`.
+2. Limpar `coletor_separacao_lote_selecionado` (comportamento atual).
+3. Se `nextIdx >= tarefas.length` → encerrar onda, navegar para `/coletor/separacao/iniciar` (comportamento atual).
+4. Persistir `coletor_separacao_tarefa_idx = nextIdx`.
+5. Comparar endereço da tarefa atual com o da próxima:
+   - Chave de comparação: `endereco_alternativo_id || endereco_id`, com fallback para `endereco` (descrição) quando ids ausentes.
+6. **Mesmo endereço:**
+   - Atualizar `coletor_separacao_tarefa_atual` no sessionStorage com `tarefas[nextIdx]`.
+   - `setTarefa(proxima)` e resetar estados locais: `eanScanned`, `embalagemInfo`, `eanConfirmado`, `quantidade`, `qtdSeparada` (a partir de `proxima.separado || 0`), `loteSel`, `produtoId`, `referencia`, `enderecoId`.
+   - Reexecutar resolução de produto (`fetchProdutoDetails`/`fetchProdutoBySku`) e endereço, igual ao `useEffect` inicial.
+   - Toast informando o próximo produto.
+   - **Permanecer em `/coletor/separacao/produto`** (sem `onNavigate`).
+7. **Endereços diferentes:** comportamento atual — `onNavigate("/coletor/separacao/endereco")`.
+
+## Fora de escopo
+
+- `SeparacaoEnderecoPage`, `SeparacaoLotePage`, RPCs e ordenação das tarefas na onda.
