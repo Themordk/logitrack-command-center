@@ -578,6 +578,16 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                       </div>
                     )}
 
+                    {(criterio === "CORTES" || criterio === "ESTORNOS") && (
+                      <div className="w-64 transition-all duration-200">
+                        <label className={labelClass}>Período de Análise *</label>
+                        <select value={periodoAnalise} onChange={(e) => setPeriodoAnalise(e.target.value as PeriodoOpt)} className={inputClass}>
+                          {PERIODO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                        </select>
+                      </div>
+                    )}
+
+
                     <div className="w-48">
                       <label className={labelClass}>Máx. Endereços/Dia</label>
                       <input type="number" min={1} value={maxEnderecosDia}
