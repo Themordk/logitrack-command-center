@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
+import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -137,12 +138,10 @@ export function MovimentoEntradaPage() {
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [erroSubmitting, setErroSubmitting] = useState(false);
 
-  // Liberar armazenagem c/ divergência modal
-  const [showDivergenciaModal, setShowDivergenciaModal] = useState(false);
-  const [divergenciaMovId, setDivergenciaMovId] = useState<string | null>(null);
-  const [divergenciaMotivos, setDivergenciaMotivos] = useState<{ id: string; descricao: string }[]>([]);
-  const [selectedDivergenciaMotivo, setSelectedDivergenciaMotivo] = useState("");
-  const [divergenciaSubmitting, setDivergenciaSubmitting] = useState(false);
+  // Liberar armazenagem modal unificado
+  const [showLiberarArmazenagem, setShowLiberarArmazenagem] = useState(false);
+  const [liberarMovId, setLiberarMovId] = useState<string | null>(null);
+  const [liberarMovStatus, setLiberarMovStatus] = useState<string>("");
 
   // Cancel modal
   const [showCancelModal, setShowCancelModal] = useState(false);
