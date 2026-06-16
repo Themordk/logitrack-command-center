@@ -1,93 +1,80 @@
-# Ajustes Coletor — Bloqueio de Endereços + Detalhe de Endereço
+## Objetivo
 
-## 1ª Ação — Validar `endereco.situacao` antes de processar
-
-**Regra:** Sempre que o usuário escanear um endereço para movimentação, ler a coluna `endereco.situacao`. Permitir apenas `LIVRE` ou `OCUPADO`. Caso `BLOQUEADO` ou `BLOQUEADO_INVENTARIO`, abortar o fluxo e exibir mensagem padrão:
-
-> "Endereço **{descricao}** está **{SITUACAO}**. Movimentações não são permitidas. Procure a supervisão."
-
-A mensagem usará o mesmo padrão de erro já existente em cada tela (overlay `error`, `toast.error` ou `errorDialog`), sem mudar a UX.
-
-### Telas afetadas e ponto exato da checagem
-
-
-| Rota                                                 | Arquivo                                                                                                                                                                           | Onde inserir                                                                                                                                                                                                 |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/coletor/armazenagem/iniciar` → destino na execução | `ArmazenagemExecucaoPage.tsx` (lookup do destino, ~linha 100, no `.from("endereco")`) — é onde o endereço é de fato escaneado. A página `iniciar` apenas lê EAN/HU, sem endereço. | Após buscar o endereço por `codigo_endereco`, validar `situacao`.                                                                                                                                            |
-| `/coletor/movimentos/transferencia/origem`           | `TransferenciaOrigemPage.tsx` — `handleScan`, após o `.from("endereco")`                                                                                                          | Incluir `situacao` no `.select` e bloquear. (Aplicar mesma checagem em `TransferenciaDestinoPage.tsx` para consistência — destino também não pode ser bloqueado.)                                            |
-| `/coletor/movimentos/abastecimento` (coleta)         | `AbastecimentoColetaPage.tsx` — `handleScanEndereco`                                                                                                                              | Incluir `situacao` no `.select` e bloquear antes do `matchesTarefa`. Aplicar a mesma checagem em `AbastecimentoDestinoPage.tsx` quando o destino for escaneado.                                              |
-| `/coletor/separacao/endereco`                        | `SeparacaoEnderecoPage.tsx` — `handleScan`                                                                                                                                        | Antes de chamar a RPC `separacao_confirmar_endereco`, fazer um `select id, descricao, situacao from endereco` por `codigo_endereco`/`descricao = code` e bloquear se for `BLOQUEADO`/`BLOQUEADO_INVENTARIO`. |
-| `/coletor/inventario/endereco`                       | `InventarioEnderecoPage.tsx` — `handleScan`, no `.from("endereco")` (linha ~107)                                                                                                  | Incluir `situacao` no `.select` e bloquear antes da comparação com `expectedId`.                                                                                                                             |
-
-
-### Detalhes técnicos
-
-- Incluir `situacao` no `select`: `select("id, descricao, codigo_endereco, situacao")`.
-- Função utilitária local em cada tela (sem criar arquivo novo):
-  ```ts
-  const SITUACOES_PERMITIDAS = ["LIVRE", "OCUPADO"];
-  ```
-- Exibição: usar o mecanismo já presente na tela (`setErrorDialog` no Separação/Inventário, `setOverlay("error")` em Transferência/Armazenagem, `toast.error` em Abastecimento).
+Refinar a tela `/atividades/inventario/novo` (`src/pages/NovoInventarioPage.tsx`) e o backend de inventário rotativo para:
+1. Permitir que os critérios CORTES e ESTORNOS considerem um período de análise informado pelo usuário.
+2. Aplicar defaults sensatos nos campos da tela.
+3. Garantir que `Máx. Endereços/Dia` realmente limite a geração de tarefas.
+4. Corrigir a fonte dos ESTORNOS (deve ser `tarefa_execucao` com `status = 'CANCELADA'`, e não `estoque_movimento`).
 
 ---
 
-## 2ª Ação — Detalhe do Endereço (a partir de `/coletor/consulta/endereco`)
+## a) Período de análise (CORTES / ESTORNOS)
 
-### Mudança em `ConsultaEnderecoPage.tsx`
+### UI
+- Adicionar, abaixo dos radios de critério (apenas quando `criterio === 'CORTES'` ou `'ESTORNOS'`), um campo **Período de análise** (select) com as opções:
+  - `HOJE` — Data atual
+  - `ONTEM` — Dia anterior
+  - `7D` — Última semana
+  - `15D` — Últimos 15 dias
+  - `30D` — Último mês (default)
+- O período é obrigatório quando o critério exige (incluir na validação `isValid` e no preview de Resumo).
+- Resolver o intervalo `[data_inicio, data_fim]` no frontend (usando `src/utils/dateTime.ts` para America/Fortaleza) e enviar como `p_data_inicio_analise` / `p_data_fim_analise` para o RPC.
 
-- Após localizar o endereço, guardar `enderecoId` em state.
-- No card que hoje exibe apenas `Endereço · descrição`, adicionar um link **VER DETALHES** alinhado à direita (mesmo padrão visual do botão equivalente em `ConsultaProdutoPage.tsx`).
-- Ao clicar:
-  ```ts
-  sessionStorage.setItem("coletor_consulta_endereco_id", enderecoId);
-  sessionStorage.setItem("coletor_consulta_endereco_back", "/coletor/consulta/endereco");
-  onNavigate("/coletor/consulta/endereco/detalhe");
-  ```
+### Backend (migration)
+- Adicionar colunas em `public.inventario`:
+  - `data_inicio_analise date NULL`
+  - `data_fim_analise date NULL`
+- Recriar `fn_criar_inventario_v2` com dois parâmetros novos (`p_data_inicio_analise date DEFAULT NULL`, `p_data_fim_analise date DEFAULT NULL`) gravando essas colunas. Adicionar validação: quando `tipo='ROTATIVO'` e `criterio_selecao IN ('CORTES','ESTORNOS')`, ambas as datas são obrigatórias (`PERIODO_OBRIGATORIO`).
+- Recriar `fn_gerar_tarefas_inventario` substituindo o trecho hardcoded `interval '30 days'`:
+  - **CORTES**: continua em `estoque_movimento` (movimento negativo) mas filtrando `criado_em` no intervalo `[data_inicio_analise, data_fim_analise + 1 day)`.
+  - **ESTORNOS**: trocar a fonte para `tarefa_execucao` (status `'CANCELADA'`) no mesmo intervalo, retornando o `produto_id` distinto que aparece nessas execuções. (A relação produto/execução vem de `tarefa_execucao → tarefa.produto_id`.)
 
-### Nova página `src/pages/coletor/ConsultaEnderecoDetalhePage.tsx`
+### Mapeamento de erros
+- Adicionar `PERIODO_OBRIGATORIO: "Selecione o período de análise."` em `ERROR_MAP`.
 
-Espelhar a estrutura visual de `ConsultaProdutoDetalhePage.tsx` (tabs, `cardClass`, `labelClass`, `valClass`, `inputClass`, `btnPrimary`, `ColetorLayout` com `showBack`).
+---
 
-Três abas:
+## b) Defaults e enforcement na tela
 
-**Aba INFORMAÇÕES** — somente leitura
+1. **Data Planejada** — inicializar `dataPlanejada` com a data atual (formato `YYYY-MM-DD`, fuso Fortaleza via `src/utils/dateTime.ts`). Permanece editável.
+2. **Toggle "Bloquear movimentações..."** — alterar default de `useState(true)` para `useState(false)`.
+3. **Máx. Endereços/Dia** — hoje o valor é gravado em `inventario.max_enderecos_dia` mas **não é aplicado** em `fn_gerar_tarefas_inventario`. Ajustar a função para, quando `max_enderecos_dia IS NOT NULL`, encerrar a geração ao atingir esse número de endereços distintos já com tarefa para o inventário. Implementação:
+   - No CTE `dados_origem`, calcular o nº de endereços distintos já existentes em `tarefa` para o `id_documento_origem = p_inventario_id`.
+   - Limitar o chunk para que `(distintos_existentes + distintos_novos) <= max_enderecos_dia`; quando alcançar, retornar `finalizado=true`.
+4. **Toggle "Priorizar endereços de Picking"** — alterar default de `useState(false)` para `useState(true)`.
 
-- `codigo_endereco`
-- `descricao`
-- `situacao` (renderizar como Badge colorido seguindo o mapeamento já definido em `StatusBadge` para `endereco-situacao`)
-- `ativo` (Sim/Não)
+---
 
-**Aba CONFIGURAÇÕES** — editáveis
+## Detalhes técnicos
 
-- `tipo_endereco` (select: PULMAO, PICKING)
-- `curva_acesso` (select: A, B, C, D)
-- `total_pallet` (number)
-- `lado` (select: PAR, IMPAR)
+**Arquivos frontend**
+- `src/pages/NovoInventarioPage.tsx`
+  - Novos estados: `periodoAnalise` (string, default `"30D"`).
+  - Helper local `resolvePeriodo(opt)` → `{ inicio, fim }` (datas ISO em Fortaleza).
+  - Defaults atualizados: `bloquearMov=false`, `priorizarPicking=true`, `dataPlanejada=hoje`.
+  - Renderizar campo período apenas quando `criterio` for CORTES/ESTORNOS; resetar `periodoAnalise` para `"30D"` quando o critério muda.
+  - `handleSave`: incluir `p_data_inicio_analise` e `p_data_fim_analise` no payload.
+  - Atualizar `isValid` e o `useEffect` de preview para considerar `periodoAnalise` quando aplicável.
 
-**Aba CUBAGEM** — editáveis
+**Migration**
+```sql
+ALTER TABLE public.inventario
+  ADD COLUMN IF NOT EXISTS data_inicio_analise date,
+  ADD COLUMN IF NOT EXISTS data_fim_analise    date;
 
-- `altura` (number)
-- `largura` (number)
-- `comprimento` (number)
-- `m3` (number)
-
-Cada aba editável tem botão **Salvar** chamando `supabase.from("endereco").update({...}).eq("id", enderecoId)`, com `toast.success`/`toast.error` e recarregando os dados após salvar. Sem cálculo automático de M³ (campo editável manualmente como solicitado).
-
-### Registro da rota
-
-Em `src/App.tsx`:
-
-```ts
-import { ConsultaEnderecoDetalhePage } from "./pages/coletor/ConsultaEnderecoDetalhePage";
-// ...
-case "/coletor/consulta/endereco/detalhe":
-  return <ConsultaEnderecoDetalhePage onNavigate={onNavigate} />;
+-- Recriar fn_criar_inventario_v2 (assinatura com 2 novos params, NULL default)
+-- Recriar fn_gerar_tarefas_inventario:
+--   • CORTES: estoque_movimento (tipo_movimento<0) filtrando criado_em no período
+--   • ESTORNOS: tarefa_execucao (status='CANCELADA') JOIN tarefa para obter produto_id,
+--               filtrando tarefa_execucao.criado_em no período
+--   • Enforcement de max_enderecos_dia limitando endereços distintos por inventário
 ```
 
+Sem mudanças de GRANT (colunas em tabela existente, funções recriadas com `SECURITY DEFINER`).
+
 ---
 
-## Pontos a confirmar
-
-- **Armazenagem**: a checagem prática deve ser na **execução** (onde o endereço é escaneado), e não na `iniciar` (que lê EAN/HU). Vou implementar em `ArmazenagemExecucaoPage.tsx`. OK? - OK
-- **Transferência destino** e **Abastecimento destino**: por simetria, vou aplicar a mesma regra de bloqueio nessas telas também (mesmo não estando na lista). OK? - OK
-  &nbsp;
+## Fora de escopo
+- Tela de detalhe/listagem de inventário (sem alterações).
+- Outras rotas administrativas.
+- Lógica de recontagem / divergências.
