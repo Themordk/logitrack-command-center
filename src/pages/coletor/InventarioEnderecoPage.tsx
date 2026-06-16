@@ -119,11 +119,9 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
         return;
       }
 
-      if (!["LIVRE", "OCUPADO"].includes(found.situacao)) {
-        setErrorDialog(`Endereço ${found.descricao} está ${found.situacao}. Movimentações não são permitidas. Procure a supervisão.`);
-        setLoading(false);
-        return;
-      }
+      // Inventário pode contar endereços BLOQUEADO/BLOQUEADO_INVENTARIO — sem validação de situação aqui.
+
+
 
       // Save current task and navigate to product screen
       sessionStorage.setItem("coletor_inventario_tarefa_idx", String(currentIdx));
