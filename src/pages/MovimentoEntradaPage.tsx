@@ -910,40 +910,19 @@ export function MovimentoEntradaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Liberar armazenagem c/ divergência */}
-      <Dialog open={showDivergenciaModal} onOpenChange={setShowDivergenciaModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Liberar Armazenagem com Divergência</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motivo de Ocorrência *</label>
-              <select
-                value={selectedDivergenciaMotivo}
-                onChange={(e) => setSelectedDivergenciaMotivo(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
-              >
-                <option value="">Selecione o motivo...</option>
-                {divergenciaMotivos.map((m) => <option key={m.id} value={m.id}>{m.descricao}</option>)}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <button onClick={() => setShowDivergenciaModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Cancelar
-            </button>
-            <button
-              onClick={handleConfirmarDivergencia}
-              disabled={divergenciaSubmitting || !selectedDivergenciaMotivo}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {divergenciaSubmitting && <Loader2 size={14} className="animate-spin" />}
-              Confirmar
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal Liberar Armazenagem (unificado) */}
+      {liberarMovId && (
+        <LiberarArmazenagemModal
+          open={showLiberarArmazenagem}
+          onClose={() => setShowLiberarArmazenagem(false)}
+          movimentoEntradaId={liberarMovId}
+          statusMovimento={liberarMovStatus}
+          onSuccess={() => {
+            fetchMovements();
+            if (selectedMov === liberarMovId) loadDetails(liberarMovId, "LIB_ARMAZENAGEM");
+          }}
+        />
+      )}
 
       {/* Modal Cancelar Movimento */}
       <Dialog open={showCancelModal} onOpenChange={(v) => { if (!v) { setShowCancelModal(false); setCancelarResult(null); } }}>
