@@ -74,6 +74,7 @@ const ERROR_MAP: Record<string, string> = {
   INVENTARIO_NAO_ENCONTRADO: "Inventário não encontrado.",
   INVENTARIO_STATUS_INVALIDO: "Inventário em status inválido para gerar tarefas.",
   LOOP_SEM_PROGRESSO: "Geração de tarefas não avançou. Verifique os filtros e tente novamente.",
+  PERIODO_OBRIGATORIO: "Selecione o período de análise.",
   ERRO_DESCONHECIDO: "Ocorreu um erro inesperado.",
 };
 
