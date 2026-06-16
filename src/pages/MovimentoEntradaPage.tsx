@@ -369,28 +369,15 @@ export function MovimentoEntradaPage() {
     }
   };
 
-  const handleLiberarArmazenagem = async (movId: string, status: string) => {
-    if (status !== "CONFERIDO" && status !== "DIVERGENCIA") {
-      toast.warning("Apenas movimentos conferidos podem ser liberados para armazenagem.");
+  const openLiberarArmazenagem = (movId: string, status: string) => {
+    const allowed = ["CONFERIDO", "DIVERGENCIA", "LIB_ARMAZENAGEM", "ARMAZENAGEM_PARCIAL"];
+    if (!allowed.includes(status)) {
+      toast.warning("Movimento ainda não pode ser liberado para armazenagem.");
       return;
     }
-    try {
-      const { data, error } = await supabase.rpc("gerar_tarefas_armazenagem_s_divergencia" as any, {
-        p_movimento_entrada_id: movId,
-        p_tenant_id: tenantId,
-      });
-      if (error) throw error;
-      const msg = String(data || "");
-      if (msg.toLowerCase().includes("erro")) {
-        toast.error(msg);
-      } else {
-        toast.success(msg || "Armazenagem liberada com sucesso.");
-        fetchMovements();
-        if (selectedMov === movId) loadDetails(movId, "LIB_ARMAZENAGEM");
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+    setLiberarMovId(movId);
+    setLiberarMovStatus(status);
+    setShowLiberarArmazenagem(true);
   };
 
   const openErroTransporteModal = async (movId: string) => {
