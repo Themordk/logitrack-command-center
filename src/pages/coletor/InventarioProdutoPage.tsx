@@ -135,10 +135,30 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
         return;
       }
 
+      const proxima = tarefas[nextIdx];
       sessionStorage.setItem("coletor_inventario_tarefa_idx", String(nextIdx));
+
+      const enderecoAtual =
+        tarefa?.endereco_id || tarefa?.id_local_origem || tarefa?.codigo_endereco;
+      const enderecoProxima =
+        proxima?.endereco_id || proxima?.id_local_origem || proxima?.codigo_endereco;
+
+      if (enderecoAtual && enderecoProxima && enderecoAtual === enderecoProxima) {
+        // Same address: update product context in place, stay on /produto
+        sessionStorage.setItem("coletor_inventario_tarefa_atual", JSON.stringify(proxima));
+        setTarefa(proxima);
+        setEanScanned("");
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        setQuantidade("");
+        toast.success("Próximo produto no mesmo endereço");
+        return;
+      }
+
       onNavigate("/coletor/inventario/endereco");
     }
   };
+
 
   if (!tarefa) return null;
 

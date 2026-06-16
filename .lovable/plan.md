@@ -1,13 +1,20 @@
-## Ajuste no Coletor — Inventário aceita endereços bloqueados
+## Objetivo
+Evitar nova confirmação de endereço quando ainda existem produtos a contar no mesmo endereço dentro do inventário.
 
-**Arquivo:** `src/pages/coletor/InventarioEnderecoPage.tsx`
+## Comportamento atual
+Em `InventarioProdutoPage.handleDialogClose`, após sucesso, incrementa `coletor_inventario_tarefa_idx` e sempre navega para `/coletor/inventario/endereco`.
 
-Atualmente (linhas 122–123) a UI bloqueia qualquer endereço cuja `situacao` não seja `LIVRE` ou `OCUPADO`, exibindo o diálogo "Endereço Incorreto". Como o módulo de inventário precisa contar endereços que estão `BLOQUEADO` ou `BLOQUEADO_INVENTARIO` (estado normal durante a contagem), essa validação será removida apenas nesta rota.
+## Mudança proposta
+Arquivo único: `src/pages/coletor/InventarioProdutoPage.tsx` (função `handleDialogClose`).
 
-### Mudança
-- Remover o bloco `if (!["LIVRE","OCUPADO"].includes(found.situacao)) { setErrorDialog(...); return; }`.
-- Manter as demais validações: pertencer ao inventário (`itens.some(...)`), já contado, etc.
-- Nenhuma alteração em backend, triggers ou outras rotas do coletor (as rotas operacionais — armazenagem, separação, abastecimento, transferência, consulta — continuam bloqueando, conforme plano anterior).
+Lógica nova:
+1. Avançar `nextIdx`.
+2. Se `nextIdx >= tarefas.length` → comportamento atual (volta para a lista de inventários).
+3. Pegar `proxima = tarefas[nextIdx]` e a tarefa atual.
+4. Comparar o endereço da próxima tarefa com o da atual (`endereco_id || id_local_origem`, com fallback em `codigo_endereco`).
+   - **Mesmo endereço**: atualizar `coletor_inventario_tarefa_atual` no sessionStorage com `proxima`, atualizar `setTarefa(proxima)`, resetar estados locais (`eanScanned`, `embalagemInfo`, `eanConfirmado`, `quantidade`) e permanecer na rota `/coletor/inventario/produto`. Exibir toast informando próximo produto.
+   - **Endereço diferente**: comportamento atual — navegar para `/coletor/inventario/endereco` (a página de endereço já lê `tarefa_idx` e exigirá nova confirmação).
 
-### Resultado
-O operador poderá escanear `R01-P10-N01-A10` mesmo com situação `BLOQUEADO_INVENTARIO` e prosseguir para a contagem.
+## Fora do escopo
+- Não alterar `InventarioEnderecoPage` nem a RPC.
+- Não alterar a ordenação das tarefas (assume-se que já vêm agrupadas por endereço; caso não estejam, a otimização simplesmente não dispara).
