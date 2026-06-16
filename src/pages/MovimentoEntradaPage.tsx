@@ -579,10 +579,7 @@ export function MovimentoEntradaPage() {
                           <Lock size={14} className="mr-2" /> Retirar de conferência
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>
-                          <PackageCheck size={14} className="mr-2" /> Liberar armazenagem
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>
-                          <PackageMinus size={14} className="mr-2" /> Liberar armazenagem c/ divergência
+                          <Package size={14} className="mr-2" /> Liberar armazenagem
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>
                           <Truck size={14} className="mr-2" /> Liberar recebimento com erro no transporte
