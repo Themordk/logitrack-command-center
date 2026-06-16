@@ -83,6 +83,7 @@ const navItems: NavItem[] = [
       { label: "Volumes", path: "/atividades/volumes" },
       { label: "Embarque", path: "/atividades/embarque" },
       { label: "Inventário", path: "/atividades/inventario" },
+      { label: "Ocorrências", path: "/atividades/ocorrencias" },
     ],
   },
   {
