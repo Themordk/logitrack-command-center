@@ -369,6 +369,10 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         p_curva: tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") ? curva : null,
         p_max_enderecos_dia: tipo === "ROTATIVO" && maxEnderecosDia ? Number(maxEnderecosDia) : null,
         p_priorizar_picking: tipo === "ROTATIVO" ? priorizarPicking : false,
+        p_data_inicio_analise: tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+          ? resolvePeriodo(periodoAnalise).inicio : null,
+        p_data_fim_analise: tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+          ? resolvePeriodo(periodoAnalise).fim : null,
       };
       const { data, error } = await supabase.rpc("fn_criar_inventario_v2" as any, payload);
       if (error) throw error;
