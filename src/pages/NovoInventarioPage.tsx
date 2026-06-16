@@ -93,15 +93,16 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   // --- Dados Gerais
   const [tipo, setTipo] = useState<Tipo>("");
   const [descricao, setDescricao] = useState("");
-  const [dataPlanejada, setDataPlanejada] = useState("");
+  const [dataPlanejada, setDataPlanejada] = useState(() => toISODate(todayFortaleza()));
   const [tipoExecucao, setTipoExecucao] = useState("");
-  const [bloquearMov, setBloquearMov] = useState(true);
+  const [bloquearMov, setBloquearMov] = useState(false);
 
   // --- Escopo ROTATIVO
   const [criterio, setCriterio] = useState<"" | "CURVA_VENDAS" | "CURVA_ACESSO" | "CORTES" | "ESTORNOS">("");
   const [curva, setCurva] = useState<"" | "A" | "B" | "C" | "D">("");
   const [maxEnderecosDia, setMaxEnderecosDia] = useState("");
-  const [priorizarPicking, setPriorizarPicking] = useState(false);
+  const [priorizarPicking, setPriorizarPicking] = useState(true);
+  const [periodoAnalise, setPeriodoAnalise] = useState<PeriodoOpt>("30D");
 
   // --- Escopo ZONA / GRUPO (select simples)
   const [zonas, setZonas] = useState<Option[]>([]);
