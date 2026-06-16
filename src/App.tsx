@@ -25,6 +25,8 @@ import { UsuariosPage } from "./pages/UsuariosPage";
 import { RastreabilidadePage } from "./pages/RastreabilidadePage";
 import { EntradasPage } from "./pages/EntradasPage";
 import { MovimentoEntradaPage } from "./pages/MovimentoEntradaPage";
+import { OcorrenciasOperacionaisPage } from "./pages/OcorrenciasOperacionaisPage";
+import { OcorrenciaDetalhePage } from "./pages/OcorrenciaDetalhePage";
 import { BoxPage } from "./pages/BoxPage";
 import { TurnosPage } from "./pages/TurnosPage";
 import { MotivosOcorrenciaPage } from "./pages/MotivosOcorrenciaPage";
@@ -128,6 +130,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
   "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
+  "/atividades/ocorrencias": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ocorrências Operacionais" }],
   "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
@@ -161,6 +164,14 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
+  if (path.startsWith("/atividades/ocorrencias/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Atividades" },
+      { label: "Ocorrências Operacionais", path: "/atividades/ocorrencias" },
+      { label: "Detalhe" },
+    ];
+  }
   if (path.startsWith("/atividades/abastecimento/gerar")) {
     return [
       { label: "CORE LogiTrack" },
@@ -226,6 +237,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
+    case "/atividades/ocorrencias": return <OcorrenciasOperacionaisPage onNavigate={onNavigate} />;
     case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
@@ -256,6 +268,11 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/recebimento": return <RecebimentoReportPage />;
     case "/relatorios/ciclo-pedido": return <CicloPedidoReportPage />;
     default: {
+      // Dynamic route: /atividades/ocorrencias/:id
+      if (path.startsWith("/atividades/ocorrencias/")) {
+        const ocorrenciaId = path.replace("/atividades/ocorrencias/", "").split("?")[0];
+        return <OcorrenciaDetalhePage onNavigate={onNavigate} ocorrenciaId={ocorrenciaId} />;
+      }
       // Dynamic route: /atividades/abastecimento/gerar
       if (path.startsWith("/atividades/abastecimento/gerar")) {
         const params = new URLSearchParams(path.split("?")[1] || "");

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, PackageCheck, PackageMinus, Truck, RefreshCw } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
+import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -137,12 +138,10 @@ export function MovimentoEntradaPage() {
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [erroSubmitting, setErroSubmitting] = useState(false);
 
-  // Liberar armazenagem c/ divergência modal
-  const [showDivergenciaModal, setShowDivergenciaModal] = useState(false);
-  const [divergenciaMovId, setDivergenciaMovId] = useState<string | null>(null);
-  const [divergenciaMotivos, setDivergenciaMotivos] = useState<{ id: string; descricao: string }[]>([]);
-  const [selectedDivergenciaMotivo, setSelectedDivergenciaMotivo] = useState("");
-  const [divergenciaSubmitting, setDivergenciaSubmitting] = useState(false);
+  // Liberar armazenagem modal unificado
+  const [showLiberarArmazenagem, setShowLiberarArmazenagem] = useState(false);
+  const [liberarMovId, setLiberarMovId] = useState<string | null>(null);
+  const [liberarMovStatus, setLiberarMovStatus] = useState<string>("");
 
   // Cancel modal
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -370,28 +369,15 @@ export function MovimentoEntradaPage() {
     }
   };
 
-  const handleLiberarArmazenagem = async (movId: string, status: string) => {
-    if (status !== "CONFERIDO" && status !== "DIVERGENCIA") {
-      toast.warning("Apenas movimentos conferidos podem ser liberados para armazenagem.");
+  const openLiberarArmazenagem = (movId: string, status: string) => {
+    const allowed = ["CONFERIDO", "DIVERGENCIA", "LIB_ARMAZENAGEM", "ARMAZENAGEM_PARCIAL"];
+    if (!allowed.includes(status)) {
+      toast.warning("Movimento ainda não pode ser liberado para armazenagem.");
       return;
     }
-    try {
-      const { data, error } = await supabase.rpc("gerar_tarefas_armazenagem_s_divergencia" as any, {
-        p_movimento_entrada_id: movId,
-        p_tenant_id: tenantId,
-      });
-      if (error) throw error;
-      const msg = String(data || "");
-      if (msg.toLowerCase().includes("erro")) {
-        toast.error(msg);
-      } else {
-        toast.success(msg || "Armazenagem liberada com sucesso.");
-        fetchMovements();
-        if (selectedMov === movId) loadDetails(movId, "LIB_ARMAZENAGEM");
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    }
+    setLiberarMovId(movId);
+    setLiberarMovStatus(status);
+    setShowLiberarArmazenagem(true);
   };
 
   const openErroTransporteModal = async (movId: string) => {
@@ -452,55 +438,6 @@ export function MovimentoEntradaPage() {
     }
   };
 
-  const openDivergenciaModal = async (movId: string, status: string) => {
-    if (status !== "CONFERIDO" && status !== "DIVERGENCIA") {
-      toast.warning("Apenas movimentos conferidos ou com divergência podem ser liberados para armazenagem c/ divergência.");
-      return;
-    }
-    setDivergenciaMovId(movId);
-    setSelectedDivergenciaMotivo("");
-    const { data } = await (supabase as any)
-      .from("motivo_ocorrencia")
-      .select("id, descricao")
-      .eq("tenant_id", tenantId)
-      .eq("armazem_id", armazemId)
-      .eq("ativo", true)
-      .eq("etapa_ocorrencia", "RECEBIMENTO")
-      .order("descricao");
-    setDivergenciaMotivos(data || []);
-    setShowDivergenciaModal(true);
-  };
-
-  const handleConfirmarDivergencia = async () => {
-    if (!selectedDivergenciaMotivo || !divergenciaMovId) {
-      toast.error("Selecione um motivo de ocorrência.");
-      return;
-    }
-    setDivergenciaSubmitting(true);
-    try {
-      const { data, error } = await supabase.rpc("gerar_tarefas_armazenagem_c_divergencia" as any, {
-        p_movimento_entrada_id: divergenciaMovId,
-        p_tenant_id: tenantId,
-        p_motivo_ocorrencia: selectedDivergenciaMotivo,
-        p_usuario: usuarioId,
-      });
-      if (error) throw error;
-      const msg = String(data || "");
-      if (msg.toLowerCase().includes("erro")) {
-        toast.error(msg);
-      } else {
-        toast.success(msg || "Armazenagem liberada com divergência.");
-        setShowDivergenciaModal(false);
-        fetchMovements();
-        if (selectedMov === divergenciaMovId) loadDetails(divergenciaMovId, "LIB_ARMAZENAGEM");
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setDivergenciaSubmitting(false);
-    }
-  };
-
   const handleMenuAction = (action: string, movId: string, status: string) => {
     if (action === "liberar_conferencia") {
       handleLiberarConferencia(movId, status);
@@ -511,11 +448,7 @@ export function MovimentoEntradaPage() {
       return;
     }
     if (action === "liberar_armazenagem") {
-      handleLiberarArmazenagem(movId, status);
-      return;
-    }
-    if (action === "liberar_armazenagem_divergencia") {
-      openDivergenciaModal(movId, status);
+      openLiberarArmazenagem(movId, status);
       return;
     }
     if (action === "liberar_erro_transporte") {
@@ -646,10 +579,7 @@ export function MovimentoEntradaPage() {
                           <Lock size={14} className="mr-2" /> Retirar de conferência
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>
-                          <PackageCheck size={14} className="mr-2" /> Liberar armazenagem
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem_divergencia", mov.id, mov.status)}>
-                          <PackageMinus size={14} className="mr-2" /> Liberar armazenagem c/ divergência
+                          <Package size={14} className="mr-2" /> Liberar armazenagem
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>
                           <Truck size={14} className="mr-2" /> Liberar recebimento com erro no transporte
@@ -977,40 +907,19 @@ export function MovimentoEntradaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Liberar armazenagem c/ divergência */}
-      <Dialog open={showDivergenciaModal} onOpenChange={setShowDivergenciaModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Liberar Armazenagem com Divergência</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motivo de Ocorrência *</label>
-              <select
-                value={selectedDivergenciaMotivo}
-                onChange={(e) => setSelectedDivergenciaMotivo(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
-              >
-                <option value="">Selecione o motivo...</option>
-                {divergenciaMotivos.map((m) => <option key={m.id} value={m.id}>{m.descricao}</option>)}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <button onClick={() => setShowDivergenciaModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Cancelar
-            </button>
-            <button
-              onClick={handleConfirmarDivergencia}
-              disabled={divergenciaSubmitting || !selectedDivergenciaMotivo}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {divergenciaSubmitting && <Loader2 size={14} className="animate-spin" />}
-              Confirmar
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal Liberar Armazenagem (unificado) */}
+      {liberarMovId && (
+        <LiberarArmazenagemModal
+          open={showLiberarArmazenagem}
+          onClose={() => setShowLiberarArmazenagem(false)}
+          movimentoEntradaId={liberarMovId}
+          statusMovimento={liberarMovStatus}
+          onSuccess={() => {
+            fetchMovements();
+            if (selectedMov === liberarMovId) loadDetails(liberarMovId, "LIB_ARMAZENAGEM");
+          }}
+        />
+      )}
 
       {/* Modal Cancelar Movimento */}
       <Dialog open={showCancelModal} onOpenChange={(v) => { if (!v) { setShowCancelModal(false); setCancelarResult(null); } }}>
