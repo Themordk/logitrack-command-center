@@ -326,9 +326,10 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     if (tipo === "ROTATIVO") {
       if (!criterio) return false;
       if ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva) return false;
+      if ((criterio === "CORTES" || criterio === "ESTORNOS") && !periodoAnalise) return false;
     }
     return true;
-  }, [tipo, tipoExecucao, zonaId, enderecoId, produtoId, grupoId, criterio, curva]);
+  }, [tipo, tipoExecucao, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise]);
 
   const mapError = (err: any): string => {
     const raw = err?.message || String(err);
