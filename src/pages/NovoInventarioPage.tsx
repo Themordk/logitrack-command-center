@@ -140,7 +140,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   // Reset escopo ao trocar tipo
   useEffect(() => {
-    setCriterio(""); setCurva(""); setMaxEnderecosDia(""); setPriorizarPicking(false);
+    setCriterio(""); setCurva(""); setMaxEnderecosDia(""); setPriorizarPicking(true); setPeriodoAnalise("30D");
     setZonaId(""); setGrupoId("");
     setEnderecoId(""); setEnderecoLabel(""); setEnderecoSearch(""); setEnderecoResults([]);
     setProdutoId(""); setProdutoLabel(""); setProdutoSearch(""); setProdutoResults([]);
