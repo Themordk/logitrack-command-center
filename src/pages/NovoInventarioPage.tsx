@@ -22,6 +22,45 @@ const CRITERIO_OPTIONS = [
   { value: "ESTORNOS", label: "Estornos" },
 ] as const;
 
+const PERIODO_OPTIONS = [
+  { value: "HOJE", label: "Data atual" },
+  { value: "ONTEM", label: "Dia anterior" },
+  { value: "7D", label: "Última semana" },
+  { value: "15D", label: "Últimos 15 dias" },
+  { value: "30D", label: "Último mês" },
+] as const;
+type PeriodoOpt = typeof PERIODO_OPTIONS[number]["value"];
+
+// Retorna { inicio, fim } em ISO YYYY-MM-DD no fuso America/Fortaleza.
+function todayFortaleza(): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Fortaleza",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const y = parts.find(p => p.type === "year")!.value;
+  const m = parts.find(p => p.type === "month")!.value;
+  const d = parts.find(p => p.type === "day")!.value;
+  return new Date(`${y}-${m}-${d}T00:00:00-03:00`);
+}
+function toISODate(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Fortaleza",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(d);
+}
+function resolvePeriodo(opt: PeriodoOpt): { inicio: string; fim: string } {
+  const fim = todayFortaleza();
+  const inicio = new Date(fim);
+  switch (opt) {
+    case "HOJE":  break;
+    case "ONTEM": inicio.setDate(inicio.getDate() - 1); fim.setDate(fim.getDate() - 1); break;
+    case "7D":    inicio.setDate(inicio.getDate() - 6); break;
+    case "15D":   inicio.setDate(inicio.getDate() - 14); break;
+    case "30D":   inicio.setDate(inicio.getDate() - 29); break;
+  }
+  return { inicio: toISODate(inicio), fim: toISODate(fim) };
+}
+
 const ERROR_MAP: Record<string, string> = {
   TIPO_TAREFA_NAO_CONFIGURADO: "Tipo de execução não configurado. Acesse Configurações > Inventário.",
   ESCOPO_ZONA_OBRIGATORIO: "Selecione uma zona de atividade.",
@@ -35,6 +74,7 @@ const ERROR_MAP: Record<string, string> = {
   INVENTARIO_NAO_ENCONTRADO: "Inventário não encontrado.",
   INVENTARIO_STATUS_INVALIDO: "Inventário em status inválido para gerar tarefas.",
   LOOP_SEM_PROGRESSO: "Geração de tarefas não avançou. Verifique os filtros e tente novamente.",
+  PERIODO_OBRIGATORIO: "Selecione o período de análise.",
   ERRO_DESCONHECIDO: "Ocorreu um erro inesperado.",
 };
 
@@ -54,15 +94,16 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   // --- Dados Gerais
   const [tipo, setTipo] = useState<Tipo>("");
   const [descricao, setDescricao] = useState("");
-  const [dataPlanejada, setDataPlanejada] = useState("");
+  const [dataPlanejada, setDataPlanejada] = useState(() => toISODate(todayFortaleza()));
   const [tipoExecucao, setTipoExecucao] = useState("");
-  const [bloquearMov, setBloquearMov] = useState(true);
+  const [bloquearMov, setBloquearMov] = useState(false);
 
   // --- Escopo ROTATIVO
   const [criterio, setCriterio] = useState<"" | "CURVA_VENDAS" | "CURVA_ACESSO" | "CORTES" | "ESTORNOS">("");
   const [curva, setCurva] = useState<"" | "A" | "B" | "C" | "D">("");
   const [maxEnderecosDia, setMaxEnderecosDia] = useState("");
-  const [priorizarPicking, setPriorizarPicking] = useState(false);
+  const [priorizarPicking, setPriorizarPicking] = useState(true);
+  const [periodoAnalise, setPeriodoAnalise] = useState<PeriodoOpt>("30D");
 
   // --- Escopo ZONA / GRUPO (select simples)
   const [zonas, setZonas] = useState<Option[]>([]);
@@ -99,7 +140,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   // Reset escopo ao trocar tipo
   useEffect(() => {
-    setCriterio(""); setCurva(""); setMaxEnderecosDia(""); setPriorizarPicking(false);
+    setCriterio(""); setCurva(""); setMaxEnderecosDia(""); setPriorizarPicking(true); setPeriodoAnalise("30D");
     setZonaId(""); setGrupoId("");
     setEnderecoId(""); setEnderecoLabel(""); setEnderecoSearch(""); setEnderecoResults([]);
     setProdutoId(""); setProdutoLabel(""); setProdutoSearch(""); setProdutoResults([]);
@@ -285,9 +326,10 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     if (tipo === "ROTATIVO") {
       if (!criterio) return false;
       if ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva) return false;
+      if ((criterio === "CORTES" || criterio === "ESTORNOS") && !periodoAnalise) return false;
     }
     return true;
-  }, [tipo, tipoExecucao, zonaId, enderecoId, produtoId, grupoId, criterio, curva]);
+  }, [tipo, tipoExecucao, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise]);
 
   const mapError = (err: any): string => {
     const raw = err?.message || String(err);
@@ -327,6 +369,10 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         p_curva: tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") ? curva : null,
         p_max_enderecos_dia: tipo === "ROTATIVO" && maxEnderecosDia ? Number(maxEnderecosDia) : null,
         p_priorizar_picking: tipo === "ROTATIVO" ? priorizarPicking : false,
+        p_data_inicio_analise: tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+          ? resolvePeriodo(periodoAnalise).inicio : null,
+        p_data_fim_analise: tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+          ? resolvePeriodo(periodoAnalise).fim : null,
       };
       const { data, error } = await supabase.rpc("fn_criar_inventario_v2" as any, payload);
       if (error) throw error;
@@ -531,6 +577,16 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                         </select>
                       </div>
                     )}
+
+                    {(criterio === "CORTES" || criterio === "ESTORNOS") && (
+                      <div className="w-64 transition-all duration-200">
+                        <label className={labelClass}>Período de Análise *</label>
+                        <select value={periodoAnalise} onChange={(e) => setPeriodoAnalise(e.target.value as PeriodoOpt)} className={inputClass}>
+                          {PERIODO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                        </select>
+                      </div>
+                    )}
+
 
                     <div className="w-48">
                       <label className={labelClass}>Máx. Endereços/Dia</label>
