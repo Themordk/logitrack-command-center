@@ -22,6 +22,45 @@ const CRITERIO_OPTIONS = [
   { value: "ESTORNOS", label: "Estornos" },
 ] as const;
 
+const PERIODO_OPTIONS = [
+  { value: "HOJE", label: "Data atual" },
+  { value: "ONTEM", label: "Dia anterior" },
+  { value: "7D", label: "Última semana" },
+  { value: "15D", label: "Últimos 15 dias" },
+  { value: "30D", label: "Último mês" },
+] as const;
+type PeriodoOpt = typeof PERIODO_OPTIONS[number]["value"];
+
+// Retorna { inicio, fim } em ISO YYYY-MM-DD no fuso America/Fortaleza.
+function todayFortaleza(): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Fortaleza",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const y = parts.find(p => p.type === "year")!.value;
+  const m = parts.find(p => p.type === "month")!.value;
+  const d = parts.find(p => p.type === "day")!.value;
+  return new Date(`${y}-${m}-${d}T00:00:00-03:00`);
+}
+function toISODate(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Fortaleza",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(d);
+}
+function resolvePeriodo(opt: PeriodoOpt): { inicio: string; fim: string } {
+  const fim = todayFortaleza();
+  const inicio = new Date(fim);
+  switch (opt) {
+    case "HOJE":  break;
+    case "ONTEM": inicio.setDate(inicio.getDate() - 1); fim.setDate(fim.getDate() - 1); break;
+    case "7D":    inicio.setDate(inicio.getDate() - 6); break;
+    case "15D":   inicio.setDate(inicio.getDate() - 14); break;
+    case "30D":   inicio.setDate(inicio.getDate() - 29); break;
+  }
+  return { inicio: toISODate(inicio), fim: toISODate(fim) };
+}
+
 const ERROR_MAP: Record<string, string> = {
   TIPO_TAREFA_NAO_CONFIGURADO: "Tipo de execução não configurado. Acesse Configurações > Inventário.",
   ESCOPO_ZONA_OBRIGATORIO: "Selecione uma zona de atividade.",

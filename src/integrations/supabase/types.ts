@@ -1648,6 +1648,8 @@ export type Database = {
             | null
           cursor_processamento: number | null
           curva: Database["public"]["Enums"]["enum_curva"] | null
+          data_fim_analise: string | null
+          data_inicio_analise: string | null
           data_planejada: string | null
           descricao: string | null
           empresa_id: string
@@ -1689,6 +1691,8 @@ export type Database = {
             | null
           cursor_processamento?: number | null
           curva?: Database["public"]["Enums"]["enum_curva"] | null
+          data_fim_analise?: string | null
+          data_inicio_analise?: string | null
           data_planejada?: string | null
           descricao?: string | null
           empresa_id: string
@@ -1730,6 +1734,8 @@ export type Database = {
             | null
           cursor_processamento?: number | null
           curva?: Database["public"]["Enums"]["enum_curva"] | null
+          data_fim_analise?: string | null
+          data_inicio_analise?: string | null
           data_planejada?: string | null
           descricao?: string | null
           empresa_id?: string
@@ -6583,28 +6589,53 @@ export type Database = {
         }
         Returns: Json
       }
-      fn_criar_inventario_v2: {
-        Args: {
-          p_armazem_id: string
-          p_bloquear_movimentacao?: boolean
-          p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
-          p_curva?: Database["public"]["Enums"]["enum_curva"]
-          p_data_planejada?: string
-          p_descricao: string
-          p_empresa_id: string
-          p_endereco_id?: string
-          p_grupo_produto_id?: string
-          p_max_enderecos_dia?: number
-          p_priorizar_picking?: boolean
-          p_produto_id?: string
-          p_tenant_id: string
-          p_tipo_execucao: Database["public"]["Enums"]["enum_execucao_inventario"]
-          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
-          p_usuario_id: string
-          p_zona_atividade_id?: string
-        }
-        Returns: Json
-      }
+      fn_criar_inventario_v2:
+        | {
+            Args: {
+              p_armazem_id: string
+              p_bloquear_movimentacao?: boolean
+              p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+              p_curva?: Database["public"]["Enums"]["enum_curva"]
+              p_data_planejada?: string
+              p_descricao: string
+              p_empresa_id: string
+              p_endereco_id?: string
+              p_grupo_produto_id?: string
+              p_max_enderecos_dia?: number
+              p_priorizar_picking?: boolean
+              p_produto_id?: string
+              p_tenant_id: string
+              p_tipo_execucao: Database["public"]["Enums"]["enum_execucao_inventario"]
+              p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+              p_usuario_id: string
+              p_zona_atividade_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_armazem_id: string
+              p_bloquear_movimentacao?: boolean
+              p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+              p_curva?: Database["public"]["Enums"]["enum_curva"]
+              p_data_fim_analise?: string
+              p_data_inicio_analise?: string
+              p_data_planejada?: string
+              p_descricao: string
+              p_empresa_id: string
+              p_endereco_id?: string
+              p_grupo_produto_id?: string
+              p_max_enderecos_dia?: number
+              p_priorizar_picking?: boolean
+              p_produto_id?: string
+              p_tenant_id: string
+              p_tipo_execucao: Database["public"]["Enums"]["enum_execucao_inventario"]
+              p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+              p_usuario_id: string
+              p_zona_atividade_id?: string
+            }
+            Returns: Json
+          }
       fn_gerar_abastecimento: {
         Args: {
           p_armazem_id: string
