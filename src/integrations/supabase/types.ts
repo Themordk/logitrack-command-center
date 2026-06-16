@@ -7024,6 +7024,7 @@ export type Database = {
       liberar_armazenagem: {
         Args: {
           p_itens_divergentes?: Json
+          p_itens_ids?: string[]
           p_modo?: string
           p_movimento_entrada_id: string
           p_tenant_id: string
@@ -7542,6 +7543,7 @@ export type Database = {
         | "CONFERIDO"
         | "DIVERGENTE"
         | "ARMAZENADO"
+        | "COM_OCORRENCIA"
       enum_status_item_onda:
         | "PENDENTE"
         | "EM_PICKING"
@@ -7873,6 +7875,7 @@ export const Constants = {
         "CONFERIDO",
         "DIVERGENTE",
         "ARMAZENADO",
+        "COM_OCORRENCIA",
       ],
       enum_status_item_onda: [
         "PENDENTE",
