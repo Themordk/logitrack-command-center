@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
       habilidade,
       tipo_operacao,
       perfil_id,
-      cod_erp,
+      codigo_erp,
       ativo,
     } = body;
 
