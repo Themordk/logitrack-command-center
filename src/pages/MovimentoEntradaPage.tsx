@@ -329,27 +329,9 @@ export function MovimentoEntradaPage() {
         (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId),
       ]);
 
-        const [pickRes, eanRes] = await Promise.all([
-          (supabase as any).from("picking_produto").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
-          (supabase as any).from("produto_embalagem").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
-        ]);
-        pickingSet = new Set((pickRes.data || []).map((p: any) => p.produto_id));
-        eanSet = new Set((eanRes.data || []).map((p: any) => p.produto_id));
-      }
-
-      // Enrich resumo items with alerts
-      const enrichedResumo = (r1.data || []).map((item: any) => {
-        const prodId = meiMap.get(item.movimento_item_id);
-        return {
-          ...item,
-          sem_picking: prodId ? !pickingSet.has(prodId as string) : false,
-          sem_ean: prodId ? !eanSet.has(prodId as string) : false,
-        };
-      });
-
-      setResumoItems(enrichedResumo);
       setConferenciaItems(r2.data || []);
       setArmazenagemItems(r3.data || []);
+
 
       // Load info tab data using consolidated view
       const { data: infoData } = await (supabase as any)
