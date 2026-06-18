@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
         nome, login, email,
         habilidade: habilidade || "TREINANDO",
         tipo_operacao,
-        cod_erp: cod_erp || null,
+        codigo_erp: codigo_erp || null,
         ativo: ativo !== false,
         auth_user_id: authUserId,
       })
