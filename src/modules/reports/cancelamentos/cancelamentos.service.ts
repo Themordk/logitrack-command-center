@@ -109,10 +109,10 @@ export async function fetchCancelamentos(
 
   // Filtros client-side em colunas aninhadas (Supabase não filtra inline aqui)
   if (filters.empresa_id) {
-    rows = rows.filter((r: any) => r.__empresa_id === filters.empresa_id);
+    rows = rows.filter((r: any) => !r.__empresa_id || r.__empresa_id === filters.empresa_id);
   }
   if (filters.armazem_id) {
-    rows = rows.filter((r: any) => r.__armazem_id === filters.armazem_id);
+    rows = rows.filter((r: any) => !r.__armazem_id || r.__armazem_id === filters.armazem_id);
   }
   if (filters.tipo_tarefa_id) {
     rows = rows.filter((r: any) => r.__tipo_tarefa_id === filters.tipo_tarefa_id);
