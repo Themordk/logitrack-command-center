@@ -185,86 +185,138 @@ export function MovimentoEntradaPage() {
   const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const pageSize = 20;
 
-  // fetchCounts removed - no longer using status cards
+  const debouncedNumero = useDebounce(filterNumero, 400);
+  const debouncedDocumento = useDebounce(filterDocumento, 400);
 
-  const fetchMovements = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedNumero, debouncedDocumento, filterStatus, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
 
-      // If filtering by documento, first find matching movimento IDs
-      let movIdsByDoc: string[] | null = null;
-      if (filterDocumento) {
-        const { data: docData } = await (supabase as any)
-          .from("documento_entrada")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("empresa_id", empresaId)
-          .ilike("numero_nota", `%${filterDocumento}%`);
-        if (docData && docData.length > 0) {
-          const docIds = docData.map((d: any) => d.id);
-          const { data: linkData } = await (supabase as any)
-            .from("movimento_entrada_documento")
-            .select("movimento_entrada_id")
-            .in("documento_entrada_id", docIds);
-          movIdsByDoc = (linkData || []).map((l: any) => l.movimento_entrada_id);
-          if (movIdsByDoc.length === 0) {
-            setMovements([]);
-            setTotal(0);
-            setLoading(false);
-            return;
-          }
-        } else {
-          setMovements([]);
-          setTotal(0);
-          setLoading(false);
-          return;
-        }
-      }
-
-      let query = (supabase as any)
-        .from("vw_movimento_entrada_lista")
-        .select("id, numero_movimento, status, created_at, placa_veiculo, parceiro_nome, armazem_id, empresa_id, tenant_id", { count: "exact" })
-        .eq("tenant_id", tenantId)
-        .eq("empresa_id", empresaId)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (armazemId) query = query.eq("armazem_id", armazemId);
-      if (filterStatus) query = query.eq("status", filterStatus);
-      if (filterNumero) query = query.eq("numero_movimento", Number(filterNumero));
-      if (filterDateFrom) query = query.gte("created_at", filterDateFrom + "T00:00:00");
-      if (filterDateTo) query = query.lte("created_at", filterDateTo + "T23:59:59");
-      if (movIdsByDoc) query = query.in("id", movIdsByDoc);
-
-      const { data, error, count } = await query;
+  // List via RPC (server-side pagination)
+  const listQuery = useQuery({
+    queryKey: [
+      "movimentos-entrada-rpc",
+      tenantId,
+      empresaId,
+      armazemId,
+      filterStatus,
+      filterDateFrom,
+      filterDateTo,
+      debouncedNumero,
+      debouncedDocumento,
+      page,
+    ],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("listar_movimentos_entrada", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId || null,
+        p_status: filterStatus || null,
+        p_data_de: filterDateFrom || null,
+        p_data_ate: filterDateTo || null,
+        p_numero_movimento: debouncedNumero ? Number(debouncedNumero) : null,
+        p_numero_nf: debouncedDocumento || null,
+        p_page: page,
+        p_page_size: pageSize,
+      });
       if (error) throw error;
+      return (data || []) as MovimentoEntradaListItem[];
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 30_000,
+  });
 
-      setMovements((data || []).map((mov: any) => ({ ...mov, parceiro_nome: mov.parceiro_nome || "—", operadores_atribuidos: [] })));
-      setTotal(count || 0);
+  const listRows = listQuery.data ?? [];
+  const total = listRows[0]?.total_registros ?? 0;
+  const loading = listQuery.isLoading;
+  const movIdsKey = useMemo(() => listRows.map((r) => r.id).join(","), [listRows]);
 
-      const movIds = (data || []).map((m: any) => m.id);
-      if (movIds.length > 0) {
-        try {
-          const opsMap = await fetchOperadoresAtribuidos(tenantId, movIds, "MOVIMENTO_ENTRADA_ITEM");
-          setMovements((prev) => prev.map((m) => ({ ...m, operadores_atribuidos: opsMap.get(m.id) || [] })));
-        } catch (err) {
-          console.error("Erro ao buscar operadores:", err);
-        }
+  // Operadores atribuídos (enriquecimento paralelo)
+  const opsQuery = useQuery({
+    queryKey: ["movimentos-entrada-ops", tenantId, movIdsKey],
+    queryFn: async () => {
+      const ids = movIdsKey ? movIdsKey.split(",") : [];
+      if (ids.length === 0) return new Map<string, string[]>();
+      return await fetchOperadoresAtribuidos(tenantId!, ids, "MOVIMENTO_ENTRADA_ITEM");
+    },
+    enabled: !!tenantId && listRows.length > 0,
+    staleTime: 30_000,
+  });
+
+  const movements: MovEntry[] = useMemo(() => {
+    const opsMap = opsQuery.data || new Map<string, string[]>();
+    return listRows.map((r) => ({
+      id: r.id,
+      numero_movimento: r.numero_movimento,
+      status: r.status,
+      created_at: r.created_at,
+      placa_veiculo: null,
+      parceiro_nome: r.parceiro_nome || "—",
+      operadores_atribuidos: opsMap.get(r.id) || [],
+    }));
+  }, [listRows, opsQuery.data]);
+
+  const fetchMovements = useCallback(() => {
+    listQuery.refetch();
+    opsQuery.refetch();
+  }, [listQuery, opsQuery]);
+
+  // Items tab data via RPC (lazy, enabled by selectedMov + tab)
+  const itemsQuery = useQuery({
+    queryKey: ["movimento-entrada-itens-rpc", tenantId, selectedMov],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("buscar_itens_movimento_entrada", {
+        p_tenant_id: tenantId,
+        p_movimento_entrada_id: selectedMov,
+      });
+      if (error) throw error;
+      const items = (data || []) as MovimentoEntradaItem[];
+
+      // Alert enrichment (sem_picking / sem_ean) — preservar UI atual
+      const { data: meiData } = await (supabase as any)
+        .from("movimento_entrada_item")
+        .select("id, produto_id")
+        .eq("movimento_entrada_id", selectedMov);
+      const meiMap = new Map<string, string>((meiData || []).map((m: any) => [m.id, m.produto_id]));
+      const produtoIds = Array.from(new Set((meiData || []).map((m: any) => m.produto_id))).filter(Boolean);
+
+      let pickingSet = new Set<string>();
+      let eanSet = new Set<string>();
+      if (produtoIds.length > 0) {
+        const [pickRes, eanRes] = await Promise.all([
+          (supabase as any).from("picking_produto").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
+          (supabase as any).from("produto_embalagem").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
+        ]);
+        pickingSet = new Set((pickRes.data || []).map((p: any) => p.produto_id));
+        eanSet = new Set((eanRes.data || []).map((p: any) => p.produto_id));
       }
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, empresaId, armazemId, page, filterStatus, filterNumero, filterDocumento, filterDateFrom, filterDateTo]);
 
-  useEffect(() => { fetchMovements(); }, [fetchMovements]);
+      return items.map((it) => {
+        const prodId = meiMap.get(it.movimento_item_id);
+        return {
+          movimento_id: selectedMov!,
+          movimento_item_id: it.movimento_item_id,
+          sku: it.sku,
+          descricao: it.descricao,
+          qtd_esperada: Number(it.qtd_esperada) || 0,
+          qtd_conferida: Number(it.qtd_conferida) || 0,
+          qtd_armazenada: Number(it.qtd_armazenada) || 0,
+          status_item_movimento: it.status_item_movimento,
+          sem_picking: prodId ? !pickingSet.has(prodId) : false,
+          sem_ean: prodId ? !eanSet.has(prodId) : false,
+        } as ResumoItem;
+      });
+    },
+    enabled: !!tenantId && !!selectedMov && itemTab === "itens",
+    staleTime: 30_000,
+  });
+
+  // Sync items query result into the existing state slot used by the table
+  useEffect(() => {
+    if (itemsQuery.data) setResumoItems(itemsQuery.data);
+  }, [itemsQuery.data]);
 
   const loadDetails = async (movId: string, movStatus: string) => {
     setSelectedMov(movId);
@@ -272,26 +324,11 @@ export function MovimentoEntradaPage() {
     setItemTab("itens");
     setDetailLoading(true);
     try {
-      // Fetch resumo + alerts data in parallel
-      const [r1, r2, r3] = await Promise.all([
-        (supabase as any).from("vw_movimento_entrada_resumo").select("*").eq("movimento_id", movId),
+      const [r2, r3] = await Promise.all([
         (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId),
       ]);
 
-      // Get produto_ids from movimento_entrada_item for alerts
-      const { data: meiData } = await (supabase as any)
-        .from("movimento_entrada_item")
-        .select("id, produto_id")
-        .eq("movimento_entrada_id", movId);
-
-      const produtoIds = (meiData || []).map((m: any) => m.produto_id);
-      const meiMap = new Map((meiData || []).map((m: any) => [m.id, m.produto_id]));
-
-      // Fetch picking and embalagem data for alerts
-      let pickingSet = new Set<string>();
-      let eanSet = new Set<string>();
-      if (produtoIds.length > 0) {
         const [pickRes, eanRes] = await Promise.all([
           (supabase as any).from("picking_produto").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
           (supabase as any).from("produto_embalagem").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
