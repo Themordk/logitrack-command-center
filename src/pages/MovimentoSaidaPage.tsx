@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star, UserCog } from "lucide-react";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -11,6 +13,41 @@ import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
+
+interface OndaCarregamentoListItem {
+  id: string;
+  numero_onda: number;
+  status: string;
+  prioridade: string;
+  data_emissao: string;
+  parceiro_nome: string | null;
+  operador_nome: string | null;
+  box_descricao: string | null;
+  rota_descricao: string | null;
+  veiculo_placa: string | null;
+  motorista: string | null;
+  total_pedidos: number | null;
+  total_itens: number;
+  total_esperado: number;
+  total_separado: number;
+  total_conferido: number;
+  total_cortado: number;
+  total_registros: number;
+}
+
+interface OndaCarregamentoItem {
+  id: string;
+  movimento_item_id: string;
+  produto_id: string;
+  sku: string;
+  descricao: string;
+  qtd_esperada: number;
+  qtd_separada: number;
+  qtd_cortada: number;
+  qtd_conferida: number;
+  status: string;
+  motivo_descricao: string | null;
+}
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
