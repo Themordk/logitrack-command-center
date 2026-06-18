@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star, UserCog } from "lucide-react";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -11,6 +13,41 @@ import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
+
+interface OndaCarregamentoListItem {
+  id: string;
+  numero_onda: number;
+  status: string;
+  prioridade: string;
+  data_emissao: string;
+  parceiro_nome: string | null;
+  operador_nome: string | null;
+  box_descricao: string | null;
+  rota_descricao: string | null;
+  veiculo_placa: string | null;
+  motorista: string | null;
+  total_pedidos: number | null;
+  total_itens: number;
+  total_esperado: number;
+  total_separado: number;
+  total_conferido: number;
+  total_cortado: number;
+  total_registros: number;
+}
+
+interface OndaCarregamentoItem {
+  id: string;
+  movimento_item_id: string;
+  produto_id: string;
+  sku: string;
+  descricao: string;
+  qtd_esperada: number;
+  qtd_separada: number;
+  qtd_cortada: number;
+  qtd_conferida: number;
+  status: string;
+  motivo_descricao: string | null;
+}
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
@@ -78,12 +115,9 @@ const isSaldoInsuficientePicking = (tipo?: string | null) => normalizeOccurrence
 
 export function MovimentoSaidaPage() {
   const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
-  const [movimentos, setMovimentos] = useState<MovSaida[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedMov, setSelectedMov] = useState<MovSaida | null>(null);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const pageSize = 20;
 
   const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
@@ -91,7 +125,8 @@ export function MovimentoSaidaPage() {
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  const [tabItens, setTabItens] = useState<any[]>([]);
+  const debouncedOnda = useDebounce(filterOnda, 400);
+
   const [tabSeparacao, setTabSeparacao] = useState<any[]>([]);
   const [tabConferencia, setTabConferencia] = useState<any[]>([]);
   const [tabDocs, setTabDocs] = useState<any[]>([]);
@@ -134,67 +169,112 @@ export function MovimentoSaidaPage() {
   // Reatribuir tarefas
   const [reatribuirMov, setReatribuirMov] = useState<{ id: string; numero: number } | null>(null);
 
-  const fetchMovimentos = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      let query = (supabase as any)
-        .from("vw_movimento_saida_lista")
-        .select("id, numero_onda, status, data_emissao, destino_carga, motorista, total_pedidos, peso_total, m3, prioridade, total_volume, observacao, box_id, rota_id, veiculo_id, empresa_id, box_nome, parceiro_nome", { count: "exact" })
-        .eq("tenant_id", tenantId)
-        .eq("empresa_id", empresaId)
-        .order("numero_onda", { ascending: false })
-        .range(from, to);
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, tenantId, empresaId]);
 
-      if (filterStatus) query = query.eq("status", filterStatus);
-      if (filterOnda) query = query.eq("numero_onda", Number(filterOnda));
-      if (filterDateFrom) query = query.gte("data_emissao", filterDateFrom);
-      if (filterDateTo) query = query.lte("data_emissao", filterDateTo + "T23:59:59");
-
-      const { data, error, count } = await query;
+  // List via RPC (server-side pagination)
+  const listQuery = useQuery({
+    queryKey: [
+      "ondas-carregamento-rpc",
+      tenantId,
+      empresaId,
+      filterStatus,
+      filterDateFrom,
+      filterDateTo,
+      debouncedOnda,
+      page,
+    ],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("listar_ondas_carregamento", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId || null,
+        p_status: filterStatus || null,
+        p_data_de: filterDateFrom || null,
+        p_data_ate: filterDateTo || null,
+        p_numero_onda: debouncedOnda ? Number(debouncedOnda) : null,
+        p_page: page,
+        p_page_size: pageSize,
+      });
       if (error) throw error;
+      return (data || []) as OndaCarregamentoListItem[];
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 30_000,
+  });
 
-      setMovimentos((data || []).map((mov: any) => ({
-        ...mov,
-        box_nome: mov.box_nome || "—",
-        parceiro_nome: mov.parceiro_nome || "—",
-        operadores_atribuidos: [],
-      })));
-      setTotal(count || 0);
+  const listRows = listQuery.data ?? [];
+  const total = listRows[0]?.total_registros ?? 0;
+  const loading = listQuery.isLoading;
+  const movIdsKey = useMemo(() => listRows.map((r) => r.id).join(","), [listRows]);
 
-      // Enriquece com operadores atribuídos (1 query agregada)
-      const movIds = (data || []).map((m: any) => m.id);
-      if (movIds.length > 0) {
-        try {
-          const opsMap = await fetchOperadoresAtribuidos(tenantId, movIds, "MOVIMENTO_SAIDA_ITEM");
-          setMovimentos((prev) =>
-            prev.map((m) => ({ ...m, operadores_atribuidos: opsMap.get(m.id) || [] })),
-          );
-        } catch (err) {
-          console.error("Erro ao buscar operadores:", err);
-        }
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, empresaId, page, filterStatus, filterOnda, filterDateFrom, filterDateTo]);
+  const opsQuery = useQuery({
+    queryKey: ["ondas-carregamento-ops", tenantId, movIdsKey],
+    queryFn: async () => {
+      const ids = movIdsKey ? movIdsKey.split(",") : [];
+      if (ids.length === 0) return new Map<string, string[]>();
+      return await fetchOperadoresAtribuidos(tenantId!, ids, "MOVIMENTO_SAIDA_ITEM");
+    },
+    enabled: !!tenantId && listRows.length > 0,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => { fetchMovimentos(); }, [fetchMovimentos]);
+  const movimentos: MovSaida[] = useMemo(() => {
+    const opsMap = opsQuery.data || new Map<string, string[]>();
+    return listRows.map((r) => ({
+      id: r.id,
+      numero_onda: r.numero_onda,
+      status: r.status,
+      data_emissao: r.data_emissao,
+      destino_carga: "",
+      motorista: r.motorista || "",
+      total_pedidos: r.total_pedidos,
+      peso_total: null,
+      m3: null,
+      prioridade: r.prioridade || null,
+      total_volume: 0,
+      observacao: null,
+      box_id: "",
+      rota_id: "",
+      veiculo_id: "",
+      empresa_id: empresaId || "",
+      parceiro_nome: r.parceiro_nome || "—",
+      box_nome: r.box_descricao || "—",
+      operadores_atribuidos: opsMap.get(r.id) || [],
+    }));
+  }, [listRows, opsQuery.data, empresaId]);
+
+  const fetchMovimentos = useCallback(() => {
+    listQuery.refetch();
+    opsQuery.refetch();
+  }, [listQuery, opsQuery]);
+
+  // Items tab via RPC (lazy)
+  const itemsQuery = useQuery({
+    queryKey: ["onda-itens-rpc", tenantId, selectedId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("buscar_itens_onda_carregamento", {
+        p_tenant_id: tenantId,
+        p_movimento_saida_id: selectedId,
+      });
+      if (error) throw error;
+      return (data || []) as OndaCarregamentoItem[];
+    },
+    enabled: !!tenantId && !!selectedId && activeTab === "itens",
+    staleTime: 30_000,
+  });
+
+  const tabItens = itemsQuery.data ?? [];
 
   const loadTabData = useCallback(async (movId: string) => {
     setTabLoading(true);
     try {
-      const [itensRes, sepRes, confRes, docsRes] = await Promise.all([
-        (supabase as any).from("vw_movimento_saida_resumo").select("*").eq("movimento_id", movId),
+      const [sepRes, confRes, docsRes] = await Promise.all([
         (supabase as any).from("vw_movimento_saida_separacao_detalhe").select("*").eq("movimento_id", movId),
         (supabase as any).from("vw_movimento_saida_conferencia_detalhe").select("*").eq("movimento_saida_id", movId),
         (supabase as any).from("vw_movimento_saida_docs_vinculados").select("*").eq("movimento_saida_id", movId).order("ordem"),
       ]);
-      setTabItens(itensRes.data || []);
       setTabSeparacao(sepRes.data || []);
       setTabConferencia(confRes.data || []);
       setTabDocs((docsRes.data || []).map((d: any) => ({
@@ -213,6 +293,7 @@ export function MovimentoSaidaPage() {
     setSelectedMov(mov);
     loadTabData(mov.id);
   };
+
 
   const handleLiberar = async (movId: string) => {
     setActionMenuId(null);
