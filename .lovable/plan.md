@@ -1,61 +1,45 @@
-## Novo Relatório: Cancelamentos de Tarefas
+# Causa do problema
 
-Implementação completa seguindo o prompt anexado e o padrão do relatório de **Cortes da Separação** (referência principal). Inclui o seed de RBAC para o novo módulo.
+A consulta retorna **35 registros** corretamente, mas a tela exibe lista vazia.
 
----
+Olhando `cancelamentos.service.ts` (linhas 111-116), há um filtro **client-side**:
 
-### 1. Arquivos a criar
-
-```
-src/modules/reports/cancelamentos/
-├── cancelamentos.service.ts    # query Supabase + tipos + filtros + fetch de selects
-└── CancelamentosPage.tsx       # página (ReportHeader + filtros + KPIs + ReportTable)
+```ts
+if (filters.empresa_id) rows = rows.filter(r => r.__empresa_id === filters.empresa_id);
+if (filters.armazem_id) rows = rows.filter(r => r.__armazem_id === filters.armazem_id);
 ```
 
-- `service`: select aninhado em `tarefa_execucao` (status=CANCELADA) com joins para `tarefa → tipo_tarefa/produto`, `usuario_id` (operador), `usuario_corte` (quem cancelou), `motivo_ocorrencia`, `endereco_origem`/`endereco_destino`. Filtros: período (`concluido_em`), `empresa_id`/`armazem_id` (via `tarefa.*`), `tipo_tarefa_id`, `sku` (busca parcial), `usuario_corte`. Range/paginação no Supabase quando >500 registros. Funções auxiliares `fetchTiposTarefa` e `fetchUsuariosAtivos`.
-- `page`: usa `useTenant()` (tenantId, empresaId, armazemId, empresaVersion, usuarioNome), `ReportHeader`, `ReportTable`, exporters padrão (`exportToExcel`/`exportToPdf` em landscape), 4 KPIs (Total, Qtd cancelada, Tipos afetados, Período), empty state e loader, mesmas convenções dos relatórios atuais (datas via `src/utils/dateTime.ts`).
+Esses valores vêm de `tarefa.empresa_id` / `tarefa.armazem_id`. No payload retornado, **todas as 35 linhas têm `tarefa.armazem_id = null`**. Como a página (`CancelamentosPage.tsx` linha 99) passa `armazem_id: armazemId` do `useTenant()`, e o tenant atual tem um `armazemId` selecionado, o filtro `null === '<uuid>'` derruba **100% das linhas**.
 
-### 2. Registro de rota e navegação
+O mesmo risco existe para `empresa_id` quando o tenant tem empresa selecionada que não bate (ou quando `tarefa.empresa_id` é null em algum registro).
 
-- `src/App.tsx`: import lazy de `CancelamentosPage`, novo `case "/relatorios/cancelamentos"` no `renderPage()`, e entrada de breadcrumb `{ label: "Cancelamentos de Tarefas", parent: "/relatorios" }`.
-- `src/components/TopNav.tsx`: novo item na seção Relatórios com ícone `Ban` (Lucide), protegido por permissão `web.relatorios.cancelamentos`.
+# Correção proposta
 
-### 3. Seed de RBAC (`modulo` + `permissao`)
+**Arquivo único:** `src/modules/reports/cancelamentos/cancelamentos.service.ts`
 
-Único tenant ativo identificado: `f89963dc-9afc-49be-8b70-3559c9fd80bd`. Os relatórios existentes seguem o padrão de código `web.relatorios.<slug>` com 4 ações (CREATE, READ, UPDATE, DELETE). Será aplicada via `supabase--insert`:
+Mudar o filtro client-side para **só descartar a linha quando o valor da tarefa for não-nulo e diferente** do filtro — registros sem empresa/armazém atribuído na `tarefa` permanecem visíveis (mesmo comportamento prático do filtro server-side por `tenant_id`, que já isola os dados):
 
-```sql
-WITH novo_modulo AS (
-  INSERT INTO public.modulo (id, tenant_id, codigo, descricao, ambiente, ativo)
-  VALUES (
-    gen_random_uuid(),
-    'f89963dc-9afc-49be-8b70-3559c9fd80bd',
-    'web.relatorios.cancelamentos',
-    'Cancelamentos de Tarefas',
-    'WEB',
-    true
-  )
-  RETURNING id, tenant_id
-)
-INSERT INTO public.permissao (id, tenant_id, modulo_id, acao, descricao)
-SELECT gen_random_uuid(), tenant_id, id, acao::enum_acao_permissao, acao
-FROM novo_modulo
-CROSS JOIN (VALUES ('CREATE'),('READ'),('UPDATE'),('DELETE')) AS a(acao);
+```ts
+if (filters.empresa_id) {
+  rows = rows.filter((r: any) => !r.__empresa_id || r.__empresa_id === filters.empresa_id);
+}
+if (filters.armazem_id) {
+  rows = rows.filter((r: any) => !r.__armazem_id || r.__armazem_id === filters.armazem_id);
+}
 ```
 
-> O insert é idempotente: se o módulo já existir para o tenant a operação aborta sem duplicar (UNIQUE em `tenant_id, codigo`). Para tenants futuros, repetir o script substituindo o `tenant_id`.
+`tipo_tarefa_id` e `sku` continuam como estão (esses campos nunca são nulos nos dados retornados).
 
-### 4. Regras invioláveis respeitadas
+# Por que não filtrar server-side
 
-- Multi-tenant em todas as queries (`tenant_id` + RLS já existente).
-- Datas/horários renderizados via `src/utils/dateTime.ts` (Brasília).
-- Nenhuma nova dependência: usa `xlsx`/`jspdf` já presentes em `utils/exporters.ts`.
-- Sem alteração de views/edge functions/RPC.
-- UI dark, denso, alinhado ao relatório de Cortes.
+`tarefa_execucao` não tem colunas `empresa_id`/`armazem_id` próprias; estão na tabela `tarefa` (relação aninhada). Para filtrar server-side seria preciso `!inner` + `tarefa.empresa_id=eq.X`, mas isso também excluiria as linhas com `armazem_id = null`, mantendo o bug. A lógica permissiva (null = aceita) é a correta para um relatório de rastreabilidade.
 
-### Ordem de execução
+# Validação
 
-1. Rodar o `supabase--insert` (módulo + permissões).
-2. Criar `cancelamentos.service.ts` e `CancelamentosPage.tsx`.
-3. Editar `App.tsx` (lazy + case + breadcrumb) e `TopNav.tsx` (item de menu com `PermissionGate`).
-4. Verificar build e abrir `/relatorios/cancelamentos`.
+Após o ajuste, gerar o relatório no período atual deve listar as 35 ocorrências retornadas pela API.
+
+# Sem mudanças necessárias
+
+- Sem alteração de SQL/RLS/grants.
+- Sem alteração de UI, KPIs, exportadores ou roteamento.
+- Sem mudança em `CancelamentosPage.tsx`.
