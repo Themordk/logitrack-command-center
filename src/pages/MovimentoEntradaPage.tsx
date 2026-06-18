@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -12,6 +14,33 @@ import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
+
+interface MovimentoEntradaListItem {
+  id: string;
+  numero_movimento: number;
+  status: string;
+  created_at: string;
+  parceiro_nome: string | null;
+  operador_nome: string | null;
+  box_descricao: string | null;
+  total_itens: number;
+  total_esperado: number;
+  total_conferido: number;
+  total_armazenado: number;
+  total_registros: number;
+}
+
+interface MovimentoEntradaItem {
+  id: string;
+  movimento_item_id: string;
+  sku: string;
+  descricao: string;
+  qtd_esperada: number;
+  qtd_conferida: number;
+  qtd_armazenada: number;
+  qtd_ocorrencia: number;
+  status_item_movimento: string;
+}
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   GERADO: { label: "Gerado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
