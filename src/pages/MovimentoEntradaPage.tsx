@@ -146,9 +146,8 @@ interface DocVinculado {
 export function MovimentoEntradaPage() {
   const { armazemId, tenantId, empresaId, usuarioId } = useTenant();
   // statusCounts removed - no longer using cards
-  const [movements, setMovements] = useState<MovEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedMov, setSelectedMov] = useState<string | null>(null);
+
   const [selectedMovStatus, setSelectedMovStatus] = useState<string | null>(null);
   const [itemTab, setItemTab] = useState("itens");
 
