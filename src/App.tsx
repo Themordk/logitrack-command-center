@@ -546,13 +546,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <TenantBootProvider>
-      <TenantProvider>
-        <PermissionsProvider>
-          <UpdatePrompt />
-          <AppContent />
-        </PermissionsProvider>
-      </TenantProvider>
-    </TenantBootProvider>
+    <QueryClientProvider client={queryClient}>
+      <TenantBootProvider>
+        <TenantProvider>
+          <PermissionsProvider>
+            <UpdatePrompt />
+            <AppContent />
+          </PermissionsProvider>
+        </TenantProvider>
+      </TenantBootProvider>
+    </QueryClientProvider>
   );
 }
