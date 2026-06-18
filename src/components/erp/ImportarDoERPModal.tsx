@@ -267,7 +267,7 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
   const renderBuscando = () => (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
       <Loader2 size={32} className="animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground">Consultando ERP Omie...</p>
+      <p className="text-sm text-muted-foreground">Consultando ERP...</p>
     </div>
   );
 
