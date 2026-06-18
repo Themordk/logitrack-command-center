@@ -235,7 +235,7 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
         <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/40 border border-border">
           <div className="text-primary">{config.icone || <ArrowDownToLine size={28} />}</div>
           <p className="text-sm text-muted-foreground">
-            Informe {config.labelCampo} para buscar no ERP Omie
+            Informe {config.labelCampo} para buscar no ERP
           </p>
         </div>
         <div className="space-y-2">
