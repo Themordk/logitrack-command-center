@@ -92,95 +92,62 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
     setErro("");
 
     try {
+      const v = valor.trim();
+      const tenant_id = tenantId;
+      const empresa_id = empresaId;
+
+      const invokeUnitario = async (entidade: string, modulo: string, filtro: Record<string, unknown>) => {
+        const { data, error } = await supabase.functions.invoke("sync-entidade", {
+          body: { entidade, modulo, tenant_id, empresa_id, filtro },
+        });
+        if (error) throw new Error(error.message || "Falha ao consultar ERP");
+        if (data && (data as any).sucesso === false) {
+          throw new Error((data as any).erro || "Registro não encontrado no ERP");
+        }
+        return data as any;
+      };
+
       if (config.entidade === "produto") {
-        const { data: req, error } = await (supabase as any).rpc("middleware_consultar_produto_omie", {
-          p_tenant_id: tenantId,
-          p_empresa_id: empresaId,
-          p_codigo_produto: null,
-          p_codigo: valor.trim(),
+        const isNumeric = /^\d+$/.test(v);
+        const filtro = isNumeric ? { codigo_produto: Number(v) } : { codigo: v };
+        const data = await invokeUnitario("produtos", "cadastros", filtro);
+        setRegistro({
+          ...data,
+          id: data.id_interno ?? data.id,
+          descricao: data.descricao ?? null,
+          sku: data.sku ?? null,
+          ativo: data.ativo ?? true,
+          _jaExistia: data.inserido === false,
         });
-        if (error) throw new Error(error.message);
-        const requestId = typeof req === "object" ? req?.request_id ?? req : req;
-        await sleep(3000);
-        const data = await pollProcessar("middleware_processar_produto_omie", {
-          p_tenant_id: tenantId,
-          p_empresa_id: empresaId,
-          p_request_id: requestId,
-        });
-        setRegistro(data);
         setEstado("PREVIA");
       } else if (config.entidade === "parceiro") {
-        const { data: req, error } = await (supabase as any).rpc("middleware_consultar_parceiro_omie", {
-          p_tenant_id: tenantId,
-          p_empresa_id: empresaId,
-          p_codigo_cliente_omie: parseInt(valor.trim(), 10) || null,
-          p_codigo_integracao: null,
+        const num = parseInt(v, 10);
+        const filtro: Record<string, unknown> = !isNaN(num) && num > 0
+          ? { codigo_cliente_omie: num }
+          : { codigo_integracao: v };
+        const data = await invokeUnitario("parceiros", "cadastros", filtro);
+        setRegistro({
+          ...data,
+          id: data.id_interno ?? data.id,
+          razao_social: data.descricao ?? data.razao_social ?? null,
+          ativo: data.ativo ?? true,
+          _jaExistia: data.inserido === false,
         });
-        if (error) throw new Error(error.message);
-        const requestId = typeof req === "object" ? req?.request_id ?? req : req;
-        await sleep(3000);
-        const data = await pollProcessar("middleware_processar_parceiro_omie", {
-          p_tenant_id: tenantId,
-          p_empresa_id: empresaId,
-          p_request_id: requestId,
-        });
-        setRegistro(data);
         setEstado("PREVIA");
       } else if (config.entidade === "nota_entrada") {
-        const v = valor.trim();
-        const body: any = { tenant_id: tenantId, empresa_id: empresaId };
-        if (v.length === 44) body.chave_nfe = v;
-        else body.numero_nota = v;
-
-        const isNotFound = (errMsg?: string, data?: any) => {
-          if (data?.sucesso === false) return true;
-          const m = (errMsg || "").toLowerCase();
-          return m.includes("não encontrad") || m.includes("nao encontrad") || m.includes("not found") || m.includes("404");
-        };
-
-        // Passo 1: sync-recebimentos (compra/revenda - prioritário)
-        const r1 = await supabase.functions.invoke("sync-recebimentos", { body });
-        if (!r1.error && r1.data?.sucesso === true) {
-          setRegistro({ ...r1.data, _origem: "recebimento" });
-          setEstado("PREVIA");
-          return;
-        }
-        // Erro real (não "não encontrado") → interrompe sem fallback
-        if (r1.error && !isNotFound(r1.error.message, r1.data)) {
-          throw new Error(r1.error.message || "Falha ao consultar recebimentos");
-        }
-        const erroRecebimento = r1.data?.erro || r1.error?.message || "não encontrado";
-
-        // Passo 2: sync-notas-entrada (NF-e de entrada - fallback)
-        const r2 = await supabase.functions.invoke("sync-notas-entrada", { body });
-        if (!r2.error && r2.data?.sucesso === true) {
-          setRegistro({ ...r2.data, _origem: "nota_entrada" });
-          setEstado("PREVIA");
-          return;
-        }
-        if (r2.error && !isNotFound(r2.error.message, r2.data)) {
-          throw new Error(r2.error.message || "Falha ao consultar notas de entrada");
-        }
-        const erroNota = r2.data?.erro || r2.error?.message || "não encontrado";
-
-        throw new Error(
-          `Documento não encontrado no ERP (Recebimentos: ${erroRecebimento}; Notas de Entrada: ${erroNota}).`,
-        );
+        const filtro = v.length === 44 ? { chave_nfe: v } : { numero_nota: v };
+        const data = await invokeUnitario("notas_entrada", "movimentos", filtro);
+        setRegistro({
+          ...data,
+          id: data.id_interno ?? data.documento_id ?? data.id,
+          numero_nota: data.numero_nota ?? v,
+          _jaExistia: data.inserido === false,
+        });
+        setEstado("PREVIA");
       } else if (config.entidade === "pedido_saida") {
-        const v = valor.trim();
-        const body = { tenant_id: tenantId, empresa_id: empresaId, numero_pedido: v };
-        const { data, error } = await supabase.functions.invoke("sync-pedidos-saida", { body });
-        if (error) throw new Error(error.message || "Falha ao consultar pedidos");
-        const res = data?.results?.[0] || data || {};
-        const importados = Number(res.pedidos_importados || 0);
-        const ignorados = Number(res.ignorados || 0);
-        const erros = Number(res.erros || 0);
+        const data = await invokeUnitario("pedidos_saida", "movimentos", { numero_pedido: v });
 
-        if (importados === 0 && ignorados === 0) {
-          throw new Error(res.mensagem || res.erro || (erros > 0 ? "Erro ao importar pedido" : "Pedido não encontrado no ERP"));
-        }
-
-        // Buscar documento recém criado/existente
+        // Buscar documento recém criado/existente para enriquecer prévia
         const { data: doc } = await (supabase as any)
           .from("documento_saida")
           .select("id, numero_pedido, parceiro_nome, data_previsao, valor_total, qtd_itens, rota_nome")
@@ -190,10 +157,15 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
           .limit(1)
           .maybeSingle();
 
-        setRegistro({ ...(doc || { numero_pedido: v }), _jaExistia: importados === 0 && ignorados > 0 });
+        setRegistro({
+          ...(doc || { numero_pedido: v }),
+          ...data,
+          id: doc?.id ?? data.id_interno ?? data.id,
+          _jaExistia: data.inserido === false,
+        });
         setEstado("PREVIA");
       } else if (config.entidade === "grupo_produto") {
-        const codigo = parseInt(valor.trim(), 10);
+        const codigo = parseInt(v, 10);
         if (!codigo) throw new Error("Código do grupo inválido");
 
         // Verificar se já existe no WMS
@@ -204,10 +176,7 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
           .eq("codigo_erp", String(codigo))
           .maybeSingle();
 
-        const body = { tenant_id: tenantId, empresa_id: empresaId, codigo_grupo: codigo };
-        const { data, error } = await supabase.functions.invoke("sync-grupo-produto", { body });
-        if (error) throw new Error(error.message || "Falha ao consultar grupo");
-        if (data?.sucesso === false) throw new Error(data?.erro || "Grupo não encontrado no ERP");
+        const data = await invokeUnitario("grupo_produto", "cadastros", { codigo: String(codigo) });
 
         // Recarregar registro do WMS pós-sync
         const { data: pos } = await (supabase as any)
