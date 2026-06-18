@@ -74,8 +74,14 @@ export function ImportarPedidoSaidaModal({ isOpen, onClose, onSuccess }: Props) 
     }
     setEstado("BUSCANDO");
     try {
-      const { data, error } = await supabase.functions.invoke("sync-pedidos-saida", {
-        body: { tenant_id: tenantId, empresa_id: empresaId, numero_pedido: num },
+      const { data, error } = await supabase.functions.invoke("sync-entidade", {
+        body: {
+          entidade: "pedidos_saida",
+          modulo: "movimentos",
+          tenant_id: tenantId,
+          empresa_id: empresaId,
+          filtro: { numero_pedido: num },
+        },
       });
       if (error) {
         setResultado({ message: error.message || "Erro ao consultar pedido" });
@@ -84,7 +90,7 @@ export function ImportarPedidoSaidaModal({ isOpen, onClose, onSuccess }: Props) 
       }
       const r = (data || {}) as Resultado;
       setResultado(r);
-      if (r.status === "success") {
+      if (r.status === "success" || (data as any)?.sucesso === true) {
         setEstado("SUCESSO");
         onSuccess();
       } else if (r.status === "already_imported") {
