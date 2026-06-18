@@ -3,7 +3,8 @@ export type Modulo = "cadastros" | "movimentos" | "retorno";
 export interface EntidadeDef {
   id: string;
   label: string;
-  fn: string | null;
+  /** Entidade é suportada pela edge function `sync-entidade`. */
+  sincronizavel: boolean;
 }
 
 export interface ModuloDef {
@@ -17,31 +18,31 @@ export const MODULOS: ModuloDef[] = [
     key: "cadastros",
     label: "Cadastros",
     entidades: [
-      { id: "produtos", label: "Produtos", fn: "sync-produtos" },
-      { id: "parceiros", label: "Parceiros", fn: "sync-parceiros" },
-      { id: "grupo_produto", label: "Grupo de Produto", fn: "sync-grupo-produto" },
-      { id: "subgrupo_produto", label: "Subgrupo de Produto", fn: null },
-      { id: "tipo_entrada", label: "Tipo de Entrada", fn: null },
-      { id: "tipo_saida", label: "Tipo de Saída", fn: null },
+      { id: "produtos", label: "Produtos", sincronizavel: true },
+      { id: "parceiros", label: "Parceiros", sincronizavel: true },
+      { id: "grupo_produto", label: "Grupo de Produto", sincronizavel: true },
+      { id: "subgrupo_produto", label: "Subgrupo de Produto", sincronizavel: false },
+      { id: "tipo_entrada", label: "Tipo de Entrada", sincronizavel: false },
+      { id: "tipo_saida", label: "Tipo de Saída", sincronizavel: false },
     ],
   },
   {
     key: "movimentos",
     label: "Movimentos",
     entidades: [
-      { id: "movimentos_entrada", label: "Movimentos de Entrada", fn: "sync-recebimentos" },
-      { id: "notas_entrada", label: "Notas de Entrada", fn: "sync-notas-entrada" },
-      { id: "pedidos_saida", label: "Pedidos de Venda", fn: "sync-pedidos-saida" },
-      { id: "nf_saida", label: "NFs de Devolução", fn: "sync-nf-devolucoes" },
-      { id: "movimentos_saida", label: "Movimentos de Saída", fn: null },
+      { id: "notas_entrada", label: "Notas de Entrada", sincronizavel: true },
+      { id: "pedidos_saida", label: "Pedidos de Venda", sincronizavel: true },
+      { id: "nf_devolucoes", label: "NFs de Devolução", sincronizavel: true },
+      { id: "movimentos_entrada", label: "Movimentos de Entrada", sincronizavel: false },
+      { id: "movimentos_saida", label: "Movimentos de Saída", sincronizavel: false },
     ],
   },
   {
     key: "retorno",
     label: "Retorno",
     entidades: [
-      { id: "retorno_entrada", label: "Retorno de Entrada", fn: null },
-      { id: "retorno_saida", label: "Retorno de Saída", fn: null },
+      { id: "retorno_entrada", label: "Retorno de Entrada", sincronizavel: false },
+      { id: "retorno_saida", label: "Retorno de Saída", sincronizavel: false },
     ],
   },
 ];
@@ -65,7 +66,3 @@ export function getEntidade(modulo: string, id: string): EntidadeDef | undefined
 export function entidadeLabel(modulo: string, id: string): string {
   return getEntidade(modulo, id)?.label || id;
 }
-
-// Helper Supabase middleware schema
-import { supabase } from "@/integrations/supabase/client";
-export const mw = (supabase as any).schema("middleware");
