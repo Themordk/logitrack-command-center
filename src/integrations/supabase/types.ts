@@ -2788,6 +2788,7 @@ export type Database = {
           motivo_ocorrencia: string | null
           movimento_saida_id: string
           produto_id: string
+          qtd_conferida: number
           qtd_esperada: number
           qtd_separada: number | null
           qtde_cortada: number | null
@@ -2803,6 +2804,7 @@ export type Database = {
           motivo_ocorrencia?: string | null
           movimento_saida_id: string
           produto_id: string
+          qtd_conferida?: number
           qtd_esperada: number
           qtd_separada?: number | null
           qtde_cortada?: number | null
@@ -2818,6 +2820,7 @@ export type Database = {
           motivo_ocorrencia?: string | null
           movimento_saida_id?: string
           produto_id?: string
+          qtd_conferida?: number
           qtd_esperada?: number
           qtd_separada?: number | null
           qtde_cortada?: number | null
@@ -6615,6 +6618,36 @@ export type Database = {
         }
         Returns: undefined
       }
+      buscar_itens_movimento_entrada: {
+        Args: { p_movimento_entrada_id: string; p_tenant_id: string }
+        Returns: {
+          descricao: string
+          id: string
+          movimento_item_id: string
+          qtd_armazenada: number
+          qtd_conferida: number
+          qtd_esperada: number
+          qtd_ocorrencia: number
+          sku: string
+          status_item_movimento: string
+        }[]
+      }
+      buscar_itens_onda_carregamento: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: {
+          descricao: string
+          id: string
+          motivo_descricao: string
+          movimento_item_id: string
+          produto_id: string
+          qtd_conferida: number
+          qtd_cortada: number
+          qtd_esperada: number
+          qtd_separada: number
+          sku: string
+          status: string
+        }[]
+      }
       conferencia_buscar_ondas: {
         Args: {
           p_empresa_id: string
@@ -7015,6 +7048,7 @@ export type Database = {
         Returns: string
       }
       get_current_tenant: { Args: never; Returns: string }
+      get_my_tenant_id: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
       hu_padrao: { Args: never; Returns: string }
       is_platform_support: {
@@ -7040,6 +7074,65 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: Json
+      }
+      listar_movimentos_entrada: {
+        Args: {
+          p_data_ate?: string
+          p_data_de?: string
+          p_empresa_id?: string
+          p_numero_movimento?: number
+          p_numero_nf?: string
+          p_page?: number
+          p_page_size?: number
+          p_status?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          box_descricao: string
+          created_at: string
+          id: string
+          numero_movimento: number
+          operador_nome: string
+          parceiro_nome: string
+          status: string
+          total_armazenado: number
+          total_conferido: number
+          total_esperado: number
+          total_itens: number
+          total_registros: number
+        }[]
+      }
+      listar_ondas_carregamento: {
+        Args: {
+          p_data_ate?: string
+          p_data_de?: string
+          p_empresa_id?: string
+          p_numero_onda?: number
+          p_page?: number
+          p_page_size?: number
+          p_status?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          box_descricao: string
+          data_emissao: string
+          id: string
+          motorista: string
+          numero_onda: number
+          operador_nome: string
+          parceiro_nome: string
+          prioridade: string
+          rota_descricao: string
+          status: string
+          total_conferido: number
+          total_cortado: number
+          total_esperado: number
+          total_itens: number
+          total_pedidos: number
+          total_registros: number
+          total_separado: number
+          veiculo_placa: string
+        }[]
       }
       middleware_consultar_parceiro_omie: {
         Args: {
