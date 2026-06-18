@@ -127,7 +127,7 @@ export function useCrud<T extends Record<string, any>>({
         if (table === "hu") searchFields.push("codigo_hu");
         if (table === "volume_expedicao") searchFields.push("codigo_volume");
         if (table === "produto" || table === "vw_produto_listagem") searchFields.push("sku");
-        if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("coderp");
+        if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("codigo_erp");
         if (table === "veiculos") searchFields.push("placa");
         if (table === "endereco") searchFields.push("codigo_endereco");
         const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
