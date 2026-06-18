@@ -69,8 +69,14 @@ export function ImportarNfeChaveModal({ isOpen, onClose, onSuccess }: Props) {
     }
     setEstado("BUSCANDO");
     try {
-      const { data, error } = await supabase.functions.invoke("sync-recebimentos", {
-        body: { tenant_id: tenantId, empresa_id: empresaId, chave_nfe: chave },
+      const { data, error } = await supabase.functions.invoke("sync-entidade", {
+        body: {
+          entidade: "notas_entrada",
+          modulo: "movimentos",
+          tenant_id: tenantId,
+          empresa_id: empresaId,
+          filtro: { chave_nfe: chave },
+        },
       });
       if (error) {
         setResultado({ message: error.message || "Erro ao consultar NF-e" });
@@ -79,7 +85,7 @@ export function ImportarNfeChaveModal({ isOpen, onClose, onSuccess }: Props) {
       }
       const r = (data || {}) as Resultado;
       setResultado(r);
-      if (r.status === "success") {
+      if (r.status === "success" || (data as any)?.sucesso === true) {
         setEstado("SUCESSO");
         onSuccess();
       } else if (r.status === "already_imported") {

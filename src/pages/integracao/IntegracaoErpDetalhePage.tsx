@@ -6,7 +6,7 @@ import { StatusBar } from "./StatusBar";
 import { CredenciaisDinamicasTab } from "./CredenciaisDinamicasTab";
 import { SincronizacaoTab } from "./SincronizacaoTab";
 import { LogsFilasTab } from "./LogsFilasTab";
-import { mw } from "./entidades";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   erpProvedorId: string;
@@ -23,14 +23,12 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const { data } = await mw
-        .from("erp_provedor")
-        .select("nome,disponivel")
-        .eq("id", erpProvedorId)
-        .maybeSingle();
-      if (!alive || !data) return;
-      setNome((data as any).nome || erpProvedorId);
-      setDisponivel((data as any).disponivel !== false);
+      const { data } = await (supabase as any).rpc("integracao_listar_provedores");
+      if (!alive) return;
+      const row = (data || []).find((r: any) => r.id === erpProvedorId);
+      if (!row) return;
+      setNome(row.nome || erpProvedorId);
+      setDisponivel(row.disponivel !== false);
     })();
     return () => { alive = false; };
   }, [erpProvedorId]);
@@ -47,7 +45,6 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
   }
 
   const k = `${empresaId}::${empresaVersion}::${erpProvedorId}`;
-  const isOmie = erpProvedorId === "omie";
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
@@ -61,12 +58,12 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
           </button>
           <h1 className="text-xl font-bold text-foreground">Integração ERP — {nome}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Painel de gerenciamento do middleware de integração via API REST.
+            Painel de gerenciamento da integração via API REST.
           </p>
         </div>
       </div>
 
-      <StatusBar key={`sb-${k}`} tenantId={tenantId} empresaId={empresaId} refreshKey={refreshKey} />
+      <StatusBar key={`sb-${k}`} tenantId={tenantId} empresaId={empresaId} refreshKey={refreshKey} nomeProvedor={nome} />
 
       {!disponivel ? (
         <div className="card-surface p-6 text-sm text-muted-foreground">
@@ -96,13 +93,7 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
             />
           </TabsContent>
           <TabsContent value="sync" className="flex-1 min-h-0">
-            {isOmie ? (
-              <SincronizacaoTab key={`s-${k}`} tenantId={tenantId} empresaId={empresaId} onChanged={bump} />
-            ) : (
-              <div className="card-surface p-6 text-sm text-muted-foreground">
-                Configuração de sincronização disponível após ativação da integração.
-              </div>
-            )}
+            <SincronizacaoTab key={`s-${k}`} tenantId={tenantId} empresaId={empresaId} onChanged={bump} />
           </TabsContent>
           <TabsContent value="logs" className="flex-1 min-h-0 overflow-auto">
             <LogsFilasTab

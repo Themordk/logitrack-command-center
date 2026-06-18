@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { MODULOS, INTERVALOS, mw, type Modulo } from "./entidades";
+import { useEffect, useState, useCallback } from "react";
+import { MODULOS, INTERVALOS } from "./entidades";
 import { relativeTime } from "./StatusBar";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Play, Pause, RotateCcw, AlertTriangle } from "lucide-react";
@@ -16,22 +16,21 @@ interface ConfigRow {
   id?: string;
   modulo: string;
   entidade: string;
-  interval_minutes: number;
+  intervalo_minutos: number;
   ativo: boolean;
-  last_sync_at: string | null;
-  last_omie_id: number | null;
-  last_omie_page: number | null;
+  ultimo_sync_em: string | null;
+  cursor_state: Record<string, unknown> | null;
   data_inicio: string | null;
   data_fim: string | null;
 }
 
 interface LastLog {
   status: string;
-  executed_at: string;
-  records_fetched: number | null;
-  records_updated: number | null;
-  records_inserted: number | null;
-  error_message: string | null;
+  criado_em: string;
+  registros_buscados: number | null;
+  registros_atualizados: number | null;
+  registros_inseridos: number | null;
+  mensagem_erro: string | null;
 }
 
 export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
@@ -45,18 +44,35 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
   const load = useCallback(async () => {
     if (!tenantId || !empresaId) return;
     const [cfgRes, logRes] = await Promise.all([
-      mw.from("sync_config").select("*").eq("tenant_id", tenantId).eq("empresa_id", empresaId),
-      mw
-        .from("sync_log")
-        .select("modulo,entidade,status,executed_at,records_fetched,records_updated,records_inserted,error_message")
-        .eq("tenant_id", tenantId)
-        .eq("empresa_id", empresaId)
-        .order("executed_at", { ascending: false })
-        .limit(500),
+      (supabase as any).rpc("integracao_get_sync_configs", {
+        p_modulo: null,
+        p_entidade: null,
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+      }),
+      (supabase as any).rpc("integracao_listar_logs", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_entidade: null,
+        p_status: null,
+        p_erp_provedor_id: null,
+        p_limite: 500,
+        p_offset: 0,
+      }),
     ]);
     const cfgMap: Record<string, ConfigRow> = {};
     (cfgRes.data || []).forEach((c: any) => {
-      cfgMap[key(c.modulo, c.entidade)] = c;
+      cfgMap[key(c.modulo, c.entidade)] = {
+        id: c.config_id ?? c.id,
+        modulo: c.modulo,
+        entidade: c.entidade,
+        intervalo_minutos: c.intervalo_minutos ?? 60,
+        ativo: c.ativo ?? false,
+        ultimo_sync_em: c.ultimo_sync_em ?? null,
+        cursor_state: c.cursor_state ?? null,
+        data_inicio: c.cursor_state?.data_inicio ?? null,
+        data_fim: c.cursor_state?.data_fim ?? null,
+      };
     });
     const logMap: Record<string, LastLog> = {};
     (logRes.data || []).forEach((l: any) => {
@@ -82,11 +98,10 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
       ...(existing || {
         modulo,
         entidade,
-        interval_minutes: 60,
+        intervalo_minutos: 60,
         ativo: false,
-        last_sync_at: null,
-        last_omie_id: null,
-        last_omie_page: null,
+        ultimo_sync_em: null,
+        cursor_state: null,
         data_inicio: null,
         data_fim: null,
       }),
@@ -94,25 +109,30 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
     };
     setConfigs((prev) => ({ ...prev, [k]: optimistic }));
     try {
-      if (existing?.id) {
-        const { error } = await mw.from("sync_config").update(patch).eq("id", existing.id);
-        if (error) throw error;
+      const direcao = modulo === "retorno" ? "saida" : "entrada";
+      const params: Record<string, unknown> = {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_modulo: modulo,
+        p_entidade: entidade,
+        p_ativo: optimistic.ativo,
+        p_intervalo_minutos: optimistic.intervalo_minutos,
+        p_estrategia: "polling",
+        p_direcao: direcao,
+        p_erp_conexao_id: null,
+      };
+      // Se as datas foram alteradas, gravamos no cursor_state
+      if (patch.data_inicio !== undefined || patch.data_fim !== undefined) {
+        params.p_cursor_state = {
+          ...(optimistic.cursor_state || {}),
+          data_inicio: optimistic.data_inicio,
+          data_fim: optimistic.data_fim,
+        };
       } else {
-        const { data, error } = await mw
-          .from("sync_config")
-          .insert({
-            tenant_id: tenantId,
-            empresa_id: empresaId,
-            modulo,
-            entidade,
-            interval_minutes: optimistic.interval_minutes,
-            ativo: optimistic.ativo,
-          })
-          .select("*")
-          .single();
-        if (error) throw error;
-        setConfigs((prev) => ({ ...prev, [k]: data }));
+        params.p_cursor_state = null;
       }
+      const { error } = await (supabase as any).rpc("integracao_upsert_sync_config", params);
+      if (error) throw error;
       onChanged?.();
     } catch (e: any) {
       toast.error(`Erro: ${e.message || e}`);
@@ -120,18 +140,23 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
     }
   };
 
-  const handleRun = async (modulo: string, entidade: string, fn: string | null) => {
-    if (!fn) return;
+  const handleRun = async (modulo: string, entidade: string, sincronizavel: boolean) => {
+    if (!sincronizavel) return;
     const k = key(modulo, entidade);
     const cfg = configs[k];
     setRunning((p) => ({ ...p, [k]: true }));
     try {
-      const body: Record<string, unknown> = { tenant_id: tenantId, empresa_id: empresaId };
+      const body: Record<string, unknown> = {
+        entidade,
+        modulo,
+        tenant_id: tenantId,
+        empresa_id: empresaId,
+      };
       if (modulo === "movimentos") {
-        body.data_inicio = cfg?.data_inicio ?? null;
-        body.data_fim = cfg?.data_fim ?? null;
+        if (cfg?.data_inicio) body.data_inicio = cfg.data_inicio;
+        if (cfg?.data_fim) body.data_fim = cfg.data_fim;
       }
-      const { error } = await supabase.functions.invoke(fn, { body });
+      const { error } = await supabase.functions.invoke("sync-entidade", { body });
       if (error) throw error;
       toast.success(`${entidade}: execução iniciada`);
     } catch (e: any) {
@@ -146,8 +171,18 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
 
   const handleReset = async (modulo: string, entidade: string) => {
     if (!confirm(`Resetar cursor de ${entidade}? Isto fará a próxima execução reimportar tudo.`)) return;
-    await upsertConfig(modulo, entidade, { last_omie_id: null, last_omie_page: null });
-    toast.success("Cursor resetado");
+    try {
+      const { error } = await (supabase as any).rpc("integracao_resetar_cursor", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_entidade: entidade,
+      });
+      if (error) throw error;
+      toast.success("Cursor resetado");
+      load();
+    } catch (e: any) {
+      toast.error(`Erro ao resetar: ${e.message || e}`);
+    }
   };
 
   if (loading) {
@@ -189,12 +224,12 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                   const k = key(mod.key, ent.id);
                   const cfg = configs[k];
                   const log = lastLogs[k];
-                  const isRunning = running[k] || log?.status === "running";
-                  const interval = cfg?.interval_minutes ?? 60;
+                  const isRunning = running[k] || false;
+                  const interval = cfg?.intervalo_minutos ?? 60;
                   const ativo = cfg?.ativo ?? false;
                   const next =
-                    cfg?.last_sync_at && ativo
-                      ? new Date(new Date(cfg.last_sync_at).getTime() + interval * 60_000).toISOString()
+                    cfg?.ultimo_sync_em && ativo
+                      ? new Date(new Date(cfg.ultimo_sync_em).getTime() + interval * 60_000).toISOString()
                       : null;
                   let statusLabel = ativo ? "Ativo" : "Pausado";
                   let statusClass = ativo
@@ -203,12 +238,12 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                   if (isRunning) {
                     statusLabel = "Executando";
                     statusClass = "bg-sky-500/15 text-sky-400 border-sky-500/30 animate-pulse";
-                  } else if (log?.status === "error" && ativo) {
+                  } else if (log?.status === "erro" && ativo) {
                     statusLabel = "Erro";
                     statusClass = "bg-rose-500/15 text-rose-400 border-rose-500/30";
                   }
                   const ultLote = log
-                    ? log.records_fetched ?? log.records_updated ?? log.records_inserted ?? 0
+                    ? log.registros_buscados ?? log.registros_atualizados ?? log.registros_inseridos ?? 0
                     : null;
 
                   return (
@@ -216,8 +251,8 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                       <td className="px-3 py-2 text-foreground">
                         <div className="flex items-center gap-1.5">
                           {ent.label}
-                          {!ent.fn && (
-                            <span title="Edge function ainda não disponível">
+                          {!ent.sincronizavel && (
+                            <span title="Sincronização ainda não disponível para esta entidade">
                               <AlertTriangle size={11} className="text-amber-400/70" />
                             </span>
                           )}
@@ -229,7 +264,7 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                       <td className="px-3 py-2">
                         <select
                           value={interval}
-                          onChange={(e) => upsertConfig(mod.key, ent.id, { interval_minutes: Number(e.target.value) })}
+                          onChange={(e) => upsertConfig(mod.key, ent.id, { intervalo_minutos: Number(e.target.value) })}
                           className="h-7 px-2 rounded border border-border bg-secondary/40 text-foreground text-xs outline-none"
                         >
                           {INTERVALOS.map((opt) => (
@@ -262,7 +297,7 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                         </>
                       )}
                       <td className="px-3 py-2 text-muted-foreground">
-                        {cfg?.last_sync_at ? relativeTime(cfg.last_sync_at) : "Nunca"}
+                        {cfg?.ultimo_sync_em ? relativeTime(cfg.ultimo_sync_em) : "Nunca"}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{next ? relativeTime(next) : "—"}</td>
                       <td className="px-3 py-2 text-foreground">
@@ -271,9 +306,9 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => handleRun(mod.key, ent.id, ent.fn)}
-                            disabled={!ent.fn || isRunning}
-                            title={ent.fn ? "Executar agora" : "Edge function ainda não disponível"}
+                            onClick={() => handleRun(mod.key, ent.id, ent.sincronizavel)}
+                            disabled={!ent.sincronizavel || isRunning}
+                            title={ent.sincronizavel ? "Executar agora" : "Sincronização ainda não disponível"}
                             className="p-1.5 rounded hover:bg-secondary/60 text-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             {isRunning ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}

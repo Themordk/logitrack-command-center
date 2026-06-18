@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { mw } from "./entidades";
+import { supabase } from "@/integrations/supabase/client";
 
 export type EsquemaCampo = {
   chave: string;
@@ -27,24 +27,26 @@ export function useErpProvedor(erpId: string) {
     setLoading(true);
     setError(null);
     (async () => {
-      const { data: row, error } = await mw
-        .from("erp_provedor")
-        .select("id,nome,disponivel,esquema_credencial")
-        .eq("id", erpId)
-        .maybeSingle();
+      const { data: rows, error } = await (supabase as any).rpc("integracao_listar_provedores");
       if (!alive) return;
       if (error) {
         setError(error.message);
         setData(null);
-      } else if (row) {
-        setData({
-          id: row.id,
-          nome: row.nome,
-          disponivel: row.disponivel !== false,
-          esquema_credencial: Array.isArray(row.esquema_credencial) ? row.esquema_credencial : [],
-        });
       } else {
-        setData(null);
+        const row = (rows || []).find((r: any) => r.id === erpId);
+        if (row) {
+          const esquema = row.esquema_credencial;
+          setData({
+            id: row.id,
+            nome: row.nome,
+            disponivel: row.disponivel !== false,
+            esquema_credencial: Array.isArray(esquema)
+              ? esquema
+              : (esquema && typeof esquema === "object" ? (esquema as any) : []),
+          });
+        } else {
+          setData(null);
+        }
       }
       setLoading(false);
     })();

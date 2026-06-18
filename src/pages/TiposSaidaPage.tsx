@@ -14,13 +14,13 @@ export function TiposSaidaPage() {
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
-    { key: "caderp", label: "Código ERP" },
+    { key: "codigo_erp", label: "Código ERP" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Tipo de saída" },
-    { name: "caderp", label: "Código ERP", type: "text", placeholder: "Código no ERP" },
+    { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Código no ERP" },
     { name: "realiza_conferencia", label: "Realiza Conferência", type: "switch", defaultValue: true },
     {
       name: "conferencia_checkout",

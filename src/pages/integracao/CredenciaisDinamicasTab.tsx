@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Eye, EyeOff, Loader2, Save, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { mw } from "./entidades";
 import { useErpProvedor, type EsquemaCampo } from "./useErpProvedor";
 
 interface Props {
@@ -41,47 +40,22 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
       const initVals: Record<string, string> = {};
       const initSecret: Record<string, boolean> = {};
 
-      // 1) Tenta erp_integracao
-      const { data: integ } = await mw
-        .from("erp_integracao")
-        .select("credenciais, ativo")
-        .eq("tenant_id", tenantId)
-        .eq("empresa_id", empresaId)
-        .eq("erp_provedor_id", erpId)
-        .maybeSingle();
+      const { data: rows } = await (supabase as any).rpc("integracao_get_credenciais", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_erp_provedor_id: erpId,
+      });
 
-      let creds: Record<string, unknown> = {};
-      let ativoAtual = true;
-      let existe = false;
-
-      if (integ) {
-        existe = true;
-        creds = (integ.credenciais && typeof integ.credenciais === "object")
-          ? integ.credenciais as Record<string, unknown> : {};
-        ativoAtual = integ.ativo !== false;
-      } else if (erpId === "omie") {
-        // 2) Fallback Omie legado via omie-config-get
-        try {
-          const { data } = await supabase.functions.invoke("omie-config-get", {
-            body: { tenant_id: tenantId, empresa_id: empresaId },
-          });
-          const cfg = (data as any)?.config;
-          if (cfg) {
-            existe = true;
-            creds = {
-              app_key: cfg.app_key || "",
-              url_base: cfg.omie_base_url || "",
-            };
-            if (cfg.has_secret) initSecret["app_secret"] = true;
-            ativoAtual = !!cfg.ativo;
-          }
-        } catch { /* ignore */ }
-      }
+      const row = Array.isArray(rows) ? rows[0] : null;
+      const creds: Record<string, unknown> =
+        row?.credenciais && typeof row.credenciais === "object" ? row.credenciais : {};
+      const configExtra: Record<string, unknown> =
+        row?.config_extra && typeof row.config_extra === "object" ? row.config_extra : {};
+      const existe = !!row;
 
       for (const c of provedor.esquema_credencial) {
-        const v = creds[c.chave];
+        const v = creds[c.chave] ?? configExtra[c.chave];
         if (c.tipo === "senha") {
-          // Não preenche senha; marca placeholder se já existe valor
           initVals[c.chave] = "";
           if (v != null && v !== "") initSecret[c.chave] = true;
         } else {
@@ -92,7 +66,7 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
       if (!alive) return;
       setValues(initVals);
       setHasSecret(initSecret);
-      setAtivo(ativoAtual);
+      setAtivo(true);
       setIntegracaoExiste(existe);
       setLoading(false);
     })();
@@ -100,7 +74,7 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
   }, [provedor, erpId, tenantId, empresaId]);
 
   const handleSave = async () => {
-    // Valida obrigatórios client-side (senha pode ficar vazia se já houver valor gravado)
+    // Valida obrigatórios client-side
     for (const c of esquema) {
       const v = (values[c.chave] || "").trim();
       const hasOld = c.tipo === "senha" && hasSecret[c.chave];
@@ -111,22 +85,40 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
     }
     setSaving(true);
     try {
-      const payload: Record<string, string> = {};
-      for (const c of esquema) payload[c.chave] = values[c.chave] ?? "";
+      // Separa credenciais (senha) vs config_extra (texto). Heurística: senhas → credenciais.
+      const credenciais: Record<string, string> = {};
+      const configExtra: Record<string, string> = {};
+      for (const c of esquema) {
+        const v = values[c.chave] ?? "";
+        if (c.tipo === "senha") {
+          if (v) credenciais[c.chave] = v;
+        } else {
+          // Para retrocompatibilidade enviamos campos texto também em credenciais
+          credenciais[c.chave] = v;
+          configExtra[c.chave] = v;
+        }
+      }
 
-      const { data, error } = await supabase.functions.invoke("salvar-erp-credenciais", {
-        body: { erp_id: erpId, empresa_id: empresaId, credenciais: payload, ativo },
+      const { data, error } = await supabase.functions.invoke("erp-conexao", {
+        body: {
+          acao: "save",
+          empresa_id: empresaId,
+          erp_id: erpId,
+          credenciais,
+          config_extra: configExtra,
+          tipo_integracao: "polling",
+          ativo,
+        },
       });
       if (error) throw error;
       const resp = data as any;
-      if (!resp?.sucesso) {
-        const msg = resp?.campos?.length
+      if (resp && resp.sucesso === false) {
+        const msg = resp.campos?.length
           ? `${resp.mensagem || "Campos obrigatórios"}: ${resp.campos.join(", ")}`
-          : resp?.mensagem || "Falha ao salvar";
+          : resp.mensagem || "Falha ao salvar";
         throw new Error(msg);
       }
 
-      // Limpa senhas locais e marca que existe segredo
       const nextSecret = { ...hasSecret };
       const nextVals = { ...values };
       for (const c of esquema) {
@@ -148,21 +140,20 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
   };
 
   const handleTest = async () => {
-    if (erpId !== "omie") {
-      setTestResult({ ok: false, msg: "Teste de conexão disponível após configuração completa" });
+    if (!integracaoExiste) {
+      setTestResult({ ok: false, msg: "Salve as credenciais antes de testar a conexão." });
       return;
     }
     setTesting(true);
     setTestResult(null);
     try {
-      const body: Record<string, unknown> = { tenant_id: tenantId, empresa_id: empresaId };
-      if (values.app_key) body.app_key = values.app_key;
-      if (values.app_secret) body.app_secret = values.app_secret;
-      if (values.url_base) body.omie_base_url = values.url_base;
-      const { data, error } = await supabase.functions.invoke("omie-test-connection", { body });
+      const { data, error } = await supabase.functions.invoke("erp-conexao", {
+        body: { acao: "testar", empresa_id: empresaId, erp_id: erpId },
+      });
       if (error) throw error;
       const resp = data as any;
-      setTestResult({ ok: !!resp?.ok, msg: resp?.message || (resp?.ok ? "Conexão OK" : "Falha") });
+      const ok = !!(resp?.ok ?? resp?.sucesso);
+      setTestResult({ ok, msg: resp?.message || resp?.mensagem || (ok ? "Conexão OK" : "Falha") });
     } catch (e: any) {
       setTestResult({ ok: false, msg: e.message || "Falha na requisição" });
     } finally {
@@ -192,7 +183,7 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
             ? "••• (deixe vazio para manter)"
             : (c.placeholder ?? "");
           return (
-            <div key={c.chave} className={isSecret ? "" : ""}>
+            <div key={c.chave}>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
                 {c.rotulo}{" "}
                 {c.obrigatorio && !(isSecret && hasSecret[c.chave]) && (
@@ -242,7 +233,8 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
       <div className="flex flex-wrap items-center gap-3 pt-2">
         <button
           onClick={handleTest}
-          disabled={testing || saving}
+          disabled={testing || saving || !integracaoExiste}
+          title={!integracaoExiste ? "Salve as credenciais antes de testar" : "Testar conexão"}
           className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary/40 text-sm text-foreground hover:bg-secondary/60 disabled:opacity-50"
         >
           {testing ? <Loader2 size={14} className="animate-spin" /> : <Plug size={14} />}

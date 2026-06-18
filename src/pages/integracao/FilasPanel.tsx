@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { mw } from "./entidades";
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, RotateCw, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { formatDateTime } from "@/utils/dateTime";
 
 interface Props {
@@ -12,17 +11,18 @@ interface Props {
   sistemaOrigem?: string;
 }
 
-type Tab = "sync_queue" | "return_queue";
+type Tab = "entrada" | "retorno";
 
 const STATUS_CLASS: Record<string, string> = {
-  pending: "bg-sky-500/15 text-sky-400 border-sky-500/30",
-  processing: "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse",
-  done: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  error: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+  pendente: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+  processando: "bg-amber-500/15 text-amber-400 border-amber-500/30 animate-pulse",
+  concluido: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  erro: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+  cancelado: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
 };
 
-export function FilasPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
-  const [tab, setTab] = useState<Tab>("sync_queue");
+export function FilasPanel({ tenantId, empresaId }: Props) {
+  const [tab, setTab] = useState<Tab>("entrada");
 
   return (
     <div className="card-surface flex flex-col min-h-0 overflow-hidden">
@@ -31,46 +31,51 @@ export function FilasPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
       </div>
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="flex-1 flex flex-col min-h-0">
         <TabsList className="m-3 self-start bg-secondary border border-border">
-          <TabsTrigger value="sync_queue">Fila de Entrada</TabsTrigger>
-          <TabsTrigger value="return_queue">Fila de Retorno</TabsTrigger>
+          <TabsTrigger value="entrada">Fila de Entrada</TabsTrigger>
+          <TabsTrigger value="retorno">Fila de Retorno</TabsTrigger>
         </TabsList>
-        <TabsContent value="sync_queue" className="flex-1 min-h-0 mt-0">
-          <QueueTable table="sync_queue" tenantId={tenantId} empresaId={empresaId} sistemaOrigem={sistemaOrigem} />
+        <TabsContent value="entrada" className="flex-1 min-h-0 mt-0">
+          <QueueTable direcao="entrada" tenantId={tenantId} empresaId={empresaId} />
         </TabsContent>
-        <TabsContent value="return_queue" className="flex-1 min-h-0 mt-0">
-          <QueueTable table="return_queue" tenantId={tenantId} empresaId={empresaId} sistemaOrigem={sistemaOrigem} />
+        <TabsContent value="retorno" className="flex-1 min-h-0 mt-0">
+          <QueueTable direcao="retorno" tenantId={tenantId} empresaId={empresaId} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function QueueTable({ table, tenantId, empresaId, sistemaOrigem }: { table: Tab; tenantId: string; empresaId: string; sistemaOrigem?: string }) {
+function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: string; empresaId: string }) {
   const [rows, setRows] = useState<any[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({ pending: 0, processing: 0, done: 0, error: 0 });
+  const [counts, setCounts] = useState<Record<string, number>>({
+    pendente: 0, processando: 0, concluido: 0, erro: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    // sync_queue tem sistema_origem; return_queue não tem.
-    const applyOrigem = (q: any) => (sistemaOrigem && table === "sync_queue") ? q.eq("sistema_origem", sistemaOrigem) : q;
-    const baseFilter = (q: any) => applyOrigem(q.eq("tenant_id", tenantId).eq("empresa_id", empresaId));
-    const [list, ...countsRes] = await Promise.all([
-      baseFilter(mw.from(table).select("*"))
-        .order("created_at", { ascending: false })
-        .limit(100),
-      ...["pending", "processing", "done", "error"].map((s) =>
-        baseFilter(mw.from(table).select("*", { count: "exact", head: true })).eq("status", s),
+    const params = {
+      p_tenant_id: tenantId,
+      p_empresa_id: empresaId,
+      p_direcao: direcao,
+      p_limite: 100,
+    } as Record<string, unknown>;
+
+    const [listRes, ...countRes] = await Promise.all([
+      (supabase as any).rpc("integracao_listar_fila", { ...params, p_status: null }),
+      ...["pendente", "processando", "concluido", "erro"].map((s) =>
+        (supabase as any).rpc("integracao_listar_fila", { ...params, p_status: s, p_limite: 1000 }),
       ),
     ]);
-    setRows(list.data || []);
+
+    setRows(listRes.data || []);
     setCounts({
-      pending: countsRes[0].count || 0,
-      processing: countsRes[1].count || 0,
-      done: countsRes[2].count || 0,
-      error: countsRes[3].count || 0,
+      pendente: (countRes[0].data || []).length,
+      processando: (countRes[1].data || []).length,
+      concluido: (countRes[2].data || []).length,
+      erro: (countRes[3].data || []).length,
     });
     setLoading(false);
-  }, [table, tenantId, empresaId, sistemaOrigem]);
+  }, [direcao, tenantId, empresaId]);
 
   useEffect(() => {
     setLoading(true);
@@ -79,31 +84,10 @@ function QueueTable({ table, tenantId, empresaId, sistemaOrigem }: { table: Tab;
     return () => clearInterval(t);
   }, [load]);
 
-  const reprocess = async (id: string) => {
-    const { error } = await mw
-      .from(table)
-      .update({ status: "pending", retry_count: 0, error_message: null })
-      .eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("Reprocessar agendado"); load(); }
-  };
-
-  const discard = async (id: string) => {
-    if (!confirm("Descartar este item da fila?")) return;
-    const { error } = await mw
-      .from(table)
-      .update({ status: "error", error_message: "Descartado manualmente" })
-      .eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("Descartado"); load(); }
-  };
-
-  const isReturn = table === "return_queue";
-
   return (
     <div className="flex flex-col min-h-0 h-full">
       <div className="px-3 grid grid-cols-4 gap-2 mb-2">
-        {(["pending", "processing", "error", "done"] as const).map((s) => (
+        {(["pendente", "processando", "erro", "concluido"] as const).map((s) => (
           <div key={s} className={`rounded border px-2 py-1.5 text-center ${STATUS_CLASS[s]}`}>
             <div className="text-[10px] uppercase opacity-80">{s}</div>
             <div className="text-base font-bold">{counts[s] ?? 0}</div>
@@ -114,13 +98,13 @@ function QueueTable({ table, tenantId, empresaId, sistemaOrigem }: { table: Tab;
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-secondary/40 backdrop-blur z-10">
             <tr className="text-muted-foreground">
-              <th className="text-left px-3 py-2 font-medium">Omie ID</th>
-              <th className="text-left px-3 py-2 font-medium">{isReturn ? "Doc Type" : "Número"}</th>
-              <th className="text-left px-3 py-2 font-medium">Tipo</th>
+              <th className="text-left px-3 py-2 font-medium">ID Externo</th>
+              <th className="text-left px-3 py-2 font-medium">Entidade</th>
+              <th className="text-left px-3 py-2 font-medium">Provedor</th>
               <th className="text-left px-3 py-2 font-medium">Status</th>
               <th className="text-right px-3 py-2 font-medium">Tent.</th>
               <th className="text-left px-3 py-2 font-medium">Criado</th>
-              <th className="text-right px-3 py-2 font-medium">Ações</th>
+              <th className="text-left px-3 py-2 font-medium">Próx. tentativa</th>
             </tr>
           </thead>
           <tbody>
@@ -134,24 +118,17 @@ function QueueTable({ table, tenantId, empresaId, sistemaOrigem }: { table: Tab;
             )}
             {!loading && rows.map((r) => (
               <tr key={r.id} className="border-t border-border/40 hover:bg-secondary/30">
-                <td className="px-3 py-1.5 text-foreground font-mono">{r.omie_id || "—"}</td>
-                <td className="px-3 py-1.5 text-foreground">{isReturn ? r.document_type || "—" : r.omie_numero || "—"}</td>
-                <td className="px-3 py-1.5 text-muted-foreground">{isReturn ? `${r.wms_status || ""}→${r.omie_status || ""}` : r.tipo || "—"}</td>
+                <td className="px-3 py-1.5 text-foreground font-mono">{r.id_externo || "—"}</td>
+                <td className="px-3 py-1.5 text-foreground">{r.entidade || "—"}</td>
+                <td className="px-3 py-1.5 text-muted-foreground">{r.erp_provedor_id || "—"}</td>
                 <td className="px-3 py-1.5">
                   <Badge variant="outline" className={STATUS_CLASS[r.status] || ""}>{r.status}</Badge>
                 </td>
-                <td className="px-3 py-1.5 text-right text-muted-foreground">{r.retry_count ?? 0}</td>
-                <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{formatDateTime(r.created_at)}</td>
-                <td className="px-3 py-1.5">
-                  <div className="flex items-center justify-end gap-1">
-                    <button onClick={() => reprocess(r.id)} title="Reprocessar" className="p-1.5 rounded hover:bg-secondary/60 text-sky-400">
-                      <RotateCw size={12} />
-                    </button>
-                    <button onClick={() => discard(r.id)} title="Descartar" className="p-1.5 rounded hover:bg-secondary/60 text-rose-400">
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
+                <td className="px-3 py-1.5 text-right text-muted-foreground">
+                  {(r.tentativas ?? 0)}{r.max_tentativas ? `/${r.max_tentativas}` : ""}
                 </td>
+                <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{formatDateTime(r.criado_em)}</td>
+                <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{r.processar_apos ? formatDateTime(r.processar_apos) : "—"}</td>
               </tr>
             ))}
           </tbody>
