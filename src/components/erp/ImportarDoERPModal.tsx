@@ -54,26 +54,7 @@ interface Props {
 type Estado = "BUSCA" | "BUSCANDO" | "PREVIA" | "IMPORTANDO" | "SUCESSO" | "ERRO";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function pollProcessar(
-  rpcName: string,
-  params: Record<string, any>,
-  maxAttempts = 5,
-  delayMs = 2000,
-): Promise<any> {
-  let lastErr = "Tempo esgotado";
-  for (let i = 0; i < maxAttempts; i++) {
-    const { data, error } = await (supabase as any).rpc(rpcName, params);
-    if (error) throw new Error(error.message);
-    if (data?.sucesso) return data;
-    lastErr = data?.erro || lastErr;
-    if (lastErr !== "Resposta ainda não disponível") {
-      throw new Error(lastErr);
-    }
-    await sleep(delayMs);
-  }
-  throw new Error(lastErr);
-}
+void sleep;
 
 export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props) {
   const { tenantId, empresaId } = useTenant();
