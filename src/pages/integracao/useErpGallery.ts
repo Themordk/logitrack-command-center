@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { mw } from "./entidades";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ErpProvedor {
   id: string;
@@ -33,37 +33,46 @@ export function useErpGallery(tenantId: string | null, empresaId: string | null,
     if (!tenantId || !empresaId) return;
     setError(null);
     try {
-      const [provRes, intRes, omieRes] = await Promise.all([
-        mw.from("erp_provedor").select("id,nome,disponivel,ordem").order("ordem"),
-        mw
-          .from("erp_integracao")
-          .select("erp_provedor_id,ativo,status,ultimo_teste_em,ultimo_teste_ok,mensagem_erro")
-          .eq("tenant_id", tenantId)
-          .eq("empresa_id", empresaId),
-        mw
-          .from("omie_config")
-          .select("id,atualizado_em")
-          .eq("tenant_id", tenantId)
-          .eq("empresa_id", empresaId)
-          .maybeSingle(),
+      const [provRes, credRes] = await Promise.all([
+        (supabase as any).rpc("integracao_listar_provedores"),
+        (supabase as any).rpc("integracao_get_credenciais", {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+          p_erp_provedor_id: null,
+        }),
       ]);
 
       if (provRes.error) throw provRes.error;
 
-      const provs: ErpProvedor[] = (provRes.data || []) as any;
-      const ints: ErpIntegracao[] = (intRes.data || []) as any;
-      const omieLegado = !intRes.error && !!omieRes.data;
+      const provs: ErpProvedor[] = (provRes.data || []).map((p: any) => ({
+        id: p.id,
+        nome: p.nome,
+        disponivel: p.disponivel !== false,
+        ordem: p.ordem ?? 0,
+      }));
+      const creds: any[] = credRes.data || [];
 
-      const merged: ErpCardData[] = provs.map((p) => {
-        const integ = ints.find((i) => i.erp_provedor_id === p.id) || null;
-        const legado = p.id === "omie" && !integ && omieLegado;
-        return {
-          provedor: p,
-          integracao: integ,
-          legadoOmie: legado,
-          ultimoLegadoEm: legado ? (omieRes.data as any)?.atualizado_em ?? null : null,
-        };
-      });
+      const merged: ErpCardData[] = provs
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((p) => {
+          const c = creds.find((x: any) => x.erp_provedor_id === p.id) || null;
+          const integ: ErpIntegracao | null = c
+            ? {
+                erp_provedor_id: p.id,
+                ativo: true,
+                status: "ativo",
+                ultimo_teste_em: null,
+                ultimo_teste_ok: null,
+                mensagem_erro: null,
+              }
+            : null;
+          return {
+            provedor: p,
+            integracao: integ,
+            legadoOmie: false,
+            ultimoLegadoEm: null,
+          };
+        });
 
       setData(merged);
     } catch (e: any) {
