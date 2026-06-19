@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/dateTime";
-import { Loader2, ArrowDownToLine, ShieldAlert, Eye, Ban } from "lucide-react";
+import { Loader2, ArrowDownToLine, ShieldAlert, Eye, Ban, ChevronLeft, ChevronRight } from "lucide-react";
+
 
 interface Abastecimento {
   id: string;
@@ -52,47 +54,62 @@ interface AbastecimentoPageProps {
 
 export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
   const { tenantId, empresaId } = useTenant();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<Abastecimento[]>([]);
   const todayStr = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });
   const [filterDateFrom, setFilterDateFrom] = useState(todayStr);
   const [filterDateTo, setFilterDateTo] = useState(todayStr);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   // Armazem selection modal
   const [armazemModalOpen, setArmazemModalOpen] = useState(false);
   const [armazemModalTipo, setArmazemModalTipo] = useState<"PREVENTIVO" | "CORRETIVO">("PREVENTIVO");
-  const [armazens, setArmazens] = useState<Armazem[]>([]);
   const [selectedArmazem, setSelectedArmazem] = useState<string>("");
 
+  useEffect(() => { setPage(1); }, [tenantId, empresaId, filterDateFrom, filterDateTo]);
 
-  const fetchData = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    const { data: rows } = await (supabase as any)
-      .from("vw_abastecimento_lista")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("empresa_id", empresaId)
-      .gte("criado_em", filterDateFrom + "T00:00:00")
-      .lte("criado_em", filterDateTo + "T23:59:59")
-      .order("criado_em", { ascending: false });
-    setData(rows || []);
-    setLoading(false);
-  }, [tenantId, empresaId, filterDateFrom, filterDateTo]);
+  const listQuery = useQuery({
+    queryKey: ["abastecimento-lista", tenantId, empresaId, filterDateFrom, filterDateTo, page],
+    queryFn: async () => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      const { data: rows, count, error } = await (supabase as any)
+        .from("vw_abastecimento_lista")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .gte("criado_em", filterDateFrom + "T00:00:00")
+        .lte("criado_em", filterDateTo + "T23:59:59")
+        .order("criado_em", { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      return { rows: (rows || []) as Abastecimento[], count: count || 0 };
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const data = listQuery.data?.rows ?? [];
+  const total = listQuery.data?.count ?? 0;
+  const loading = listQuery.isLoading;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const fetchData = useCallback(() => { listQuery.refetch(); }, [listQuery]);
 
-  useEffect(() => {
-    if (!tenantId || !empresaId) { setArmazens([]); return; }
-    (supabase as any)
-      .from("armazem")
-      .select("id, descricao")
-      .eq("tenant_id", tenantId)
-      .eq("empresa_id", empresaId)
-      .eq("ativo", true)
-      .order("descricao")
-      .then(({ data: a }: any) => setArmazens(a || []));
-  }, [tenantId, empresaId]);
+  const armazensQuery = useQuery({
+    queryKey: ["abastecimento-armazens", tenantId, empresaId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("armazem")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .order("descricao");
+      return (data || []) as Armazem[];
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 5 * 60_000,
+  });
+  const armazens = armazensQuery.data ?? [];
 
   const openGerarModal = (tipo: "PREVENTIVO" | "CORRETIVO") => {
     setArmazemModalTipo(tipo);
@@ -118,6 +135,7 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
     toast.success("Abastecimento cancelado");
     fetchData();
   };
+
 
   const handleVerTarefas = (abastId: string) => {
     onNavigate?.(`/atividades/abastecimento/${abastId}/tarefas`);
@@ -225,8 +243,17 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
               ))}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
+            <span className="text-xs text-muted-foreground">{total} abastecimento{total === 1 ? "" : "s"}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
+              <span className="text-xs text-muted-foreground px-2">{page} / {totalPages}</span>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
+            </div>
+          </div>
         </div>
       )}
+
 
       {/* Armazem Selection Modal */}
       <Dialog open={armazemModalOpen} onOpenChange={setArmazemModalOpen}>

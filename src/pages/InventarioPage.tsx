@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, Play, Pause, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dateTime";
+
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   CRIADO: { label: "Criado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -47,10 +50,7 @@ interface Props { onNavigate: (path: string) => void; }
 
 export function InventarioPage({ onNavigate }: Props) {
   const { tenantId, empresaId, armazemId } = useTenant();
-  const [inventarios, setInventarios] = useState<Inventario[]>([]);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const pageSize = 20;
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -60,14 +60,22 @@ export function InventarioPage({ onNavigate }: Props) {
   const [filterTipo, setFilterTipo] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCodigo, setFilterCodigo] = useState("");
+  const debouncedCodigo = useDebounce(filterCodigo, 400);
 
-  const fetchInventarios = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
+  useEffect(() => {
+    setPage(1);
+  }, [tenantId, empresaId, armazemId, filterStatus, filterTipo, debouncedCodigo, filterDateFrom, filterDateTo]);
+
+  const listQuery = useQuery({
+    queryKey: [
+      "inventarios-list",
+      tenantId, empresaId, armazemId,
+      filterStatus, filterTipo, debouncedCodigo, filterDateFrom, filterDateTo,
+      page,
+    ],
+    queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-
       let query = (supabase as any)
         .from("vw_inventario_lista")
         .select("id, numero_inventario, tipo_inventario, tipo_execucao, descricao, status, criado_em, criado_por, total_itens, total_divergencias, acuracidade, criado_por_nome", { count: "exact" })
@@ -75,27 +83,29 @@ export function InventarioPage({ onNavigate }: Props) {
         .eq("empresa_id", empresaId)
         .order("numero_inventario", { ascending: false })
         .range(from, to);
-
       if (armazemId) query = query.eq("armazem_id", armazemId);
       if (filterStatus) query = query.eq("status", filterStatus);
       if (filterTipo) query = query.eq("tipo_inventario", filterTipo);
-      if (filterCodigo) query = query.eq("numero_inventario", Number(filterCodigo));
+      if (debouncedCodigo) query = query.eq("numero_inventario", Number(debouncedCodigo));
       if (filterDateFrom) query = query.gte("criado_em", filterDateFrom + "T00:00:00");
       if (filterDateTo) query = query.lte("criado_em", filterDateTo + "T23:59:59");
-
       const { data, error, count } = await query;
       if (error) throw error;
+      const rows: Inventario[] = (data || []).map((inv: any) => ({ ...inv, criado_por_nome: inv.criado_por_nome || "—" }));
+      return { rows, count: count || 0 };
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 30_000,
+  });
 
-      setInventarios((data || []).map((inv: any) => ({ ...inv, criado_por_nome: inv.criado_por_nome || "—" })));
-      setTotal(count || 0);
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, empresaId, armazemId, page, filterStatus, filterTipo, filterCodigo, filterDateFrom, filterDateTo]);
+  const inventarios = listQuery.data?.rows ?? [];
+  const total = listQuery.data?.count ?? 0;
+  const loading = listQuery.isLoading;
+  const fetchInventarios = useCallback(() => { listQuery.refetch(); }, [listQuery]);
 
-  useEffect(() => { fetchInventarios(); }, [fetchInventarios]);
+  useEffect(() => {
+    if (listQuery.error) toast.error((listQuery.error as Error).message);
+  }, [listQuery.error]);
 
   const handleSearch = () => {
     setPage(1);
@@ -118,6 +128,7 @@ export function InventarioPage({ onNavigate }: Props) {
   };
 
   const totalPages = Math.ceil(total / pageSize);
+
   const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
   const fmtDate = (d: string | null) => formatDate(d);
