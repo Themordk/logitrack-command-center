@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { ImportarNfeChaveModal } from "@/components/erp/ImportarNfeChaveModal";
 import { formatDate } from "@/utils/dateTime";
+
 
 interface DocEntry {
   id: string;
