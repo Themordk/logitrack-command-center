@@ -25,11 +25,8 @@ interface DocSaida {
 
 export function SaidasPage() {
   const { tenantId, empresaId, armazemId } = useTenant();
-  const [docs, setDocs] = useState<DocSaida[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const pageSize = 20;
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
@@ -48,10 +45,11 @@ export function SaidasPage() {
     prioridade: "NORMAL",
   });
 
-  const fetchDocs = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
+  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
+
+  const listQuery = useQuery({
+    queryKey: ["saidas-pendentes", tenantId, empresaId, page],
+    queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       const { data, error, count } = await (supabase as any)
@@ -68,7 +66,6 @@ export function SaidasPage() {
         .order("data_emissao", { ascending: false })
         .range(from, to);
       if (error) throw error;
-
       const enriched: DocSaida[] = (data || []).map((doc: any) => ({
         id: doc.id,
         numero_pedido: doc.numero_pedido,
@@ -78,17 +75,21 @@ export function SaidasPage() {
         parceiro_nome: doc.parceiro?.razaosocial || "—",
         total_skus: doc.itens?.[0]?.count ?? 0,
       }));
-      setDocs(enriched);
-      setTotal(count || 0);
-    } catch (err: any) {
-      toast.error(`Erro: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, empresaId, page]);
+      return { rows: enriched, count: count || 0 };
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => { fetchDocs(); }, [fetchDocs]);
-  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
+  const docs = listQuery.data?.rows ?? [];
+  const total = listQuery.data?.count ?? 0;
+  const loading = listQuery.isLoading;
+  const fetchDocs = useCallback(() => { listQuery.refetch(); }, [listQuery]);
+
+  useEffect(() => {
+    if (listQuery.error) toast.error(`Erro: ${(listQuery.error as Error).message}`);
+  }, [listQuery.error]);
+
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
