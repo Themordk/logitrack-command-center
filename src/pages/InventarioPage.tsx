@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, Play, Pause, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dateTime";
+
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   CRIADO: { label: "Criado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
