@@ -1,97 +1,145 @@
 ## Objetivo
 
-Migrar o frontend para o novo contrato genérico de integração ERP do backend: schema `integracao` via RPCs `integracao_*`, edge functions consolidadas (`sync-entidade`, `erp-conexao`, `webhook-receber`) e padronização da coluna `codigo_erp` em todas as tabelas de domínio. UI, layout e UX permanecem idênticos — só a camada de dados muda.
+Replicar nas demais páginas do menu **Atividades** o padrão de data-fetching já aplicado em `MovimentoEntradaPage.tsx` e `MovimentoSaidaPage.tsx`:
+
+- `useQuery` (React Query) substituindo `useState + useEffect + fetchX`.
+- `useDebounce` (400 ms) em todos os filtros de texto/numéricos digitáveis.
+- Paginação **server-side** com `range()` + `count: "exact"` (ou via RPC quando já existir).
+- `queryKey` incluindo todos os filtros + página, com `staleTime: 30_000` e `enabled: !!tenantId && !!empresaId`.
+- `setPage(1)` em `useEffect` reagindo aos filtros debouncados.
+
+**Sem alterações visuais, de layout ou de comportamento de UI.** Mesmas colunas, mesmos modais, mesmos botões, mesmos estados de loading/empty.
 
 ---
 
-## 1. Arquivos a alterar
+## Escopo — rotas do menu Atividades
 
-### 1.1 Núcleo da integração (`src/pages/integracao/`)
-| Arquivo | Mudança |
-|---|---|
-| `entidades.ts` | Trocar `fn: string \| null` por `sincronizavel: boolean` em cada `EntidadeDef`. Remover export `mw` (schema middleware). MODULOS/INTERVALOS mantidos. Entidades marcadas `sincronizavel: true`: `produtos`, `parceiros`, `grupo_produto`, `notas_entrada`, `pedidos_saida`, `nf_devolucoes` (renomear de `nf_saida`). Demais: `false`. |
-| `useErpProvedor.ts` | `mw.from('erp_provedor')` → `supabase.rpc('integracao_listar_provedores')` + `.find(p => p.id === erpId)`. |
-| `useErpGallery.ts` | Substituir as 3 queries por: `integracao_listar_provedores()` + `integracao_get_credenciais({ p_tenant_id, p_empresa_id, p_erp_provedor_id: null })`. Remover lógica `legadoOmie`/`omie_config`. |
-| `IntegracaoErpDetalhePage.tsx` | Buscar nome/disponível via `integracao_listar_provedores`. Remover import `mw`. Trocar texto "middleware de integração" por "integração". Remover gate `isOmie` da aba Sincronização — passa a valer para todos os provedores disponíveis. |
-| `CredenciaisDinamicasTab.tsx` | Carregar via `integracao_get_credenciais({ p_erp_provedor_id: erpId })`. Salvar via `supabase.functions.invoke('erp-conexao', { body: { acao: 'save', empresa_id, erp_id, credenciais, config_extra, tipo_integracao: 'polling', ativo } })`. Testar via `erp-conexao { acao: 'testar', empresa_id, erp_id }` (genérico, não mais só Omie; botão desabilitado até salvar). Remover fallback `omie-config-get`. |
-| `CredenciaisTab.tsx` | **Excluir** — arquivo legado sem referências externas. |
-| `SincronizacaoTab.tsx` | Leitura: `integracao_get_sync_configs({ p_modulo: null, p_entidade: null, p_tenant_id, p_empresa_id })` (passar `null` em módulo/entidade carrega tudo de uma vez) + `integracao_listar_logs({ p_tenant_id, p_empresa_id, p_limite: 500 })` para `lastLogs`. <br>Escrita: `integracao_upsert_sync_config({ p_modulo, p_entidade, p_ativo, p_intervalo_minutos, ... })` para ativar/pausar/intervalo. Reset cursor: `integracao_resetar_cursor({ p_entidade })`. <br>Execução: `supabase.functions.invoke('sync-entidade', { body: { entidade, modulo, tenant_id, empresa_id, ...(modulo==='movimentos' && { data_inicio, data_fim }) } })`. <br>Mapear campos do novo schema: `last_sync_at` → `ultimo_sync_em`, `last_omie_id/page` → `cursor_state` (jsonb). Datas `data_inicio`/`data_fim` continuam por `cursor_state` ou param dedicado se aceito pela RPC; caso não, manter local-only no body do `sync-entidade`. |
-| `StatusBar.tsx` | Substituir as 4 queries por: `integracao_get_credenciais({ p_erp_provedor_id: null })` (deriva `ativo` = existe conexão ativa) + `integracao_resumo_sync_hoje({ p_tenant_id, p_empresa_id })` (fornece `ultimo_sync_em`, `total_erro`, `registros_inseridos_hoje + registros_atualizados_hoje`) + `integracao_get_sync_configs(...)` para contar `activeCount` de entidades ativas. Trocar rótulo "Omie" fixo para nome do provedor da conexão ativa (prop opcional `nomeProvedor`). |
-| `LogsPanel.tsx` | `mw.from('sync_log')` → `supabase.rpc('integracao_listar_logs', { p_tenant_id, p_empresa_id, p_entidade, p_status, p_erp_provedor_id: sistemaOrigem ?? null, p_limite: PAGE_SIZE, p_offset: (page-1)*PAGE_SIZE })`. Para contagem total, fazer chamada extra com `p_limite: 1, p_offset: 0` e contar via segunda chamada com `p_limite: 10000` **ou** assumir paginação "se vier `PAGE_SIZE`, há próxima" (simpler). Renomear campos exibidos: `executed_at`→`criado_em`, `records_*`→`registros_*`, `error_message`→`mensagem_erro`, `duration_ms`→`duracao_ms`. Filtros `from`/`to` ficam client-side em cima dos resultados (RPC não expõe). |
-| `FilasPanel.tsx` | `mw.from(table)` → `supabase.rpc('integracao_listar_fila', { p_tenant_id, p_empresa_id, p_direcao: tab==='sync_queue' ? 'entrada' : 'retorno', p_status: null, p_limite: 100 })`. Contagens por status: 4 chamadas em paralelo com `p_status` específico. Remover ações de "Reprocessar"/"Descartar" (sem RPC de escrita exposta) — manter botões apenas se confirmar; por ora, deixar visíveis e desabilitados com tooltip "Ação indisponível". Mapear campos: `retry_count`→`tentativas`, `error_message`→`mensagem_erro`, `created_at`→`criado_em`. Tabela passa a mostrar `id_externo` em vez de `omie_id`/`omie_numero`. |
+| Rota | Arquivo | Estado atual | Ação |
+|---|---|---|---|
+| `/atividades/hus` | `src/pages/HUsPage.tsx` | `useCrud` (já server-side + debounce interno) | **Nada a fazer** — validar apenas |
+| `/atividades/entradas` | `src/pages/EntradasPage.tsx` | `useState/useEffect`, `range()`, sem debounce, sem React Query | Migrar |
+| `/atividades/saidas` | `src/pages/SaidasPage.tsx` | idem | Migrar |
+| `/atividades/movimentos` | `src/pages/MovimentoEntradaPage.tsx` | Já migrado | — |
+| `/atividades/abastecimento` | `src/pages/AbastecimentoPage.tsx` | `useState/useEffect`, **sem paginação** | Migrar + adicionar paginação server-side |
+| `/atividades/mov-saida` | `src/pages/MovimentoSaidaPage.tsx` | Já migrado | — |
+| `/atividades/volumes` | `src/pages/VolumesPage.tsx` | `useCrud` | **Nada a fazer** |
+| `/atividades/embarque` | (não existe arquivo) | rota órfã no menu | Fora de escopo |
+| `/atividades/inventario` | `src/pages/InventarioPage.tsx` | `useState/useEffect`, `range()`, sem debounce, sem React Query | Migrar |
+| `/atividades/ocorrencias` | `src/pages/OcorrenciasOperacionaisPage.tsx` | idem | Migrar |
 
-### 1.2 Modal de importação ad-hoc (`src/components/erp/`)
-| Arquivo | Mudança |
-|---|---|
-| `ImportarDoERPModal.tsx` | • Remover `pollProcessar` e as RPCs `middleware_*`. <br>• `produto`: `invoke('sync-entidade', { body: { entidade:'produtos', modulo:'cadastros', tenant_id, empresa_id, filtro: isNumeric(valor) ? { codigo_produto: Number(valor) } : { codigo: valor.trim() } } })`. Resposta unitária: usa `data.id_interno`, `data.descricao`, `data.inserido` para preencher `registro`. <br>• `parceiro`: idem com `entidade:'parceiros'`, `filtro: { codigo_cliente_omie: Number(valor) }`. <br>• `nota_entrada`: agora **1 chamada só** `entidade:'notas_entrada'`, `filtro: chave.length===44 ? { chave_nfe: v } : { numero_nota: v }`. Remover lógica de fallback `sync-recebimentos` → `sync-notas-entrada`. <br>• `pedido_saida`: `entidade:'pedidos_saida'`, `filtro: { numero_pedido: v }`. <br>• `grupo_produto`: `entidade:'grupo_produto'`, `filtro: { codigo: String(v) }`. Já usa `codigo_erp` (ok). <br>• Trocar literais "ERP Omie" por "ERP". |
-| `ImportarNfeChaveModal.tsx` | `sync-recebimentos` → `sync-entidade { entidade:'notas_entrada', modulo:'cadastros', filtro:{ chave_nfe } }`. |
-| `ImportarPedidoSaidaModal.tsx` | `sync-pedidos-saida` → `sync-entidade { entidade:'pedidos_saida', modulo:'cadastros', filtro:{ numero_pedido } }`. |
-
-### 1.3 Colunas renomeadas (`*erp` → `codigo_erp`)
-| Arquivo | Mudança |
-|---|---|
-| `src/pages/TiposEntradaPage.tsx` | `coderp` → `codigo_erp` (coluna e form). |
-| `src/pages/TiposSaidaPage.tsx` | `caderp` → `codigo_erp`. |
-| `src/pages/UsuariosPage.tsx` | `cod_erp` → `codigo_erp`. |
-| `src/hooks/useCrud.ts` | linha 130: `"coderp"` → `"codigo_erp"`. |
-| `src/integrations/supabase/types.ts` | Renomear `coderp`/`caderp`/`cod_erp`/`codigo_erp_omie`/`codigo_erp_produto` → `codigo_erp`. Remover tipos das tabelas/RPCs apagadas (schema `middleware`, `omie_config`, RPCs `middleware_*`). Remover colunas removidas de `documento_saida` (`id_externo`, `sistema_origem`, `status_integracao`, `sincronizado_em`, `erro_integracao`, `tentativas_processamento`, `prioridade_externa`) e `documento_saida_item` (`sistema_origem`, `status_mapeamento`). Edição manual (será sobrescrita na próxima regeneração). |
-
-### 1.4 Edge functions deste repo (`supabase/functions/`)
-| Arquivo | Mudança |
-|---|---|
-| `create-usuario/index.ts` | `cod_erp` → `codigo_erp` (linhas 70 e 162). |
-| `support-create-usuario/index.ts` | `cod_erp` → `codigo_erp` (linhas 23 e 76). |
-| `omie-config-get/` | **Excluir** (`rm -rf` + `supabase--delete_edge_functions`). |
-| `omie-config-save/` | **Excluir**. |
-| `omie-test-connection/` | **Excluir**. |
-| `salvar-erp-credenciais/` | **Excluir**. |
-
-As funções `sync-*`, `webhook-receber-pedido-saida`, `erp-conexao`, `sync-entidade` e `webhook-receber` vivem no backend remoto e não estão neste repositório — nada a fazer localmente para elas.
+Total a refatorar: **5 arquivos** (`EntradasPage`, `SaidasPage`, `AbastecimentoPage`, `InventarioPage`, `OcorrenciasOperacionaisPage`).
 
 ---
 
-## 2. Detalhes técnicos
+## Padrão de refatoração (aplicado a cada página)
 
-### 2.1 Tipo da nova `EntidadeDef`
+### 1. Imports
 ```ts
-interface EntidadeDef {
-  id: string;
-  label: string;
-  sincronizavel: boolean; // controla disponibilidade do botão "Executar"
-}
+import { useQuery } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/useDebounce";
 ```
 
-### 2.2 Padrão de execução
+### 2. Debounce de filtros de texto
+Para cada `filterX` que é input de texto/numérico:
 ```ts
-supabase.functions.invoke('sync-entidade', {
-  body: { entidade, modulo, tenant_id, empresa_id, ...(filtro && { filtro }) }
-})
+const debouncedX = useDebounce(filterX, 400);
 ```
-- Sem `filtro` → modo lote (paginado).
-- Com `filtro` → modo unitário (resposta síncrona com `id_interno`, `descricao`, `inserido`).
+Selects/datas continuam sem debounce (já são eventos discretos).
 
-### 2.3 Mapeamento de cursor e datas
-- `last_omie_id`/`last_omie_page` → `cursor_state` (jsonb retornado por `integracao_get_sync_configs`).
-- Reset → `integracao_resetar_cursor({ p_entidade })`.
-- Datas `data_inicio`/`data_fim` da aba Movimentos: passar no body da execução `sync-entidade`. O CRUD desses filtros segue persistindo via `integracao_upsert_sync_config` se aceito; caso a RPC não tenha esses params, mantemos somente no estado local.
+### 3. Reset de página
+```ts
+useEffect(() => { setPage(1); }, [debouncedX, ..., filterStatus, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
+```
 
-### 2.4 LogsPanel — paginação
-A RPC `integracao_listar_logs` aceita `p_limite`/`p_offset`. Como não há `count`, vamos:
-- Pedir `PAGE_SIZE + 1` por página; se vierem `PAGE_SIZE+1`, há próxima.
-- Remover o "total de registros" do rodapé (substituir por "Página N").
+### 4. Query principal
+```ts
+const listQuery = useQuery({
+  queryKey: ["<pagina>-list", tenantId, empresaId, armazemId, /* filtros debouncados + selects */, page],
+  queryFn: async () => {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const q = (supabase as any).from("<tabela_ou_view>")
+      .select("<cols>", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .eq("empresa_id", empresaId)
+      // .ilike/.eq para cada filtro debouncado
+      .order("<col>", { ascending: false })
+      .range(from, to);
+    const { data, error, count } = await q;
+    if (error) throw error;
+    return { rows: data || [], count: count || 0 };
+  },
+  enabled: !!tenantId && !!empresaId,
+  staleTime: 30_000,
+});
+
+const rows = listQuery.data?.rows ?? [];
+const total = listQuery.data?.count ?? 0;
+const loading = listQuery.isLoading;
+const totalPages = Math.ceil(total / pageSize);
+```
+
+### 5. Queries auxiliares (lookups)
+Listas como `armazens`, `boxes`, `motivos`, `tiposTarefa` viram `useQuery` separados com `staleTime: 5 * 60_000`, mantendo a mesma forma de consumo.
+
+### 6. Mutations / refresh manual
+Botão "Atualizar" e callbacks pós-ação chamam `listQuery.refetch()` (e dependentes), substituindo as chamadas diretas a `fetchData()`.
 
 ---
 
-## 3. Validação
+## Detalhes por arquivo
 
-1. Build TypeScript limpo após renomeações.
-2. `/config/integracao` — galeria carrega cards sem erro.
-3. `/config/integracao/omie` — abas Credenciais (salvar/testar), Sincronização (executar/ativar/pausar/intervalo/reset), Logs (filtros + paginação), Filas (entrada/retorno + contadores) funcionais.
-4. Páginas Tipos de Entrada/Saída/Usuários — coluna `codigo_erp` funciona em listagem, busca e formulário.
-5. Modais "Importar do ERP" — busca pontual + confirmação para Produtos, Parceiros, Doc. Entrada, Doc. Saída e Grupos.
+### `EntradasPage.tsx`
+- Filtros debouncados: nenhum input texto hoje; manter como está se não houver.
+- Lookups (`box`, `armazem`) → `useQuery` com `staleTime` longo.
+- Substituir `fetchData`/`useEffect` por `listQuery`.
+- Após gerar movimento (`handleGerarMovimento`), chamar `listQuery.refetch()`.
+
+### `SaidasPage.tsx`
+- Mesmo tratamento; lookup de `armazem` em `useQuery`.
+- Pós-RPC `gerar_movimento_saida` → `refetch()`.
+
+### `AbastecimentoPage.tsx`
+- **Adicionar paginação server-side** que hoje não existe (`page`, `pageSize=20`, `range`, `count: "exact"`), mantendo a mesma tabela visualmente (já é compacta — adicionar rodapé padrão idêntico ao de Inventário/Ocorrências).
+- Lookup `armazens` em `useQuery`.
+- Filtros de data continuam discretos (sem debounce).
+- Pós-geração (`gerar_abastecimento`) → `refetch()`.
+
+> Obs.: a adição do rodapé de paginação é necessária para suportar `range()`; segue o mesmo componente visual já presente em `InventarioPage` e `MovimentoEntradaPage`, então não introduz novo padrão de UI.
+
+### `InventarioPage.tsx`
+- Inputs texto (se houver `filterTexto`/busca) → debounce; selects sem debounce.
+- `listQuery` + lookups (`tipos_inventario`, etc.) em `useQuery`.
+- Pós-criação de inventário → `refetch()`.
+
+### `OcorrenciasOperacionaisPage.tsx`
+- Inputs texto (busca livre, se houver) → debounce.
+- Filtros `filterStatus`, `filterEtapa`, `filterPrioridade` entram no `queryKey` sem debounce.
+- Lookups (`motivos`, `usuarios`) → `useQuery`.
+- Após ações de mudança de status/atribuição → `refetch()`.
 
 ---
 
-## 4. Riscos
-- `types.ts` editado à mão fica fora de sincronia até nova regeneração (combinado com o usuário).
-- O LogsPanel perde o totalizador exato (mostrará "Página N" apenas) — ajuste consciente, sem perda funcional.
+## Não-escopo
+
+- Nenhuma mudança em colunas, ordem, labels, estilos, modais ou comportamento de scroll/sticky.
+- Não tocar em `MovimentoEntradaPage`, `MovimentoSaidaPage`, `HUsPage`, `VolumesPage`.
+- Não criar página de Embarque (rota órfã — tratar em outra demanda).
+- Não criar RPCs novas; usar `from().select(...{count:'exact'}).range(...)`. Caso uma RPC `listar_*` já exista para alguma tabela, usá-la (a confirmar por arquivo no momento da implementação).
+
+---
+
+## Validação
+
+1. Build TypeScript limpo.
+2. Em cada página: digitar nos filtros não dispara request a cada tecla (verificável via Network); 400 ms após parar, dispara um único request.
+3. Paginação reseta para 1 ao mudar filtros.
+4. Trocar empresa via switch global refaz todas as queries.
+5. Visual idêntico ao atual (comparar lado a lado).
+6. Ações (gerar movimento, gerar abastecimento, criar inventário, atualizar ocorrência) refletem na lista imediatamente via `refetch`.
+
+---
+
+## Riscos
+
+- `AbastecimentoPage` ganha rodapé de paginação onde antes carregava tudo de uma vez. Comportamento muda apenas no sentido de **passar a paginar** — necessário confirmar se isso é aceitável (o pedido é "nenhuma mudança de comportamento da UI", mas sem paginação não há como aplicar server-side aqui). **Alternativa:** manter `pageSize: 1000` em uma única página para preservar o "carrega tudo", apenas envelopando em `useQuery`. Decisão padrão deste plano: **paginação real (20/página)**, igual às demais.
