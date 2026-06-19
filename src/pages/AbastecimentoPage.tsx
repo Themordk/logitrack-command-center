@@ -243,8 +243,17 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
               ))}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
+            <span className="text-xs text-muted-foreground">{total} abastecimento{total === 1 ? "" : "s"}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
+              <span className="text-xs text-muted-foreground px-2">{page} / {totalPages}</span>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronRight size={14} /></button>
+            </div>
+          </div>
         </div>
       )}
+
 
       {/* Armazem Selection Modal */}
       <Dialog open={armazemModalOpen} onOpenChange={setArmazemModalOpen}>
