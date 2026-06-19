@@ -657,20 +657,13 @@ export type Database = {
           codigo_erp: string | null
           data_emissao: string
           empresa_id: string
-          erro_integracao: string | null
           id: string
-          id_externo: string | null
           numero_pedido: number
           observacao: string | null
           parceiro_id: string
-          prioridade_externa: string | null
           rota_id: string | null
-          sincronizado_em: string | null
-          sistema_origem: string | null
           status: number
-          status_integracao: string
           tenant_id: string
-          tentativas_processamento: number
           tipo_pedido_id: string
           transportador: string | null
           valor_pedido: number
@@ -680,20 +673,13 @@ export type Database = {
           codigo_erp?: string | null
           data_emissao: string
           empresa_id: string
-          erro_integracao?: string | null
           id?: string
-          id_externo?: string | null
           numero_pedido: number
           observacao?: string | null
           parceiro_id: string
-          prioridade_externa?: string | null
           rota_id?: string | null
-          sincronizado_em?: string | null
-          sistema_origem?: string | null
           status: number
-          status_integracao?: string
           tenant_id: string
-          tentativas_processamento?: number
           tipo_pedido_id: string
           transportador?: string | null
           valor_pedido: number
@@ -703,20 +689,13 @@ export type Database = {
           codigo_erp?: string | null
           data_emissao?: string
           empresa_id?: string
-          erro_integracao?: string | null
           id?: string
-          id_externo?: string | null
           numero_pedido?: number
           observacao?: string | null
           parceiro_id?: string
-          prioridade_externa?: string | null
           rota_id?: string | null
-          sincronizado_em?: string | null
-          sistema_origem?: string | null
           status?: number
-          status_integracao?: string
           tenant_id?: string
-          tentativas_processamento?: number
           tipo_pedido_id?: string
           transportador?: string | null
           valor_pedido?: number
@@ -769,37 +748,31 @@ export type Database = {
       }
       documento_saida_item: {
         Row: {
-          codigo_erp_produto: string | null
+          codigo_erp: string | null
           documento_saida_id: string
           id: string
           produto_id: string
           quantidade: number
-          sistema_origem: string | null
-          status_mapeamento: string
           tenant_id: string
           valor_total: number
           valor_unit: number
         }
         Insert: {
-          codigo_erp_produto?: string | null
+          codigo_erp?: string | null
           documento_saida_id: string
           id?: string
           produto_id: string
           quantidade: number
-          sistema_origem?: string | null
-          status_mapeamento?: string
           tenant_id: string
           valor_total: number
           valor_unit: number
         }
         Update: {
-          codigo_erp_produto?: string | null
+          codigo_erp?: string | null
           documento_saida_id?: string
           id?: string
           produto_id?: string
           quantidade?: number
-          sistema_origem?: string | null
-          status_mapeamento?: string
           tenant_id?: string
           valor_total?: number
           valor_unit?: number
@@ -1494,140 +1467,6 @@ export type Database = {
           },
           {
             foreignKeyName: "hu_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "vw_tenant_resumo"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      integracao_config: {
-        Row: {
-          armazem_id: string | null
-          banco: string | null
-          created_at: string
-          empresa_id: string | null
-          host: string | null
-          id: string
-          senha_criptografada: string | null
-          sistema: string | null
-          tenant_id: string
-          tipo_banco: string | null
-          updated_at: string
-          usuario_bd: string | null
-          webhook_ativo: boolean
-          webhook_descricao: string | null
-          webhook_secret: string | null
-        }
-        Insert: {
-          armazem_id?: string | null
-          banco?: string | null
-          created_at?: string
-          empresa_id?: string | null
-          host?: string | null
-          id?: string
-          senha_criptografada?: string | null
-          sistema?: string | null
-          tenant_id: string
-          tipo_banco?: string | null
-          updated_at?: string
-          usuario_bd?: string | null
-          webhook_ativo?: boolean
-          webhook_descricao?: string | null
-          webhook_secret?: string | null
-        }
-        Update: {
-          armazem_id?: string | null
-          banco?: string | null
-          created_at?: string
-          empresa_id?: string | null
-          host?: string | null
-          id?: string
-          senha_criptografada?: string | null
-          sistema?: string | null
-          tenant_id?: string
-          tipo_banco?: string | null
-          updated_at?: string
-          usuario_bd?: string | null
-          webhook_ativo?: boolean
-          webhook_descricao?: string | null
-          webhook_secret?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "integracao_config_armazem_id_fkey"
-            columns: ["armazem_id"]
-            isOneToOne: false
-            referencedRelation: "armazem"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "integracao_config_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenant"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "integracao_config_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "vw_tenant_resumo"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      integracao_objetos: {
-        Row: {
-          armazem_id: string
-          campo_atualizacao: string | null
-          campo_chave: string | null
-          created_at: string
-          id: string
-          objeto_sistema: string
-          tabela_erp: string | null
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          armazem_id: string
-          campo_atualizacao?: string | null
-          campo_chave?: string | null
-          created_at?: string
-          id?: string
-          objeto_sistema: string
-          tabela_erp?: string | null
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          armazem_id?: string
-          campo_atualizacao?: string | null
-          campo_chave?: string | null
-          created_at?: string
-          id?: string
-          objeto_sistema?: string
-          tabela_erp?: string | null
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "integracao_objetos_armazem_id_fkey"
-            columns: ["armazem_id"]
-            isOneToOne: false
-            referencedRelation: "armazem"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "integracao_objetos_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenant"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "integracao_objetos_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
@@ -3227,7 +3066,6 @@ export type Database = {
           cidade: string
           cnpj: string
           codigo_erp: string | null
-          codigo_erp_omie: string | null
           dias_shelf: number | null
           empresa_id: string
           endereco: string
@@ -3244,7 +3082,6 @@ export type Database = {
           cidade: string
           cnpj: string
           codigo_erp?: string | null
-          codigo_erp_omie?: string | null
           dias_shelf?: number | null
           empresa_id: string
           endereco: string
@@ -3261,7 +3098,6 @@ export type Database = {
           cidade?: string
           cnpj?: string
           codigo_erp?: string | null
-          codigo_erp_omie?: string | null
           dias_shelf?: number | null
           empresa_id?: string
           endereco?: string
@@ -4637,7 +4473,7 @@ export type Database = {
       tipo_entrada: {
         Row: {
           ativo: boolean
-          coderp: string | null
+          codigo_erp: string | null
           descricao: string
           empresa_id: string
           id: string
@@ -4645,7 +4481,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          coderp?: string | null
+          codigo_erp?: string | null
           descricao: string
           empresa_id: string
           id?: string
@@ -4653,7 +4489,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          coderp?: string | null
+          codigo_erp?: string | null
           descricao?: string
           empresa_id?: string
           id?: string
@@ -4748,7 +4584,7 @@ export type Database = {
       tipo_saida: {
         Row: {
           ativo: boolean
-          caderp: string | null
+          codigo_erp: string | null
           conferencia_checkout: boolean
           descricao: string
           empresa_id: string
@@ -4758,7 +4594,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          caderp?: string | null
+          codigo_erp?: string | null
           conferencia_checkout?: boolean
           descricao: string
           empresa_id: string
@@ -4768,7 +4604,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          caderp?: string | null
+          codigo_erp?: string | null
           conferencia_checkout?: boolean
           descricao?: string
           empresa_id?: string
@@ -4914,7 +4750,7 @@ export type Database = {
           armazem_id: string | null
           ativo: boolean
           auth_user_id: string | null
-          cod_erp: string | null
+          codigo_erp: string | null
           created_at: string
           deve_trocar_senha: boolean
           email: string | null
@@ -4933,7 +4769,7 @@ export type Database = {
           armazem_id?: string | null
           ativo?: boolean
           auth_user_id?: string | null
-          cod_erp?: string | null
+          codigo_erp?: string | null
           created_at?: string
           deve_trocar_senha?: boolean
           email?: string | null
@@ -4952,7 +4788,7 @@ export type Database = {
           armazem_id?: string | null
           ativo?: boolean
           auth_user_id?: string | null
-          cod_erp?: string | null
+          codigo_erp?: string | null
           created_at?: string
           deve_trocar_senha?: boolean
           email?: string | null
@@ -7051,6 +6887,354 @@ export type Database = {
       get_my_tenant_id: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
       hu_padrao: { Args: never; Returns: string }
+      integracao_atualizar_teste: {
+        Args: {
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_erro?: string
+          p_tenant_id: string
+          p_teste_ok: boolean
+        }
+        Returns: undefined
+      }
+      integracao_get_credenciais: {
+        Args: {
+          p_empresa_id: string
+          p_erp_provedor_id?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          conexao_id: string
+          config_extra: Json
+          credenciais: Json
+          erp_provedor_id: string
+          tipo_integracao: string
+        }[]
+      }
+      integracao_get_id_interno: {
+        Args: {
+          p_empresa_id: string
+          p_entidade: string
+          p_erp_provedor_id?: string
+          p_id_externo: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_get_sync_configs: {
+        Args: {
+          p_empresa_id?: string
+          p_entidade: string
+          p_modulo: string
+          p_tenant_id?: string
+        }
+        Returns: {
+          config_extra: Json
+          config_id: string
+          credenciais: Json
+          cursor_state: Json
+          empresa_id: string
+          erp_provedor_id: string
+          intervalo_minutos: number
+          tenant_id: string
+          ultimo_sync_em: string
+        }[]
+      }
+      integracao_listar_fila: {
+        Args: {
+          p_direcao?: string
+          p_empresa_id: string
+          p_limite?: number
+          p_status?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          criado_em: string
+          entidade: string
+          erp_provedor_id: string
+          id: string
+          id_externo: string
+          max_tentativas: number
+          mensagem_erro: string
+          processado_em: string
+          processar_apos: string
+          status: string
+          tentativas: number
+        }[]
+      }
+      integracao_listar_logs: {
+        Args: {
+          p_empresa_id: string
+          p_entidade?: string
+          p_erp_provedor_id?: string
+          p_limite?: number
+          p_offset?: number
+          p_status?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          criado_em: string
+          direcao: string
+          disparado_por: string
+          duracao_ms: number
+          entidade: string
+          erp_provedor_id: string
+          id: string
+          id_chamada: string
+          mensagem_erro: string
+          modulo: string
+          operacao: string
+          registros_atualizados: number
+          registros_buscados: number
+          registros_erro: number
+          registros_inseridos: number
+          status: string
+        }[]
+      }
+      integracao_listar_provedores: {
+        Args: never
+        Returns: {
+          disponivel: boolean
+          esquema_credencial: Json
+          id: string
+          nome: string
+          ordem: number
+          tipo: string
+        }[]
+      }
+      integracao_log_sync: {
+        Args: {
+          p_atualizados?: number
+          p_buscados?: number
+          p_disparado_por?: string
+          p_duracao_ms?: number
+          p_empresa_id: string
+          p_entidade: string
+          p_erp_provedor_id: string
+          p_erros?: number
+          p_id_chamada?: string
+          p_inseridos?: number
+          p_mensagem_erro?: string
+          p_modulo: string
+          p_operacao?: string
+          p_payload_amostra?: Json
+          p_status?: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_resetar_cursor: {
+        Args: { p_empresa_id: string; p_entidade: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      integracao_resolver_webhook: {
+        Args: { p_webhook_secret: string }
+        Returns: {
+          conexao_id: string
+          config_extra: Json
+          credenciais: Json
+          empresa_id: string
+          erp_provedor_id: string
+          tenant_id: string
+        }[]
+      }
+      integracao_resumo_sync_hoje: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          registros_atualizados_hoje: number
+          registros_erro_hoje: number
+          registros_inseridos_hoje: number
+          total_erro: number
+          total_parcial: number
+          total_sucesso: number
+          total_syncs: number
+          ultima_entidade: string
+          ultimo_status: string
+          ultimo_sync_em: string
+        }[]
+      }
+      integracao_salvar_conexao: {
+        Args: {
+          p_ativo?: boolean
+          p_config_extra?: Json
+          p_credenciais: Json
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_tenant_id: string
+          p_tipo_integracao?: string
+          p_usuario_id?: string
+        }
+        Returns: string
+      }
+      integracao_save_cursor: {
+        Args: {
+          p_concluido?: boolean
+          p_cursor: Json
+          p_empresa_id: string
+          p_entidade: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
+      integracao_upsert_documento_entrada: {
+        Args: {
+          p_chave_nfe: string
+          p_codigo_erp: string
+          p_data_emissao: string
+          p_data_entrada: string
+          p_empresa_id: string
+          p_numero_nota: string
+          p_parceiro_id: string
+          p_qtd_volume: number
+          p_status: number
+          p_tenant_id: string
+          p_tipo_entrada_id: string
+          p_valor_total_nota: number
+          p_valor_total_prod: number
+        }
+        Returns: string
+      }
+      integracao_upsert_documento_entrada_item: {
+        Args: {
+          p_documento_entrada_id: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+          p_valor_total: number
+          p_valor_unidade: number
+        }
+        Returns: string
+      }
+      integracao_upsert_documento_saida: {
+        Args: {
+          p_codigo_erp: string
+          p_data_emissao: string
+          p_empresa_id: string
+          p_numero_pedido: number
+          p_observacao: string
+          p_parceiro_id: string
+          p_rota_id: string
+          p_status: number
+          p_tenant_id: string
+          p_tipo_pedido_id: string
+          p_transportador: string
+          p_valor_pedido: number
+        }
+        Returns: string
+      }
+      integracao_upsert_documento_saida_item: {
+        Args: {
+          p_documento_saida_id: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+          p_valor_total: number
+          p_valor_unit: number
+        }
+        Returns: string
+      }
+      integracao_upsert_embalagem: {
+        Args: {
+          p_altura: number
+          p_ativo: boolean
+          p_codigo_erp: string
+          p_comprimento: number
+          p_ean: string
+          p_embalagem: string
+          p_empresa_id: string
+          p_fator: number
+          p_largura: number
+          p_peso_bruto: number
+          p_peso_liq: number
+          p_produto_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_upsert_grupo_produto: {
+        Args: {
+          p_ativo?: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_upsert_id_map: {
+        Args: {
+          p_codigo_externo?: string
+          p_empresa_id: string
+          p_entidade: string
+          p_erp_provedor_id: string
+          p_id_externo: string
+          p_id_interno: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
+      integracao_upsert_parceiro: {
+        Args: {
+          p_ativo: boolean
+          p_bairro: string
+          p_cep: string
+          p_cidade: string
+          p_cnpj: string
+          p_codigo_erp: string
+          p_complemento: string
+          p_email: string
+          p_empresa_id: string
+          p_endereco: string
+          p_estado: string
+          p_nome_fantasia: string
+          p_numero: string
+          p_razao_social: string
+          p_rota_id?: string
+          p_telefone: string
+          p_tenant_id: string
+          p_tipo_parceiro: string
+        }
+        Returns: string
+      }
+      integracao_upsert_produto: {
+        Args: {
+          p_ativo: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_grupo_id?: string
+          p_marca: string
+          p_parceiro_id: string
+          p_peso_variavel: boolean
+          p_preco_custo: number
+          p_referencia: string
+          p_sku: string
+          p_tenant_id: string
+          p_tipo_controle: string
+          p_tipo_separacao: string
+          p_usa_picking: boolean
+          p_varios_pickings: boolean
+        }
+        Returns: {
+          inserido: boolean
+          produto_id: string
+        }[]
+      }
+      integracao_upsert_sync_config: {
+        Args: {
+          p_ativo?: boolean
+          p_cursor_state?: Json
+          p_direcao?: string
+          p_empresa_id: string
+          p_entidade: string
+          p_erp_conexao_id?: string
+          p_estrategia?: string
+          p_intervalo_minutos?: number
+          p_modulo: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       is_platform_support: {
         Args: { p_auth_user_id: string }
         Returns: boolean
@@ -7132,270 +7316,6 @@ export type Database = {
           total_registros: number
           total_separado: number
           veiculo_placa: string
-        }[]
-      }
-      middleware_consultar_parceiro_omie: {
-        Args: {
-          p_codigo_cliente_omie?: number
-          p_codigo_integracao?: string
-          p_empresa_id: string
-          p_tenant_id: string
-        }
-        Returns: number
-      }
-      middleware_consultar_produto_omie: {
-        Args: {
-          p_codigo?: string
-          p_codigo_produto?: number
-          p_empresa_id: string
-          p_tenant_id: string
-        }
-        Returns: number
-      }
-      middleware_get_sync_configs: {
-        Args: {
-          p_empresa_id?: string
-          p_entidade: string
-          p_modulo: string
-          p_tenant_id?: string
-        }
-        Returns: {
-          app_key: string
-          app_secret: string
-          config_id: string
-          data_fim: string
-          data_inicio: string
-          empresa_id: string
-          interval_minutes: number
-          last_omie_id: number
-          last_omie_page: number
-          last_sync_at: string
-          omie_base_url: string
-          tenant_id: string
-        }[]
-      }
-      middleware_get_wms_id: {
-        Args: {
-          p_empresa_id: string
-          p_entidade: string
-          p_omie_id: string
-          p_tenant_id: string
-        }
-        Returns: string
-      }
-      middleware_importar_parceiro: {
-        Args: {
-          p_codigo_cliente_omie?: number
-          p_codigo_integracao?: string
-          p_empresa_id: string
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
-      middleware_importar_produto: {
-        Args: {
-          p_codigo?: string
-          p_codigo_produto?: number
-          p_empresa_id: string
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
-      middleware_log_sync: {
-        Args: {
-          p_duration_ms?: number
-          p_empresa_id: string
-          p_entidade: string
-          p_error?: number
-          p_error_msg?: string
-          p_fetched?: number
-          p_inserted?: number
-          p_modulo: string
-          p_payload_sample?: Json
-          p_status: string
-          p_tenant_id: string
-          p_updated?: number
-        }
-        Returns: string
-      }
-      middleware_processar_parceiro_omie: {
-        Args: {
-          p_empresa_id: string
-          p_request_id: number
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
-      middleware_processar_produto_omie: {
-        Args: {
-          p_empresa_id: string
-          p_request_id: number
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
-      middleware_save_last_id: {
-        Args: {
-          p_empresa_id: string
-          p_entidade: string
-          p_last_id: number
-          p_tenant_id: string
-        }
-        Returns: undefined
-      }
-      middleware_save_pagina: {
-        Args: {
-          p_concluido?: boolean
-          p_empresa_id: string
-          p_entidade: string
-          p_pagina: number
-          p_tenant_id: string
-        }
-        Returns: undefined
-      }
-      middleware_upsert_documento_entrada: {
-        Args: {
-          p_chave_nfe: string
-          p_codigo_erp: string
-          p_data_emissao: string
-          p_data_entrada: string
-          p_empresa_id: string
-          p_numero_nota: string
-          p_parceiro_id: string
-          p_qtd_volume: number
-          p_status: number
-          p_tenant_id: string
-          p_tipo_entrada_id: string
-          p_valor_total_nota: number
-          p_valor_total_prod: number
-        }
-        Returns: string
-      }
-      middleware_upsert_documento_entrada_item: {
-        Args: {
-          p_documento_entrada_id: string
-          p_produto_id: string
-          p_quantidade: number
-          p_tenant_id: string
-          p_valor_total: number
-          p_valor_unidade: number
-        }
-        Returns: string
-      }
-      middleware_upsert_documento_saida: {
-        Args: {
-          p_codigo_erp: string
-          p_data_emissao: string
-          p_empresa_id: string
-          p_numero_pedido: number
-          p_observacao: string
-          p_parceiro_id: string
-          p_rota_id: string
-          p_status: number
-          p_tenant_id: string
-          p_tipo_pedido_id: string
-          p_transportador: string
-          p_valor_pedido: number
-        }
-        Returns: string
-      }
-      middleware_upsert_documento_saida_item: {
-        Args: {
-          p_documento_saida_id: string
-          p_produto_id: string
-          p_quantidade: number
-          p_tenant_id: string
-          p_valor_total: number
-          p_valor_unit: number
-        }
-        Returns: string
-      }
-      middleware_upsert_embalagem: {
-        Args: {
-          p_altura: number
-          p_ativo: boolean
-          p_codigo_erp: string
-          p_comprimento: number
-          p_ean: string
-          p_embalagem: string
-          p_empresa_id: string
-          p_fator: number
-          p_largura: number
-          p_peso_bruto: number
-          p_peso_liq: number
-          p_produto_id: string
-          p_tenant_id: string
-        }
-        Returns: string
-      }
-      middleware_upsert_grupo_produto: {
-        Args: {
-          p_ativo: boolean
-          p_cod_int: string
-          p_codigo_erp: string
-          p_descricao: string
-          p_empresa_id: string
-          p_tenant_id: string
-        }
-        Returns: string
-      }
-      middleware_upsert_id_map: {
-        Args: {
-          p_empresa_id: string
-          p_entidade: string
-          p_omie_codigo?: string
-          p_omie_id: string
-          p_tenant_id: string
-          p_wms_id: string
-        }
-        Returns: undefined
-      }
-      middleware_upsert_parceiro: {
-        Args: {
-          p_ativo: boolean
-          p_bairro: string
-          p_cep: string
-          p_cidade: string
-          p_cnpj: string
-          p_codigo_erp: string
-          p_codigo_erp_omie: string
-          p_complemento: string
-          p_email: string
-          p_empresa_id: string
-          p_endereco: string
-          p_estado: string
-          p_nome_fantasia: string
-          p_numero: string
-          p_razao_social: string
-          p_rota_id?: string
-          p_telefone: string
-          p_tenant_id: string
-          p_tipo_parceiro: string
-        }
-        Returns: string
-      }
-      middleware_upsert_produto: {
-        Args: {
-          p_ativo: boolean
-          p_codigo_erp: string
-          p_descricao: string
-          p_empresa_id: string
-          p_grupo_id?: string
-          p_marca: string
-          p_parceiro_id: string
-          p_peso_variavel: boolean
-          p_preco_custo: number
-          p_referencia: string
-          p_sku: string
-          p_tenant_id: string
-          p_tipo_controle: string
-          p_tipo_separacao: string
-          p_usa_picking: boolean
-          p_varios_pickings: boolean
-        }
-        Returns: {
-          inserido: boolean
-          produto_id: string
         }[]
       }
       processar_movimento_estoque: {
