@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/dateTime";
-import { Loader2, ArrowDownToLine, ShieldAlert, Eye, Ban } from "lucide-react";
+import { Loader2, ArrowDownToLine, ShieldAlert, Eye, Ban, ChevronLeft, ChevronRight } from "lucide-react";
+
 
 interface Abastecimento {
   id: string;
