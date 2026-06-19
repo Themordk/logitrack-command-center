@@ -64,58 +64,62 @@ const PAGE_SIZE = 15;
 
 export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   const { tenantId, empresaId } = useTenant();
-  const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<any[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
 
   const [filterStatus, setFilterStatus] = useState("");
   const [filterEtapa, setFilterEtapa] = useState("");
   const [filterPrioridade, setFilterPrioridade] = useState("");
   const [busca, setBusca] = useState("");
+  const debouncedBusca = useDebounce(busca, 400);
 
-  const [kpis, setKpis] = useState({ abertas: 0, investigacao: 0, resolvidasHoje: 0, tempoMedio: 0 });
+  useEffect(() => {
+    setPage(1);
+  }, [tenantId, empresaId, filterStatus, filterEtapa, filterPrioridade, debouncedBusca]);
 
-  const fetchKpis = useCallback(async () => {
-    if (!tenantId) return;
-    let q = (supabase as any)
-      .from("ocorrencia_operacional")
-      .select("status, criado_em, resolvido_em")
-      .eq("tenant_id", tenantId);
-    if (empresaId) q = q.eq("empresa_id", empresaId);
-    const { data, error } = await q.limit(5000);
-    if (error) return;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let abertas = 0, investigacao = 0, resolvidasHoje = 0;
-    let somaH = 0, contH = 0;
-    (data || []).forEach((r: any) => {
-      if (r.status === "ABERTA") abertas++;
-      else if (r.status === "EM_INVESTIGACAO") investigacao++;
-      else if (r.status === "RESOLVIDA") {
-        if (r.resolvido_em) {
-          const dr = new Date(r.resolvido_em);
-          if (dr >= today) resolvidasHoje++;
-          if (r.criado_em) {
-            const dc = new Date(r.criado_em);
-            const h = (dr.getTime() - dc.getTime()) / 3600000;
-            if (h >= 0) { somaH += h; contH++; }
+  const kpisQuery = useQuery({
+    queryKey: ["ocorrencias-kpis", tenantId, empresaId],
+    queryFn: async () => {
+      let q = (supabase as any)
+        .from("ocorrencia_operacional")
+        .select("status, criado_em, resolvido_em")
+        .eq("tenant_id", tenantId);
+      if (empresaId) q = q.eq("empresa_id", empresaId);
+      const { data, error } = await q.limit(5000);
+      if (error) throw error;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let abertas = 0, investigacao = 0, resolvidasHoje = 0;
+      let somaH = 0, contH = 0;
+      (data || []).forEach((r: any) => {
+        if (r.status === "ABERTA") abertas++;
+        else if (r.status === "EM_INVESTIGACAO") investigacao++;
+        else if (r.status === "RESOLVIDA") {
+          if (r.resolvido_em) {
+            const dr = new Date(r.resolvido_em);
+            if (dr >= today) resolvidasHoje++;
+            if (r.criado_em) {
+              const dc = new Date(r.criado_em);
+              const h = (dr.getTime() - dc.getTime()) / 3600000;
+              if (h >= 0) { somaH += h; contH++; }
+            }
           }
         }
-      }
-    });
-    setKpis({
-      abertas,
-      investigacao,
-      resolvidasHoje,
-      tempoMedio: contH > 0 ? Math.round((somaH / contH) * 10) / 10 : 0,
-    });
-  }, [tenantId, empresaId]);
+      });
+      return {
+        abertas,
+        investigacao,
+        resolvidasHoje,
+        tempoMedio: contH > 0 ? Math.round((somaH / contH) * 10) / 10 : 0,
+      };
+    },
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  });
+  const kpis = kpisQuery.data ?? { abertas: 0, investigacao: 0, resolvidasHoje: 0, tempoMedio: 0 };
 
-  const fetchRows = useCallback(async () => {
-    if (!tenantId) return;
-    setLoading(true);
-    try {
+  const listQuery = useQuery({
+    queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade],
+    queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       let q = (supabase as any)
@@ -135,28 +139,30 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       if (filterPrioridade) q = q.eq("prioridade", filterPrioridade);
       const { data, error, count } = await q;
       if (error) throw error;
-      setRows(data || []);
-      setTotal(count || 0);
-    } catch (err: any) {
-      toast.error(err.message || "Falha ao carregar ocorrências.");
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade]);
+      return { rows: data || [], count: count || 0 };
+    },
+    enabled: !!tenantId,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => { fetchKpis(); }, [fetchKpis]);
-  useEffect(() => { fetchRows(); }, [fetchRows]);
+  const rows = listQuery.data?.rows ?? [];
+  const total = listQuery.data?.count ?? 0;
+  const loading = listQuery.isLoading;
+
+  useEffect(() => {
+    if (listQuery.error) toast.error((listQuery.error as Error).message || "Falha ao carregar ocorrências.");
+  }, [listQuery.error]);
 
   const filtered = useMemo(() => {
-    const term = busca.trim().toLowerCase();
+    const term = debouncedBusca.trim().toLowerCase();
     if (!term) return rows;
-    return rows.filter((r) => {
+    return rows.filter((r: any) => {
       const n = String(r.numero_ocorrencia ?? "");
       const sku = (r.produto?.sku || "").toLowerCase();
       const desc = (r.produto?.descricao || "").toLowerCase();
       return n.includes(term) || sku.includes(term) || desc.includes(term);
     });
-  }, [rows, busca]);
+  }, [rows, debouncedBusca]);
 
   const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || busca);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -166,9 +172,10 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
     setPage(1);
   };
 
-  const refresh = () => { fetchKpis(); fetchRows(); };
+  const refresh = () => { kpisQuery.refetch(); listQuery.refetch(); };
 
   const inputClass = "h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
+
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
