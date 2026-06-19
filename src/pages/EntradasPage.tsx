@@ -27,11 +27,8 @@ interface DocEntry {
 
 export function EntradasPage() {
   const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
-  const [docs, setDocs] = useState<DocEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const pageSize = 20;
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
@@ -52,13 +49,13 @@ export function EntradasPage() {
   });
   const [generating, setGenerating] = useState(false);
 
-  const fetchDocs = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
+  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
+
+  const listQuery = useQuery({
+    queryKey: ["entradas-pendentes", tenantId, empresaId, armazemId, page],
+    queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-
       let query = (supabase as any)
         .from("documento_entrada")
         .select(
@@ -73,14 +70,9 @@ export function EntradasPage() {
         .eq("status", 0)
         .order("data_emissao", { ascending: false })
         .range(from, to);
-
-      if (armazemId) {
-        query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
-      }
-
+      if (armazemId) query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
       const { data, error, count } = await query;
       if (error) throw error;
-
       const enriched: DocEntry[] = (data || []).map((doc: any) => ({
         id: doc.id,
         numero_nota: doc.numero_nota,
@@ -93,18 +85,21 @@ export function EntradasPage() {
         tipo_entrada_descricao: doc.tipo_entrada?.descricao || "—",
         total_skus: doc.itens?.[0]?.count ?? 0,
       }));
+      return { rows: enriched, count: count || 0 };
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 30_000,
+  });
 
-      setDocs(enriched);
-      setTotal(count || 0);
-    } catch (err: any) {
-      toast.error(`Erro: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [tenantId, empresaId, armazemId, page]);
+  const docs = listQuery.data?.rows ?? [];
+  const total = listQuery.data?.count ?? 0;
+  const loading = listQuery.isLoading;
+  const fetchDocs = useCallback(() => { listQuery.refetch(); }, [listQuery]);
 
-  useEffect(() => { fetchDocs(); }, [fetchDocs]);
-  useEffect(() => { setPage(1); }, [empresaId, armazemId]);
+  useEffect(() => {
+    if (listQuery.error) toast.error(`Erro: ${(listQuery.error as Error).message}`);
+  }, [listQuery.error]);
+
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
