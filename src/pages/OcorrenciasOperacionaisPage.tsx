@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import {
   AlertTriangle, ShieldAlert, CheckCircle2, Clock, RefreshCw, Filter, Search,
@@ -8,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
+
 
 interface Props {
   onNavigate: (path: string) => void;
