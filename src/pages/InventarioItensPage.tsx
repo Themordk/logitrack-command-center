@@ -63,6 +63,21 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
   const [fApto, setFApto] = useState("");
   const [fNaoContados, setFNaoContados] = useState("");
   const [fDivergentes, setFDivergentes] = useState("");
+  const [fStatus, setFStatus] = useState("");
+
+  // Sort
+  const [sortKey, setSortKey] = useState<string>("sku");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  };
 
   const fetchItens = useCallback(async () => {
     if (!tenantId || !inventarioId) return;
