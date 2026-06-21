@@ -359,6 +359,37 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
           </div>
         )}
       </div>
+
+      <AlertDialog open={zerarOpen} onOpenChange={(o) => !zerando && setZerarOpen(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zerar itens não contados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Em qual contagem os itens ainda não contados devem ser registrados com quantidade <strong>0</strong>?
+              Os filtros atuais (SKU, Rua, Prédio, Nível, Apto) serão aplicados à seleção.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel disabled={zerando}>Cancelar</AlertDialogCancel>
+            <button
+              disabled={zerando}
+              onClick={() => handleZerar(1)}
+              className="h-10 px-4 rounded-md border border-border bg-secondary text-sm font-medium hover:bg-secondary/80 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {zerando && <Loader2 size={14} className="animate-spin" />}
+              1ª Contagem
+            </button>
+            <button
+              disabled={zerando}
+              onClick={() => handleZerar(2)}
+              className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {zerando && <Loader2 size={14} className="animate-spin" />}
+              2ª Contagem
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
