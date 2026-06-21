@@ -38,10 +38,11 @@ interface ItemResumo {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  PENDENTE: "bg-muted text-muted-foreground border-border",
-  CONTADO: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  ATRIBUIDA: "bg-muted text-muted-foreground border-border",
+  EM_ANDAMENTO: "bg-blue-500/15 text-blue-400 border-blue-500/30",
   DIVERGENTE: "bg-red-500/15 text-red-400 border-red-500/30",
-  CONFERIDO: "bg-green-500/15 text-green-400 border-green-500/30",
+  CONCLUIDA: "bg-green-500/15 text-green-400 border-green-500/30",
+  AUDITADA: "bg-green-500/15 text-green-400 border-green-500/30",
 };
 
 export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario }: Props) {
@@ -121,7 +122,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
         .select("id, id_local_origem, status, produto_id, produto:produto_id(sku)")
         .eq("tenant_id", tenantId)
         .eq("id_documento_origem", inventarioId)
-        .eq("status", contagem === 1 ? "PENDENTE" : "CONTADO");
+        .eq("status", contagem === 1 ? "ATRIBUIDA" : "EM_ANDAMENTO");
 
       if (fRua) {/* filtrado client-side abaixo via endereco */}
       // Filtros de endereço aplicados via join: refazemos via id_local_origem -> endereco
@@ -296,12 +297,12 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.nivel ?? "—"}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.apto ?? "—"}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.quantidade_requerida ?? "—"}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.status === "PENDENTE" ? "—" : (item.primeira_contagem ?? "—")}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{(item.status === "PENDENTE" || item.status === "CONTADO") ? "—" : (item.segunda_contagem ?? "—")}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.status !== "CONFERIDO" ? "—" : (item.saldo_final ?? "—")}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.status === "ATRIBUIDA" ? "—" : (item.primeira_contagem ?? "—")}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{(item.status === "ATRIBUIDA" || item.status === "EM_ANDAMENTO") ? "—" : (item.segunda_contagem ?? "—")}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{(item.status !== "CONCLUIDA" && item.status !== "AUDITADA") ? "—" : (item.saldo_final ?? "—")}</td>
                         <td className="px-3 py-2 text-sm text-right">
                           <span className={cn(Number(item.divergência || 0) !== 0 ? "text-red-400 font-semibold" : "text-muted-foreground")}>
-                            {(item.status === "PENDENTE" || item.status === "CONTADO") ? "—" : (item.divergência ?? "—")}
+                            {(item.status === "ATRIBUIDA" || item.status === "EM_ANDAMENTO") ? "—" : (item.divergência ?? "—")}
                           </span>
                         </td>
                         <td className="px-3 py-2">
