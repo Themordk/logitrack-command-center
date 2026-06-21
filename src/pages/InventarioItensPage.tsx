@@ -122,7 +122,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
         .select("id, id_local_origem, status, produto_id, produto:produto_id(sku)")
         .eq("tenant_id", tenantId)
         .eq("id_documento_origem", inventarioId)
-        .eq("status", contagem === 1 ? "PENDENTE" : "CONTADO");
+        .eq("status", contagem === 1 ? "ATRIBUIDA" : "EM_ANDAMENTO");
 
       if (fRua) {/* filtrado client-side abaixo via endereco */}
       // Filtros de endereço aplicados via join: refazemos via id_local_origem -> endereco
