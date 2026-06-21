@@ -45,7 +45,9 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario }: Props) {
-  const { tenantId } = useTenant();
+  const { tenantId, usuarioId } = useTenant();
+  const [zerarOpen, setZerarOpen] = useState(false);
+  const [zerando, setZerando] = useState(false);
   const [itens, setItens] = useState<ItemResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
