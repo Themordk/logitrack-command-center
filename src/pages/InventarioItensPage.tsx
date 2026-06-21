@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft, Eye, Eraser } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft, Eye, Eraser, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -63,6 +63,21 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
   const [fApto, setFApto] = useState("");
   const [fNaoContados, setFNaoContados] = useState("");
   const [fDivergentes, setFDivergentes] = useState("");
+  const [fStatus, setFStatus] = useState("");
+
+  // Sort
+  const [sortKey, setSortKey] = useState<string>("sku");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setPage(1);
+  };
 
   const fetchItens = useCallback(async () => {
     if (!tenantId || !inventarioId) return;
@@ -88,9 +103,19 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
       if (fNaoContados === "2") query = query.is("segunda_contagem", null);
       if (fNaoContados === "saldo") query = query.is("saldo_final", null);
 
-      // Filter by divergentes
-      if (fDivergentes === "SIM") query = query.gt("divergência", 0);
-      if (fDivergentes === "NAO") query = query.eq("divergência", 0);
+      // Filter by divergentes (col name has cedilla → quote in or())
+      if (fDivergentes === "SIM") {
+        query = query.or('status.eq.DIVERGENTE,"divergência".gt.0');
+      }
+      if (fDivergentes === "NAO") {
+        query = query.in("status", ["CONCLUIDA", "AUDITADA"]).or('"divergência".eq.0,"divergência".is.null');
+      }
+
+      // Status filter
+      if (fStatus) query = query.eq("status", fStatus);
+
+      // Sort
+      query = query.order(sortKey, { ascending: sortDir === "asc", nullsFirst: false });
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -101,7 +126,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
     } finally {
       setLoading(false);
     }
-  }, [tenantId, inventarioId, page, fSku, fRua, fPredio, fNivel, fApto, fNaoContados, fDivergentes]);
+  }, [tenantId, inventarioId, page, fSku, fRua, fPredio, fNivel, fApto, fNaoContados, fDivergentes, fStatus, sortKey, sortDir]);
 
   useEffect(() => { fetchItens(); }, [fetchItens]);
 
@@ -242,6 +267,17 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
             <option value="NAO">Não</option>
           </select>
         </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status</label>
+          <select value={fStatus} onChange={e => setFStatus(e.target.value)} className={cn(inputClass, "w-40")}>
+            <option value="">Todos</option>
+            <option value="ATRIBUIDA">Atribuída (não contado)</option>
+            <option value="EM_ANDAMENTO">Em andamento</option>
+            <option value="DIVERGENTE">Divergente</option>
+            <option value="CONCLUIDA">Concluída</option>
+            <option value="AUDITADA">Auditada</option>
+          </select>
+        </div>
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
         </button>
@@ -266,19 +302,36 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
               <table className="w-full">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-border bg-secondary/30">
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">SKU</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Referência</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Descrição</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Rua</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Prédio</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Nível</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Apto</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Qtd Requerida</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">1ª Contagem</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">2ª Contagem</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Saldo Final</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Divergência</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                    {([
+                      { key: "sku", label: "SKU", align: "left" },
+                      { key: "referencia", label: "Referência", align: "left" },
+                      { key: "descricao", label: "Descrição", align: "left" },
+                      { key: "rua", label: "Rua", align: "right" },
+                      { key: "predio", label: "Prédio", align: "right" },
+                      { key: "nivel", label: "Nível", align: "right" },
+                      { key: "apto", label: "Apto", align: "right" },
+                      { key: "quantidade_requerida", label: "Qtd Requerida", align: "right" },
+                      { key: "primeira_contagem", label: "1ª Contagem", align: "right" },
+                      { key: "segunda_contagem", label: "2ª Contagem", align: "right" },
+                      { key: "saldo_final", label: "Saldo Final", align: "right" },
+                      { key: "divergência", label: "Divergência", align: "right" },
+                      { key: "status", label: "Status", align: "left" },
+                    ] as const).map(col => {
+                      const active = sortKey === col.key;
+                      const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+                      return (
+                        <th key={col.key} className={cn("px-3 py-3 text-xs font-semibold text-muted-foreground uppercase", col.align === "right" ? "text-right" : "text-left")}>
+                          <button
+                            type="button"
+                            onClick={() => toggleSort(col.key)}
+                            className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors", col.align === "right" && "flex-row-reverse", active && "text-primary")}
+                          >
+                            <span>{col.label}</span>
+                            <Icon size={11} />
+                          </button>
+                        </th>
+                      );
+                    })}
                     <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Ações</th>
                   </tr>
                 </thead>
