@@ -1,145 +1,54 @@
 ## Objetivo
 
-Replicar nas demais páginas do menu **Atividades** o padrão de data-fetching já aplicado em `MovimentoEntradaPage.tsx` e `MovimentoSaidaPage.tsx`:
+Em `/atividades/inventario/:id/itens` (`src/pages/InventarioItensPage.tsx`):
+1. Adicionar botão **"Zerar não contados"** com modal de seleção da contagem (1ª ou 2ª) e execução em massa via RPC `fn_inventario_registrar_contagem`.
+2. Corrigir exibição das colunas de contagem para **não mostrar `0`** em itens ainda não contados (a coluna `quantidade_executada` da `tarefa` tem default `0 NOT NULL`, então o `?? "—"` atual nunca dispara).
 
-- `useQuery` (React Query) substituindo `useState + useEffect + fetchX`.
-- `useDebounce` (400 ms) em todos os filtros de texto/numéricos digitáveis.
-- Paginação **server-side** com `range()` + `count: "exact"` (ou via RPC quando já existir).
-- `queryKey` incluindo todos os filtros + página, com `staleTime: 30_000` e `enabled: !!tenantId && !!empresaId`.
-- `setPage(1)` em `useEffect` reagindo aos filtros debouncados.
+## Mudanças
 
-**Sem alterações visuais, de layout ou de comportamento de UI.** Mesmas colunas, mesmos modais, mesmos botões, mesmos estados de loading/empty.
+### 1. Exibição das colunas (sem mudança visual — só lógica de fallback)
 
----
+Usar o `status` da tarefa como sinal de "ainda não contado":
 
-## Escopo — rotas do menu Atividades
+| Coluna | Mostrar `—` quando |
+|---|---|
+| `primeira_contagem` | `status === "PENDENTE"` |
+| `segunda_contagem`  | `status in ("PENDENTE", "CONTADO")` |
+| `saldo_final`       | `status !== "CONFERIDO"` |
+| `divergência`       | `status in ("PENDENTE", "CONTADO")` |
 
-| Rota | Arquivo | Estado atual | Ação |
-|---|---|---|---|
-| `/atividades/hus` | `src/pages/HUsPage.tsx` | `useCrud` (já server-side + debounce interno) | **Nada a fazer** — validar apenas |
-| `/atividades/entradas` | `src/pages/EntradasPage.tsx` | `useState/useEffect`, `range()`, sem debounce, sem React Query | Migrar |
-| `/atividades/saidas` | `src/pages/SaidasPage.tsx` | idem | Migrar |
-| `/atividades/movimentos` | `src/pages/MovimentoEntradaPage.tsx` | Já migrado | — |
-| `/atividades/abastecimento` | `src/pages/AbastecimentoPage.tsx` | `useState/useEffect`, **sem paginação** | Migrar + adicionar paginação server-side |
-| `/atividades/mov-saida` | `src/pages/MovimentoSaidaPage.tsx` | Já migrado | — |
-| `/atividades/volumes` | `src/pages/VolumesPage.tsx` | `useCrud` | **Nada a fazer** |
-| `/atividades/embarque` | (não existe arquivo) | rota órfã no menu | Fora de escopo |
-| `/atividades/inventario` | `src/pages/InventarioPage.tsx` | `useState/useEffect`, `range()`, sem debounce, sem React Query | Migrar |
-| `/atividades/ocorrencias` | `src/pages/OcorrenciasOperacionaisPage.tsx` | idem | Migrar |
+Implementado inline no `map` da tabela.
 
-Total a refatorar: **5 arquivos** (`EntradasPage`, `SaidasPage`, `AbastecimentoPage`, `InventarioPage`, `OcorrenciasOperacionaisPage`).
+### 2. Botão "Zerar não contados"
 
----
+- Posicionado na barra de filtros, alinhado à direita do botão "Filtrar", padrão visual igual (`h-8 px-3 rounded-md`, variante `outline`/`secondary` para diferenciar da ação primária; ícone `Eraser` do lucide).
+- Ao clicar, abre `AlertDialog` (shadcn) com:
+  - Título: "Zerar itens não contados"
+  - Descrição explicando o efeito
+  - Dois botões de seleção: **1ª Contagem** e **2ª Contagem**
+  - Botão **Cancelar**
 
-## Padrão de refatoração (aplicado a cada página)
+### 3. Execução
 
-### 1. Imports
-```ts
-import { useQuery } from "@tanstack/react-query";
-import { useDebounce } from "@/hooks/useDebounce";
-```
+Ao confirmar a contagem escolhida (`C`):
 
-### 2. Debounce de filtros de texto
-Para cada `filterX` que é input de texto/numérico:
-```ts
-const debouncedX = useDebounce(filterX, 400);
-```
-Selects/datas continuam sem debounce (já são eventos discretos).
+1. Buscar do `tarefa` (não da view) todos os registros do inventário **escopados pelo mesmo conjunto de filtros já aplicados na tela** (SKU/rua/prédio/nível/apto), filtrando:
+   - `C = 1` → `status = 'PENDENTE'`
+   - `C = 2` → `status = 'CONTADO'`
+   - Campos: `id`, `id_local_origem` (= `endereco_origem_id`)
+2. Para cada tarefa, chamar `supabase.rpc("fn_inventario_registrar_contagem", { p_tenant_id, p_tarefa_id, p_usuario, p_contagem: C, p_quantidade: 0, p_endereco_origem_id })`.
+3. Executar em lotes (ex.: `Promise.all` em chunks de 10) com `toast` de progresso e resumo final (sucesso / falhas).
+4. Ao final, `refetch` da query da página e fechar o modal.
 
-### 3. Reset de página
-```ts
-useEffect(() => { setPage(1); }, [debouncedX, ..., filterStatus, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
-```
+`p_usuario` vem do contexto atual (mesmo padrão usado nas demais páginas — `useTenant`/perfil). Demais parâmetros opcionais (`p_lote`, `p_validade`, `p_fabricacao`, `p_hu`) ficam `undefined`.
 
-### 4. Query principal
-```ts
-const listQuery = useQuery({
-  queryKey: ["<pagina>-list", tenantId, empresaId, armazemId, /* filtros debouncados + selects */, page],
-  queryFn: async () => {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    const q = (supabase as any).from("<tabela_ou_view>")
-      .select("<cols>", { count: "exact" })
-      .eq("tenant_id", tenantId)
-      .eq("empresa_id", empresaId)
-      // .ilike/.eq para cada filtro debouncado
-      .order("<col>", { ascending: false })
-      .range(from, to);
-    const { data, error, count } = await q;
-    if (error) throw error;
-    return { rows: data || [], count: count || 0 };
-  },
-  enabled: !!tenantId && !!empresaId,
-  staleTime: 30_000,
-});
+### Detalhes técnicos
 
-const rows = listQuery.data?.rows ?? [];
-const total = listQuery.data?.count ?? 0;
-const loading = listQuery.isLoading;
-const totalPages = Math.ceil(total / pageSize);
-```
+- Sem mudança de UI/layout além do botão novo e do modal padrão `AlertDialog`.
+- Sem novas RPCs no backend — usa `fn_inventario_registrar_contagem` existente.
+- Sem mudanças na view `inventario_item_resumo`; o ajuste de "—" é puramente client-side usando `item.status`.
+- Necessário expor `status` (já está na interface `ItemResumo`) e garantir que `tarefa.id_local_origem` corresponde ao `endereco_origem_id` esperado pela RPC (confirmado pela definição da view).
 
-### 5. Queries auxiliares (lookups)
-Listas como `armazens`, `boxes`, `motivos`, `tiposTarefa` viram `useQuery` separados com `staleTime: 5 * 60_000`, mantendo a mesma forma de consumo.
+## Arquivos afetados
 
-### 6. Mutations / refresh manual
-Botão "Atualizar" e callbacks pós-ação chamam `listQuery.refetch()` (e dependentes), substituindo as chamadas diretas a `fetchData()`.
-
----
-
-## Detalhes por arquivo
-
-### `EntradasPage.tsx`
-- Filtros debouncados: nenhum input texto hoje; manter como está se não houver.
-- Lookups (`box`, `armazem`) → `useQuery` com `staleTime` longo.
-- Substituir `fetchData`/`useEffect` por `listQuery`.
-- Após gerar movimento (`handleGerarMovimento`), chamar `listQuery.refetch()`.
-
-### `SaidasPage.tsx`
-- Mesmo tratamento; lookup de `armazem` em `useQuery`.
-- Pós-RPC `gerar_movimento_saida` → `refetch()`.
-
-### `AbastecimentoPage.tsx`
-- **Adicionar paginação server-side** que hoje não existe (`page`, `pageSize=20`, `range`, `count: "exact"`), mantendo a mesma tabela visualmente (já é compacta — adicionar rodapé padrão idêntico ao de Inventário/Ocorrências).
-- Lookup `armazens` em `useQuery`.
-- Filtros de data continuam discretos (sem debounce).
-- Pós-geração (`gerar_abastecimento`) → `refetch()`.
-
-> Obs.: a adição do rodapé de paginação é necessária para suportar `range()`; segue o mesmo componente visual já presente em `InventarioPage` e `MovimentoEntradaPage`, então não introduz novo padrão de UI.
-
-### `InventarioPage.tsx`
-- Inputs texto (se houver `filterTexto`/busca) → debounce; selects sem debounce.
-- `listQuery` + lookups (`tipos_inventario`, etc.) em `useQuery`.
-- Pós-criação de inventário → `refetch()`.
-
-### `OcorrenciasOperacionaisPage.tsx`
-- Inputs texto (busca livre, se houver) → debounce.
-- Filtros `filterStatus`, `filterEtapa`, `filterPrioridade` entram no `queryKey` sem debounce.
-- Lookups (`motivos`, `usuarios`) → `useQuery`.
-- Após ações de mudança de status/atribuição → `refetch()`.
-
----
-
-## Não-escopo
-
-- Nenhuma mudança em colunas, ordem, labels, estilos, modais ou comportamento de scroll/sticky.
-- Não tocar em `MovimentoEntradaPage`, `MovimentoSaidaPage`, `HUsPage`, `VolumesPage`.
-- Não criar página de Embarque (rota órfã — tratar em outra demanda).
-- Não criar RPCs novas; usar `from().select(...{count:'exact'}).range(...)`. Caso uma RPC `listar_*` já exista para alguma tabela, usá-la (a confirmar por arquivo no momento da implementação).
-
----
-
-## Validação
-
-1. Build TypeScript limpo.
-2. Em cada página: digitar nos filtros não dispara request a cada tecla (verificável via Network); 400 ms após parar, dispara um único request.
-3. Paginação reseta para 1 ao mudar filtros.
-4. Trocar empresa via switch global refaz todas as queries.
-5. Visual idêntico ao atual (comparar lado a lado).
-6. Ações (gerar movimento, gerar abastecimento, criar inventário, atualizar ocorrência) refletem na lista imediatamente via `refetch`.
-
----
-
-## Riscos
-
-- `AbastecimentoPage` ganha rodapé de paginação onde antes carregava tudo de uma vez. Comportamento muda apenas no sentido de **passar a paginar** — necessário confirmar se isso é aceitável (o pedido é "nenhuma mudança de comportamento da UI", mas sem paginação não há como aplicar server-side aqui). **Alternativa:** manter `pageSize: 1000` em uma única página para preservar o "carrega tudo", apenas envelopando em `useQuery`. Decisão padrão deste plano: **paginação real (20/página)**, igual às demais.
+- `src/pages/InventarioItensPage.tsx` (único arquivo)
