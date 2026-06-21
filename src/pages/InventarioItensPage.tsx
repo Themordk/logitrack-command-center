@@ -244,6 +244,12 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
         </button>
+        <button
+          onClick={() => setZerarOpen(true)}
+          className="h-8 px-3 rounded-md border border-border bg-secondary/40 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-1"
+        >
+          <Eraser size={12} /> Zerar não contados
+        </button>
       </div>
 
       {/* Table */}
