@@ -302,19 +302,36 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
               <table className="w-full">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-border bg-secondary/30">
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">SKU</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Referência</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Descrição</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Rua</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Prédio</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Nível</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Apto</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Qtd Requerida</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">1ª Contagem</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">2ª Contagem</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Saldo Final</th>
-                    <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Divergência</th>
-                    <th className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                    {([
+                      { key: "sku", label: "SKU", align: "left" },
+                      { key: "referencia", label: "Referência", align: "left" },
+                      { key: "descricao", label: "Descrição", align: "left" },
+                      { key: "rua", label: "Rua", align: "right" },
+                      { key: "predio", label: "Prédio", align: "right" },
+                      { key: "nivel", label: "Nível", align: "right" },
+                      { key: "apto", label: "Apto", align: "right" },
+                      { key: "quantidade_requerida", label: "Qtd Requerida", align: "right" },
+                      { key: "primeira_contagem", label: "1ª Contagem", align: "right" },
+                      { key: "segunda_contagem", label: "2ª Contagem", align: "right" },
+                      { key: "saldo_final", label: "Saldo Final", align: "right" },
+                      { key: "divergência", label: "Divergência", align: "right" },
+                      { key: "status", label: "Status", align: "left" },
+                    ] as const).map(col => {
+                      const active = sortKey === col.key;
+                      const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+                      return (
+                        <th key={col.key} className={cn("px-3 py-3 text-xs font-semibold text-muted-foreground uppercase", col.align === "right" ? "text-right" : "text-left")}>
+                          <button
+                            type="button"
+                            onClick={() => toggleSort(col.key)}
+                            className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors", col.align === "right" && "flex-row-reverse", active && "text-primary")}
+                          >
+                            <span>{col.label}</span>
+                            <Icon size={11} />
+                          </button>
+                        </th>
+                      );
+                    })}
                     <th className="px-3 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Ações</th>
                   </tr>
                 </thead>
