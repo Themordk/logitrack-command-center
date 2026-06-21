@@ -2,8 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft, Eye } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft, Eye, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 interface Props {
   onNavigate: (path: string) => void;
