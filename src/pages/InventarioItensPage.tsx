@@ -133,7 +133,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
       if (fSku) {
         lista = lista.filter((t: any) => (t.produto?.sku || "").toLowerCase().includes(fSku.toLowerCase()));
       }
-      if (fPredio || fNivel || fApto) {
+      if (fRua || fPredio || fNivel || fApto) {
         const ids = Array.from(new Set(lista.map((t: any) => t.id_local_origem).filter(Boolean)));
         if (ids.length > 0) {
           const { data: ends } = await (supabase as any)
@@ -144,6 +144,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
           lista = lista.filter((t: any) => {
             const e: any = byId.get(t.id_local_origem);
             if (!e) return false;
+            if (fRua && Number(e.rua) !== Number(fRua)) return false;
             if (fPredio && Number(e.predio) !== Number(fPredio)) return false;
             if (fNivel && Number(e.nivel) !== Number(fNivel)) return false;
             if (fApto && Number(e.apto) !== Number(fApto)) return false;
