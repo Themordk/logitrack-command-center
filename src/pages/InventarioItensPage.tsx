@@ -38,10 +38,11 @@ interface ItemResumo {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  PENDENTE: "bg-muted text-muted-foreground border-border",
-  CONTADO: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  ATRIBUIDA: "bg-muted text-muted-foreground border-border",
+  EM_ANDAMENTO: "bg-blue-500/15 text-blue-400 border-blue-500/30",
   DIVERGENTE: "bg-red-500/15 text-red-400 border-red-500/30",
-  CONFERIDO: "bg-green-500/15 text-green-400 border-green-500/30",
+  CONCLUIDA: "bg-green-500/15 text-green-400 border-green-500/30",
+  AUDITADA: "bg-green-500/15 text-green-400 border-green-500/30",
 };
 
 export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario }: Props) {
