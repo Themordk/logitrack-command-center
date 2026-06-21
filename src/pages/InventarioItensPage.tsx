@@ -103,9 +103,19 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
       if (fNaoContados === "2") query = query.is("segunda_contagem", null);
       if (fNaoContados === "saldo") query = query.is("saldo_final", null);
 
-      // Filter by divergentes
-      if (fDivergentes === "SIM") query = query.gt("divergência", 0);
-      if (fDivergentes === "NAO") query = query.eq("divergência", 0);
+      // Filter by divergentes (col name has cedilla → quote in or())
+      if (fDivergentes === "SIM") {
+        query = query.or('status.eq.DIVERGENTE,"divergência".gt.0');
+      }
+      if (fDivergentes === "NAO") {
+        query = query.in("status", ["CONCLUIDA", "AUDITADA"]).or('"divergência".eq.0,"divergência".is.null');
+      }
+
+      // Status filter
+      if (fStatus) query = query.eq("status", fStatus);
+
+      // Sort
+      query = query.order(sortKey, { ascending: sortDir === "asc", nullsFirst: false });
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -116,7 +126,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
     } finally {
       setLoading(false);
     }
-  }, [tenantId, inventarioId, page, fSku, fRua, fPredio, fNivel, fApto, fNaoContados, fDivergentes]);
+  }, [tenantId, inventarioId, page, fSku, fRua, fPredio, fNivel, fApto, fNaoContados, fDivergentes, fStatus, sortKey, sortDir]);
 
   useEffect(() => { fetchItens(); }, [fetchItens]);
 
