@@ -123,7 +123,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
         .eq("id_documento_origem", inventarioId)
         .eq("status", contagem === 1 ? "PENDENTE" : "CONTADO");
 
-      if (fRua) q = q.eq("rua_origem", Number(fRua));
+      if (fRua) {/* filtrado client-side abaixo via endereco */}
       // Filtros de endereço aplicados via join: refazemos via id_local_origem -> endereco
       const { data: tarefas, error } = await q;
       if (error) throw error;
