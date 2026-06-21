@@ -108,6 +108,89 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
   const totalPages = Math.ceil(total / pageSize);
   const inputClass = "h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 
+  const handleZerar = useCallback(async (contagem: 1 | 2) => {
+    if (!tenantId || !usuarioId || !inventarioId) {
+      toast.error("Sessão inválida.");
+      return;
+    }
+    setZerando(true);
+    try {
+      // Buscar tarefas alvo do inventário com os mesmos filtros visuais
+      let q = (supabase as any)
+        .from("tarefa")
+        .select("id, id_local_origem, status, produto_id, produto:produto_id(sku)")
+        .eq("tenant_id", tenantId)
+        .eq("id_documento_origem", inventarioId)
+        .eq("status", contagem === 1 ? "PENDENTE" : "CONTADO");
+
+      if (fRua) q = q.eq("rua_origem", Number(fRua));
+      // Filtros de endereço aplicados via join: refazemos via id_local_origem -> endereco
+      const { data: tarefas, error } = await q;
+      if (error) throw error;
+
+      // Filtros adicionais client-side (SKU / endereço) — busca endereço/produto se necessário
+      let lista: any[] = tarefas || [];
+      if (fSku) {
+        lista = lista.filter((t: any) => (t.produto?.sku || "").toLowerCase().includes(fSku.toLowerCase()));
+      }
+      if (fPredio || fNivel || fApto) {
+        const ids = Array.from(new Set(lista.map((t: any) => t.id_local_origem).filter(Boolean)));
+        if (ids.length > 0) {
+          const { data: ends } = await (supabase as any)
+            .from("endereco")
+            .select("id, rua, predio, nivel, apto")
+            .in("id", ids);
+          const byId = new Map((ends || []).map((e: any) => [e.id, e]));
+          lista = lista.filter((t: any) => {
+            const e: any = byId.get(t.id_local_origem);
+            if (!e) return false;
+            if (fPredio && Number(e.predio) !== Number(fPredio)) return false;
+            if (fNivel && Number(e.nivel) !== Number(fNivel)) return false;
+            if (fApto && Number(e.apto) !== Number(fApto)) return false;
+            return true;
+          });
+        }
+      }
+
+      if (lista.length === 0) {
+        toast.info("Nenhum item elegível para zerar.");
+        setZerarOpen(false);
+        return;
+      }
+
+      let ok = 0;
+      let fail = 0;
+      const chunk = 10;
+      for (let i = 0; i < lista.length; i += chunk) {
+        const slice = lista.slice(i, i + chunk);
+        const results = await Promise.allSettled(slice.map((t: any) =>
+          (supabase as any).rpc("fn_inventario_registrar_contagem", {
+            p_tenant_id: tenantId,
+            p_tarefa_id: t.id,
+            p_usuario: usuarioId,
+            p_contagem: contagem,
+            p_quantidade: 0,
+            p_endereco_origem_id: t.id_local_origem,
+          })
+        ));
+        results.forEach(r => {
+          if (r.status === "fulfilled" && !(r.value as any)?.error) ok++;
+          else fail++;
+        });
+      }
+
+      if (fail === 0) toast.success(`${ok} ${ok === 1 ? "item zerado" : "itens zerados"} na ${contagem}ª contagem.`);
+      else toast.warning(`${ok} sucesso, ${fail} falha(s).`);
+      setZerarOpen(false);
+      fetchItens();
+    } catch (err: any) {
+      toast.error(err.message || "Falha ao zerar itens.");
+    } finally {
+      setZerando(false);
+    }
+  }, [tenantId, usuarioId, inventarioId, fSku, fRua, fPredio, fNivel, fApto, fetchItens]);
+
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
       {/* Header */}
