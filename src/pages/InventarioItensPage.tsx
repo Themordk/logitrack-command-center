@@ -267,6 +267,17 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
             <option value="NAO">Não</option>
           </select>
         </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status</label>
+          <select value={fStatus} onChange={e => setFStatus(e.target.value)} className={cn(inputClass, "w-40")}>
+            <option value="">Todos</option>
+            <option value="ATRIBUIDA">Atribuída (não contado)</option>
+            <option value="EM_ANDAMENTO">Em andamento</option>
+            <option value="DIVERGENTE">Divergente</option>
+            <option value="CONCLUIDA">Concluída</option>
+            <option value="AUDITADA">Auditada</option>
+          </select>
+        </div>
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
         </button>
