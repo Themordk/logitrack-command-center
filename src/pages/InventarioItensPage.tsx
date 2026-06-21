@@ -297,12 +297,12 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.nivel ?? "—"}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.apto ?? "—"}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.quantidade_requerida ?? "—"}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.status === "PENDENTE" ? "—" : (item.primeira_contagem ?? "—")}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{(item.status === "PENDENTE" || item.status === "CONTADO") ? "—" : (item.segunda_contagem ?? "—")}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.status !== "CONFERIDO" ? "—" : (item.saldo_final ?? "—")}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.status === "ATRIBUIDA" ? "—" : (item.primeira_contagem ?? "—")}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{(item.status === "ATRIBUIDA" || item.status === "EM_ANDAMENTO") ? "—" : (item.segunda_contagem ?? "—")}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground text-right">{(item.status !== "CONCLUIDA" && item.status !== "AUDITADA") ? "—" : (item.saldo_final ?? "—")}</td>
                         <td className="px-3 py-2 text-sm text-right">
                           <span className={cn(Number(item.divergência || 0) !== 0 ? "text-red-400 font-semibold" : "text-muted-foreground")}>
-                            {(item.status === "PENDENTE" || item.status === "CONTADO") ? "—" : (item.divergência ?? "—")}
+                            {(item.status === "ATRIBUIDA" || item.status === "EM_ANDAMENTO") ? "—" : (item.divergência ?? "—")}
                           </span>
                         </td>
                         <td className="px-3 py-2">
