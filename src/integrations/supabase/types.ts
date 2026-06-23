@@ -4593,6 +4593,7 @@ export type Database = {
           empresa_id: string
           id: string
           realiza_conferencia: boolean
+          separa_pulmao: boolean
           tenant_id: string
         }
         Insert: {
@@ -4603,6 +4604,7 @@ export type Database = {
           empresa_id: string
           id?: string
           realiza_conferencia?: boolean
+          separa_pulmao?: boolean
           tenant_id: string
         }
         Update: {
@@ -4613,6 +4615,7 @@ export type Database = {
           empresa_id?: string
           id?: string
           realiza_conferencia?: boolean
+          separa_pulmao?: boolean
           tenant_id?: string
         }
         Relationships: [
