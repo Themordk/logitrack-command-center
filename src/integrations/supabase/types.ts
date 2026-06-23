@@ -6270,6 +6270,7 @@ export type Database = {
           lastro: number | null
           marca: string | null
           parceiro_id: string | null
+          peso_bruto: number | null
           peso_variavel: boolean | null
           preco_custo: number | null
           referencia: string | null
@@ -6305,6 +6306,7 @@ export type Database = {
           lastro?: number | null
           marca?: string | null
           parceiro_id?: string | null
+          peso_bruto?: number | null
           peso_variavel?: boolean | null
           preco_custo?: number | null
           referencia?: string | null
@@ -6340,6 +6342,7 @@ export type Database = {
           lastro?: number | null
           marca?: string | null
           parceiro_id?: string | null
+          peso_bruto?: number | null
           peso_variavel?: boolean | null
           preco_custo?: number | null
           referencia?: string | null
