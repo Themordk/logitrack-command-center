@@ -14,6 +14,7 @@ export interface EstoqueFilter {
   setor_id?: string;
   codigo_endereco?: number;
   marca?: string;
+  apenas_multi_localizacao?: boolean;
 }
 
 const intersect = (a: string[] | null, b: string[]): string[] => {
@@ -173,5 +174,23 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     return b.quantidade_total - a.quantidade_total;
   });
 
-  return results;
+  // Filtro: apenas SKUs com 2+ endereços distintos com saldo > 0
+  let finalResults = results;
+  if (filters.apenas_multi_localizacao) {
+    const skuEnderecos = new Map<string, Set<string>>();
+    for (const r of results) {
+      if (r.quantidade_total > 0 && r.sku) {
+        const key = r.codigo_endereco != null ? String(r.codigo_endereco) : (r.endereco_descricao || "");
+        if (!key) continue;
+        if (!skuEnderecos.has(r.sku)) skuEnderecos.set(r.sku, new Set());
+        skuEnderecos.get(r.sku)!.add(key);
+      }
+    }
+    const skusMulti = new Set(
+      Array.from(skuEnderecos.entries()).filter(([, s]) => s.size >= 2).map(([sku]) => sku),
+    );
+    finalResults = results.filter((r) => skusMulti.has(r.sku));
+  }
+
+  return finalResults;
 }

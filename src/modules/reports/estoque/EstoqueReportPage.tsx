@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
@@ -39,6 +40,7 @@ export function EstoqueReportPage() {
   const [filterGrupoId, setFilterGrupoId] = useState("");
   const [filterSubgrupoId, setFilterSubgrupoId] = useState("");
   const [filterMarca, setFilterMarca] = useState("");
+  const [filterMultiLocalizacao, setFilterMultiLocalizacao] = useState(false);
 
   // Options
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
@@ -107,6 +109,7 @@ export function EstoqueReportPage() {
     setFilterSubgrupoId("");
     setFilterMarca("");
     setFilterCodigoEndereco("");
+    setFilterMultiLocalizacao(false);
   }, [empresaId, empresaVersion]);
 
   // Subgrupo cascata: reset quando grupo muda
@@ -140,6 +143,7 @@ export function EstoqueReportPage() {
         subgrupo_id: filterSubgrupoId || undefined,
         marca: filterMarca || undefined,
         codigo_endereco: Number.isFinite(codigoNum) ? codigoNum : undefined,
+        apenas_multi_localizacao: filterMultiLocalizacao || undefined,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
@@ -163,6 +167,7 @@ export function EstoqueReportPage() {
     setFilterGrupoId("");
     setFilterSubgrupoId("");
     setFilterMarca("");
+    setFilterMultiLocalizacao(false);
   };
 
   const isExpired = (date: string) => {
@@ -218,6 +223,7 @@ export function EstoqueReportPage() {
   if (filterGrupoId) activeFilters["Grupo"] = grupos.find(g => g.id === filterGrupoId)?.descricao || filterGrupoId;
   if (filterSubgrupoId) activeFilters["Subgrupo"] = subgrupos.find(s => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
   if (filterMarca) activeFilters["Marca"] = filterMarca;
+  if (filterMultiLocalizacao) activeFilters["Multi-localização"] = "Sim";
 
   // Export columns (texto puro)
   const exportColumns: ExportColumn[] = [
@@ -360,6 +366,15 @@ export function EstoqueReportPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs">EAN</Label>
                 <Input className="h-8 text-xs" placeholder="Buscar por EAN..." value={filterEan} onChange={e => setFilterEan(e.target.value)} />
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 h-8 cursor-pointer select-none">
+                  <Checkbox
+                    checked={filterMultiLocalizacao}
+                    onCheckedChange={(v) => setFilterMultiLocalizacao(v === true)}
+                  />
+                  <span className="text-xs">Apenas produtos com mais de uma localização</span>
+                </label>
               </div>
             </div>
             <div className="flex items-center gap-2">
