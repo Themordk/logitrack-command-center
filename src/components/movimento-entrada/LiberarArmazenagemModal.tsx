@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, AlertTriangle, Info, Package } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Clock, Package } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -34,19 +34,27 @@ interface DivergenteForm {
   observacao: string;
 }
 
-export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, statusMovimento, onSuccess }: Props) {
+type Step = "resumo" | "ocorrencias" | "vazio";
+
+export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onSuccess }: Props) {
   const { tenantId, usuarioId } = useTenant();
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [liberandoConferidos, setLiberandoConferidos] = useState(false);
+  const [submittingOcorrencias, setSubmittingOcorrencias] = useState(false);
   const [itens, setItens] = useState<Item[]>([]);
   const [motivos, setMotivos] = useState<Motivo[]>([]);
   const [divergentesForm, setDivergentesForm] = useState<Record<string, DivergenteForm>>({});
+  const [step, setStep] = useState<Step>("resumo");
+  const [etapa1Mensagem, setEtapa1Mensagem] = useState<string | null>(null);
+  const [conferidosLiberadosCount, setConferidosLiberadosCount] = useState(0);
 
   useEffect(() => {
     if (!open || !tenantId || !movimentoEntradaId) return;
     let active = true;
     (async () => {
       setLoading(true);
+      setEtapa1Mensagem(null);
+      setConferidosLiberadosCount(0);
       try {
         const [itensRes, motivosRes] = await Promise.all([
           (supabase as any)
@@ -64,15 +72,23 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, sta
         if (!active) return;
         if (itensRes.error) throw itensRes.error;
         if (motivosRes.error) throw motivosRes.error;
-        setItens(itensRes.data || []);
+        const data = (itensRes.data || []) as Item[];
+        setItens(data);
         setMotivos(motivosRes.data || []);
+
         const initialForm: Record<string, DivergenteForm> = {};
-        (itensRes.data || []).forEach((it: Item) => {
+        data.forEach((it) => {
           if (it.status_item_movimento === "DIVERGENTE") {
             initialForm[it.id] = { motivo_ocorrencia_id: "", observacao: "" };
           }
         });
         setDivergentesForm(initialForm);
+
+        const conf = data.filter((i) => i.status_item_movimento === "CONFERIDO").length;
+        const div = data.filter((i) => i.status_item_movimento === "DIVERGENTE").length;
+        if (conf === 0 && div === 0) setStep("vazio");
+        else if (conf === 0 && div > 0) setStep("ocorrencias");
+        else setStep("resumo");
       } catch (err: any) {
         toast.error(err.message || "Falha ao carregar itens");
       } finally {
@@ -90,38 +106,38 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, sta
     return { conferidos, divergentes, pendentes, armazenados };
   }, [itens]);
 
-  const totalLiberar = grupos.conferidos.length + grupos.divergentes.length;
   const algumDivergenteSemMotivo = grupos.divergentes.some(
     (d) => !divergentesForm[d.id]?.motivo_ocorrencia_id,
   );
-  const podeLiberar = totalLiberar > 0 && !algumDivergenteSemMotivo;
-  const modoCompleto = grupos.pendentes.length === 0 && grupos.divergentes.length === 0;
 
-  const handleSubmit = async () => {
+  const handleLiberarConferidos = async () => {
     if (!tenantId || !usuarioId) {
       toast.error("Sessão inválida.");
       return;
     }
-    if (!podeLiberar) return;
-    setSubmitting(true);
+    if (grupos.conferidos.length === 0) return;
+    setLiberandoConferidos(true);
     try {
-      const arrayDivergentes = grupos.divergentes.map((d) => ({
-        item_id: d.id,
-        motivo_ocorrencia_id: divergentesForm[d.id]?.motivo_ocorrencia_id,
-        observacao: divergentesForm[d.id]?.observacao || "",
-      }));
-      const p_modo = modoCompleto ? "TODOS" : "CONFERIDOS";
+      const idsConferidos = grupos.conferidos.map((i) => i.id);
       const { data, error } = await supabase.rpc("liberar_armazenagem" as any, {
         p_movimento_entrada_id: movimentoEntradaId,
         p_tenant_id: tenantId,
         p_usuario_id: usuarioId,
-        p_modo,
-        p_itens_divergentes: JSON.stringify(arrayDivergentes),
+        p_modo: "CONFERIDOS",
+        p_itens_divergentes: [],
+        p_item_ids: idsConferidos,
       });
       if (error) throw error;
       const resultado: any = data || {};
       if (resultado.sucesso === false) {
         toast.error(resultado.mensagem || "Falha ao liberar armazenagem.");
+        return;
+      }
+      if (grupos.divergentes.length > 0) {
+        setEtapa1Mensagem(resultado.mensagem || null);
+        setConferidosLiberadosCount(grupos.conferidos.length);
+        setStep("ocorrencias");
+        toast.success(resultado.mensagem || "Itens conferidos liberados.");
       } else {
         toast.success(resultado.mensagem || "Armazenagem liberada.");
         onSuccess?.();
@@ -130,7 +146,45 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, sta
     } catch (err: any) {
       toast.error(err.message || "Erro ao liberar armazenagem.");
     } finally {
-      setSubmitting(false);
+      setLiberandoConferidos(false);
+    }
+  };
+
+  const handleRegistrarOcorrencias = async () => {
+    if (!tenantId || !usuarioId) {
+      toast.error("Sessão inválida.");
+      return;
+    }
+    if (grupos.divergentes.length === 0 || algumDivergenteSemMotivo) return;
+    setSubmittingOcorrencias(true);
+    try {
+      const idsDivergentes = grupos.divergentes.map((d) => d.id);
+      const ocorrencias = grupos.divergentes.map((d) => ({
+        item_id: d.id,
+        motivo_ocorrencia_id: divergentesForm[d.id].motivo_ocorrencia_id,
+        observacao: divergentesForm[d.id]?.observacao || null,
+      }));
+      const { data, error } = await supabase.rpc("liberar_armazenagem" as any, {
+        p_movimento_entrada_id: movimentoEntradaId,
+        p_tenant_id: tenantId,
+        p_usuario_id: usuarioId,
+        p_modo: "CONFERIDOS",
+        p_itens_divergentes: ocorrencias,
+        p_item_ids: idsDivergentes,
+      });
+      if (error) throw error;
+      const resultado: any = data || {};
+      if (resultado.sucesso === false) {
+        toast.error(resultado.mensagem || "Falha ao registrar ocorrências.");
+        return;
+      }
+      toast.success(resultado.mensagem || "Ocorrências registradas e itens liberados.");
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao registrar ocorrências.");
+    } finally {
+      setSubmittingOcorrencias(false);
     }
   };
 
@@ -147,7 +201,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, sta
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package size={18} className="text-primary" />
-            Liberar armazenagem
+            {step === "ocorrencias" ? "Registrar ocorrências operacionais" : "Liberar armazenagem"}
           </DialogTitle>
         </DialogHeader>
 
@@ -155,32 +209,28 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, sta
           <div className="flex-1 flex items-center justify-center py-12">
             <Loader2 className="animate-spin text-muted-foreground" />
           </div>
-        ) : (
+        ) : step === "vazio" ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-12 gap-3">
+            <Clock size={48} className="text-muted-foreground" />
+            <h3 className="text-base font-semibold text-foreground">Nenhum item conferido para liberação</h3>
+            <p className="text-xs text-muted-foreground max-w-md">
+              Aguarde a conferência dos itens para liberar a armazenagem.
+            </p>
+          </div>
+        ) : step === "resumo" ? (
           <div className="flex-1 overflow-auto space-y-4 pr-1">
-            {/* Bloco 1 - Resumo */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <KpiCard label="Total itens" value={itens.length} tone="neutral" />
-              <KpiCard label="Conferidos ok" value={grupos.conferidos.length} tone="green" />
+              <KpiCard label="Conferidos" value={grupos.conferidos.length} tone="green" />
               <KpiCard label="Divergentes" value={grupos.divergentes.length} tone="red" />
               <KpiCard label="Pendentes" value={grupos.pendentes.length} tone="gray" />
             </div>
 
-            {/* Bloco 2 - Banner modo */}
-            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 flex items-start gap-2">
-              <Info size={16} className="text-blue-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-200">
-                {modoCompleto
-                  ? `Modo completo: todos os ${grupos.conferidos.length} itens conferidos serão liberados para armazenagem.`
-                  : `Modo parcial: ${totalLiberar} item(ns) serão liberados. ${grupos.pendentes.length} item(ns) ainda pendente(s) de conferência.`}
-              </p>
-            </div>
-
-            {/* Bloco 3 - Conferidos OK */}
             {grupos.conferidos.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
                   <CheckCircle2 size={16} className="text-green-400" />
-                  Itens conferidos — prontos para armazenar
+                  Itens conferidos — serão liberados imediatamente
                 </h3>
                 <div className="rounded-lg border border-border overflow-hidden">
                   <table className="w-full text-xs">
@@ -201,7 +251,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, sta
                           <td className="px-3 py-2 text-right font-mono">{it.qtd_esperada}</td>
                           <td className="px-3 py-2 text-right font-mono text-green-400">{it.qtd_conferida}</td>
                           <td className="px-3 py-2">
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] border bg-cyan-500/15 text-cyan-400 border-cyan-500/30">
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] border bg-green-500/15 text-green-400 border-green-500/30">
                               Conferido
                             </span>
                           </td>
@@ -213,103 +263,176 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, sta
               </div>
             )}
 
-            {/* Bloco 4 - Divergentes */}
             {grupos.divergentes.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
                   <AlertTriangle size={16} className="text-red-400" />
-                  Itens divergentes — aprovação do supervisor necessária
+                  Itens divergentes — precisam de registro de ocorrência
                 </h3>
-                <div className="space-y-3">
-                  {grupos.divergentes.map((it) => {
-                    const diff = Number(it.qtd_conferida) - Number(it.qtd_esperada);
-                    const isFalta = diff < 0;
-                    return (
-                      <div key={it.id} className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-mono text-xs text-foreground">{it.produto?.sku ?? "—"}</p>
-                            <p className="text-xs text-muted-foreground truncate">{it.produto?.descricao ?? "—"}</p>
-                          </div>
-                          <span className={cn(
-                            "shrink-0 text-[10px] px-2 py-0.5 rounded-full border",
-                            isFalta
-                              ? "bg-red-500/15 text-red-400 border-red-500/30"
-                              : "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-                          )}>
-                            {isFalta ? `Falta: ${Math.abs(diff)} un.` : `Sobra: ${diff} un.`}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <Field label="Esperada" value={it.qtd_esperada} />
-                          <Field label="Conferida" value={it.qtd_conferida} />
-                          <Field
-                            label="Diferença"
-                            value={diff}
-                            valueClass={diff < 0 ? "text-red-400" : diff > 0 ? "text-yellow-400" : ""}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">
-                            Motivo da ocorrência *
-                          </label>
-                          <select
-                            value={divergentesForm[it.id]?.motivo_ocorrencia_id || ""}
-                            onChange={(e) => updateDivergente(it.id, { motivo_ocorrencia_id: e.target.value })}
-                            className="w-full h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary"
-                          >
-                            <option value="">Selecione o motivo...</option>
-                            {motivos.map((m) => (
-                              <option key={m.id} value={m.id}>{m.descricao}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">
-                            Observação (opcional)
-                          </label>
-                          <textarea
-                            value={divergentesForm[it.id]?.observacao || ""}
-                            onChange={(e) => updateDivergente(it.id, { observacao: e.target.value })}
-                            rows={2}
-                            className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-secondary/40 text-muted-foreground">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-medium">SKU</th>
+                        <th className="text-left px-3 py-2 font-medium">Produto</th>
+                        <th className="text-right px-3 py-2 font-medium">Esperada</th>
+                        <th className="text-right px-3 py-2 font-medium">Conferida</th>
+                        <th className="text-right px-3 py-2 font-medium">Diferença</th>
+                        <th className="text-left px-3 py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupos.divergentes.map((it) => {
+                        const diff = Number(it.qtd_conferida) - Number(it.qtd_esperada);
+                        return (
+                          <tr key={it.id} className="border-t border-border/60">
+                            <td className="px-3 py-2 font-mono text-foreground">{it.produto?.sku ?? "—"}</td>
+                            <td className="px-3 py-2 text-foreground truncate max-w-[240px]">{it.produto?.descricao ?? "—"}</td>
+                            <td className="px-3 py-2 text-right font-mono">{it.qtd_esperada}</td>
+                            <td className="px-3 py-2 text-right font-mono">{it.qtd_conferida}</td>
+                            <td className="px-3 py-2 text-right font-mono text-red-400">{diff}</td>
+                            <td className="px-3 py-2">
+                              <span className="inline-block px-2 py-0.5 rounded-full text-[10px] border bg-red-500/15 text-red-400 border-red-500/30">
+                                Divergente
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
 
-            {/* Bloco 5 - Alerta pendentes */}
             {grupos.pendentes.length > 0 && (
               <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 flex items-start gap-2">
                 <AlertTriangle size={16} className="text-yellow-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-yellow-200">
-                  {grupos.pendentes.length} item(ns) ainda pendente(s) de conferência. Estes não serão liberados agora.
+                  {grupos.pendentes.length} item(ns) ainda pendente(s). Não serão liberados.
                 </p>
               </div>
             )}
           </div>
+        ) : (
+          // step === "ocorrencias"
+          <div className="flex-1 overflow-auto space-y-3 pr-1">
+            <p className="text-xs text-muted-foreground">
+              {conferidosLiberadosCount > 0
+                ? `${conferidosLiberadosCount} item(ns) conferido(s) liberado(s). Registre as ocorrências dos itens abaixo para liberá-los.`
+                : "Registre as ocorrências dos itens abaixo para liberá-los."}
+            </p>
+            {etapa1Mensagem && (
+              <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 flex items-start gap-2">
+                <CheckCircle2 size={16} className="text-green-400 mt-0.5 shrink-0" />
+                <p className="text-xs text-green-200">{etapa1Mensagem}</p>
+              </div>
+            )}
+            {grupos.divergentes.map((it) => {
+              const diff = Number(it.qtd_conferida) - Number(it.qtd_esperada);
+              const isFalta = diff < 0;
+              return (
+                <div key={it.id} className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-foreground">{it.produto?.sku ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{it.produto?.descricao ?? "—"}</p>
+                    </div>
+                    <span className={cn(
+                      "shrink-0 text-[10px] px-2 py-0.5 rounded-full border",
+                      isFalta
+                        ? "bg-red-500/15 text-red-400 border-red-500/30"
+                        : "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+                    )}>
+                      {isFalta ? `Falta: ${Math.abs(diff)} un.` : `Sobra: ${diff} un.`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <Field label="Esperada" value={it.qtd_esperada} />
+                    <Field label="Conferida" value={it.qtd_conferida} />
+                    <Field
+                      label="Diferença"
+                      value={diff}
+                      valueClass={diff < 0 ? "text-red-400" : diff > 0 ? "text-yellow-400" : ""}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">
+                      Motivo da ocorrência *
+                    </label>
+                    <select
+                      value={divergentesForm[it.id]?.motivo_ocorrencia_id || ""}
+                      onChange={(e) => updateDivergente(it.id, { motivo_ocorrencia_id: e.target.value })}
+                      className="w-full h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary"
+                    >
+                      <option value="">Selecione o motivo...</option>
+                      {motivos.map((m) => (
+                        <option key={m.id} value={m.id}>{m.descricao}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">
+                      Observação (opcional)
+                    </label>
+                    <textarea
+                      value={divergentesForm[it.id]?.observacao || ""}
+                      onChange={(e) => updateDivergente(it.id, { observacao: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
 
         <DialogFooter className="shrink-0">
-          <button
-            onClick={onClose}
-            disabled={submitting}
-            className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !podeLiberar || loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {submitting && <Loader2 size={14} className="animate-spin" />}
-            Liberar {totalLiberar} item(ns)
-          </button>
+          {step === "vazio" ? (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Fechar
+            </button>
+          ) : step === "resumo" ? (
+            <>
+              <button
+                onClick={onClose}
+                disabled={liberandoConferidos}
+                className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleLiberarConferidos}
+                disabled={liberandoConferidos || loading || grupos.conferidos.length === 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {liberandoConferidos && <Loader2 size={14} className="animate-spin" />}
+                Liberar {grupos.conferidos.length} item(ns) conferido(s)
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onClose}
+                disabled={submittingOcorrencias}
+                className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRegistrarOcorrencias}
+                disabled={submittingOcorrencias || loading || algumDivergenteSemMotivo}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {submittingOcorrencias && <Loader2 size={14} className="animate-spin" />}
+                Registrar ocorrências e liberar
+              </button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
