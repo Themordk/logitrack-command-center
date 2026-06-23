@@ -64,6 +64,23 @@ function diasAtras(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+function isValidISODate(s: string): boolean {
+  if (!ISO_DATE_RE.test(s)) return false;
+  const d = new Date(s + "T00:00:00");
+  return !isNaN(d.getTime());
+}
+function safeFormatISO(value: string | null | undefined, pattern: string): string {
+  if (!value || !ISO_DATE_RE.test(value)) return "—";
+  try {
+    const d = parseISO(value);
+    if (isNaN(d.getTime())) return "—";
+    return format(d, pattern, { locale: ptBR });
+  } catch {
+    return "—";
+  }
+}
+
 type SortKey =
   | "data_referencia" | "usuario" | "turno" | "tarefas_concluidas"
   | "tarefas_canceladas" | "quantidade_total" | "tempo_produtivo"
