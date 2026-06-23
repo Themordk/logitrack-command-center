@@ -1,13 +1,128 @@
 import { supabase } from "@/integrations/supabase/client";
 
+const sb = supabase as any;
+
 export interface ProdutividadeFilters {
-  armazemId?: string;
-  dataInicio: string;
-  dataFim: string;
-  turnoId?: string;
-  tipoOperacao?: string;
-  habilidade?: string;
+  tenantId: string;
+  empresaId: string | null;
+  armazemId: string | null;
+  dataInicio: string; // ISO date
+  dataFim: string;    // ISO date
+  usuarioId: string | null;
+  turnoId: string | null;
 }
+
+export interface MetricaDiariaRow {
+  id: string;
+  tenant_id: string;
+  empresa_id: string | null;
+  armazem_id: string | null;
+  usuario_id: string;
+  data_referencia: string;
+  turno_id: string | null;
+  tempo_produtivo: number;
+  tempo_ocioso: number;
+  tempo_auxiliar: number;
+  tempo_jornada: number;
+  tarefas_concluidas: number;
+  tarefas_canceladas: number;
+  quantidade_total: number;
+  peso_total: number;
+  documentos_processados: number;
+  skus_distintos: number;
+  taxa_ocupacao: number;
+  produtividade_hora: number;
+  usuario?: { id: string; nome: string } | null;
+  turno?: { descricao: string } | null;
+}
+
+export interface DetalheTipoTarefaRow {
+  id: string;
+  usuario_id: string;
+  data_referencia: string;
+  tipo_tarefa_id: string;
+  tempo_medio_segundos: number;
+  tempo_total_segundos: number;
+  tarefas_concluidas: number;
+  quantidade_total: number;
+  usuario?: { id: string; nome: string } | null;
+  tipo_tarefa?: { codigo: string; descricao: string; tempo_estimado_segundos: number | null } | null;
+}
+
+export async function fetchProdutividadeDiaria(
+  filters: ProdutividadeFilters,
+): Promise<MetricaDiariaRow[]> {
+  let q = sb
+    .from("lms_metrica_diaria")
+    .select(`
+      *,
+      usuario:usuario_id ( id, nome ),
+      turno:turno_id ( descricao )
+    `)
+    .eq("tenant_id", filters.tenantId)
+    .gte("data_referencia", filters.dataInicio)
+    .lte("data_referencia", filters.dataFim)
+    .order("data_referencia", { ascending: false });
+
+  if (filters.empresaId) q = q.eq("empresa_id", filters.empresaId);
+  if (filters.armazemId) q = q.eq("armazem_id", filters.armazemId);
+  if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
+  if (filters.turnoId) q = q.eq("turno_id", filters.turnoId);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []) as MetricaDiariaRow[];
+}
+
+export async function fetchDetalheTipoTarefa(
+  filters: ProdutividadeFilters,
+): Promise<DetalheTipoTarefaRow[]> {
+  let q = sb
+    .from("lms_metrica_tipo_tarefa")
+    .select(`
+      *,
+      usuario:usuario_id ( id, nome ),
+      tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos )
+    `)
+    .eq("tenant_id", filters.tenantId)
+    .gte("data_referencia", filters.dataInicio)
+    .lte("data_referencia", filters.dataFim)
+    .order("data_referencia", { ascending: false });
+
+  if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []) as DetalheTipoTarefaRow[];
+}
+
+export async function fetchOperadores(
+  tenantId: string,
+): Promise<{ id: string; nome: string }[]> {
+  const { data } = await sb
+    .from("usuario")
+    .select("id, nome")
+    .eq("tenant_id", tenantId)
+    .eq("ativo", true)
+    .order("nome");
+  return data || [];
+}
+
+export async function fetchTurnos(
+  tenantId: string,
+): Promise<{ id: string; descricao: string; armazem_id: string | null }[]> {
+  const { data } = await sb
+    .from("turnos")
+    .select("id, descricao, armazem_id")
+    .eq("tenant_id", tenantId)
+    .eq("ativo", true)
+    .order("descricao");
+  return data || [];
+}
+
+// ----------------------------------------------------------------------------
+// Mantido para compatibilidade com ProdutividadeOperadorPage (drill-down).
+// ----------------------------------------------------------------------------
 
 export interface TimelineEntry {
   execucao_id: string;
@@ -26,55 +141,12 @@ export interface TimelineEntry {
   tempo_estimado_segundos: number | null;
 }
 
-export interface OperadorResumo {
-  usuario_id: string;
-  usuario_nome: string;
-  habilidade: string | null;
-  tipo_operacao: string | null;
-  turno_descricao: string | null;
-  turno_inicio: string | null;
-  turno_fim: string | null;
-  tarefas_concluidas: number;
-  tempo_produtivo_segundos: number;
-  quantidade_total: number;
-  produtividade_hora: number;
-  taxa_ocupacao: number;
-}
-
-export interface ProdutividadePorTipo {
-  tipo_tarefa_codigo: string;
-  tipo_tarefa_descricao: string;
-  tarefas_concluidas: number;
-  tempo_medio_segundos: number;
-  tempo_total_segundos: number;
-  quantidade_total: number;
-  tempo_estimado_segundos: number | null;
-}
-
-export async function fetchProdutividadeGeral(filters: ProdutividadeFilters) {
-  const query = (supabase as any)
-    .from("vw_lms_timeline_operador")
-    .select("*")
-    .gte("concluido_em", filters.dataInicio)
-    .lte("concluido_em", filters.dataFim + "T23:59:59");
-
-  if (filters.armazemId) query.eq("armazem_id", filters.armazemId);
-  if (filters.turnoId) query.eq("turno_id", filters.turnoId);
-  if (filters.tipoOperacao) query.eq("tipo_operacao", filters.tipoOperacao);
-  if (filters.habilidade) query.eq("habilidade", filters.habilidade);
-
-  const { data, error } = await query.eq("status", "CONCLUIDA").order("concluido_em", { ascending: true });
-  if (error) throw error;
-
-  return processarDados(data || []);
-}
-
 export async function fetchTimelineOperador(
   usuarioId: string,
   dataInicio: string,
-  dataFim: string
+  dataFim: string,
 ): Promise<TimelineEntry[]> {
-  const { data, error } = await (supabase as any)
+  const { data, error } = await sb
     .from("vw_lms_timeline_operador")
     .select("*")
     .eq("usuario_id", usuarioId)
@@ -102,116 +174,8 @@ export async function fetchTimelineOperador(
   }));
 }
 
-function processarDados(rows: any[]) {
-  // Group by operator
-  const porOperador = new Map<string, any[]>();
-  for (const row of rows) {
-    const uid = row.usuario_id;
-    if (!porOperador.has(uid)) porOperador.set(uid, []);
-    porOperador.get(uid)!.push(row);
-  }
-
-  const operadores: OperadorResumo[] = [];
-  const porTipoMap = new Map<string, { codigo: string; desc: string; count: number; tempoTotal: number; qtdTotal: number; estimado: number | null }>();
-
-  for (const [uid, execucoes] of porOperador) {
-    const first = execucoes[0];
-    let tempoProdutivo = 0;
-    let qtdTotal = 0;
-
-    for (const ex of execucoes) {
-      const dur = Number(ex.duracao_segundos || 0);
-      tempoProdutivo += dur;
-      qtdTotal += Number(ex.quantidade_executada || 0);
-
-      // Aggregate by tipo_tarefa
-      const key = ex.tipo_tarefa_codigo;
-      if (!porTipoMap.has(key)) {
-        porTipoMap.set(key, {
-          codigo: ex.tipo_tarefa_codigo,
-          desc: ex.tipo_tarefa_descricao,
-          count: 0,
-          tempoTotal: 0,
-          qtdTotal: 0,
-          estimado: ex.tempo_estimado_segundos ? Number(ex.tempo_estimado_segundos) : null,
-        });
-      }
-      const t = porTipoMap.get(key)!;
-      t.count++;
-      t.tempoTotal += dur;
-      t.qtdTotal += Number(ex.quantidade_executada || 0);
-    }
-
-    const horasProdutivas = tempoProdutivo / 3600;
-    // Estimate shift duration: 8h if no turno info
-    const turnoInicio = first.turno_inicio;
-    const turnoFim = first.turno_fim;
-    let tempoJornada = 8 * 3600;
-    if (turnoInicio && turnoFim) {
-      const [hi, mi] = turnoInicio.split(":").map(Number);
-      const [hf, mf] = turnoFim.split(":").map(Number);
-      let diff = (hf * 60 + mf) - (hi * 60 + mi);
-      if (diff <= 0) diff += 24 * 60;
-      tempoJornada = diff * 60;
-    }
-
-    operadores.push({
-      usuario_id: uid,
-      usuario_nome: first.usuario_nome,
-      habilidade: first.habilidade,
-      tipo_operacao: first.tipo_operacao,
-      turno_descricao: first.turno_descricao,
-      turno_inicio: first.turno_inicio,
-      turno_fim: first.turno_fim,
-      tarefas_concluidas: execucoes.length,
-      tempo_produtivo_segundos: tempoProdutivo,
-      quantidade_total: qtdTotal,
-      produtividade_hora: horasProdutivas > 0 ? Math.round(qtdTotal / horasProdutivas) : 0,
-      taxa_ocupacao: tempoJornada > 0 ? Math.round((tempoProdutivo / tempoJornada) * 100) : 0,
-    });
-  }
-
-  // Sort by produtividade descending
-  operadores.sort((a, b) => b.produtividade_hora - a.produtividade_hora);
-
-  const porTipo: ProdutividadePorTipo[] = Array.from(porTipoMap.values()).map((t) => ({
-    tipo_tarefa_codigo: t.codigo,
-    tipo_tarefa_descricao: t.desc,
-    tarefas_concluidas: t.count,
-    tempo_medio_segundos: t.count > 0 ? Math.round(t.tempoTotal / t.count) : 0,
-    tempo_total_segundos: t.tempoTotal,
-    quantidade_total: t.qtdTotal,
-    tempo_estimado_segundos: t.estimado,
-  }));
-
-  // KPIs
-  const totalOperadores = operadores.length;
-  const totalTarefas = rows.length;
-  const tempoProdutivoTotal = operadores.reduce((s, o) => s + o.tempo_produtivo_segundos, 0);
-  const qtdTotalGeral = operadores.reduce((s, o) => s + o.quantidade_total, 0);
-  const taxaMediaOcupacao = totalOperadores > 0
-    ? Math.round(operadores.reduce((s, o) => s + o.taxa_ocupacao, 0) / totalOperadores)
-    : 0;
-  const produtividadeMedia = totalOperadores > 0
-    ? Math.round(operadores.reduce((s, o) => s + o.produtividade_hora, 0) / totalOperadores)
-    : 0;
-
-  return {
-    kpis: {
-      totalOperadores,
-      totalTarefas,
-      tempoProdutivoTotal,
-      qtdTotalGeral,
-      taxaMediaOcupacao,
-      produtividadeMedia,
-    },
-    operadores,
-    porTipo,
-  };
-}
-
-// Helpers
 export function formatSegundos(s: number): string {
+  if (!s || s <= 0) return "0h00m";
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   return `${h}h${m.toString().padStart(2, "0")}m`;
