@@ -94,7 +94,7 @@ function ProdutoDetailModal({
           sku: "", descricao: "", referencia: "", marca: "", parceiro_id: "",
           grupo_id: "", subgrupo_id: "", curva_venda: "", curva_acesso: "",
           preco_custo: "", ativo: true, tipo_controle: "", peso_variavel: false,
-          tolerancia: "", dias_shelf: "", shelf_entrada: "", shelf_devolucao: "",
+          tolerancia: "", peso_bruto: "", dias_shelf: "", shelf_entrada: "", shelf_devolucao: "",
           lastro: "", camada: "", fator_caixa: "", usa_picking: true,
           tipo_separacao: "", varios_pickings: false, foto: "",
         });
@@ -164,7 +164,7 @@ function ProdutoDetailModal({
     // Ensure empresa_id
     cleanData.empresa_id = empresaId;
     // Number conversions
-    ["preco_custo", "tolerancia", "dias_shelf", "shelf_entrada", "shelf_devolucao", "lastro", "camada", "fator_caixa"]
+    ["preco_custo", "tolerancia", "peso_bruto", "dias_shelf", "shelf_entrada", "shelf_devolucao", "lastro", "camada", "fator_caixa"]
       .forEach((f) => { cleanData[f] = cleanData[f] ? Number(cleanData[f]) : null; });
     // Null out empty selects
     ["grupo_id", "subgrupo_id", "curva_venda", "curva_acesso"].forEach((f) => {
@@ -341,6 +341,7 @@ function ProdutoDetailModal({
                   <label className="text-sm text-foreground">Peso Variável</label>
                 </div>
                 <div><label className={labelClass}>Tolerância</label><input type="number" step="0.01" value={form.tolerancia ?? ""} onChange={(e) => set("tolerancia", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Peso Bruto (kg)</label><input type="number" step="0.001" value={form.peso_bruto ?? ""} onChange={(e) => set("peso_bruto", e.target.value)} className={inputClass} /></div>
               </div>
             </div>
 
