@@ -164,7 +164,7 @@ function ProdutoDetailModal({
     // Ensure empresa_id
     cleanData.empresa_id = empresaId;
     // Number conversions
-    ["preco_custo", "tolerancia", "dias_shelf", "shelf_entrada", "shelf_devolucao", "lastro", "camada", "fator_caixa"]
+    ["preco_custo", "tolerancia", "peso_bruto", "dias_shelf", "shelf_entrada", "shelf_devolucao", "lastro", "camada", "fator_caixa"]
       .forEach((f) => { cleanData[f] = cleanData[f] ? Number(cleanData[f]) : null; });
     // Null out empty selects
     ["grupo_id", "subgrupo_id", "curva_venda", "curva_acesso"].forEach((f) => {
