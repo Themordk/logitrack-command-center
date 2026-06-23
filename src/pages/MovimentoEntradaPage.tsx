@@ -14,6 +14,7 @@ import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
+import { LiberarErroTransporteModal } from "@/components/movimento-entrada/LiberarErroTransporteModal";
 
 interface MovimentoEntradaListItem {
   id: string;
@@ -162,9 +163,6 @@ export function MovimentoEntradaPage() {
   // Liberar erro transporte modal
   const [showErroModal, setShowErroModal] = useState(false);
   const [erroMovId, setErroMovId] = useState<string | null>(null);
-  const [motivos, setMotivos] = useState<{ id: string; descricao: string }[]>([]);
-  const [selectedMotivo, setSelectedMotivo] = useState("");
-  const [erroSubmitting, setErroSubmitting] = useState(false);
 
   // Liberar armazenagem modal unificado
   const [showLiberarArmazenagem, setShowLiberarArmazenagem] = useState(false);
@@ -445,44 +443,7 @@ export function MovimentoEntradaPage() {
     }
 
     setErroMovId(movId);
-    setSelectedMotivo("");
-    const { data } = await (supabase as any)
-      .from("motivo_ocorrencia")
-      .select("id, descricao")
-      .eq("tenant_id", tenantId)
-      .eq("armazem_id", armazemId)
-      .eq("ativo", true)
-      .order("descricao");
-    setMotivos(data || []);
     setShowErroModal(true);
-  };
-
-  const handleConfirmarErroTransporte = async () => {
-    if (!selectedMotivo || !erroMovId) {
-      toast.error("Selecione um motivo de ocorrência.");
-      return;
-    }
-    setErroSubmitting(true);
-    try {
-      const { error } = await (supabase as any)
-        .from("movimento_entrada")
-        .update({
-          usuario_autorizou: usuarioId,
-          motivo_ocorrencia: selectedMotivo,
-          autorizado_em: new Date().toISOString().split("T")[0],
-          status: "LIBERADO",
-        })
-        .eq("id", erroMovId);
-      if (error) throw error;
-      toast.success("Recebimento liberado com erro no transporte.");
-      setShowErroModal(false);
-      fetchMovements();
-      if (selectedMov === erroMovId) loadDetails(erroMovId, "LIBERADO");
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setErroSubmitting(false);
-    }
   };
 
   const handleMenuAction = (action: string, movId: string, status: string) => {
@@ -919,40 +880,18 @@ export function MovimentoEntradaPage() {
         </div>
       </div>
 
-      {/* Modal Liberar com erro no transporte */}
-      <Dialog open={showErroModal} onOpenChange={setShowErroModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Liberar Recebimento com Erro no Transporte</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Motivo de Ocorrência *</label>
-              <select
-                value={selectedMotivo}
-                onChange={(e) => setSelectedMotivo(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
-              >
-                <option value="">Selecione o motivo...</option>
-                {motivos.map((m) => <option key={m.id} value={m.id}>{m.descricao}</option>)}
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <button onClick={() => setShowErroModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Cancelar
-            </button>
-            <button
-              onClick={handleConfirmarErroTransporte}
-              disabled={erroSubmitting || !selectedMotivo}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {erroSubmitting && <Loader2 size={14} className="animate-spin" />}
-              Confirmar
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal Liberar com erro no transporte (unificado com registro de ocorrência) */}
+      {erroMovId && (
+        <LiberarErroTransporteModal
+          open={showErroModal}
+          onClose={() => setShowErroModal(false)}
+          movimentoEntradaId={erroMovId}
+          onSuccess={() => {
+            fetchMovements();
+            if (selectedMov === erroMovId) loadDetails(erroMovId, "LIBERADO");
+          }}
+        />
+      )}
 
       {/* Modal Liberar Armazenagem (unificado) */}
       {liberarMovId && (

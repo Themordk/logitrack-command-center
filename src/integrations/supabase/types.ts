@@ -7271,6 +7271,16 @@ export type Database = {
         }
         Returns: Json
       }
+      liberar_recebimento_erro_transporte: {
+        Args: {
+          p_motivo_ocorrencia_id: string
+          p_movimento_entrada_id: string
+          p_observacao?: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       listar_movimentos_entrada: {
         Args: {
           p_data_ate?: string
