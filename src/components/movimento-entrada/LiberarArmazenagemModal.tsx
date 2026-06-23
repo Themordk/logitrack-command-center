@@ -47,6 +47,8 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
   const [step, setStep] = useState<Step>("resumo");
   const [etapa1Mensagem, setEtapa1Mensagem] = useState<string | null>(null);
   const [conferidosLiberadosCount, setConferidosLiberadosCount] = useState(0);
+  const [liberadosIds, setLiberadosIds] = useState<Set<string>>(new Set());
+  const [loadingItemIds, setLoadingItemIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!open || !tenantId || !movimentoEntradaId) return;
@@ -55,6 +57,8 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
       setLoading(true);
       setEtapa1Mensagem(null);
       setConferidosLiberadosCount(0);
+      setLiberadosIds(new Set());
+      setLoadingItemIds({});
       try {
         const [itensRes, motivosRes] = await Promise.all([
           (supabase as any)
@@ -106,8 +110,14 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
     return { conferidos, divergentes, pendentes, armazenados };
   }, [itens]);
 
-  const algumDivergenteSemMotivo = grupos.divergentes.some(
-    (d) => !divergentesForm[d.id]?.motivo_ocorrencia_id,
+  const divergentesPendentes = useMemo(
+    () => grupos.divergentes.filter((d) => !liberadosIds.has(d.id)),
+    [grupos.divergentes, liberadosIds],
+  );
+
+  const divergentesElegiveis = useMemo(
+    () => divergentesPendentes.filter((d) => !!divergentesForm[d.id]?.motivo_ocorrencia_id),
+    [divergentesPendentes, divergentesForm],
   );
 
   const handleLiberarConferidos = async () => {
@@ -150,16 +160,65 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
     }
   };
 
+  const handleLiberarItemDivergente = async (itemId: string) => {
+    if (!tenantId || !usuarioId) {
+      toast.error("Sessão inválida.");
+      return;
+    }
+    const form = divergentesForm[itemId];
+    if (!form?.motivo_ocorrencia_id) {
+      toast.error("Selecione um motivo para registrar a ocorrência.");
+      return;
+    }
+    setLoadingItemIds((m) => ({ ...m, [itemId]: true }));
+    try {
+      const { data, error } = await supabase.rpc("liberar_armazenagem" as any, {
+        p_movimento_entrada_id: movimentoEntradaId,
+        p_tenant_id: tenantId,
+        p_usuario_id: usuarioId,
+        p_modo: "CONFERIDOS",
+        p_itens_divergentes: [{
+          item_id: itemId,
+          motivo_ocorrencia_id: form.motivo_ocorrencia_id,
+          observacao: form.observacao || null,
+        }],
+        p_item_ids: [itemId],
+      });
+      if (error) throw error;
+      const r: any = data || {};
+      if (r.sucesso === false) {
+        toast.error(r.mensagem || "Falha ao registrar ocorrência.");
+        return;
+      }
+      const next = new Set(liberadosIds);
+      next.add(itemId);
+      setLiberadosIds(next);
+      toast.success("Ocorrência registrada e item liberado.");
+      // Se foram todos tratados, fecha automaticamente
+      if (next.size === grupos.divergentes.length) {
+        onSuccess?.();
+        onClose();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao registrar ocorrência.");
+    } finally {
+      setLoadingItemIds((m) => {
+        const { [itemId]: _omit, ...rest } = m;
+        return rest;
+      });
+    }
+  };
+
   const handleRegistrarOcorrencias = async () => {
     if (!tenantId || !usuarioId) {
       toast.error("Sessão inválida.");
       return;
     }
-    if (grupos.divergentes.length === 0 || algumDivergenteSemMotivo) return;
+    if (divergentesElegiveis.length === 0) return;
     setSubmittingOcorrencias(true);
     try {
-      const idsDivergentes = grupos.divergentes.map((d) => d.id);
-      const ocorrencias = grupos.divergentes.map((d) => ({
+      const ids = divergentesElegiveis.map((d) => d.id);
+      const ocorrencias = divergentesElegiveis.map((d) => ({
         item_id: d.id,
         motivo_ocorrencia_id: divergentesForm[d.id].motivo_ocorrencia_id,
         observacao: divergentesForm[d.id]?.observacao || null,
@@ -170,7 +229,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
         p_usuario_id: usuarioId,
         p_modo: "CONFERIDOS",
         p_itens_divergentes: ocorrencias,
-        p_item_ids: idsDivergentes,
+        p_item_ids: ids,
       });
       if (error) throw error;
       const resultado: any = data || {};
@@ -179,13 +238,23 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
         return;
       }
       toast.success(resultado.mensagem || "Ocorrências registradas e itens liberados.");
-      onSuccess?.();
-      onClose();
+      const next = new Set(liberadosIds);
+      ids.forEach((id) => next.add(id));
+      setLiberadosIds(next);
+      if (next.size === grupos.divergentes.length) {
+        onSuccess?.();
+        onClose();
+      }
     } catch (err: any) {
       toast.error(err.message || "Erro ao registrar ocorrências.");
     } finally {
       setSubmittingOcorrencias(false);
     }
+  };
+
+  const handleClose = () => {
+    if (liberadosIds.size > 0) onSuccess?.();
+    onClose();
   };
 
   const updateDivergente = (id: string, patch: Partial<DivergenteForm>) => {
