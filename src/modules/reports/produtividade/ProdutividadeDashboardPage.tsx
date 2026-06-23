@@ -284,14 +284,14 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     doc.setFontSize(16);
     doc.text("Relatório de Produtividade Operacional", 14, 15);
     doc.setFontSize(10);
-    const periodo = `${format(parseISO(dataInicio), "dd/MM/yyyy")} a ${format(parseISO(dataFim), "dd/MM/yyyy")}`;
+    const periodo = `${safeFormatISO(dataInicio, "dd/MM/yyyy")} a ${safeFormatISO(dataFim, "dd/MM/yyyy")}`;
     doc.text(`Período: ${periodo}`, 14, 22);
     doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 14, 28);
     autoTable(doc, {
       startY: 35,
       head: [["Data", "Operador", "Turno", "Tarefas", "Cancel.", "Qtd.", "Tempo Prod.", "Jornada", "Ocupação", "Prod./h", "Docs", "SKUs"]],
       body: sortedRows.map((d) => [
-        format(parseISO(d.data_referencia), "dd/MM/yyyy"),
+        safeFormatISO(d.data_referencia, "dd/MM/yyyy"),
         d.usuario?.nome || "—",
         d.turno?.descricao || "—",
         d.tarefas_concluidas,
