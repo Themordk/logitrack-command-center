@@ -400,21 +400,38 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
             {grupos.divergentes.map((it) => {
               const diff = Number(it.qtd_conferida) - Number(it.qtd_esperada);
               const isFalta = diff < 0;
+              const liberado = liberadosIds.has(it.id);
+              const itemLoading = !!loadingItemIds[it.id];
+              const motivoSelecionado = !!divergentesForm[it.id]?.motivo_ocorrencia_id;
               return (
-                <div key={it.id} className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 space-y-3">
+                <div
+                  key={it.id}
+                  className={cn(
+                    "rounded-lg border p-3 space-y-3",
+                    liberado
+                      ? "border-green-500/30 bg-green-500/5 opacity-80"
+                      : "border-red-500/30 bg-red-500/5",
+                  )}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-mono text-xs text-foreground">{it.produto?.sku ?? "—"}</p>
                       <p className="text-xs text-muted-foreground truncate">{it.produto?.descricao ?? "—"}</p>
                     </div>
-                    <span className={cn(
-                      "shrink-0 text-[10px] px-2 py-0.5 rounded-full border",
-                      isFalta
-                        ? "bg-red-500/15 text-red-400 border-red-500/30"
-                        : "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-                    )}>
-                      {isFalta ? `Falta: ${Math.abs(diff)} un.` : `Sobra: ${diff} un.`}
-                    </span>
+                    {liberado ? (
+                      <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border bg-green-500/15 text-green-400 border-green-500/30 flex items-center gap-1">
+                        <CheckCircle2 size={10} /> Liberado
+                      </span>
+                    ) : (
+                      <span className={cn(
+                        "shrink-0 text-[10px] px-2 py-0.5 rounded-full border",
+                        isFalta
+                          ? "bg-red-500/15 text-red-400 border-red-500/30"
+                          : "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+                      )}>
+                        {isFalta ? `Falta: ${Math.abs(diff)} un.` : `Sobra: ${diff} un.`}
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <Field label="Esperada" value={it.qtd_esperada} />
@@ -432,7 +449,8 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
                     <select
                       value={divergentesForm[it.id]?.motivo_ocorrencia_id || ""}
                       onChange={(e) => updateDivergente(it.id, { motivo_ocorrencia_id: e.target.value })}
-                      className="w-full h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary"
+                      disabled={liberado || itemLoading}
+                      className="w-full h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary disabled:opacity-60"
                     >
                       <option value="">Selecione o motivo...</option>
                       {motivos.map((m) => (
@@ -447,10 +465,23 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
                     <textarea
                       value={divergentesForm[it.id]?.observacao || ""}
                       onChange={(e) => updateDivergente(it.id, { observacao: e.target.value })}
+                      disabled={liberado || itemLoading}
                       rows={2}
-                      className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
+                      className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none disabled:opacity-60"
                     />
                   </div>
+                  {!liberado && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleLiberarItemDivergente(it.id)}
+                        disabled={itemLoading || submittingOcorrencias || !motivoSelecionado}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                      >
+                        {itemLoading && <Loader2 size={12} className="animate-spin" />}
+                        Registrar ocorrência e liberar item
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
