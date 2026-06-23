@@ -1,22 +1,21 @@
-## Adicionar campo "Peso Bruto" ao cadastro de produto
+## Alterações em Tipos de Saída (`/dados-mestres/tipos-saida`)
 
-Incluir o novo campo `peso_bruto` (já existente em `public.produto`) no formulário de cadastro/edição em `/dados-mestres/produtos`.
+### 1. Formulário de cadastro/edição
+Adicionar novo campo no `CrudModal`:
+- **Separa Pulmão** (`separa_pulmao`) — switch, default `false`. Indica se o tipo de saída permite separação a partir de endereços do tipo PULMÃO.
 
-### Alterações em `src/pages/ProdutosPage.tsx`
+Posicionar logo após o switch **Conferência Checkout**, antes do **Ativo**.
 
-1. **Default do form (linha ~96)**: adicionar `peso_bruto: ""` ao objeto inicial.
-2. **Seção 2 — Controle de Estoque (linhas ~331-344)**: adicionar um novo input numérico "Peso Bruto (kg)" ao lado de "Tolerância", mantendo o grid de 3 colunas.
-   ```tsx
-   <div>
-     <label className={labelClass}>Peso Bruto (kg)</label>
-     <input type="number" step="0.001" value={form.peso_bruto ?? ""}
-            onChange={(e) => set("peso_bruto", e.target.value)}
-            className={inputClass} />
-   </div>
-   ```
-3. **Conversão numérica no save (linha ~167)**: incluir `"peso_bruto"` na lista de campos convertidos via `Number()`.
+### 2. Grid (CrudTable) de Tipos de Saída
+Adicionar as colunas que hoje estão ausentes, exibindo como badges Sim/Não:
+- **Realiza Conferência** (`realiza_conferencia`)
+- **Conferência Checkout** (`conferencia_checkout`)
+- **Separa Pulmão** (`separa_pulmao`)
 
-### Fora de escopo
-- Listagem/tabela de produtos (sem nova coluna, salvo se solicitado).
-- `produto_embalagem.peso_bruto` (já existente, não alterado).
-- Validação obrigatória (campo opcional).
+Ordem final das colunas: Descrição · Código ERP · Realiza Conferência · Conferência Checkout · Separa Pulmão · Status.
+
+### Detalhes técnicos
+- Arquivo único: `src/pages/TiposSaidaPage.tsx`.
+- Coluna `separa_pulmao` já existe em `public.tipo_saida` — sem migração.
+- `useCrud` faz `SELECT *`, então os novos campos já chegam ao grid e ao modal sem alterações adicionais.
+- Renderização Sim/Não no grid: usar `type: "badge"` (mesmo padrão do `ativo`) — se necessário, formatar via `render` para mostrar "Sim"/"Não" em vez do valor bruto, mantendo consistência visual com as demais telas de Dados Mestres.
