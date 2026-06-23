@@ -163,9 +163,6 @@ export function MovimentoEntradaPage() {
   // Liberar erro transporte modal
   const [showErroModal, setShowErroModal] = useState(false);
   const [erroMovId, setErroMovId] = useState<string | null>(null);
-  const [motivos, setMotivos] = useState<{ id: string; descricao: string }[]>([]);
-  const [selectedMotivo, setSelectedMotivo] = useState("");
-  const [erroSubmitting, setErroSubmitting] = useState(false);
 
   // Liberar armazenagem modal unificado
   const [showLiberarArmazenagem, setShowLiberarArmazenagem] = useState(false);
