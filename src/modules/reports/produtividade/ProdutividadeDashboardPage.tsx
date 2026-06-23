@@ -310,7 +310,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     doc.save(`produtividade_${hoje()}.pdf`);
   };
 
-  const periodoLabel = `${format(parseISO(dataInicio), "dd/MM/yyyy")} – ${format(parseISO(dataFim), "dd/MM/yyyy")}`;
+  const periodoLabel = `${safeFormatISO(dataInicio, "dd/MM/yyyy")} – ${safeFormatISO(dataFim, "dd/MM/yyyy")}`;
 
   return (
     <div className="space-y-5 animate-fade-in">
