@@ -1,40 +1,46 @@
-## Ajustes em `src/pages/InventarioItensPage.tsx`
+## Redesign Relatório de Produtividade Operacional
 
-### 1. Corrigir filtro "Divergentes"
-Hoje o filtro usa `.gt("divergência", 0)` / `.eq("divergência", 0)`, mas na view `inventario_item_resumo` a coluna `divergência` está sempre `NULL` (mesmo para `CONCLUIDA`), então nenhuma das opções retorna linhas.
+Substituir o conteúdo de `ProdutividadeDashboardPage.tsx` (rota `/relatorios/produtividade`) e reescrever `produtividade.service.ts` conforme spec do anexo. Manter `ProdutividadeOperadorPage.tsx` e a rota de drill-down `/relatorios/produtividade/operador/:id` como estão.
 
-Nova semântica baseada em status + valor:
-- **SIM (com divergência):** `status = 'DIVERGENTE'` OU `"divergência" > 0`.
-  Implementação PostgREST: `query.or('status.eq.DIVERGENTE,"divergência".gt.0')`.
-- **NÃO (sem divergência):** apenas itens já contabilizados (`status IN ('CONCLUIDA','AUDITADA')`) e com divergência zero ou nula.
-  Implementação: `query.in('status', ['CONCLUIDA','AUDITADA']).or('"divergência".eq.0,"divergência".is.null')`.
+### Arquivos
 
-Obs.: o nome `divergência` precisa ir entre aspas no filtro `or` por causa do caractere acentuado.
+- **Reescrever** `src/modules/reports/produtividade/produtividade.service.ts`
+  - `ProdutividadeFilters` (tenantId, empresaId, armazemId, dataInicio, dataFim, usuarioId, turnoId)
+  - `fetchProdutividadeDiaria(filters)` → `lms_metrica_diaria` + joins `usuario(id,nome)` e `turno:turno_id(descricao)`
+  - `fetchDetalheTipoTarefa(filters)` → `lms_metrica_tipo_tarefa` + joins
+  - `fetchOperadores(tenantId)` e `fetchTurnos(tenantId)` para popular selects
+  - Tipos exportados para a página
 
-### 2. Novo filtro "Status"
-Adicionar um `<select>` ao lado dos filtros atuais com somente os status pelos quais uma tarefa de inventário transita:
+- **Reescrever** `src/modules/reports/produtividade/ProdutividadeDashboardPage.tsx` (mesmo arquivo, mesmo export — sem mudar App.tsx)
+  - Header: ícone `Activity`, título "Produtividade Operacional", subtítulo cinza
+  - Barra de filtros `grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3`: data início, data fim, Armazém (já existe no atual — manter), Operador, Turno, botão Filtrar + botões Excel/PDF à direita
+  - Presets ghost: Hoje, Últimos 7 dias, Últimos 15 dias, Este mês (preenchem datas e disparam fetch)
+  - **6 KPI cards** (`bg-card border-border rounded-lg p-4`, label uppercase muted, valor `text-2xl font-bold font-mono`): Tarefas Concluídas, Itens Processados, Tempo Produtivo (HHh MMmin), Taxa de Ocupação (cor dinâmica verde/amarelo/vermelho), Produtividade/Hora, Cancelamentos (vermelho se >0)
+  - **Gráfico Ranking de Operadores** (Recharts BarChart horizontal, ícone `Trophy`):
+    - Eixo Y nomes, eixo X taxa_ocupacao 0–100
+    - Cor por faixa (verde ≥85, amarelo 70–84, vermelho <70) usando `<Cell>` por barra
+    - Tooltip custom (nome, ocupação, tarefas, prod/hora), LabelList com %
+    - Ordenação desc, **clique navega** para `/relatorios/produtividade/operador/{usuario_id}` via `onNavigate`
+  - **Gráfico Distribuição de Tempo** (Recharts BarChart empilhado, ícone `Clock`): séries "Tempo Produtivo" (#3b82f6) e "Tempo Ocioso" (#6b7280) em horas; tooltip em "Xh Ymin"; grid `stroke="hsl(222 35% 18%)"`
+  - **Tabela detalhada** "Detalhamento por Dia" (ícone `Table`): 12 colunas conforme spec, header `bg-muted/50 uppercase`, `font-mono` para números, cor dinâmica em Taxa Ocupação, rodapé totalizador (totais soma + médias), ordenação por clique no header (`ChevronUp/Down`), paginação 20/página (shadcn `Pagination`)
+  - Loading: skeletons `animate-pulse bg-muted rounded-lg` nos KPIs (6×h-24) e gráficos (2×h-72); spinner na tabela
+  - Empty state com `BarChart3` quando sem dados
+  - Carregamento automático dos últimos 7 dias ao abrir (sem exigir clique)
 
-- `Todos` (vazio)
-- `ATRIBUIDA` (Não contado)
-- `EM_ANDAMENTO` (1ª contagem feita)
-- `DIVERGENTE`
-- `CONCLUIDA`
-- `AUDITADA`
+- **Utilitários inline** (mesmo arquivo): `formatarTempo`, `formatarNumero`, `corTaxaOcupacao`
 
-Estado: `fStatus`. Aplicação: `if (fStatus) query = query.eq('status', fStatus);`. Incluir nas dependências do `useCallback`/`fetchItens` e resetar página ao buscar.
+- **Export Excel** (`xlsx`) e **PDF** (`jsPDF` + `jspdf-autotable`) conforme snippets do anexo, com nome `produtividade_YYYY-MM-DD.{ext}`
 
-### 3. Ordenação por coluna (asc/desc)
-Tornar o cabeçalho da tabela clicável para ordenar via server-side (Supabase `order`).
+### Regras técnicas
+- Tudo em português, sem siglas inglesas
+- Ícones só do `lucide-react`, gráficos só do `recharts`
+- Datas via `date-fns` locale pt-BR
+- Sem novas dependências, sem mexer em `components/ui/`
+- Sem `as any` (tipar respostas Supabase com generics estritos onde possível; `unknown` + narrow quando necessário)
+- Recarregar ao mudar `empresaVersion`/armazemId selecionado
 
-- Novo estado: `sortKey` (default `sku`) e `sortDir` (`'asc' | 'desc'`, default `'asc'`).
-- Função `toggleSort(key)`: se já é a coluna ativa, inverte `sortDir`; caso contrário define `sortKey=key, sortDir='asc'`.
-- Aplicar no `fetchItens`: `query = query.order(sortKey, { ascending: sortDir === 'asc', nullsFirst: false });`
-- Incluir `sortKey` e `sortDir` nas deps do `useCallback`.
-- Colunas ordenáveis (todas as exibidas, exceto `Ações`):
-  `sku, referencia, descricao, rua, predio, nivel, apto, quantidade_requerida, primeira_contagem, segunda_contagem, saldo_final, "divergência", status`.
-- UI: envolver o texto do `<th>` em um `<button>` mostrando `ArrowUpDown` (cinza quando inativo) e `ArrowUp`/`ArrowDown` (cor primária) na coluna ativa. Manter o mesmo padrão visual já usado em `src/modules/reports/components/ReportTable.tsx` (ícones lucide `ArrowUpDown`, `ArrowUp`, `ArrowDown`, tamanho 11).
-
-### Itens fora de escopo
-- Nenhuma alteração na view `inventario_item_resumo` ou em RPCs.
-- Nenhuma mudança em outras rotas/arquivos.
-- Sem mudanças no botão "Zerar não contados" nem na lógica de exibição `—`.
+### Fora de escopo
+- `App.tsx`, breadcrumbs, TopNav, `ProdutividadeOperadorPage.tsx`
+- Componentes em `src/components/ui/`
+- Mudanças no banco / RPCs
+- Plano e ajustes anteriores em `InventarioItensPage.tsx`
