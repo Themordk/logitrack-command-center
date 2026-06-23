@@ -3400,6 +3400,7 @@ export type Database = {
           lastro: number | null
           marca: string | null
           parceiro_id: string
+          peso_bruto: number | null
           peso_variavel: boolean
           preco_custo: number | null
           referencia: string
@@ -3430,6 +3431,7 @@ export type Database = {
           lastro?: number | null
           marca?: string | null
           parceiro_id: string
+          peso_bruto?: number | null
           peso_variavel?: boolean
           preco_custo?: number | null
           referencia: string
@@ -3460,6 +3462,7 @@ export type Database = {
           lastro?: number | null
           marca?: string | null
           parceiro_id?: string
+          peso_bruto?: number | null
           peso_variavel?: boolean
           preco_custo?: number | null
           referencia?: string
@@ -5550,11 +5553,13 @@ export type Database = {
           criado_em: string | null
           duracao_segundos: number | null
           empresa_id: string | null
-          espera_segundos: number | null
+          espera_atribuicao_inicio: number | null
+          espera_criacao_atribuicao: number | null
           execucao_id: string | null
           habilidade: Database["public"]["Enums"]["enum_habilidade"] | null
           id_documento_origem: string | null
           iniciado_em: string | null
+          performance_pct: number | null
           quantidade_cortada: number | null
           quantidade_executada: number | null
           quantidade_requerida: number | null
@@ -6663,6 +6668,7 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_consolidar_lms_diario: { Args: { p_data?: string }; Returns: Json }
       fn_criar_inventario: {
         Args: {
           p_armazem_id: string
