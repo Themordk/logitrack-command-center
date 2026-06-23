@@ -14,6 +14,7 @@ import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
+import { LiberarErroTransporteModal } from "@/components/movimento-entrada/LiberarErroTransporteModal";
 
 interface MovimentoEntradaListItem {
   id: string;
