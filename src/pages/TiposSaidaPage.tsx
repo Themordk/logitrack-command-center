@@ -12,9 +12,18 @@ export function TiposSaidaPage() {
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
 
+  const boolBadge = (val: any) => (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${val ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"}`}>
+      {val ? "Sim" : "Não"}
+    </span>
+  );
+
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
     { key: "codigo_erp", label: "Código ERP" },
+    { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
+    { key: "conferencia_checkout", label: "Conferência Checkout", type: "custom", render: (row) => boolBadge(row.conferencia_checkout) },
+    { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -29,6 +38,7 @@ export function TiposSaidaPage() {
       defaultValue: false,
       disabledWhen: (f) => !f.realiza_conferencia,
     },
+    { name: "separa_pulmao", label: "Separa Pulmão", type: "switch", defaultValue: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
