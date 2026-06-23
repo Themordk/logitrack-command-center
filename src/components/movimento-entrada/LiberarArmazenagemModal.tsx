@@ -517,20 +517,23 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
           ) : (
             <>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={submittingOcorrencias}
                 className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
-                Cancelar
+                {divergentesPendentes.length === 0 ? "Fechar" : "Cancelar"}
               </button>
-              <button
-                onClick={handleRegistrarOcorrencias}
-                disabled={submittingOcorrencias || loading || algumDivergenteSemMotivo}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {submittingOcorrencias && <Loader2 size={14} className="animate-spin" />}
-                Registrar ocorrências e liberar
-              </button>
+              {divergentesPendentes.length > 0 && (
+                <button
+                  onClick={handleRegistrarOcorrencias}
+                  disabled={submittingOcorrencias || loading || divergentesElegiveis.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  title={divergentesElegiveis.length === 0 ? "Selecione ao menos um motivo" : undefined}
+                >
+                  {submittingOcorrencias && <Loader2 size={14} className="animate-spin" />}
+                  Registrar todos pendentes ({divergentesElegiveis.length})
+                </button>
+              )}
             </>
           )}
         </DialogFooter>
