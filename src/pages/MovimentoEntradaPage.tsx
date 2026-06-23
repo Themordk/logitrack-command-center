@@ -417,8 +417,8 @@ export function MovimentoEntradaPage() {
   };
 
   const openLiberarArmazenagem = (movId: string, status: string) => {
-    const allowed = ["CONFERIDO", "DIVERGENCIA", "LIB_ARMAZENAGEM", "ARMAZENAGEM_PARCIAL"];
-    if (!allowed.includes(status)) {
+    const blocked = ["GERADO", "EXPORTADO", "CANCELADO", "ARMAZENADO"];
+    if (blocked.includes(status)) {
       toast.warning("Movimento ainda não pode ser liberado para armazenagem.");
       return;
     }
