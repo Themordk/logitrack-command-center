@@ -367,6 +367,15 @@ export function EstoqueReportPage() {
                 <Label className="text-xs">EAN</Label>
                 <Input className="h-8 text-xs" placeholder="Buscar por EAN..." value={filterEan} onChange={e => setFilterEan(e.target.value)} />
               </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 h-8 cursor-pointer select-none">
+                  <Checkbox
+                    checked={filterMultiLocalizacao}
+                    onCheckedChange={(v) => setFilterMultiLocalizacao(v === true)}
+                  />
+                  <span className="text-xs">Apenas produtos com mais de uma localização</span>
+                </label>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={handleGenerate} disabled={loading}>
