@@ -443,44 +443,7 @@ export function MovimentoEntradaPage() {
     }
 
     setErroMovId(movId);
-    setSelectedMotivo("");
-    const { data } = await (supabase as any)
-      .from("motivo_ocorrencia")
-      .select("id, descricao")
-      .eq("tenant_id", tenantId)
-      .eq("armazem_id", armazemId)
-      .eq("ativo", true)
-      .order("descricao");
-    setMotivos(data || []);
     setShowErroModal(true);
-  };
-
-  const handleConfirmarErroTransporte = async () => {
-    if (!selectedMotivo || !erroMovId) {
-      toast.error("Selecione um motivo de ocorrência.");
-      return;
-    }
-    setErroSubmitting(true);
-    try {
-      const { error } = await (supabase as any)
-        .from("movimento_entrada")
-        .update({
-          usuario_autorizou: usuarioId,
-          motivo_ocorrencia: selectedMotivo,
-          autorizado_em: new Date().toISOString().split("T")[0],
-          status: "LIBERADO",
-        })
-        .eq("id", erroMovId);
-      if (error) throw error;
-      toast.success("Recebimento liberado com erro no transporte.");
-      setShowErroModal(false);
-      fetchMovements();
-      if (selectedMov === erroMovId) loadDetails(erroMovId, "LIBERADO");
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setErroSubmitting(false);
-    }
   };
 
   const handleMenuAction = (action: string, movId: string, status: string) => {
