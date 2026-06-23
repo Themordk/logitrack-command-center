@@ -7253,8 +7253,8 @@ export type Database = {
       }
       liberar_armazenagem: {
         Args: {
+          p_item_ids?: string[]
           p_itens_divergentes?: Json
-          p_itens_ids?: string[]
           p_modo?: string
           p_movimento_entrada_id: string
           p_tenant_id: string
