@@ -64,6 +64,23 @@ function diasAtras(n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+function isValidISODate(s: string): boolean {
+  if (!ISO_DATE_RE.test(s)) return false;
+  const d = new Date(s + "T00:00:00");
+  return !isNaN(d.getTime());
+}
+function safeFormatISO(value: string | null | undefined, pattern: string): string {
+  if (!value || !ISO_DATE_RE.test(value)) return "—";
+  try {
+    const d = parseISO(value);
+    if (isNaN(d.getTime())) return "—";
+    return format(d, pattern, { locale: ptBR });
+  } catch {
+    return "—";
+  }
+}
+
 type SortKey =
   | "data_referencia" | "usuario" | "turno" | "tarefas_concluidas"
   | "tarefas_canceladas" | "quantidade_total" | "tempo_produtivo"
@@ -267,14 +284,14 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     doc.setFontSize(16);
     doc.text("Relatório de Produtividade Operacional", 14, 15);
     doc.setFontSize(10);
-    const periodo = `${format(parseISO(dataInicio), "dd/MM/yyyy")} a ${format(parseISO(dataFim), "dd/MM/yyyy")}`;
+    const periodo = `${safeFormatISO(dataInicio, "dd/MM/yyyy")} a ${safeFormatISO(dataFim, "dd/MM/yyyy")}`;
     doc.text(`Período: ${periodo}`, 14, 22);
     doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}`, 14, 28);
     autoTable(doc, {
       startY: 35,
       head: [["Data", "Operador", "Turno", "Tarefas", "Cancel.", "Qtd.", "Tempo Prod.", "Jornada", "Ocupação", "Prod./h", "Docs", "SKUs"]],
       body: sortedRows.map((d) => [
-        format(parseISO(d.data_referencia), "dd/MM/yyyy"),
+        safeFormatISO(d.data_referencia, "dd/MM/yyyy"),
         d.usuario?.nome || "—",
         d.turno?.descricao || "—",
         d.tarefas_concluidas,
@@ -293,7 +310,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     doc.save(`produtividade_${hoje()}.pdf`);
   };
 
-  const periodoLabel = `${format(parseISO(dataInicio), "dd/MM/yyyy")} – ${format(parseISO(dataFim), "dd/MM/yyyy")}`;
+  const periodoLabel = `${safeFormatISO(dataInicio, "dd/MM/yyyy")} – ${safeFormatISO(dataFim, "dd/MM/yyyy")}`;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -520,7 +537,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                 <tbody>
                   {pageRows.map((r) => (
                     <tr key={r.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                      <td className="px-3 py-2.5 text-foreground">{format(parseISO(r.data_referencia), "dd/MM/yyyy")}</td>
+                      <td className="px-3 py-2.5 text-foreground">{safeFormatISO(r.data_referencia, "dd/MM/yyyy")}</td>
                       <td className="px-3 py-2.5 text-foreground">{r.usuario?.nome || "—"}</td>
                       <td className="px-3 py-2.5 text-muted-foreground">{r.turno?.descricao || "—"}</td>
                       <td className="px-3 py-2.5 text-center font-mono text-foreground">{r.tarefas_concluidas}</td>
