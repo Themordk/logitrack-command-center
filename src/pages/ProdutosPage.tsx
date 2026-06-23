@@ -94,7 +94,7 @@ function ProdutoDetailModal({
           sku: "", descricao: "", referencia: "", marca: "", parceiro_id: "",
           grupo_id: "", subgrupo_id: "", curva_venda: "", curva_acesso: "",
           preco_custo: "", ativo: true, tipo_controle: "", peso_variavel: false,
-          tolerancia: "", dias_shelf: "", shelf_entrada: "", shelf_devolucao: "",
+          tolerancia: "", peso_bruto: "", dias_shelf: "", shelf_entrada: "", shelf_devolucao: "",
           lastro: "", camada: "", fator_caixa: "", usa_picking: true,
           tipo_separacao: "", varios_pickings: false, foto: "",
         });
