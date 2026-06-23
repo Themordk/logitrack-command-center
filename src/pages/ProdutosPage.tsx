@@ -341,6 +341,7 @@ function ProdutoDetailModal({
                   <label className="text-sm text-foreground">Peso Variável</label>
                 </div>
                 <div><label className={labelClass}>Tolerância</label><input type="number" step="0.01" value={form.tolerancia ?? ""} onChange={(e) => set("tolerancia", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Peso Bruto (kg)</label><input type="number" step="0.001" value={form.peso_bruto ?? ""} onChange={(e) => set("peso_bruto", e.target.value)} className={inputClass} /></div>
               </div>
             </div>
 
