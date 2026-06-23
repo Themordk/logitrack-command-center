@@ -318,6 +318,7 @@ function ProdutoDetailModal({
                   </select>
                 </div>
                 <div><label className={labelClass}>Preço de Custo</label><input type="number" step="0.01" value={form.preco_custo ?? ""} onChange={(e) => set("preco_custo", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Peso Bruto (kg)</label><input type="number" step="0.001" value={form.peso_bruto ?? ""} onChange={(e) => set("peso_bruto", e.target.value)} className={inputClass} /></div>
                 <div className="flex items-center gap-3 md:col-span-3">
                   <Switch checked={!!form.ativo} onCheckedChange={(v) => set("ativo", v)} />
                   <label className="text-sm text-foreground">Ativo</label>
@@ -341,7 +342,6 @@ function ProdutoDetailModal({
                   <label className="text-sm text-foreground">Peso Variável</label>
                 </div>
                 <div><label className={labelClass}>Tolerância</label><input type="number" step="0.01" value={form.tolerancia ?? ""} onChange={(e) => set("tolerancia", e.target.value)} className={inputClass} /></div>
-                <div><label className={labelClass}>Peso Bruto (kg)</label><input type="number" step="0.001" value={form.peso_bruto ?? ""} onChange={(e) => set("peso_bruto", e.target.value)} className={inputClass} /></div>
               </div>
             </div>
 
