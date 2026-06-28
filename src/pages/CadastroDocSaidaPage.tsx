@@ -4,6 +4,8 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ProdutoSearchInput, ProdutoSearchResult } from "@/components/produto/ProdutoSearchInput";
+
 
 interface DocItem {
   produto_id: string;
