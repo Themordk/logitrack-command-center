@@ -4,6 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ProdutoSearchInput, ProdutoSearchResult } from "@/components/produto/ProdutoSearchInput";
 
 interface DocItem {
   id?: string;
@@ -14,11 +15,7 @@ interface DocItem {
   valor_total: number;
 }
 
-interface ProdOption {
-  id: string;
-  descricao: string;
-  sku: string;
-}
+
 
 export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
   const { tenantId, empresaId, empresaVersion } = useTenant();
@@ -37,17 +34,18 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
   const [parceiros, setParceiros] = useState<{ id: string; razaosocial: string }[]>([]);
   const [tiposEntrada, setTiposEntrada] = useState<{ id: string; descricao: string }[]>([]);
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
-  const [produtos, setProdutos] = useState<ProdOption[]>([]);
 
   // Items
   const [items, setItems] = useState<DocItem[]>([]);
   const [showItemModal, setShowItemModal] = useState(false);
-  const [itemForm, setItemForm] = useState<DocItem>({ produto_id: "", quantidade: 0, valor_unidade: 0, valor_total: 0 });
+  const emptyForm = (): DocItem => ({ produto_id: "", quantidade: 0, valor_unidade: 0, valor_total: 0 });
+  const [itemForm, setItemForm] = useState<DocItem>(emptyForm());
+  const [itemProduto, setItemProduto] = useState<ProdutoSearchResult | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!tenantId || !empresaId) {
-      setParceiros([]); setTiposEntrada([]); setArmazens([]); setProdutos([]);
+      setParceiros([]); setTiposEntrada([]); setArmazens([]);
       return;
     }
     // Reset seleções dependentes ao trocar empresa
@@ -56,27 +54,42 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
       (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("razaosocial"),
       (supabase as any).from("tipo_entrada").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
       (supabase as any).from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
-      (supabase as any).from("produto").select("id, descricao, sku").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
-    ]).then(([pRes, tRes, aRes, prRes]) => {
+    ]).then(([pRes, tRes, aRes]) => {
       setParceiros(pRes.data || []);
       setTiposEntrada(tRes.data || []);
       setArmazens(aRes.data || []);
-      setProdutos(prRes.data || []);
     });
   }, [tenantId, empresaId, empresaVersion]);
 
   const valorTotalProdutos = items.reduce((s, i) => s + i.valor_total, 0);
 
-  const addItem = () => {
-    if (!itemForm.produto_id || itemForm.quantidade <= 0) {
-      toast.error("Preencha produto e quantidade.");
+  const resetItemForm = () => {
+    setItemProduto(null);
+    setItemForm(emptyForm());
+  };
+
+  const addItem = (keepOpen = false) => {
+    if (!itemProduto || itemForm.quantidade <= 0) {
+      toast.error("Selecione um produto e informe a quantidade.");
       return;
     }
-    const prod = produtos.find((p) => p.id === itemForm.produto_id);
-    setItems([...items, { ...itemForm, produto_nome: prod ? `${prod.sku} - ${prod.descricao}` : "" }]);
-    setShowItemModal(false);
-    setItemForm({ produto_id: "", quantidade: 0, valor_unidade: 0, valor_total: 0 });
+    const unit = Number(itemProduto.preco_custo ?? 0);
+    const total = unit * itemForm.quantidade;
+    setItems((prev) => [
+      ...prev,
+      {
+        produto_id: itemProduto.id,
+        produto_nome: `${itemProduto.sku} - ${itemProduto.descricao}`,
+        quantidade: itemForm.quantidade,
+        valor_unidade: unit,
+        valor_total: total,
+      },
+    ]);
+    resetItemForm();
+    if (!keepOpen) setShowItemModal(false);
   };
+
+
 
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
 
@@ -220,11 +233,12 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Itens do Documento</h2>
           <button
-            onClick={() => { setItemForm({ produto_id: "", quantidade: 0, valor_unidade: 0, valor_total: 0 }); setShowItemModal(true); }}
+            onClick={() => { resetItemForm(); setShowItemModal(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus size={13} /> Adicionar Item
           </button>
+
         </div>
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -268,44 +282,88 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
       </div>
 
       {/* Add Item Modal */}
-      <Dialog open={showItemModal} onOpenChange={setShowItemModal}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={showItemModal} onOpenChange={(o) => { setShowItemModal(o); if (!o) resetItemForm(); }}>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader><DialogTitle>Adicionar Item</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Produto *</label>
-              <select value={itemForm.produto_id} onChange={(e) => setItemForm({ ...itemForm, produto_id: e.target.value })} className={inputClass}>
-                <option value="">Selecione...</option>
-                {produtos.map((p) => <option key={p.id} value={p.id}>{p.sku} - {p.descricao}</option>)}
-              </select>
+              <ProdutoSearchInput
+                value={itemProduto}
+                onChange={(p) => {
+                  setItemProduto(p);
+                  setItemForm((f) => ({
+                    ...f,
+                    produto_id: p?.id ?? "",
+                    valor_unidade: Number(p?.preco_custo ?? 0),
+                    valor_total: f.quantidade * Number(p?.preco_custo ?? 0),
+                  }));
+                }}
+                tenantId={tenantId}
+                empresaId={empresaId}
+                autoFocus
+              />
             </div>
+            {itemProduto && (
+              <div className="rounded-lg bg-secondary/30 px-3 py-2 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                <span>SKU: <span className="text-foreground font-mono">{itemProduto.sku}</span></span>
+                {itemProduto.referencia && <span>Ref: <span className="text-foreground">{itemProduto.referencia}</span></span>}
+                {itemProduto.ean_match && <span>EAN: <span className="text-foreground font-mono">{itemProduto.ean_match}</span></span>}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Quantidade *</label>
-                <input type="number" value={itemForm.quantidade || ""} onChange={(e) => {
-                  const qty = Number(e.target.value);
-                  setItemForm({ ...itemForm, quantidade: qty, valor_total: qty * itemForm.valor_unidade });
-                }} className={inputClass} />
+                <input
+                  type="number"
+                  min={0}
+                  value={itemForm.quantidade || ""}
+                  onChange={(e) => {
+                    const qty = Number(e.target.value);
+                    setItemForm((f) => ({ ...f, quantidade: qty, valor_total: qty * f.valor_unidade }));
+                  }}
+                  className={inputClass}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Valor Unit.</label>
-                <input type="number" step="0.01" value={itemForm.valor_unidade || ""} onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setItemForm({ ...itemForm, valor_unidade: val, valor_total: itemForm.quantidade * val });
-                }} className={inputClass} />
+                <input
+                  readOnly
+                  value={itemForm.valor_unidade.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  className={inputClass + " opacity-70 cursor-not-allowed"}
+                  title="Valor obtido do cadastro do produto"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Valor Total</label>
-                <input type="number" step="0.01" value={itemForm.valor_total || ""} onChange={(e) => setItemForm({ ...itemForm, valor_total: Number(e.target.value) })} className={inputClass} />
+                <input
+                  readOnly
+                  value={itemForm.valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  className={inputClass + " opacity-70 cursor-not-allowed"}
+                />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setShowItemModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
-            <button onClick={addItem} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Adicionar</button>
+            <button onClick={() => { setShowItemModal(false); resetItemForm(); }} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
+            <button
+              onClick={() => addItem(true)}
+              disabled={!itemProduto || itemForm.quantidade <= 0}
+              className="px-4 py-2 rounded-lg text-sm text-foreground border border-border hover:bg-secondary transition-colors disabled:opacity-50"
+            >
+              Adicionar e continuar
+            </button>
+            <button
+              onClick={() => addItem(false)}
+              disabled={!itemProduto || itemForm.quantidade <= 0}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              Adicionar e fechar
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
