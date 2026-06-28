@@ -231,11 +231,12 @@ export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Itens do Documento</h2>
           <button
-            onClick={() => { setItemForm({ produto_id: "", quantidade: 0, valor_unit: 0, valor_total: 0 }); setShowItemModal(true); }}
+            onClick={() => { resetItemForm(); setShowItemModal(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus size={13} /> Adicionar Item
           </button>
+
         </div>
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
