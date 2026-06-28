@@ -15,11 +15,8 @@ interface DocItem {
   valor_total: number;
 }
 
-interface ProdOption {
-  id: string;
-  descricao: string;
-  sku: string;
-}
+
+
 
 export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
   const { tenantId, empresaId, empresaVersion } = useTenant();
