@@ -34,17 +34,18 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
   const [parceiros, setParceiros] = useState<{ id: string; razaosocial: string }[]>([]);
   const [tiposEntrada, setTiposEntrada] = useState<{ id: string; descricao: string }[]>([]);
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
-  const [produtos, setProdutos] = useState<ProdOption[]>([]);
 
   // Items
   const [items, setItems] = useState<DocItem[]>([]);
   const [showItemModal, setShowItemModal] = useState(false);
-  const [itemForm, setItemForm] = useState<DocItem>({ produto_id: "", quantidade: 0, valor_unidade: 0, valor_total: 0 });
+  const emptyForm = (): DocItem => ({ produto_id: "", quantidade: 0, valor_unidade: 0, valor_total: 0 });
+  const [itemForm, setItemForm] = useState<DocItem>(emptyForm());
+  const [itemProduto, setItemProduto] = useState<ProdutoSearchResult | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!tenantId || !empresaId) {
-      setParceiros([]); setTiposEntrada([]); setArmazens([]); setProdutos([]);
+      setParceiros([]); setTiposEntrada([]); setArmazens([]);
       return;
     }
     // Reset seleções dependentes ao trocar empresa
@@ -53,27 +54,42 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
       (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("razaosocial"),
       (supabase as any).from("tipo_entrada").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
       (supabase as any).from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
-      (supabase as any).from("produto").select("id, descricao, sku").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
-    ]).then(([pRes, tRes, aRes, prRes]) => {
+    ]).then(([pRes, tRes, aRes]) => {
       setParceiros(pRes.data || []);
       setTiposEntrada(tRes.data || []);
       setArmazens(aRes.data || []);
-      setProdutos(prRes.data || []);
     });
   }, [tenantId, empresaId, empresaVersion]);
 
   const valorTotalProdutos = items.reduce((s, i) => s + i.valor_total, 0);
 
-  const addItem = () => {
-    if (!itemForm.produto_id || itemForm.quantidade <= 0) {
-      toast.error("Preencha produto e quantidade.");
+  const resetItemForm = () => {
+    setItemProduto(null);
+    setItemForm(emptyForm());
+  };
+
+  const addItem = (keepOpen = false) => {
+    if (!itemProduto || itemForm.quantidade <= 0) {
+      toast.error("Selecione um produto e informe a quantidade.");
       return;
     }
-    const prod = produtos.find((p) => p.id === itemForm.produto_id);
-    setItems([...items, { ...itemForm, produto_nome: prod ? `${prod.sku} - ${prod.descricao}` : "" }]);
-    setShowItemModal(false);
-    setItemForm({ produto_id: "", quantidade: 0, valor_unidade: 0, valor_total: 0 });
+    const unit = Number(itemProduto.preco_custo ?? 0);
+    const total = unit * itemForm.quantidade;
+    setItems((prev) => [
+      ...prev,
+      {
+        produto_id: itemProduto.id,
+        produto_nome: `${itemProduto.sku} - ${itemProduto.descricao}`,
+        quantidade: itemForm.quantidade,
+        valor_unidade: unit,
+        valor_total: total,
+      },
+    ]);
+    resetItemForm();
+    if (!keepOpen) setShowItemModal(false);
   };
+
+
 
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
 
