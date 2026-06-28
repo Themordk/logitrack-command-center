@@ -4,6 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ProdutoSearchInput, ProdutoSearchResult } from "@/components/produto/ProdutoSearchInput";
 
 interface DocItem {
   id?: string;
@@ -14,11 +15,7 @@ interface DocItem {
   valor_total: number;
 }
 
-interface ProdOption {
-  id: string;
-  descricao: string;
-  sku: string;
-}
+
 
 export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
   const { tenantId, empresaId, empresaVersion } = useTenant();
