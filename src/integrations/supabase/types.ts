@@ -658,12 +658,18 @@ export type Database = {
           data_emissao: string
           empresa_id: string
           id: string
+          id_externo: string | null
           numero_pedido: number
           observacao: string | null
           parceiro_id: string
+          prioridade_externa: string | null
           rota_id: string | null
+          sincronizado_em: string | null
+          sistema_origem: string | null
           status: number
+          status_integracao: string | null
           tenant_id: string
+          tentativas_processamento: number | null
           tipo_pedido_id: string
           transportador: string | null
           valor_pedido: number
@@ -674,12 +680,18 @@ export type Database = {
           data_emissao: string
           empresa_id: string
           id?: string
+          id_externo?: string | null
           numero_pedido: number
           observacao?: string | null
           parceiro_id: string
+          prioridade_externa?: string | null
           rota_id?: string | null
+          sincronizado_em?: string | null
+          sistema_origem?: string | null
           status: number
+          status_integracao?: string | null
           tenant_id: string
+          tentativas_processamento?: number | null
           tipo_pedido_id: string
           transportador?: string | null
           valor_pedido: number
@@ -690,12 +702,18 @@ export type Database = {
           data_emissao?: string
           empresa_id?: string
           id?: string
+          id_externo?: string | null
           numero_pedido?: number
           observacao?: string | null
           parceiro_id?: string
+          prioridade_externa?: string | null
           rota_id?: string | null
+          sincronizado_em?: string | null
+          sistema_origem?: string | null
           status?: number
+          status_integracao?: string | null
           tenant_id?: string
+          tentativas_processamento?: number | null
           tipo_pedido_id?: string
           transportador?: string | null
           valor_pedido?: number
@@ -749,30 +767,39 @@ export type Database = {
       documento_saida_item: {
         Row: {
           codigo_erp: string | null
+          codigo_erp_produto: string | null
           documento_saida_id: string
           id: string
           produto_id: string
           quantidade: number
+          sistema_origem: string | null
+          status_mapeamento: string | null
           tenant_id: string
           valor_total: number
           valor_unit: number
         }
         Insert: {
           codigo_erp?: string | null
+          codigo_erp_produto?: string | null
           documento_saida_id: string
           id?: string
           produto_id: string
           quantidade: number
+          sistema_origem?: string | null
+          status_mapeamento?: string | null
           tenant_id: string
           valor_total: number
           valor_unit: number
         }
         Update: {
           codigo_erp?: string | null
+          codigo_erp_produto?: string | null
           documento_saida_id?: string
           id?: string
           produto_id?: string
           quantidade?: number
+          sistema_origem?: string | null
+          status_mapeamento?: string | null
           tenant_id?: string
           valor_total?: number
           valor_unit?: number
@@ -1067,6 +1094,67 @@ export type Database = {
             columns: ["zona_atividade_id"]
             isOneToOne: false
             referencedRelation: "zona_atividade"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_conexao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          sistema: string
+          tenant_id: string
+          updated_at: string
+          webhook_ativo: boolean
+          webhook_secret: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          sistema?: string
+          tenant_id: string
+          updated_at?: string
+          webhook_ativo?: boolean
+          webhook_secret: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          sistema?: string
+          tenant_id?: string
+          updated_at?: string
+          webhook_ativo?: boolean
+          webhook_secret?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_conexao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_conexao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_conexao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
         ]
@@ -5108,6 +5196,89 @@ export type Database = {
           },
           {
             foreignKeyName: "volume_expedicao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_log_pedido_saida: {
+        Row: {
+          created_at: string
+          documento_saida_id: string | null
+          empresa_id: string | null
+          id: string
+          id_chamada: string
+          mensagem_erro: string | null
+          numero_pedido_externo: string | null
+          payload_recebido: Json | null
+          payload_resposta: Json | null
+          sistema_origem: string
+          status: string
+          tempo_processamento_ms: number | null
+          tenant_id: string
+          total_itens_mapeados: number
+          total_itens_recebidos: number
+        }
+        Insert: {
+          created_at?: string
+          documento_saida_id?: string | null
+          empresa_id?: string | null
+          id?: string
+          id_chamada: string
+          mensagem_erro?: string | null
+          numero_pedido_externo?: string | null
+          payload_recebido?: Json | null
+          payload_resposta?: Json | null
+          sistema_origem?: string
+          status: string
+          tempo_processamento_ms?: number | null
+          tenant_id: string
+          total_itens_mapeados?: number
+          total_itens_recebidos?: number
+        }
+        Update: {
+          created_at?: string
+          documento_saida_id?: string | null
+          empresa_id?: string | null
+          id?: string
+          id_chamada?: string
+          mensagem_erro?: string | null
+          numero_pedido_externo?: string | null
+          payload_recebido?: Json | null
+          payload_resposta?: Json | null
+          sistema_origem?: string
+          status?: string
+          tempo_processamento_ms?: number | null
+          tenant_id?: string
+          total_itens_mapeados?: number
+          total_itens_recebidos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_log_pedido_saida_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_log_pedido_saida_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_log_pedido_saida_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_log_pedido_saida_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
