@@ -282,44 +282,88 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
       </div>
 
       {/* Add Item Modal */}
-      <Dialog open={showItemModal} onOpenChange={setShowItemModal}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={showItemModal} onOpenChange={(o) => { setShowItemModal(o); if (!o) resetItemForm(); }}>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader><DialogTitle>Adicionar Item</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Produto *</label>
-              <select value={itemForm.produto_id} onChange={(e) => setItemForm({ ...itemForm, produto_id: e.target.value })} className={inputClass}>
-                <option value="">Selecione...</option>
-                {produtos.map((p) => <option key={p.id} value={p.id}>{p.sku} - {p.descricao}</option>)}
-              </select>
+              <ProdutoSearchInput
+                value={itemProduto}
+                onChange={(p) => {
+                  setItemProduto(p);
+                  setItemForm((f) => ({
+                    ...f,
+                    produto_id: p?.id ?? "",
+                    valor_unidade: Number(p?.preco_custo ?? 0),
+                    valor_total: f.quantidade * Number(p?.preco_custo ?? 0),
+                  }));
+                }}
+                tenantId={tenantId}
+                empresaId={empresaId}
+                autoFocus
+              />
             </div>
+            {itemProduto && (
+              <div className="rounded-lg bg-secondary/30 px-3 py-2 text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                <span>SKU: <span className="text-foreground font-mono">{itemProduto.sku}</span></span>
+                {itemProduto.referencia && <span>Ref: <span className="text-foreground">{itemProduto.referencia}</span></span>}
+                {itemProduto.ean_match && <span>EAN: <span className="text-foreground font-mono">{itemProduto.ean_match}</span></span>}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Quantidade *</label>
-                <input type="number" value={itemForm.quantidade || ""} onChange={(e) => {
-                  const qty = Number(e.target.value);
-                  setItemForm({ ...itemForm, quantidade: qty, valor_total: qty * itemForm.valor_unidade });
-                }} className={inputClass} />
+                <input
+                  type="number"
+                  min={0}
+                  value={itemForm.quantidade || ""}
+                  onChange={(e) => {
+                    const qty = Number(e.target.value);
+                    setItemForm((f) => ({ ...f, quantidade: qty, valor_total: qty * f.valor_unidade }));
+                  }}
+                  className={inputClass}
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Valor Unit.</label>
-                <input type="number" step="0.01" value={itemForm.valor_unidade || ""} onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setItemForm({ ...itemForm, valor_unidade: val, valor_total: itemForm.quantidade * val });
-                }} className={inputClass} />
+                <input
+                  readOnly
+                  value={itemForm.valor_unidade.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  className={inputClass + " opacity-70 cursor-not-allowed"}
+                  title="Valor obtido do cadastro do produto"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Valor Total</label>
-                <input type="number" step="0.01" value={itemForm.valor_total || ""} onChange={(e) => setItemForm({ ...itemForm, valor_total: Number(e.target.value) })} className={inputClass} />
+                <input
+                  readOnly
+                  value={itemForm.valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  className={inputClass + " opacity-70 cursor-not-allowed"}
+                />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setShowItemModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
-            <button onClick={addItem} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Adicionar</button>
+            <button onClick={() => { setShowItemModal(false); resetItemForm(); }} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
+            <button
+              onClick={() => addItem(true)}
+              disabled={!itemProduto || itemForm.quantidade <= 0}
+              className="px-4 py-2 rounded-lg text-sm text-foreground border border-border hover:bg-secondary transition-colors disabled:opacity-50"
+            >
+              Adicionar e continuar
+            </button>
+            <button
+              onClick={() => addItem(false)}
+              disabled={!itemProduto || itemForm.quantidade <= 0}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              Adicionar e fechar
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
