@@ -13,6 +13,8 @@ interface Props {
   trendGoodWhen?: "up" | "down";
   onClick?: () => void;
   tooltip?: string;
+  progress?: number;
+  unit?: string;
 }
 
 const severityMap: Record<KPISeverity, { iconBg: string; bar: string; valueColor: string }> = {
@@ -22,7 +24,7 @@ const severityMap: Record<KPISeverity, { iconBg: string; bar: string; valueColor
   neutral: { iconBg: "bg-blue-500/15 text-blue-400", bar: "bg-blue-500", valueColor: "text-foreground" },
 };
 
-export function KPICardPro({ title, value, subtitle, icon, severity = "neutral", trend, trendGoodWhen = "up", onClick, tooltip }: Props) {
+export function KPICardPro({ title, value, subtitle, icon, severity = "neutral", trend, trendGoodWhen = "up", onClick, tooltip, progress, unit }: Props) {
   const sev = severityMap[severity];
   const goodTrend =
     trend?.dir === "flat" ? null :
@@ -53,12 +55,21 @@ export function KPICardPro({ title, value, subtitle, icon, severity = "neutral",
               </span>
             )}
           </div>
-          <p className={cn("text-2xl font-bold mt-0.5 leading-none", sev.valueColor)}>{value}</p>
+          <div className="flex items-baseline gap-1.5">
+            <p className={cn("text-2xl font-bold mt-0.5 leading-none", sev.valueColor)}>{value}</p>
+            {unit && <span className="text-xs text-muted-foreground font-normal">{unit}</span>}
+          </div>
           {subtitle && <p className="text-xs text-muted-foreground mt-1.5 truncate">{subtitle}</p>}
         </div>
       </div>
       <div className="mt-3 h-1 rounded-full bg-secondary/40 overflow-hidden">
-        <div className={cn("h-full transition-all", sev.bar)} style={{ width: severity === "neutral" ? "60%" : "100%", opacity: severity === "neutral" ? 0.4 : 0.8 }} />
+        <div
+          className={cn("h-full transition-all", sev.bar)}
+          style={{
+            width: progress !== undefined ? `${Math.max(2, Math.min(100, progress))}%` : (severity === "neutral" ? "60%" : "100%"),
+            opacity: severity === "neutral" ? 0.4 : 0.8,
+          }}
+        />
       </div>
     </button>
   );
