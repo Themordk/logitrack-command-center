@@ -55,11 +55,56 @@ export interface OperadorRanking {
   tempo_medio_seg: number;
 }
 
-export interface OcorrenciaItem {
-  motivo_id: string;
-  descricao: string;
-  quantidade: number;
+export interface OcorrenciaResumo {
+  total: number;
+  abertas: number;
+  em_investigacao: number;
+  resolvidas: number;
+  canceladas: number;
+  pendentes: number;
+  criticas: number;
 }
+
+export interface OcorrenciaTipo {
+  tipo: string;
+  quantidade: number;
+  pendentes: number;
+}
+
+export interface OcorrenciaEtapa {
+  etapa: string;
+  quantidade: number;
+  pendentes: number;
+}
+
+export interface OcorrenciasResult {
+  resumo: OcorrenciaResumo;
+  por_tipo: OcorrenciaTipo[];
+  por_etapa: OcorrenciaEtapa[];
+}
+
+export const LABELS_TIPO_OCORRENCIA: Record<string, string> = {
+  FALTA: "Falta",
+  SOBRA: "Sobra",
+  AVARIA: "Avaria",
+  DIVERGENCIA_INVENTARIO: "Divergência de Inventário",
+  EXTRAVIO: "Extravio",
+  PRODUTO_INCORRETO: "Produto Incorreto",
+  VALIDADE_INCORRETA: "Validade Incorreta",
+  LOTE_INCORRETO: "Lote Incorreto",
+  OUTROS: "Outros",
+};
+
+export const LABELS_ETAPA_OCORRENCIA: Record<string, string> = {
+  RECEBIMENTO: "Recebimento",
+  ARMAZENAGEM: "Armazenagem",
+  ABASTECIMENTO: "Abastecimento",
+  MOVIMENTACAO: "Movimentação",
+  SEPARACAO: "Separação",
+  EXPEDICAO: "Expedição",
+  INVENTARIO: "Inventário",
+  AUDITORIA: "Auditoria",
+};
 
 export interface TendenciaItem {
   hora: number;
