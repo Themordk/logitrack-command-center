@@ -37,7 +37,7 @@ export function RankingOperadores({ data, loading }: { data: Operador[]; loading
             const pct = Math.max(6, Math.round((op.tarefas / max) * 100));
             return (
               <div
-                key={op.id}
+                key={op.usuario_id}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors",
                   isPodio ? podio[idx] : "bg-secondary/30 border-transparent text-foreground hover:bg-secondary/50",
