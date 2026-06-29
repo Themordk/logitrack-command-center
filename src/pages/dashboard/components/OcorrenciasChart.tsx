@@ -21,7 +21,8 @@ const CORES_TIPO: Record<string, string> = {
 
 export function OcorrenciasChart({ data, loading }: Props) {
   const resumo = data?.resumo;
-  const porTipo = (data?.por_tipo || []).map((item) => ({
+  const porTipoRaw = Array.isArray(data?.por_tipo) ? data!.por_tipo : [];
+  const porTipo = porTipoRaw.map((item) => ({
     nome: LABELS_TIPO_OCORRENCIA[item.tipo] || item.tipo,
     tipo: item.tipo,
     quantidade: item.quantidade,
