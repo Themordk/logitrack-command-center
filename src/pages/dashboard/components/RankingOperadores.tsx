@@ -11,13 +11,14 @@ function initials(nome: string) {
 }
 
 export function RankingOperadores({ data, loading }: { data: Operador[]; loading?: boolean }) {
+  const safeData: Operador[] = Array.isArray(data) ? data : [];
   const podio = [
     "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
     "bg-slate-300/10 text-slate-300 border-slate-300/30",
     "bg-orange-500/15 text-orange-400 border-orange-500/30",
   ];
   const podioIcon = [Trophy, Medal, Award];
-  const max = Math.max(1, ...data.map((d) => d.tarefas));
+  const max = Math.max(1, ...safeData.map((d) => d.tarefas));
 
   return (
     <div className="card-surface p-5">
