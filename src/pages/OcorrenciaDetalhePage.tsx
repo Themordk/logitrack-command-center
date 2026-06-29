@@ -4,9 +4,10 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import {
   ArrowLeft, Package, FileText, User, Clock, MessageSquare,
-  CheckCircle2, XCircle, Search, AlertTriangle, ShieldAlert, Loader2,
+  CheckCircle2, XCircle, Search, AlertTriangle, ShieldAlert, Loader2, Plus,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 
@@ -61,6 +62,11 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
   const [dialogText, setDialogText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [histOpen, setHistOpen] = useState(false);
+  const [histStatus, setHistStatus] = useState<string>("");
+  const [histObs, setHistObs] = useState("");
+  const [histConcluir, setHistConcluir] = useState(false);
+  const [histSaving, setHistSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!tenantId || !ocorrenciaId) return;
@@ -131,6 +137,66 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
       toast.error(err.message || "Falha ao atualizar.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openHist = () => {
+    setHistStatus(ocorrencia?.status ?? "ABERTA");
+    setHistObs("");
+    setHistConcluir(false);
+    setHistOpen(true);
+  };
+
+  const submitHist = async () => {
+    if (!tenantId || !usuarioId || !ocorrencia) return;
+    const concluir = histConcluir;
+    const statusNovo = concluir ? "RESOLVIDA" : histStatus;
+    if (!statusNovo) {
+      toast.error("Selecione o novo status.");
+      return;
+    }
+    if ((concluir || statusNovo === "RESOLVIDA") && !histObs.trim()) {
+      toast.error("Informe uma observação para concluir a ocorrência.");
+      return;
+    }
+    setHistSaving(true);
+    try {
+      const { error: histErr } = await (supabase as any)
+        .from("ocorrencia_historico")
+        .insert({
+          tenant_id: tenantId,
+          ocorrencia_id: ocorrenciaId,
+          status_anterior: ocorrencia.status,
+          status_novo: statusNovo,
+          observacao: histObs.trim() || null,
+          usuario_id: usuarioId,
+        });
+      if (histErr) throw histErr;
+
+      if (statusNovo !== ocorrencia.status) {
+        const patch: any = { status: statusNovo, updated_by: usuarioId };
+        if (statusNovo === "RESOLVIDA") {
+          patch.resolvido_por = usuarioId;
+          patch.resolvido_em = new Date().toISOString();
+          patch.resolucao = histObs.trim();
+        } else if (histObs.trim()) {
+          patch.observacao = histObs.trim();
+        }
+        const { error: ocoErr } = await (supabase as any)
+          .from("ocorrencia_operacional")
+          .update(patch)
+          .eq("id", ocorrenciaId)
+          .eq("tenant_id", tenantId);
+        if (ocoErr) throw ocoErr;
+      }
+
+      toast.success("Histórico registrado.");
+      setHistOpen(false);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || "Falha ao registrar histórico.");
+    } finally {
+      setHistSaving(false);
     }
   };
 
@@ -249,9 +315,17 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
 
         {/* Histórico */}
         <div className="card-surface p-4 flex flex-col min-h-0">
-          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <MessageSquare size={14} /> Histórico
-          </h3>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <MessageSquare size={14} /> Histórico
+            </h3>
+            <button
+              onClick={openHist}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-foreground hover:bg-secondary transition-colors"
+            >
+              <Plus size={12} /> Registrar
+            </button>
+          </div>
           <div className="flex-1 overflow-auto">
             {historico.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">Sem registros.</p>
@@ -332,6 +406,85 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}
               Confirmar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Registrar Histórico */}
+      <Dialog open={histOpen} onOpenChange={(v) => { if (!v && !histSaving) setHistOpen(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar histórico</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="block text-[10px] uppercase font-medium text-muted-foreground mb-1">
+                Status anterior
+              </label>
+              <div className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] border", STATUS_BADGE[ocorrencia.status])}>
+                {STATUS_LABEL[ocorrencia.status] ?? ocorrencia.status}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-medium text-muted-foreground mb-1">
+                Novo status <span className="text-destructive">*</span>
+              </label>
+              <select
+                value={histConcluir ? "RESOLVIDA" : histStatus}
+                disabled={histConcluir}
+                onChange={(e) => setHistStatus(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary disabled:opacity-60"
+              >
+                <option value="">Selecionar...</option>
+                <option value="ABERTA">Aberta</option>
+                <option value="EM_INVESTIGACAO">Em investigação</option>
+                <option value="RESOLVIDA">Resolvida</option>
+                <option value="CANCELADA">Cancelada</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-medium text-muted-foreground mb-1">
+                Observação {(histConcluir || histStatus === "RESOLVIDA") && <span className="text-destructive">*</span>}
+              </label>
+              <textarea
+                value={histObs}
+                onChange={(e) => setHistObs(e.target.value)}
+                rows={4}
+                placeholder="Descreva a atualização..."
+                className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
+              />
+            </div>
+
+            {podeAgir && (
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border bg-secondary/30">
+                <Switch checked={histConcluir} onCheckedChange={setHistConcluir} />
+                <div className="flex-1">
+                  <p className="text-xs text-foreground font-medium">Concluir ocorrência</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Marca a ocorrência operacional como <strong>Resolvida</strong> usando a observação acima.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setHistOpen(false)}
+              disabled={histSaving}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={submitHist}
+              disabled={histSaving}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              {histSaving && <Loader2 size={14} className="animate-spin" />}
+              Salvar
             </button>
           </DialogFooter>
         </DialogContent>
