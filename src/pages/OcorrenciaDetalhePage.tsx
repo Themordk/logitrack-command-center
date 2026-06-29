@@ -140,6 +140,66 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
     }
   };
 
+  const openHist = () => {
+    setHistStatus(ocorrencia?.status ?? "ABERTA");
+    setHistObs("");
+    setHistConcluir(false);
+    setHistOpen(true);
+  };
+
+  const submitHist = async () => {
+    if (!tenantId || !usuarioId || !ocorrencia) return;
+    const concluir = histConcluir;
+    const statusNovo = concluir ? "RESOLVIDA" : histStatus;
+    if (!statusNovo) {
+      toast.error("Selecione o novo status.");
+      return;
+    }
+    if ((concluir || statusNovo === "RESOLVIDA") && !histObs.trim()) {
+      toast.error("Informe uma observação para concluir a ocorrência.");
+      return;
+    }
+    setHistSaving(true);
+    try {
+      const { error: histErr } = await (supabase as any)
+        .from("ocorrencia_historico")
+        .insert({
+          tenant_id: tenantId,
+          ocorrencia_id: ocorrenciaId,
+          status_anterior: ocorrencia.status,
+          status_novo: statusNovo,
+          observacao: histObs.trim() || null,
+          usuario_id: usuarioId,
+        });
+      if (histErr) throw histErr;
+
+      if (statusNovo !== ocorrencia.status) {
+        const patch: any = { status: statusNovo, updated_by: usuarioId };
+        if (statusNovo === "RESOLVIDA") {
+          patch.resolvido_por = usuarioId;
+          patch.resolvido_em = new Date().toISOString();
+          patch.resolucao = histObs.trim();
+        } else if (histObs.trim()) {
+          patch.observacao = histObs.trim();
+        }
+        const { error: ocoErr } = await (supabase as any)
+          .from("ocorrencia_operacional")
+          .update(patch)
+          .eq("id", ocorrenciaId)
+          .eq("tenant_id", tenantId);
+        if (ocoErr) throw ocoErr;
+      }
+
+      toast.success("Histórico registrado.");
+      setHistOpen(false);
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || "Falha ao registrar histórico.");
+    } finally {
+      setHistSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
