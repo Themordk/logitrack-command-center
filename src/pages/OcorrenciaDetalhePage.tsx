@@ -315,9 +315,17 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
 
         {/* Histórico */}
         <div className="card-surface p-4 flex flex-col min-h-0">
-          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <MessageSquare size={14} /> Histórico
-          </h3>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <MessageSquare size={14} /> Histórico
+            </h3>
+            <button
+              onClick={openHist}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-foreground hover:bg-secondary transition-colors"
+            >
+              <Plus size={12} /> Registrar
+            </button>
+          </div>
           <div className="flex-1 overflow-auto">
             {historico.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">Sem registros.</p>
