@@ -1,40 +1,30 @@
-## Otimizar adição de itens em Documentos de Entrada e Saída
+## Plano — Refatoração do Dashboard "Torre de Controle"
 
-Refatorar o modal "Adicionar Item" usado em `CadastroDocEntradaPage.tsx` e `CadastroDocSaidaPage.tsx`, extraindo a busca de produto para um componente reutilizável com busca incremental por **SKU, descrição, referência ou EAN**, no padrão do `EnderecoSearchInput`. O custo passa a vir do cadastro de produto (`produto.preco_custo`), em modo somente leitura.
+Aplicar o prompt enviado (`prompt-lovable-dashboard.md`), migrando o dashboard para as 4 novas RPCs já disponíveis no banco, adicionando KPIs, gráfico de tendência e auto-refresh.
 
-### Componente novo: `src/components/produto/ProdutoSearchInput.tsx`
+### Arquivos alterados
 
-- Padrão visual idêntico ao `EnderecoSearchInput` (input com ícone `Search`, chip selecionado com `X`, dropdown absoluto, fechamento ao clicar fora, debounce 250ms).
-- Estado vazio: input com placeholder "Buscar por SKU, descrição, referência ou EAN…".
-- Busca server-side com `useDebounce` (mínimo 2 caracteres) escopada por `tenant_id` + `empresa_id` + `ativo=true`:
-  - Em `produto`: `or(sku.ilike.%t%, descricao.ilike.%t%, referencia.ilike.%t%)` — selecionar `id, sku, descricao, referencia, preco_custo` (limit 30).
-  - Em `produto_embalagem` quando termo é numérico: `ean.ilike.%t%` → join para `produto(id, sku, descricao, referencia, preco_custo)` filtrado pela mesma empresa, mesclar resultados deduplicando por `produto_id` (limit 20).
-- Dropdown lista até 30 itens com duas linhas: `SKU — descrição` e `Ref: xxx · EAN match: 7891…` quando aplicável. Navegação por teclado (↑/↓/Enter/Esc) e auto-focus ao abrir o modal.
-- Chip selecionado mostra `SKU — descrição` + botão limpar.
-- Props: `value: string | null`, `onChange(produto | null)` (devolve objeto completo, não só id), `tenantId`, `empresaId`, `disabled`.
+1. **`src/pages/dashboard/dashboard.service.ts`** — substituir 100% do conteúdo.
+   - Remove as 6 funções antigas (`fetchOtif`, `fetchOcupacao`, `fetchProdutividade`, `fetchBacklog`, `fetchTopOperadores`, `fetchOcorrencias`) que faziam queries diretas.
+   - Adiciona 4 funções que chamam RPCs: `fetchKpis` (`dashboard_kpis`), `fetchRankingOperadores` (`dashboard_ranking_operadores`), `fetchOcorrencias` (`dashboard_ocorrencias`), `fetchTendencia` (`dashboard_tendencia_tarefas`).
+   - Exporta tipos `KpisResult`, `OperadorRanking`, `OcorrenciaItem`, `TendenciaItem` e helper `formatarTempoEspera`.
 
-### Modal "Adicionar Item" (reescrita em ambas as páginas)
+2. **`src/pages/Dashboard.tsx`** — reescrever.
+   - Remove imports mortos do `recharts` (PieChart/Pie/Cell) e variável `donut`.
+   - Estados passam a refletir as RPCs (`kpis`, `ranking`, `ocorrencias`, `tendencia`, `ultimaAtualizacao`).
+   - Mantém o header "Torre de Controle" + "Sistema Online", adiciona botão de última atualização com `RefreshCw`.
+   - Auto-refresh a cada 60 s sem ativar spinner.
+   - Linha 1 de KPIs (Taxa de Conclusão, Ocupação, Produtividade, Fila de Espera) e nova Linha 2 (Em Andamento, Operadores Ativos, Unidades Movimentadas, Acurácia Operacional).
+   - Novo gráfico `TendenciaChart` acima da seção Ranking + Ocorrências.
 
-Layout do modal (largura `sm:max-w-xl`):
+3. **`src/pages/dashboard/components/KPICardPro.tsx`** — adicionar props `progress` (0-100) e `unit` (texto ao lado do valor), e corrigir a barra de progresso que hoje fica fixa em 100% (passa a refletir `progress`, com fallback atual quando ausente).
 
-1. **Produto** — `<ProdutoSearchInput>` ocupando linha inteira.
-2. Linha de detalhes do produto selecionado (somente leitura, fundo `bg-secondary/30`): SKU, Referência, EAN principal (quando disponível). Oculta enquanto não houver seleção.
-3. Grid 3 colunas:
-   - **Quantidade** *(editável, auto-focus após seleção do produto)*
-   - **Valor Unit.** — somente leitura, `readOnly`, preenchido com `produto.preco_custo ?? 0`, formatado em BRL.
-   - **Valor Total** — somente leitura, calculado `quantidade * valor_unit`.
-4. Botão **Adicionar** habilita apenas quando há produto + quantidade > 0. Após adicionar, modal permanece aberto com o foco voltando ao campo de busca (fluxo rápido para vários itens); botão **Adicionar e fechar** secundário fecha o modal.
+4. **`src/pages/dashboard/components/TendenciaChart.tsx`** — novo arquivo. AreaChart (recharts) 24h, preenchendo horas sem dados com zero, com gradiente, tooltip dark, estado vazio e skeleton.
 
-### Página de cadastro (Entrada e Saída)
+### Notas técnicas
 
-- Remover o pré-carregamento de **todos** os produtos (`setProdutos([...])` do `useEffect` inicial). A busca passa a ser sob demanda via componente.
-- `addItem` recebe o produto completo do componente, monta o `DocItem` com `valor_unidade/valor_unit = preco_custo` e `valor_total = quantidade * preco_custo`.
-- Persistência (`documento_entrada_item` / `documento_saida_item`) usa esses mesmos valores — schema inalterado.
-- Tabela de itens existente fica como está; apenas o modal e o serviço de busca mudam.
-
-### Detalhes técnicos
-
-- Tabela `produto` já possui `sku`, `descricao`, `referencia`, `preco_custo`, `ativo`, `empresa_id`, `tenant_id`. EAN vive em `produto_embalagem.ean` (1:N).
-- Reaproveitar `useDebounce` de `src/hooks/useDebounce.ts`.
-- Sem migrations; sem alterações em rotas, tipos do Supabase ou no schema.
-- Componente novo isolado em `src/components/produto/`, podendo ser reutilizado depois (movimentos, ajustes etc.).
+- Nenhuma migração de banco — RPCs já existem.
+- Mantém integração com `useTenant` (tenant/empresa/armazem/empresaVersion) e `DashboardFilters` existente.
+- Severidades de KPI seguem regras do prompt (Taxa: ≥95 good / ≥80 warn; Ocupação invertida; Acurácia: ≥98 good / ≥95 warn; Backlog: >50 bad / ≥20 warn).
+- `RankingOperadores` e `OcorrenciasChart` reutilizam componentes existentes (ocorrências mapeadas para `{ descricao, qtd }`).
+- Sem alterações em filtros, rotas, permissões ou outras telas.
