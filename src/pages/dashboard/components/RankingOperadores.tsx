@@ -24,15 +24,15 @@ export function RankingOperadores({ data, loading }: { data: Operador[]; loading
     <div className="card-surface p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Top Operadores</h3>
-        <span className="text-xs text-muted-foreground">{data.length} operadores</span>
+        <span className="text-xs text-muted-foreground">{safeData.length} operadores</span>
       </div>
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary/30 animate-pulse" />)}</div>
-      ) : data.length === 0 ? (
+      ) : safeData.length === 0 ? (
         <div className="text-center py-8 text-sm text-muted-foreground">Nenhum operador concluiu tarefas no período. Verifique se há tarefas atribuídas.</div>
       ) : (
         <div className="space-y-1.5">
-          {data.map((op, idx) => {
+          {safeData.map((op, idx) => {
             const isPodio = idx < 3;
             const Icon = isPodio ? podioIcon[idx] : null;
             const pct = Math.max(6, Math.round((op.tarefas / max) * 100));
