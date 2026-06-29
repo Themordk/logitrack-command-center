@@ -4,9 +4,10 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import {
   ArrowLeft, Package, FileText, User, Clock, MessageSquare,
-  CheckCircle2, XCircle, Search, AlertTriangle, ShieldAlert, Loader2,
+  CheckCircle2, XCircle, Search, AlertTriangle, ShieldAlert, Loader2, Plus,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 
