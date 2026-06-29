@@ -8,7 +8,8 @@ interface Item {
 }
 
 function preencherHoras(data: Item[]): { hora: string; tarefas: number; unidades: number }[] {
-  const map = new Map(data.map((d) => [d.hora, d]));
+  const arr = Array.isArray(data) ? data : [];
+  const map = new Map(arr.map((d) => [d.hora, d]));
   return Array.from({ length: 24 }, (_, i) => ({
     hora: `${String(i).padStart(2, "0")}h`,
     tarefas: map.get(i)?.tarefas || 0,
@@ -17,9 +18,10 @@ function preencherHoras(data: Item[]): { hora: string; tarefas: number; unidades
 }
 
 export function TendenciaChart({ data, loading }: { data: Item[]; loading?: boolean }) {
-  const chartData = preencherHoras(data);
-  const temDados = data.length > 0;
-  const totalTarefas = data.reduce((s, d) => s + d.tarefas, 0);
+  const safe: Item[] = Array.isArray(data) ? data : [];
+  const chartData = preencherHoras(safe);
+  const temDados = safe.length > 0;
+  const totalTarefas = safe.reduce((s, d) => s + d.tarefas, 0);
 
   return (
     <div className="card-surface p-5">
