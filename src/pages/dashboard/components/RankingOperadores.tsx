@@ -1,7 +1,7 @@
 import { Trophy, Medal, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Operador { id: string; nome: string; tarefas: number; produtividade: number }
+interface Operador { usuario_id: string; nome: string; tarefas: number; produtividade: number; tempo_medio_seg?: number }
 
 function initials(nome: string) {
   const parts = (nome || "").trim().split(/\s+/).filter(Boolean);
