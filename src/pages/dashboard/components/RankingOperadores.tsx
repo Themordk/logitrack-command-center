@@ -28,7 +28,7 @@ export function RankingOperadores({ data, loading }: { data: Operador[]; loading
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary/30 animate-pulse" />)}</div>
       ) : data.length === 0 ? (
-        <div className="text-center py-8 text-sm text-muted-foreground">Sem dados de produtividade no período.</div>
+        <div className="text-center py-8 text-sm text-muted-foreground">Nenhum operador concluiu tarefas no período. Verifique se há tarefas atribuídas.</div>
       ) : (
         <div className="space-y-1.5">
           {data.map((op, idx) => {
