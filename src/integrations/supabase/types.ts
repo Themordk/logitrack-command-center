@@ -6730,6 +6730,65 @@ export type Database = {
         }
         Returns: Json
       }
+      dashboard_kpis: {
+        Args: {
+          p_armazem_id?: string
+          p_data_fim?: string
+          p_data_ini?: string
+          p_empresa_id?: string
+          p_tenant_id: string
+          p_turno_id?: string
+        }
+        Returns: Json
+      }
+      dashboard_ocorrencias: {
+        Args: {
+          p_armazem_id?: string
+          p_data_fim?: string
+          p_data_ini?: string
+          p_empresa_id?: string
+          p_limite?: number
+          p_tenant_id: string
+        }
+        Returns: {
+          descricao: string
+          motivo_id: string
+          quantidade: number
+        }[]
+      }
+      dashboard_ranking_operadores: {
+        Args: {
+          p_armazem_id?: string
+          p_data_fim?: string
+          p_data_ini?: string
+          p_empresa_id?: string
+          p_limite?: number
+          p_tenant_id: string
+          p_turno_id?: string
+        }
+        Returns: {
+          nome: string
+          produtividade: number
+          tarefas: number
+          tempo_medio_seg: number
+          usuario_id: string
+        }[]
+      }
+      dashboard_tendencia_tarefas: {
+        Args: {
+          p_armazem_id?: string
+          p_data_fim?: string
+          p_data_ini?: string
+          p_empresa_id?: string
+          p_tenant_id: string
+          p_turno_id?: string
+        }
+        Returns: {
+          hora: number
+          tarefas: number
+          unidades: number
+        }[]
+      }
       entrada_conferencia_buscar_tarefas: {
         Args: {
           p_empresa_id: string
