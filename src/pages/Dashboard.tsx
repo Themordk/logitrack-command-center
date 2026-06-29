@@ -12,7 +12,7 @@ import { OcorrenciasChart } from "./dashboard/components/OcorrenciasChart";
 import { TendenciaChart } from "./dashboard/components/TendenciaChart";
 import {
   fetchKpis, fetchRankingOperadores, fetchOcorrencias, fetchTendencia,
-  formatarTempoEspera, KpisResult, OperadorRanking, OcorrenciaItem, TendenciaItem,
+  formatarTempoEspera, KpisResult, OperadorRanking, OcorrenciasResult, TendenciaItem,
   DashboardFilters as DF,
 } from "./dashboard/dashboard.service";
 

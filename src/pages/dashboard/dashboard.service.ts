@@ -177,20 +177,24 @@ export async function fetchRankingOperadores(f: DashboardFilters, limite = 8): P
 
 // ── RPC 3: Ocorrências ──
 
-export async function fetchOcorrencias(f: DashboardFilters, limite = 8): Promise<OcorrenciaItem[]> {
+export async function fetchOcorrencias(f: DashboardFilters): Promise<OcorrenciasResult> {
+  const vazio: OcorrenciasResult = {
+    resumo: { total: 0, abertas: 0, em_investigacao: 0, resolvidas: 0, canceladas: 0, pendentes: 0, criticas: 0 },
+    por_tipo: [],
+    por_etapa: [],
+  };
   const { data, error } = await sb.rpc("dashboard_ocorrencias", {
     p_tenant_id: f.tenantId,
     p_empresa_id: f.empresaId || null,
     p_armazem_id: f.armazemId || null,
     p_data_ini: f.dataIni,
     p_data_fim: f.dataFim,
-    p_limite: limite,
   });
   if (error) {
     console.error("dashboard_ocorrencias error:", error);
-    return [];
+    return vazio;
   }
-  return (data || []) as OcorrenciaItem[];
+  return (data as OcorrenciasResult) || vazio;
 }
 
 // ── RPC 4: Tendência por hora ──
