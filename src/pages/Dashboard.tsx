@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { format } from "date-fns";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { Target, Activity, Gauge, ListTodo, ArrowRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Target, Gauge, Activity, ListTodo,
+  PlayCircle, Users, Package, ShieldCheck, RefreshCw,
+} from "lucide-react";
 import { DashboardFilters, FiltersState } from "./dashboard/components/DashboardFilters";
 import { KPICardPro, KPISeverity } from "./dashboard/components/KPICardPro";
 import { RankingOperadores } from "./dashboard/components/RankingOperadores";
 import { OcorrenciasChart } from "./dashboard/components/OcorrenciasChart";
+import { TendenciaChart } from "./dashboard/components/TendenciaChart";
 import {
-  fetchOtif, fetchOcupacao, fetchProdutividade, fetchBacklog,
-  fetchTopOperadores, fetchOcorrencias, DashboardFilters as DF,
+  fetchKpis, fetchRankingOperadores, fetchOcorrencias, fetchTendencia,
+  formatarTempoEspera, KpisResult, OperadorRanking, OcorrenciaItem, TendenciaItem,
+  DashboardFilters as DF,
 } from "./dashboard/dashboard.service";
+
+const REFRESH_INTERVAL = 60_000;
 
 export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
   const { tenantId, empresaId, empresaVersion, armazemId } = useTenant();
@@ -24,106 +29,179 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
     turnoId: null,
   });
 
-  const [otif, setOtif] = useState<any>(null);
-  const [ocup, setOcup] = useState<any>(null);
-  const [prod, setProd] = useState<any>(null);
-  const [back, setBack] = useState<any>(null);
-  const [oper, setOper] = useState<any[]>([]);
-  const [ocor, setOcor] = useState<any[]>([]);
+  const [kpis, setKpis] = useState<KpisResult | null>(null);
+  const [trendTC, setTrendTC] = useState<any>(null);
+  const [trendProd, setTrendProd] = useState<any>(null);
+  const [ranking, setRanking] = useState<OperadorRanking[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<OcorrenciaItem[]>([]);
+  const [tendencia, setTendencia] = useState<TendenciaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
 
   const dfArgs: DF | null = useMemo(
     () => (tenantId ? { tenantId, empresaId: empresaId || null, ...filters } : null),
     [tenantId, empresaId, filters],
   );
 
-  useEffect(() => {
+  const carregarDados = useCallback(async (showLoading = true) => {
     if (!dfArgs) return;
-    setLoading(true);
-    Promise.all([
-      fetchOtif(dfArgs), fetchOcupacao(dfArgs), fetchProdutividade(dfArgs),
-      fetchBacklog(dfArgs), fetchTopOperadores(dfArgs), fetchOcorrencias(dfArgs),
-    ]).then(([a, b, c, d, e, f]) => {
-      setOtif(a); setOcup(b); setProd(c); setBack(d); setOper(e); setOcor(f);
-    }).finally(() => setLoading(false));
-    // future: const id = setInterval(reload, 60000); return () => clearInterval(id);
-  }, [dfArgs, empresaVersion]);
+    if (showLoading) setLoading(true);
+    try {
+      const [kpiResult, rank, ocor, tend] = await Promise.all([
+        fetchKpis(dfArgs),
+        fetchRankingOperadores(dfArgs),
+        fetchOcorrencias(dfArgs),
+        fetchTendencia(dfArgs),
+      ]);
+      if (kpiResult) {
+        setKpis(kpiResult.kpis);
+        setTrendTC(kpiResult.trendTaxaConclusao);
+        setTrendProd(kpiResult.trendProdutividade);
+      }
+      setRanking(rank);
+      setOcorrencias(ocor);
+      setTendencia(tend);
+      setUltimaAtualizacao(new Date());
+    } finally {
+      setLoading(false);
+    }
+  }, [dfArgs]);
 
-  const otifSev: KPISeverity = !otif ? "neutral" : otif.value >= 95 ? "good" : otif.value >= 90 ? "warn" : "bad";
-  const ocupSev: KPISeverity = !ocup ? "neutral" : ocup.value > 85 ? "bad" : ocup.value >= 70 ? "warn" : "good";
-  const backSev: KPISeverity = !back ? "neutral" : back.value > 50 ? "bad" : back.value >= 20 ? "warn" : "good";
+  useEffect(() => {
+    carregarDados(true);
+  }, [carregarDados, empresaVersion]);
 
-  const donut = ocup ? [
-    { name: "Livres", value: ocup.livres || 0.0001, color: "hsl(142 70% 45%)" },
-    { name: "Ocupados", value: ocup.ocupados, color: "hsl(45 90% 55%)" },
-    { name: "Bloqueados", value: ocup.bloqueados, color: "hsl(0 72% 55%)" },
-  ] : [];
+  useEffect(() => {
+    const id = setInterval(() => carregarDados(false), REFRESH_INTERVAL);
+    return () => clearInterval(id);
+  }, [carregarDados]);
+
+  const tc = kpis?.taxa_conclusao;
+  const oc = kpis?.ocupacao;
+  const pr = kpis?.produtividade;
+  const bk = kpis?.backlog;
+  const ac = kpis?.acuracia;
+
+  const sevTC: KPISeverity = !tc ? "neutral" : tc.valor >= 95 ? "good" : tc.valor >= 80 ? "warn" : "bad";
+  const sevOcup: KPISeverity = !oc ? "neutral" : oc.valor > 85 ? "bad" : oc.valor >= 70 ? "warn" : "good";
+  const sevProd: KPISeverity = "neutral";
+  const sevBack: KPISeverity = !bk ? "neutral" : bk.total > 50 ? "bad" : bk.total >= 20 ? "warn" : "good";
+  const sevEA: KPISeverity = "neutral";
+  const sevOp: KPISeverity = "neutral";
+  const sevTP: KPISeverity = "neutral";
+  const sevAC: KPISeverity = !ac ? "neutral" : ac.valor >= 98 ? "good" : ac.valor >= 95 ? "warn" : "bad";
 
   return (
     <div className="space-y-5 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Torre de Controle</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Visão executiva em tempo real</p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-xs text-green-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          Sistema Online
+        <div className="flex items-center gap-3">
+          {ultimaAtualizacao && (
+            <button
+              onClick={() => carregarDados(true)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              title="Clique para atualizar agora"
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+              {format(ultimaAtualizacao, "HH:mm:ss")}
+            </button>
+          )}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-xs text-green-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            Sistema Online
+          </div>
         </div>
       </div>
 
-      {/* Filtros */}
       {tenantId && (
         <DashboardFilters tenantId={tenantId} empresaId={empresaId} defaultArmazemId={armazemId} value={filters} onChange={setFilters} />
       )}
 
-      {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICardPro
-          title="OTIF"
-          value={otif ? `${otif.value}%` : "—"}
-          subtitle={otif ? `${otif.concluidas}/${otif.total} pedidos concluídos` : "Sem dados"}
+          title="Taxa de Conclusão"
+          value={tc ? `${tc.valor}%` : "—"}
+          subtitle={tc ? (tc.total > 0 ? `${tc.concluidas}/${tc.total} ondas concluídas` : "Nenhuma onda no período") : "Carregando..."}
           icon={<Target size={20} />}
-          severity={otifSev}
-          trend={otif?.trend}
-          tooltip="Aproximação baseada em status (CONCLUIDA) sobre total emitido no período."
+          severity={sevTC}
+          trend={trendTC}
+          progress={tc ? tc.valor : undefined}
+          tooltip="Percentual de ondas de carregamento finalizadas sobre o total emitido no período."
           onClick={() => onNavigate("/atividades/movimento-saida")}
         />
         <KPICardPro
-          title="Taxa de Ocupação"
-          value={ocup ? `${ocup.value}%` : "—"}
-          subtitle={ocup ? `${ocup.ocupados} ocupados · ${ocup.livres} livres · ${ocup.total} total` : "Sem dados"}
+          title="Ocupação de Endereços"
+          value={oc ? `${oc.valor}%` : "—"}
+          subtitle={oc ? `${oc.ocupados} ocupados · ${oc.livres} livres · ${oc.bloqueados > 0 ? oc.bloqueados + " bloqueados · " : ""}${oc.total} total` : "Carregando..."}
           icon={<Gauge size={20} />}
-          severity={ocupSev}
+          severity={sevOcup}
           trendGoodWhen="down"
+          progress={oc ? oc.valor : undefined}
           onClick={() => onNavigate("/armazem/enderecos")}
         />
         <KPICardPro
           title="Produtividade"
-          value={prod ? `${prod.value}` : "—"}
-          subtitle={prod ? `${prod.tarefas} tarefas em ${prod.horas}h · tarefas/hora` : "Sem dados"}
+          value={pr ? `${pr.valor}` : "—"}
+          subtitle={pr ? (pr.tarefas > 0 ? `${pr.tarefas} tarefas em ${pr.horas}h` : "Sem atividade no período") : "Carregando..."}
           icon={<Activity size={20} />}
-          severity="neutral"
-          trend={prod?.trend}
+          severity={sevProd}
+          trend={trendProd}
+          unit="tarefas/hora"
         />
         <KPICardPro
-          title="Backlog Operacional"
-          value={back ? back.value : "—"}
-          subtitle={back ? `Espera média ${back.tempoMedioMin} min` : "Sem dados"}
+          title="Fila de Espera"
+          value={bk ? `${bk.total}` : "—"}
+          subtitle={bk ? (bk.total > 0 ? `Espera média ${formatarTempoEspera(bk.tempo_medio_seg)}` : "Nenhuma tarefa pendente ✓") : "Carregando..."}
           icon={<ListTodo size={20} />}
-          severity={backSev}
+          severity={sevBack}
           trendGoodWhen="down"
+          unit="tarefas"
           onClick={() => onNavigate("/atividades/movimento-saida")}
         />
       </div>
 
-      {/* Ranking + Ocorrências */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RankingOperadores data={oper} loading={loading} />
-        <OcorrenciasChart data={ocor} loading={loading} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICardPro
+          title="Em Andamento"
+          value={kpis ? `${kpis.em_andamento}` : "—"}
+          subtitle={kpis ? (kpis.em_andamento > 0 ? "tarefas sendo executadas agora" : "Nenhuma tarefa em execução") : "Carregando..."}
+          icon={<PlayCircle size={20} />}
+          severity={sevEA}
+        />
+        <KPICardPro
+          title="Operadores Ativos"
+          value={kpis ? `${kpis.operadores_ativos}` : "—"}
+          subtitle={kpis ? (kpis.operadores_ativos > 0 ? "conectados nos últimos 5 min" : "Nenhum operador online") : "Carregando..."}
+          icon={<Users size={20} />}
+          severity={sevOp}
+        />
+        <KPICardPro
+          title="Unidades Movimentadas"
+          value={kpis ? `${kpis.throughput}` : "—"}
+          subtitle={kpis ? (kpis.throughput > 0 ? "unidades processadas no período" : "Sem movimentação no período") : "Carregando..."}
+          icon={<Package size={20} />}
+          severity={sevTP}
+          unit="un"
+        />
+        <KPICardPro
+          title="Acurácia Operacional"
+          value={ac ? `${ac.valor}%` : "—"}
+          subtitle={ac ? (ac.total > 0 ? `${ac.sem_ocorrencia}/${ac.total} tarefas sem ocorrência` : "Sem tarefas no período") : "Carregando..."}
+          icon={<ShieldCheck size={20} />}
+          severity={sevAC}
+          progress={ac ? ac.valor : undefined}
+        />
       </div>
 
+      <TendenciaChart data={tendencia} loading={loading} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <RankingOperadores data={ranking} loading={loading} />
+        <OcorrenciasChart data={ocorrencias.map(o => ({ descricao: o.descricao, qtd: o.quantidade }))} loading={loading} />
+      </div>
     </div>
   );
 }
