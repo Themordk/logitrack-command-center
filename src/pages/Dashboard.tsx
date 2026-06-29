@@ -12,7 +12,7 @@ import { OcorrenciasChart } from "./dashboard/components/OcorrenciasChart";
 import { TendenciaChart } from "./dashboard/components/TendenciaChart";
 import {
   fetchKpis, fetchRankingOperadores, fetchOcorrencias, fetchTendencia,
-  formatarTempoEspera, KpisResult, OperadorRanking, OcorrenciaItem, TendenciaItem,
+  formatarTempoEspera, KpisResult, OperadorRanking, OcorrenciasResult, TendenciaItem,
   DashboardFilters as DF,
 } from "./dashboard/dashboard.service";
 
@@ -33,7 +33,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
   const [trendTC, setTrendTC] = useState<any>(null);
   const [trendProd, setTrendProd] = useState<any>(null);
   const [ranking, setRanking] = useState<OperadorRanking[]>([]);
-  const [ocorrencias, setOcorrencias] = useState<OcorrenciaItem[]>([]);
+  const [ocorrencias, setOcorrencias] = useState<OcorrenciasResult | null>(null);
   const [tendencia, setTendencia] = useState<TendenciaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
@@ -200,7 +200,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <RankingOperadores data={ranking} loading={loading} />
-        <OcorrenciasChart data={ocorrencias.map(o => ({ descricao: o.descricao, qtd: o.quantidade }))} loading={loading} />
+        <OcorrenciasChart data={ocorrencias} loading={loading} />
       </div>
     </div>
   );

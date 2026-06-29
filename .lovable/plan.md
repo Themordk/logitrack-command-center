@@ -1,30 +1,31 @@
-## Plano — Refatoração do Dashboard "Torre de Controle"
+## Plano — Adendo do módulo de Ocorrências no Dashboard
 
-Aplicar o prompt enviado (`prompt-lovable-dashboard.md`), migrando o dashboard para as 4 novas RPCs já disponíveis no banco, adicionando KPIs, gráfico de tendência e auto-refresh.
+Aplicar o adendo para refletir o novo retorno JSONB da RPC `dashboard_ocorrencias` (resumo + por_tipo + por_etapa).
 
 ### Arquivos alterados
 
-1. **`src/pages/dashboard/dashboard.service.ts`** — substituir 100% do conteúdo.
-   - Remove as 6 funções antigas (`fetchOtif`, `fetchOcupacao`, `fetchProdutividade`, `fetchBacklog`, `fetchTopOperadores`, `fetchOcorrencias`) que faziam queries diretas.
-   - Adiciona 4 funções que chamam RPCs: `fetchKpis` (`dashboard_kpis`), `fetchRankingOperadores` (`dashboard_ranking_operadores`), `fetchOcorrencias` (`dashboard_ocorrencias`), `fetchTendencia` (`dashboard_tendencia_tarefas`).
-   - Exporta tipos `KpisResult`, `OperadorRanking`, `OcorrenciaItem`, `TendenciaItem` e helper `formatarTempoEspera`.
+1. **`src/pages/dashboard/dashboard.service.ts`**
+   - Remover a interface antiga `OcorrenciaItem` (`motivo_id`, `descricao`, `quantidade`).
+   - Adicionar tipos `OcorrenciaResumo`, `OcorrenciaTipo`, `OcorrenciaEtapa`, `OcorrenciasResult`.
+   - Adicionar constantes `LABELS_TIPO_OCORRENCIA` e `LABELS_ETAPA_OCORRENCIA`.
+   - Reescrever `fetchOcorrencias` para retornar `OcorrenciasResult` (sem parâmetro `p_limite`, com fallback vazio em caso de erro).
 
-2. **`src/pages/Dashboard.tsx`** — reescrever.
-   - Remove imports mortos do `recharts` (PieChart/Pie/Cell) e variável `donut`.
-   - Estados passam a refletir as RPCs (`kpis`, `ranking`, `ocorrencias`, `tendencia`, `ultimaAtualizacao`).
-   - Mantém o header "Torre de Controle" + "Sistema Online", adiciona botão de última atualização com `RefreshCw`.
-   - Auto-refresh a cada 60 s sem ativar spinner.
-   - Linha 1 de KPIs (Taxa de Conclusão, Ocupação, Produtividade, Fila de Espera) e nova Linha 2 (Em Andamento, Operadores Ativos, Unidades Movimentadas, Acurácia Operacional).
-   - Novo gráfico `TendenciaChart` acima da seção Ranking + Ocorrências.
+2. **`src/pages/Dashboard.tsx`**
+   - Trocar o state `ocorrencias` de `OcorrenciaItem[]` para `OcorrenciasResult | null`.
+   - Ajustar import (substituir `OcorrenciaItem` por `OcorrenciasResult`).
+   - Inicializar com `null` em vez de `[]`.
+   - Passar `data={ocorrencias}` diretamente para `<OcorrenciasChart>` (remover o `.map`).
 
-3. **`src/pages/dashboard/components/KPICardPro.tsx`** — adicionar props `progress` (0-100) e `unit` (texto ao lado do valor), e corrigir a barra de progresso que hoje fica fixa em 100% (passa a refletir `progress`, com fallback atual quando ausente).
+3. **`src/pages/dashboard/components/OcorrenciasChart.tsx`** — substituição completa
+   - Novo header com badge de "críticas" (vermelho) quando `resumo.criticas > 0`.
+   - Linha de indicadores: pendentes (vermelho), em investigação (amarelo), resolvidas (verde).
+   - Gráfico de barras horizontal por tipo de ocorrência, com paleta `CORES_TIPO` por enum.
+   - Tooltip customizado mostrando total + pendentes.
+   - Estados de loading (skeleton 240px) e vazio ("Nenhuma ocorrência no período ✓").
+   - Usa `LABELS_TIPO_OCORRENCIA` para nomes legíveis em PT.
 
-4. **`src/pages/dashboard/components/TendenciaChart.tsx`** — novo arquivo. AreaChart (recharts) 24h, preenchendo horas sem dados com zero, com gradiente, tooltip dark, estado vazio e skeleton.
+### Notas
 
-### Notas técnicas
-
-- Nenhuma migração de banco — RPCs já existem.
-- Mantém integração com `useTenant` (tenant/empresa/armazem/empresaVersion) e `DashboardFilters` existente.
-- Severidades de KPI seguem regras do prompt (Taxa: ≥95 good / ≥80 warn; Ocupação invertida; Acurácia: ≥98 good / ≥95 warn; Backlog: >50 bad / ≥20 warn).
-- `RankingOperadores` e `OcorrenciasChart` reutilizam componentes existentes (ocorrências mapeadas para `{ descricao, qtd }`).
-- Sem alterações em filtros, rotas, permissões ou outras telas.
+- Nenhuma migração de banco — a RPC já foi atualizada.
+- `por_etapa` fica disponível no tipo mas não é renderizado nesta versão (mantemos para uso futuro, sem dead-code visual).
+- Sem alterações nas demais RPCs (KPIs, Ranking, Tendência), filtros ou rotas.

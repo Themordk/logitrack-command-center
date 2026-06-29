@@ -55,11 +55,56 @@ export interface OperadorRanking {
   tempo_medio_seg: number;
 }
 
-export interface OcorrenciaItem {
-  motivo_id: string;
-  descricao: string;
-  quantidade: number;
+export interface OcorrenciaResumo {
+  total: number;
+  abertas: number;
+  em_investigacao: number;
+  resolvidas: number;
+  canceladas: number;
+  pendentes: number;
+  criticas: number;
 }
+
+export interface OcorrenciaTipo {
+  tipo: string;
+  quantidade: number;
+  pendentes: number;
+}
+
+export interface OcorrenciaEtapa {
+  etapa: string;
+  quantidade: number;
+  pendentes: number;
+}
+
+export interface OcorrenciasResult {
+  resumo: OcorrenciaResumo;
+  por_tipo: OcorrenciaTipo[];
+  por_etapa: OcorrenciaEtapa[];
+}
+
+export const LABELS_TIPO_OCORRENCIA: Record<string, string> = {
+  FALTA: "Falta",
+  SOBRA: "Sobra",
+  AVARIA: "Avaria",
+  DIVERGENCIA_INVENTARIO: "Divergência de Inventário",
+  EXTRAVIO: "Extravio",
+  PRODUTO_INCORRETO: "Produto Incorreto",
+  VALIDADE_INCORRETA: "Validade Incorreta",
+  LOTE_INCORRETO: "Lote Incorreto",
+  OUTROS: "Outros",
+};
+
+export const LABELS_ETAPA_OCORRENCIA: Record<string, string> = {
+  RECEBIMENTO: "Recebimento",
+  ARMAZENAGEM: "Armazenagem",
+  ABASTECIMENTO: "Abastecimento",
+  MOVIMENTACAO: "Movimentação",
+  SEPARACAO: "Separação",
+  EXPEDICAO: "Expedição",
+  INVENTARIO: "Inventário",
+  AUDITORIA: "Auditoria",
+};
 
 export interface TendenciaItem {
   hora: number;
@@ -132,20 +177,24 @@ export async function fetchRankingOperadores(f: DashboardFilters, limite = 8): P
 
 // ── RPC 3: Ocorrências ──
 
-export async function fetchOcorrencias(f: DashboardFilters, limite = 8): Promise<OcorrenciaItem[]> {
+export async function fetchOcorrencias(f: DashboardFilters): Promise<OcorrenciasResult> {
+  const vazio: OcorrenciasResult = {
+    resumo: { total: 0, abertas: 0, em_investigacao: 0, resolvidas: 0, canceladas: 0, pendentes: 0, criticas: 0 },
+    por_tipo: [],
+    por_etapa: [],
+  };
   const { data, error } = await sb.rpc("dashboard_ocorrencias", {
     p_tenant_id: f.tenantId,
     p_empresa_id: f.empresaId || null,
     p_armazem_id: f.armazemId || null,
     p_data_ini: f.dataIni,
     p_data_fim: f.dataFim,
-    p_limite: limite,
   });
   if (error) {
     console.error("dashboard_ocorrencias error:", error);
-    return [];
+    return vazio;
   }
-  return (data || []) as OcorrenciaItem[];
+  return (data as OcorrenciasResult) || vazio;
 }
 
 // ── RPC 4: Tendência por hora ──
