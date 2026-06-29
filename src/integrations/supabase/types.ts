@@ -6750,11 +6750,7 @@ export type Database = {
           p_limite?: number
           p_tenant_id: string
         }
-        Returns: {
-          descricao: string
-          motivo_id: string
-          quantidade: number
-        }[]
+        Returns: Json
       }
       dashboard_ranking_operadores: {
         Args: {
