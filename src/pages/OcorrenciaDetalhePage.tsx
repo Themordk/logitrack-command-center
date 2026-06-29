@@ -410,6 +410,85 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Registrar Histórico */}
+      <Dialog open={histOpen} onOpenChange={(v) => { if (!v && !histSaving) setHistOpen(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar histórico</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="block text-[10px] uppercase font-medium text-muted-foreground mb-1">
+                Status anterior
+              </label>
+              <div className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] border", STATUS_BADGE[ocorrencia.status])}>
+                {STATUS_LABEL[ocorrencia.status] ?? ocorrencia.status}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-medium text-muted-foreground mb-1">
+                Novo status <span className="text-destructive">*</span>
+              </label>
+              <select
+                value={histConcluir ? "RESOLVIDA" : histStatus}
+                disabled={histConcluir}
+                onChange={(e) => setHistStatus(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary disabled:opacity-60"
+              >
+                <option value="">Selecionar...</option>
+                <option value="ABERTA">Aberta</option>
+                <option value="EM_INVESTIGACAO">Em investigação</option>
+                <option value="RESOLVIDA">Resolvida</option>
+                <option value="CANCELADA">Cancelada</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-medium text-muted-foreground mb-1">
+                Observação {(histConcluir || histStatus === "RESOLVIDA") && <span className="text-destructive">*</span>}
+              </label>
+              <textarea
+                value={histObs}
+                onChange={(e) => setHistObs(e.target.value)}
+                rows={4}
+                placeholder="Descreva a atualização..."
+                className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
+              />
+            </div>
+
+            {podeAgir && (
+              <div className="flex items-start gap-3 p-3 rounded-md border border-border bg-secondary/30">
+                <Switch checked={histConcluir} onCheckedChange={setHistConcluir} />
+                <div className="flex-1">
+                  <p className="text-xs text-foreground font-medium">Concluir ocorrência</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Marca a ocorrência operacional como <strong>Resolvida</strong> usando a observação acima.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setHistOpen(false)}
+              disabled={histSaving}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={submitHist}
+              disabled={histSaving}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              {histSaving && <Loader2 size={14} className="animate-spin" />}
+              Salvar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
