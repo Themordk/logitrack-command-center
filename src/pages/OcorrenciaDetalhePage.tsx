@@ -62,6 +62,11 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const [dialogAction, setDialogAction] = useState<DialogAction | null>(null);
   const [dialogText, setDialogText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [histOpen, setHistOpen] = useState(false);
+  const [histStatus, setHistStatus] = useState<string>("");
+  const [histObs, setHistObs] = useState("");
+  const [histConcluir, setHistConcluir] = useState(false);
+  const [histSaving, setHistSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!tenantId || !ocorrenciaId) return;
