@@ -16,7 +16,7 @@ export function OcorrenciasChart({ data, loading }: { data: Item[]; loading?: bo
       {loading ? (
         <div className="h-[280px] rounded-lg bg-secondary/30 animate-pulse" />
       ) : data.length === 0 ? (
-        <div className="text-center py-12 text-sm text-muted-foreground">Nenhuma ocorrência registrada no período. ✓</div>
+        <div className="text-center py-12 text-sm text-muted-foreground">Nenhuma ocorrência no período ✓</div>
       ) : (
         <div style={{ height: 280 }}>
           <ResponsiveContainer width="100%" height="100%">
