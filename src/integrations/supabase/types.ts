@@ -3704,6 +3704,7 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          codigo_erp: string | null
           descricao: string
           empresa_id: string | null
           id: string
@@ -3712,6 +3713,7 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          codigo_erp?: string | null
           descricao: string
           empresa_id?: string | null
           id?: string
@@ -3720,6 +3722,7 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          codigo_erp?: string | null
           descricao?: string
           empresa_id?: string | null
           id?: string
@@ -7343,6 +7346,18 @@ export type Database = {
         }
         Returns: string
       }
+      integracao_upsert_documento_entrada_item_lote: {
+        Args: {
+          p_documento_entrada_item_id: string
+          p_fabricacao: string
+          p_lote: string
+          p_quantidade: number
+          p_serie?: string
+          p_tenant_id: string
+          p_validade: string
+        }
+        Returns: string
+      }
       integracao_upsert_documento_saida: {
         Args: {
           p_codigo_erp: string
@@ -7368,6 +7383,18 @@ export type Database = {
           p_tenant_id: string
           p_valor_total: number
           p_valor_unit: number
+        }
+        Returns: string
+      }
+      integracao_upsert_documento_saida_item_lote: {
+        Args: {
+          p_documento_saida_item_id: string
+          p_fabricacao: string
+          p_lote: string
+          p_quantidade: number
+          p_serie?: string
+          p_tenant_id: string
+          p_validade: string
         }
         Returns: string
       }
@@ -7458,6 +7485,28 @@ export type Database = {
           produto_id: string
         }[]
       }
+      integracao_upsert_rota: {
+        Args: {
+          p_armazem_id: string
+          p_ativo?: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_upsert_subgrupo_produto: {
+        Args: {
+          p_ativo?: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_grupo_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       integracao_upsert_sync_config: {
         Args: {
           p_ativo?: boolean
@@ -7469,6 +7518,29 @@ export type Database = {
           p_estrategia?: string
           p_intervalo_minutos?: number
           p_modulo: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_upsert_tipo_entrada: {
+        Args: {
+          p_ativo?: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_upsert_tipo_saida: {
+        Args: {
+          p_ativo?: boolean
+          p_codigo_erp: string
+          p_conferencia_checkout?: boolean
+          p_descricao: string
+          p_empresa_id: string
+          p_realiza_conferencia?: boolean
+          p_separa_pulmao?: boolean
           p_tenant_id: string
         }
         Returns: string
