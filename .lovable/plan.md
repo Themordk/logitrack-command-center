@@ -1,54 +1,48 @@
 ## Objetivo
+Unificar "Cortar Saldo Não Separado" e "Registrar Ocorrência" em um único botão no coletor de separação. A criação da `ocorrencia_operacional` passa a acontecer dentro da própria RPC `cortar_item_separacao`, mantendo tudo em uma única transação.
 
-Criar novo fluxo **"Mudança de Picking"** no coletor (`/coletor/movimentos`), que transfere **todos os itens/lotes/saldos** de um endereço de picking origem para outro destino, em bloco.
+## 1. Backend — alterar `public.cortar_item_separacao`
 
-Baseado no fluxo existente de Transferência entre Picking, mas trocando a etapa "produto único + quantidade" por "listagem de todos os produtos do endereço + botão CONFIRMAR MUDANÇA".
+Manter assinatura e comportamento atuais. Adicionar novo parâmetro opcional `p_observacao text DEFAULT NULL` e, antes do bloco final `RETURN json_build_object`, inserir a criação da ocorrência:
 
-## Onde
+- Ler `empresa_id`, `armazem_id`, `produto_id` da própria `tarefa` (já carregada / re-selecionada no início).
+- `INSERT INTO public.ocorrencia_operacional` com:
+  - `tenant_id`, `empresa_id`, `armazem_id` da tarefa.
+  - `etapa_ocorrencia = 'SEPARACAO'`.
+  - `tipo_ocorrencia = 'OUTROS'` (fixo — usuário só escolhe motivo).
+  - `motivo_ocorrencia_id = p_motivo_ocorrencia`.
+  - `produto_id` da tarefa.
+  - `documento_origem_id = v_movimento_saida_id`, `tipo_documento_origem = 'MOVIMENTO_SAIDA'`.
+  - `quantidade_esperada = v_quantidade_requerida`.
+  - `quantidade_real = v_quantidade_separada`.
+  - `quantidade_divergente = v_quantidade_a_cortar`.
+  - `status = 'ABERTA'`, `prioridade = 'ALTA'`.
+  - `observacao = p_observacao`.
+  - `criado_por = p_usuario`.
+- Retornar também `ocorrencia_id` no JSON de resposta.
 
-**Novo menu** em `src/pages/coletor/MovimentosMenuPage.tsx` — item "Mudança de Picking" logo abaixo de "Transferência entre Picking" (ícone `Move` ou `Replace`, cor distinta).
+Como está tudo dentro da mesma função plpgsql, falha na criação da ocorrência aborta o corte (transação única) — comportamento desejado.
 
-**Novas páginas** em `src/pages/coletor/`:
-- `MudancaPickingOrigemPage.tsx` — escanear endereço origem (idêntico ao `TransferenciaOrigemPage`, mas usa chaves `mudpick_*` no sessionStorage e navega para a listagem).
-- `MudancaPickingListaPage.tsx` — lista todos os itens do endereço origem (produto, lote, validade, saldo) e botão "Confirmar Mudança".
-- `MudancaPickingDestinoPage.tsx` — escanear endereço destino e executar a mudança em lote.
-- `MudancaPickingConcluidoPage.tsx` — tela de sucesso, com resumo (endereço origem/destino, nº de itens transferidos, quantidade total).
+## 2. Frontend — `src/pages/coletor/SeparacaoOcorrenciasPage.tsx`
 
-**Rotas** em `src/App.tsx`:
-- `/coletor/movimentos/mudanca-picking/origem`
-- `/coletor/movimentos/mudanca-picking/lista`
-- `/coletor/movimentos/mudanca-picking/destino`
-- `/coletor/movimentos/mudanca-picking/concluido`
+### Botões
+- Substituir os dois botões atuais por **um único**: "Registrar ocorrência e cortar saldo" (variant `danger`, ícone `AlertTriangle`).
+- Manter "Solicitar Abastecimento" com regra atual (habilitado só com saldo em pulmão).
+- Remover "Solicitar Inventário".
 
-## Fluxo (4 passos)
+### Modal
+Bottom-sheet com:
+1. **Motivo** — lista de `motivo_ocorrencia` filtrada por `etapa_ocorrencia = 'SEPARACAO'` (já existe).
+2. **Observação** — textarea opcional.
+3. **Alerta amarelo informativo** quando `temSaldoPulmao = true`: "Este produto ainda possui saldo em endereço de pulmão. Confirme antes de cortar." (não bloqueia).
 
-1. **Origem** — scan do endereço, validação `situacao IN ('LIVRE','OCUPADO')`. Grava `mudpick_origem_id/desc`. Navega para lista.
-2. **Lista** — busca em `estoque_geral` todos os registros com `endereco_id = origem` e `quantidade_disponivel > 0`, join com produto (sku, descrição). Exibe cards agrupados por SKU mostrando lote/validade/qtd. Se lista vazia → toast/erro "Endereço sem saldo". Botão "Confirmar Mudança" habilitado quando há itens.
-3. **Destino** — scan do endereço, validações: existir, situação válida, `id != origem`, ser do tipo picking (recomendado). Ao confirmar, executa a mudança.
-4. **Concluído** — mostra resumo e botões "Nova Mudança" / "Voltar ao Menu".
+Rodapé: Cancelar · Confirmar.
 
-## Execução da mudança (etapa Destino)
+### Chamada
+`supabase.rpc('cortar_item_separacao', { p_tenant_id, p_tarefa_id, p_usuario, p_motivo_ocorrencia, p_observacao })`.
 
-Para **cada registro** de `estoque_geral` retornado na origem:
-
-1. Cria uma `tarefa` (tipo TRANSFERÊNCIA — mesmo `TIPO_TAREFA_TRANF = 6942b989-816c-45c5-8af5-50cd22589cc6` já usado na transferência), status `CONCLUIDA`, `id_local_origem/destino`, `quantidade_requerida = quantidade_disponivel`.
-2. Cria uma `tarefa_execucao` com `quantidade_executada`, `endereco_origem_id`, `endereco_destino_id`, `lote`, `validade`, `fabricacao`, `iniciado_em/concluido_em = nowBrasilia()`.
-
-O trigger `trg_tarefa_execucao_estoque` (memória: gestão de estoque exclusivamente via trigger de banco) atualiza `estoque_geral` automaticamente — o frontend **não** manipula saldos.
-
-Processar em loop `for..of` para preservar 1 tarefa por combinação produto/lote/validade e garantir rastreabilidade. Se qualquer insert falhar, exibir erro no `StatusOverlay` e interromper (transferências parciais ficam registradas via trigger — aceitável, mesmo comportamento do fluxo atual).
-
-Contadores exibidos na tela final: `itens_transferidos` (nº de linhas de estoque) e `quantidade_total` (soma).
-
-## Detalhes visuais
-
-- Mesmo `ColetorLayout`, cores e componentes (`ScanField`, `ActionButton`, `StatusOverlay`) usados em Transferência.
-- Menu com ícone `Replace` (lucide-react) em cor `hsl(280,80%,60%)` para diferenciar de Transferência.
-- Cards da lista: sku em `text-[hsl(217,91%,60%)]`, badge de lote em `bg-[hsl(222,35%,16%)]`, quantidade destacada.
-- Passo "X de 3" no header de cada tela.
+Ao sucesso: `resultDialog` "Ocorrência #N registrada e saldo cortado." e avanço para a próxima tarefa (fluxo atual mantido).
 
 ## Fora do escopo
-
-- Sem migrações de banco (utiliza trigger e tipo de tarefa existentes).
-- Sem alterações nos fluxos de Transferência unitária ou Abastecimento.
-- Sem novas RPCs — tudo via inserts diretos, como o fluxo atual.
+- Nenhum outro ajuste de UI administrativa. O registro aparecerá automaticamente em `/atividades/ocorrencias`.
+- Sem mudança no `enum_tipo_ocorrencia` — usamos `OUTROS` para todos os cortes.
