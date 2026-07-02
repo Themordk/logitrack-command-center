@@ -1,10 +1,11 @@
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { ArrowLeftRight, ArrowDownToLine } from "lucide-react";
+import { ArrowLeftRight, ArrowDownToLine, Replace } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
 const options = [
   { label: "Transferência entre Picking", desc: "Mover estoque entre endereços de picking", icon: <ArrowLeftRight size={28} />, path: "/coletor/movimentos/transferencia/origem", color: "hsl(45,93%,47%)" },
+  { label: "Mudança de Picking", desc: "Transferir todos os itens de um endereço para outro", icon: <Replace size={28} />, path: "/coletor/movimentos/mudanca-picking/origem", color: "hsl(280,80%,60%)" },
   { label: "Abastecimento", desc: "Reabastecer endereços de picking", icon: <ArrowDownToLine size={28} />, path: "/coletor/movimentos/abastecimento", color: "hsl(142,76%,36%)" },
 ];
 
