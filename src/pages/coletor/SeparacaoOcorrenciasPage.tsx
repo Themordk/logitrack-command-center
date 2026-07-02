@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { Scissors, Truck, ClipboardList, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, Truck, Loader2, CheckCircle, XCircle } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -16,15 +16,15 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
   const [tarefa, setTarefa] = useState<any>(null);
   const [temSaldoPulmao, setTemSaldoPulmao] = useState(false);
   const [checkingPulmao, setCheckingPulmao] = useState(true);
-  const [showMotivoModal, setShowMotivoModal] = useState<string | null>(null);
+  const [showMotivoModal, setShowMotivoModal] = useState<"cortar" | "abastecimento" | null>(null);
   const [motivos, setMotivos] = useState<MotivoOcorrencia[]>([]);
   const [selectedMotivo, setSelectedMotivo] = useState("");
+  const [observacao, setObservacao] = useState("");
   const [processing, setProcessing] = useState(false);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
-  const armazemId = localStorage.getItem("core_armazem_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
   useEffect(() => {
@@ -83,23 +83,24 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
     }
   };
 
-  const openMotivoModal = (action: string) => {
+  const openMotivoModal = (action: "cortar" | "abastecimento") => {
     setShowMotivoModal(action);
     setSelectedMotivo("");
+    setObservacao("");
     loadMotivos();
   };
 
-  const handleConfirmOcorrencia = async () => {
+  const handleConfirm = async () => {
     if (!selectedMotivo || !tarefa || !showMotivoModal) return;
     setProcessing(true);
     try {
       if (showMotivoModal === "cortar") {
-        // Call cortar_item_separacao RPC
         const { data, error } = await supabase.rpc("cortar_item_separacao" as any, {
           p_tenant_id: tenantId,
           p_tarefa_id: tarefa.tarefa_id,
           p_usuario: usuarioId,
           p_motivo_ocorrencia: selectedMotivo,
+          p_observacao: observacao || null,
         });
         if (error) throw error;
 
@@ -114,32 +115,28 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
           return;
         }
 
-        setResultDialog({ sucesso: true, mensagem: result?.mensagem || "Corte de saldo registrado com sucesso!" });
+        setResultDialog({ sucesso: true, mensagem: "Ocorrência registrada e saldo cortado com sucesso!" });
         setShowMotivoModal(null);
       } else {
-        // Abastecimento / Inventário - register via event
-        const actionLabel = showMotivoModal === "abastecimento"
-          ? "Solicitação de abastecimento"
-          : "Solicitação de inventário";
-
+        // Abastecimento
         const payload: any = {
           tarefa_id: tarefa.tarefa_id,
-          tipo_evento: showMotivoModal === "abastecimento" ? "SOLICITAR_ABASTECIMENTO" : "SOLICITAR_INVENTARIO",
+          tipo_evento: "SOLICITAR_ABASTECIMENTO",
           carga_util: JSON.stringify({
             motivo_ocorrencia_id: selectedMotivo,
             produto_id: tarefa.produto_id,
             usuario_id: usuarioId,
+            observacao: observacao || null,
           }),
           tenant_id: tenantId,
           execucao_tarefa_id: tarefa.tarefa_execucao_id || tarefa.tarefa_id,
         };
-
         const { error } = await (supabase as any)
           .from("tarefa_evento_execucao")
           .insert(payload);
         if (error) throw error;
 
-        setResultDialog({ sucesso: true, mensagem: `${actionLabel} registrada com sucesso!` });
+        setResultDialog({ sucesso: true, mensagem: "Solicitação de abastecimento registrada com sucesso!" });
         setShowMotivoModal(null);
       }
     } catch (err: any) {
@@ -152,10 +149,8 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
 
   const handleDialogClose = () => {
     const wasSuccess = resultDialog?.sucesso;
-    const wasCortar = wasSuccess && showMotivoModal === null; // cortar already closed modal
     setResultDialog(null);
 
-    // If cortar was successful, advance to next task
     if (wasSuccess) {
       const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
       const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
@@ -190,15 +185,9 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
             <ActionButton
               onClick={() => openMotivoModal("cortar")}
               variant="danger"
-              disabled={temSaldoPulmao}
             >
-              <Scissors size={18} /> Cortar Saldo Não Separado
+              <AlertTriangle size={18} /> Registrar Ocorrência e Cortar Saldo
             </ActionButton>
-            {temSaldoPulmao && (
-              <p className="text-[10px] text-[hsl(213,31%,45%)] text-center -mt-2">
-                Desabilitado: produto possui saldo no pulmão
-              </p>
-            )}
 
             <ActionButton
               onClick={() => openMotivoModal("abastecimento")}
@@ -212,13 +201,6 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
                 Desabilitado: produto não possui saldo no pulmão
               </p>
             )}
-
-            <ActionButton
-              onClick={() => openMotivoModal("inventario")}
-              variant="secondary"
-            >
-              <ClipboardList size={18} /> Solicitar Inventário
-            </ActionButton>
           </div>
         )}
       </div>
@@ -226,13 +208,22 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
       {/* Motivo modal */}
       {showMotivoModal && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center">
-          <div className="w-full max-w-md bg-[hsl(222,40%,10%)] border-t border-[hsl(222,35%,22%)] rounded-t-3xl p-6 space-y-4 animate-slide-up">
-            <h3 className="text-base font-bold text-white">Motivo da Ocorrência</h3>
+          <div className="w-full max-w-md bg-[hsl(222,40%,10%)] border-t border-[hsl(222,35%,22%)] rounded-t-3xl p-6 space-y-4 animate-slide-up max-h-[92vh] overflow-y-auto">
+            <h3 className="text-base font-bold text-white">
+              {showMotivoModal === "cortar" ? "Registrar Ocorrência e Cortar Saldo" : "Solicitar Abastecimento"}
+            </h3>
             <p className="text-xs text-[hsl(213,31%,55%)]">
-              {showMotivoModal === "cortar" && "Selecione o motivo para cortar o saldo não separado"}
-              {showMotivoModal === "abastecimento" && "Selecione o motivo para solicitar abastecimento"}
-              {showMotivoModal === "inventario" && "Selecione o motivo para solicitar inventário"}
+              Selecione o motivo da ocorrência
             </p>
+
+            {showMotivoModal === "cortar" && temSaldoPulmao && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/40">
+                <AlertTriangle size={16} className="text-[#F59E0B] mt-0.5 shrink-0" />
+                <p className="text-[11px] text-[#FCD34D] leading-relaxed">
+                  Este produto ainda possui saldo em endereço de pulmão. Confirme antes de cortar.
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 max-h-48 overflow-auto">
               {motivos.map((m) => (
@@ -253,11 +244,22 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
               )}
             </div>
 
+            <div>
+              <label className="text-[10px] uppercase text-[hsl(213,31%,45%)] block mb-1">Observação (opcional)</label>
+              <textarea
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
+                rows={2}
+                className="w-full bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 text-sm text-white placeholder:text-[hsl(213,31%,35%)] focus:outline-none focus:border-[hsl(217,91%,50%)]"
+                placeholder="Descreva detalhes da ocorrência..."
+              />
+            </div>
+
             <div className="flex gap-2">
               <ActionButton onClick={() => setShowMotivoModal(null)} variant="secondary">
                 Cancelar
               </ActionButton>
-              <ActionButton onClick={handleConfirmOcorrencia} disabled={!selectedMotivo} loading={processing} variant="primary">
+              <ActionButton onClick={handleConfirm} disabled={!selectedMotivo} loading={processing} variant="primary">
                 Confirmar
               </ActionButton>
             </div>
