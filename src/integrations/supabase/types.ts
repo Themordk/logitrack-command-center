@@ -6724,15 +6724,26 @@ export type Database = {
             }
             Returns: string
           }
-      cortar_item_separacao: {
-        Args: {
-          p_motivo_ocorrencia: string
-          p_tarefa_id: string
-          p_tenant_id: string
-          p_usuario: string
-        }
-        Returns: Json
-      }
+      cortar_item_separacao:
+        | {
+            Args: {
+              p_motivo_ocorrencia: string
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_motivo_ocorrencia: string
+              p_observacao?: string
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario: string
+            }
+            Returns: Json
+          }
       dashboard_kpis: {
         Args: {
           p_armazem_id?: string
