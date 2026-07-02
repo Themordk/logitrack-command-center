@@ -102,6 +102,10 @@ import { TransferenciaProdutoPage } from "./pages/coletor/TransferenciaProdutoPa
 import { TransferenciaDetalhePage } from "./pages/coletor/TransferenciaDetalhePage";
 import { TransferenciaDestinoPage } from "./pages/coletor/TransferenciaDestinoPage";
 import { TransferenciaConcluidoPage } from "./pages/coletor/TransferenciaConcluidoPage";
+import { MudancaPickingOrigemPage } from "./pages/coletor/MudancaPickingOrigemPage";
+import { MudancaPickingListaPage } from "./pages/coletor/MudancaPickingListaPage";
+import { MudancaPickingDestinoPage } from "./pages/coletor/MudancaPickingDestinoPage";
+import { MudancaPickingConcluidoPage } from "./pages/coletor/MudancaPickingConcluidoPage";
 import { AbastecimentoListPage } from "./pages/coletor/AbastecimentoListPage";
 import { AbastecimentoColetaPage } from "./pages/coletor/AbastecimentoColetaPage";
 import { AbastecimentoDestinoPage } from "./pages/coletor/AbastecimentoDestinoPage";
@@ -388,6 +392,10 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/movimentos/transferencia/detalhe": return <TransferenciaDetalhePage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/destino": return <TransferenciaDestinoPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/concluido": return <TransferenciaConcluidoPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/mudanca-picking/origem": return <MudancaPickingOrigemPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/mudanca-picking/lista": return <MudancaPickingListaPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/mudanca-picking/destino": return <MudancaPickingDestinoPage onNavigate={onNavigate} />;
+    case "/coletor/movimentos/mudanca-picking/concluido": return <MudancaPickingConcluidoPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/abastecimento": return <AbastecimentoListPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/abastecimento/coleta": return <AbastecimentoColetaPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/abastecimento/destino": return <AbastecimentoDestinoPage onNavigate={onNavigate} />;
