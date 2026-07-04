@@ -23,6 +23,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   const [enderecoCancelamentoId, setEnderecoCancelamentoId] = useState<string | null>(null);
   const [enderecoAvariaId, setEnderecoAvariaId] = useState<string | null>(null);
   const [enderecoQuarentenaId, setEnderecoQuarentenaId] = useState<string | null>(null);
+  const [enderecoArmazenagemAutomaticaId, setEnderecoArmazenagemAutomaticaId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
@@ -31,7 +32,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setLoading(true);
       const { data } = await (supabase as any)
         .from("armazem_config")
-        .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id")
+        .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id")
         .eq("armazem_id", armazem.id)
         .eq("tenant_id", tenantId)
         .maybeSingle();
@@ -40,6 +41,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setEnderecoCancelamentoId(data?.endereco_cancelamento_id ?? null);
       setEnderecoAvariaId(data?.endereco_avaria_id ?? null);
       setEnderecoQuarentenaId(data?.endereco_quarentena_id ?? null);
+      setEnderecoArmazenagemAutomaticaId(data?.endereco_armazenagem_automatica_id ?? null);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -55,6 +57,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       endereco_cancelamento_id: enderecoCancelamentoId,
       endereco_avaria_id: enderecoAvariaId,
       endereco_quarentena_id: enderecoQuarentenaId,
+      endereco_armazenagem_automatica_id: enderecoArmazenagemAutomaticaId,
       ativo: true,
       updated_by: usuarioId,
     };
@@ -92,6 +95,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
     setEnderecoCancelamentoId(null);
     setEnderecoAvariaId(null);
     setEnderecoQuarentenaId(null);
+    setEnderecoArmazenagemAutomaticaId(null);
     setConfirmRemove(false);
     onClose();
     return true;
@@ -132,6 +136,13 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                 label="Endereço de Quarentena"
                 value={enderecoQuarentenaId}
                 onChange={(id) => setEnderecoQuarentenaId(id)}
+                armazemId={armazem?.id ?? null}
+                tenantId={tenantId}
+              />
+              <EnderecoSearchInput
+                label="Endereço de Armazenagem Automática"
+                value={enderecoArmazenagemAutomaticaId}
+                onChange={(id) => setEnderecoArmazenagemAutomaticaId(id)}
                 armazemId={armazem?.id ?? null}
                 tenantId={tenantId}
               />

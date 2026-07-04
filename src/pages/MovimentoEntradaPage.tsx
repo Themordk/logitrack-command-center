@@ -380,6 +380,7 @@ export function MovimentoEntradaPage() {
       const { data, error } = await supabase.rpc("gerar_tarefas_conferencia_entrada" as any, {
         p_movimento_entrada_id: movId,
         p_tenant_id: tenantId,
+        p_usuario_id: usuarioId,
       });
       if (error) throw error;
       const msg = String(data || "");
