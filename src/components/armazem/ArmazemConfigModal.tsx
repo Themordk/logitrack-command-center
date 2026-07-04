@@ -139,6 +139,13 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                 armazemId={armazem?.id ?? null}
                 tenantId={tenantId}
               />
+              <EnderecoSearchInput
+                label="Endereço de Armazenagem Automática"
+                value={enderecoArmazenagemAutomaticaId}
+                onChange={(id) => setEnderecoArmazenagemAutomaticaId(id)}
+                armazemId={armazem?.id ?? null}
+                tenantId={tenantId}
+              />
             </div>
           )}
 
