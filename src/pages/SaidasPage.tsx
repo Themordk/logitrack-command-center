@@ -24,7 +24,7 @@ interface DocSaida {
 }
 
 export function SaidasPage() {
-  const { tenantId, empresaId, armazemId } = useTenant();
+  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const pageSize = 20;
