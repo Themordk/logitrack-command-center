@@ -1,28 +1,32 @@
-## Escopo
+## Objetivo
+Refatorar o fluxo "Gerar Movimento" em `EntradasPage.tsx` para delegar a criação do movimento de entrada à função RPC `gerar_movimento_entrada`, ao invés de fazer múltiplos INSERT/UPDATE no client.
 
-Três ajustes pontuais:
+## Alterações
 
-### 1. Armazém → Configurações: campo "Endereço de Armazenagem Automática"
+### `src/pages/EntradasPage.tsx` — função `handleGenerate`
 
-**Arquivo:** `src/components/armazem/ArmazemConfigModal.tsx`
-- Adicionar estado `enderecoArmazenagemAutomaticaId`.
-- Carregar `endereco_armazenagem_automatica_id` no `select` inicial.
-- Adicionar 4º `EnderecoSearchInput` com label "Endereço de Armazenagem Automática".
-- Incluir `endereco_armazenagem_automatica_id` no payload do upsert e no reset do `handleRemove`.
+Substituir toda a lógica atual (que faz 4 operações: insert em `movimento_entrada`, insert em `movimento_entrada_documento`, select+group em `documento_entrada_item` + insert em `movimento_entrada_item`, update em `documento_entrada`) por uma única chamada RPC:
 
-### 2. Tipos de Entrada: campo `armazenagem_automatica`
+```ts
+const { data, error } = await (supabase as any).rpc('gerar_movimento_entrada', {
+  p_tenant_id: tenantId,
+  p_usuario_id: usuarioId,
+  p_documento_entrada_ids: Array.from(selected),
+  p_box_id: formData.box_id,
+  p_armazem_id: formData.armazem_id || armazemId || null,
+  p_placa_veiculo: formData.placa_veiculo || null,
+  p_valor_descarga: formData.valor_descarga ? parseFloat(formData.valor_descarga) : null,
+  p_confirma_volume: formData.confirma_volume,
+  p_crossdocking: formData.crossdocking,
+  p_observacao: formData.observacao || null,
+});
+if (error) throw error;
+```
 
-**Arquivo:** `src/pages/TiposEntradaPage.tsx`
-- Adicionar coluna `armazenagem_automatica` (type: `badge`, label "Armazenagem Automática") na lista, logo após "Realiza Conferência".
-- Adicionar `FieldSpec` do tipo `switch` no modal com `defaultValue: false`, abaixo de "Realiza Conferência".
+Comportamento pós-chamada preservado: toast de sucesso, fechar modal, limpar seleção e `fetchDocs()`. Tratamento de erro via catch existente.
 
-### 3. Nova assinatura de `gerar_tarefas_conferencia_entrada`
+Remover cálculo local de `totalVolume` (a função RPC cuida disso).
 
-**Arquivo:** `src/pages/MovimentoEntradaPage.tsx` (linha 380)
-- Passar `p_usuario_id: usuarioId` (via `useTenant()`) além dos parâmetros já existentes (`p_movimento_entrada_id`, `p_tenant_id`).
-
-Nenhuma migração de banco é necessária — as colunas e a função já existem.
-
-## Fora de escopo
-
-- Qualquer lógica funcional que consome os novos campos (execução da armazenagem automática em si) — apenas cadastro/exibição.
+## Fora do escopo
+- Nenhuma mudança em UI/campos do modal.
+- Nenhuma mudança em outras telas.
