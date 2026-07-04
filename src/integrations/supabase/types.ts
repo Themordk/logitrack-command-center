@@ -270,6 +270,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           empresa_id: string
+          endereco_armazenagem_automatica_id: string | null
           endereco_avaria_id: string | null
           endereco_cancelamento_id: string | null
           endereco_quarentena_id: string | null
@@ -284,6 +285,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           empresa_id: string
+          endereco_armazenagem_automatica_id?: string | null
           endereco_avaria_id?: string | null
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           empresa_id?: string
+          endereco_armazenagem_automatica_id?: string | null
           endereco_avaria_id?: string | null
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
@@ -326,6 +329,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_endereco_armazenagem_automatica_id_fkey"
+            columns: ["endereco_armazenagem_automatica_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
             referencedColumns: ["id"]
           },
           {
@@ -4566,6 +4576,7 @@ export type Database = {
       }
       tipo_entrada: {
         Row: {
+          armazenagem_automatica: boolean
           ativo: boolean
           codigo_erp: string | null
           descricao: string
@@ -4575,6 +4586,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          armazenagem_automatica?: boolean
           ativo?: boolean
           codigo_erp?: string | null
           descricao: string
@@ -4584,6 +4596,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          armazenagem_automatica?: boolean
           ativo?: boolean
           codigo_erp?: string | null
           descricao?: string
@@ -7135,8 +7148,12 @@ export type Database = {
         Returns: string
       }
       gerar_tarefas_conferencia_entrada: {
-        Args: { p_movimento_entrada_id: string; p_tenant_id: string }
-        Returns: string
+        Args: {
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
       }
       get_current_tenant: { Args: never; Returns: string }
       get_my_tenant_id: { Args: never; Returns: string }
