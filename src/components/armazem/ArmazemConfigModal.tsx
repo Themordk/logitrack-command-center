@@ -23,6 +23,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   const [enderecoCancelamentoId, setEnderecoCancelamentoId] = useState<string | null>(null);
   const [enderecoAvariaId, setEnderecoAvariaId] = useState<string | null>(null);
   const [enderecoQuarentenaId, setEnderecoQuarentenaId] = useState<string | null>(null);
+  const [enderecoArmazenagemAutomaticaId, setEnderecoArmazenagemAutomaticaId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
