@@ -1,32 +1,28 @@
 ## Objetivo
-Refatorar o fluxo "Gerar Movimento" em `EntradasPage.tsx` para delegar a criação do movimento de entrada à função RPC `gerar_movimento_entrada`, ao invés de fazer múltiplos INSERT/UPDATE no client.
+Atualizar a chamada `gerar_onda_separacao` em `SaidasPage.tsx` para a nova assinatura da função RPC.
 
-## Alterações
+## Alteração
 
-### `src/pages/EntradasPage.tsx` — função `handleGenerate`
+### `src/pages/SaidasPage.tsx` — `handleGenerate` (linhas 123-131)
 
-Substituir toda a lógica atual (que faz 4 operações: insert em `movimento_entrada`, insert em `movimento_entrada_documento`, select+group em `documento_entrada_item` + insert em `movimento_entrada_item`, update em `documento_entrada`) por uma única chamada RPC:
+Adicionar `p_empresa_id` (já lido do contexto) e `p_usuario_id` à chamada, mantendo os demais parâmetros. Ordem/nomes conforme a nova assinatura:
 
 ```ts
-const { data, error } = await (supabase as any).rpc('gerar_movimento_entrada', {
+const { data, error } = await (supabase as any).rpc("gerar_onda_separacao", {
   p_tenant_id: tenantId,
+  p_empresa_id: empresaId,
   p_usuario_id: usuarioId,
-  p_documento_entrada_ids: Array.from(selected),
-  p_box_id: formData.box_id,
-  p_armazem_id: formData.armazem_id || armazemId || null,
-  p_placa_veiculo: formData.placa_veiculo || null,
-  p_valor_descarga: formData.valor_descarga ? parseFloat(formData.valor_descarga) : null,
-  p_confirma_volume: formData.confirma_volume,
-  p_crossdocking: formData.crossdocking,
-  p_observacao: formData.observacao || null,
+  p_documentos: Array.from(selected),
+  p_box_id: formData.box_id || null,
+  p_rota_id: formData.rota_id || null,
+  p_veiculo_id: formData.veiculo_id || null,
+  p_prioridade: formData.prioridade || "NORMAL",
 });
-if (error) throw error;
 ```
 
-Comportamento pós-chamada preservado: toast de sucesso, fechar modal, limpar seleção e `fetchDocs()`. Tratamento de erro via catch existente.
+Garantir que `usuarioId` esteja disponível via `useTenant()` (já usado nas outras páginas — adicionar ao destructuring caso ainda não esteja).
 
-Remover cálculo local de `totalVolume` (a função RPC cuida disso).
+Comportamento pós-chamada preservado (toast, fechar modal, limpar seleção, `fetchDocs()`).
 
 ## Fora do escopo
-- Nenhuma mudança em UI/campos do modal.
-- Nenhuma mudança em outras telas.
+Nenhuma mudança em UI, campos do modal ou outras telas.
