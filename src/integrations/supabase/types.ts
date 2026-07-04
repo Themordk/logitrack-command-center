@@ -4593,6 +4593,7 @@ export type Database = {
           empresa_id: string
           gera_mov_automatico: boolean
           id: string
+          libera_mov_automatico: boolean
           realiza_conferencia: boolean
           tenant_id: string
         }
@@ -4604,6 +4605,7 @@ export type Database = {
           empresa_id: string
           gera_mov_automatico?: boolean
           id?: string
+          libera_mov_automatico?: boolean
           realiza_conferencia?: boolean
           tenant_id: string
         }
@@ -4615,6 +4617,7 @@ export type Database = {
           empresa_id?: string
           gera_mov_automatico?: boolean
           id?: string
+          libera_mov_automatico?: boolean
           realiza_conferencia?: boolean
           tenant_id?: string
         }
@@ -4713,6 +4716,7 @@ export type Database = {
           empresa_id: string
           gera_mov_automatico: boolean
           id: string
+          libera_mov_automatico: boolean
           realiza_conferencia: boolean
           separa_pulmao: boolean
           tenant_id: string
@@ -4725,6 +4729,7 @@ export type Database = {
           empresa_id: string
           gera_mov_automatico?: boolean
           id?: string
+          libera_mov_automatico?: boolean
           realiza_conferencia?: boolean
           separa_pulmao?: boolean
           tenant_id: string
@@ -4737,6 +4742,7 @@ export type Database = {
           empresa_id?: string
           gera_mov_automatico?: boolean
           id?: string
+          libera_mov_automatico?: boolean
           realiza_conferencia?: boolean
           separa_pulmao?: boolean
           tenant_id?: string
@@ -7156,15 +7162,17 @@ export type Database = {
       }
       gerar_onda_separacao: {
         Args: {
-          p_box_id: string
-          p_documentos: string[]
+          p_box_id?: string
+          p_documentos?: string[]
           p_empresa_id: string
-          p_prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
-          p_rota_id: string
+          p_modo?: string
+          p_prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
+          p_rota_id?: string
           p_tenant_id: string
-          p_veiculo_id: string
+          p_usuario_id: string
+          p_veiculo_id?: string
         }
-        Returns: string
+        Returns: Json
       }
       gerar_tarefas_armazenagem_c_divergencia: {
         Args: {
