@@ -156,79 +156,19 @@ export function EntradasPage() {
     if (!formData.box_id) { toast.error("Selecione um Box."); return; }
     setGenerating(true);
     try {
-      const docIds = Array.from(selected);
-
-      // Calculate total_volume from selected documents
-      const totalVolume = docs
-        .filter((d) => selected.has(d.id))
-        .reduce((sum, d) => sum + (Number(d.qtd_volume) || 0), 0);
-
-      // 1. Create movimento_entrada
-      const { data: mov, error: movError } = await (supabase as any)
-        .from("movimento_entrada")
-        .insert({
-          tenant_id: tenantId,
-          empresa_id: empresaId,
-          armazem_id: formData.armazem_id || armazemId || null,
-          box_id: formData.box_id,
-          placa_veiculo: formData.placa_veiculo || null,
-          valor_descarga: formData.valor_descarga ? parseFloat(formData.valor_descarga) : null,
-          confirma_volume: formData.confirma_volume,
-          crossdocking: formData.crossdocking,
-          observacao: formData.observacao || null,
-          total_volume: totalVolume || null,
-          status: "GERADO",
-          created_by: usuarioId,
-        })
-        .select("id")
-        .single();
-
-      if (movError) throw movError;
-
-      const movId = mov.id;
-
-      // 2. Link documents
-      const docLinks = docIds.map((docId) => ({
-        movimento_entrada_id: movId,
-        documento_entrada_id: docId,
-        tenant_id: tenantId,
-      }));
-      const { error: linkError } = await (supabase as any).from("movimento_entrada_documento").insert(docLinks);
-      if (linkError) throw linkError;
-
-      // 3. Fetch all items in a single query and consolidate by produto_id
-      const { data: items, error: itemsErr } = await (supabase as any)
-        .from("documento_entrada_item")
-        .select("produto_id, quantidade, documento_entrada_id")
-        .in("documento_entrada_id", docIds);
-      if (itemsErr) throw itemsErr;
-      const allItems: { produto_id: string; quantidade: number }[] = items || [];
-
-      // Group by produto_id and sum quantities
-      const grouped = allItems.reduce<Record<string, number>>((acc, item) => {
-        acc[item.produto_id] = (acc[item.produto_id] || 0) + Number(item.quantidade);
-        return acc;
-      }, {});
-
-      const movItems = Object.entries(grouped).map(([produto_id, qtd_esperada]) => ({
-        movimento_entrada_id: movId,
-        produto_id,
-        qtd_esperada,
-        qtd_conferida: 0,
-        tenant_id: tenantId,
-      }));
-
-      if (movItems.length > 0) {
-        const { error: itemError } = await (supabase as any).from("movimento_entrada_item").insert(movItems);
-        if (itemError) throw itemError;
-      }
-
-      // 4. Update documento_entrada status
-      const { error: updError } = await (supabase as any)
-        .from("documento_entrada")
-        .update({ status: 1 })
-        .in("id", docIds);
-      if (updError) throw updError;
+      const { error } = await (supabase as any).rpc("gerar_movimento_entrada", {
+        p_tenant_id: tenantId,
+        p_usuario_id: usuarioId,
+        p_documento_entrada_ids: Array.from(selected),
+        p_box_id: formData.box_id,
+        p_armazem_id: formData.armazem_id || armazemId || null,
+        p_placa_veiculo: formData.placa_veiculo || null,
+        p_valor_descarga: formData.valor_descarga ? parseFloat(formData.valor_descarga) : null,
+        p_confirma_volume: formData.confirma_volume,
+        p_crossdocking: formData.crossdocking,
+        p_observacao: formData.observacao || null,
+      });
+      if (error) throw error;
 
       toast.success("Movimento de entrada gerado com sucesso!");
       setShowModal(false);
