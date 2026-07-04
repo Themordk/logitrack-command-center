@@ -74,6 +74,7 @@ import { InventarioReportPage } from "./modules/reports/inventario/InventarioRep
 import { RecebimentoReportPage } from "./modules/reports/recebimento/RecebimentoReportPage";
 import { CicloPedidoReportPage } from "./modules/reports/ciclo-pedido/CicloPedidoReportPage";
 import { CancelamentosPage } from "./modules/reports/cancelamentos/CancelamentosPage";
+import { PickingNaoCadastradoReportPage } from "./modules/reports/picking-nao-cadastrado/PickingNaoCadastradoReportPage";
 
 // Coletor pages
 import { ColetorLoginPage } from "./pages/coletor/ColetorLoginPage";
@@ -178,6 +179,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/recebimento": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Recebimento (Dock-to-Stock)" }],
   "/relatorios/ciclo-pedido": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Tempo de Ciclo de Pedido" }],
   "/relatorios/cancelamentos": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cancelamentos de Tarefas" }],
+  "/relatorios/picking-nao-cadastrado": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada", path: "/atividades/movimentos" }, { label: "Itens sem Picking" }],
 };
 
 function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] | null {
@@ -285,6 +287,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/recebimento": return <RecebimentoReportPage />;
     case "/relatorios/ciclo-pedido": return <CicloPedidoReportPage />;
     case "/relatorios/cancelamentos": return <CancelamentosPage />;
+    case "/relatorios/picking-nao-cadastrado": return <PickingNaoCadastradoReportPage onNavigate={onNavigate} />;
     default: {
       // Dynamic route: /atividades/ocorrencias/:id
       if (path.startsWith("/atividades/ocorrencias/")) {
