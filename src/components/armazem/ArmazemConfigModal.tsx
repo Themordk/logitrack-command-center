@@ -32,7 +32,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setLoading(true);
       const { data } = await (supabase as any)
         .from("armazem_config")
-        .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id")
+        .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id")
         .eq("armazem_id", armazem.id)
         .eq("tenant_id", tenantId)
         .maybeSingle();
@@ -41,6 +41,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setEnderecoCancelamentoId(data?.endereco_cancelamento_id ?? null);
       setEnderecoAvariaId(data?.endereco_avaria_id ?? null);
       setEnderecoQuarentenaId(data?.endereco_quarentena_id ?? null);
+      setEnderecoArmazenagemAutomaticaId(data?.endereco_armazenagem_automatica_id ?? null);
       setLoading(false);
     })();
     return () => { cancelled = true; };
