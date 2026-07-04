@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw, FileWarning } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -548,6 +548,13 @@ export function MovimentoEntradaPage() {
         </div>
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
+        </button>
+        <button
+          onClick={() => { window.location.hash = "/relatorios/picking-nao-cadastrado"; }}
+          className="h-8 px-3 rounded-md border border-border bg-secondary/40 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-1"
+          title="Listar itens em movimentos abertos que ainda não têm picking cadastrado"
+        >
+          <FileWarning size={12} /> Itens sem Picking
         </button>
       </div>
 
