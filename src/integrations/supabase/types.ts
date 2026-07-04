@@ -2168,6 +2168,7 @@ export type Database = {
           placa_veiculo: string | null
           status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
           tenant_id: string
+          tipo_entrada_id: string | null
           total_volume: number | null
           total_volume_conferido: number | null
           usuario_autorizou: string | null
@@ -2194,6 +2195,7 @@ export type Database = {
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
           tenant_id: string
+          tipo_entrada_id?: string | null
           total_volume?: number | null
           total_volume_conferido?: number | null
           usuario_autorizou?: string | null
@@ -2220,6 +2222,7 @@ export type Database = {
           placa_veiculo?: string | null
           status?: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
           tenant_id?: string
+          tipo_entrada_id?: string | null
           total_volume?: number | null
           total_volume_conferido?: number | null
           usuario_autorizou?: string | null
@@ -2280,6 +2283,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_tipo_entrada_id_fkey"
+            columns: ["tipo_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_entrada"
             referencedColumns: ["id"]
           },
           {
@@ -4581,6 +4591,7 @@ export type Database = {
           codigo_erp: string | null
           descricao: string
           empresa_id: string
+          gera_mov_automatico: boolean
           id: string
           realiza_conferencia: boolean
           tenant_id: string
@@ -4591,6 +4602,7 @@ export type Database = {
           codigo_erp?: string | null
           descricao: string
           empresa_id: string
+          gera_mov_automatico?: boolean
           id?: string
           realiza_conferencia?: boolean
           tenant_id: string
@@ -4601,6 +4613,7 @@ export type Database = {
           codigo_erp?: string | null
           descricao?: string
           empresa_id?: string
+          gera_mov_automatico?: boolean
           id?: string
           realiza_conferencia?: boolean
           tenant_id?: string
@@ -4698,6 +4711,7 @@ export type Database = {
           conferencia_checkout: boolean
           descricao: string
           empresa_id: string
+          gera_mov_automatico: boolean
           id: string
           realiza_conferencia: boolean
           separa_pulmao: boolean
@@ -4709,6 +4723,7 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao: string
           empresa_id: string
+          gera_mov_automatico?: boolean
           id?: string
           realiza_conferencia?: boolean
           separa_pulmao?: boolean
@@ -4720,6 +4735,7 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao?: string
           empresa_id?: string
+          gera_mov_automatico?: boolean
           id?: string
           realiza_conferencia?: boolean
           separa_pulmao?: boolean
@@ -7122,6 +7138,22 @@ export type Database = {
         Returns: boolean
       }
       fn_usuario_tenant: { Args: never; Returns: string }
+      gerar_movimento_entrada: {
+        Args: {
+          p_armazem_id?: string
+          p_box_id?: string
+          p_confirma_volume?: boolean
+          p_crossdocking?: boolean
+          p_documento_entrada_ids?: string[]
+          p_modo?: string
+          p_observacao?: string
+          p_placa_veiculo?: string
+          p_tenant_id: string
+          p_usuario_id: string
+          p_valor_descarga?: number
+        }
+        Returns: Json
+      }
       gerar_onda_separacao: {
         Args: {
           p_box_id: string
