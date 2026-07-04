@@ -123,11 +123,12 @@ export function SaidasPage() {
       const { data, error } = await (supabase as any).rpc("gerar_onda_separacao", {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
+        p_usuario_id: usuarioId,
+        p_documentos: Array.from(selected),
         p_box_id: formData.box_id || null,
         p_rota_id: formData.rota_id || null,
         p_veiculo_id: formData.veiculo_id || null,
-        p_prioridade: formData.prioridade,
-        p_documentos: Array.from(selected),
+        p_prioridade: formData.prioridade || "NORMAL",
       });
       if (error) throw error;
       toast.success(data || "Onda de carregamento gerada com sucesso!");
