@@ -95,6 +95,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
     setEnderecoCancelamentoId(null);
     setEnderecoAvariaId(null);
     setEnderecoQuarentenaId(null);
+    setEnderecoArmazenagemAutomaticaId(null);
     setConfirmRemove(false);
     onClose();
     return true;
