@@ -1,48 +1,46 @@
-## Objetivo
-Unificar "Cortar Saldo Não Separado" e "Registrar Ocorrência" em um único botão no coletor de separação. A criação da `ocorrencia_operacional` passa a acontecer dentro da própria RPC `cortar_item_separacao`, mantendo tudo em uma única transação.
+## Escopo
 
-## 1. Backend — alterar `public.cortar_item_separacao`
+Duas melhorias independentes:
 
-Manter assinatura e comportamento atuais. Adicionar novo parâmetro opcional `p_observacao text DEFAULT NULL` e, antes do bloco final `RETURN json_build_object`, inserir a criação da ocorrência:
+### 1. Campo `realiza_conferencia` em Tipos de Entrada
 
-- Ler `empresa_id`, `armazem_id`, `produto_id` da própria `tarefa` (já carregada / re-selecionada no início).
-- `INSERT INTO public.ocorrencia_operacional` com:
-  - `tenant_id`, `empresa_id`, `armazem_id` da tarefa.
-  - `etapa_ocorrencia = 'SEPARACAO'`.
-  - `tipo_ocorrencia = 'OUTROS'` (fixo — usuário só escolhe motivo).
-  - `motivo_ocorrencia_id = p_motivo_ocorrencia`.
-  - `produto_id` da tarefa.
-  - `documento_origem_id = v_movimento_saida_id`, `tipo_documento_origem = 'MOVIMENTO_SAIDA'`.
-  - `quantidade_esperada = v_quantidade_requerida`.
-  - `quantidade_real = v_quantidade_separada`.
-  - `quantidade_divergente = v_quantidade_a_cortar`.
-  - `status = 'ABERTA'`, `prioridade = 'ALTA'`.
-  - `observacao = p_observacao`.
-  - `criado_por = p_usuario`.
-- Retornar também `ocorrencia_id` no JSON de resposta.
+**Arquivo:** `src/pages/TiposEntradaPage.tsx`
 
-Como está tudo dentro da mesma função plpgsql, falha na criação da ocorrência aborta o corte (transação única) — comportamento desejado.
+- Adicionar coluna `realiza_conferencia` (type: `badge`) na lista, entre "Código ERP" e "Status", com label "Realiza Conferência".
+- Adicionar campo no formulário do modal (`FieldSpec`, type: `switch`, `defaultValue: true`) logo abaixo de "Código ERP".
 
-## 2. Frontend — `src/pages/coletor/SeparacaoOcorrenciasPage.tsx`
+Nenhuma migração necessária — o campo já existe na tabela.
 
-### Botões
-- Substituir os dois botões atuais por **um único**: "Registrar ocorrência e cortar saldo" (variant `danger`, ícone `AlertTriangle`).
-- Manter "Solicitar Abastecimento" com regra atual (habilitado só com saldo em pulmão).
-- Remover "Solicitar Inventário".
+### 2. Relatório de Itens sem Endereço de Picking (Movimentos de Entrada)
 
-### Modal
-Bottom-sheet com:
-1. **Motivo** — lista de `motivo_ocorrencia` filtrada por `etapa_ocorrencia = 'SEPARACAO'` (já existe).
-2. **Observação** — textarea opcional.
-3. **Alerta amarelo informativo** quando `temSaldoPulmao = true`: "Este produto ainda possui saldo em endereço de pulmão. Confirme antes de cortar." (não bloqueia).
+**Objetivo:** Botão na tela `MovimentoEntradaPage` que abre um relatório imprimível com todos os itens de entradas em aberto cujo produto não possui `picking_produto` cadastrado, para a equipe de conferência providenciar a definição.
 
-Rodapé: Cancelar · Confirmar.
+**Campos do relatório:**
+- SKU
+- Referência
+- Descrição
+- Número do Movimento
+- Data de Criação (created_at do movimento)
 
-### Chamada
-`supabase.rpc('cortar_item_separacao', { p_tenant_id, p_tarefa_id, p_usuario, p_motivo_ocorrencia, p_observacao })`.
+**Consulta (via service):**
+- Buscar `movimento_entrada_item` do tenant/empresa/armazém corrente cujo `movimento_entrada.status` ainda esteja em aberto (não `ARMAZENADO`/`CANCELADO`).
+- Filtrar produtos que NÃO tenham registro em `picking_produto` para o mesmo `empresa_id`/`armazem_id`.
+- Retornar SKU, referência, descrição do produto, `numero_movimento` e `created_at` do movimento.
 
-Ao sucesso: `resultDialog` "Ocorrência #N registrada e saldo cortado." e avanço para a próxima tarefa (fluxo atual mantido).
+**Estrutura de arquivos (segue framework de relatórios existente):**
+```text
+src/modules/reports/picking-nao-cadastrado/
+  ├── pickingNaoCadastrado.service.ts   (query + tipos)
+  └── PickingNaoCadastradoReportPage.tsx (Header + Toolbar + Table, com onExportPdf/Excel/Print)
+```
 
-## Fora do escopo
-- Nenhum outro ajuste de UI administrativa. O registro aparecerá automaticamente em `/atividades/ocorrencias`.
-- Sem mudança no `enum_tipo_ocorrencia` — usamos `OUTROS` para todos os cortes.
+**Integração na `MovimentoEntradaPage`:**
+- Adicionar botão "Itens sem Picking" na toolbar (ao lado dos existentes) que navega para a rota do novo relatório.
+- Registrar a rota em `src/App.tsx` (ou onde estão as rotas de relatório) seguindo o mesmo padrão dos relatórios atuais (`/relatorios/...`).
+
+**Padrões visuais e de export:** reutilizar `ReportHeader`, `ReportTable` e `src/modules/reports/utils/exporters.ts` — mesmo estilo SAP denso já usado nos demais relatórios (fonte 9px, landscape A4, header com botões PDF/Excel/Imprimir).
+
+## Fora de escopo
+
+- Nenhuma alteração no fluxo de conferência a partir do novo flag `realiza_conferencia` (apenas cadastro/exibição).
+- Nenhuma alteração de RPC/schema de banco.
