@@ -94,8 +94,8 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
   const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx));
 
   const handleSave = async () => {
-    if (!numeroNota || !parceiroId || !tipoEntradaId) {
-      toast.error("Preencha os campos obrigatórios: Nº Nota, Parceiro e Tipo de Entrada.");
+    if (!numeroNota || !parceiroId || !tipoEntradaId || !armazemId) {
+      toast.error("Preencha os campos obrigatórios: Nº Nota, Parceiro, Tipo de Entrada e Armazém.");
       return;
     }
     if (items.length === 0) {
@@ -114,7 +114,7 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
           data_entrada: dataEntrada,
           parceiro_id: parceiroId,
           tipo_entrada_id: tipoEntradaId,
-          armazem_id: armazemId || null,
+          armazem_id: armazemId,
           qtd_volume: qtdVolume || null,
           valor_total_nota: valorTotalNota || valorTotalProdutos,
           valor_total_produtos: valorTotalProdutos,
