@@ -1,28 +1,24 @@
 ## Objetivo
-Atualizar a chamada `gerar_onda_separacao` em `SaidasPage.tsx` para a nova assinatura da função RPC.
+Incluir os novos campos booleanos `gera_mov_automatico` e `libera_mov_automatico` — presentes nas tabelas `tipo_entrada` e `tipo_saida` — nas telas de listagem e cadastro/edição localizadas em **Dados Mestres > Tipos de Entrada** e **Dados Mestres > Tipos de Saída**.
 
-## Alteração
+## Escopo
+1. **TiposEntradaPage.tsx**
+   - Adicionar colunas na tabela: `gera_mov_automatico` e `libera_mov_automatico` (tipo `badge`, como os demais booleanos da página).
+   - Adicionar campos no modal de cadastro/edição: dois switches com `defaultValue: false`.
 
-### `src/pages/SaidasPage.tsx` — `handleGenerate` (linhas 123-131)
-
-Adicionar `p_empresa_id` (já lido do contexto) e `p_usuario_id` à chamada, mantendo os demais parâmetros. Ordem/nomes conforme a nova assinatura:
-
-```ts
-const { data, error } = await (supabase as any).rpc("gerar_onda_separacao", {
-  p_tenant_id: tenantId,
-  p_empresa_id: empresaId,
-  p_usuario_id: usuarioId,
-  p_documentos: Array.from(selected),
-  p_box_id: formData.box_id || null,
-  p_rota_id: formData.rota_id || null,
-  p_veiculo_id: formData.veiculo_id || null,
-  p_prioridade: formData.prioridade || "NORMAL",
-});
-```
-
-Garantir que `usuarioId` esteja disponível via `useTenant()` (já usado nas outras páginas — adicionar ao destructuring caso ainda não esteja).
-
-Comportamento pós-chamada preservado (toast, fechar modal, limpar seleção, `fetchDocs()`).
+2. **TiposSaidaPage.tsx**
+   - Adicionar colunas na tabela: `gera_mov_automatico` e `libera_mov_automatico`. Serão renderizados com o mesmo padrão visual dos demais booleanos da página (badge customizado Sim/Não).
+   - Adicionar campos no modal de cadastro/edição: dois switches com `defaultValue: false`.
 
 ## Fora do escopo
-Nenhuma mudança em UI, campos do modal ou outras telas.
+- Nenhuma alteração em regras de negócio, backend, validações extras ou outras telas.
+- Não serão criados relacionamentos de dependência entre os novos switches e os existentes.
+
+## Arquivos afetados
+- `src/pages/TiposEntradaPage.tsx`
+- `src/pages/TiposSaidaPage.tsx`
+
+## Implementação
+- Ajustar arrays `columns` e `fields` em ambas as páginas.
+- Manter o padrão visual e de interação já estabelecido em cada tela (badge para entrada; custom badge para saída).
+- Os campos são `boolean NOT NULL`, portanto o modal receberá `defaultValue: false`.

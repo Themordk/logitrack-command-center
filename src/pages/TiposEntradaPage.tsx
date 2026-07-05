@@ -17,6 +17,8 @@ export function TiposEntradaPage() {
     { key: "codigo_erp", label: "Código ERP" },
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "badge" },
     { key: "armazenagem_automatica", label: "Armazenagem Automática", type: "badge" },
+    { key: "gera_mov_automatico", label: "Gera Mov. Automático", type: "badge" },
+    { key: "libera_mov_automatico", label: "Libera Mov. Automático", type: "badge" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -25,6 +27,8 @@ export function TiposEntradaPage() {
     { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Código no ERP" },
     { name: "realiza_conferencia", label: "Realiza Conferência", type: "switch", defaultValue: true },
     { name: "armazenagem_automatica", label: "Armazenagem Automática", type: "switch", defaultValue: false },
+    { name: "gera_mov_automatico", label: "Gera Mov. Automático", type: "switch", defaultValue: false },
+    { name: "libera_mov_automatico", label: "Libera Mov. Automático", type: "switch", defaultValue: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
