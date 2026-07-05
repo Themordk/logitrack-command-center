@@ -2003,6 +2003,54 @@ export type Database = {
           },
         ]
       }
+      log_cron_execucao: {
+        Row: {
+          duracao_ms: number | null
+          erro: string | null
+          executado_em: string
+          id: string
+          nome_cron: string
+          resultado: Json | null
+          sucesso: boolean
+          tenant_id: string
+        }
+        Insert: {
+          duracao_ms?: number | null
+          erro?: string | null
+          executado_em?: string
+          id?: string
+          nome_cron: string
+          resultado?: Json | null
+          sucesso?: boolean
+          tenant_id: string
+        }
+        Update: {
+          duracao_ms?: number | null
+          erro?: string | null
+          executado_em?: string
+          id?: string
+          nome_cron?: string
+          resultado?: Json | null
+          sucesso?: boolean
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_cron_execucao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_cron_execucao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_sessao_usuario: {
         Row: {
           fim_sessao: string | null
@@ -6782,6 +6830,8 @@ export type Database = {
             }
             Returns: Json
           }
+      cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
+      cron_liberar_separacao_automatica: { Args: never; Returns: Json }
       dashboard_kpis: {
         Args: {
           p_armazem_id?: string
