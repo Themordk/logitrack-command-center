@@ -24,6 +24,8 @@ export function TiposSaidaPage() {
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
     { key: "conferencia_checkout", label: "Conferência Checkout", type: "custom", render: (row) => boolBadge(row.conferencia_checkout) },
     { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
+    { key: "gera_mov_automatico", label: "Gera Mov. Automático", type: "custom", render: (row) => boolBadge(row.gera_mov_automatico) },
+    { key: "libera_mov_automatico", label: "Libera Mov. Automático", type: "custom", render: (row) => boolBadge(row.libera_mov_automatico) },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -39,6 +41,8 @@ export function TiposSaidaPage() {
       disabledWhen: (f) => !f.realiza_conferencia,
     },
     { name: "separa_pulmao", label: "Separa Pulmão", type: "switch", defaultValue: false },
+    { name: "gera_mov_automatico", label: "Gera Mov. Automático", type: "switch", defaultValue: false },
+    { name: "libera_mov_automatico", label: "Libera Mov. Automático", type: "switch", defaultValue: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
