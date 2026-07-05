@@ -123,15 +123,18 @@ export function useCrud<T extends Record<string, any>>({
       });
 
       if (search) {
-        const searchFields = ["descricao"];
-        if (table === "hu") searchFields.push("codigo_hu");
-        if (table === "volume_expedicao") searchFields.push("codigo_volume");
-        if (table === "produto" || table === "vw_produto_listagem") searchFields.push("sku");
-        if (table === "tipo_entrada" || table === "tipo_saida") searchFields.push("codigo_erp");
-        if (table === "veiculos") searchFields.push("placa");
-        if (table === "endereco") searchFields.push("codigo_endereco");
-        const orClause = searchFields.map((f) => `${f}.ilike.%${search}%`).join(",");
-        query = query.or(orClause);
+        const textFields = ["descricao"];
+        if (table === "hu") textFields.push("codigo_hu");
+        if (table === "volume_expedicao") textFields.push("codigo_volume");
+        if (table === "produto" || table === "vw_produto_listagem") textFields.push("sku");
+        if (table === "tipo_entrada" || table === "tipo_saida") textFields.push("codigo_erp");
+        if (table === "veiculos") textFields.push("placa");
+        const orParts = textFields.map((f) => `${f}.ilike.%${search}%`);
+        // codigo_endereco é numeric no banco — ilike não funciona; usa eq quando o termo é numérico
+        if (table === "endereco" && /^\d+$/.test(search.trim())) {
+          orParts.push(`codigo_endereco.eq.${search.trim()}`);
+        }
+        query = query.or(orParts.join(","));
       }
 
 
