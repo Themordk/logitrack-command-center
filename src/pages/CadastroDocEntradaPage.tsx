@@ -211,7 +211,7 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Armazém</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Armazém *</label>
             <select value={armazemId} onChange={(e) => setArmazemId(e.target.value)} className={inputClass}>
               <option value="">Selecione...</option>
               {armazens.map((a) => <option key={a.id} value={a.id}>{a.descricao}</option>)}
