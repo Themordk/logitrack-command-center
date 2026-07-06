@@ -47,6 +47,7 @@ interface OndaCarregamentoItem {
   qtd_conferida: number;
   status: string;
   motivo_descricao: string | null;
+  auto_separacao: boolean;
 }
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
@@ -103,6 +104,14 @@ interface LiberarResult {
   tipo_ocorrencia?: string;
   itens?: OcorrenciaItem[];
   ocorrencias?: OcorrenciaItem[];
+  pdv?: {
+    total_itens_pdv: number;
+    total_auto_separados: number;
+    total_parciais: number;
+    total_sem_saldo: number;
+    mensagem?: string;
+  };
+  todas_separadas?: boolean;
 }
 
 interface MotivoOcorrencia {
@@ -326,10 +335,21 @@ export function MovimentoSaidaPage() {
       }
 
       if (result.sucesso) {
-        toast.success(result.mensagem || "Liberado para separação!");
+        const pdv = result.pdv;
+        if (pdv && pdv.total_itens_pdv > 0) {
+          toast.success(
+            `${result.mensagem || "Liberado para separação!"} — PDV: ${pdv.total_auto_separados} auto-separado(s)` +
+            (pdv.total_parciais > 0 ? `, ${pdv.total_parciais} parcial(is)` : "") +
+            (pdv.total_sem_saldo > 0 ? `, ${pdv.total_sem_saldo} sem saldo` : ""),
+            { duration: 6000 }
+          );
+        } else {
+          toast.success(result.mensagem || "Liberado para separação!");
+        }
         fetchMovimentos();
         if (selectedId === movId) {
-          setSelectedMov((prev) => prev ? { ...prev, status: "LIBERADO" } : null);
+          const novoStatus = result.todas_separadas ? "SEPARADO" : "LIBERADO";
+          setSelectedMov((prev) => prev ? { ...prev, status: novoStatus } : null);
         }
       } else {
         setLiberarResult(result);
@@ -784,6 +804,11 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_conferida || 0)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_cortada || 0)}</td>
                         <td className="px-3 py-2 text-xs">
+                          {item.auto_separacao && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/30 mr-1">
+                              PDV
+                            </span>
+                          )}
                           {item.status ? (
                             <span className={cn("text-[10px] px-2 py-0.5 rounded-full border",
                               item.status === "PENDENTE" ? "bg-red-500/15 text-red-400 border-red-500/30" :
@@ -846,7 +871,15 @@ export function MovimentoSaidaPage() {
                       <tr key={item.tarefa_execucao_id || i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
                         <td className="px-3 py-2 text-xs text-foreground">{item.descricao}</td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{item.operador || "—"}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {item.auto_separacao ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/30">
+                              Auto PDV
+                            </span>
+                          ) : (
+                            item.operador || "—"
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.quantidade_executada)}</td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{item.lote || "—"}</td>
                         <td className="px-3 py-2 text-xs">{item.status || "—"}</td>
