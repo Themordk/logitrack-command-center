@@ -804,6 +804,11 @@ export function MovimentoSaidaPage() {
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_conferida || 0)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_cortada || 0)}</td>
                         <td className="px-3 py-2 text-xs">
+                          {item.auto_separacao && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/30 mr-1">
+                              PDV
+                            </span>
+                          )}
                           {item.status ? (
                             <span className={cn("text-[10px] px-2 py-0.5 rounded-full border",
                               item.status === "PENDENTE" ? "bg-red-500/15 text-red-400 border-red-500/30" :
