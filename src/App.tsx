@@ -415,6 +415,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/inventario": return <InventarioListPage onNavigate={onNavigate} />;
     case "/coletor/inventario/endereco": return <InventarioEnderecoPage onNavigate={onNavigate} />;
     case "/coletor/inventario/produto": return <InventarioProdutoPage onNavigate={onNavigate} />;
+    case "/coletor/inventario/livre/endereco": return <InventarioLivreEnderecoPage onNavigate={onNavigate} />;
+    case "/coletor/inventario/livre/produto": return <InventarioLivreProdutoPage onNavigate={onNavigate} />;
     default: return <ColetorLoginPage onNavigate={onNavigate} />;
   }
 }
