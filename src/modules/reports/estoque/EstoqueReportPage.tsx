@@ -41,6 +41,7 @@ export function EstoqueReportPage() {
   const [filterSubgrupoId, setFilterSubgrupoId] = useState("");
   const [filterMarca, setFilterMarca] = useState("");
   const [filterMultiLocalizacao, setFilterMultiLocalizacao] = useState(false);
+  const [filterApenasComSaldo, setFilterApenasComSaldo] = useState(true);
 
   // Options
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
@@ -110,6 +111,7 @@ export function EstoqueReportPage() {
     setFilterMarca("");
     setFilterCodigoEndereco("");
     setFilterMultiLocalizacao(false);
+    setFilterApenasComSaldo(true);
   }, [empresaId, empresaVersion]);
 
   // Subgrupo cascata: reset quando grupo muda
@@ -144,6 +146,7 @@ export function EstoqueReportPage() {
         marca: filterMarca || undefined,
         codigo_endereco: Number.isFinite(codigoNum) ? codigoNum : undefined,
         apenas_multi_localizacao: filterMultiLocalizacao || undefined,
+        apenas_com_saldo: filterApenasComSaldo,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
@@ -168,6 +171,7 @@ export function EstoqueReportPage() {
     setFilterSubgrupoId("");
     setFilterMarca("");
     setFilterMultiLocalizacao(false);
+    setFilterApenasComSaldo(true);
   };
 
   const isExpired = (date: string) => {
@@ -224,6 +228,7 @@ export function EstoqueReportPage() {
   if (filterSubgrupoId) activeFilters["Subgrupo"] = subgrupos.find(s => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
   if (filterMarca) activeFilters["Marca"] = filterMarca;
   if (filterMultiLocalizacao) activeFilters["Multi-localização"] = "Sim";
+  if (filterApenasComSaldo) activeFilters["Saldo"] = "> 0";
 
   // Export columns (texto puro)
   const exportColumns: ExportColumn[] = [
@@ -374,6 +379,15 @@ export function EstoqueReportPage() {
                     onCheckedChange={(v) => setFilterMultiLocalizacao(v === true)}
                   />
                   <span className="text-xs">Apenas produtos com mais de uma localização</span>
+                </label>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 h-8 cursor-pointer select-none">
+                  <Checkbox
+                    checked={filterApenasComSaldo}
+                    onCheckedChange={(v) => setFilterApenasComSaldo(v === true)}
+                  />
+                  <span className="text-xs">Apenas posições com saldo</span>
                 </label>
               </div>
             </div>

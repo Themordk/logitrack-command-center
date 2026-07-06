@@ -15,6 +15,7 @@ export interface EstoqueFilter {
   codigo_endereco?: number;
   marca?: string;
   apenas_multi_localizacao?: boolean;
+  apenas_com_saldo?: boolean;
 }
 
 const intersect = (a: string[] | null, b: string[]): string[] => {
@@ -140,7 +141,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
   const { data, error } = await query;
   if (error) throw error;
 
-  const results = (data || []).map((row: any) => ({
+  let results = (data || []).map((row: any) => ({
     id: row.id,
     sku: row.produto?.sku || "",
     descricao: row.produto?.descricao || "",
@@ -162,6 +163,11 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     subgrupo_id: row.produto?.subgrupo_id,
     parceiro_id: row.produto?.parceiro_id,
   }));
+
+  // Filtro: apenas posições com saldo
+  if (filters.apenas_com_saldo) {
+    results = results.filter((r) => r.quantidade_total > 0);
+  }
 
   // Sort: sku, descricao, data_validade, quantidade_total DESC
   results.sort((a, b) => {
