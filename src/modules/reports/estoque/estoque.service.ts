@@ -15,6 +15,7 @@ export interface EstoqueFilter {
   codigo_endereco?: number;
   marca?: string;
   apenas_multi_localizacao?: boolean;
+  apenas_com_saldo?: boolean;
 }
 
 const intersect = (a: string[] | null, b: string[]): string[] => {
