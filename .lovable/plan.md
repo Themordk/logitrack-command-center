@@ -1,40 +1,28 @@
-## Problema
+## Objetivo
+No relatório **Posição de Estoque** (`/relatorios/estoque`), adicionar um checkbox "Apenas posições com saldo" no painel de filtros. Quando marcado, o relatório deve excluir posições com `quantidade_total === 0`. O checkbox deve vir **marcado por padrão** ao carregar a tela.
 
-Em `/dados-mestres/produtos`, ao cadastrar um novo Picking para o produto, o INSERT em `picking_produto` não envia `empresa_id`, causando falha/quebra de escopo (a tabela exige empresa_id).
+## Escopo da mudança
+Dois arquivos do frontend:
 
-## Correção
+1. `src/modules/reports/estoque/estoque.service.ts`
+2. `src/modules/reports/estoque/EstoqueReportPage.tsx`
 
-Arquivo único: `src/pages/ProdutosPage.tsx`, função `savePick` (~linha 232).
+## Detalhes técnicos
 
-No ramo de INSERT (novo picking), incluir `empresa_id` derivado do `armazem_id` selecionado no formulário, garantindo coerência com o armazém (não apenas com o contexto).
+### 1. Serviço (`estoque.service.ts`)
+- Adicionar campo `apenas_com_saldo?: boolean` na interface `EstoqueFilter`.
+- Aplicar filtro client-side no array `results` antes do retorno: quando `filters.apenas_com_saldo === true`, manter apenas itens onde `quantidade_total > 0`.
+- Executar esse filtro **antes** da ordenação final, para que sort e multi-localização trabalhem sobre o subset já filtrado.
 
-### Alteração
+### 2. Página (`EstoqueReportPage.tsx`)
+- Criar estado `filterApenasComSaldo` com valor inicial `true`.
+- Renderizar checkbox na mesma linha dos filtros (próximo ao existente "Apenas produtos com mais de uma localização").
+- Incluir `apenas_com_saldo: filterApenasComSaldo` no objeto `filters` enviado para `fetchEstoqueReport` em `handleGenerate`.
+- Incluir `apenas_com_saldo` no `handleClear` (resetar para `true`).
+- Incluir `apenas_com_saldo` no `activeFilters` para aparecer no cabeçalho do relatório e nos exports (quando marcado).
+- Incluir `apenas_com_saldo` no reset de empresa (`useEffect` que escuta `empresaId`/`empresaVersion`).
 
-Antes do insert, buscar a empresa vinculada ao armazém escolhido:
-
-```ts
-} else {
-  // Resolve empresa_id a partir do armazém selecionado (garante coerência)
-  const { data: arm, error: armErr } = await (supabase as any)
-    .from("armazem")
-    .select("empresa_id")
-    .eq("id", pickForm.armazem_id)
-    .maybeSingle();
-  if (armErr || !arm?.empresa_id) {
-    toast.error("Não foi possível resolver a empresa do armazém selecionado.");
-    setPickSaving(false);
-    return;
-  }
-  data.produto_id = produto.id;
-  data.tenant_id = tenantId;
-  data.empresa_id = arm.empresa_id;
-  const { error } = await (supabase as any).from("picking_produto").insert(data);
-  if (error) throw error;
-}
-```
-
-Nenhuma outra rota/lógica é alterada. UPDATE permanece como está (não sobrescreve empresa_id).
-
-## Fora do escopo
-- Alterações em RLS, schema ou outras telas.
-- Mudanças no fluxo de edição do picking.
+## Fora de escopo
+- Nenhuma mudança no banco de dados (view, tabela, RLS, triggers).
+- Nenhuma mudança no componente `ReportTable` genérico.
+- Nenhuma mudança em outros relatórios.
