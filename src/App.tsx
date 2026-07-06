@@ -122,6 +122,8 @@ import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
 import { InventarioListPage } from "./pages/coletor/InventarioListPage";
 import { InventarioEnderecoPage } from "./pages/coletor/InventarioEnderecoPage";
 import { InventarioProdutoPage } from "./pages/coletor/InventarioProdutoPage";
+import { InventarioLivreEnderecoPage } from "./pages/coletor/InventarioLivreEnderecoPage";
+import { InventarioLivreProdutoPage } from "./pages/coletor/InventarioLivreProdutoPage";
 
 // Suporte da plataforma
 import { SupportRoute } from "./components/suporte/SupportRoute";
