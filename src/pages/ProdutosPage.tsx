@@ -241,7 +241,20 @@ function ProdutoDetailModal({
         const { error } = await (supabase as any).from("picking_produto").update(data).eq("id", editPick.id);
         if (error) throw error;
       } else {
-        data.produto_id = produto.id; data.tenant_id = tenantId;
+        // Resolve empresa_id a partir do armazém selecionado (garante coerência)
+        const { data: arm, error: armErr } = await (supabase as any)
+          .from("armazem")
+          .select("empresa_id")
+          .eq("id", pickForm.armazem_id)
+          .maybeSingle();
+        if (armErr || !arm?.empresa_id) {
+          toast.error("Não foi possível resolver a empresa do armazém selecionado.");
+          setPickSaving(false);
+          return;
+        }
+        data.produto_id = produto.id;
+        data.tenant_id = tenantId;
+        data.empresa_id = arm.empresa_id;
         const { error } = await (supabase as any).from("picking_produto").insert(data);
         if (error) throw error;
       }
