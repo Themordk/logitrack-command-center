@@ -47,6 +47,7 @@ interface OndaCarregamentoItem {
   qtd_conferida: number;
   status: string;
   motivo_descricao: string | null;
+  auto_separacao: boolean;
 }
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;

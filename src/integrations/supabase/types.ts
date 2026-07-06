@@ -6506,6 +6506,7 @@ export type Database = {
       }
       vw_movimento_saida_separacao_detalhe: {
         Row: {
+          auto_separacao: boolean | null
           codigo_hu: string | null
           concluido_em: string | null
           descricao: string | null
@@ -6755,6 +6756,7 @@ export type Database = {
       buscar_itens_onda_carregamento: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: {
+          auto_separacao: boolean
           descricao: string
           id: string
           motivo_descricao: string
