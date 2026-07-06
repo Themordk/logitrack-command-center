@@ -24,6 +24,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [showZeroConfirm, setShowZeroConfirm] = useState(false);
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -80,6 +81,15 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       toast.error("Informe uma quantidade válida.");
       return;
     }
+
+    // Confirmação para contagem zero
+    if (qtd === 0 && !showZeroConfirm) {
+      setShowZeroConfirm(true);
+      return;
+    }
+    setShowZeroConfirm(false);
+
+
 
     const fator = embalagemInfo?.fator || 1;
     const qtdFinal = qtd * fator;
@@ -164,6 +174,19 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario/endereco">
+      {(() => {
+        const contagem = Number(sessionStorage.getItem("coletor_inventario_contagem") || "1");
+        if (contagem > 1) {
+          return (
+            <div className="mb-2 flex justify-center">
+              <span className="text-[10px] px-3 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
+                {contagem}ª Contagem — Recontagem
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })()}
       <div className="flex flex-col gap-3 flex-1">
         {/* Product info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">

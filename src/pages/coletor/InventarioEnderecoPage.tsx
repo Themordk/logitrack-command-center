@@ -104,9 +104,11 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
 
     try {
       // Query endereco table to find the scanned address
+      const tenantId = localStorage.getItem("core_tenant_id");
       const { data: enderecos } = await (supabase as any)
         .from("endereco")
         .select("id, descricao, codigo_endereco, situacao")
+        .eq("tenant_id", tenantId)
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
 
@@ -185,6 +187,19 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario">
+      {(() => {
+        const contagem = Number(sessionStorage.getItem("coletor_inventario_contagem") || "1");
+        if (contagem > 1) {
+          return (
+            <div className="mb-2 flex justify-center">
+              <span className="text-[10px] px-3 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
+                {contagem}ª Contagem — Recontagem
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })()}
       <div className="flex flex-col gap-3 flex-1">
         {/* Progress */}
         <div className="flex items-center justify-between">
