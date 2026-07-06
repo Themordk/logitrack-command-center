@@ -41,6 +41,7 @@ export function EstoqueReportPage() {
   const [filterSubgrupoId, setFilterSubgrupoId] = useState("");
   const [filterMarca, setFilterMarca] = useState("");
   const [filterMultiLocalizacao, setFilterMultiLocalizacao] = useState(false);
+  const [filterApenasComSaldo, setFilterApenasComSaldo] = useState(true);
 
   // Options
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);

@@ -164,6 +164,11 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     parceiro_id: row.produto?.parceiro_id,
   }));
 
+  // Filtro: apenas posições com saldo
+  if (filters.apenas_com_saldo) {
+    results = results.filter((r) => r.quantidade_total > 0);
+  }
+
   // Sort: sku, descricao, data_validade, quantidade_total DESC
   results.sort((a, b) => {
     const c1 = a.sku.localeCompare(b.sku);
