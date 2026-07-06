@@ -243,6 +243,29 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
         </ActionButton>
       </div>
 
+      {/* Zero Quantity Confirmation Dialog */}
+      {showZeroConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
+            <div className="flex flex-col items-center gap-3">
+              <XCircle size={48} className="text-amber-400" />
+              <h3 className="text-base font-bold text-white text-center">Contagem Zero</h3>
+              <p className="text-sm text-[hsl(213,31%,75%)] text-center">
+                Você está informando quantidade <strong>ZERO</strong> para este produto. Isso pode zerar o saldo no estoque. Confirma?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <ActionButton onClick={() => setShowZeroConfirm(false)} variant="secondary">
+                Cancelar
+              </ActionButton>
+              <ActionButton onClick={handleConfirmar} variant="success">
+                Sim, Confirmar Zero
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* EAN Error Dialog */}
       {showEanErroDialog && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
