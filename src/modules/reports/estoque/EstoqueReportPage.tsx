@@ -111,6 +111,7 @@ export function EstoqueReportPage() {
     setFilterMarca("");
     setFilterCodigoEndereco("");
     setFilterMultiLocalizacao(false);
+    setFilterApenasComSaldo(true);
   }, [empresaId, empresaVersion]);
 
   // Subgrupo cascata: reset quando grupo muda
@@ -145,6 +146,7 @@ export function EstoqueReportPage() {
         marca: filterMarca || undefined,
         codigo_endereco: Number.isFinite(codigoNum) ? codigoNum : undefined,
         apenas_multi_localizacao: filterMultiLocalizacao || undefined,
+        apenas_com_saldo: filterApenasComSaldo,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
@@ -169,6 +171,7 @@ export function EstoqueReportPage() {
     setFilterSubgrupoId("");
     setFilterMarca("");
     setFilterMultiLocalizacao(false);
+    setFilterApenasComSaldo(true);
   };
 
   const isExpired = (date: string) => {
