@@ -3437,6 +3437,7 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          empresa_id: string
           endereco_id: string
           est_maximo: number
           est_minimo: number
@@ -3448,6 +3449,7 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          empresa_id: string
           endereco_id: string
           est_maximo: number
           est_minimo: number
@@ -3459,6 +3461,7 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          empresa_id?: string
           endereco_id?: string
           est_maximo?: number
           est_minimo?: number
@@ -3473,6 +3476,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_produto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
@@ -4048,6 +4058,7 @@ export type Database = {
       tarefa: {
         Row: {
           armazem_id: string | null
+          auto_separacao: boolean
           concluido_em: string | null
           contagem_inventario: number | null
           criado_em: string
@@ -4078,6 +4089,7 @@ export type Database = {
         }
         Insert: {
           armazem_id?: string | null
+          auto_separacao?: boolean
           concluido_em?: string | null
           contagem_inventario?: number | null
           criado_em?: string
@@ -4108,6 +4120,7 @@ export type Database = {
         }
         Update: {
           armazem_id?: string | null
+          auto_separacao?: boolean
           concluido_em?: string | null
           contagem_inventario?: number | null
           criado_em?: string
@@ -7213,6 +7226,20 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: undefined
       }
+      fn_separacao_automatica_pdv: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["resultado_separacao_pdv"]
+        SetofOptions: {
+          from: "*"
+          to: "resultado_separacao_pdv"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fn_user_belongs_to_tenant: {
         Args: { p_tenant_id: string }
         Returns: boolean
@@ -8163,7 +8190,13 @@ export type Database = {
         | "DOCA"
     }
     CompositeTypes: {
-      [_ in never]: never
+      resultado_separacao_pdv: {
+        total_itens_pdv: number | null
+        total_auto_separados: number | null
+        total_parciais: number | null
+        total_sem_saldo: number | null
+        mensagem: string | null
+      }
     }
   }
 }
