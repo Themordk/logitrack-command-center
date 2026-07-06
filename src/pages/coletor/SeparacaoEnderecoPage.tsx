@@ -165,7 +165,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     if (!tarefas.length) return;
     const nextIdx = currentIdx + 1;
     if (nextIdx >= tarefas.length) {
-      toast.info("Todos os endereços foram percorridos.");
+      setCurrentIdx(0);
+      sessionStorage.setItem("coletor_separacao_tarefa_idx", "0");
+      setLastScanned("");
+      toast.info("Retornando ao primeiro endereço.");
       return;
     }
     setCurrentIdx(nextIdx);
