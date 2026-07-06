@@ -104,6 +104,14 @@ interface LiberarResult {
   tipo_ocorrencia?: string;
   itens?: OcorrenciaItem[];
   ocorrencias?: OcorrenciaItem[];
+  pdv?: {
+    total_itens_pdv: number;
+    total_auto_separados: number;
+    total_parciais: number;
+    total_sem_saldo: number;
+    mensagem?: string;
+  };
+  todas_separadas?: boolean;
 }
 
 interface MotivoOcorrencia {
