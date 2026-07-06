@@ -871,7 +871,15 @@ export function MovimentoSaidaPage() {
                       <tr key={item.tarefa_execucao_id || i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
                         <td className="px-3 py-2 text-xs text-foreground">{item.descricao}</td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{item.operador || "—"}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {item.auto_separacao ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/30">
+                              Auto PDV
+                            </span>
+                          ) : (
+                            item.operador || "—"
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.quantidade_executada)}</td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{item.lote || "—"}</td>
                         <td className="px-3 py-2 text-xs">{item.status || "—"}</td>
