@@ -160,6 +160,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       setResultDialog({ sucesso: false, mensagem: err.message || "Erro ao registrar contagem." });
     } finally {
       setConfirming(false);
+      setShowLoteModal(false);
     }
   };
 
@@ -172,6 +173,9 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       setProdutoInfo(null);
       setEanConfirmado(false);
       setQuantidade("");
+      setLote("");
+      setFabricacao("");
+      setValidade("");
       toast.info("Escaneie outro produto ou volte para endereços.");
     }
   };
