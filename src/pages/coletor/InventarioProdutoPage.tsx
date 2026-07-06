@@ -24,6 +24,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [showZeroConfirm, setShowZeroConfirm] = useState(false);
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -80,6 +81,15 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       toast.error("Informe uma quantidade válida.");
       return;
     }
+
+    // Confirmação para contagem zero
+    if (qtd === 0 && !showZeroConfirm) {
+      setShowZeroConfirm(true);
+      return;
+    }
+    setShowZeroConfirm(false);
+
+
 
     const fator = embalagemInfo?.fator || 1;
     const qtdFinal = qtd * fator;
@@ -164,6 +174,19 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario/endereco">
+      {(() => {
+        const contagem = Number(sessionStorage.getItem("coletor_inventario_contagem") || "1");
+        if (contagem > 1) {
+          return (
+            <div className="mb-2 flex justify-center">
+              <span className="text-[10px] px-3 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-medium">
+                {contagem}ª Contagem — Recontagem
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })()}
       <div className="flex flex-col gap-3 flex-1">
         {/* Product info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
@@ -219,6 +242,29 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
           Confirmar Contagem
         </ActionButton>
       </div>
+
+      {/* Zero Quantity Confirmation Dialog */}
+      {showZeroConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
+            <div className="flex flex-col items-center gap-3">
+              <XCircle size={48} className="text-amber-400" />
+              <h3 className="text-base font-bold text-white text-center">Contagem Zero</h3>
+              <p className="text-sm text-[hsl(213,31%,75%)] text-center">
+                Você está informando quantidade <strong>ZERO</strong> para este produto. Isso pode zerar o saldo no estoque. Confirma?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <ActionButton onClick={() => setShowZeroConfirm(false)} variant="secondary">
+                Cancelar
+              </ActionButton>
+              <ActionButton onClick={handleConfirmar} variant="success">
+                Sim, Confirmar Zero
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EAN Error Dialog */}
       {showEanErroDialog && (

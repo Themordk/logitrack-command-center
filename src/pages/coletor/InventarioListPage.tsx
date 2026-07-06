@@ -122,14 +122,23 @@ export function InventarioListPage({ onNavigate }: Props) {
     }
   };
 
+  const STATUS_LABEL: Record<string, string> = {
+    CRIADO: "Criado",
+    GERANDO_TAREFAS: "Gerando...",
+    EM_CONTAGEM: "Em Contagem",
+    AGUARDANDO_RECONTAGEM: "Recontagem",
+    EM_ANALISE: "Em Análise",
+    FINALIZADO: "Finalizado",
+  };
+
   const getStatusColor = (s: string) => {
     const upper = (s || "").toUpperCase();
-    if (upper === "CRIADO") return "text-red-400 bg-red-500/15 border-red-500/30";
+    if (upper === "CRIADO") return "text-gray-400 bg-gray-500/15 border-gray-500/30";
+    if (upper === "GERANDO_TAREFAS") return "text-yellow-400 bg-yellow-500/15 border-yellow-500/30";
     if (upper === "EM_CONTAGEM") return "text-orange-400 bg-orange-500/15 border-orange-500/30";
-    if (upper === "EM_EXECUCAO") return "text-yellow-400 bg-yellow-500/15 border-yellow-500/30";
+    if (upper === "AGUARDANDO_RECONTAGEM") return "text-amber-400 bg-amber-500/15 border-amber-500/30";
     if (upper === "EM_ANALISE") return "text-blue-400 bg-blue-500/15 border-blue-500/30";
     if (upper === "FINALIZADO") return "text-green-400 bg-green-500/15 border-green-500/30";
-    if (upper === "CANCELADO") return "text-gray-400 bg-gray-500/15 border-gray-500/30";
     return "text-cyan-400 bg-cyan-500/15 border-cyan-500/30";
   };
 
@@ -164,7 +173,7 @@ export function InventarioListPage({ onNavigate }: Props) {
                 <div className="flex items-center justify-between">
                   <span className="text-base font-bold text-white font-mono">Inventário #{inv.numero_inventario}</span>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getStatusColor(inv.status)}`}>
-                    {inv.status}
+                    {STATUS_LABEL[inv.status] || inv.status}
                   </span>
                 </div>
                 <div className="text-xs text-[hsl(213,31%,55%)]">

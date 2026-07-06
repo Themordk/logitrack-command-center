@@ -10,21 +10,21 @@ import { formatDate } from "@/utils/dateTime";
 
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
-  CRIADO: { label: "Criado", class: "bg-red-500/15 text-red-400 border-red-500/30" },
+  CRIADO: { label: "Criado", class: "bg-gray-500/15 text-gray-400 border-gray-500/30" },
+  GERANDO_TAREFAS: { label: "Gerando Tarefas", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   EM_CONTAGEM: { label: "Em Contagem", class: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
-  EM_EXECUCAO: { label: "Em Execução", class: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  AGUARDANDO_RECONTAGEM: { label: "Aguard. Recontagem", class: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   EM_ANALISE: { label: "Em Análise", class: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  EM_REVISAO: { label: "Em Revisão", class: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
   FINALIZADO: { label: "Finalizado", class: "bg-green-500/15 text-green-400 border-green-500/30" },
-  CANCELADO: { label: "Cancelado", class: "bg-gray-500/15 text-gray-400 border-gray-500/30" },
 };
 
 const TIPO_MAP: Record<string, string> = {
   GERAL: "Geral",
+  ROTATIVO: "Rotativo",
+  ZONA: "Zona",
   ENDERECO: "Endereço",
   PRODUTO: "Produto",
-  GRUPO: "Grupo",
-  ZONA: "Zona",
+  GRUPO_PRODUTO: "Grupo de Produto",
 };
 
 const TIPO_EXECUCAO_MAP: Record<string, string> = {
