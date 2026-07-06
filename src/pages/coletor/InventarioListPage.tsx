@@ -80,18 +80,28 @@ export function InventarioListPage({ onNavigate }: Props) {
 
       const tarefas = Array.isArray(result) ? result : [];
 
+      // Detectar modo contagem livre (inventário GERAL)
+      const isContagemLivre = tarefas.length === 1 && tarefas[0]?.status === "CONTAGEM_LIVRE";
+
       sessionStorage.setItem("coletor_inventario_id", selectedId);
       sessionStorage.setItem("coletor_inventario_numero", String(inv.numero_inventario));
       sessionStorage.setItem("coletor_inventario_contagem", String(contagem));
-      sessionStorage.setItem("coletor_inventario_tarefas", JSON.stringify(tarefas));
-      sessionStorage.setItem("coletor_inventario_tarefa_idx", "0");
 
-      if (tarefas.length === 0) {
-        setResultDialog({ sucesso: false, mensagem: "Nenhuma tarefa pendente para este inventário." });
-        return;
+      if (isContagemLivre) {
+        sessionStorage.setItem("coletor_inventario_modo", "CONTAGEM_LIVRE");
+        setResultDialog({ sucesso: true, mensagem: `Inventário #${inv.numero_inventario} — Contagem Livre iniciada!` });
+      } else {
+        sessionStorage.setItem("coletor_inventario_modo", "DIRIGIDO");
+        sessionStorage.setItem("coletor_inventario_tarefas", JSON.stringify(tarefas));
+        sessionStorage.setItem("coletor_inventario_tarefa_idx", "0");
+
+        if (tarefas.length === 0) {
+          setResultDialog({ sucesso: false, mensagem: "Nenhuma tarefa pendente para este inventário." });
+          return;
+        }
+
+        setResultDialog({ sucesso: true, mensagem: `Inventário #${inv.numero_inventario} iniciado com ${tarefas.length} tarefa(s)!` });
       }
-
-      setResultDialog({ sucesso: true, mensagem: `Inventário #${inv.numero_inventario} iniciado com ${tarefas.length} tarefa(s)!` });
     } catch (err: any) {
       setResultDialog({ sucesso: false, mensagem: err.message });
     } finally {
@@ -103,7 +113,12 @@ export function InventarioListPage({ onNavigate }: Props) {
     const wasSuccess = resultDialog?.sucesso;
     setResultDialog(null);
     if (wasSuccess) {
-      onNavigate("/coletor/inventario/endereco");
+      const modo = sessionStorage.getItem("coletor_inventario_modo");
+      if (modo === "CONTAGEM_LIVRE") {
+        onNavigate("/coletor/inventario/livre/endereco");
+      } else {
+        onNavigate("/coletor/inventario/endereco");
+      }
     }
   };
 
