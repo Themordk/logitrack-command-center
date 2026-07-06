@@ -9,7 +9,7 @@ import { MapPin, Package, BoxIcon, CheckCircle, XCircle } from "lucide-react";
 interface Props { onNavigate: (path: string) => void; }
 
 interface EmbalagemInfo { ean: string; fator: number; embalagem: string }
-interface ProdutoInfo { sku: string; descricao: string }
+interface ProdutoInfo { sku: string; descricao: string; tipo_controle: string }
 
 const ERROR_MAP: Record<string, string> = {
   INVENTARIO_NAO_ENCONTRADO: "Inventário não encontrado.",
