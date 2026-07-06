@@ -380,26 +380,35 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       const inventarioId = inv?.inventario_id;
       if (!inventarioId) throw new Error("Inventário não retornado pelo backend.");
 
-      // Loop de geração de tarefas
-      let acumulado = 0;
-      let finalizado = false;
-      let safety = 500;
-      while (!finalizado && safety-- > 0) {
-        const { data: gen, error: genErr } = await supabase.rpc("fn_gerar_tarefas_inventario" as any, {
-          p_tenant_id: tenantId,
-          p_inventario_id: inventarioId,
-          p_chunk_size: 200,
-        });
-        if (genErr) throw genErr;
-        const g: any = unwrap(gen);
-        const geradasChunk = Number(g?.tarefas_geradas || 0);
-        acumulado += geradasChunk;
-        finalizado = !!g?.finalizado;
-        setProgresso({ geradas: acumulado, finalizado });
-        if (!finalizado && geradasChunk === 0) throw new Error("LOOP_SEM_PROGRESSO");
+      // Verificar se precisa gerar tarefas ou se é contagem livre (GERAL)
+      const proximoPasso = inv?.proximo_passo;
+
+      if (proximoPasso === 'PRONTO') {
+        // Inventário GERAL: contagem livre — não gerar tarefas
+        toast.success("Inventário geral criado! Pronto para contagem livre no coletor.");
+        onNavigate("/atividades/inventario");
+      } else {
+        // Demais tipos: loop de geração de tarefas (fluxo original)
+        let acumulado = 0;
+        let finalizado = false;
+        let safety = 500;
+        while (!finalizado && safety-- > 0) {
+          const { data: gen, error: genErr } = await supabase.rpc("fn_gerar_tarefas_inventario" as any, {
+            p_tenant_id: tenantId,
+            p_inventario_id: inventarioId,
+            p_chunk_size: 200,
+          });
+          if (genErr) throw genErr;
+          const g: any = unwrap(gen);
+          const geradasChunk = Number(g?.tarefas_geradas || 0);
+          acumulado += geradasChunk;
+          finalizado = !!g?.finalizado;
+          setProgresso({ geradas: acumulado, finalizado });
+          if (!finalizado && geradasChunk === 0) throw new Error("LOOP_SEM_PROGRESSO");
+        }
+        toast.success(`Inventário criado com ${acumulado} ${acumulado === 1 ? "tarefa" : "tarefas"}.`);
+        onNavigate("/atividades/inventario");
       }
-      toast.success(`Inventário criado com ${acumulado} ${acumulado === 1 ? "tarefa" : "tarefas"}.`);
-      onNavigate("/atividades/inventario");
     } catch (err: any) {
       toast.error(mapError(err));
     } finally {
