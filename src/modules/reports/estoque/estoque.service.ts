@@ -141,7 +141,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
   const { data, error } = await query;
   if (error) throw error;
 
-  const results = (data || []).map((row: any) => ({
+  let results = (data || []).map((row: any) => ({
     id: row.id,
     sku: row.produto?.sku || "",
     descricao: row.produto?.descricao || "",
