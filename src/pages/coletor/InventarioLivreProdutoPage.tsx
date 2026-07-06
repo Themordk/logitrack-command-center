@@ -9,7 +9,7 @@ import { MapPin, Package, BoxIcon, CheckCircle, XCircle } from "lucide-react";
 interface Props { onNavigate: (path: string) => void; }
 
 interface EmbalagemInfo { ean: string; fator: number; embalagem: string }
-interface ProdutoInfo { sku: string; descricao: string }
+interface ProdutoInfo { sku: string; descricao: string; tipo_controle: string }
 
 const ERROR_MAP: Record<string, string> = {
   INVENTARIO_NAO_ENCONTRADO: "Inventário não encontrado.",
@@ -38,6 +38,10 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
     quantidadeContada?: number;
   } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [showLoteModal, setShowLoteModal] = useState(false);
+  const [lote, setLote] = useState("");
+  const [fabricacao, setFabricacao] = useState("");
+  const [validade, setValidade] = useState("");
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const inventarioId = sessionStorage.getItem("coletor_inventario_id") || "";
@@ -73,18 +77,37 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
 
       const { data: prod } = await (supabase as any)
         .from("produto")
-        .select("sku, descricao")
+        .select("sku, descricao, tipo_controle")
         .eq("id", emb.produto_id)
         .limit(1);
 
       const produto = prod?.[0];
       setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
-      setProdutoInfo({ sku: produto?.sku || "—", descricao: produto?.descricao || "—" });
+      setProdutoInfo({ sku: produto?.sku || "—", descricao: produto?.descricao || "—", tipo_controle: produto?.tipo_controle || "UNIDADE" });
       setEanConfirmado(true);
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao validar EAN.");
     }
+  };
+
+  const requiresLote = () => {
+    const ctrl = produtoInfo?.tipo_controle;
+    return ctrl === "LOTE" || ctrl === "LOTE_SERIE" || ctrl === "VALIDADE";
+  };
+
+  const handleConfirmarClick = () => {
+    if (!eanConfirmado || quantidade === "") return;
+    const qtd = Number(quantidade);
+    if (isNaN(qtd) || qtd < 0) {
+      toast.error("Informe uma quantidade válida.");
+      return;
+    }
+    if (requiresLote()) {
+      setShowLoteModal(true);
+      return;
+    }
+    handleConfirmar();
   };
 
   const handleConfirmar = async () => {
@@ -104,6 +127,9 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
         p_endereco_codigo: Number(enderecoCodigo),
         p_ean: eanScanned,
         p_quantidade: qtd,
+        p_lote: lote || "",
+        p_validade: validade || "1900-01-01",
+        p_fabricacao: fabricacao || "1900-01-01",
       });
       if (error) throw error;
 
@@ -134,6 +160,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       setResultDialog({ sucesso: false, mensagem: err.message || "Erro ao registrar contagem." });
     } finally {
       setConfirming(false);
+      setShowLoteModal(false);
     }
   };
 
@@ -146,6 +173,9 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       setProdutoInfo(null);
       setEanConfirmado(false);
       setQuantidade("");
+      setLote("");
+      setFabricacao("");
+      setValidade("");
       toast.info("Escaneie outro produto ou volte para endereços.");
     }
   };
@@ -220,7 +250,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
             </div>
 
             <ActionButton
-              onClick={handleConfirmar}
+              onClick={handleConfirmarClick}
               disabled={!quantidade || confirming}
               loading={confirming}
               variant="success"
@@ -285,6 +315,73 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
             </div>
             <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
               {resultDialog.sucesso ? "Continuar" : "Fechar"}
+            </ActionButton>
+          </div>
+        </div>
+      )}
+
+      {/* Lote/Validade Modal */}
+      {showLoteModal && produtoInfo && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-3 animate-in slide-in-from-bottom duration-200">
+            <h3 className="text-lg font-bold text-white">
+              {produtoInfo.tipo_controle === "VALIDADE" ? "Informações de Validade" : "Informações do Lote"}
+            </h3>
+
+            <div className="rounded-lg bg-[hsl(222,40%,14%)] p-2 text-center">
+              <span className="text-xs text-[hsl(213,31%,55%)] uppercase">Quantidade</span>
+              <p className="text-2xl font-bold text-white">{quantidade}</p>
+            </div>
+
+            {(produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && (
+              <div>
+                <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Lote *</label>
+                <input
+                  value={lote}
+                  onChange={(e) => setLote(e.target.value)}
+                  className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {(produtoInfo.tipo_controle === "VALIDADE" || produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Fabricação *</label>
+                  <input
+                    type="date"
+                    value={fabricacao}
+                    onChange={(e) => setFabricacao(e.target.value)}
+                    className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Validade *</label>
+                  <input
+                    type="date"
+                    value={validade}
+                    onChange={(e) => setValidade(e.target.value)}
+                    className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  />
+                </div>
+              </>
+            )}
+
+            <ActionButton
+              onClick={handleConfirmar}
+              loading={confirming}
+              variant="success"
+              disabled={
+                confirming ||
+                ((produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && !lote) ||
+                ((produtoInfo.tipo_controle === "VALIDADE" || produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && (!fabricacao || !validade))
+              }
+            >
+              CONFIRMAR
+            </ActionButton>
+            <ActionButton onClick={() => setShowLoteModal(false)} variant="secondary">
+              CANCELAR
             </ActionButton>
           </div>
         </div>
