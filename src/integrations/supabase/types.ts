@@ -7118,6 +7118,7 @@ export type Database = {
           id: string
           id_local_origem: string
           ordem_tarefa: number
+          produto_id: string
           quantidade_requerida: number
           sku: string
           status: string
