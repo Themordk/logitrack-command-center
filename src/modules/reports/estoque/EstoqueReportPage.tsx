@@ -228,6 +228,7 @@ export function EstoqueReportPage() {
   if (filterSubgrupoId) activeFilters["Subgrupo"] = subgrupos.find(s => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
   if (filterMarca) activeFilters["Marca"] = filterMarca;
   if (filterMultiLocalizacao) activeFilters["Multi-localização"] = "Sim";
+  if (filterApenasComSaldo) activeFilters["Saldo"] = "> 0";
 
   // Export columns (texto puro)
   const exportColumns: ExportColumn[] = [
@@ -378,6 +379,15 @@ export function EstoqueReportPage() {
                     onCheckedChange={(v) => setFilterMultiLocalizacao(v === true)}
                   />
                   <span className="text-xs">Apenas produtos com mais de uma localização</span>
+                </label>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 h-8 cursor-pointer select-none">
+                  <Checkbox
+                    checked={filterApenasComSaldo}
+                    onCheckedChange={(v) => setFilterApenasComSaldo(v === true)}
+                  />
+                  <span className="text-xs">Apenas posições com saldo</span>
                 </label>
               </div>
             </div>
