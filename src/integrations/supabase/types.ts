@@ -7123,6 +7123,21 @@ export type Database = {
           status: string
         }[]
       }
+      fn_inventario_cobertura: {
+        Args: { p_inventario_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      fn_inventario_contagem_livre: {
+        Args: {
+          p_ean: string
+          p_endereco_codigo: number
+          p_inventario_id: string
+          p_quantidade: number
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       fn_inventario_finalizar_conferencia_endereco: {
         Args: {
           p_endereco_origem_id: string
@@ -7136,6 +7151,14 @@ export type Database = {
           p_validade: string
         }
         Returns: string
+      }
+      fn_inventario_finalizar_geral: {
+        Args: {
+          p_inventario_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
       }
       fn_inventario_registrar_contagem: {
         Args: {
