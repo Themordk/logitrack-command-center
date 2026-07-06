@@ -1,28 +1,45 @@
+
 ## Objetivo
-No relatório **Posição de Estoque** (`/relatorios/estoque`), adicionar um checkbox "Apenas posições com saldo" no painel de filtros. Quando marcado, o relatório deve excluir posições com `quantidade_total === 0`. O checkbox deve vir **marcado por padrão** ao carregar a tela.
+Refletir visualmente na UI de Movimento de Saída quais itens foram auto-separados via picking tipo PDV. Mudanças puramente visuais + ajuste de contrato de dados (RPC/view + toast). Nenhuma nova lógica de negócio.
 
-## Escopo da mudança
-Dois arquivos do frontend:
+## Arquivos afetados
+1. Migração Supabase — alterar RPC `buscar_itens_onda_carregamento` e view `vw_movimento_saida_separacao_detalhe` para expor `auto_separacao`.
+2. `src/pages/MovimentoSaidaPage.tsx` — interfaces, badges e toast.
 
-1. `src/modules/reports/estoque/estoque.service.ts`
-2. `src/modules/reports/estoque/EstoqueReportPage.tsx`
+## Mudanças
 
-## Detalhes técnicos
+### 1. Backend (migration)
+- **RPC `buscar_itens_onda_carregamento`**: adicionar no SELECT/GROUP a coluna `auto_separacao` derivada de:
+  `COALESCE(BOOL_OR(CASE WHEN tt.codigo = 'SEP' THEN t.auto_separacao ELSE false END), false) AS auto_separacao`.
+  O JOIN com `tarefa t` já existe.
+- **View `vw_movimento_saida_separacao_detalhe`**: adicionar `t.auto_separacao` no SELECT (JOIN com `tarefa t` já existe). Recriar a view via `CREATE OR REPLACE VIEW`.
 
-### 1. Serviço (`estoque.service.ts`)
-- Adicionar campo `apenas_com_saldo?: boolean` na interface `EstoqueFilter`.
-- Aplicar filtro client-side no array `results` antes do retorno: quando `filters.apenas_com_saldo === true`, manter apenas itens onde `quantidade_total > 0`.
-- Executar esse filtro **antes** da ordenação final, para que sort e multi-localização trabalhem sobre o subset já filtrado.
+### 2. MovimentoSaidaPage.tsx
 
-### 2. Página (`EstoqueReportPage.tsx`)
-- Criar estado `filterApenasComSaldo` com valor inicial `true`.
-- Renderizar checkbox na mesma linha dos filtros (próximo ao existente "Apenas produtos com mais de uma localização").
-- Incluir `apenas_com_saldo: filterApenasComSaldo` no objeto `filters` enviado para `fetchEstoqueReport` em `handleGenerate`.
-- Incluir `apenas_com_saldo` no `handleClear` (resetar para `true`).
-- Incluir `apenas_com_saldo` no `activeFilters` para aparecer no cabeçalho do relatório e nos exports (quando marcado).
-- Incluir `apenas_com_saldo` no reset de empresa (`useEffect` que escuta `empresaId`/`empresaVersion`).
+**Interfaces**
+- `OndaCarregamentoItem`: adicionar `auto_separacao: boolean`.
+- Interface do detalhe de separação (linha da tab Separação): adicionar `auto_separacao: boolean`.
+- `LiberarResult`: adicionar campos opcionais `pdv?: { total_itens_pdv; total_auto_separados; total_parciais; total_sem_saldo; mensagem }` e `todas_separadas?: boolean`.
+
+**Tab "Itens"**
+- Na célula de Status, renderizar antes do badge de status:
+  ```tsx
+  {item.auto_separacao && (
+    <span className="text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/30 mr-1">PDV</span>
+  )}
+  ```
+
+**Tab "Separação"**
+- Coluna Operador: se `item.auto_separacao`, renderizar badge "Auto PDV" (mesmas classes purple) em vez do nome; caso contrário mantém `item.operador || "—"`.
+
+**`handleLiberar`**
+- Após `if (result.sucesso)`, se `result.pdv?.total_itens_pdv > 0`, montar toast enriquecido com `total_auto_separados`, `total_parciais`, `total_sem_saldo` (duração 6s). Caso contrário, toast atual.
+- Após `fetchMovimentos()`, se `result.todas_separadas`, atualizar `selectedMov.status` para `"SEPARADO"`; senão `"LIBERADO"` (mantendo comportamento atual quando o campo não vier).
 
 ## Fora de escopo
-- Nenhuma mudança no banco de dados (view, tabela, RLS, triggers).
-- Nenhuma mudança no componente `ReportTable` genérico.
-- Nenhuma mudança em outros relatórios.
+- Nenhuma nova RPC/edge function/página/modal.
+- Nenhuma alteração no fluxo de separação, conferência ou corte.
+- Nenhuma alteração de layout além dos badges inline.
+
+## Observação sobre tokens de cor
+O projeto padroniza cores via tokens semânticos (proibindo utilitários hardcoded como `text-white`, `bg-purple-*`). O spec pede explicitamente a paleta `purple-500/15|400|500/30` para diferenciar PDV. Vou seguir o spec literalmente conforme solicitado; se preferir, posso substituir por um token semântico novo (`--status-auto-pdv`) definido em `index.css` — me diga antes de implementar caso queira essa variação.
