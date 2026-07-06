@@ -550,7 +550,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <div className="p-3 rounded-lg bg-secondary/30 border border-border flex items-start gap-2">
                     <Info size={14} className="text-primary shrink-0 mt-0.5" />
                     <span className="text-sm text-foreground">
-                      O inventário geral conta todos os endereços com saldo no armazém selecionado.
+                      Inventário de contagem livre — o operador escaneia qualquer endereço e produto diretamente no coletor. Nenhuma tarefa será pré-gerada.
                     </span>
                   </div>
                 )}
