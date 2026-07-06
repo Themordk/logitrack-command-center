@@ -77,13 +77,13 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
 
       const { data: prod } = await (supabase as any)
         .from("produto")
-        .select("sku, descricao")
+        .select("sku, descricao, tipo_controle")
         .eq("id", emb.produto_id)
         .limit(1);
 
       const produto = prod?.[0];
       setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
-      setProdutoInfo({ sku: produto?.sku || "—", descricao: produto?.descricao || "—" });
+      setProdutoInfo({ sku: produto?.sku || "—", descricao: produto?.descricao || "—", tipo_controle: produto?.tipo_controle || "UNIDADE" });
       setEanConfirmado(true);
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
     } catch (err: any) {
