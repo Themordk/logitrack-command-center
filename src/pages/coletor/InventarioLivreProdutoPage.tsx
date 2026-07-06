@@ -91,6 +91,25 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
     }
   };
 
+  const requiresLote = () => {
+    const ctrl = produtoInfo?.tipo_controle;
+    return ctrl === "LOTE" || ctrl === "LOTE_SERIE" || ctrl === "VALIDADE";
+  };
+
+  const handleConfirmarClick = () => {
+    if (!eanConfirmado || quantidade === "") return;
+    const qtd = Number(quantidade);
+    if (isNaN(qtd) || qtd < 0) {
+      toast.error("Informe uma quantidade válida.");
+      return;
+    }
+    if (requiresLote()) {
+      setShowLoteModal(true);
+      return;
+    }
+    handleConfirmar();
+  };
+
   const handleConfirmar = async () => {
     if (!eanConfirmado || quantidade === "") return;
     const qtd = Number(quantidade);
@@ -108,6 +127,9 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
         p_endereco_codigo: Number(enderecoCodigo),
         p_ean: eanScanned,
         p_quantidade: qtd,
+        p_lote: lote || "",
+        p_validade: validade || "1900-01-01",
+        p_fabricacao: fabricacao || "1900-01-01",
       });
       if (error) throw error;
 
