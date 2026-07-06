@@ -250,7 +250,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
             </div>
 
             <ActionButton
-              onClick={handleConfirmar}
+              onClick={handleConfirmarClick}
               disabled={!quantidade || confirming}
               loading={confirming}
               variant="success"
