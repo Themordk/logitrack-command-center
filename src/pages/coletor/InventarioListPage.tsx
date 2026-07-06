@@ -113,7 +113,12 @@ export function InventarioListPage({ onNavigate }: Props) {
     const wasSuccess = resultDialog?.sucesso;
     setResultDialog(null);
     if (wasSuccess) {
-      onNavigate("/coletor/inventario/endereco");
+      const modo = sessionStorage.getItem("coletor_inventario_modo");
+      if (modo === "CONTAGEM_LIVRE") {
+        onNavigate("/coletor/inventario/livre/endereco");
+      } else {
+        onNavigate("/coletor/inventario/endereco");
+      }
     }
   };
 
