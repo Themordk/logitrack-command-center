@@ -335,10 +335,21 @@ export function MovimentoSaidaPage() {
       }
 
       if (result.sucesso) {
-        toast.success(result.mensagem || "Liberado para separação!");
+        const pdv = result.pdv;
+        if (pdv && pdv.total_itens_pdv > 0) {
+          toast.success(
+            `${result.mensagem || "Liberado para separação!"} — PDV: ${pdv.total_auto_separados} auto-separado(s)` +
+            (pdv.total_parciais > 0 ? `, ${pdv.total_parciais} parcial(is)` : "") +
+            (pdv.total_sem_saldo > 0 ? `, ${pdv.total_sem_saldo} sem saldo` : ""),
+            { duration: 6000 }
+          );
+        } else {
+          toast.success(result.mensagem || "Liberado para separação!");
+        }
         fetchMovimentos();
         if (selectedId === movId) {
-          setSelectedMov((prev) => prev ? { ...prev, status: "LIBERADO" } : null);
+          const novoStatus = result.todas_separadas ? "SEPARADO" : "LIBERADO";
+          setSelectedMov((prev) => prev ? { ...prev, status: novoStatus } : null);
         }
       } else {
         setLiberarResult(result);
