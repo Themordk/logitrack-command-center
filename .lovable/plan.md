@@ -1,42 +1,56 @@
-# Inventário Geral — Contagem Livre
+# Contagem Livre — Coleta de Lote / Validade / Fabricação
 
-Backend já tem as RPCs `fn_inventario_contagem_livre`, `fn_inventario_finalizar_geral`, `fn_inventario_cobertura` e ajustes em `fn_criar_inventario_v2` / `fn_inventario_buscar_tarefas`. Frontend precisa refletir isso em 5 arquivos.
+Na rota `/coletor/inventario/livre/produto`, quando o produto tiver `tipo_controle` diferente de `UNIDADE`, abrir um modal para capturar os campos de rastreabilidade antes de registrar a contagem, seguindo o mesmo padrão da conferência de entrada (`RecebimentoExecucaoPage.tsx`).
 
-## Escopo
+## Comportamento por `tipo_controle`
 
-### 1. `src/pages/NovoInventarioPage.tsx` (2 pontos)
-- **handleSave**: após criar inventário, se `inv.proximo_passo === 'PRONTO'` (tipo GERAL), pular loop de `fn_gerar_tarefas_inventario`, exibir toast "Inventário geral criado! Pronto para contagem livre no coletor." e navegar. Caso contrário, manter loop atual intacto.
-- **Texto informativo do tipo GERAL**: trocar o `<span>` para "Inventário de contagem livre — o operador escaneia qualquer endereço e produto diretamente no coletor. Nenhuma tarefa será pré-gerada."
+| tipo_controle | Lote | Fabricação | Validade |
+|---|---|---|---|
+| UNIDADE       | —   | —          | —        |
+| LOTE          | obrigatório | obrigatório | obrigatório |
+| LOTE_SERIE    | obrigatório | obrigatório | obrigatório |
+| VALIDADE      | —   | obrigatório | obrigatório |
 
-### 2. `src/pages/coletor/InventarioListPage.tsx` (1 ponto)
-- Em `handleSelectContagem`, detectar contagem livre: `tarefas.length === 1 && tarefas[0]?.status === "CONTAGEM_LIVRE"`.
-  - Se livre: setar `coletor_inventario_modo=CONTAGEM_LIVRE`, não gravar tarefas, dialog "Contagem Livre iniciada".
-  - Senão: gravar `modo=DIRIGIDO` + tarefas (comportamento atual).
-- `handleDialogClose`: ler `coletor_inventario_modo` e rotear para `/coletor/inventario/livre/endereco` (livre) ou `/coletor/inventario/endereco` (dirigido).
+Quando `UNIDADE`, mantém o fluxo atual (confirma direto).
 
-### 3. NOVO `src/pages/coletor/InventarioLivreEnderecoPage.tsx`
-Tela onde operador escaneia qualquer endereço. Componentes: `ColetorLayout`, `ScanField`, `ActionButton`. Estado: `lastScanned`, `loading`, `errorDialog`.
-- `handleScan(code)`: `SELECT id, descricao, codigo_endereco, armazem_id FROM endereco WHERE descricao.eq OR codigo_endereco.eq`. Se não achou → error dialog "Endereço não encontrado". Se achou → salva `coletor_inventario_livre_endereco_{id,codigo,descricao}` no sessionStorage, toast sucesso, navega `/coletor/inventario/livre/produto`.
-- Layout: badge "Contagem Livre" (amber), card informativo com ícone MapPin, ScanField, card com contador da sessão, botão "Encerrar Sessão" → `/coletor/inventario`.
+## Alterações
 
-### 4. NOVO `src/pages/coletor/InventarioLivreProdutoPage.tsx`
-Tela para escanear EAN + informar quantidade. Componentes iguais + ícones lucide.
-- Estado: `eanScanned`, `embalagemInfo`, `produtoInfo`, `eanConfirmado`, `quantidade`, `confirming`, `resultDialog`, `showEanErroDialog`.
-- Ler do sessionStorage `coletor_inventario_id/numero` e `coletor_inventario_livre_endereco_{id,codigo,descricao}`; ler `core_tenant_id`/`core_usuario_id` do localStorage.
-- `handleScanEan`: consulta `produto_embalagem` por EAN; se ok, consulta `produto` pelo `produto_id`; **não valida contra tarefa**.
-- `handleConfirmar`: chama `supabase.rpc("fn_inventario_contagem_livre" as any, { p_tenant_id, p_inventario_id, p_usuario_id, p_endereco_codigo: Number(codigo), p_ean, p_quantidade: Number(qtd) })`. Trata `sucesso: false` via `ERROR_MAP` (INVENTARIO_NAO_ENCONTRADO, INVENTARIO_NAO_GERAL, INVENTARIO_STATUS_INVALIDO, ENDERECO_NAO_ENCONTRADO, ENDERECO_ARMAZEM_INVALIDO, EAN_NAO_ENCONTRADO, PRODUTO_EMPRESA_INVALIDO, JA_CONTADO, TIPO_TAREFA_NAO_CONFIGURADO). No sucesso, exibe divergência (card vermelho) ou "Sem divergência" (card verde).
-- `handleDialogClose` (sucesso): limpa campos, permanece na tela, toast "Escaneie outro produto ou volte para endereços."
-- Layout: card endereço, ScanField, se `eanConfirmado` mostra card produto + card embalagem + input quantidade (h-12 text-xl bold center) + ActionButton "Confirmar Contagem" (success), botão "Outro endereço" → `/coletor/inventario/livre/endereco`.
-- Dialogs inline (fixed inset-0 z-50) — mesmo padrão de `InventarioProdutoPage`.
+### 1. `src/pages/coletor/InventarioLivreProdutoPage.tsx`
 
-### 5. `src/App.tsx` (2 pontos)
-- Importar `InventarioLivreEnderecoPage` e `InventarioLivreProdutoPage`.
-- Adicionar em `renderColetorPage`, logo após o case `/coletor/inventario/produto`:
-  - `case "/coletor/inventario/livre/endereco": return <InventarioLivreEnderecoPage onNavigate={onNavigate} />;`
-  - `case "/coletor/inventario/livre/produto": return <InventarioLivreProdutoPage onNavigate={onNavigate} />;`
-- Sem breadcrumbs.
+- Ao validar o EAN, buscar também `tipo_controle` de `produto` (junto com `sku, descricao`) e guardar no `produtoInfo`.
+- Trocar o botão "Confirmar Contagem" por um handler `handleConfirmarClick`:
+  - Se `tipo_controle === "UNIDADE"` (ou vazio), chamar `handleConfirmar` (fluxo atual).
+  - Caso contrário, abrir novo modal `showLoteModal`.
+- Novo modal (copiado do padrão de `RecebimentoExecucaoPage` linhas 421–478), com estados `lote`, `fabricacao`, `validade`:
+  - Título "Informações de Validade" ou "Informações do Lote" conforme o tipo.
+  - Mostra a quantidade digitada.
+  - Campo Lote (LOTE/LOTE_SERIE).
+  - Campos data Fabricação e Validade (LOTE, LOTE_SERIE, VALIDADE).
+  - Botão CONFIRMAR chama `handleConfirmar` (submit para RPC), desabilitado enquanto campos obrigatórios estiverem vazios.
+  - Botão CANCELAR fecha o modal, mantendo os dados do produto/quantidade.
+- `handleConfirmar` passa `p_lote`, `p_validade`, `p_fabricacao` ao RPC (usando `"1900-01-01"` como default para datas ausentes e `""` para lote, mesmo padrão da conferência).
+- Ao concluir com sucesso (dialog de resultado), limpar também `lote`, `fabricacao`, `validade` (além dos campos já limpos hoje).
+
+### 2. Backend — `fn_inventario_contagem_livre`
+
+A função hoje aceita apenas `p_tenant_id, p_inventario_id, p_usuario_id, p_endereco_codigo, p_ean, p_quantidade`. Precisamos estender a assinatura com 3 parâmetros opcionais para gravar rastreabilidade:
+
+```sql
+p_lote text DEFAULT ''
+p_validade date DEFAULT '1900-01-01'
+p_fabricacao date DEFAULT '1900-01-01'
+```
+
+E persistir esses valores no registro da contagem (na mesma tabela onde já são gravadas as contagens livres — usar as mesmas colunas já usadas pelo fluxo dirigido).
+
+Sem essa mudança, a UI ainda funciona, mas os dados de lote/validade não seriam persistidos.
 
 ## Fora de escopo
-- Nenhuma mudança em RPC/DB.
-- Não alterar `InventarioEnderecoPage.tsx` / `InventarioProdutoPage.tsx` / `InventarioItensPage.tsx`.
-- Sem novas dependências; sem react-router; `.rpc(... as any)` no padrão do projeto.
+
+- Nenhuma alteração no fluxo dirigido (`InventarioProdutoPage`).
+- Sem mudança de layout do card de produto/embalagem.
+- Sem mudança nas telas administrativas.
+
+## Confirmação necessária
+
+Antes de implementar a migration, confirme: **atualizo a função `fn_inventario_contagem_livre` para receber e gravar lote/validade/fabricação?** Se preferir que a função seja ajustada por você no ERP/DB, implemento só o front — mas os dados de rastreabilidade não serão persistidos até a função ser estendida.
