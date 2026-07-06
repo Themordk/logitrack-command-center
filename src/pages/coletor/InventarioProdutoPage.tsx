@@ -233,14 +233,23 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
         </div>
 
         {/* Confirm */}
-        <ActionButton
-          onClick={handleConfirmar}
-          disabled={!quantidade || confirming || !eanConfirmado}
-          loading={confirming}
-          variant="success"
-        >
-          Confirmar Contagem
-        </ActionButton>
+        {(() => {
+          const qtdNum = Number(quantidade);
+          const podeConfirmar =
+            quantidade !== "" &&
+            !isNaN(qtdNum) &&
+            (qtdNum === 0 || eanConfirmado);
+          return (
+            <ActionButton
+              onClick={handleConfirmar}
+              disabled={!podeConfirmar || confirming}
+              loading={confirming}
+              variant="success"
+            >
+              Confirmar Contagem
+            </ActionButton>
+          );
+        })()}
       </div>
 
       {/* Zero Quantity Confirmation Dialog */}

@@ -1,27 +1,42 @@
-Aplicar as 4 alterações de frontend especificadas no documento de auditoria. Backend já foi corrigido — nenhuma migração / RPC será tocada.
+## Ajuste: permitir confirmar contagem ZERO sem escanear EAN
 
-## Arquivos a alterar
+Na rota `/coletor/inventario/produto` (`src/pages/coletor/InventarioProdutoPage.tsx`), o botão "Confirmar Contagem" hoje exige `eanConfirmado === true`. Isso impede o operador de registrar contagem zero para produtos ausentes no endereço (não há como escanear algo que não está lá).
 
-### 1. `src/pages/InventarioPage.tsx`
-- Atualizar `TIPO_MAP`: remover não-existentes, adicionar `ROTATIVO` e `GRUPO_PRODUTO`.
-- Atualizar `STATUS_MAP`: remover `EM_EXECUCAO`, `EM_REVISAO`, `CANCELADO`; adicionar `GERANDO_TAREFAS` e `AGUARDANDO_RECONTAGEM`; ajustar cor de `CRIADO` para cinza.
+### Regra nova do botão
 
-### 2. `src/pages/coletor/InventarioEnderecoPage.tsx`
-- Adicionar filtro `.eq("tenant_id", tenantId)` na query de validação do endereço escaneado.
-- Inserir badge "Nª Contagem — Recontagem" (âmbar) dentro do `<ColetorLayout>`, antes do container principal, condicional a `sessionStorage.coletor_inventario_contagem > 1`.
+Habilitar "Confirmar Contagem" quando:
+- `quantidade === "0"` (contagem zero) — **sem exigir EAN**, ou
+- `quantidade > 0` **e** `eanConfirmado === true` (comportamento atual)
 
-### 3. `src/pages/coletor/InventarioProdutoPage.tsx`
-- Inserir o mesmo badge de contagem dentro do `<ColetorLayout>`.
-- Adicionar estado `showZeroConfirm` e, em `handleConfirmar`, interceptar quantidade 0 abrindo um dialog de confirmação; após confirmar segue o fluxo. Dialog novo com aviso "Contagem Zero".
-- Não alterar validação de EAN (já suportada pelo `produto_id` novo do backend).
+Continua desabilitado quando:
+- `quantidade` vazio
+- `quantidade > 0` sem EAN confirmado
+- `confirming` (loading)
 
-### 4. `src/pages/coletor/InventarioListPage.tsx`
-- Garantir que a função/mapa de cor de status trata `AGUARDANDO_RECONTAGEM` (âmbar).
-- Garantir que o label exibido para `AGUARDANDO_RECONTAGEM` seja "Recontagem" (via `STATUS_LABEL` se ainda for texto raw).
+### Mudança pontual
 
-## Fora de escopo
-- Nenhuma alteração em RPCs, `App.tsx`, `NovoInventarioPage.tsx`, `InventarioItensPage.tsx`, nos arquivos de inventário livre, nem em dependências.
-- Sem novas rotas, sem novas cores fora do padrão do projeto.
+Arquivo: `src/pages/coletor/InventarioProdutoPage.tsx`
 
-## Verificação
-Após aplicar, checarei visualmente os arquivos alterados e rodarei o typecheck automático do harness. Nenhum teste E2E adicional será executado a menos que solicitado.
+Substituir o `disabled` do `ActionButton` de confirmação:
+
+```tsx
+// antes
+disabled={!quantidade || confirming || !eanConfirmado}
+
+// depois
+const qtdNum = Number(quantidade);
+const podeConfirmar =
+  quantidade !== "" &&
+  !isNaN(qtdNum) &&
+  (qtdNum === 0 || eanConfirmado);
+
+disabled={!podeConfirmar || confirming}
+```
+
+O fluxo de confirmação por zero (`showZeroConfirm` dialog) já existe e continua sendo acionado dentro de `handleConfirmar` — nenhuma alteração no RPC, no dialog de zero, nem no dialog de EAN inválido.
+
+### Fora de escopo
+
+- Não altera validação de EAN para quantidades > 0.
+- Não altera o RPC `fn_inventario_registrar_contagem` nem parâmetros enviados.
+- Não mexe em outras rotas (inventário livre, endereço, lista).
