@@ -319,6 +319,73 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
           </div>
         </div>
       )}
+
+      {/* Lote/Validade Modal */}
+      {showLoteModal && produtoInfo && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-3 animate-in slide-in-from-bottom duration-200">
+            <h3 className="text-lg font-bold text-white">
+              {produtoInfo.tipo_controle === "VALIDADE" ? "Informações de Validade" : "Informações do Lote"}
+            </h3>
+
+            <div className="rounded-lg bg-[hsl(222,40%,14%)] p-2 text-center">
+              <span className="text-xs text-[hsl(213,31%,55%)] uppercase">Quantidade</span>
+              <p className="text-2xl font-bold text-white">{quantidade}</p>
+            </div>
+
+            {(produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && (
+              <div>
+                <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Lote *</label>
+                <input
+                  value={lote}
+                  onChange={(e) => setLote(e.target.value)}
+                  className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {(produtoInfo.tipo_controle === "VALIDADE" || produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Fabricação *</label>
+                  <input
+                    type="date"
+                    value={fabricacao}
+                    onChange={(e) => setFabricacao(e.target.value)}
+                    className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Validade *</label>
+                  <input
+                    type="date"
+                    value={validade}
+                    onChange={(e) => setValidade(e.target.value)}
+                    className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                  />
+                </div>
+              </>
+            )}
+
+            <ActionButton
+              onClick={handleConfirmar}
+              loading={confirming}
+              variant="success"
+              disabled={
+                confirming ||
+                ((produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && !lote) ||
+                ((produtoInfo.tipo_controle === "VALIDADE" || produtoInfo.tipo_controle === "LOTE" || produtoInfo.tipo_controle === "LOTE_SERIE") && (!fabricacao || !validade))
+              }
+            >
+              CONFIRMAR
+            </ActionButton>
+            <ActionButton onClick={() => setShowLoteModal(false)} variant="secondary">
+              CANCELAR
+            </ActionButton>
+          </div>
+        </div>
+      )}
     </ColetorLayout>
   );
 }
