@@ -38,6 +38,10 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
     quantidadeContada?: number;
   } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const [showLoteModal, setShowLoteModal] = useState(false);
+  const [lote, setLote] = useState("");
+  const [fabricacao, setFabricacao] = useState("");
+  const [validade, setValidade] = useState("");
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const inventarioId = sessionStorage.getItem("coletor_inventario_id") || "";
