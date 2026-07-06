@@ -7127,17 +7127,32 @@ export type Database = {
         Args: { p_inventario_id: string; p_tenant_id: string }
         Returns: Json
       }
-      fn_inventario_contagem_livre: {
-        Args: {
-          p_ean: string
-          p_endereco_codigo: number
-          p_inventario_id: string
-          p_quantidade: number
-          p_tenant_id: string
-          p_usuario_id: string
-        }
-        Returns: Json
-      }
+      fn_inventario_contagem_livre:
+        | {
+            Args: {
+              p_ean: string
+              p_endereco_codigo: number
+              p_inventario_id: string
+              p_quantidade: number
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_ean: string
+              p_endereco_codigo: number
+              p_fabricacao?: string
+              p_inventario_id: string
+              p_lote?: string
+              p_quantidade: number
+              p_tenant_id: string
+              p_usuario_id: string
+              p_validade?: string
+            }
+            Returns: Json
+          }
       fn_inventario_finalizar_conferencia_endereco: {
         Args: {
           p_endereco_origem_id: string
