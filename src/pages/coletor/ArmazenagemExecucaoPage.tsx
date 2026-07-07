@@ -289,6 +289,49 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       >
         CONFIRMAR ARMAZENAGEM
       </ActionButton>
+
+      {/* Modal de capacidade excedida */}
+      {showCapModal && capInfo && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-5 space-y-4">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="w-14 h-14 rounded-full bg-[hsl(45,93%,47%)]/20 flex items-center justify-center">
+                <AlertTriangle size={32} className="text-[hsl(45,93%,47%)]" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Capacidade do Picking</h3>
+              <p className="text-sm text-[hsl(213,31%,55%)]">
+                A quantidade excede o limite do endereço de picking.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg bg-[hsl(222,35%,16%)] p-2">
+                <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Máximo</span>
+                <span className="text-xl font-bold text-white">{capInfo.maximo}</span>
+              </div>
+              <div className="rounded-lg bg-[hsl(222,35%,16%)] p-2">
+                <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Saldo atual</span>
+                <span className="text-xl font-bold text-[hsl(217,91%,60%)]">{capInfo.saldoAtual}</span>
+              </div>
+              <div className="rounded-lg bg-[hsl(222,35%,16%)] p-2">
+                <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Cabe mais</span>
+                <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{capInfo.cabeMais}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {capInfo.cabeMais > 0 && (
+                <ActionButton onClick={handleArmazenarParcial} variant="primary">
+                  ARMAZENAR {capInfo.cabeMais} UN. NO PICKING
+                </ActionButton>
+              )}
+              <ActionButton onClick={handleAlterarEndereco} variant="secondary">
+                ALTERAR ENDEREÇO (PULMÃO)
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
     </ColetorLayout>
   );
 }
