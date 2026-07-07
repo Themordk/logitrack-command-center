@@ -36,6 +36,42 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const [showCapModal, setShowCapModal] = useState(false);
+  const [capInfo, setCapInfo] = useState<{ maximo: number; saldoAtual: number; cabeMais: number } | null>(null);
+
+  const parseCapacidadeMsg = (msg: string): { maximo: number; saldoAtual: number; cabeMais: number } | null => {
+    try {
+      const maxMatch = msg.match(/Máximo:\s*([\d.,]+)/i);
+      const saldoMatch = msg.match(/Saldo atual:\s*([\d.,]+)/i);
+      const cabeMatch = msg.match(/Cabe mais:\s*([\d.,]+)/i);
+      if (maxMatch && saldoMatch && cabeMatch) {
+        return {
+          maximo: Number(maxMatch[1].replace(",", ".")),
+          saldoAtual: Number(saldoMatch[1].replace(",", ".")),
+          cabeMais: Number(cabeMatch[1].replace(",", ".")),
+        };
+      }
+    } catch {}
+    return null;
+  };
+
+  const handleArmazenarParcial = () => {
+    if (!capInfo) return;
+    const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
+    const fator = fatorRaw ? Number(fatorRaw) : 1;
+    const qtdEmbalagem = fator > 1 ? Math.floor(capInfo.cabeMais / fator) : capInfo.cabeMais;
+    setQuantidade(String(qtdEmbalagem));
+    setShowCapModal(false);
+    setCapInfo(null);
+  };
+
+  const handleAlterarEndereco = () => {
+    setEnderecoId(null);
+    setEnderecoDesc("");
+    setEnderecoScan("");
+    setShowCapModal(false);
+    setCapInfo(null);
+  };
 
   // Fetch movimento_entrada_id from tarefa
   useEffect(() => {
