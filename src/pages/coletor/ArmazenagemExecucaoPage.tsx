@@ -171,7 +171,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   ];
 
   return (
-    <ColetorLayout title="Execução Armazenagem" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/iniciar">
+    <ColetorLayout title="Execução Armazenagem" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       {/* Stats */}

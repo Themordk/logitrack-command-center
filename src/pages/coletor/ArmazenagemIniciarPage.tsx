@@ -81,7 +81,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const variosPickings = tarefa?.varios_pickings === "S";
 
   return (
-    <ColetorLayout title="Iniciar Armazenagem" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem">
+    <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       <ScanField label="Escanear EAN ou HU" lastScanned={lastScanned} onScan={handleScan} />

@@ -85,6 +85,8 @@ import { RecebimentoExecucaoPage } from "./pages/coletor/RecebimentoExecucaoPage
 import { RecebimentoConferenciaPage } from "./pages/coletor/RecebimentoConferenciaPage";
 import { RecebimentoConcluidoPage } from "./pages/coletor/RecebimentoConcluidoPage";
 import { ArmazenagemDashboardPage } from "./pages/coletor/ArmazenagemDashboardPage";
+import { ArmazenagemMovimentosPage } from "./pages/coletor/ArmazenagemMovimentosPage";
+import { ArmazenagemItensPage } from "./pages/coletor/ArmazenagemItensPage";
 import { ArmazenagemIniciarPage } from "./pages/coletor/ArmazenagemIniciarPage";
 import { ArmazenagemExecucaoPage } from "./pages/coletor/ArmazenagemExecucaoPage";
 import { ArmazenagemConcluidoPage } from "./pages/coletor/ArmazenagemConcluidoPage";
@@ -379,6 +381,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/recebimento/conferencia": return <RecebimentoConferenciaPage onNavigate={onNavigate} />;
     case "/coletor/recebimento/concluido": return <RecebimentoConcluidoPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem": return <ArmazenagemDashboardPage onNavigate={onNavigate} />;
+    case "/coletor/armazenagem/movimentos": return <ArmazenagemMovimentosPage onNavigate={onNavigate} />;
+    case "/coletor/armazenagem/itens": return <ArmazenagemItensPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/iniciar": return <ArmazenagemIniciarPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/execucao": return <ArmazenagemExecucaoPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/concluido": return <ArmazenagemConcluidoPage onNavigate={onNavigate} />;
