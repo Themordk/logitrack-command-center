@@ -193,8 +193,21 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       setOverlayMsg("Armazenagem registrada com sucesso!");
       setTimeout(() => onNavigate("/coletor/armazenagem/concluido"), 1200);
     } catch (err: any) {
-      setOverlay("error");
-      setOverlayMsg(err.message || "Erro ao registrar armazenagem");
+      const msg = err.message || "Erro ao registrar armazenagem";
+      const code = err.code || "";
+      if (code === "P0002" || msg.includes("Capacidade do picking excedida")) {
+        const parsed = parseCapacidadeMsg(msg);
+        if (parsed && parsed.cabeMais > 0) {
+          setCapInfo(parsed);
+          setShowCapModal(true);
+        } else {
+          setOverlay("warning");
+          setOverlayMsg("Picking cheio. Armazene em um endereço de pulmão.");
+        }
+      } else {
+        setOverlay("error");
+        setOverlayMsg(msg);
+      }
     } finally {
       setSaving(false);
     }
