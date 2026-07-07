@@ -1,208 +1,234 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { Loader2, ArrowDownToLine, PackageCheck } from "lucide-react";
+import { Loader2, Archive, MapPin, ArrowDownToLine, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
-import { Checkbox } from "@/components/ui/checkbox";
-import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
 
-const TIPO_TAREFA_ABAST = "172beee9-65ac-44dc-95a2-36b67b4aebbe";
-
-interface TarefaAbast {
-  id: string;
+interface TarefaAbastecimento {
+  tarefa_id: string;
   produto_id: string;
-  produto_desc: string;
-  produto_sku: string;
+  sku: string;
+  referencia: string;
+  descricao: string;
   quantidade_requerida: number;
   quantidade_executada: number;
-  status: string;
+  qtd_restante: number;
+  status_tarefa: string;
+  prioridade_tarefa: string;
   criado_em: string;
   endereco_origem_id: string;
-  endereco_origem: string;
+  endereco_origem_desc: string;
+  origem_rua: number;
+  origem_predio: number;
+  origem_nivel: number;
+  origem_apto: number;
+  saldo_origem: number;
   endereco_destino_id: string;
-  endereco_destino: string;
-  endereco_destino_rua: number;
-  prioridade_tarefa: string;
+  endereco_destino_desc: string;
+  destino_rua: number;
+  destino_predio: number;
+  destino_nivel: number;
+  destino_apto: number;
+  coleta_pendente: boolean;
+  qtd_coletada: number;
+  tarefa_execucao_id: string | null;
 }
 
 export function AbastecimentoListPage({ onNavigate }: Props) {
-  const tenantId = localStorage.getItem("core_tenant_id");
-  const empresaId = localStorage.getItem("core_empresa_id");
+  const tenantId = localStorage.getItem("core_tenant_id") || "";
+  const empresaId = localStorage.getItem("core_empresa_id") || "";
   const [loading, setLoading] = useState(true);
-  const [tarefas, setTarefas] = useState<TarefaAbast[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [tarefas, setTarefas] = useState<TarefaAbastecimento[]>([]);
+  const [fase, setFase] = useState<"coleta" | "entrega">("coleta");
 
   const loadTarefas = useCallback(async () => {
     if (!tenantId || !empresaId) return;
     setLoading(true);
-    const { data } = await (supabase as any)
-      .from("tarefa")
-      .select("id, produto_id, quantidade_requerida, quantidade_executada, status, criado_em, id_local_origem, id_local_destino, prioridade_tarefa, produto:produto_id(sku, descricao), origem:id_local_origem(descricao), destino:id_local_destino(descricao, rua)")
-      .eq("tenant_id", tenantId)
-      .eq("empresa_id", empresaId)
-      .eq("tipo_tarefa_id", TIPO_TAREFA_ABAST)
-      .in("status", ["CRIADA", "ATRIBUIDA", "EM_ANDAMENTO"])
-      .order("criado_em", { ascending: false });
-
-    setTarefas((data || []).map((t: any) => ({
-      id: t.id,
-      produto_id: t.produto_id,
-      produto_desc: t.produto?.descricao || "—",
-      produto_sku: t.produto?.sku || "—",
-      quantidade_requerida: Number(t.quantidade_requerida),
-      quantidade_executada: Number(t.quantidade_executada || 0),
-      status: t.status,
-      criado_em: t.criado_em,
-      endereco_origem_id: t.id_local_origem,
-      endereco_origem: t.origem?.descricao || "—",
-      endereco_destino_id: t.id_local_destino,
-      endereco_destino: t.destino?.descricao || "—",
-      endereco_destino_rua: t.destino?.rua || 0,
-      prioridade_tarefa: t.prioridade_tarefa || "NORMAL",
-    })));
-    setLoading(false);
+    try {
+      const { data, error } = await supabase.rpc("rpc_coletor_abastecimento_listar_tarefas" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+      });
+      if (error) throw error;
+      setTarefas((data as TarefaAbastecimento[]) || []);
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao carregar tarefas");
+    } finally {
+      setLoading(false);
+    }
   }, [tenantId, empresaId]);
 
-  useEffect(() => {
-    loadTarefas();
-  }, [loadTarefas]);
+  useEffect(() => { loadTarefas(); }, [loadTarefas]);
 
-  const statusColor: Record<string, string> = {
-    CRIADA: "bg-red-500/20 text-red-300",
-    ATRIBUIDA: "bg-blue-500/20 text-blue-300",
-    EM_ANDAMENTO: "bg-yellow-500/20 text-yellow-300",
-  };
+  const itensColeta = useMemo(() => tarefas.filter(t => !t.coleta_pendente), [tarefas]);
+  const itensEntrega = useMemo(() =>
+    tarefas
+      .filter(t => t.coleta_pendente)
+      .sort((a, b) =>
+        (a.destino_rua - b.destino_rua) ||
+        (a.destino_predio - b.destino_predio) ||
+        (a.destino_nivel - b.destino_nivel) ||
+        (a.destino_apto - b.destino_apto)
+      ),
+  [tarefas]);
 
-  const prioridadeColor: Record<string, string> = {
-    URGENTE: "text-red-400",
-    ALTA: "text-orange-400",
-    NORMAL: "text-blue-400",
-    BAIXA: "text-muted-foreground",
-  };
+  const itensFase = fase === "coleta" ? itensColeta : itensEntrega;
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const handleSelectItem = (item: TarefaAbastecimento) => {
+    sessionStorage.setItem("abast_tarefa_id", item.tarefa_id);
+    sessionStorage.setItem("abast_produto_id", item.produto_id);
+    sessionStorage.setItem("abast_produto_sku", item.sku);
+    sessionStorage.setItem("abast_produto_ref", item.referencia || "");
+    sessionStorage.setItem("abast_produto_desc", item.descricao);
+    sessionStorage.setItem("abast_qtd_restante", String(item.qtd_restante));
+    sessionStorage.setItem("abast_endereco_origem_id", item.endereco_origem_id);
+    sessionStorage.setItem("abast_endereco_origem_desc", item.endereco_origem_desc);
+    sessionStorage.setItem("abast_endereco_destino_id", item.endereco_destino_id);
+    sessionStorage.setItem("abast_endereco_destino_desc", item.endereco_destino_desc);
+    sessionStorage.setItem("abast_saldo_origem", String(item.saldo_origem));
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === tarefas.length) {
-      setSelectedIds(new Set());
+    if (fase === "coleta") {
+      onNavigate("/coletor/movimentos/abastecimento/coleta");
     } else {
-      setSelectedIds(new Set(tarefas.map(t => t.id)));
+      sessionStorage.setItem("abast_tarefa_execucao_id", item.tarefa_execucao_id || "");
+      sessionStorage.setItem("abast_qtd_coletada", String(item.qtd_coletada));
+      onNavigate("/coletor/movimentos/abastecimento/destino");
     }
   };
 
-  const handleIniciarColeta = () => {
-    if (selectedIds.size === 0) {
-      toast.warning("Selecione pelo menos uma tarefa.");
-      return;
-    }
-
-    const selected = tarefas.filter(t => selectedIds.has(t.id));
-    // Sort by endereco_destino_rua ASC
-    selected.sort((a, b) => a.endereco_destino_rua - b.endereco_destino_rua);
-
-    const tarefasInfo = selected.map(t => ({
-      id: t.id,
-      produto_id: t.produto_id,
-      produto_sku: t.produto_sku,
-      produto_desc: t.produto_desc,
-      endereco_origem_id: t.endereco_origem_id,
-      endereco_origem_desc: t.endereco_origem,
-      endereco_destino_id: t.endereco_destino_id,
-      endereco_destino_desc: t.endereco_destino,
-      endereco_destino_rua: t.endereco_destino_rua,
-      quantidade_requerida: t.quantidade_requerida,
-      quantidade_executada: t.quantidade_executada,
-    }));
-
-    sessionStorage.setItem("abast_tarefas", JSON.stringify(tarefasInfo));
-    sessionStorage.removeItem("abast_coletas");
-    onNavigate("/coletor/movimentos/abastecimento/coleta");
-  };
+  const prioridadeBadge = (p: string) =>
+    p === "URGENTE" ? "bg-red-500/20 text-red-300" :
+    p === "ALTA" ? "bg-orange-500/20 text-orange-300" :
+    "bg-blue-500/20 text-blue-300";
 
   return (
     <ColetorLayout title="Abastecimento" onNavigate={onNavigate} showBack backPath="/coletor/movimentos">
+      <div className="flex rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-1 gap-1">
+        <button
+          onClick={() => setFase("coleta")}
+          className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+            fase === "coleta" ? "bg-[hsl(217,91%,50%)] text-white" : "text-[hsl(213,31%,55%)]"
+          }`}
+        >
+          Coleta ({itensColeta.length})
+        </button>
+        <button
+          onClick={() => setFase("entrega")}
+          className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+            fase === "entrega" ? "bg-[hsl(142,76%,36%)] text-white" : "text-[hsl(213,31%,55%)]"
+          }`}
+        >
+          Entrega ({itensEntrega.length})
+        </button>
+      </div>
+
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" size={32} /></div>
-      ) : tarefas.length === 0 ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} />
+        </div>
+      ) : itensFase.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <ArrowDownToLine size={40} className="text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Nenhuma tarefa de abastecimento pendente.</p>
+          {fase === "coleta" ? (
+            <>
+              <ArrowDownToLine size={40} className="text-[hsl(213,31%,55%)]" />
+              <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma tarefa pendente de coleta.</p>
+            </>
+          ) : (
+            <>
+              <PackageCheck size={40} className="text-[hsl(213,31%,55%)]" />
+              <p className="text-sm text-[hsl(213,31%,55%)]">Nenhum item coletado para entregar.</p>
+            </>
+          )}
         </div>
       ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">{tarefas.length} tarefa(s) pendente(s)</p>
-              <RefreshListButton onRefresh={loadTarefas} />
-            </div>
-            <button
-              onClick={toggleSelectAll}
-              className="text-xs text-primary font-medium"
-            >
-              {selectedIds.size === tarefas.length ? "Desmarcar Todas" : "Selecionar Todas"}
-            </button>
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 mt-2">
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-[hsl(213,31%,55%)]">
+              {itensFase.length} item{itensFase.length > 1 ? "ns" : ""}
+            </p>
+            <RefreshListButton onRefresh={loadTarefas} />
           </div>
-          {tarefas.map((t) => (
+
+          {itensFase.map(item => (
             <div
-              key={t.id}
-              className={`bg-card border rounded-xl p-3 transition-all ${selectedIds.has(t.id) ? "border-primary bg-primary/5" : "border-border"}`}
-              onClick={() => toggleSelect(t.id)}
+              key={`${item.tarefa_id}-${fase}`}
+              onClick={() => handleSelectItem(item)}
+              className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 space-y-2 active:bg-[hsl(222,35%,16%)] active:scale-[0.98] transition-all cursor-pointer"
             >
-              <div className="flex items-start gap-3">
-                <div className="pt-0.5">
-                  <Checkbox
-                    checked={selectedIds.has(t.id)}
-                    onCheckedChange={() => toggleSelect(t.id)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-mono text-primary">{t.produto_sku}</p>
-                      <p className="text-sm text-foreground truncate">{t.produto_desc}</p>
+              {fase === "coleta" ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Archive size={18} className="text-[hsl(217,91%,60%)] shrink-0" />
+                      <span className="text-lg font-bold text-white truncate">{item.endereco_origem_desc}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[10px] font-bold ${prioridadeColor[t.prioridade_tarefa] || "text-muted-foreground"}`}>
-                        {t.prioridade_tarefa}
-                      </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor[t.status] || "bg-muted text-muted-foreground"}`}>
-                        {t.status}
-                      </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${prioridadeBadge(item.prioridade_tarefa)}`}>
+                      {item.prioridade_tarefa}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[hsl(213,31%,55%)]">
+                    Saldo disponível: <b className="text-white">{item.saldo_origem}</b>
+                  </div>
+                  <div className="border-t border-[hsl(222,35%,22%)]" />
+                  <div className="flex gap-3">
+                    <span className="text-xs font-mono text-[hsl(217,91%,60%)]">{item.sku}</span>
+                    {item.referencia && (
+                      <span className="text-xs text-[hsl(213,31%,55%)]">Ref: {item.referencia}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-white font-medium leading-snug">{item.descricao}</p>
+                  <div className="flex items-center gap-1.5 text-[11px] text-[hsl(213,31%,55%)]">
+                    <MapPin size={12} className="text-[hsl(280,70%,55%)] shrink-0" />
+                    <span>Destino: <b className="text-[hsl(280,70%,65%)]">{item.endereco_destino_desc}</b></span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-[hsl(222,35%,22%)]">
+                    <div>
+                      <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Requerida</span>
+                      <span className="text-base font-bold text-white">{item.quantidade_requerida}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Executada</span>
+                      <span className="text-base font-bold text-[#22C55E]">{item.quantidade_executada}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Restante</span>
+                      <span className="text-base font-bold text-[hsl(45,93%,47%)]">{item.qtd_restante}</span>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-border">
-                    <span className="text-xs text-muted-foreground">Qtd: <span className="text-foreground font-bold">{t.quantidade_requerida}</span></span>
-                    <span className="text-[10px] text-muted-foreground">{formatDate(t.criado_em)}</span>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin size={18} className="text-[hsl(280,70%,55%)] shrink-0" />
+                      <span className="text-lg font-bold text-white truncate">{item.endereco_destino_desc}</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-green-500/20 text-green-300">
+                      COLETADO
+                    </span>
                   </div>
-                  <div className="flex gap-4 mt-1.5 text-[10px] text-muted-foreground">
-                    <span>Origem: <span className="text-foreground/70">{t.endereco_origem}</span></span>
-                    <span>Destino: <span className="text-foreground/70">{t.endereco_destino}</span></span>
+                  <div className="text-[11px] text-[hsl(213,31%,55%)]">
+                    Qtd coletada: <b className="text-white">{item.qtd_coletada}</b>
                   </div>
-                </div>
-              </div>
+                  <div className="border-t border-[hsl(222,35%,22%)]" />
+                  <div className="flex gap-3">
+                    <span className="text-xs font-mono text-[hsl(217,91%,60%)]">{item.sku}</span>
+                    {item.referencia && (
+                      <span className="text-xs text-[hsl(213,31%,55%)]">Ref: {item.referencia}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-white font-medium leading-snug">{item.descricao}</p>
+                  <div className="flex items-center gap-1.5 text-[11px] text-[hsl(213,31%,55%)]">
+                    <Archive size={12} className="text-[hsl(217,91%,60%)] shrink-0" />
+                    <span>Coletado de: <b className="text-white">{item.endereco_origem_desc}</b></span>
+                  </div>
+                </>
+              )}
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Sticky action button */}
-      {tarefas.length > 0 && selectedIds.size > 0 && (
-        <div className="shrink-0">
-          <ActionButton onClick={handleIniciarColeta}>
-            <PackageCheck size={20} /> Iniciar Coleta ({selectedIds.size} selecionada{selectedIds.size > 1 ? "s" : ""})
-          </ActionButton>
         </div>
       )}
     </ColetorLayout>
