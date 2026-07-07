@@ -7869,6 +7869,54 @@ export type Database = {
           total_armazenado: number
         }[]
       }
+      rpc_coletor_armazenagem_itens_movimento: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          descricao: string
+          fabricacao: string
+          lote: string
+          movimento_entrada_item_id: string
+          picking_apto: number
+          picking_endereco_desc: string
+          picking_endereco_id: string
+          picking_est_maximo: number
+          picking_est_minimo: number
+          picking_nivel: number
+          picking_ok: boolean
+          picking_predio: number
+          picking_rua: number
+          produto_id: string
+          qtd_restante: number
+          quantidade_executada: number
+          quantidade_requerida: number
+          referencia: string
+          saldo_picking: number
+          sku: string
+          tarefa_id: string
+          validade: string
+          varios_pickings: boolean
+        }[]
+      }
+      rpc_coletor_armazenagem_listar_movimentos: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          box_descricao: string
+          created_at: string
+          itens_armazenados: number
+          itens_pendentes: number
+          movimento_entrada_id: string
+          numero_movimento: number
+          percentual_concluido: number
+          qtd_total_executada: number
+          qtd_total_requerida: number
+          status_movimento: string
+          total_itens: number
+        }[]
+      }
       rpc_historico_movimento_com_saldo: {
         Args: {
           p_data_fim: string
