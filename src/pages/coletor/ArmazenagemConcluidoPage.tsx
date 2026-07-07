@@ -12,14 +12,14 @@ export function ArmazenagemConcluidoPage({ onNavigate }: Props) {
           <CheckCircle size={56} className="text-[#22C55E]" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white mb-1">Armazenagem Concluída!</h2>
-          <p className="text-base text-[hsl(213,31%,55%)]">O produto foi armazenado com sucesso.</p>
+          <h2 className="text-2xl font-bold text-white mb-1">Item Armazenado!</h2>
+          <p className="text-base text-[hsl(213,31%,55%)]">Produto armazenado. Selecione o próximo item.</p>
         </div>
       </div>
 
       <div className="space-y-3 pb-4">
-        <ActionButton onClick={() => onNavigate("/coletor/armazenagem/iniciar")} variant="primary">
-          <RotateCcw size={20} /> NOVA ARMAZENAGEM
+        <ActionButton onClick={() => onNavigate("/coletor/armazenagem/itens")} variant="primary">
+          <RotateCcw size={20} /> PRÓXIMO ITEM
         </ActionButton>
         <ActionButton onClick={() => onNavigate("/coletor/home")} variant="secondary">
           <Home size={20} /> VOLTAR AO MENU

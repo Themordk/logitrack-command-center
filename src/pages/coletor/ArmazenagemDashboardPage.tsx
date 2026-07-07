@@ -92,7 +92,7 @@ export function ArmazenagemDashboardPage({ onNavigate }: Props) {
           </div>
 
           {/* Action */}
-          <ActionButton onClick={() => onNavigate("/coletor/armazenagem/iniciar")} variant="primary">
+          <ActionButton onClick={() => onNavigate("/coletor/armazenagem/movimentos")} variant="primary">
             <Package size={20} /> INICIAR ARMAZENAGEM
           </ActionButton>
         </>
