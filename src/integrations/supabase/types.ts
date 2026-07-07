@@ -7831,6 +7831,61 @@ export type Database = {
         Args: { p_tarefa_execucao_id: string }
         Returns: undefined
       }
+      rpc_coletor_abastecimento_confirmar_coleta: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_origem_id: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: string
+      }
+      rpc_coletor_abastecimento_confirmar_entrega: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_destino_id: string
+          p_quantidade: number
+          p_tarefa_execucao_id: string
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: string
+      }
+      rpc_coletor_abastecimento_listar_tarefas: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          coleta_pendente: boolean
+          criado_em: string
+          descricao: string
+          destino_apto: number
+          destino_nivel: number
+          destino_predio: number
+          destino_rua: number
+          endereco_destino_desc: string
+          endereco_destino_id: string
+          endereco_origem_desc: string
+          endereco_origem_id: string
+          origem_apto: number
+          origem_nivel: number
+          origem_predio: number
+          origem_rua: number
+          prioridade_tarefa: string
+          produto_id: string
+          qtd_coletada: number
+          qtd_restante: number
+          quantidade_executada: number
+          quantidade_requerida: number
+          referencia: string
+          saldo_origem: number
+          sku: string
+          status_tarefa: string
+          tarefa_execucao_id: string
+          tarefa_id: string
+        }[]
+      }
       rpc_coletor_armazenagem_buscar_tarefa: {
         Args: {
           p_codigo_scan: string
