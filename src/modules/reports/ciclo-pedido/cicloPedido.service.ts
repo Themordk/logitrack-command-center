@@ -175,6 +175,7 @@ export async function fetchCicloPedidoReport(
   const { data: tiposTarefa } = await (supabase as any)
     .from("tipo_tarefa")
     .select("id, codigo")
+    .eq("tenant_id", filters.tenant_id)
     .in("codigo", ["SEP", "SEP-CONF"]);
   const tipoSepId = (tiposTarefa || []).find((t: any) => t.codigo === "SEP")?.id;
   const tipoConfId = (tiposTarefa || []).find((t: any) => t.codigo === "SEP-CONF")?.id;
