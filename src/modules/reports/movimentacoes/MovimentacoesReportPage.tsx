@@ -188,8 +188,14 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
     { key: "tipo_documento_origem", label: "Doc. Origem", format: (r) => getTipoDocumentoLabel(r.tipo_documento_origem) },
     { key: "tipo_tarefa_codigo", label: "Tarefa", format: (r) => r.tipo_tarefa_codigo || "" },
     { key: "quantidade", label: "Quantidade", align: "right", format: (r) => fmtNumberBR(r.quantidade) },
-    { key: "saldo_inicial", label: "Saldo Inicial", align: "right", format: (r) => fmtNumberBR(r.saldo_inicial) },
-    { key: "saldo_final", label: "Saldo Final", align: "right", format: (r) => fmtNumberBR(r.saldo_final) },
+    { key: "saldo_anterior_origem", label: "Sld Ant. Orig.", align: "right" as const,
+      format: (r: any) => r.saldo_anterior_origem != null ? fmtNumberBR(r.saldo_anterior_origem) : "" },
+    { key: "saldo_posterior_origem", label: "Sld Pos. Orig.", align: "right" as const,
+      format: (r: any) => r.saldo_posterior_origem != null ? fmtNumberBR(r.saldo_posterior_origem) : "" },
+    { key: "saldo_anterior_destino", label: "Sld Ant. Dest.", align: "right" as const,
+      format: (r: any) => r.saldo_anterior_destino != null ? fmtNumberBR(r.saldo_anterior_destino) : "" },
+    { key: "saldo_posterior_destino", label: "Sld Pos. Dest.", align: "right" as const,
+      format: (r: any) => r.saldo_posterior_destino != null ? fmtNumberBR(r.saldo_posterior_destino) : "" },
     { key: "usuario", label: "Usuário" },
   ];
 
