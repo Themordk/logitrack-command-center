@@ -150,7 +150,11 @@ export async function fetchRecebimentoReport(filters: RecebimentoFilter): Promis
   // 5) Tarefas ENTR-ARMZ vinculadas a esses itens
   // tipo_tarefa_id de ENTR-ARMZ
   const { data: tipoArmz } = await (supabase as any)
-    .from("tipo_tarefa").select("id").eq("codigo", "ENTR-ARMZ").maybeSingle();
+    .from("tipo_tarefa")
+    .select("id")
+    .eq("tenant_id", filters.tenant_id)
+    .eq("codigo", "ENTR-ARMZ")
+    .maybeSingle();
   const tipoArmzId = tipoArmz?.id;
 
   // mov → marcos de armazenagem
