@@ -332,10 +332,9 @@ export async function fetchCicloPedidoReport(
     const tempo_conferencia_min = diffMin(t4i, t4f);
     const tempo_pos_conf_min = diffMin(t4f, t5);
     // Ocioso = (T2-T1) + (T4i-T3) + (T5-T4f)  (apenas valores não-negativos)
-    const oc1 = diffMin(t1, t2);
-    const oc2 = diffMin(t3, t4i);
-    const oc3 = diffMin(t4f, t5);
-    const ocSum = (oc1 ?? 0) + (oc2 ?? 0) + (oc3 ?? 0);
+    const oc1 = diffMin(t1, t2);  // gap entre liberação e início picking
+    const oc2 = diffMin(t3, t4i); // gap entre fim picking e início conferência
+    const ocSum = (oc1 ?? 0) + (oc2 ?? 0);
     const tempo_ocioso_min = ocSum > 0 ? ocSum : null;
 
     // Pior etapa
