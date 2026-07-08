@@ -49,13 +49,17 @@ export function PerfisAcessoPage() {
   const fetchAll = useCallback(async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [perfisRes, modulosRes, permissoesRes] = await Promise.all([
+    const [perfisRes, modulosRes] = await Promise.all([
       (supabase as any).from("perfil").select("*").eq("tenant_id", tenantId).order("nome"),
-      (supabase as any).from("modulo").select("*").order("codigo"),
-      (supabase as any).from("permissao").select("*"),
+      (supabase as any).from("modulo").select("*").eq("tenant_id", tenantId).order("codigo"),
     ]);
+    const modulos = modulosRes.data || [];
+    const moduloIds = modulos.map((m: Modulo) => m.id);
+    const permissoesRes = moduloIds.length
+      ? await (supabase as any).from("permissao").select("*").in("modulo_id", moduloIds)
+      : { data: [] };
     setPerfis(perfisRes.data || []);
-    setModulos(modulosRes.data || []);
+    setModulos(modulos);
     setPermissoes(permissoesRes.data || []);
     setLoading(false);
   }, [tenantId]);
