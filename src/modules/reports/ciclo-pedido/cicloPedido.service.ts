@@ -64,288 +64,40 @@ export interface CicloPedidoKpis {
   pior_etapa: PiorEtapa;
 }
 
-const MIN = 60_000;
-
-function diffMin(a: string | null | undefined, b: string | null | undefined): number | null {
-  if (!a || !b) return null;
-  const da = new Date(a).getTime();
-  const db = new Date(b).getTime();
-  if (isNaN(da) || isNaN(db)) return null;
-  const d = (db - da) / MIN;
-  return d < 0 ? 0 : d;
-}
-
-function classifySla(perc: number | null, isConcluded: boolean): StatusSla {
-  if (!isConcluded) return "EM_ANDAMENTO";
-  if (perc == null) return "EM_ANDAMENTO";
-  if (perc <= 80) return "DENTRO";
-  if (perc <= 100) return "ALERTA";
-  return "FORA";
-}
-
 export async function fetchCicloPedidoReport(
   filters: CicloPedidoFilter
 ): Promise<{ rows: CicloPedidoRow[]; kpis: CicloPedidoKpis }> {
   const sla = filters.sla_horas && filters.sla_horas > 0 ? filters.sla_horas : 24;
-  const slaMin = sla * 60;
 
-  // 1) Cabeçalho de movimento_saida
-  let mq: any = (supabase as any)
-    .from("movimento_saida")
-    .select("id, numero_onda, status, prioridade, data_emissao, finalizado_em, box_id, empresa_id")
-    .eq("tenant_id", filters.tenant_id)
-    .order("data_emissao", { ascending: false })
-    .limit(2000);
-  if (filters.empresa_id) mq = mq.eq("empresa_id", filters.empresa_id);
-  if (filters.armazem_id) {
-    // movimento_saida não tem armazem_id direto — vincular via box
-    const { data: boxes } = await (supabase as any)
-      .from("box").select("id").eq("tenant_id", filters.tenant_id).eq("armazem_id", filters.armazem_id);
-    const boxIds = (boxes || []).map((b: any) => b.id);
-    if (boxIds.length === 0) return { rows: [], kpis: emptyKpis() };
-    mq = mq.in("box_id", boxIds);
-  }
-  if (filters.status_onda) mq = mq.eq("status", filters.status_onda);
-  if (filters.prioridade) mq = mq.eq("prioridade", filters.prioridade);
-  if (filters.data_inicio) mq = mq.gte("data_emissao", filters.data_inicio);
-  if (filters.data_fim) mq = mq.lte("data_emissao", filters.data_fim);
+  const { data, error } = await (supabase as any).rpc("rpc_relatorio_ciclo_pedido", {
+    p_tenant_id: filters.tenant_id,
+    p_empresa_id: filters.empresa_id || null,
+    p_armazem_id: filters.armazem_id || null,
+    p_data_inicio: filters.data_inicio || null,
+    p_data_fim: filters.data_fim || null,
+    p_status_onda: filters.status_onda || null,
+    p_prioridade: filters.prioridade || null,
+    p_sla_horas: sla,
+  });
+  if (error) throw error;
+  if (!data || data.length === 0) return { rows: [], kpis: emptyKpis() };
 
-  const { data: movs, error: errMov } = await mq;
-  if (errMov) throw errMov;
-  if (!movs || movs.length === 0) return { rows: [], kpis: emptyKpis() };
+  let rows: CicloPedidoRow[] = (data as any[]).map((r) => {
+    const tempo_total = r.tempo_total_min != null ? Number(r.tempo_total_min) : null;
+    const tempo_fila = r.tempo_fila_min != null ? Number(r.tempo_fila_min) : null;
+    const tempo_picking = r.tempo_picking_min != null ? Number(r.tempo_picking_min) : null;
+    const tempo_conf = r.tempo_conferencia_min != null ? Number(r.tempo_conferencia_min) : null;
+    const tempo_pos = r.tempo_pos_conf_min != null ? Number(r.tempo_pos_conf_min) : null;
+    const tempo_ocioso = r.tempo_ocioso_min != null ? Number(r.tempo_ocioso_min) : null;
 
-  const movIds: string[] = movs.map((m: any) => m.id);
-
-  // 2) Documentos vinculados (pedidos + parceiros)
-  const { data: movDocs } = await (supabase as any)
-    .from("movimento_saida_documento")
-    .select("movimento_saida_id, documento_saida_id")
-    .in("movimento_saida_id", movIds);
-
-  const docIds = Array.from(new Set((movDocs || []).map((d: any) => d.documento_saida_id)));
-  const docMap = new Map<string, { numero_pedido: string; parceiro_id: string }>();
-  if (docIds.length > 0) {
-    const { data: docs } = await (supabase as any)
-      .from("documento_saida")
-      .select("id, numero_pedido, parceiro_id")
-      .in("id", docIds);
-    for (const d of docs || []) {
-      docMap.set(d.id, { numero_pedido: String(d.numero_pedido ?? "—"), parceiro_id: d.parceiro_id });
-    }
-  }
-
-  const movDocMap = new Map<string, { pedidos: Set<string>; parceiros: Set<string> }>();
-  for (const md of movDocs || []) {
-    const ref = movDocMap.get(md.movimento_saida_id) || {
-      pedidos: new Set<string>(),
-      parceiros: new Set<string>(),
-    };
-    const d = docMap.get(md.documento_saida_id);
-    if (d) {
-      ref.pedidos.add(d.numero_pedido);
-      if (d.parceiro_id) ref.parceiros.add(d.parceiro_id);
-    }
-    movDocMap.set(md.movimento_saida_id, ref);
-  }
-
-  // 3) Lookup parceiro
-  const allParceiroIds = Array.from(
-    new Set(Array.from(movDocMap.values()).flatMap((v) => Array.from(v.parceiros)))
-  );
-  const parceiroMap = new Map<string, string>();
-  if (allParceiroIds.length > 0) {
-    const { data: parc } = await (supabase as any)
-      .from("parceiro")
-      .select("id, razaosocial")
-      .in("id", allParceiroIds);
-    for (const p of parc || []) parceiroMap.set(p.id, p.razaosocial);
-  }
-
-  // 4) Itens da onda → para chegar nas tarefas SEP / SEP-CONF
-  const { data: itens } = await (supabase as any)
-    .from("movimento_saida_item")
-    .select("id, movimento_saida_id")
-    .in("movimento_saida_id", movIds);
-
-  const itemToMov = new Map<string, string>();
-  for (const it of itens || []) itemToMov.set(it.id, it.movimento_saida_id);
-  const itemIds = Array.from(itemToMov.keys());
-
-  // 5) Tipos de tarefa SEP / SEP-CONF
-  const { data: tiposTarefa } = await (supabase as any)
-    .from("tipo_tarefa")
-    .select("id, codigo")
-    .eq("tenant_id", filters.tenant_id)
-    .in("codigo", ["SEP", "SEP-CONF"]);
-  const tipoSepId = (tiposTarefa || []).find((t: any) => t.codigo === "SEP")?.id;
-  const tipoConfId = (tiposTarefa || []).find((t: any) => t.codigo === "SEP-CONF")?.id;
-
-  type Marcos = {
-    sep_criado_min: number | null;
-    sep_atrib_min: number | null;
-    sep_conc_max: number | null;
-    sep_total: number;
-    sep_concluidas: number;
-
-    conf_atrib_min: number | null;
-    conf_conc_max: number | null;
-    conf_total: number;
-    conf_concluidas: number;
-  };
-  const marcos = new Map<string, Marcos>();
-  const ensure = (movId: string): Marcos => {
-    let m = marcos.get(movId);
-    if (!m) {
-      m = {
-        sep_criado_min: null,
-        sep_atrib_min: null,
-        sep_conc_max: null,
-        sep_total: 0,
-        sep_concluidas: 0,
-        conf_atrib_min: null,
-        conf_conc_max: null,
-        conf_total: 0,
-        conf_concluidas: 0,
-      };
-      marcos.set(movId, m);
-    }
-    return m;
-  };
-
-  const tipoIds = [tipoSepId, tipoConfId].filter(Boolean);
-  if (tipoIds.length > 0 && itemIds.length > 0) {
-    const chunkSize = 800;
-    const tarefas: any[] = [];
-    for (let i = 0; i < itemIds.length; i += chunkSize) {
-      const slice = itemIds.slice(i, i + chunkSize);
-      const { data } = await (supabase as any)
-        .from("tarefa")
-        .select("id, criado_em, status, tipo_tarefa_id, id_documento_origem")
-        .in("tipo_tarefa_id", tipoIds)
-        .eq("tipo_documento_origem", "MOVIMENTO_SAIDA_ITEM")
-        .in("id_documento_origem", slice);
-      if (data) tarefas.push(...data);
-    }
-
-    // Atribuição: MIN(atribuido_em) por tarefa
-    const tarefaIds = tarefas.map((t: any) => t.id);
-    const atribMap = new Map<string, number>();
-    for (let i = 0; i < tarefaIds.length; i += chunkSize) {
-      const slice = tarefaIds.slice(i, i + chunkSize);
-      const { data } = await (supabase as any)
-        .from("tarefa_atribuicao")
-        .select("tarefa_id, atribuido_em")
-        .in("tarefa_id", slice)
-        .not("atribuido_em", "is", null);
-      for (const a of data || []) {
-        const ts = new Date(a.atribuido_em).getTime();
-        const prev = atribMap.get(a.tarefa_id);
-        if (prev == null || ts < prev) atribMap.set(a.tarefa_id, ts);
-      }
-    }
-
-    // Execução concluída: MAX(concluido_em) por tarefa
-    const execMap = new Map<string, number>();
-    const execStatus = new Map<string, string>();
-    for (let i = 0; i < tarefaIds.length; i += chunkSize) {
-      const slice = tarefaIds.slice(i, i + chunkSize);
-      const { data } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select("tarefa_id, concluido_em, status")
-        .in("tarefa_id", slice)
-        .not("concluido_em", "is", null);
-      for (const e of data || []) {
-        const ts = new Date(e.concluido_em).getTime();
-        const prev = execMap.get(e.tarefa_id);
-        if (prev == null || ts > prev) {
-          execMap.set(e.tarefa_id, ts);
-          execStatus.set(e.tarefa_id, e.status);
-        }
-      }
-    }
-
-    for (const t of tarefas) {
-      const movId = itemToMov.get(t.id_documento_origem);
-      if (!movId) continue;
-      const ref = ensure(movId);
-      const isSep = t.tipo_tarefa_id === tipoSepId;
-      const isConf = t.tipo_tarefa_id === tipoConfId;
-      const tCriado = t.criado_em ? new Date(t.criado_em).getTime() : null;
-      const tAtrib = atribMap.get(t.id) ?? null;
-      const tConc = execMap.get(t.id) ?? null;
-      const concluida = tConc != null && execStatus.get(t.id) === "CONCLUIDA";
-
-      if (isSep) {
-        ref.sep_total += 1;
-        if (concluida) ref.sep_concluidas += 1;
-        if (tCriado != null)
-          ref.sep_criado_min = ref.sep_criado_min == null ? tCriado : Math.min(ref.sep_criado_min, tCriado);
-        if (tAtrib != null)
-          ref.sep_atrib_min = ref.sep_atrib_min == null ? tAtrib : Math.min(ref.sep_atrib_min, tAtrib);
-        if (tConc != null)
-          ref.sep_conc_max = ref.sep_conc_max == null ? tConc : Math.max(ref.sep_conc_max, tConc);
-      } else if (isConf) {
-        ref.conf_total += 1;
-        if (concluida) ref.conf_concluidas += 1;
-        if (tAtrib != null)
-          ref.conf_atrib_min = ref.conf_atrib_min == null ? tAtrib : Math.min(ref.conf_atrib_min, tAtrib);
-        if (tConc != null)
-          ref.conf_conc_max = ref.conf_conc_max == null ? tConc : Math.max(ref.conf_conc_max, tConc);
-      }
-    }
-  }
-
-  // 6) Montar linhas
-  const rows: CicloPedidoRow[] = [];
-  for (const m of movs) {
-    const docInfo = movDocMap.get(m.id);
-    const pedidos = docInfo ? Array.from(docInfo.pedidos) : [];
-    const parceirosIds = docInfo ? Array.from(docInfo.parceiros) : [];
-    if (filters.parceiro_id && !parceirosIds.includes(filters.parceiro_id)) continue;
-
-    const cliente =
-      parceirosIds.length === 0
-        ? "—"
-        : parceirosIds.length === 1
-        ? parceiroMap.get(parceirosIds[0]) || "—"
-        : `${parceiroMap.get(parceirosIds[0]) || "—"} +${parceirosIds.length - 1}`;
-
-    const mk = marcos.get(m.id);
-    const t0 = m.data_emissao as string | null;
-    const t1 = mk?.sep_criado_min ? new Date(mk.sep_criado_min).toISOString() : null;
-    const t2 = mk?.sep_atrib_min ? new Date(mk.sep_atrib_min).toISOString() : null;
-    const t3 = mk?.sep_conc_max ? new Date(mk.sep_conc_max).toISOString() : null;
-    const t4i = mk?.conf_atrib_min ? new Date(mk.conf_atrib_min).toISOString() : null;
-    const t4f = mk?.conf_conc_max ? new Date(mk.conf_conc_max).toISOString() : null;
-
-    let t5: string | null = m.status === "CONCLUIDA" && m.finalizado_em ? m.finalizado_em : null;
-    if (!t5 && m.status === "CONCLUIDA") {
-      // fallback: maior conclusão de qualquer etapa
-      const candidates = [mk?.conf_conc_max, mk?.sep_conc_max].filter(Boolean) as number[];
-      if (candidates.length > 0) t5 = new Date(Math.max(...candidates)).toISOString();
-    }
-    const isConcluded = m.status === "CONCLUIDA" && !!t5;
-
-    const tempo_total_min = diffMin(t0, t5);
-    const tempo_fila_min = diffMin(t0, t2);
-    const tempo_picking_min = diffMin(t2, t3);
-    const tempo_conferencia_min = diffMin(t4i, t4f);
-    const tempo_pos_conf_min = diffMin(t4f, t5);
-    // Ocioso = (T2-T1) + (T4i-T3) + (T5-T4f)  (apenas valores não-negativos)
-    const oc1 = diffMin(t1, t2);  // gap entre liberação e início picking
-    const oc2 = diffMin(t3, t4i); // gap entre fim picking e início conferência
-    const ocSum = (oc1 ?? 0) + (oc2 ?? 0);
-    const tempo_ocioso_min = ocSum > 0 ? ocSum : null;
-
-    // Pior etapa
     let pior: PiorEtapa = "—";
-    const etapas: [PiorEtapa, number | null][] = [
-      ["Fila", tempo_fila_min],
-      ["Picking", tempo_picking_min],
-      ["Conferência", tempo_conferencia_min],
-      ["Pós-Conferência", tempo_pos_conf_min],
-    ];
     let maxV = 0;
+    const etapas: [PiorEtapa, number | null][] = [
+      ["Fila", tempo_fila],
+      ["Picking", tempo_picking],
+      ["Conferência", tempo_conf],
+      ["Pós-Conferência", tempo_pos],
+    ];
     for (const [n, v] of etapas) {
       if (v != null && v > maxV) {
         maxV = v;
@@ -353,53 +105,47 @@ export async function fetchCicloPedidoReport(
       }
     }
 
-    const perc_sla = tempo_total_min != null ? (tempo_total_min / slaMin) * 100 : null;
-    const status_sla = classifySla(perc_sla, isConcluded);
-
-    rows.push({
-      id: m.id,
-      numero_onda: m.numero_onda,
-      status: m.status,
-      prioridade: m.prioridade,
-      pedidos: pedidos.length > 0 ? pedidos.join(", ") : "—",
-      cliente,
-      parceiro_id: parceirosIds[0] || null,
-      box_id: m.box_id,
-      t0_criacao: t0,
-      t1_liberado: t1,
-      t2_inicio_sep: t2,
-      t3_fim_sep: t3,
-      t4_inicio_conf: t4i,
-      t4_fim_conf: t4f,
-      t5_expedicao: t5,
-      tempo_total_min,
-      tempo_fila_min,
-      tempo_picking_min,
-      tempo_conferencia_min,
-      tempo_pos_conf_min,
-      tempo_ocioso_min,
+    return {
+      id: r.movimento_saida_id,
+      numero_onda: r.numero_onda,
+      status: r.status_onda,
+      prioridade: r.prioridade,
+      pedidos: r.pedidos || "—",
+      cliente: r.cliente || "—",
+      parceiro_id: r.parceiro_id || null,
+      box_id: r.box_id || null,
+      t0_criacao: r.t0_criacao,
+      t1_liberado: r.t1_liberado,
+      t2_inicio_sep: r.t2_inicio_sep,
+      t3_fim_sep: r.t3_fim_sep,
+      t4_inicio_conf: r.t4_inicio_conf,
+      t4_fim_conf: r.t4_fim_conf,
+      t5_expedicao: r.t5_expedicao,
+      tempo_total_min: tempo_total,
+      tempo_fila_min: tempo_fila,
+      tempo_picking_min: tempo_picking,
+      tempo_conferencia_min: tempo_conf,
+      tempo_pos_conf_min: tempo_pos,
+      tempo_ocioso_min: tempo_ocioso,
       pior_etapa: pior,
-      status_sla,
-      sla_horas: sla,
-      perc_sla,
-    });
-  }
+      status_sla: r.status_sla as StatusSla,
+      sla_horas: Number(r.sla_horas),
+      perc_sla: r.perc_sla != null ? Number(r.perc_sla) : null,
+    };
+  });
 
-  // 7) Filtros pós
-  let filtered = rows;
-  if (filters.status_sla) filtered = filtered.filter((r) => r.status_sla === filters.status_sla);
-  if (filters.apenas_concluidos) filtered = filtered.filter((r) => r.status_sla !== "EM_ANDAMENTO");
+  if (filters.parceiro_id) rows = rows.filter((r) => r.parceiro_id === filters.parceiro_id);
+  if (filters.status_sla) rows = rows.filter((r) => r.status_sla === filters.status_sla);
+  if (filters.apenas_concluidos) rows = rows.filter((r) => r.status_sla !== "EM_ANDAMENTO");
 
-  // Ordenação default: piores SLA primeiro
   const slaRank: Record<StatusSla, number> = { FORA: 4, ALERTA: 3, EM_ANDAMENTO: 2, DENTRO: 1 };
-  filtered.sort((a, b) => {
+  rows.sort((a, b) => {
     const s = slaRank[b.status_sla] - slaRank[a.status_sla];
     if (s !== 0) return s;
     return (b.tempo_total_min ?? 0) - (a.tempo_total_min ?? 0);
   });
 
-  // 8) KPIs
-  const concluidas = filtered.filter((r) => r.status_sla !== "EM_ANDAMENTO");
+  const concluidas = rows.filter((r) => r.status_sla !== "EM_ANDAMENTO");
   const avg = (arr: (number | null)[]) => {
     const valid = arr.filter((v): v is number => v != null && !isNaN(v));
     return valid.length === 0 ? 0 : valid.reduce((a, b) => a + b, 0) / valid.length;
@@ -421,12 +167,12 @@ export async function fetchCicloPedidoReport(
   const pior_etapa: PiorEtapa = piorAgg[1] > 0 ? piorAgg[0] : "—";
 
   const kpis: CicloPedidoKpis = {
-    total_ondas: filtered.length,
+    total_ondas: rows.length,
     concluidas: concluidas.length,
-    em_andamento: filtered.length - concluidas.length,
-    dentro_sla: filtered.filter((r) => r.status_sla === "DENTRO").length,
-    alerta_sla: filtered.filter((r) => r.status_sla === "ALERTA").length,
-    fora_sla: filtered.filter((r) => r.status_sla === "FORA").length,
+    em_andamento: rows.length - concluidas.length,
+    dentro_sla: rows.filter((r) => r.status_sla === "DENTRO").length,
+    alerta_sla: rows.filter((r) => r.status_sla === "ALERTA").length,
+    fora_sla: rows.filter((r) => r.status_sla === "FORA").length,
     tempo_medio_total_min: m_total,
     tempo_medio_fila_min: m_fila,
     tempo_medio_picking_min: m_pick,
@@ -436,7 +182,7 @@ export async function fetchCicloPedidoReport(
     pior_etapa,
   };
 
-  return { rows: filtered, kpis };
+  return { rows, kpis };
 }
 
 function emptyKpis(): CicloPedidoKpis {
