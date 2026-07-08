@@ -8018,6 +8018,77 @@ export type Database = {
           usuario_nome: string
         }[]
       }
+      rpc_relatorio_ciclo_pedido: {
+        Args: {
+          p_armazem_id?: string
+          p_data_fim?: string
+          p_data_inicio?: string
+          p_empresa_id?: string
+          p_prioridade?: string
+          p_sla_horas?: number
+          p_status_onda?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          box_id: string
+          cliente: string
+          movimento_saida_id: string
+          numero_onda: number
+          parceiro_id: string
+          pedidos: string
+          perc_sla: number
+          prioridade: string
+          sla_horas: number
+          status_onda: string
+          status_sla: string
+          t0_criacao: string
+          t1_liberado: string
+          t2_inicio_sep: string
+          t3_fim_sep: string
+          t4_fim_conf: string
+          t4_inicio_conf: string
+          t5_expedicao: string
+          tempo_conferencia_min: number
+          tempo_fila_min: number
+          tempo_ocioso_min: number
+          tempo_picking_min: number
+          tempo_pos_conf_min: number
+          tempo_total_min: number
+        }[]
+      }
+      rpc_relatorio_dock_to_stock: {
+        Args: {
+          p_armazem_id?: string
+          p_data_fim?: string
+          p_data_inicio?: string
+          p_empresa_id?: string
+          p_sla_horas?: number
+          p_tenant_id: string
+        }
+        Returns: {
+          documento: string
+          fornecedor: string
+          movimento_entrada_id: string
+          numero_movimento: number
+          parceiro_id: string
+          perc_sla: number
+          sla_horas: number
+          status_movimento: string
+          status_sla: string
+          t0_dock: string
+          t1_autorizado: string
+          t2_conf_inicio: string
+          t3_conf_fim: string
+          t4_armz_inicio: string
+          t5_stock: string
+          tempo_armazenagem_min: number
+          tempo_conferencia_min: number
+          tempo_liberacao_min: number
+          tempo_ocioso_min: number
+          tempo_total_min: number
+          total_volume: number
+        }[]
+      }
       separacao_buscar_ondas: {
         Args: {
           p_empresa_id: string
