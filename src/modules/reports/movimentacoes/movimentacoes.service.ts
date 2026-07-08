@@ -37,6 +37,10 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
     tipo_tarefa_codigo: row.tipo_tarefa_codigo || "",
     tipo_tarefa_descricao: row.tipo_tarefa_descricao || "",
     tarefa_execucao_status: row.tarefa_execucao_status || "",
+    saldo_anterior_origem: row.saldo_anterior_origem != null ? Number(row.saldo_anterior_origem) : null,
+    saldo_posterior_origem: row.saldo_posterior_origem != null ? Number(row.saldo_posterior_origem) : null,
+    saldo_anterior_destino: row.saldo_anterior_destino != null ? Number(row.saldo_anterior_destino) : null,
+    saldo_posterior_destino: row.saldo_posterior_destino != null ? Number(row.saldo_posterior_destino) : null,
     saldo_inicial: Number(row.saldo_inicial ?? 0),
     saldo_final: Number(row.saldo_final ?? 0),
   }));

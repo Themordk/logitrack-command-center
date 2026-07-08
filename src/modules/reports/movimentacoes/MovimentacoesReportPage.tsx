@@ -145,12 +145,28 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       render: (v) => Number(v).toLocaleString("pt-BR"),
     },
     {
-      key: "saldo_inicial", label: "Saldo Inicial", align: "right", width: "110px",
-      render: (v) => <span className="text-muted-foreground">{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "saldo_anterior_origem", label: "Sld Ant. Orig.", align: "right" as const, width: "100px",
+      render: (v: any) => v != null
+        ? <span className="text-muted-foreground">{Number(v).toLocaleString("pt-BR")}</span>
+        : <span className="text-muted-foreground/40">—</span>,
     },
     {
-      key: "saldo_final", label: "Saldo Final", align: "right", width: "110px",
-      render: (v) => <span className="text-foreground font-semibold">{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "saldo_posterior_origem", label: "Sld Pos. Orig.", align: "right" as const, width: "100px",
+      render: (v: any, row: any) => v != null
+        ? <span className={cn("font-semibold", Number(row.saldo_posterior_origem) < Number(row.saldo_anterior_origem) ? "text-red-400" : "text-foreground")}>{Number(v).toLocaleString("pt-BR")}</span>
+        : <span className="text-muted-foreground/40">—</span>,
+    },
+    {
+      key: "saldo_anterior_destino", label: "Sld Ant. Dest.", align: "right" as const, width: "100px",
+      render: (v: any) => v != null
+        ? <span className="text-muted-foreground">{Number(v).toLocaleString("pt-BR")}</span>
+        : <span className="text-muted-foreground/40">—</span>,
+    },
+    {
+      key: "saldo_posterior_destino", label: "Sld Pos. Dest.", align: "right" as const, width: "100px",
+      render: (v: any, row: any) => v != null
+        ? <span className={cn("font-semibold", Number(row.saldo_posterior_destino) > Number(row.saldo_anterior_destino) ? "text-emerald-400" : "text-foreground")}>{Number(v).toLocaleString("pt-BR")}</span>
+        : <span className="text-muted-foreground/40">—</span>,
     },
     { key: "usuario", label: "Usuário", width: "120px" },
   ];
@@ -172,8 +188,14 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
     { key: "tipo_documento_origem", label: "Doc. Origem", format: (r) => getTipoDocumentoLabel(r.tipo_documento_origem) },
     { key: "tipo_tarefa_codigo", label: "Tarefa", format: (r) => r.tipo_tarefa_codigo || "" },
     { key: "quantidade", label: "Quantidade", align: "right", format: (r) => fmtNumberBR(r.quantidade) },
-    { key: "saldo_inicial", label: "Saldo Inicial", align: "right", format: (r) => fmtNumberBR(r.saldo_inicial) },
-    { key: "saldo_final", label: "Saldo Final", align: "right", format: (r) => fmtNumberBR(r.saldo_final) },
+    { key: "saldo_anterior_origem", label: "Sld Ant. Orig.", align: "right" as const,
+      format: (r: any) => r.saldo_anterior_origem != null ? fmtNumberBR(r.saldo_anterior_origem) : "" },
+    { key: "saldo_posterior_origem", label: "Sld Pos. Orig.", align: "right" as const,
+      format: (r: any) => r.saldo_posterior_origem != null ? fmtNumberBR(r.saldo_posterior_origem) : "" },
+    { key: "saldo_anterior_destino", label: "Sld Ant. Dest.", align: "right" as const,
+      format: (r: any) => r.saldo_anterior_destino != null ? fmtNumberBR(r.saldo_anterior_destino) : "" },
+    { key: "saldo_posterior_destino", label: "Sld Pos. Dest.", align: "right" as const,
+      format: (r: any) => r.saldo_posterior_destino != null ? fmtNumberBR(r.saldo_posterior_destino) : "" },
     { key: "usuario", label: "Usuário" },
   ];
 
