@@ -1272,6 +1272,10 @@ export type Database = {
           numero_serie: string | null
           produto_id: string
           quantidade: number
+          saldo_anterior_destino: number | null
+          saldo_anterior_origem: number | null
+          saldo_posterior_destino: number | null
+          saldo_posterior_origem: number | null
           tarefa_execucao_id: string | null
           tenant_id: string
           tipo_documento_origem: string | null
@@ -1293,6 +1297,10 @@ export type Database = {
           numero_serie?: string | null
           produto_id: string
           quantidade: number
+          saldo_anterior_destino?: number | null
+          saldo_anterior_origem?: number | null
+          saldo_posterior_destino?: number | null
+          saldo_posterior_origem?: number | null
           tarefa_execucao_id?: string | null
           tenant_id: string
           tipo_documento_origem?: string | null
@@ -1314,6 +1322,10 @@ export type Database = {
           numero_serie?: string | null
           produto_id?: string
           quantidade?: number
+          saldo_anterior_destino?: number | null
+          saldo_anterior_origem?: number | null
+          saldo_posterior_destino?: number | null
+          saldo_posterior_origem?: number | null
           tarefa_execucao_id?: string | null
           tenant_id?: string
           tipo_documento_origem?: string | null
@@ -7990,8 +8002,12 @@ export type Database = {
           lote: string
           produto_descricao: string
           quantidade: number
+          saldo_anterior_destino: number
+          saldo_anterior_origem: number
           saldo_final: number
           saldo_inicial: number
+          saldo_posterior_destino: number
+          saldo_posterior_origem: number
           sku: string
           tarefa_execucao_id: string
           tarefa_execucao_status: string
