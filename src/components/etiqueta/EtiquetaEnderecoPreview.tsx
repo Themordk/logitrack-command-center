@@ -67,10 +67,17 @@ function formatApto(v?: string) {
 
 // ─── BIN Template (80x20 horizontal) ───
 function TemplateBIN({
-  data, template, isPrint, usuario, dataHora,
+  data,
+  template,
+  isPrint,
+  usuario,
+  dataHora,
 }: {
-  data: LabelData; template: TemplateSpec; isPrint: boolean;
-  usuario?: string; dataHora?: string;
+  data: LabelData;
+  template: TemplateSpec;
+  isPrint: boolean;
+  usuario?: string;
+  dataHora?: string;
 }) {
   const { widthPx, heightPx, barcode } = template;
   const validation = validateLabel(data, template);
@@ -136,7 +143,15 @@ function TemplateBIN({
           LOCALIZAÇÃO BIN
         </div>
         {/* Data/hora + usuário */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.15, minWidth: "115px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            lineHeight: 1.15,
+            minWidth: "115px",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "9px", fontWeight: 600 }}>
             <Calendar size={9} strokeWidth={2.5} color="#FFFFFF" />
             <span>{dataHoraStr}</span>
@@ -228,7 +243,9 @@ function TemplateBIN({
               borderBottom: "2px solid #000000",
             }}
           >
-            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", color: "#000000", minWidth: "36px" }}>
+            <span
+              style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", color: "#000000", minWidth: "36px" }}
+            >
               NÍVEL
             </span>
             <span
@@ -256,8 +273,10 @@ function TemplateBIN({
               padding: "0 6px 0 8px",
             }}
           >
-            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", color: "#000000", minWidth: "36px" }}>
-              A
+            <span
+              style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", color: "#000000", minWidth: "36px" }}
+            >
+              APTO
             </span>
             <span
               style={{
@@ -283,9 +302,15 @@ function TemplateBIN({
 
 // ─── Horizontal Template ───
 function TemplateHorizontal({
-  data, template, isPrint, options,
+  data,
+  template,
+  isPrint,
+  options,
 }: {
-  data: LabelData; template: TemplateSpec; isPrint: boolean; options: EtiquetaOptions;
+  data: LabelData;
+  template: TemplateSpec;
+  isPrint: boolean;
+  options: EtiquetaOptions;
 }) {
   const { widthPx, heightPx, barcode, qrCode, quietZone } = template;
   const is100x40 = widthPx === 800;
@@ -381,18 +406,10 @@ function TemplateHorizontal({
               margin={barcode.margin}
               maxWidth={barcodeMaxW}
             />
-            {hasQR && (
-              <QRCodeRenderer
-                value={data.barcodeValue}
-                size={qrCode.size}
-                margin={qrCode.margin}
-              />
-            )}
+            {hasQR && <QRCodeRenderer value={data.barcodeValue} size={qrCode.size} margin={qrCode.margin} />}
           </>
         ) : (
-          <div style={{ color: "#CC0000", fontSize: "10px", textAlign: "center" }}>
-            {validation.errors.join(" | ")}
-          </div>
+          <div style={{ color: "#CC0000", fontSize: "10px", textAlign: "center" }}>{validation.errors.join(" | ")}</div>
         )}
       </div>
 
@@ -433,9 +450,7 @@ function TemplateHorizontal({
           {options.incluirTipoEndereco && data.tipoEndereco && (
             <span>{data.tipoEndereco === "PULMAO" ? "PULMÃO" : "PICKING"}</span>
           )}
-          {options.incluirCurvaAcesso && data.curvaAcesso && (
-            <span>CURVA: {data.curvaAcesso}</span>
-          )}
+          {options.incluirCurvaAcesso && data.curvaAcesso && <span>CURVA: {data.curvaAcesso}</span>}
         </div>
       )}
 
@@ -463,9 +478,15 @@ function TemplateHorizontal({
 
 // ─── Vertical Template ───
 function TemplateVertical({
-  data, template, isPrint, options,
+  data,
+  template,
+  isPrint,
+  options,
 }: {
-  data: LabelData; template: TemplateSpec; isPrint: boolean; options: EtiquetaOptions;
+  data: LabelData;
+  template: TemplateSpec;
+  isPrint: boolean;
+  options: EtiquetaOptions;
 }) {
   const { widthPx, heightPx, barcode, quietZone } = template;
   const is100x40 = heightPx === 800;
@@ -537,9 +558,7 @@ function TemplateVertical({
             margin={barcode.margin}
           />
         ) : (
-          <div style={{ color: "#CC0000", fontSize: "8px", textAlign: "center" }}>
-            ERR
-          </div>
+          <div style={{ color: "#CC0000", fontSize: "8px", textAlign: "center" }}>ERR</div>
         )}
       </div>
 
@@ -597,10 +616,19 @@ function TemplateVertical({
 
 // ─── Dispatcher ───
 function EtiquetaSingle({
-  endereco, template, isPrint, options, usuario, dataHora,
+  endereco,
+  template,
+  isPrint,
+  options,
+  usuario,
+  dataHora,
 }: {
-  endereco: EnderecoLike; template: TemplateSpec; isPrint: boolean;
-  options: EtiquetaOptions; usuario?: string; dataHora?: string;
+  endereco: EnderecoLike;
+  template: TemplateSpec;
+  isPrint: boolean;
+  options: EtiquetaOptions;
+  usuario?: string;
+  dataHora?: string;
 }) {
   const data = getLabelData(endereco);
   if (template.id === "BIN_80x20_H") {
@@ -613,7 +641,13 @@ function EtiquetaSingle({
 }
 
 export function EtiquetaEnderecoPreview({
-  enderecos, tamanho, orientacao, isPrint = false, options = {}, usuario, dataHora,
+  enderecos,
+  tamanho,
+  orientacao,
+  isPrint = false,
+  options = {},
+  usuario,
+  dataHora,
 }: EtiquetaEnderecoPreviewProps) {
   const template = getTemplateFromSelection(tamanho, orientacao);
 
