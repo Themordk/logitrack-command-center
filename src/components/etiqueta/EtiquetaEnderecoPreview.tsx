@@ -597,13 +597,14 @@ function TemplateVertical({
 
 // ─── Dispatcher ───
 function EtiquetaSingle({
-  endereco, template, isPrint, options,
+  endereco, template, isPrint, options, usuario, dataHora,
 }: {
-  endereco: EnderecoLike; template: TemplateSpec; isPrint: boolean; options: EtiquetaOptions;
+  endereco: EnderecoLike; template: TemplateSpec; isPrint: boolean;
+  options: EtiquetaOptions; usuario?: string; dataHora?: string;
 }) {
   const data = getLabelData(endereco);
   if (template.id === "BIN_80x20_H") {
-    return <TemplateBIN data={data} template={template} isPrint={isPrint} />;
+    return <TemplateBIN data={data} template={template} isPrint={isPrint} usuario={usuario} dataHora={dataHora} />;
   }
   if (template.orientation === "vertical") {
     return <TemplateVertical data={data} template={template} isPrint={isPrint} options={options} />;
@@ -612,7 +613,7 @@ function EtiquetaSingle({
 }
 
 export function EtiquetaEnderecoPreview({
-  enderecos, tamanho, orientacao, isPrint = false, options = {},
+  enderecos, tamanho, orientacao, isPrint = false, options = {}, usuario, dataHora,
 }: EtiquetaEnderecoPreviewProps) {
   const template = getTemplateFromSelection(tamanho, orientacao);
 
@@ -635,6 +636,8 @@ export function EtiquetaEnderecoPreview({
             template={template}
             isPrint={isPrint}
             options={options}
+            usuario={usuario}
+            dataHora={dataHora}
           />
         </div>
       ))}
