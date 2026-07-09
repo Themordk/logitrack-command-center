@@ -41,10 +41,127 @@ interface EtiquetaEnderecoPreviewProps {
 function getLabelData(endereco: EnderecoLike): LabelData {
   return {
     barcodeValue: String(endereco.codigo_endereco || ""),
-    displayText: endereco.descricao || "",
+    displayText: endereco.descricao || String(endereco.codigo_endereco || ""),
     tipoEndereco: endereco.tipo_endereco,
     curvaAcesso: endereco.curva_acesso,
+    nivel: endereco.nivel != null ? String(endereco.nivel) : undefined,
+    apto: endereco.apto != null ? String(endereco.apto) : undefined,
   };
+}
+
+function formatNivel(v?: string) {
+  if (!v) return "";
+  const n = String(v).replace(/^N/i, "");
+  return `N${n.length < 2 ? n.padStart(2, "0") : n}`;
+}
+function formatApto(v?: string) {
+  if (!v) return "";
+  const n = String(v).replace(/^P/i, "");
+  return `P${n.length < 2 ? n.padStart(2, "0") : n}`;
+}
+
+// ─── BIN Template (80x20 horizontal) ───
+function TemplateBIN({
+  data, template, isPrint,
+}: {
+  data: LabelData; template: TemplateSpec; isPrint: boolean;
+}) {
+  const { widthPx, heightPx, barcode, quietZone } = template;
+  const validation = validateLabel(data, template);
+  const nivel = formatNivel(data.nivel);
+  const apto = formatApto(data.apto);
+
+  // Auto-fit font: shrink as text gets longer
+  const nivelFont = nivel.length <= 3 ? 68 : nivel.length <= 4 ? 56 : 44;
+  const aptoFont = apto.length <= 4 ? 56 : apto.length <= 5 ? 46 : 36;
+
+  return (
+    <div
+      className="etiqueta-thermal"
+      style={{
+        width: `${widthPx}px`,
+        height: `${heightPx}px`,
+        background: "#FFFFFF",
+        overflow: "hidden",
+        pageBreakInside: "avoid",
+        breakInside: "avoid",
+        boxSizing: "border-box",
+        boxShadow: isPrint ? "none" : "0 2px 12px rgba(0,0,0,0.18)",
+        fontFamily: "'Arial', 'Helvetica', sans-serif",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "stretch",
+      }}
+    >
+      {/* Barcode – ~65% */}
+      <div
+        style={{
+          flex: "0 0 65%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: `${quietZone.vertical}px ${quietZone.horizontal}px`,
+          background: "#FFFFFF",
+        }}
+      >
+        {validation.valid ? (
+          <BarcodeRenderer
+            value={data.barcodeValue}
+            moduleWidth={barcode.moduleWidth}
+            height={barcode.height}
+            margin={barcode.margin}
+            maxWidth={Math.floor(widthPx * 0.65) - quietZone.horizontal * 2}
+          />
+        ) : (
+          <div style={{ color: "#CC0000", fontSize: "9px", textAlign: "center" }}>
+            {validation.errors.join(" | ")}
+          </div>
+        )}
+      </div>
+
+      {/* Nivel + Apto – ~35% */}
+      <div
+        style={{
+          flex: "0 0 35%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "4px",
+          padding: "4px 8px",
+          background: "#FFFFFF",
+          borderLeft: "2px solid #000000",
+        }}
+      >
+        <div
+          style={{
+            fontSize: `${nivelFont}px`,
+            fontWeight: 900,
+            color: "#000000",
+            lineHeight: 1,
+            letterSpacing: "1px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+          }}
+        >
+          {nivel || "—"}
+        </div>
+        <div
+          style={{
+            fontSize: `${aptoFont}px`,
+            fontWeight: 900,
+            color: "#000000",
+            lineHeight: 1,
+            letterSpacing: "0.5px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+          }}
+        >
+          {apto || "—"}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Horizontal Template ───
