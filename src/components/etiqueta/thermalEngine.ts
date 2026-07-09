@@ -173,9 +173,10 @@ export function getPrintCSS(template: TemplateSpec): string {
 }
 
 export function getTemplateFromSelection(
-  tamanho: "100x40" | "50x20",
+  tamanho: "100x40" | "50x20" | "80x20",
   orientacao: "horizontal" | "vertical"
 ): TemplateSpec {
+  if (tamanho === "80x20") return TEMPLATES.BIN_80x20_H;
   if (tamanho === "100x40" && orientacao === "horizontal") return TEMPLATES.ARMAZEM_100x40_H;
   if (tamanho === "100x40" && orientacao === "vertical") return TEMPLATES.ARMAZEM_100x40_V;
   if (tamanho === "50x20" && orientacao === "horizontal") return TEMPLATES.LOJA_50x20_H;
