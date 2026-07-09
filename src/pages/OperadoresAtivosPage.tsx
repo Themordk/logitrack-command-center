@@ -223,7 +223,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                       <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">{endereco}</td>
                       <td className="px-4 py-3 tabular-nums">{tempo > 0 ? formatarTempoEspera(tempo) : "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{o.tarefas_hoje}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{o.inicio_sessao ? format(new Date(o.inicio_sessao), "HH:mm") : "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{o.inicio_sessao ? formatTime(o.inicio_sessao) : "—"}</td>
                     </tr>
                   );
                 })}
