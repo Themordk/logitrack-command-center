@@ -7,6 +7,7 @@ import React from "react";
 import { BarcodeRenderer, BarcodeRendererVertical } from "./BarcodeRenderer";
 import { QRCodeRenderer } from "./QRCodeRenderer";
 import { type TemplateSpec, type LabelData, validateLabel, getTemplateFromSelection } from "./thermalEngine";
+import { Calendar } from "lucide-react";
 
 interface EnderecoLike {
   id: string | number;
@@ -36,6 +37,10 @@ interface EtiquetaEnderecoPreviewProps {
   orientacao: OrientacaoEtiqueta;
   isPrint?: boolean;
   options?: EtiquetaOptions;
+  /** Usuário que está imprimindo (aparece no header do template BIN) */
+  usuario?: string;
+  /** Data/hora exibida no header do template BIN. Default: agora */
+  dataHora?: string;
 }
 
 function getLabelData(endereco: EnderecoLike): LabelData {
