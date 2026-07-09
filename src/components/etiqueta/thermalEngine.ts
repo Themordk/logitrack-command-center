@@ -77,6 +77,24 @@ export const TEMPLATES: Record<TemplateId, TemplateSpec> = {
     qrCode: { size: 48, margin: 2 },
     quietZone: { horizontal: 12, vertical: 10 },
   },
+  LOJA_50x20_V: {
+    id: "LOJA_50x20_V",
+    widthMm: 20, heightMm: 50,
+    widthPx: 160, heightPx: 400,
+    orientation: "vertical",
+    barcode: { moduleWidth: 2, height: 60, margin: 10 },
+    qrCode: { size: 48, margin: 2 },
+    quietZone: { horizontal: 12, vertical: 10 },
+  },
+  BIN_80x20_H: {
+    id: "BIN_80x20_H",
+    widthMm: 80, heightMm: 20,
+    widthPx: 640, heightPx: 160,
+    orientation: "horizontal",
+    barcode: { moduleWidth: 2, height: 120, margin: 8 },
+    qrCode: { size: 0, margin: 0 },
+    quietZone: { horizontal: 12, vertical: 10 },
+  },
 };
 
 // ─── Label Data ───
