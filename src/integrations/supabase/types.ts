@@ -6881,6 +6881,14 @@ export type Database = {
         }
         Returns: Json
       }
+      dashboard_operadores_ativos: {
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       dashboard_ranking_operadores: {
         Args: {
           p_armazem_id?: string
@@ -6898,6 +6906,15 @@ export type Database = {
           tempo_medio_seg: number
           usuario_id: string
         }[]
+      }
+      dashboard_tarefas_ativas: {
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id?: string
+          p_limite?: number
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       dashboard_tendencia_tarefas: {
         Args: {
