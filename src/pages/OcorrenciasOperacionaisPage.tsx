@@ -249,6 +249,26 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
               className={cn(inputClass, "w-full pl-8")}
             />
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Criada de</label>
+            <input
+              type="date"
+              value={dataIni}
+              max={dataFim || undefined}
+              onChange={(e) => { setDataIni(e.target.value); setPage(1); }}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Criada até</label>
+            <input
+              type="date"
+              value={dataFim}
+              min={dataIni || undefined}
+              onChange={(e) => { setDataFim(e.target.value); setPage(1); }}
+              className={inputClass}
+            />
+          </div>
         </div>
       </div>
 
