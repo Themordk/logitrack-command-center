@@ -485,6 +485,9 @@ function EtiquetaSingle({
   endereco: EnderecoLike; template: TemplateSpec; isPrint: boolean; options: EtiquetaOptions;
 }) {
   const data = getLabelData(endereco);
+  if (template.id === "BIN_80x20_H") {
+    return <TemplateBIN data={data} template={template} isPrint={isPrint} />;
+  }
   if (template.orientation === "vertical") {
     return <TemplateVertical data={data} template={template} isPrint={isPrint} options={options} />;
   }
