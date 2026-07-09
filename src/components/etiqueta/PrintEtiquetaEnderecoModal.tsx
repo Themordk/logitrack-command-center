@@ -42,7 +42,7 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   enderecos.forEach((end) => {
     const data: LabelData = {
       barcodeValue: String(end.codigo_endereco || ""),
-      displayText: end.descricao || "",
+      displayText: end.descricao || String(end.codigo_endereco || ""),
     };
     const result = validateLabel(data, template);
     if (!result.valid) {
