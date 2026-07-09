@@ -1,8 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaEnderecoPreview, TamanhoEtiqueta, OrientacaoEtiqueta, EtiquetaOptions } from "./EtiquetaEnderecoPreview";
 import { getPrintCSS, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
+import { useTenant } from "@/contexts/TenantContext";
+import { formatDateTime } from "@/utils/dateTime";
 
 interface PrintEtiquetaEnderecoModalProps {
   open: boolean;
