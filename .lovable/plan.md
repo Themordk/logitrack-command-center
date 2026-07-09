@@ -1,53 +1,66 @@
 ## Objetivo
-Adicionar um novo template de etiqueta **80×20 mm horizontal** para caixas BIN, exibindo à esquerda o **código de barras** de `ENDERECO.CODIGO_ENDERECO` e à direita, com fonte grande, os campos `NIVEL` (linha 1) e `APTO` (linha 2). Reutilizar toda a infraestrutura atual (JsBarcode, thermalEngine, PrintEtiquetaEnderecoModal, preview e impressão) — sem alterar os templates 100×40 e 50×20.
+Refazer o template **BIN 80×20 mm** (horizontal) para bater visualmente com o mockup enviado, mantendo a mesma arquitetura (`thermalEngine` + `EtiquetaEnderecoPreview` + `BarcodeRenderer`) e sem alterar tamanho, DPI ou pipeline de impressão.
 
-## Alterações
+## Estrutura visual alvo
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ [BLACK HEADER]                                               │
+│  ■ CORE       LOCALIZAÇÃO BIN        📅 23/05/2025 10:30    │
+│    LogiTrack                         Usuário: OPERADOR       │
+├───────────────────────────────┬──────────────────────────────┤
+│  CÓDIGO DE ENDEREÇO           │  NÍVEL  │      N03           │
+│  ▐█▐█▐▌█▐█▌▐█▐█▌▐█            │─────────┼─────────────       │
+│  END00012345                  │  APTO   │      P101          │
+└───────────────────────────────┴──────────────────────────────┘
+```
+
+Proporções: header ≈ 22% da altura, corpo ≈ 78%. Corpo dividido em ~55% (barcode) / ~45% (nível/apto). Margem interna 2 mm (16 px @ 203 DPI) em todos os lados. Linha divisória vertical preta entre as duas metades e linha horizontal entre NÍVEL e APTO.
+
+## Arquivos alterados
 
 ### 1. `src/components/etiqueta/thermalEngine.ts`
-- Ampliar `TemplateId` com `"BIN_80x20_H"`.
-- Adicionar entrada em `TEMPLATES`:
-  - `widthMm: 80, heightMm: 20` → `widthPx: 640, heightPx: 160` (203 DPI, 8 px/mm)
-  - `orientation: "horizontal"`
-  - `barcode: { moduleWidth: 2, height: 120, margin: 8 }` (mantém legibilidade)
-  - `qrCode` presente por compatibilidade de tipo, sem uso no template
-  - `quietZone: { horizontal: 12, vertical: 10 }`
-- Ampliar `TamanhoEtiqueta` (em `EtiquetaEnderecoPreview.tsx`) com `"80x20"`.
-- Atualizar `getTemplateFromSelection` para retornar `BIN_80x20_H` quando `tamanho === "80x20"` (força horizontal — orientação vertical não suportada neste template).
+Ajustar `TEMPLATES.BIN_80x20_H`:
+- `quietZone`: `{ horizontal: 16, vertical: 16 }` (2 mm).
+- `barcode`: `{ moduleWidth: 2, height: 64, margin: 4 }` (altura reduzida para caber barcode + texto legível).
 
 ### 2. `src/components/etiqueta/EtiquetaEnderecoPreview.tsx`
-- Ampliar `LabelData` (em thermalEngine) com `nivel?: string` e `apto?: string` (opcionais, só usados no BIN).
-- `getLabelData` passa a incluir `nivel` e `apto` do endereço.
-- Criar um novo componente `TemplateBIN` (interno) que renderiza:
-  - Container flex horizontal, `width/height` fixos.
-  - **Esquerda (~65%)**: `<BarcodeRenderer>` com `moduleWidth/height/margin` do template, respeitando `quietZone`.
-  - **Direita (~35%)**: coluna vertical centralizada, duas linhas:
-    - `NIVEL` — fonte muito grande (ex.: 64px), negrito, letra-spacing curto.
-    - `APTO` — negrito, ligeiramente menor (ex.: 52px).
-  - Auto-fit: usar `fontSize` dinâmico simples baseado no `length` do texto (fallback CSS via `clamp`/redução condicional) para nunca cortar/quebrar linha; `whiteSpace: nowrap` e `overflow: hidden`.
-  - Header CORE removido (etiqueta é pequena e o foco é o texto grande) — mantém `border-bottom` opcional se necessário para manter identidade, mas priorizando o texto.
-- No dispatcher `EtiquetaSingle`, se `template.id === "BIN_80x20_H"` renderiza `TemplateBIN`; senão mantém o caminho atual (H/V).
+Passar novos campos para `TemplateBIN` e reescrever o componente:
 
-### 3. Fonte dos dados de `NIVEL`/`APTO`
-- O tipo `EnderecoLike` no `EtiquetaEnderecoPreview.tsx` receberá campos opcionais `nivel?: number | string` e `apto?: number | string` (colunas já existentes em `endereco`).
-- Formatação: usar `String(...).padStart(2,"0")` para `nivel` prefixado com `"N"` (ex.: `N03`) e `apto` prefixado com `"P"` (ex.: `P101`) — sem padding forçado quando o valor já tem 3+ dígitos, para respeitar a responsividade do prompt (`N123`, `P1000`).
+**Novos dados exibidos**
+- `barcodeValue` (ex.: `END00012345`) formatado com zero-pad, mesma origem atual (`codigo_endereco`).
+- Data/hora atual (`new Date()` no momento da renderização, formato `dd/MM/yyyy HH:mm`, timezone via `src/utils/dateTime.ts`).
+- Usuário logado: ler do contexto (`useAuth`/`TenantContext` – confirmar em build) e exibir em maiúsculas. Fallback: `—`.
 
-### 4. `src/components/etiqueta/PrintEtiquetaEnderecoModal.tsx`
-- Ampliar o tipo `enderecos` para aceitar `nivel?` e `apto?`.
-- Adicionar `"80x20"` como opção no `SelectField` "Tamanho" com rótulo `80mm × 20mm – 640×160px (BIN)`.
-- Quando o tamanho for `80x20`, desabilitar/forçar orientação para `horizontal` e ocultar as checkboxes de QR Code / Curva / Tipo (não fazem parte do layout BIN). O `validateLabel` continua exigindo `barcodeValue` e `displayText`; para BIN, preencheremos `displayText` com o próprio `codigo_endereco` como fallback (não é renderizado) para passar a validação sem alterar o engine.
+**Novo layout do `TemplateBIN`**
+- Container flex column.
+- **Header** (altura fixa ≈ 44 px): fundo preto, texto branco.
+  - Esquerda: bloco "CORE / LogiTrack" (duas linhas empilhadas, fonte pequena, bold).
+  - Centro (flex-1): `LOCALIZAÇÃO BIN` bold, letter-spacing 2px, tamanho ~16 px.
+  - Direita: ícone calendário (lucide `Calendar` inline SVG monocromático) + data/hora em uma linha; abaixo `Usuário: {nome}`.
+- **Corpo** (flex 1, fundo branco, padding 8 px):
+  - **Coluna esquerda (55%)**: `CÓDIGO DE ENDEREÇO` (label 9 px, bold, centralizado), barcode Code128 centralizado abaixo (altura ~60 px), e texto do código embaixo em fonte monoespaçada 12 px bold.
+  - **Divisor vertical**: 2 px preto.
+  - **Coluna direita (45%)**: duas linhas iguais separadas por linha horizontal 2 px preta.
+    - Linha 1: label `NÍVEL` à esquerda (12 px bold), valor `Nxx` à direita em fonte grande (auto-fit 40–56 px, 900 bold).
+    - Linha 2: label `APTO` à esquerda, valor `Pxxx` à direita mesma regra.
+- Manter `validateLabel` já existente; se inválido, exibir mensagem de erro no lugar do barcode.
 
-### 5. Origem das chamadas
-- As rotinas atuais que abrem `PrintEtiquetaEnderecoModal` (ex.: `EnderecosPage.tsx`, `EnderecosBatchPage.tsx`) já passam o registro do endereço. Garantir apenas que os campos `nivel` e `apto` sejam repassados no objeto (spread do row) — sem alterar a UI dessas telas.
+Fontes: Segoe UI (fallback Arial/Helvetica) — atualizar `fontFamily` do container para `"'Segoe UI', Arial, Helvetica, sans-serif"`.
 
-## Critérios de aceite (mapeados)
-- Nova opção “80mm × 20mm (BIN)” disponível no modal de impressão.
-- Barcode via mesma pipeline (`BarcodeRenderer` + JsBarcode Code128) usando `codigo_endereco`.
-- Texto exibido: apenas `NIVEL` e `APTO`, sem `descricao`.
-- Fonte grande, negrito, responsiva (auto-shrink) e sem quebra/corte.
-- Templates 100×40 e 50×20 permanecem inalterados.
-- Impressão via `getPrintCSS(template)` reutiliza `@page 80mm 20mm`.
+### 3. `src/components/etiqueta/PrintEtiquetaEnderecoModal.tsx`
+- Nenhuma mudança estrutural. Apenas atualizar o rótulo do option para deixar claro o novo layout, ex.: `80mm × 20mm – Localização BIN (Nível/Apto)`.
+- Passar `usuario` via prop opcional caso o header do modal já disponha; caso contrário, o próprio `TemplateBIN` lê do contexto.
 
-## Fora de escopo
-- Alterações nos templates existentes.
-- Novo modal / novo serviço de impressão.
-- Alterações no banco (colunas `nivel`/`apto` já existem).
+## Detalhes técnicos
+
+- Timezone/formatação da data: usar helper existente em `src/utils/dateTime.ts` (padrão do projeto — America/Fortaleza).
+- Usuário logado: recuperar via `TenantContext`/`useAuth` (a confirmar durante build; se não disponível diretamente, expor via prop opcional no `EtiquetaEnderecoPreview` e passar do modal).
+- Barcode continua Code128 com `JsBarcode` (mesmo `BarcodeRenderer`); sem QR nem alterações no engine de leitura.
+- Impressão: `getPrintCSS` inalterado; `@page 80mm × 20mm` já correto.
+- Sem alteração em `src/pages/EnderecosPage.tsx` / `EnderecosBatchPage.tsx`.
+
+## Fora do escopo
+- Templates 100×40 e 50×20.
+- Persistência de logotipo (mantém texto “CORE LogiTrack”; se no futuro houver SVG do logo, plugar no header).
+- ZPL/EPL nativos.
