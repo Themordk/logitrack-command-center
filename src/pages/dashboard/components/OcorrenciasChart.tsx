@@ -1,10 +1,12 @@
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { LABELS_TIPO_OCORRENCIA, OcorrenciasResult } from "../dashboard.service";
 
 interface Props {
   data: OcorrenciasResult | null;
   loading?: boolean;
+  onNavigate?: (path: string) => void;
 }
 
 const CORES_TIPO: Record<string, string> = {
@@ -19,7 +21,7 @@ const CORES_TIPO: Record<string, string> = {
   OUTROS: "hsl(220 15% 55%)",
 };
 
-export function OcorrenciasChart({ data, loading }: Props) {
+export function OcorrenciasChart({ data, loading, onNavigate }: Props) {
   const resumo = data?.resumo;
   const porTipoRaw = Array.isArray(data?.por_tipo) ? data!.por_tipo : [];
   const porTipo = porTipoRaw.map((item) => ({
@@ -33,7 +35,13 @@ export function OcorrenciasChart({ data, loading }: Props) {
   return (
     <div className="card-surface p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <h3
+          className={cn(
+            "text-sm font-semibold text-foreground flex items-center gap-2",
+            onNavigate && "cursor-pointer hover:text-primary transition-colors"
+          )}
+          onClick={() => onNavigate?.("/atividades/ocorrencias")}
+        >
           <AlertTriangle size={14} className="text-red-400" />
           Ocorrências Operacionais
         </h3>
@@ -47,8 +55,17 @@ export function OcorrenciasChart({ data, loading }: Props) {
           <span className="text-xs text-muted-foreground">
             {resumo?.total || 0} no período
           </span>
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate("/atividades/ocorrencias")}
+              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+            >
+              Ver todas →
+            </button>
+          )}
         </div>
       </div>
+
 
       {temDados && resumo && (
         <div className="flex gap-4 mb-4 text-xs">

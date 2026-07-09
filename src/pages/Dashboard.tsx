@@ -130,7 +130,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           trend={trendTC}
           progress={tc ? tc.valor : undefined}
           tooltip="Percentual de ondas de carregamento finalizadas sobre o total emitido no período."
-          onClick={() => onNavigate("/atividades/movimento-saida")}
+          onClick={() => onNavigate("/atividades/mov-saida")}
         />
         <KPICardPro
           title="Ocupação de Endereços"
@@ -150,6 +150,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           severity={sevProd}
           trend={trendProd}
           unit="tarefas/hora"
+          onClick={() => onNavigate("/relatorios/produtividade")}
         />
         <KPICardPro
           title="Fila de Espera"
@@ -159,7 +160,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           severity={sevBack}
           trendGoodWhen="down"
           unit="tarefas"
-          onClick={() => onNavigate("/atividades/movimento-saida")}
+          onClick={() => onNavigate("/atividades/mov-saida")}
         />
       </div>
 
@@ -170,6 +171,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           subtitle={kpis ? (kpis.em_andamento > 0 ? "tarefas sendo executadas agora" : "Nenhuma tarefa em execução") : "Carregando..."}
           icon={<PlayCircle size={20} />}
           severity={sevEA}
+          onClick={() => onNavigate("/atividades/mov-saida")}
         />
         <KPICardPro
           title="Operadores Ativos"
@@ -185,6 +187,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           icon={<Package size={20} />}
           severity={sevTP}
           unit="un"
+          onClick={() => onNavigate("/relatorios/movimentacoes")}
         />
         <KPICardPro
           title="Acurácia Operacional"
@@ -193,14 +196,15 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           icon={<ShieldCheck size={20} />}
           severity={sevAC}
           progress={ac ? ac.valor : undefined}
+          onClick={() => onNavigate("/atividades/ocorrencias")}
         />
       </div>
 
       <TendenciaChart data={tendencia} loading={loading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RankingOperadores data={ranking} loading={loading} />
-        <OcorrenciasChart data={ocorrencias} loading={loading} />
+        <RankingOperadores data={ranking} loading={loading} onNavigate={onNavigate} />
+        <OcorrenciasChart data={ocorrencias} loading={loading} onNavigate={onNavigate} />
       </div>
     </div>
   );
