@@ -3,7 +3,7 @@
  */
 const routeToModuleMap: Record<string, string> = {
   "/": "web.dashboard",
-  "/rastreabilidade": "web.rastreabilidade",
+  
   "/armazem/armazens": "web.armazem.armazens",
   "/armazem/setores": "web.armazem.setores",
   "/armazem/tipos-estoque": "web.armazem.tipos-estoque",

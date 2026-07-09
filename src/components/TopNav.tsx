@@ -19,7 +19,7 @@ import {
   MapPin,
   Boxes,
   LayoutDashboard,
-  Scan,
+  
   LogOut,
 } from "lucide-react";
 
@@ -35,11 +35,6 @@ const navItems: NavItem[] = [
     label: "Dashboard",
     icon: <LayoutDashboard size={15} />,
     path: "/",
-  },
-  {
-    label: "Rastreabilidade",
-    icon: <Scan size={15} />,
-    path: "/rastreabilidade",
   },
   {
     label: "Armazém",

@@ -33,7 +33,7 @@ import { HUsPage } from "./pages/HUsPage";
 import { VolumesPage } from "./pages/VolumesPage";
 import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
-import { RastreabilidadePage } from "./pages/RastreabilidadePage";
+
 import { EntradasPage } from "./pages/EntradasPage";
 import { MovimentoEntradaPage } from "./pages/MovimentoEntradaPage";
 import { OcorrenciasOperacionaisPage } from "./pages/OcorrenciasOperacionaisPage";
@@ -137,7 +137,7 @@ import { SupportChamadosPage } from "./pages/suporte/SupportChamadosPage";
 
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
-  "/rastreabilidade": [{ label: "CORE LogiTrack" }, { label: "Rastreabilidade" }],
+  
   "/armazem/armazens": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Armazéns" }],
   "/armazem/setores": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Setores" }],
   "/armazem/tipos-estoque": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Tipos de Estoque" }],
@@ -248,7 +248,7 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
 function renderPage(path: string, onNavigate: (p: string) => void) {
   switch (path) {
     case "/": return <Dashboard onNavigate={onNavigate} />;
-    case "/rastreabilidade": return <RastreabilidadePage />;
+    
     case "/armazem/armazens": return <ArmazensPage />;
     case "/armazem/setores": return <SetoresPage />;
     case "/armazem/tipos-estoque": return <TiposEstoquePage />;
