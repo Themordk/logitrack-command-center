@@ -16,6 +16,8 @@ interface PrintEtiquetaEnderecoModalProps {
     setor_id?: string;
     tipo_endereco?: string;
     curva_acesso?: string;
+    nivel?: number | string | null;
+    apto?: number | string | null;
   }>;
 }
 
