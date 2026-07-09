@@ -1,8 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaEnderecoPreview, TamanhoEtiqueta, OrientacaoEtiqueta, EtiquetaOptions } from "./EtiquetaEnderecoPreview";
 import { getPrintCSS, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
+import { useTenant } from "@/contexts/TenantContext";
+import { formatDateTime } from "@/utils/dateTime";
 
 interface PrintEtiquetaEnderecoModalProps {
   open: boolean;
@@ -32,6 +34,8 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   const [incluirCurvaAcesso, setIncluirCurvaAcesso] = useState(false);
   const [incluirTipoEndereco, setIncluirTipoEndereco] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const { usuarioNome } = useTenant();
+  const dataHora = useMemo(() => formatDateTime(new Date()), [open, showPreview]);
 
   const plural = enderecos.length > 1;
   const etiquetaOptions: EtiquetaOptions = { incluirQRCode, incluirCurvaAcesso, incluirTipoEndereco };
@@ -126,7 +130,7 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
             }} options={[
               { value: "100x40", label: `100mm × 40mm – 800×320px (Industrial)` },
               { value: "50x20", label: `50mm × 20mm – 400×160px (Compacta)` },
-              { value: "80x20", label: `80mm × 20mm – 640×160px (BIN)` },
+              { value: "80x20", label: `80mm × 20mm – Localização BIN (Nível/Apto)` },
             ]} />
             {tamanho !== "80x20" && (
               <SelectField label="🔄 Orientação" value={orientacao} onChange={(v) => setOrientacao(v as OrientacaoEtiqueta)} options={[
@@ -184,9 +188,9 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={etiquetaOptions} />
+              <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} />
             </div>
-            <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={etiquetaOptions} />
+            <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} />
           </div>
         </div>
       )}

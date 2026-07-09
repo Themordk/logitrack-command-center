@@ -82,9 +82,9 @@ export const TEMPLATES: Record<TemplateId, TemplateSpec> = {
     widthMm: 80, heightMm: 20,
     widthPx: 640, heightPx: 160,
     orientation: "horizontal",
-    barcode: { moduleWidth: 2, height: 120, margin: 8 },
+    barcode: { moduleWidth: 2, height: 64, margin: 4 },
     qrCode: { size: 0, margin: 0 },
-    quietZone: { horizontal: 12, vertical: 10 },
+    quietZone: { horizontal: 16, vertical: 16 },
   },
 };
 
