@@ -159,7 +159,7 @@ export function PerfisAcessoPage() {
 
   const groupLabels: Record<string, string> = {
     "web.dashboard": "Dashboard",
-    "web.rastreabilidade": "Rastreabilidade",
+    
     "web.armazem": "Armazém",
     "web.dados-mestres": "Dados Mestres",
     "web.atividades": "Atividades",
