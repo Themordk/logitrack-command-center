@@ -120,25 +120,33 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
           )}
 
           <div className="space-y-4">
-            <SelectField label="📐 Tamanho" value={tamanho} onChange={(v) => setTamanho(v as TamanhoEtiqueta)} options={[
-              { value: "100x40", label: `100mm × 40mm – ${800}×${320}px (Industrial)` },
-              { value: "50x20", label: `50mm × 20mm – ${400}×${160}px (Compacta)` },
+            <SelectField label="📐 Tamanho" value={tamanho} onChange={(v) => {
+              setTamanho(v as TamanhoEtiqueta);
+              if (v === "80x20") setOrientacao("horizontal");
+            }} options={[
+              { value: "100x40", label: `100mm × 40mm – 800×320px (Industrial)` },
+              { value: "50x20", label: `50mm × 20mm – 400×160px (Compacta)` },
+              { value: "80x20", label: `80mm × 20mm – 640×160px (BIN)` },
             ]} />
-            <SelectField label="🔄 Orientação" value={orientacao} onChange={(v) => setOrientacao(v as OrientacaoEtiqueta)} options={[
-              { value: "horizontal", label: "Horizontal (Paisagem)" },
-              { value: "vertical", label: "Vertical (Retrato)" },
-            ]} />
+            {tamanho !== "80x20" && (
+              <SelectField label="🔄 Orientação" value={orientacao} onChange={(v) => setOrientacao(v as OrientacaoEtiqueta)} options={[
+                { value: "horizontal", label: "Horizontal (Paisagem)" },
+                { value: "vertical", label: "Vertical (Retrato)" },
+              ]} />
+            )}
             <SelectField label="🖨️ Saída" value={saida} onChange={(v) => setSaida(v as Saida)} options={[
               { value: "preview", label: "Visualizar (Preview)" },
               { value: "imprimir", label: "Imprimir Diretamente" },
             ]} />
 
-            <div className="border border-border/50 rounded-lg p-3 space-y-2">
-              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-2">Campos Opcionais</p>
-              <CheckboxField label="Incluir QR Code" checked={incluirQRCode} onChange={setIncluirQRCode} />
-              <CheckboxField label="Incluir Curva de Acesso" checked={incluirCurvaAcesso} onChange={setIncluirCurvaAcesso} />
-              <CheckboxField label="Incluir Tipo (Picking/Pulmão)" checked={incluirTipoEndereco} onChange={setIncluirTipoEndereco} />
-            </div>
+            {tamanho !== "80x20" && (
+              <div className="border border-border/50 rounded-lg p-3 space-y-2">
+                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-2">Campos Opcionais</p>
+                <CheckboxField label="Incluir QR Code" checked={incluirQRCode} onChange={setIncluirQRCode} />
+                <CheckboxField label="Incluir Curva de Acesso" checked={incluirCurvaAcesso} onChange={setIncluirCurvaAcesso} />
+                <CheckboxField label="Incluir Tipo (Picking/Pulmão)" checked={incluirTipoEndereco} onChange={setIncluirTipoEndereco} />
+              </div>
+            )}
 
             <div className="text-[10px] text-muted-foreground bg-secondary/50 rounded px-2 py-1.5">
               Otimizado para Elgin L42PRO · 203 DPI · Code128 · Dimensões fixas em pixels
