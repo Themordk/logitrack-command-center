@@ -67,18 +67,26 @@ function formatApto(v?: string) {
 
 // ─── BIN Template (80x20 horizontal) ───
 function TemplateBIN({
-  data, template, isPrint,
+  data, template, isPrint, usuario, dataHora,
 }: {
   data: LabelData; template: TemplateSpec; isPrint: boolean;
+  usuario?: string; dataHora?: string;
 }) {
-  const { widthPx, heightPx, barcode, quietZone } = template;
+  const { widthPx, heightPx, barcode } = template;
   const validation = validateLabel(data, template);
   const nivel = formatNivel(data.nivel);
   const apto = formatApto(data.apto);
 
-  // Auto-fit font: shrink as text gets longer
-  const nivelFont = nivel.length <= 3 ? 68 : nivel.length <= 4 ? 56 : 44;
-  const aptoFont = apto.length <= 4 ? 56 : apto.length <= 5 ? 46 : 36;
+  // Auto-fit valor Nível / Apto (coluna direita)
+  const nivelFont = nivel.length <= 3 ? 44 : nivel.length <= 4 ? 38 : 30;
+  const aptoFont = apto.length <= 4 ? 40 : apto.length <= 5 ? 32 : 26;
+
+  const headerH = 36;
+  const bodyH = heightPx - headerH;
+  const leftW = Math.round(widthPx * 0.55);
+  const rightW = widthPx - leftW;
+  const usuarioNome = (usuario || "—").toUpperCase();
+  const dataHoraStr = dataHora || "";
 
   return (
     <div
@@ -92,77 +100,181 @@ function TemplateBIN({
         breakInside: "avoid",
         boxSizing: "border-box",
         boxShadow: isPrint ? "none" : "0 2px 12px rgba(0,0,0,0.18)",
-        fontFamily: "'Arial', 'Helvetica', sans-serif",
+        fontFamily: "'Segoe UI', 'Arial', 'Helvetica', sans-serif",
         display: "flex",
-        flexDirection: "row",
-        alignItems: "stretch",
+        flexDirection: "column",
       }}
     >
-      {/* Barcode – ~65% */}
+      {/* Header preto */}
       <div
         style={{
-          flex: "0 0 65%",
+          height: `${headerH}px`,
+          background: "#000000",
+          color: "#FFFFFF",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          padding: `${quietZone.vertical}px ${quietZone.horizontal}px`,
-          background: "#FFFFFF",
+          padding: "0 10px",
+          flexShrink: 0,
         }}
       >
-        {validation.valid ? (
-          <BarcodeRenderer
-            value={data.barcodeValue}
-            moduleWidth={barcode.moduleWidth}
-            height={barcode.height}
-            margin={barcode.margin}
-            maxWidth={Math.floor(widthPx * 0.65) - quietZone.horizontal * 2}
-          />
-        ) : (
-          <div style={{ color: "#CC0000", fontSize: "9px", textAlign: "center" }}>
-            {validation.errors.join(" | ")}
+        {/* Logo textual */}
+        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1, minWidth: "70px" }}>
+          <span style={{ fontSize: "11px", fontWeight: 800, letterSpacing: "1px" }}>CORE</span>
+          <span style={{ fontSize: "8px", fontWeight: 600, letterSpacing: "0.5px", opacity: 0.9 }}>LogiTrack</span>
+        </div>
+        {/* Título centralizado */}
+        <div
+          style={{
+            flex: 1,
+            textAlign: "center",
+            fontSize: "13px",
+            fontWeight: 800,
+            letterSpacing: "2px",
+            textTransform: "uppercase",
+          }}
+        >
+          LOCALIZAÇÃO BIN
+        </div>
+        {/* Data/hora + usuário */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.15, minWidth: "115px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "9px", fontWeight: 600 }}>
+            <Calendar size={9} strokeWidth={2.5} color="#FFFFFF" />
+            <span>{dataHoraStr}</span>
           </div>
-        )}
+          <div style={{ fontSize: "8px", fontWeight: 600, marginTop: "2px" }}>
+            Usuário: <span style={{ fontWeight: 800 }}>{usuarioNome}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Nivel + Apto – ~35% */}
+      {/* Corpo */}
       <div
         style={{
-          flex: "0 0 35%",
+          height: `${bodyH}px`,
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "4px",
-          padding: "4px 8px",
+          flexDirection: "row",
           background: "#FFFFFF",
-          borderLeft: "2px solid #000000",
         }}
       >
+        {/* Coluna esquerda: código + barcode */}
         <div
           style={{
-            fontSize: `${nivelFont}px`,
-            fontWeight: 900,
-            color: "#000000",
-            lineHeight: 1,
-            letterSpacing: "1px",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
+            width: `${leftW}px`,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "4px 8px",
+            borderRight: "2px solid #000000",
+            gap: "2px",
           }}
         >
-          {nivel || "—"}
+          <div
+            style={{
+              fontSize: "9px",
+              fontWeight: 700,
+              letterSpacing: "1px",
+              color: "#000000",
+              textTransform: "uppercase",
+              lineHeight: 1,
+            }}
+          >
+            CÓDIGO DE ENDEREÇO
+          </div>
+          {validation.valid ? (
+            <>
+              <BarcodeRenderer
+                value={data.barcodeValue}
+                moduleWidth={barcode.moduleWidth}
+                height={barcode.height}
+                margin={barcode.margin}
+                maxWidth={leftW - 16}
+              />
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  letterSpacing: "1.5px",
+                  color: "#000000",
+                  lineHeight: 1,
+                  fontFamily: "'Consolas', 'Menlo', monospace",
+                }}
+              >
+                {data.barcodeValue}
+              </div>
+            </>
+          ) : (
+            <div style={{ color: "#CC0000", fontSize: "9px", textAlign: "center" }}>
+              {validation.errors.join(" | ")}
+            </div>
+          )}
         </div>
+
+        {/* Coluna direita: NÍVEL / APTO */}
         <div
           style={{
-            fontSize: `${aptoFont}px`,
-            fontWeight: 900,
-            color: "#000000",
-            lineHeight: 1,
-            letterSpacing: "0.5px",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
+            width: `${rightW}px`,
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          {apto || "—"}
+          {/* NÍVEL */}
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              padding: "0 6px 0 8px",
+              borderBottom: "2px solid #000000",
+            }}
+          >
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", color: "#000000", minWidth: "36px" }}>
+              NÍVEL
+            </span>
+            <span
+              style={{
+                flex: 1,
+                textAlign: "center",
+                fontSize: `${nivelFont}px`,
+                fontWeight: 900,
+                color: "#000000",
+                lineHeight: 1,
+                letterSpacing: "1px",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+              }}
+            >
+              {nivel || "—"}
+            </span>
+          </div>
+          {/* APTO */}
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              padding: "0 6px 0 8px",
+            }}
+          >
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", color: "#000000", minWidth: "36px" }}>
+              APTO
+            </span>
+            <span
+              style={{
+                flex: 1,
+                textAlign: "center",
+                fontSize: `${aptoFont}px`,
+                fontWeight: 900,
+                color: "#000000",
+                lineHeight: 1,
+                letterSpacing: "0.5px",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+              }}
+            >
+              {apto || "—"}
+            </span>
+          </div>
         </div>
       </div>
     </div>
