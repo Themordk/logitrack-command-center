@@ -15,7 +15,8 @@ export type TemplateId =
   | "ARMAZEM_100x40_H"
   | "ARMAZEM_100x40_V"
   | "LOJA_50x20_H"
-  | "LOJA_50x20_V";
+  | "LOJA_50x20_V"
+  | "BIN_80x20_H";
 
 export interface TemplateSpec {
   id: TemplateId;
