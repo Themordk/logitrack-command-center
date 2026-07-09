@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { nowBrasilia } from "./dateUtils";
+
 
 /**
  * Marks `iniciado_em` on tarefa_execucao when the operator starts working.
@@ -15,7 +15,7 @@ export async function markTarefaIniciada(tarefaExecucaoId: string | null | undef
   try {
     const { error } = await (supabase as any)
       .from("tarefa_execucao")
-      .update({ iniciado_em: nowBrasilia() })
+      .update({ iniciado_em: new Date().toISOString() })
       .eq("id", tarefaExecucaoId)
       .is("iniciado_em", null); // Only set if not already set
 

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { nowBrasilia } from "@/lib/dateUtils";
+
 import { Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -65,7 +65,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
 
       // Processa cada item em loop; trigger de banco atualiza estoque_geral
       for (const it of itens) {
-        const now = nowBrasilia();
+        const now = new Date().toISOString();
         const { data: tarefa, error: errTarefa } = await (supabase as any)
           .from("tarefa")
           .insert({

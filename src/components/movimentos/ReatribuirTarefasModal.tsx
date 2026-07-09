@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, UserCog, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { nowBrasilia } from "@/lib/dateUtils";
+
 import { fetchTarefasPendentesOnda, type TarefaPendenteDetalhe } from "@/lib/operadoresAtribuidos";
 
 interface Props {
@@ -128,7 +128,7 @@ export function ReatribuirTarefasModal({
     }
 
     setSaving(true);
-    const agora = nowBrasilia();
+    const agora = new Date().toISOString();
     let sucesso = 0;
     const erros: string[] = [];
 

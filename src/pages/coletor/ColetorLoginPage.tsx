@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Boxes, Loader2, User, Lock } from "lucide-react";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { toast } from "sonner";
-import { nowBrasilia } from "@/lib/dateUtils";
+
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 import { useTenant } from "@/contexts/TenantContext";
@@ -109,8 +109,8 @@ export function ColetorLoginPage({ onNavigate }: Props) {
     const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
       tenant_id: usuario.tenant_id,
       usuario_id: usuario.id,
-      inicio_sessao: nowBrasilia(),
-      ultimo_heartbeat: nowBrasilia(),
+      inicio_sessao: new Date().toISOString(),
+      ultimo_heartbeat: new Date().toISOString(),
     }).select("id").single();
 
     if (sessao?.id) localStorage.setItem("coletor_session_id", sessao.id);
