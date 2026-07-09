@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { nowBrasilia } from "@/lib/dateUtils";
+
 import { Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -63,7 +63,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
         return;
       }
 
-      const now = nowBrasilia();
+      const now = new Date().toISOString();
 
       // Create tarefa
       const { data: tarefa, error: errTarefa } = await (supabase as any)

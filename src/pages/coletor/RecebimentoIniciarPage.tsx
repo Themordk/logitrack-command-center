@@ -5,7 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { nowBrasilia } from "@/lib/dateUtils";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -71,7 +71,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
       const { error: updErr } = await (supabase as any)
         .from("movimento_entrada")
         .update({
-          conferencia_iniciada_em: nowBrasilia(),
+          conferencia_iniciada_em: new Date().toISOString(),
           conferencia_iniciada_por: usuarioId,
         })
         .eq("id", selectedId);
