@@ -257,7 +257,7 @@ function TemplateBIN({
             }}
           >
             <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "1px", color: "#000000", minWidth: "36px" }}>
-              APTO
+              A
             </span>
             <span
               style={{
