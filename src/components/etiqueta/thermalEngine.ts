@@ -94,6 +94,8 @@ export interface LabelData {
   displayText: string;     // descricao (R01-P02-N03-A04)
   tipoEndereco?: string;
   curvaAcesso?: string;
+  nivel?: string;
+  apto?: string;
 }
 
 // ─── Validation ───
