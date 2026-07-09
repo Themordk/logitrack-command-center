@@ -17,9 +17,11 @@ interface EnderecoLike {
   setor_id?: string;
   tipo_endereco?: string;
   curva_acesso?: string;
+  nivel?: number | string | null;
+  apto?: number | string | null;
 }
 
-export type TamanhoEtiqueta = "100x40" | "50x20";
+export type TamanhoEtiqueta = "100x40" | "50x20" | "80x20";
 export type OrientacaoEtiqueta = "horizontal" | "vertical";
 
 export interface EtiquetaOptions {
