@@ -15,7 +15,8 @@ export type TemplateId =
   | "ARMAZEM_100x40_H"
   | "ARMAZEM_100x40_V"
   | "LOJA_50x20_H"
-  | "LOJA_50x20_V";
+  | "LOJA_50x20_V"
+  | "BIN_80x20_H";
 
 export interface TemplateSpec {
   id: TemplateId;
@@ -76,6 +77,15 @@ export const TEMPLATES: Record<TemplateId, TemplateSpec> = {
     qrCode: { size: 48, margin: 2 },
     quietZone: { horizontal: 12, vertical: 10 },
   },
+  BIN_80x20_H: {
+    id: "BIN_80x20_H",
+    widthMm: 80, heightMm: 20,
+    widthPx: 640, heightPx: 160,
+    orientation: "horizontal",
+    barcode: { moduleWidth: 2, height: 120, margin: 8 },
+    qrCode: { size: 0, margin: 0 },
+    quietZone: { horizontal: 12, vertical: 10 },
+  },
 };
 
 // ─── Label Data ───
@@ -84,6 +94,8 @@ export interface LabelData {
   displayText: string;     // descricao (R01-P02-N03-A04)
   tipoEndereco?: string;
   curvaAcesso?: string;
+  nivel?: string;
+  apto?: string;
 }
 
 // ─── Validation ───
@@ -163,9 +175,10 @@ export function getPrintCSS(template: TemplateSpec): string {
 }
 
 export function getTemplateFromSelection(
-  tamanho: "100x40" | "50x20",
+  tamanho: "100x40" | "50x20" | "80x20",
   orientacao: "horizontal" | "vertical"
 ): TemplateSpec {
+  if (tamanho === "80x20") return TEMPLATES.BIN_80x20_H;
   if (tamanho === "100x40" && orientacao === "horizontal") return TEMPLATES.ARMAZEM_100x40_H;
   if (tamanho === "100x40" && orientacao === "vertical") return TEMPLATES.ARMAZEM_100x40_V;
   if (tamanho === "50x20" && orientacao === "horizontal") return TEMPLATES.LOJA_50x20_H;

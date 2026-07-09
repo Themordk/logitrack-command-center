@@ -1,30 +1,53 @@
-# Filtro de intervalo de datas — Ocorrências Operacionais
+## Objetivo
+Adicionar um novo template de etiqueta **80×20 mm horizontal** para caixas BIN, exibindo à esquerda o **código de barras** de `ENDERECO.CODIGO_ENDERECO` e à direita, com fonte grande, os campos `NIVEL` (linha 1) e `APTO` (linha 2). Reutilizar toda a infraestrutura atual (JsBarcode, thermalEngine, PrintEtiquetaEnderecoModal, preview e impressão) — sem alterar os templates 100×40 e 50×20.
 
-Adicionar um filtro de período (data inicial e data final) baseado na data de criação (`criado_em`) na rota `/atividades/ocorrencias`.
+## Alterações
 
-## Escopo
+### 1. `src/components/etiqueta/thermalEngine.ts`
+- Ampliar `TemplateId` com `"BIN_80x20_H"`.
+- Adicionar entrada em `TEMPLATES`:
+  - `widthMm: 80, heightMm: 20` → `widthPx: 640, heightPx: 160` (203 DPI, 8 px/mm)
+  - `orientation: "horizontal"`
+  - `barcode: { moduleWidth: 2, height: 120, margin: 8 }` (mantém legibilidade)
+  - `qrCode` presente por compatibilidade de tipo, sem uso no template
+  - `quietZone: { horizontal: 12, vertical: 10 }`
+- Ampliar `TamanhoEtiqueta` (em `EtiquetaEnderecoPreview.tsx`) com `"80x20"`.
+- Atualizar `getTemplateFromSelection` para retornar `BIN_80x20_H` quando `tamanho === "80x20"` (força horizontal — orientação vertical não suportada neste template).
 
-Arquivo único: `src/pages/OcorrenciasOperacionaisPage.tsx`.
+### 2. `src/components/etiqueta/EtiquetaEnderecoPreview.tsx`
+- Ampliar `LabelData` (em thermalEngine) com `nivel?: string` e `apto?: string` (opcionais, só usados no BIN).
+- `getLabelData` passa a incluir `nivel` e `apto` do endereço.
+- Criar um novo componente `TemplateBIN` (interno) que renderiza:
+  - Container flex horizontal, `width/height` fixos.
+  - **Esquerda (~65%)**: `<BarcodeRenderer>` com `moduleWidth/height/margin` do template, respeitando `quietZone`.
+  - **Direita (~35%)**: coluna vertical centralizada, duas linhas:
+    - `NIVEL` — fonte muito grande (ex.: 64px), negrito, letra-spacing curto.
+    - `APTO` — negrito, ligeiramente menor (ex.: 52px).
+  - Auto-fit: usar `fontSize` dinâmico simples baseado no `length` do texto (fallback CSS via `clamp`/redução condicional) para nunca cortar/quebrar linha; `whiteSpace: nowrap` e `overflow: hidden`.
+  - Header CORE removido (etiqueta é pequena e o foco é o texto grande) — mantém `border-bottom` opcional se necessário para manter identidade, mas priorizando o texto.
+- No dispatcher `EtiquetaSingle`, se `template.id === "BIN_80x20_H"` renderiza `TemplateBIN`; senão mantém o caminho atual (H/V).
 
-## Mudanças
+### 3. Fonte dos dados de `NIVEL`/`APTO`
+- O tipo `EnderecoLike` no `EtiquetaEnderecoPreview.tsx` receberá campos opcionais `nivel?: number | string` e `apto?: number | string` (colunas já existentes em `endereco`).
+- Formatação: usar `String(...).padStart(2,"0")` para `nivel` prefixado com `"N"` (ex.: `N03`) e `apto` prefixado com `"P"` (ex.: `P101`) — sem padding forçado quando o valor já tem 3+ dígitos, para respeitar a responsividade do prompt (`N123`, `P1000`).
 
-1. **UI (barra de filtros)**
-   - Adicionar dois inputs de data (`type="date"`) rotulados "De" e "Até", ao lado dos filtros existentes (status/tipo/etapa/busca).
-   - Botão "Limpar" para resetar o intervalo.
-   - Padrão: vazio (sem filtro de data aplicado).
+### 4. `src/components/etiqueta/PrintEtiquetaEnderecoModal.tsx`
+- Ampliar o tipo `enderecos` para aceitar `nivel?` e `apto?`.
+- Adicionar `"80x20"` como opção no `SelectField` "Tamanho" com rótulo `80mm × 20mm – 640×160px (BIN)`.
+- Quando o tamanho for `80x20`, desabilitar/forçar orientação para `horizontal` e ocultar as checkboxes de QR Code / Curva / Tipo (não fazem parte do layout BIN). O `validateLabel` continua exigindo `barcodeValue` e `displayText`; para BIN, preencheremos `displayText` com o próprio `codigo_endereco` como fallback (não é renderizado) para passar a validação sem alterar o engine.
 
-2. **Estado + debounce**
-   - Novos estados `dataIni` e `dataFim` seguindo o padrão dos demais filtros (aplicar `useDebounce` como já é feito).
-   - Incluir ambos na `queryKey` do `useQuery` para refetch automático.
+### 5. Origem das chamadas
+- As rotinas atuais que abrem `PrintEtiquetaEnderecoModal` (ex.: `EnderecosPage.tsx`, `EnderecosBatchPage.tsx`) já passam o registro do endereço. Garantir apenas que os campos `nivel` e `apto` sejam repassados no objeto (spread do row) — sem alterar a UI dessas telas.
 
-3. **Consulta**
-   - Repassar os valores para a RPC atual de listagem de ocorrências (ex.: `p_data_ini` / `p_data_fim`), enviando `null` quando vazios, mantendo compatibilidade retroativa.
-   - Se a RPC não aceitar esses parâmetros, aplicar o filtro client-side sobre `criado_em` do resultado (fallback), preservando a paginação server-side existente sem regressão.
+## Critérios de aceite (mapeados)
+- Nova opção “80mm × 20mm (BIN)” disponível no modal de impressão.
+- Barcode via mesma pipeline (`BarcodeRenderer` + JsBarcode Code128) usando `codigo_endereco`.
+- Texto exibido: apenas `NIVEL` e `APTO`, sem `descricao`.
+- Fonte grande, negrito, responsiva (auto-shrink) e sem quebra/corte.
+- Templates 100×40 e 50×20 permanecem inalterados.
+- Impressão via `getPrintCSS(template)` reutiliza `@page 80mm 20mm`.
 
-4. **Reset de página**
-   - Ao alterar o intervalo, voltar para a página 1 (mesmo comportamento dos outros filtros).
-
-## Fora do escopo
-
-- Nenhuma alteração de backend/RPC/migração.
-- Sem mudanças em outras telas de Atividades.
+## Fora de escopo
+- Alterações nos templates existentes.
+- Novo modal / novo serviço de impressão.
+- Alterações no banco (colunas `nivel`/`apto` já existem).
