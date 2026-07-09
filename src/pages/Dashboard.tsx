@@ -203,8 +203,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
       <TendenciaChart data={tendencia} loading={loading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RankingOperadores data={ranking} loading={loading} />
-        <OcorrenciasChart data={ocorrencias} loading={loading} />
+        <RankingOperadores data={ranking} loading={loading} onNavigate={onNavigate} />
+        <OcorrenciasChart data={ocorrencias} loading={loading} onNavigate={onNavigate} />
       </div>
     </div>
   );
