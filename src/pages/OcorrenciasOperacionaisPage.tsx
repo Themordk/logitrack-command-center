@@ -69,12 +69,16 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterEtapa, setFilterEtapa] = useState("");
   const [filterPrioridade, setFilterPrioridade] = useState("");
+  const [dataIni, setDataIni] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const debouncedDataIni = useDebounce(dataIni, 400);
+  const debouncedDataFim = useDebounce(dataFim, 400);
   const [busca, setBusca] = useState("");
   const debouncedBusca = useDebounce(busca, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [tenantId, empresaId, filterStatus, filterEtapa, filterPrioridade, debouncedBusca]);
+  }, [tenantId, empresaId, filterStatus, filterEtapa, filterPrioridade, debouncedBusca, debouncedDataIni, debouncedDataFim]);
 
   const kpisQuery = useQuery({
     queryKey: ["ocorrencias-kpis", tenantId, empresaId],
@@ -118,7 +122,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   const kpis = kpisQuery.data ?? { abertas: 0, investigacao: 0, resolvidasHoje: 0, tempoMedio: 0 };
 
   const listQuery = useQuery({
-    queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade],
+    queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade, debouncedDataIni, debouncedDataFim],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -137,6 +141,8 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       if (filterStatus) q = q.eq("status", filterStatus);
       if (filterEtapa) q = q.eq("etapa_ocorrencia", filterEtapa);
       if (filterPrioridade) q = q.eq("prioridade", filterPrioridade);
+      if (debouncedDataIni) q = q.gte("criado_em", `${debouncedDataIni}T00:00:00`);
+      if (debouncedDataFim) q = q.lte("criado_em", `${debouncedDataFim}T23:59:59.999`);
       const { data, error, count } = await q;
       if (error) throw error;
       return { rows: data || [], count: count || 0 };
@@ -164,11 +170,12 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
     });
   }, [rows, debouncedBusca]);
 
-  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || busca);
+  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || busca || dataIni || dataFim);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const limparFiltros = () => {
     setFilterStatus(""); setFilterEtapa(""); setFilterPrioridade(""); setBusca("");
+    setDataIni(""); setDataFim("");
     setPage(1);
   };
 
@@ -240,6 +247,26 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por nº, SKU ou produto..."
               className={cn(inputClass, "w-full pl-8")}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Criada de</label>
+            <input
+              type="date"
+              value={dataIni}
+              max={dataFim || undefined}
+              onChange={(e) => { setDataIni(e.target.value); setPage(1); }}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Criada até</label>
+            <input
+              type="date"
+              value={dataFim}
+              min={dataIni || undefined}
+              onChange={(e) => { setDataFim(e.target.value); setPage(1); }}
+              className={inputClass}
             />
           </div>
         </div>
