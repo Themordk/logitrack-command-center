@@ -10,7 +10,7 @@ function initials(nome: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function RankingOperadores({ data, loading }: { data: Operador[]; loading?: boolean }) {
+export function RankingOperadores({ data, loading, onNavigate }: { data: Operador[]; loading?: boolean; onNavigate?: (path: string) => void }) {
   const safeData: Operador[] = Array.isArray(data) ? data : [];
   const podio = [
     "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
@@ -24,7 +24,17 @@ export function RankingOperadores({ data, loading }: { data: Operador[]; loading
     <div className="card-surface p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Top Operadores</h3>
-        <span className="text-xs text-muted-foreground">{safeData.length} operadores</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">{safeData.length} operadores</span>
+          {onNavigate && safeData.length > 0 && (
+            <button
+              onClick={() => onNavigate("/relatorios/produtividade")}
+              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+            >
+              Ver relatório →
+            </button>
+          )}
+        </div>
       </div>
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary/30 animate-pulse" />)}</div>
@@ -37,11 +47,13 @@ export function RankingOperadores({ data, loading }: { data: Operador[]; loading
             const Icon = isPodio ? podioIcon[idx] : null;
             const pct = Math.max(6, Math.round((op.tarefas / max) * 100));
             return (
-              <div
+              <button
                 key={op.usuario_id}
+                onClick={() => onNavigate?.("/relatorios/produtividade")}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors w-full text-left",
                   isPodio ? podio[idx] : "bg-secondary/30 border-transparent text-foreground hover:bg-secondary/50",
+                  onNavigate && "cursor-pointer hover:scale-[1.01]",
                 )}
               >
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/15 text-primary text-[11px] font-bold shrink-0">
@@ -62,7 +74,7 @@ export function RankingOperadores({ data, loading }: { data: Operador[]; loading
                     />
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
