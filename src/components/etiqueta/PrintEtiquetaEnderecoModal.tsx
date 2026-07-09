@@ -34,6 +34,8 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   const [incluirCurvaAcesso, setIncluirCurvaAcesso] = useState(false);
   const [incluirTipoEndereco, setIncluirTipoEndereco] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const { usuarioNome } = useTenant();
+  const dataHora = useMemo(() => formatDateTime(new Date()), [open, showPreview]);
 
   const plural = enderecos.length > 1;
   const etiquetaOptions: EtiquetaOptions = { incluirQRCode, incluirCurvaAcesso, incluirTipoEndereco };
