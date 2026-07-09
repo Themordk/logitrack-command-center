@@ -47,6 +47,8 @@ import { TiposEntradaPage } from "./pages/TiposEntradaPage";
 import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
+import { OperadoresAtivosPage } from "./pages/OperadoresAtivosPage";
+import { TarefasAtivasPage } from "./pages/TarefasAtivasPage";
 import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 import { InventarioPage } from "./pages/InventarioPage";
 import { InventarioItensPage } from "./pages/InventarioItensPage";
