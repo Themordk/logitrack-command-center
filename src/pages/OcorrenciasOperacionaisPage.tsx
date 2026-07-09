@@ -170,11 +170,12 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
     });
   }, [rows, debouncedBusca]);
 
-  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || busca);
+  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || busca || dataIni || dataFim);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const limparFiltros = () => {
     setFilterStatus(""); setFilterEtapa(""); setFilterPrioridade(""); setBusca("");
+    setDataIni(""); setDataFim("");
     setPage(1);
   };
 
