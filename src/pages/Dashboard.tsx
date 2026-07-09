@@ -171,7 +171,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           subtitle={kpis ? (kpis.em_andamento > 0 ? "tarefas sendo executadas agora" : "Nenhuma tarefa em execução") : "Carregando..."}
           icon={<PlayCircle size={20} />}
           severity={sevEA}
-          onClick={() => onNavigate("/atividades/mov-saida")}
+          onClick={() => onNavigate("/atividades/tarefas-ativas")}
         />
         <KPICardPro
           title="Operadores Ativos"
@@ -179,6 +179,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           subtitle={kpis ? (kpis.operadores_ativos > 0 ? "conectados nos últimos 5 min" : "Nenhum operador online") : "Carregando..."}
           icon={<Users size={20} />}
           severity={sevOp}
+          onClick={() => onNavigate("/atividades/operadores-ativos")}
         />
         <KPICardPro
           title="Unidades Movimentadas"

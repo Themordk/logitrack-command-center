@@ -154,6 +154,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
   "/atividades/ocorrencias": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ocorrências Operacionais" }],
+  "/atividades/operadores-ativos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Operadores Ativos" }],
+  "/atividades/tarefas-ativas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Tarefas Ativas" }],
   "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
@@ -263,6 +265,8 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
     case "/atividades/ocorrencias": return <OcorrenciasOperacionaisPage onNavigate={onNavigate} />;
+    case "/atividades/operadores-ativos": return <OperadoresAtivosPage onNavigate={onNavigate} />;
+    case "/atividades/tarefas-ativas": return <TarefasAtivasPage onNavigate={onNavigate} />;
     case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
