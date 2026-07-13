@@ -395,16 +395,16 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
+              <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Saldo</div>
+              <div className="text-base font-bold text-[hsl(217,91%,60%)]">{tarefa.saldo_endereco ?? 0}</div>
+            </div>
+            <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
               <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Requerida</div>
               <div className="text-base font-bold text-white">{tarefa.quantidade_requerida ?? 0}</div>
             </div>
             <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
               <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Separada</div>
               <div className="text-base font-bold text-[hsl(142,71%,45%)]">{tarefa.separado || 0}</div>
-            </div>
-            <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
-              <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Restante</div>
-              <div className="text-base font-bold text-[hsl(0,84%,60%)]">{restante}</div>
             </div>
           </div>
 
