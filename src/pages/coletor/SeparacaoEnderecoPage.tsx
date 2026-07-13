@@ -4,7 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, XCircle } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, XCircle, Package, Navigation } from "lucide-react";
+import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
 
