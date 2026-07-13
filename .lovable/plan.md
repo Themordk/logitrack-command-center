@@ -1,36 +1,35 @@
-## Fase 2B — Ocorrências: correções + integração no coletor
+## Melhoria UX: Directed Picking with Preview
 
-### Parte 1 — Bug fix
-- `src/pages/OcorrenciasOperacionaisPage.tsx`: alterar `contexto={{ etapa: "AUDITORIA" }}` para `contexto={{}}` no `RegistrarOcorrenciaButton`, permitindo que o operador escolha a etapa no modal.
+Alterações **apenas** em `src/pages/coletor/SeparacaoEnderecoPage.tsx`. Nenhuma outra tela, RPC, edge function ou tabela é tocada. Toda a lógica atual de scan, validação, pular endereço, outros endereços, controle de lote e modais permanece intacta.
 
-### Parte 2 — `src/pages/OcorrenciaDetalhePage.tsx`
-- Adicionar `EM_TRATAMENTO` nos mapas `STATUS_BADGE`, `STATUS_LABEL` e `STATUS_DOT` (roxo).
-- Novos imports lucide: `MapPin, ClipboardList, UserX, Hash, Calendar, Tag, Wrench`.
-- Query `load()`: incluir joins `endereco:endereco_id(descricao)` e `usuario_causador:usuario!ocorrencia_operacional_usuario_causador_id_fkey(nome)`.
-- Adicionar InfoItems para: endereço, tarefa, causador, lote, validade, categoria (badge Preventiva/Corretiva).
-- Ampliar `DialogAction` com `EM_TRATAMENTO`; adicionar botão "Iniciar tratamento" (cor roxa) quando status = `EM_INVESTIGACAO`.
-- Adicionar suporte a cor `purple` no `ActionBtn`.
-- Título do dialog e select de status do modal "Registrar Histórico" — incluir opção EM_TRATAMENTO.
-- Timeline: ícone `Wrench` para EM_TRATAMENTO.
+### Novos imports
+- `Package` e `Navigation` de `lucide-react`
+- `formatDate` de `@/utils/dateTime`
+- Helper local `fmtDate` (trata `null`, `"1900-01-01"` e datas curtas)
 
-### Parte 3 — `src/pages/MotivosOcorrenciaPage.tsx`
-- Novas colunas na tabela: `acao_automatica`, `prioridade_padrao`, `categoria_padrao` (com labels amigáveis; categoria como badge azul/laranja).
-- Atualizar `etapa_ocorrencia` para incluir `INVENTARIO` e `AUDITORIA`.
-- Novos campos no formulário: `acao_automatica`, `prioridade_padrao`, `categoria_padrao`. Verificar suporte a `enumLabels` no `CrudModal`; se não existir, usar `enumValues` diretamente sem alterar o CrudModal.
+### Derivações a partir do estado atual (`tarefa`, `tarefas`, `currentIdx`)
+- `restante = quantidade_requerida - (separado || 0)` (clamp em 0)
+- `countSameEndereco` — conta tarefas consecutivas a partir de `currentIdx` que compartilham `endereco_id || endereco`
+- `proximosEnderecos` — próximos até 2 endereços distintos após o atual
+- `showLote` — verdadeiro quando `tipo_controle` ∈ {`LOTE`, `VALIDADE`, `LOTE_SERIE`}
 
-### Parte 4 — Integração `RegistrarOcorrenciaColetorButton` em 9 telas do coletor
-Para cada tela abaixo, ler primeiro para localizar as variáveis reais de produto/endereço/tarefa/documento; posicionar o botão como ação secundária (antes das ações principais). Se uma variável não existir, passar `undefined`.
+### Nova ordem do layout
+1. Progresso textual "Endereço X/Y" + badge de ordem (existente)
+2. **Barra de progresso** fina (`h-1.5`, azul `hsl(217,91%,60%)`, transition 500ms), largura = `((currentIdx+1)/tarefas.length)*100%`
+3. Card de endereço existente + badge verde "N itens neste endereço" quando `countSameEndereco > 1`
+4. **Card de prévia do produto** (`opacity-90`, mesmo fundo/borda dos demais cards):
+   - Header com ícone `Package` + "Produto a coletar"
+   - SKU / Referência (fallback "—") / Descrição
+   - Grid 3 colunas: Requerida (branco), Separada (verde), Restante (vermelho, mostra 0 se ≤ 0)
+   - Bloco condicional Lote / Validade / Fabricação quando `showLote`
+5. `ScanField` de confirmação (inalterado)
+6. **Prévia "Próximos"** — linha compacta com ícone `Navigation`, pills mono dos próximos 2 endereços separados por `→`
+7. Botão "Pular Endereço" sticky (inalterado)
 
-- `ConferenciaProdutoPage.tsx` — etapa `RECEBIMENTO`, produto atual + `documento_origem_id` do movimento entrada.
-- `ArmazenagemExecucaoPage.tsx` — etapa `ARMAZENAGEM`, produto, endereço destino, tarefa.
-- `AbastecimentoColetaPage.tsx` — etapa `ABASTECIMENTO`, produto, endereço origem pulmão, tarefa.
-- `AbastecimentoDestinoPage.tsx` — etapa `ABASTECIMENTO`, produto, endereço destino picking, tarefa.
-- `SeparacaoProdutoPage.tsx` — etapa `SEPARACAO`, produto, endereço picking, tarefa. Não mexer no fluxo de corte.
-- `ConferenciaItensPage.tsx` — etapa `EXPEDICAO`, produto conferido, `documento_origem_id` do movimento saída.
-- `InventarioEnderecoPage.tsx` — etapa `INVENTARIO`, endereço.
-- `InventarioProdutoPage.tsx` — etapa `INVENTARIO`, produto + endereço.
-- `ConsultaProdutoDetalhePage.tsx` — etapa `undefined` (operador escolhe), produto.
+### Estilo
+Todas as cores em HSL literal conforme o prompt (`hsl(222,40%,12%)`, `hsl(222,35%,22%)`, `hsl(217,91%,60%)`, `hsl(142,71%,45%)`, `hsl(0,84%,60%)`, etc.), `rounded-2xl`/`rounded-xl`, sem novas dependências.
 
 ### Fora de escopo
-- Nada de backend (tabelas/enums/RPCs/edge functions).
-- Sem alterar `App.tsx`, `SeparacaoOcorrenciasPage.tsx`, `LiberarErroTransporteModal.tsx`, os 3 componentes de ocorrência criados na Fase 2A, nem componentes em `src/components/ui/`.
+- `SeparacaoIniciarPage`, `SeparacaoProdutoPage`, `SeparacaoLotePage`, `SeparacaoOcorrenciasPage`
+- Qualquer RPC/edge function/tabela
+- Qualquer nova ação/botão dentro do card de prévia (é somente informativo)
