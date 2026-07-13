@@ -300,6 +300,15 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
         ))}
       </div>
 
+      <div className="pt-1">
+        <RegistrarOcorrenciaColetorButton
+          contexto={{
+            produto_id: produto.id,
+            produto_descricao: produto.descricao,
+          }}
+        />
+      </div>
+
       {/* INFO TAB */}
       {tab === "info" && (
         <div className="flex flex-col gap-3">
