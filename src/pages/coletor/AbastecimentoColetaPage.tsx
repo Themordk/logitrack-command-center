@@ -5,6 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay } from "@/components/coletor/StatusOverlay";
 import { Archive, CheckCircle2 } from "lucide-react";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
