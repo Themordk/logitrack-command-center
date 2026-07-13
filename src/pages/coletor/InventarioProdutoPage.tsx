@@ -6,6 +6,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Package, BoxIcon, CheckCircle, XCircle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
