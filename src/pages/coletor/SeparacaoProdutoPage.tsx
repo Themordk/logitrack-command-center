@@ -417,7 +417,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       </div>
 
       {/* Sticky confirm button */}
-      <div className="shrink-0">
+      <div className="shrink-0 space-y-2">
         <ActionButton
           onClick={handleConfirmar}
           disabled={!quantidade || confirming || !eanConfirmado}
@@ -426,6 +426,17 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         >
           Confirmar Quantidade
         </ActionButton>
+
+        <RegistrarOcorrenciaColetorButton
+          contexto={{
+            etapa: "SEPARACAO",
+            produto_id: produtoId || undefined,
+            produto_descricao: tarefa?.produto,
+            tarefa_id: tarefa?.id || tarefa?.tarefa_id,
+            lote: loteSel?.lote || tarefa?.lote,
+            validade: loteSel?.validade || tarefa?.validade,
+          }}
+        />
       </div>
 
 
