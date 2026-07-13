@@ -274,6 +274,11 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
             <option value="ALTA">Alta</option>
             <option value="CRITICA">Crítica</option>
           </select>
+          <select value={filterCategoria} onChange={(e) => { setFilterCategoria(e.target.value); setPage(1); }} className={inputClass}>
+            <option value="">Todas categorias</option>
+            {Object.entries(CATEGORIA_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
