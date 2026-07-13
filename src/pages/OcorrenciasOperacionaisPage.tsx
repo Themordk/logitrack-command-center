@@ -6,10 +6,12 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import {
   AlertTriangle, ShieldAlert, CheckCircle2, Clock, RefreshCw, Filter, Search,
-  ChevronLeft, ChevronRight, Eye, Loader2, X,
+  ChevronLeft, ChevronRight, Eye, Loader2, X, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
+import { RegistrarOcorrenciaButton } from "@/components/ocorrencia/RegistrarOcorrenciaButton";
+
 import { RegistrarOcorrenciaButton } from "@/components/ocorrencia/RegistrarOcorrenciaButton";
 
 
