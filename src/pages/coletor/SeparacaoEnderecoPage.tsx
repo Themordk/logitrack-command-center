@@ -284,6 +284,41 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   }
 
   const progress = `${currentIdx + 1}/${tarefas.length}`;
+  const progressPct = tarefas.length > 0 ? ((currentIdx + 1) / tarefas.length) * 100 : 0;
+
+  const restante = Math.max(0, (tarefa.quantidade_requerida || 0) - (tarefa.separado || 0));
+  const showLote = requerLote(tarefa.tipo_controle);
+
+  const fmtDate = (iso: string | null | undefined) => {
+    if (!iso || iso === "1900-01-01") return "—";
+    return formatDate(iso.length === 10 ? iso + "T00:00:00" : iso);
+  };
+
+  const countSameEndereco = (() => {
+    let count = 1;
+    for (let i = currentIdx + 1; i < tarefas.length; i++) {
+      const keyAtual = tarefa?.endereco_id || tarefa?.endereco;
+      const keyNext = tarefas[i]?.endereco_id || tarefas[i]?.endereco;
+      if (keyAtual && keyNext && keyAtual === keyNext) count++;
+      else break;
+    }
+    return count;
+  })();
+
+  const proximosEnderecos = (() => {
+    const proximos: Array<{ endereco: string; idx: number }> = [];
+    const seen = new Set<string>();
+    const atual = tarefa?.endereco || "";
+    if (atual) seen.add(atual);
+    for (let i = currentIdx + 1; i < tarefas.length && proximos.length < 2; i++) {
+      const end = tarefas[i]?.endereco || "—";
+      if (!seen.has(end)) {
+        seen.add(end);
+        proximos.push({ endereco: end, idx: i + 1 });
+      }
+    }
+    return proximos;
+  })();
 
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/iniciar">
@@ -296,12 +331,25 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           </span>
         </div>
 
+        {/* Progress bar */}
+        <div className="w-full h-1.5 bg-[hsl(222,35%,18%)] rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[hsl(217,91%,60%)] rounded-full transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+
         {/* Address info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <MapPin size={18} className="text-[hsl(217,91%,60%)]" />
               <span className="text-sm font-bold text-white">Endereço para Coleta</span>
+              {countSameEndereco > 1 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[hsl(142,76%,36%)]/15 text-[hsl(142,71%,45%)] border border-[hsl(142,76%,36%)]/30">
+                  {countSameEndereco} itens neste endereço
+                </span>
+              )}
             </div>
             {/* Options button */}
             <div className="relative">
@@ -332,6 +380,44 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           </div>
         </div>
 
+        {/* Product preview card */}
+        <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-3 opacity-90">
+          <div className="flex items-center gap-2">
+            <Package size={18} className="text-[hsl(217,91%,60%)]" />
+            <span className="text-sm font-bold text-[hsl(213,31%,91%)]">Produto a coletar</span>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="text-xs text-[hsl(213,31%,55%)]">SKU: <span className="font-bold text-[hsl(213,31%,91%)] font-mono">{tarefa.sku || "—"}</span></div>
+            <div className="text-xs text-[hsl(213,31%,55%)]">Ref: <span className="font-bold text-[hsl(213,31%,91%)] font-mono">{tarefa.referencia || "—"}</span></div>
+          </div>
+          <div className="text-xs text-[hsl(213,31%,91%)] leading-snug">{tarefa.produto || "—"}</div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
+              <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Requerida</div>
+              <div className="text-base font-bold text-white">{tarefa.quantidade_requerida ?? 0}</div>
+            </div>
+            <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
+              <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Separada</div>
+              <div className="text-base font-bold text-[hsl(142,71%,45%)]">{tarefa.separado || 0}</div>
+            </div>
+            <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
+              <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Restante</div>
+              <div className="text-base font-bold text-[hsl(0,84%,60%)]">{restante}</div>
+            </div>
+          </div>
+
+          {showLote && (
+            <div className="border-t border-[hsl(222,35%,22%)] pt-2 mt-2 flex items-center gap-4 flex-wrap">
+              <div className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)] font-mono">{tarefa.lote || "—"}</span></div>
+              <div className="text-xs text-[hsl(213,31%,55%)]">Validade: <span className="font-bold text-[hsl(213,31%,91%)]">{fmtDate(tarefa.validade)}</span></div>
+              {tarefa.fabricacao && (
+                <div className="text-xs text-[hsl(213,31%,55%)]">Fabricação: <span className="font-bold text-[hsl(213,31%,91%)]">{fmtDate(tarefa.fabricacao)}</span></div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Scan field */}
         <ScanField
           label="Confirmar Endereço"
@@ -339,7 +425,22 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           onScan={handleScan}
           placeholder="Escaneie o endereço para confirmar"
         />
+
+        {/* Próximos endereços */}
+        {proximosEnderecos.length > 0 && (
+          <div className="flex items-center gap-2 text-[11px] text-[hsl(213,31%,40%)] flex-wrap">
+            <Navigation size={14} className="text-[hsl(213,31%,35%)]" />
+            <span>Próximos:</span>
+            {proximosEnderecos.map((p, i) => (
+              <span key={`${p.endereco}-${p.idx}`} className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-[hsl(222,35%,15%)] text-[hsl(213,31%,55%)] font-mono text-[10px]">{p.endereco}</span>
+                {i < proximosEnderecos.length - 1 && <span className="text-[hsl(213,31%,30%)]">→</span>}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
+
 
       {/* Sticky skip button */}
       <div className="shrink-0">
