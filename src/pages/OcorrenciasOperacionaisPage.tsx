@@ -83,6 +83,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterEtapa, setFilterEtapa] = useState("");
   const [filterPrioridade, setFilterPrioridade] = useState("");
+  const [filterCategoria, setFilterCategoria] = useState("");
   const [dataIni, setDataIni] = useState("");
   const [dataFim, setDataFim] = useState("");
   const debouncedDataIni = useDebounce(dataIni, 400);
@@ -92,7 +93,8 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
 
   useEffect(() => {
     setPage(1);
-  }, [tenantId, empresaId, filterStatus, filterEtapa, filterPrioridade, debouncedBusca, debouncedDataIni, debouncedDataFim]);
+  }, [tenantId, empresaId, filterStatus, filterEtapa, filterPrioridade, filterCategoria, debouncedBusca, debouncedDataIni, debouncedDataFim]);
+
 
   const kpisQuery = useQuery({
     queryKey: ["ocorrencias-kpis", tenantId, empresaId],
