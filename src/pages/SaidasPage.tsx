@@ -42,7 +42,6 @@ export function SaidasPage() {
     rota_id: "",
     veiculo_id: "",
     observacao: "",
-    prioridade: "NORMAL",
   });
 
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
@@ -109,15 +108,11 @@ export function SaidasPage() {
       setRotaOptions(rt);
       setVeiculoOptions(vc);
     }
-    setFormData({ box_id: "", rota_id: "", veiculo_id: "", observacao: "", prioridade: "NORMAL" });
+    setFormData({ box_id: "", rota_id: "", veiculo_id: "", observacao: "" });
     setShowModal(true);
   };
 
   const handleGenerate = async () => {
-    if (!formData.prioridade) {
-      toast.error("Preencha o campo Prioridade.");
-      return;
-    }
     setGenerating(true);
     try {
       const { data, error } = await (supabase as any).rpc("gerar_onda_separacao", {
@@ -128,7 +123,6 @@ export function SaidasPage() {
         p_box_id: formData.box_id || null,
         p_rota_id: formData.rota_id || null,
         p_veiculo_id: formData.veiculo_id || null,
-        p_prioridade: formData.prioridade || "NORMAL",
       });
       if (error) throw error;
       toast.success(data || "Onda de carregamento gerada com sucesso!");
@@ -249,28 +243,22 @@ export function SaidasPage() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Veículo</label>
-                <select value={formData.veiculo_id} onChange={(e) => setFormData({ ...formData, veiculo_id: e.target.value })} className={inputClass}>
-                  <option value="">Selecione...</option>
-                  {veiculoOptions.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Prioridade *</label>
-                <select value={formData.prioridade} onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })} className={inputClass}>
-                  {["BAIXA", "NORMAL", "ALTA", "URGENTE"].map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Veículo</label>
+              <select value={formData.veiculo_id} onChange={(e) => setFormData({ ...formData, veiculo_id: e.target.value })} className={inputClass}>
+                <option value="">Selecione...</option>
+                {veiculoOptions.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Observação</label>
               <textarea value={formData.observacao} onChange={(e) => setFormData({ ...formData, observacao: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary resize-none" />
             </div>
-            <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+            <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-1">
               <p className="text-xs text-muted-foreground">{selected.size} documento(s) selecionado(s)</p>
+              <p className="text-[11px] text-muted-foreground/80">A prioridade será definida automaticamente pelo Tipo de Saída dos documentos.</p>
             </div>
+
           </div>
           <DialogFooter>
             <button onClick={() => setShowModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
