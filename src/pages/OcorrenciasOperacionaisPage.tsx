@@ -219,21 +219,29 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
             Divergências e incidentes em todas as etapas da operação
           </p>
         </div>
-        <button
-          onClick={refresh}
-          className="h-9 px-3 rounded-md bg-secondary border border-border text-xs font-medium text-foreground hover:bg-secondary/80 flex items-center gap-1.5"
-        >
-          <RefreshCw size={12} /> Atualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <RegistrarOcorrenciaButton
+            contexto={{ etapa_ocorrencia: "AUDITORIA" }}
+            onSuccess={() => { kpisQuery.refetch(); listQuery.refetch(); }}
+          />
+          <button
+            onClick={refresh}
+            className="h-9 px-3 rounded-md bg-secondary border border-border text-xs font-medium text-foreground hover:bg-secondary/80 flex items-center gap-1.5"
+          >
+            <RefreshCw size={12} /> Atualizar
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Kpi icon={<AlertTriangle size={16} />} label="Abertas" value={kpis.abertas} tone="red" />
         <Kpi icon={<ShieldAlert size={16} />} label="Em investigação" value={kpis.investigacao} tone="yellow" />
+        <Kpi icon={<Wrench size={16} />} label="Em tratamento" value={kpis.tratamento} tone="purple" />
         <Kpi icon={<CheckCircle2 size={16} />} label="Resolvidas hoje" value={kpis.resolvidasHoje} tone="green" />
         <Kpi icon={<Clock size={16} />} label="Tempo médio (h)" value={kpis.tempoMedio} tone="blue" />
       </div>
+
 
       {/* Filtros */}
       <div className="card-surface p-3">
