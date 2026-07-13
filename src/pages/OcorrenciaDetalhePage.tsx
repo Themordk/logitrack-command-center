@@ -346,6 +346,11 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                     Iniciar investigação
                   </ActionBtn>
                 )}
+                {ocorrencia.status === "EM_INVESTIGACAO" && (
+                  <ActionBtn icon={<Wrench size={14} />} onClick={() => openDialog("EM_TRATAMENTO")} color="purple">
+                    Iniciar tratamento
+                  </ActionBtn>
+                )}
                 <ActionBtn icon={<CheckCircle2 size={14} />} onClick={() => openDialog("RESOLVIDA")} color="green">
                   Resolver
                 </ActionBtn>
