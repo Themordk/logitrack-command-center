@@ -4880,6 +4880,7 @@ export type Database = {
           gera_mov_automatico: boolean
           id: string
           libera_mov_automatico: boolean
+          prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
           tenant_id: string
         }
@@ -4892,6 +4893,7 @@ export type Database = {
           gera_mov_automatico?: boolean
           id?: string
           libera_mov_automatico?: boolean
+          prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           tenant_id: string
         }
@@ -4904,6 +4906,7 @@ export type Database = {
           gera_mov_automatico?: boolean
           id?: string
           libera_mov_automatico?: boolean
+          prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           tenant_id?: string
         }
@@ -5003,6 +5006,7 @@ export type Database = {
           gera_mov_automatico: boolean
           id: string
           libera_mov_automatico: boolean
+          prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
           separa_pulmao: boolean
           tenant_id: string
@@ -5016,6 +5020,7 @@ export type Database = {
           gera_mov_automatico?: boolean
           id?: string
           libera_mov_automatico?: boolean
+          prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           separa_pulmao?: boolean
           tenant_id: string
@@ -5029,6 +5034,7 @@ export type Database = {
           gera_mov_automatico?: boolean
           id?: string
           libera_mov_automatico?: boolean
+          prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           separa_pulmao?: boolean
           tenant_id?: string
