@@ -563,11 +563,12 @@ function Stat({ label, value, valueClass }: { label: string; value: number | str
   );
 }
 
-function ActionBtn({ icon, children, onClick, color }: { icon: React.ReactNode; children: React.ReactNode; onClick: () => void; color: "yellow" | "green" | "gray" }) {
+function ActionBtn({ icon, children, onClick, color }: { icon: React.ReactNode; children: React.ReactNode; onClick: () => void; color: "yellow" | "green" | "gray" | "purple" }) {
   const colors: Record<string, string> = {
     yellow: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25",
     green: "bg-green-500/15 text-green-400 border-green-500/30 hover:bg-green-500/25",
     gray: "bg-gray-500/15 text-gray-300 border-gray-500/30 hover:bg-gray-500/25",
+    purple: "bg-purple-500/15 text-purple-400 border-purple-500/30 hover:bg-purple-500/25",
   };
   return (
     <button onClick={onClick} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors", colors[color])}>
