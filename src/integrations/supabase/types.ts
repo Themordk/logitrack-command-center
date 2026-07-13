@@ -2156,30 +2156,54 @@ export type Database = {
       }
       motivo_ocorrencia: {
         Row: {
+          acao_automatica: string | null
           armazem_id: string | null
           ativo: boolean
           bloqueio_estoque: boolean
+          categoria_padrao:
+            | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
+            | null
           descricao: string
+          empresa_id: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           id: string
+          prioridade_padrao:
+            | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
+            | null
           tenant_id: string
         }
         Insert: {
+          acao_automatica?: string | null
           armazem_id?: string | null
           ativo?: boolean
           bloqueio_estoque?: boolean
+          categoria_padrao?:
+            | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
+            | null
           descricao: string
+          empresa_id?: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           id?: string
+          prioridade_padrao?:
+            | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
+            | null
           tenant_id: string
         }
         Update: {
+          acao_automatica?: string | null
           armazem_id?: string | null
           ativo?: boolean
           bloqueio_estoque?: boolean
+          categoria_padrao?:
+            | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
+            | null
           descricao?: string
+          empresa_id?: string | null
           etapa_ocorrencia?: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           id?: string
+          prioridade_padrao?:
+            | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
+            | null
           tenant_id?: string
         }
         Relationships: [
@@ -2188,6 +2212,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "motivo_ocorrencia_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
@@ -3023,13 +3054,18 @@ export type Database = {
       ocorrencia_operacional: {
         Row: {
           armazem_id: string | null
+          categoria:
+            | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
+            | null
           criado_em: string
           criado_por: string | null
           documento_origem_id: string | null
           empresa_id: string
+          endereco_id: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           evidencia_url: string | null
           id: string
+          lote: string | null
           motivo_ocorrencia_id: string | null
           numero_ocorrencia: number
           observacao: string | null
@@ -3042,21 +3078,30 @@ export type Database = {
           resolvido_em: string | null
           resolvido_por: string | null
           status: Database["public"]["Enums"]["enum_status_ocorrencia"]
+          tarefa_execucao_id: string | null
+          tarefa_id: string | null
           tenant_id: string
           tipo_documento_origem: string | null
           tipo_ocorrencia: Database["public"]["Enums"]["enum_tipo_ocorrencia"]
           updated_at: string
           updated_by: string | null
+          usuario_causador_id: string | null
+          validade: string | null
         }
         Insert: {
           armazem_id?: string | null
+          categoria?:
+            | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
+            | null
           criado_em?: string
           criado_por?: string | null
           documento_origem_id?: string | null
           empresa_id: string
+          endereco_id?: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           evidencia_url?: string | null
           id?: string
+          lote?: string | null
           motivo_ocorrencia_id?: string | null
           numero_ocorrencia?: number
           observacao?: string | null
@@ -3069,21 +3114,30 @@ export type Database = {
           resolvido_em?: string | null
           resolvido_por?: string | null
           status?: Database["public"]["Enums"]["enum_status_ocorrencia"]
+          tarefa_execucao_id?: string | null
+          tarefa_id?: string | null
           tenant_id: string
           tipo_documento_origem?: string | null
           tipo_ocorrencia: Database["public"]["Enums"]["enum_tipo_ocorrencia"]
           updated_at?: string
           updated_by?: string | null
+          usuario_causador_id?: string | null
+          validade?: string | null
         }
         Update: {
           armazem_id?: string | null
+          categoria?:
+            | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
+            | null
           criado_em?: string
           criado_por?: string | null
           documento_origem_id?: string | null
           empresa_id?: string
+          endereco_id?: string | null
           etapa_ocorrencia?: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           evidencia_url?: string | null
           id?: string
+          lote?: string | null
           motivo_ocorrencia_id?: string | null
           numero_ocorrencia?: number
           observacao?: string | null
@@ -3096,11 +3150,15 @@ export type Database = {
           resolvido_em?: string | null
           resolvido_por?: string | null
           status?: Database["public"]["Enums"]["enum_status_ocorrencia"]
+          tarefa_execucao_id?: string | null
+          tarefa_id?: string | null
           tenant_id?: string
           tipo_documento_origem?: string | null
           tipo_ocorrencia?: Database["public"]["Enums"]["enum_tipo_ocorrencia"]
           updated_at?: string
           updated_by?: string | null
+          usuario_causador_id?: string | null
+          validade?: string | null
         }
         Relationships: [
           {
@@ -3122,6 +3180,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
             referencedColumns: ["id"]
           },
           {
@@ -3153,6 +3218,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ocorrencia_operacional_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inventario_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_lms_timeline_operador"
+            referencedColumns: ["execucao_id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
             foreignKeyName: "ocorrencia_operacional_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -3168,6 +3296,91 @@ export type Database = {
           },
           {
             foreignKeyName: "ocorrencia_operacional_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_usuario_causador_id_fkey"
+            columns: ["usuario_causador_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ocorrencia_sla_config: {
+        Row: {
+          armazem_id: string | null
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          notificar_percentual: number
+          prioridade: Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
+          sla_horas: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          armazem_id?: string | null
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notificar_percentual?: number
+          prioridade: Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
+          sla_horas: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          armazem_id?: string | null
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notificar_percentual?: number
+          prioridade?: Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
+          sla_horas?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocorrencia_sla_config_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_sla_config_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_sla_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_sla_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_sla_config_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "usuario"
@@ -7860,6 +8073,32 @@ export type Database = {
         Args: { p_tarefa_execucao_id: string }
         Returns: undefined
       }
+      registrar_ocorrencia_operacional: {
+        Args: {
+          p_armazem_id: string
+          p_categoria?: string
+          p_documento_origem_id?: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_etapa_ocorrencia: string
+          p_lote?: string
+          p_motivo_ocorrencia_id?: string
+          p_observacao?: string
+          p_prioridade?: string
+          p_produto_id?: string
+          p_quantidade_esperada?: number
+          p_quantidade_real?: number
+          p_tarefa_execucao_id?: string
+          p_tarefa_id?: string
+          p_tenant_id: string
+          p_tipo_documento_origem?: string
+          p_tipo_ocorrencia: string
+          p_usuario_causador_id?: string
+          p_usuario_criador_id?: string
+          p_validade?: string
+        }
+        Returns: Json
+      }
       rpc_coletor_abastecimento_confirmar_coleta: {
         Args: {
           p_empresa_id: string
@@ -8213,6 +8452,7 @@ export type Database = {
         | "CAPACDADE_HU"
         | "QUANTIDADE_MAX_SKU"
       enum_ambiente_modulo: "WEB" | "COLETOR" | "AMBOS"
+      enum_categoria_ocorrencia: "PREVENTIVA" | "CORRETIVA"
       enum_criterio_selecao_inventario:
         | "CURVA_VENDAS"
         | "CURVA_ACESSO"
@@ -8297,6 +8537,7 @@ export type Database = {
       enum_status_ocorrencia:
         | "ABERTA"
         | "EM_INVESTIGACAO"
+        | "EM_TRATAMENTO"
         | "RESOLVIDA"
         | "CANCELADA"
       enum_status_onda_carregamento:
@@ -8544,6 +8785,7 @@ export const Constants = {
         "QUANTIDADE_MAX_SKU",
       ],
       enum_ambiente_modulo: ["WEB", "COLETOR", "AMBOS"],
+      enum_categoria_ocorrencia: ["PREVENTIVA", "CORRETIVA"],
       enum_criterio_selecao_inventario: [
         "CURVA_VENDAS",
         "CURVA_ACESSO",
@@ -8638,6 +8880,7 @@ export const Constants = {
       enum_status_ocorrencia: [
         "ABERTA",
         "EM_INVESTIGACAO",
+        "EM_TRATAMENTO",
         "RESOLVIDA",
         "CANCELADA",
       ],
