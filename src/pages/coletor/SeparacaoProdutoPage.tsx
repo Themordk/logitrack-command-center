@@ -433,8 +433,6 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             produto_id: produtoId || undefined,
             produto_descricao: tarefa?.produto,
             tarefa_id: tarefa?.id || tarefa?.tarefa_id,
-            lote: loteSel?.lote || tarefa?.lote,
-            validade: loteSel?.validade || tarefa?.validade,
           }}
         />
       </div>
