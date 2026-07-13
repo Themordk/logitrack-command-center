@@ -467,6 +467,17 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
             >
               Confirmar Conferência
             </ActionButton>
+
+            <RegistrarOcorrenciaColetorButton
+              contexto={{
+                etapa: "RECEBIMENTO",
+                produto_id: produtoId || undefined,
+                produto_descricao: tarefa?.produto || tarefa?.descricao,
+                tarefa_id: tarefa?.id || tarefa?.tarefa_id,
+                documento_origem_id: movimentoId || undefined,
+                tipo_documento_origem: "MOVIMENTO_ENTRADA",
+              }}
+            />
           </>
         )}
       </div>
