@@ -18,6 +18,16 @@ export function TiposSaidaPage() {
     </span>
   );
 
+  const prioridadeBadge = (val: string) => {
+    const colors: Record<string, string> = {
+      BAIXA: "bg-muted text-muted-foreground",
+      NORMAL: "bg-blue-500/10 text-blue-500",
+      ALTA: "bg-orange-500/10 text-orange-500",
+      URGENTE: "bg-red-500/10 text-red-500",
+    };
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[val] || colors.NORMAL}`}>{val || "NORMAL"}</span>;
+  };
+
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
     { key: "codigo_erp", label: "Código ERP" },
@@ -26,12 +36,14 @@ export function TiposSaidaPage() {
     { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
     { key: "gera_mov_automatico", label: "Gera Mov. Automático", type: "custom", render: (row) => boolBadge(row.gera_mov_automatico) },
     { key: "libera_mov_automatico", label: "Libera Mov. Automático", type: "custom", render: (row) => boolBadge(row.libera_mov_automatico) },
+    { key: "prioridade", label: "Prioridade", type: "custom", render: (row) => prioridadeBadge(row.prioridade) },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Tipo de saída" },
     { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Código no ERP" },
+    { name: "prioridade", label: "Prioridade", type: "enum", required: true, defaultValue: "NORMAL", enumValues: ["BAIXA", "NORMAL", "ALTA", "URGENTE"] },
     { name: "realiza_conferencia", label: "Realiza Conferência", type: "switch", defaultValue: true },
     {
       name: "conferencia_checkout",

@@ -12,6 +12,16 @@ export function TiposEntradaPage() {
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
 
+  const prioridadeBadge = (val: string) => {
+    const colors: Record<string, string> = {
+      BAIXA: "bg-muted text-muted-foreground",
+      NORMAL: "bg-blue-500/10 text-blue-500",
+      ALTA: "bg-orange-500/10 text-orange-500",
+      URGENTE: "bg-red-500/10 text-red-500",
+    };
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[val] || colors.NORMAL}`}>{val || "NORMAL"}</span>;
+  };
+
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
     { key: "codigo_erp", label: "Código ERP" },
@@ -19,18 +29,21 @@ export function TiposEntradaPage() {
     { key: "armazenagem_automatica", label: "Armazenagem Automática", type: "badge" },
     { key: "gera_mov_automatico", label: "Gera Mov. Automático", type: "badge" },
     { key: "libera_mov_automatico", label: "Libera Mov. Automático", type: "badge" },
+    { key: "prioridade", label: "Prioridade", type: "custom", render: (row) => prioridadeBadge(row.prioridade) },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Tipo de entrada" },
     { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Código no ERP" },
+    { name: "prioridade", label: "Prioridade", type: "enum", required: true, defaultValue: "NORMAL", enumValues: ["BAIXA", "NORMAL", "ALTA", "URGENTE"] },
     { name: "realiza_conferencia", label: "Realiza Conferência", type: "switch", defaultValue: true },
     { name: "armazenagem_automatica", label: "Armazenagem Automática", type: "switch", defaultValue: false },
     { name: "gera_mov_automatico", label: "Gera Mov. Automático", type: "switch", defaultValue: false },
     { name: "libera_mov_automatico", label: "Libera Mov. Automático", type: "switch", defaultValue: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
+
 
   return (
     <>
