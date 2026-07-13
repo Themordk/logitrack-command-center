@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 import { RegistrarOcorrenciaButton } from "@/components/ocorrencia/RegistrarOcorrenciaButton";
 
-import { RegistrarOcorrenciaButton } from "@/components/ocorrencia/RegistrarOcorrenciaButton";
+
 
 
 
