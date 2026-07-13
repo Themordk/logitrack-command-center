@@ -273,7 +273,45 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               <InfoItem icon={<Clock size={14} />} label="Data de criação">
                 <span className="text-foreground">{formatDateTime(ocorrencia.criado_em)}</span>
               </InfoItem>
+              {ocorrencia.endereco?.descricao && (
+                <InfoItem icon={<MapPin size={14} />} label="Endereço">
+                  <span className="font-mono">{ocorrencia.endereco.descricao}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.tarefa_id && (
+                <InfoItem icon={<ClipboardList size={14} />} label="Tarefa">
+                  <span className="font-mono text-[10px]">{ocorrencia.tarefa_id}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.usuario_causador?.nome && (
+                <InfoItem icon={<UserX size={14} />} label="Causador">
+                  {ocorrencia.usuario_causador.nome}
+                </InfoItem>
+              )}
+              {ocorrencia.lote && (
+                <InfoItem icon={<Hash size={14} />} label="Lote">
+                  <span className="font-mono">{ocorrencia.lote}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.validade && (
+                <InfoItem icon={<Calendar size={14} />} label="Validade">
+                  {new Date(ocorrencia.validade).toLocaleDateString("pt-BR")}
+                </InfoItem>
+              )}
+              {ocorrencia.categoria && (
+                <InfoItem icon={<Tag size={14} />} label="Categoria">
+                  <span className={cn(
+                    "inline-block px-2 py-0.5 rounded-full text-[10px] border",
+                    ocorrencia.categoria === "PREVENTIVA"
+                      ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                      : "bg-orange-500/15 text-orange-400 border-orange-500/30"
+                  )}>
+                    {ocorrencia.categoria === "PREVENTIVA" ? "Preventiva" : "Corretiva"}
+                  </span>
+                </InfoItem>
+              )}
             </div>
+
 
             <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
               <Stat label="Esperada" value={ocorrencia.quantidade_esperada} />
