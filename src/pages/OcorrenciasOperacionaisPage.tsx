@@ -6,10 +6,14 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
 import {
   AlertTriangle, ShieldAlert, CheckCircle2, Clock, RefreshCw, Filter, Search,
-  ChevronLeft, ChevronRight, Eye, Loader2, X,
+  ChevronLeft, ChevronRight, Eye, Loader2, X, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
+import { RegistrarOcorrenciaButton } from "@/components/ocorrencia/RegistrarOcorrenciaButton";
+
+
+
 
 
 interface Props {
@@ -19,6 +23,7 @@ interface Props {
 const STATUS_BADGE: Record<string, string> = {
   ABERTA: "bg-red-500/15 text-red-400 border-red-500/30",
   EM_INVESTIGACAO: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+  EM_TRATAMENTO: "bg-purple-500/15 text-purple-400 border-purple-500/30",
   RESOLVIDA: "bg-green-500/15 text-green-400 border-green-500/30",
   CANCELADA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
 };
@@ -26,9 +31,20 @@ const STATUS_BADGE: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   ABERTA: "Aberta",
   EM_INVESTIGACAO: "Em investigação",
+  EM_TRATAMENTO: "Em tratamento",
   RESOLVIDA: "Resolvida",
   CANCELADA: "Cancelada",
 };
+
+const CATEGORIA_BADGE: Record<string, string> = {
+  PREVENTIVA: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  CORRETIVA: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+};
+const CATEGORIA_LABEL: Record<string, string> = {
+  PREVENTIVA: "Preventiva",
+  CORRETIVA: "Corretiva",
+};
+
 
 const ETAPA_LABEL: Record<string, string> = {
   RECEBIMENTO: "Recebimento",
@@ -69,6 +85,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterEtapa, setFilterEtapa] = useState("");
   const [filterPrioridade, setFilterPrioridade] = useState("");
+  const [filterCategoria, setFilterCategoria] = useState("");
   const [dataIni, setDataIni] = useState("");
   const [dataFim, setDataFim] = useState("");
   const debouncedDataIni = useDebounce(dataIni, 400);
@@ -78,7 +95,8 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
 
   useEffect(() => {
     setPage(1);
-  }, [tenantId, empresaId, filterStatus, filterEtapa, filterPrioridade, debouncedBusca, debouncedDataIni, debouncedDataFim]);
+  }, [tenantId, empresaId, filterStatus, filterEtapa, filterPrioridade, filterCategoria, debouncedBusca, debouncedDataIni, debouncedDataFim]);
+
 
   const kpisQuery = useQuery({
     queryKey: ["ocorrencias-kpis", tenantId, empresaId],
@@ -92,11 +110,12 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       if (error) throw error;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      let abertas = 0, investigacao = 0, resolvidasHoje = 0;
+      let abertas = 0, investigacao = 0, tratamento = 0, resolvidasHoje = 0;
       let somaH = 0, contH = 0;
       (data || []).forEach((r: any) => {
         if (r.status === "ABERTA") abertas++;
         else if (r.status === "EM_INVESTIGACAO") investigacao++;
+        else if (r.status === "EM_TRATAMENTO") tratamento++;
         else if (r.status === "RESOLVIDA") {
           if (r.resolvido_em) {
             const dr = new Date(r.resolvido_em);
@@ -112,6 +131,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       return {
         abertas,
         investigacao,
+        tratamento,
         resolvidasHoje,
         tempoMedio: contH > 0 ? Math.round((somaH / contH) * 10) / 10 : 0,
       };
@@ -119,10 +139,11 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
     enabled: !!tenantId,
     staleTime: 60_000,
   });
-  const kpis = kpisQuery.data ?? { abertas: 0, investigacao: 0, resolvidasHoje: 0, tempoMedio: 0 };
+  const kpis = kpisQuery.data ?? { abertas: 0, investigacao: 0, tratamento: 0, resolvidasHoje: 0, tempoMedio: 0 };
+
 
   const listQuery = useQuery({
-    queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade, debouncedDataIni, debouncedDataFim],
+    queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade, filterCategoria, debouncedDataIni, debouncedDataFim],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -131,6 +152,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
         .select(`*,
           produto:produto_id(sku, descricao),
           motivo_ocorrencia:motivo_ocorrencia_id(descricao),
+          endereco:endereco_id(descricao),
           usuario_criador:usuario!ocorrencia_operacional_criado_por_fkey(nome),
           usuario_resolvedor:usuario!ocorrencia_operacional_resolvido_por_fkey(nome)`,
           { count: "exact" })
@@ -141,12 +163,14 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       if (filterStatus) q = q.eq("status", filterStatus);
       if (filterEtapa) q = q.eq("etapa_ocorrencia", filterEtapa);
       if (filterPrioridade) q = q.eq("prioridade", filterPrioridade);
+      if (filterCategoria) q = q.eq("categoria", filterCategoria);
       if (debouncedDataIni) q = q.gte("criado_em", `${debouncedDataIni}T00:00:00`);
       if (debouncedDataFim) q = q.lte("criado_em", `${debouncedDataFim}T23:59:59.999`);
       const { data, error, count } = await q;
       if (error) throw error;
       return { rows: data || [], count: count || 0 };
     },
+
     enabled: !!tenantId,
     staleTime: 30_000,
   });
@@ -170,14 +194,15 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
     });
   }, [rows, debouncedBusca]);
 
-  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || busca || dataIni || dataFim);
+  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || filterCategoria || busca || dataIni || dataFim);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const limparFiltros = () => {
-    setFilterStatus(""); setFilterEtapa(""); setFilterPrioridade(""); setBusca("");
+    setFilterStatus(""); setFilterEtapa(""); setFilterPrioridade(""); setFilterCategoria(""); setBusca("");
     setDataIni(""); setDataFim("");
     setPage(1);
   };
+
 
   const refresh = () => { kpisQuery.refetch(); listQuery.refetch(); };
 
@@ -194,21 +219,30 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
             Divergências e incidentes em todas as etapas da operação
           </p>
         </div>
-        <button
-          onClick={refresh}
-          className="h-9 px-3 rounded-md bg-secondary border border-border text-xs font-medium text-foreground hover:bg-secondary/80 flex items-center gap-1.5"
-        >
-          <RefreshCw size={12} /> Atualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <RegistrarOcorrenciaButton
+            contexto={{ etapa: "AUDITORIA" }}
+
+            onSuccess={() => { kpisQuery.refetch(); listQuery.refetch(); }}
+          />
+          <button
+            onClick={refresh}
+            className="h-9 px-3 rounded-md bg-secondary border border-border text-xs font-medium text-foreground hover:bg-secondary/80 flex items-center gap-1.5"
+          >
+            <RefreshCw size={12} /> Atualizar
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Kpi icon={<AlertTriangle size={16} />} label="Abertas" value={kpis.abertas} tone="red" />
         <Kpi icon={<ShieldAlert size={16} />} label="Em investigação" value={kpis.investigacao} tone="yellow" />
+        <Kpi icon={<Wrench size={16} />} label="Em tratamento" value={kpis.tratamento} tone="purple" />
         <Kpi icon={<CheckCircle2 size={16} />} label="Resolvidas hoje" value={kpis.resolvidasHoje} tone="green" />
         <Kpi icon={<Clock size={16} />} label="Tempo médio (h)" value={kpis.tempoMedio} tone="blue" />
       </div>
+
 
       {/* Filtros */}
       <div className="card-surface p-3">
@@ -240,6 +274,11 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
             <option value="ALTA">Alta</option>
             <option value="CRITICA">Crítica</option>
           </select>
+          <select value={filterCategoria} onChange={(e) => { setFilterCategoria(e.target.value); setPage(1); }} className={inputClass}>
+            <option value="">Todas categorias</option>
+            {Object.entries(CATEGORIA_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+
           <div className="relative">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -290,9 +329,11 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
               <thead className="bg-secondary/40 text-muted-foreground sticky top-0">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Nº</th>
+                  <th className="text-left px-3 py-2 font-medium">Categoria</th>
                   <th className="text-left px-3 py-2 font-medium">Etapa</th>
                   <th className="text-left px-3 py-2 font-medium">Tipo</th>
                   <th className="text-left px-3 py-2 font-medium">Produto</th>
+                  <th className="text-left px-3 py-2 font-medium">Endereço</th>
                   <th className="text-right px-3 py-2 font-medium">Divergência</th>
                   <th className="text-left px-3 py-2 font-medium">Prioridade</th>
                   <th className="text-left px-3 py-2 font-medium">Status</th>
@@ -306,12 +347,20 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
                   return (
                     <tr key={r.id} className="border-t border-border/60 hover:bg-secondary/40">
                       <td className="px-3 py-2 font-mono text-primary">#{r.numero_ocorrencia}</td>
+                      <td className="px-3 py-2">
+                        {r.categoria ? (
+                          <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] border", CATEGORIA_BADGE[r.categoria] || "bg-secondary/40 text-muted-foreground border-border")}>
+                            {CATEGORIA_LABEL[r.categoria] ?? r.categoria}
+                          </span>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
                       <td className="px-3 py-2 text-foreground">{ETAPA_LABEL[r.etapa_ocorrencia] ?? r.etapa_ocorrencia}</td>
                       <td className="px-3 py-2 text-foreground">{TIPO_LABEL[r.tipo_ocorrencia] ?? r.tipo_ocorrencia}</td>
                       <td className="px-3 py-2 max-w-[260px] truncate">
                         <span className="font-mono text-muted-foreground mr-1">{r.produto?.sku ?? "—"}</span>
                         <span className="text-foreground">{r.produto?.descricao ?? ""}</span>
                       </td>
+                      <td className="px-3 py-2 text-muted-foreground font-mono">{r.endereco?.descricao ?? "—"}</td>
                       <td className={cn("px-3 py-2 text-right font-mono", divQty > 0 && "text-red-400")}>{divQty}</td>
                       <td className={cn("px-3 py-2 font-medium", PRIORIDADE_CLASS[r.prioridade] || "")}>{r.prioridade}</td>
                       <td className="px-3 py-2">
@@ -319,6 +368,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
                           {STATUS_LABEL[r.status] ?? r.status}
                         </span>
                       </td>
+
                       <td className="px-3 py-2 text-muted-foreground">{formatDateTime(r.criado_em)}</td>
                       <td className="px-3 py-2 text-right">
                         <button
@@ -362,13 +412,15 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   );
 }
 
-function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: "red" | "yellow" | "green" | "blue" }) {
+function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: "red" | "yellow" | "green" | "blue" | "purple" }) {
   const toneClass: Record<string, string> = {
     red: "border-red-500/30 bg-red-500/5 text-red-400",
     yellow: "border-yellow-500/30 bg-yellow-500/5 text-yellow-400",
     green: "border-green-500/30 bg-green-500/5 text-green-400",
     blue: "border-blue-500/30 bg-blue-500/5 text-blue-400",
+    purple: "border-purple-500/30 bg-purple-500/5 text-purple-400",
   };
+
   return (
     <div className={cn("rounded-lg border p-3", toneClass[tone])}>
       <div className="flex items-center gap-2">
