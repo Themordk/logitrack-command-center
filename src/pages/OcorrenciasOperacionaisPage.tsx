@@ -194,14 +194,15 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
     });
   }, [rows, debouncedBusca]);
 
-  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || busca || dataIni || dataFim);
+  const hasFilters = !!(filterStatus || filterEtapa || filterPrioridade || filterCategoria || busca || dataIni || dataFim);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const limparFiltros = () => {
-    setFilterStatus(""); setFilterEtapa(""); setFilterPrioridade(""); setBusca("");
+    setFilterStatus(""); setFilterEtapa(""); setFilterPrioridade(""); setFilterCategoria(""); setBusca("");
     setDataIni(""); setDataFim("");
     setPage(1);
   };
+
 
   const refresh = () => { kpisQuery.refetch(); listQuery.refetch(); };
 
