@@ -291,6 +291,17 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         CONFIRMAR ARMAZENAGEM
       </ActionButton>
 
+      <RegistrarOcorrenciaColetorButton
+        contexto={{
+          etapa: "ARMAZENAGEM",
+          produto_id: produtoId || undefined,
+          produto_descricao: produtoDesc,
+          tarefa_id: tarefaId,
+          documento_origem_id: movimentoEntradaId || undefined,
+          tipo_documento_origem: "MOVIMENTO_ENTRADA",
+        }}
+      />
+
       {/* Modal de capacidade excedida */}
       {showCapModal && capInfo && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-4">
