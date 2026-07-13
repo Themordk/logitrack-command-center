@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDate } from "@/utils/dateTime";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
