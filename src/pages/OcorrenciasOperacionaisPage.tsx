@@ -329,9 +329,11 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
               <thead className="bg-secondary/40 text-muted-foreground sticky top-0">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Nº</th>
+                  <th className="text-left px-3 py-2 font-medium">Categoria</th>
                   <th className="text-left px-3 py-2 font-medium">Etapa</th>
                   <th className="text-left px-3 py-2 font-medium">Tipo</th>
                   <th className="text-left px-3 py-2 font-medium">Produto</th>
+                  <th className="text-left px-3 py-2 font-medium">Endereço</th>
                   <th className="text-right px-3 py-2 font-medium">Divergência</th>
                   <th className="text-left px-3 py-2 font-medium">Prioridade</th>
                   <th className="text-left px-3 py-2 font-medium">Status</th>
@@ -345,12 +347,20 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
                   return (
                     <tr key={r.id} className="border-t border-border/60 hover:bg-secondary/40">
                       <td className="px-3 py-2 font-mono text-primary">#{r.numero_ocorrencia}</td>
+                      <td className="px-3 py-2">
+                        {r.categoria ? (
+                          <span className={cn("inline-block px-2 py-0.5 rounded-full text-[10px] border", CATEGORIA_BADGE[r.categoria] || "bg-secondary/40 text-muted-foreground border-border")}>
+                            {CATEGORIA_LABEL[r.categoria] ?? r.categoria}
+                          </span>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
                       <td className="px-3 py-2 text-foreground">{ETAPA_LABEL[r.etapa_ocorrencia] ?? r.etapa_ocorrencia}</td>
                       <td className="px-3 py-2 text-foreground">{TIPO_LABEL[r.tipo_ocorrencia] ?? r.tipo_ocorrencia}</td>
                       <td className="px-3 py-2 max-w-[260px] truncate">
                         <span className="font-mono text-muted-foreground mr-1">{r.produto?.sku ?? "—"}</span>
                         <span className="text-foreground">{r.produto?.descricao ?? ""}</span>
                       </td>
+                      <td className="px-3 py-2 text-muted-foreground font-mono">{r.endereco?.descricao ?? "—"}</td>
                       <td className={cn("px-3 py-2 text-right font-mono", divQty > 0 && "text-red-400")}>{divQty}</td>
                       <td className={cn("px-3 py-2 font-medium", PRIORIDADE_CLASS[r.prioridade] || "")}>{r.prioridade}</td>
                       <td className="px-3 py-2">
@@ -358,6 +368,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
                           {STATUS_LABEL[r.status] ?? r.status}
                         </span>
                       </td>
+
                       <td className="px-3 py-2 text-muted-foreground">{formatDateTime(r.criado_em)}</td>
                       <td className="px-3 py-2 text-right">
                         <button
