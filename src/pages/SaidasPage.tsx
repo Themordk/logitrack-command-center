@@ -42,7 +42,6 @@ export function SaidasPage() {
     rota_id: "",
     veiculo_id: "",
     observacao: "",
-    prioridade: "NORMAL",
   });
 
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
