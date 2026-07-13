@@ -118,6 +118,15 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
           })
         )}
       </div>
+      <div className="shrink-0 pt-2">
+        <RegistrarOcorrenciaColetorButton
+          contexto={{
+            etapa: "EXPEDICAO",
+            documento_origem_id: movimentoId || undefined,
+            tipo_documento_origem: "MOVIMENTO_SAIDA",
+          }}
+        />
+      </div>
     </ColetorLayout>
   );
 }
