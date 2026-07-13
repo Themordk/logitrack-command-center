@@ -177,6 +177,18 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
           >
             CONFIRMAR ENTREGA
           </ActionButton>
+
+          <RegistrarOcorrenciaColetorButton
+            contexto={{
+              etapa: "ABASTECIMENTO",
+              produto_id: produtoId || undefined,
+              produto_descricao: produtoDesc,
+              tarefa_id: tarefaId,
+              tarefa_execucao_id: execId || undefined,
+              endereco_id: enderecoDestinoIdEsperado || undefined,
+              endereco_descricao: enderecoDestinoDesc,
+            }}
+          />
         </div>
       )}
     </ColetorLayout>
