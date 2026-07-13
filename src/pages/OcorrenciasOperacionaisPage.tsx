@@ -21,6 +21,7 @@ interface Props {
 const STATUS_BADGE: Record<string, string> = {
   ABERTA: "bg-red-500/15 text-red-400 border-red-500/30",
   EM_INVESTIGACAO: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+  EM_TRATAMENTO: "bg-purple-500/15 text-purple-400 border-purple-500/30",
   RESOLVIDA: "bg-green-500/15 text-green-400 border-green-500/30",
   CANCELADA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
 };
@@ -28,9 +29,20 @@ const STATUS_BADGE: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   ABERTA: "Aberta",
   EM_INVESTIGACAO: "Em investigação",
+  EM_TRATAMENTO: "Em tratamento",
   RESOLVIDA: "Resolvida",
   CANCELADA: "Cancelada",
 };
+
+const CATEGORIA_BADGE: Record<string, string> = {
+  PREVENTIVA: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  CORRETIVA: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+};
+const CATEGORIA_LABEL: Record<string, string> = {
+  PREVENTIVA: "Preventiva",
+  CORRETIVA: "Corretiva",
+};
+
 
 const ETAPA_LABEL: Record<string, string> = {
   RECEBIMENTO: "Recebimento",
