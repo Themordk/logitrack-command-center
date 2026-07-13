@@ -179,6 +179,17 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
           >
             CONFIRMAR COLETA
           </ActionButton>
+
+          <RegistrarOcorrenciaColetorButton
+            contexto={{
+              etapa: "ABASTECIMENTO",
+              produto_id: produtoId || undefined,
+              produto_descricao: produtoDesc,
+              tarefa_id: tarefaId,
+              endereco_id: enderecoOrigemIdEsperado || undefined,
+              endereco_descricao: enderecoOrigemDesc,
+            }}
+          />
         </div>
       )}
     </ColetorLayout>
