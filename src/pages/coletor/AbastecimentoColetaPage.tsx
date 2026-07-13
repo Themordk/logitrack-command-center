@@ -5,6 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay } from "@/components/coletor/StatusOverlay";
 import { Archive, CheckCircle2 } from "lucide-react";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -178,6 +179,17 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
           >
             CONFIRMAR COLETA
           </ActionButton>
+
+          <RegistrarOcorrenciaColetorButton
+            contexto={{
+              etapa: "ABASTECIMENTO",
+              produto_id: produtoId || undefined,
+              produto_descricao: produtoDesc,
+              tarefa_id: tarefaId,
+              endereco_id: enderecoOrigemIdEsperado || undefined,
+              endereco_descricao: enderecoOrigemDesc,
+            }}
+          />
         </div>
       )}
     </ColetorLayout>

@@ -7,6 +7,7 @@ import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Package, CheckCircle, XCircle, BoxIcon, MoreVertical, List } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -466,6 +467,17 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
             >
               Confirmar Conferência
             </ActionButton>
+
+            <RegistrarOcorrenciaColetorButton
+              contexto={{
+                etapa: "RECEBIMENTO",
+                produto_id: produtoId || undefined,
+                produto_descricao: tarefa?.produto || tarefa?.descricao,
+                tarefa_id: tarefa?.id || tarefa?.tarefa_id,
+                documento_origem_id: movimentoId || undefined,
+                tipo_documento_origem: "MOVIMENTO_ENTRADA",
+              }}
+            />
           </>
         )}
       </div>

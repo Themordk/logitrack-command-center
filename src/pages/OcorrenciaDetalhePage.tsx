@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Package, FileText, User, Clock, MessageSquare,
   CheckCircle2, XCircle, Search, AlertTriangle, ShieldAlert, Loader2, Plus,
+  MapPin, ClipboardList, UserX, Hash, Calendar, Tag, Wrench,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -19,18 +20,21 @@ interface Props {
 const STATUS_BADGE: Record<string, string> = {
   ABERTA: "bg-red-500/15 text-red-400 border-red-500/30",
   EM_INVESTIGACAO: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+  EM_TRATAMENTO: "bg-purple-500/15 text-purple-400 border-purple-500/30",
   RESOLVIDA: "bg-green-500/15 text-green-400 border-green-500/30",
   CANCELADA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
 };
 const STATUS_LABEL: Record<string, string> = {
   ABERTA: "Aberta",
   EM_INVESTIGACAO: "Em investigação",
+  EM_TRATAMENTO: "Em tratamento",
   RESOLVIDA: "Resolvida",
   CANCELADA: "Cancelada",
 };
 const STATUS_DOT: Record<string, string> = {
   ABERTA: "bg-red-500 text-red-50",
   EM_INVESTIGACAO: "bg-yellow-500 text-yellow-50",
+  EM_TRATAMENTO: "bg-purple-500 text-purple-50",
   RESOLVIDA: "bg-green-500 text-green-50",
   CANCELADA: "bg-gray-500 text-gray-50",
 };
@@ -52,7 +56,7 @@ const TIPO_LABEL: Record<string, string> = {
   LOTE_INCORRETO: "Lote incorreto", OUTROS: "Outros",
 };
 
-type DialogAction = "EM_INVESTIGACAO" | "RESOLVIDA" | "CANCELADA";
+type DialogAction = "EM_INVESTIGACAO" | "EM_TRATAMENTO" | "RESOLVIDA" | "CANCELADA";
 
 export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const { tenantId, usuarioId } = useTenant();
@@ -78,8 +82,10 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
           .select(`*,
             produto:produto_id(sku, descricao),
             motivo_ocorrencia:motivo_ocorrencia_id(descricao),
+            endereco:endereco_id(descricao),
             usuario_criador:usuario!ocorrencia_operacional_criado_por_fkey(nome),
-            usuario_resolvedor:usuario!ocorrencia_operacional_resolvido_por_fkey(nome)`)
+            usuario_resolvedor:usuario!ocorrencia_operacional_resolvido_por_fkey(nome),
+            usuario_causador:usuario!ocorrencia_operacional_usuario_causador_id_fkey(nome)`)
           .eq("id", ocorrenciaId)
           .eq("tenant_id", tenantId)
           .single(),
@@ -267,7 +273,45 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               <InfoItem icon={<Clock size={14} />} label="Data de criação">
                 <span className="text-foreground">{formatDateTime(ocorrencia.criado_em)}</span>
               </InfoItem>
+              {ocorrencia.endereco?.descricao && (
+                <InfoItem icon={<MapPin size={14} />} label="Endereço">
+                  <span className="font-mono">{ocorrencia.endereco.descricao}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.tarefa_id && (
+                <InfoItem icon={<ClipboardList size={14} />} label="Tarefa">
+                  <span className="font-mono text-[10px]">{ocorrencia.tarefa_id}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.usuario_causador?.nome && (
+                <InfoItem icon={<UserX size={14} />} label="Causador">
+                  {ocorrencia.usuario_causador.nome}
+                </InfoItem>
+              )}
+              {ocorrencia.lote && (
+                <InfoItem icon={<Hash size={14} />} label="Lote">
+                  <span className="font-mono">{ocorrencia.lote}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.validade && (
+                <InfoItem icon={<Calendar size={14} />} label="Validade">
+                  {new Date(ocorrencia.validade).toLocaleDateString("pt-BR")}
+                </InfoItem>
+              )}
+              {ocorrencia.categoria && (
+                <InfoItem icon={<Tag size={14} />} label="Categoria">
+                  <span className={cn(
+                    "inline-block px-2 py-0.5 rounded-full text-[10px] border",
+                    ocorrencia.categoria === "PREVENTIVA"
+                      ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                      : "bg-orange-500/15 text-orange-400 border-orange-500/30"
+                  )}>
+                    {ocorrencia.categoria === "PREVENTIVA" ? "Preventiva" : "Corretiva"}
+                  </span>
+                </InfoItem>
+              )}
             </div>
+
 
             <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
               <Stat label="Esperada" value={ocorrencia.quantidade_esperada} />
@@ -300,6 +344,11 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                 {ocorrencia.status === "ABERTA" && (
                   <ActionBtn icon={<Search size={14} />} onClick={() => openDialog("EM_INVESTIGACAO")} color="yellow">
                     Iniciar investigação
+                  </ActionBtn>
+                )}
+                {ocorrencia.status === "EM_INVESTIGACAO" && (
+                  <ActionBtn icon={<Wrench size={14} />} onClick={() => openDialog("EM_TRATAMENTO")} color="purple">
+                    Iniciar tratamento
                   </ActionBtn>
                 )}
                 <ActionBtn icon={<CheckCircle2 size={14} />} onClick={() => openDialog("RESOLVIDA")} color="green">
@@ -375,6 +424,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
             <DialogTitle>
               {dialogAction === "RESOLVIDA" ? "Resolver ocorrência"
                 : dialogAction === "EM_INVESTIGACAO" ? "Iniciar investigação"
+                : dialogAction === "EM_TRATAMENTO" ? "Iniciar tratamento"
                 : "Cancelar ocorrência"}
             </DialogTitle>
           </DialogHeader>
@@ -440,6 +490,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                 <option value="">Selecionar...</option>
                 <option value="ABERTA">Aberta</option>
                 <option value="EM_INVESTIGACAO">Em investigação</option>
+                <option value="EM_TRATAMENTO">Em tratamento</option>
                 <option value="RESOLVIDA">Resolvida</option>
                 <option value="CANCELADA">Cancelada</option>
               </select>
@@ -514,11 +565,12 @@ function Stat({ label, value, valueClass }: { label: string; value: number | str
   );
 }
 
-function ActionBtn({ icon, children, onClick, color }: { icon: React.ReactNode; children: React.ReactNode; onClick: () => void; color: "yellow" | "green" | "gray" }) {
+function ActionBtn({ icon, children, onClick, color }: { icon: React.ReactNode; children: React.ReactNode; onClick: () => void; color: "yellow" | "green" | "gray" | "purple" }) {
   const colors: Record<string, string> = {
     yellow: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25",
     green: "bg-green-500/15 text-green-400 border-green-500/30 hover:bg-green-500/25",
     gray: "bg-gray-500/15 text-gray-300 border-gray-500/30 hover:bg-gray-500/25",
+    purple: "bg-purple-500/15 text-purple-400 border-purple-500/30 hover:bg-purple-500/25",
   };
   return (
     <button onClick={onClick} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors", colors[color])}>

@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MapPin, SkipForward, MoreVertical, ListOrdered, XCircle, Loader2 } from "lucide-react";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -255,6 +256,15 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
         <ActionButton onClick={handlePular} variant="secondary">
           <SkipForward size={18} /> Pular Endereço
         </ActionButton>
+
+        <RegistrarOcorrenciaColetorButton
+          contexto={{
+            etapa: "INVENTARIO",
+            endereco_id: tarefa?.endereco_id || tarefa?.id_local_origem,
+            endereco_descricao: tarefa?.endereco,
+            tarefa_id: tarefa?.id,
+          }}
+        />
       </div>
 
       {/* Error Dialog */}

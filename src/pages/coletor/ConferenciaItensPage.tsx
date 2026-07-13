@@ -4,6 +4,7 @@ import { Loader2, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -116,6 +117,15 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
             );
           })
         )}
+      </div>
+      <div className="shrink-0 pt-2">
+        <RegistrarOcorrenciaColetorButton
+          contexto={{
+            etapa: "EXPEDICAO",
+            documento_origem_id: movimentoId || undefined,
+            tipo_documento_origem: "MOVIMENTO_SAIDA",
+          }}
+        />
       </div>
     </ColetorLayout>
   );

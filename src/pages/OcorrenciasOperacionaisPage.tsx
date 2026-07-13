@@ -221,7 +221,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <RegistrarOcorrenciaButton
-            contexto={{ etapa: "AUDITORIA" }}
+            contexto={{}}
 
             onSuccess={() => { kpisQuery.refetch(); listQuery.refetch(); }}
           />

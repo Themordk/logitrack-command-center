@@ -6,6 +6,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin, AlertTriangle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -289,6 +290,17 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       >
         CONFIRMAR ARMAZENAGEM
       </ActionButton>
+
+      <RegistrarOcorrenciaColetorButton
+        contexto={{
+          etapa: "ARMAZENAGEM",
+          produto_id: produtoId || undefined,
+          produto_descricao: produtoDesc,
+          tarefa_id: tarefaId,
+          documento_origem_id: movimentoEntradaId || undefined,
+          tipo_documento_origem: "MOVIMENTO_ENTRADA",
+        }}
+      />
 
       {/* Modal de capacidade excedida */}
       {showCapModal && capInfo && (

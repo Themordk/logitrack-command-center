@@ -6,6 +6,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Package, BoxIcon, CheckCircle, XCircle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -250,6 +251,17 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
             </ActionButton>
           );
         })()}
+
+        <RegistrarOcorrenciaColetorButton
+          contexto={{
+            etapa: "INVENTARIO",
+            produto_id: tarefa?.produto_id,
+            produto_descricao: tarefa?.descricao || tarefa?.produto,
+            tarefa_id: tarefa?.id,
+            endereco_id: tarefa?.endereco_id,
+            endereco_descricao: tarefa?.endereco,
+          }}
+        />
       </div>
 
       {/* Zero Quantity Confirmation Dialog */}
