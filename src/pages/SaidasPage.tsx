@@ -108,15 +108,11 @@ export function SaidasPage() {
       setRotaOptions(rt);
       setVeiculoOptions(vc);
     }
-    setFormData({ box_id: "", rota_id: "", veiculo_id: "", observacao: "", prioridade: "NORMAL" });
+    setFormData({ box_id: "", rota_id: "", veiculo_id: "", observacao: "" });
     setShowModal(true);
   };
 
   const handleGenerate = async () => {
-    if (!formData.prioridade) {
-      toast.error("Preencha o campo Prioridade.");
-      return;
-    }
     setGenerating(true);
     try {
       const { data, error } = await (supabase as any).rpc("gerar_onda_separacao", {
@@ -127,7 +123,6 @@ export function SaidasPage() {
         p_box_id: formData.box_id || null,
         p_rota_id: formData.rota_id || null,
         p_veiculo_id: formData.veiculo_id || null,
-        p_prioridade: formData.prioridade || "NORMAL",
       });
       if (error) throw error;
       toast.success(data || "Onda de carregamento gerada com sucesso!");
