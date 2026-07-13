@@ -28,6 +28,7 @@ interface Tarefa {
   validade?: string;
   fabricacao?: string;
   tipo_controle?: string;
+  saldo_endereco?: number;
   [key: string]: any;
 }
 
