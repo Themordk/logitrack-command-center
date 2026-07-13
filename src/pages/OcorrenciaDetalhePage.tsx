@@ -490,6 +490,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                 <option value="">Selecionar...</option>
                 <option value="ABERTA">Aberta</option>
                 <option value="EM_INVESTIGACAO">Em investigação</option>
+                <option value="EM_TRATAMENTO">Em tratamento</option>
                 <option value="RESOLVIDA">Resolvida</option>
                 <option value="CANCELADA">Cancelada</option>
               </select>
