@@ -82,8 +82,10 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
           .select(`*,
             produto:produto_id(sku, descricao),
             motivo_ocorrencia:motivo_ocorrencia_id(descricao),
+            endereco:endereco_id(descricao),
             usuario_criador:usuario!ocorrencia_operacional_criado_por_fkey(nome),
-            usuario_resolvedor:usuario!ocorrencia_operacional_resolvido_por_fkey(nome)`)
+            usuario_resolvedor:usuario!ocorrencia_operacional_resolvido_por_fkey(nome),
+            usuario_causador:usuario!ocorrencia_operacional_usuario_causador_id_fkey(nome)`)
           .eq("id", ocorrenciaId)
           .eq("tenant_id", tenantId)
           .single(),
