@@ -5000,10 +5000,12 @@ export type Database = {
         Row: {
           ativo: boolean
           codigo_erp: string | null
+          conferencia_cega: boolean
           conferencia_checkout: boolean
           descricao: string
           empresa_id: string
           gera_mov_automatico: boolean
+          gera_volume_etapa: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id: string
           libera_mov_automatico: boolean
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
@@ -5014,10 +5016,12 @@ export type Database = {
         Insert: {
           ativo?: boolean
           codigo_erp?: string | null
+          conferencia_cega?: boolean
           conferencia_checkout?: boolean
           descricao: string
           empresa_id: string
           gera_mov_automatico?: boolean
+          gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id?: string
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
@@ -5028,10 +5032,12 @@ export type Database = {
         Update: {
           ativo?: boolean
           codigo_erp?: string | null
+          conferencia_cega?: boolean
           conferencia_checkout?: boolean
           descricao?: string
           empresa_id?: string
           gera_mov_automatico?: boolean
+          gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id?: string
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
@@ -8483,6 +8489,11 @@ export type Database = {
       enum_execucao_inventario: "AUDITORIA" | "ATUALIZACAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
+      enum_momento_geracao_volume:
+        | "NENHUMA"
+        | "SEPARAÇÃO"
+        | "CONFERÊNCIA"
+        | "CARREGAMENTO"
       enum_origem_inventario: "MANUAL" | "AUTOMATICO" | "ROTATIVO_SISTEMA"
       enum_prioridade_ocorrencia: "BAIXA" | "NORMAL" | "ALTA" | "CRITICA"
       enum_prioridade_onda: "URGENTE" | "ALTA" | "NORMAL" | "BAIXA"
@@ -8570,6 +8581,13 @@ export type Database = {
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_abastecimento: "PREVENTIVO" | "CORRETIVO"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
+      enum_tipo_conferencia:
+        | "Nenhuma"
+        | "Por item"
+        | "Por volume"
+        | "Por HU"
+        | "Por pedido/Item"
+        | "Por HU/Item"
       enum_tipo_controle: "UNIDADE" | "LOTE" | "VALIDADE" | "SERIE" | "METROS"
       enum_tipo_convocacao:
         | "AUTO_CONVOCADO"
@@ -8590,6 +8608,10 @@ export type Database = {
         | "SCAN_LOTE"
         | "CONFIRMACAO_LOTE"
         | "CONFERENCIA"
+      enum_tipo_execucao_tarefa_movimento:
+        | "Individual"
+        | "Paralela"
+        | "Sequencial"
       enum_tipo_grupo: "PICKING" | "ARMAZENAGEM" | "INVENTARIO"
       enum_tipo_hu: "PALLET" | "CAIXA" | "VOLUME" | "OUTRO"
       enum_tipo_inventario:
@@ -8819,6 +8841,12 @@ export const Constants = {
       enum_execucao_inventario: ["AUDITORIA", "ATUALIZACAO"],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
       enum_lado: ["PAR", "IMPAR"],
+      enum_momento_geracao_volume: [
+        "NENHUMA",
+        "SEPARAÇÃO",
+        "CONFERÊNCIA",
+        "CARREGAMENTO",
+      ],
       enum_origem_inventario: ["MANUAL", "AUTOMATICO", "ROTATIVO_SISTEMA"],
       enum_prioridade_ocorrencia: ["BAIXA", "NORMAL", "ALTA", "CRITICA"],
       enum_prioridade_onda: ["URGENTE", "ALTA", "NORMAL", "BAIXA"],
@@ -8916,6 +8944,14 @@ export const Constants = {
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],
       enum_tipo_abastecimento: ["PREVENTIVO", "CORRETIVO"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],
+      enum_tipo_conferencia: [
+        "Nenhuma",
+        "Por item",
+        "Por volume",
+        "Por HU",
+        "Por pedido/Item",
+        "Por HU/Item",
+      ],
       enum_tipo_controle: ["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"],
       enum_tipo_convocacao: [
         "AUTO_CONVOCADO",
@@ -8937,6 +8973,11 @@ export const Constants = {
         "SCAN_LOTE",
         "CONFIRMACAO_LOTE",
         "CONFERENCIA",
+      ],
+      enum_tipo_execucao_tarefa_movimento: [
+        "Individual",
+        "Paralela",
+        "Sequencial",
       ],
       enum_tipo_grupo: ["PICKING", "ARMAZENAGEM", "INVENTARIO"],
       enum_tipo_hu: ["PALLET", "CAIXA", "VOLUME", "OUTRO"],
