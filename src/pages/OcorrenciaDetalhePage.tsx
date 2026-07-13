@@ -424,6 +424,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
             <DialogTitle>
               {dialogAction === "RESOLVIDA" ? "Resolver ocorrência"
                 : dialogAction === "EM_INVESTIGACAO" ? "Iniciar investigação"
+                : dialogAction === "EM_TRATAMENTO" ? "Iniciar tratamento"
                 : "Cancelar ocorrência"}
             </DialogTitle>
           </DialogHeader>
