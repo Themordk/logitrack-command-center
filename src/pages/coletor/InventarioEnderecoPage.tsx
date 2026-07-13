@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MapPin, SkipForward, MoreVertical, ListOrdered, XCircle, Loader2 } from "lucide-react";
+import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
 interface Props { onNavigate: (path: string) => void; }
 
