@@ -1,58 +1,33 @@
+## Objetivo
 
-# Fase 2 — Componentes de Registro de Ocorrência Operacional
+Alterar a função `gerar_onda_separacao` para que a prioridade da onda seja definida automaticamente a partir do campo `prioridade` da tabela `tipo_saida` (vinculado ao documento de saída), em vez de receber o valor pelo parâmetro `p_prioridade`.
 
-Objetivo: criar componentes reutilizáveis para registrar ocorrências operacionais em qualquer tela (web e coletor) e atualizar as telas relacionadas para consumir o novo modelo (categoria, endereço, causador, lote, validade e status `EM_TRATAMENTO`). O backend (tabela, enums e RPC `registrar_ocorrencia_operacional`) já está pronto e não será alterado.
+## Backend (Supabase)
 
-## Arquivos a criar
+Migration ajustando a função `gerar_onda_separacao`:
 
-1. **`src/components/ocorrencia/RegistrarOcorrenciaModal.tsx`**
-   - Dialog reutilizável que recebe `contexto: OcorrenciaContexto` via props.
-   - Cabeçalho com título e etapa; card informativo com produto/endereço/causador quando fornecidos.
-   - Campos: Tipo, Motivo (query em `motivo_ocorrencia` filtrada por tenant, etapa, empresa e ativo), Categoria (auto-preenche por `categoria_padrao`), Prioridade (auto-preenche por `prioridade_padrao`), Quantidades esperada/real (com divergência calculada), Lote, Validade, Observação.
-   - Se `contexto.etapa` não vier definida (uso via botão "Nova ocorrência"), exibir select de etapa dentro do modal.
-   - Submit chama `supabase.rpc('registrar_ocorrencia_operacional', {...})` com todos os parâmetros descritos, tratando retorno como objeto ou JSON string; `toast` de sucesso/erro; chama `onSuccess`.
+- Remover o uso do parâmetro `p_prioridade` na lógica interna (mantido na assinatura por compatibilidade, mas ignorado — ou removido caso preferível).
+- Dentro da função, para cada documento processado (ou no cabeçalho da onda), obter a prioridade via:
+  ```sql
+  SELECT ts.prioridade
+  FROM documento_saida ds
+  JOIN tipo_saida ts ON ts.id = ds.tipo_saida_id
+  WHERE ds.id = <doc_id>
+  ```
+- Quando múltiplos documentos forem incluídos na mesma onda, adotar a **maior prioridade** entre os tipos de saída dos documentos selecionados (ex.: URGENTE > ALTA > NORMAL > BAIXA).
+- Fallback para `NORMAL` caso o `tipo_saida.prioridade` esteja nulo.
 
-2. **`src/components/ocorrencia/RegistrarOcorrenciaButton.tsx`**
-   - Botão web nas variantes `icon` (tooltip) e `full` (ícone + texto amber).
-   - Controla `open` internamente e delega para o modal.
+Confirmar via `read_query` a estrutura atual de `tipo_saida.prioridade` (enum/text) e da assinatura atual da função antes de escrever a migration.
 
-3. **`src/components/ocorrencia/RegistrarOcorrenciaColetorButton.tsx`**
-   - Usa `ActionButton variant="warning"`.
-   - Abre bottom sheet fullscreen com estilo do coletor (mesmo padrão visual do `SeparacaoOcorrenciasPage.tsx`), motivos listados como cards selecionáveis, inputs em dark, botões `ActionButton`.
-   - Consome a mesma RPC.
+## Frontend (`src/pages/SaidasPage.tsx`)
 
-## Arquivos a modificar
-
-4. **`src/pages/OcorrenciasOperacionaisPage.tsx`**
-   - Adicionar KPI "Em tratamento" (roxo) contando `EM_TRATAMENTO`.
-   - Filtro select de Categoria (Preventiva/Corretiva).
-   - Colunas novas na tabela: Categoria (badge) e Endereço (font-mono via join).
-   - Query com join `endereco:endereco_id(descricao)`.
-   - Botão "Nova ocorrência" no header (variante `full`) abrindo o modal com select de etapa.
-   - `onSuccess` chama `refresh()`.
-
-5. **`src/pages/OcorrenciaDetalhePage.tsx`**
-   - Query com joins: `endereco`, `usuario_causador`.
-   - InfoItems condicionais: Endereço, Tarefa, Causador, Lote, Validade, Categoria.
-   - Suporte a status `EM_TRATAMENTO` em `STATUS_BADGE/LABEL/DOT` e no select do modal "Registrar histórico".
-   - Ação "Iniciar tratamento" quando status = `EM_INVESTIGACAO`; manter "Resolver"/"Cancelar" em `EM_TRATAMENTO`.
-
-6. **`src/pages/MotivosOcorrenciaPage.tsx`**
-   - Colunas: `acao_automatica`, `prioridade_padrao`, `categoria_padrao` com labels amigáveis.
-   - Campos no modal CRUD para esses três novos atributos (enum selects).
-   - Ampliar `etapa_ocorrencia` para incluir `INVENTARIO` e `AUDITORIA`.
-
-## Restrições
-
-- Nenhuma alteração em `App.tsx`, `SeparacaoOcorrenciasPage.tsx`, `LiberarErroTransporteModal.tsx`, componentes shadcn ou banco/edge functions.
-- Sem novas dependências.
-- Datas exibidas pela `@/utils/dateTime` (padrão do projeto).
-- Escrita de timestamps não aplicável (RPC cuida).
+- Remover o campo **Prioridade** do modal "Gerar Onda de Carregamento" (o select e a validação obrigatória).
+- Remover `prioridade` do `formData` e da chamada RPC (`p_prioridade` deixa de ser enviado, ou envia `null`).
+- Adicionar nota informativa no modal: "A prioridade será definida automaticamente pelo tipo de saída dos documentos selecionados."
 
 ## Detalhes técnicos
 
-- Contexto tenant via `useTenant()` (`tenantId`, `empresaId`, `armazemId`, `usuarioId`).
-- Classes de input/label padronizadas conforme prompt.
-- Tratamento defensivo do retorno da RPC (JSON.parse quando string).
-- Motivos filtrados no client: `empresa_id === null || empresa_id === empresaId`.
-- Divergência exibida em vermelho quando > 0, verde quando 0.
+- Função-alvo: `public.gerar_onda_separacao(p_tenant_id, p_empresa_id, p_usuario_id, p_documentos uuid[], p_box_id, p_rota_id, p_veiculo_id, p_prioridade)`.
+- Campo consultado: `public.tipo_saida.prioridade`.
+- Regra de agregação sugerida entre múltiplos documentos: ranking `URGENTE=4, ALTA=3, NORMAL=2, BAIXA=1` → `MAX`.
+- Manter o parâmetro `p_prioridade` na assinatura para não quebrar chamadas existentes; apenas descartá-lo internamente.
