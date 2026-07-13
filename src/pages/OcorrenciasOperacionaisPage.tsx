@@ -396,13 +396,15 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   );
 }
 
-function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: "red" | "yellow" | "green" | "blue" }) {
+function Kpi({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: "red" | "yellow" | "green" | "blue" | "purple" }) {
   const toneClass: Record<string, string> = {
     red: "border-red-500/30 bg-red-500/5 text-red-400",
     yellow: "border-yellow-500/30 bg-yellow-500/5 text-yellow-400",
     green: "border-green-500/30 bg-green-500/5 text-green-400",
     blue: "border-blue-500/30 bg-blue-500/5 text-blue-400",
+    purple: "border-purple-500/30 bg-purple-500/5 text-purple-400",
   };
+
   return (
     <div className={cn("rounded-lg border p-3", toneClass[tone])}>
       <div className="flex items-center gap-2">
