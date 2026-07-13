@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Package, FileText, User, Clock, MessageSquare,
   CheckCircle2, XCircle, Search, AlertTriangle, ShieldAlert, Loader2, Plus,
+  MapPin, ClipboardList, UserX, Hash, Calendar, Tag, Wrench,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -19,18 +20,21 @@ interface Props {
 const STATUS_BADGE: Record<string, string> = {
   ABERTA: "bg-red-500/15 text-red-400 border-red-500/30",
   EM_INVESTIGACAO: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+  EM_TRATAMENTO: "bg-purple-500/15 text-purple-400 border-purple-500/30",
   RESOLVIDA: "bg-green-500/15 text-green-400 border-green-500/30",
   CANCELADA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
 };
 const STATUS_LABEL: Record<string, string> = {
   ABERTA: "Aberta",
   EM_INVESTIGACAO: "Em investigação",
+  EM_TRATAMENTO: "Em tratamento",
   RESOLVIDA: "Resolvida",
   CANCELADA: "Cancelada",
 };
 const STATUS_DOT: Record<string, string> = {
   ABERTA: "bg-red-500 text-red-50",
   EM_INVESTIGACAO: "bg-yellow-500 text-yellow-50",
+  EM_TRATAMENTO: "bg-purple-500 text-purple-50",
   RESOLVIDA: "bg-green-500 text-green-50",
   CANCELADA: "bg-gray-500 text-gray-50",
 };
@@ -52,7 +56,7 @@ const TIPO_LABEL: Record<string, string> = {
   LOTE_INCORRETO: "Lote incorreto", OUTROS: "Outros",
 };
 
-type DialogAction = "EM_INVESTIGACAO" | "RESOLVIDA" | "CANCELADA";
+type DialogAction = "EM_INVESTIGACAO" | "EM_TRATAMENTO" | "RESOLVIDA" | "CANCELADA";
 
 export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const { tenantId, usuarioId } = useTenant();
