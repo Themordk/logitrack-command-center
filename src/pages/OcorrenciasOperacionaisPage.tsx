@@ -141,7 +141,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
 
 
   const listQuery = useQuery({
-    queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade, debouncedDataIni, debouncedDataFim],
+    queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade, filterCategoria, debouncedDataIni, debouncedDataFim],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -150,6 +150,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
         .select(`*,
           produto:produto_id(sku, descricao),
           motivo_ocorrencia:motivo_ocorrencia_id(descricao),
+          endereco:endereco_id(descricao),
           usuario_criador:usuario!ocorrencia_operacional_criado_por_fkey(nome),
           usuario_resolvedor:usuario!ocorrencia_operacional_resolvido_por_fkey(nome)`,
           { count: "exact" })
@@ -160,12 +161,14 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       if (filterStatus) q = q.eq("status", filterStatus);
       if (filterEtapa) q = q.eq("etapa_ocorrencia", filterEtapa);
       if (filterPrioridade) q = q.eq("prioridade", filterPrioridade);
+      if (filterCategoria) q = q.eq("categoria", filterCategoria);
       if (debouncedDataIni) q = q.gte("criado_em", `${debouncedDataIni}T00:00:00`);
       if (debouncedDataFim) q = q.lte("criado_em", `${debouncedDataFim}T23:59:59.999`);
       const { data, error, count } = await q;
       if (error) throw error;
       return { rows: data || [], count: count || 0 };
     },
+
     enabled: !!tenantId,
     staleTime: 30_000,
   });
