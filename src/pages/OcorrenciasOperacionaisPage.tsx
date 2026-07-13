@@ -108,11 +108,12 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       if (error) throw error;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      let abertas = 0, investigacao = 0, resolvidasHoje = 0;
+      let abertas = 0, investigacao = 0, tratamento = 0, resolvidasHoje = 0;
       let somaH = 0, contH = 0;
       (data || []).forEach((r: any) => {
         if (r.status === "ABERTA") abertas++;
         else if (r.status === "EM_INVESTIGACAO") investigacao++;
+        else if (r.status === "EM_TRATAMENTO") tratamento++;
         else if (r.status === "RESOLVIDA") {
           if (r.resolvido_em) {
             const dr = new Date(r.resolvido_em);
@@ -128,6 +129,7 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       return {
         abertas,
         investigacao,
+        tratamento,
         resolvidasHoje,
         tempoMedio: contH > 0 ? Math.round((somaH / contH) * 10) / 10 : 0,
       };
@@ -135,7 +137,8 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
     enabled: !!tenantId,
     staleTime: 60_000,
   });
-  const kpis = kpisQuery.data ?? { abertas: 0, investigacao: 0, resolvidasHoje: 0, tempoMedio: 0 };
+  const kpis = kpisQuery.data ?? { abertas: 0, investigacao: 0, tratamento: 0, resolvidasHoje: 0, tempoMedio: 0 };
+
 
   const listQuery = useQuery({
     queryKey: ["ocorrencias-list", tenantId, empresaId, page, filterStatus, filterEtapa, filterPrioridade, debouncedDataIni, debouncedDataFim],
