@@ -69,6 +69,7 @@ import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhe
 import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
+import { TarefasColaboradorPage } from "./modules/reports/produtividade/TarefasColaboradorPage";
 import { CortesReportPage } from "./modules/reports/cortes/CortesReportPage";
 import { CurvaAbcReportPage } from "./modules/reports/curva-abc/CurvaAbcReportPage";
 import { ValidadeLoteReportPage } from "./modules/reports/validade-lote/ValidadeLoteReportPage";
@@ -226,6 +227,14 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Detalhe da Tarefa" },
     ];
   }
+  if (path.startsWith("/relatorios/produtividade/tarefas/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Relatórios" },
+      { label: "Produtividade Operacional", path: "/relatorios/produtividade" },
+      { label: "Tarefas do Operador" },
+    ];
+  }
   if (path.startsWith("/relatorios/produtividade/operador/")) {
     return [
       { label: "CORE LogiTrack" },
@@ -323,6 +332,12 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
       const tarefaMatch = path.match(/^\/relatorios\/movimentacoes\/tarefa\/([^/?]+)/);
       if (tarefaMatch) {
         return <TarefaDetalhePage tarefaExecucaoId={tarefaMatch[1]} onNavigate={onNavigate} />;
+      }
+      // Dynamic route: /relatorios/produtividade/tarefas/:id
+      const tarefasColabMatch = path.match(/^\/relatorios\/produtividade\/tarefas\/([^/?]+)/);
+      if (tarefasColabMatch) {
+        const params = new URLSearchParams(path.split("?")[1] || "");
+        return <TarefasColaboradorPage usuarioId={tarefasColabMatch[1]} onNavigate={onNavigate} dataInicio={params.get("inicio") || undefined} dataFim={params.get("fim") || undefined} />;
       }
       // Dynamic route: /relatorios/produtividade/operador/:id
       const operadorMatch = path.match(/^\/relatorios\/produtividade\/operador\/([^/?]+)/);

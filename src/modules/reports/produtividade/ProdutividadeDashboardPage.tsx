@@ -536,7 +536,12 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                 </thead>
                 <tbody>
                   {pageRows.map((r) => (
-                    <tr key={r.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                    <tr
+                      key={r.id}
+                      className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => onNavigate(`/relatorios/produtividade/tarefas/${r.usuario_id}?inicio=${dataInicio}&fim=${dataFim}`)}
+                      title="Clique para ver detalhamento de tarefas"
+                    >
                       <td className="px-3 py-2.5 text-foreground">{safeFormatISO(r.data_referencia, "dd/MM/yyyy")}</td>
                       <td className="px-3 py-2.5 text-foreground">{r.usuario?.nome || "—"}</td>
                       <td className="px-3 py-2.5 text-muted-foreground">{r.turno?.descricao || "—"}</td>
