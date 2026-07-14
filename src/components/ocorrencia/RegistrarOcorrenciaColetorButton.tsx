@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Camera, X } from "lucide-react";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import type { OcorrenciaContexto } from "./RegistrarOcorrenciaModal";
 
@@ -45,6 +45,11 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
 
+  // Evidência fotográfica
+  const [foto, setFoto] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
   // Reset ao abrir
   useEffect(() => {
     if (!open) return;
@@ -53,12 +58,23 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
     setTipo("OUTROS");
     setCategoria("CORRETIVA");
     setPrioridade("NORMAL");
-    setQtdEsp("0");
-    setQtdReal("0");
+    setQtdEsp(contexto.quantidade_esperada != null ? String(contexto.quantidade_esperada) : "0");
+    setQtdReal(contexto.quantidade_real != null ? String(contexto.quantidade_real) : "0");
     setLote("");
     setValidade("");
     setObs("");
+    setFoto(null);
+    setFotoPreview(null);
   }, [open]);
+
+  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFoto(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setFotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   // Carregar motivos filtrados pela etapa do contexto
   useEffect(() => {
