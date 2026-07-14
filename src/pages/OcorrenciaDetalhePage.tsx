@@ -310,6 +310,34 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                   </span>
                 </InfoItem>
               )}
+              {ocorrencia.tipo_documento_origem && (
+                <InfoItem icon={<FileText size={14} />} label="Tipo documento">
+                  <span className="text-foreground">
+                    {({
+                      DOCUMENTO_ENTRADA: "Documento de entrada",
+                      MOVIMENTO_ENTRADA: "Movimento de entrada",
+                      MOVIMENTO_SAIDA: "Movimento de saída",
+                      DOCUMENTO_SAIDA: "Documento de saída",
+                      INVENTARIO: "Inventário",
+                    } as Record<string, string>)[ocorrencia.tipo_documento_origem] ?? ocorrencia.tipo_documento_origem}
+                  </span>
+                </InfoItem>
+              )}
+              {ocorrencia.documento_origem_id && (
+                <InfoItem icon={<FileText size={14} />} label="ID documento origem">
+                  <span className="font-mono text-[10px] text-foreground">{ocorrencia.documento_origem_id}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.tarefa_execucao_id && (
+                <InfoItem icon={<ClipboardList size={14} />} label="Execução da tarefa">
+                  <span className="font-mono text-[10px] text-foreground">{ocorrencia.tarefa_execucao_id}</span>
+                </InfoItem>
+              )}
+              {ocorrencia.resolvido_por && !ocorrencia.resolucao && (
+                <InfoItem icon={<User size={14} />} label="Resolvida por">
+                  <span className="text-foreground">{ocorrencia.usuario_resolvedor?.nome ?? "—"}</span>
+                </InfoItem>
+              )}
             </div>
 
 
