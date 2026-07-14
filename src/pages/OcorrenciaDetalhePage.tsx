@@ -414,6 +414,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                     const Icon = h.status_novo === "RESOLVIDA" ? CheckCircle2
                       : h.status_novo === "CANCELADA" ? XCircle
                       : h.status_novo === "EM_INVESTIGACAO" ? ShieldAlert
+                      : h.status_novo === "EM_TRATAMENTO" ? Wrench
                       : AlertTriangle;
                     return (
                       <div key={h.id} className="relative">
