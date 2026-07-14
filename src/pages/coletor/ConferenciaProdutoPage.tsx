@@ -470,12 +470,12 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
             <RegistrarOcorrenciaColetorButton
               contexto={{
-                etapa: "RECEBIMENTO",
+                etapa: "EXPEDICAO",
                 produto_id: produtoId || undefined,
                 produto_descricao: tarefa?.produto || tarefa?.descricao,
                 tarefa_id: tarefa?.id || tarefa?.tarefa_id,
                 documento_origem_id: movimentoId || undefined,
-                tipo_documento_origem: "MOVIMENTO_ENTRADA",
+                tipo_documento_origem: "MOVIMENTO_SAIDA",
               }}
             />
           </>
