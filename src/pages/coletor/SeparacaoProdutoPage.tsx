@@ -426,15 +426,6 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         >
           Confirmar Quantidade
         </ActionButton>
-
-        <RegistrarOcorrenciaColetorButton
-          contexto={{
-            etapa: "SEPARACAO",
-            produto_id: produtoId || undefined,
-            produto_descricao: tarefa?.produto,
-            tarefa_id: tarefa?.id || tarefa?.tarefa_id,
-          }}
-        />
       </div>
 
 
