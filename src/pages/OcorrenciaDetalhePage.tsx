@@ -388,6 +388,18 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               </div>
             </div>
           )}
+
+          {podeAgir && (
+            <div className="card-surface p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Complementar informações</h3>
+              <ComplementarOcorrenciaForm
+                ocorrencia={ocorrencia}
+                tenantId={tenantId}
+                usuarioId={usuarioId}
+                onSave={load}
+              />
+            </div>
+          )}
         </div>
 
         {/* Histórico */}
