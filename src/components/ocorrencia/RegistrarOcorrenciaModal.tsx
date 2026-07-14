@@ -18,6 +18,8 @@ export interface OcorrenciaContexto {
   tipo_documento_origem?: string;
   usuario_causador_id?: string;
   usuario_causador_nome?: string;
+  quantidade_esperada?: number;
+  quantidade_real?: number;
 }
 
 interface Props {

@@ -27,18 +27,29 @@ export function MotivosOcorrenciaPage() {
     </span>
   );
 
+  const TIPO_PADRAO_LABEL: Record<string, string> = {
+    FALTA: "Falta", SOBRA: "Sobra", AVARIA: "Avaria",
+    DIVERGENCIA_INVENTARIO: "Diverg. inventário", EXTRAVIO: "Extravio",
+    PRODUTO_INCORRETO: "Prod. incorreto", VALIDADE_INCORRETA: "Val. incorreta",
+    LOTE_INCORRETO: "Lote incorreto", OUTROS: "Outros",
+  };
+
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição", type: "mono" },
     { key: "etapa_ocorrencia", label: "Etapa" },
+    {
+      key: "tipo_ocorrencia_padrao",
+      label: "Tipo Padrão",
+      render: (row) => (
+        <span className="text-xs">
+          {row.tipo_ocorrencia_padrao ? (TIPO_PADRAO_LABEL[row.tipo_ocorrencia_padrao] ?? row.tipo_ocorrencia_padrao) : "—"}
+        </span>
+      ),
+    },
     { key: "categoria_padrao", label: "Categoria", render: (row) => categoriaBadge(row.categoria_padrao || "CORRETIVA") },
     { key: "prioridade_padrao", label: "Prioridade", render: (row) => prioridadeBadge(row.prioridade_padrao) },
     { key: "acao_automatica", label: "Ação automática", render: (row) => (
       <span className="text-xs text-muted-foreground">{row.acao_automatica || "—"}</span>
-    )},
-    { key: "bloqueio_estoque", label: "Bloqueia Estoque", render: (row) => (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${row.bloqueio_estoque ? "badge-blocked" : "badge-free"}`}>
-        {row.bloqueio_estoque ? "Sim" : "Não"}
-      </span>
     )},
     { key: "ativo", label: "Status", type: "badge" },
   ];
@@ -46,10 +57,10 @@ export function MotivosOcorrenciaPage() {
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do motivo" },
     { name: "etapa_ocorrencia", label: "Etapa Ocorrência", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO", "EXPEDICAO", "INVENTARIO", "AUDITORIA"] },
+    { name: "tipo_ocorrencia_padrao", label: "Tipo de Ocorrência Padrão", type: "enum", enumValues: ["FALTA", "SOBRA", "AVARIA", "DIVERGENCIA_INVENTARIO", "EXTRAVIO", "PRODUTO_INCORRETO", "VALIDADE_INCORRETA", "LOTE_INCORRETO", "OUTROS"] },
     { name: "categoria_padrao", label: "Categoria padrão", type: "enum", required: true, defaultValue: "CORRETIVA", enumValues: ["PREVENTIVA", "CORRETIVA"] },
     { name: "prioridade_padrao", label: "Prioridade padrão", type: "enum", required: true, defaultValue: "NORMAL", enumValues: ["BAIXA", "NORMAL", "ALTA", "CRITICA"] },
     { name: "acao_automatica", label: "Ação automática", type: "enum", defaultValue: "NENHUMA", enumValues: ["NENHUMA", "BLOQUEIO_ESTOQUE", "NOTIFICACAO_SUPERVISOR", "AJUSTE_ESTOQUE"] },
-    { name: "bloqueio_estoque", label: "Bloqueia Estoque", type: "switch", defaultValue: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
