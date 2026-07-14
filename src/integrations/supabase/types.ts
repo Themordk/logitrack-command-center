@@ -8382,10 +8382,12 @@ export type Database = {
         Returns: {
           armazem: string
           endereco: string
+          endereco_id: string
           fator_caixa: number
           ordem_tarefa: number
           produto: string
           quantidade_requerida: number
+          saldo_endereco: number
           separado: number
           setor: string
           sku: string
