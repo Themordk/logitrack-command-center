@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2, Plus, Trash2, Edit2, MapPin } from "lucide-react";
-import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -300,14 +300,6 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
         ))}
       </div>
 
-      <div className="pt-1">
-        <RegistrarOcorrenciaColetorButton
-          contexto={{
-            produto_id: produto.id,
-            produto_descricao: produto.descricao,
-          }}
-        />
-      </div>
 
       {/* INFO TAB */}
       {tab === "info" && (

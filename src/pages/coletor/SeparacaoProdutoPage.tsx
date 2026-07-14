@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDate } from "@/utils/dateTime";
-import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -426,15 +426,6 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         >
           Confirmar Quantidade
         </ActionButton>
-
-        <RegistrarOcorrenciaColetorButton
-          contexto={{
-            etapa: "SEPARACAO",
-            produto_id: produtoId || undefined,
-            produto_descricao: tarefa?.produto,
-            tarefa_id: tarefa?.id || tarefa?.tarefa_id,
-          }}
-        />
       </div>
 
 
