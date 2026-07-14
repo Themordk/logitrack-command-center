@@ -619,3 +619,183 @@ function ActionBtn({ icon, children, onClick, color }: { icon: React.ReactNode; 
     </button>
   );
 }
+
+function ComplementarOcorrenciaForm({
+  ocorrencia,
+  tenantId,
+  usuarioId,
+  onSave,
+}: {
+  ocorrencia: any;
+  tenantId: string | null;
+  usuarioId: string | null;
+  onSave: () => void | Promise<void>;
+}) {
+  const [tipo, setTipo] = useState<string>(ocorrencia.tipo_ocorrencia ?? "OUTROS");
+  const [prioridade, setPrioridade] = useState<string>(ocorrencia.prioridade ?? "NORMAL");
+  const [categoria, setCategoria] = useState<string>(ocorrencia.categoria ?? "");
+  const [qtdEsp, setQtdEsp] = useState<string>(
+    ocorrencia.quantidade_esperada != null ? String(ocorrencia.quantidade_esperada) : "",
+  );
+  const [qtdReal, setQtdReal] = useState<string>(
+    ocorrencia.quantidade_real != null ? String(ocorrencia.quantidade_real) : "",
+  );
+  const [lote, setLote] = useState<string>(ocorrencia.lote ?? "");
+  const [validade, setValidade] = useState<string>(
+    ocorrencia.validade ? String(ocorrencia.validade).slice(0, 10) : "",
+  );
+  const [obs, setObs] = useState<string>(ocorrencia.observacao ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const inputClass =
+    "w-full h-10 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
+  const labelClass = "block text-[10px] uppercase font-medium text-muted-foreground mb-1";
+
+  const hasChanges = () => {
+    const origQtdEsp = ocorrencia.quantidade_esperada != null ? String(ocorrencia.quantidade_esperada) : "";
+    const origQtdReal = ocorrencia.quantidade_real != null ? String(ocorrencia.quantidade_real) : "";
+    const origValidade = ocorrencia.validade ? String(ocorrencia.validade).slice(0, 10) : "";
+    return (
+      tipo !== ocorrencia.tipo_ocorrencia ||
+      prioridade !== ocorrencia.prioridade ||
+      categoria !== (ocorrencia.categoria ?? "") ||
+      qtdEsp !== origQtdEsp ||
+      qtdReal !== origQtdReal ||
+      lote !== (ocorrencia.lote ?? "") ||
+      validade !== origValidade ||
+      obs !== (ocorrencia.observacao ?? "")
+    );
+  };
+
+  const handleComplementar = async () => {
+    if (!tenantId || !usuarioId) return;
+    setSaving(true);
+    try {
+      const patch: Record<string, any> = { updated_by: usuarioId };
+
+      if (tipo !== ocorrencia.tipo_ocorrencia) patch.tipo_ocorrencia = tipo;
+      if (prioridade !== ocorrencia.prioridade) patch.prioridade = prioridade;
+      if (categoria !== (ocorrencia.categoria ?? "")) patch.categoria = categoria || null;
+
+      const origQtdEsp = ocorrencia.quantidade_esperada != null ? String(ocorrencia.quantidade_esperada) : "";
+      const origQtdReal = ocorrencia.quantidade_real != null ? String(ocorrencia.quantidade_real) : "";
+      const qtdEspChanged = qtdEsp !== origQtdEsp;
+      const qtdRealChanged = qtdReal !== origQtdReal;
+
+      if (qtdEspChanged) patch.quantidade_esperada = qtdEsp === "" ? null : Number(qtdEsp);
+      if (qtdRealChanged) patch.quantidade_real = qtdReal === "" ? null : Number(qtdReal);
+      if (qtdEspChanged || qtdRealChanged) {
+        const e = Number(qtdEsp || 0);
+        const r = Number(qtdReal || 0);
+        patch.quantidade_divergente = Math.abs(e - r);
+      }
+
+      if (lote !== (ocorrencia.lote ?? "")) patch.lote = lote || null;
+      const origValidade = ocorrencia.validade ? String(ocorrencia.validade).slice(0, 10) : "";
+      if (validade !== origValidade) patch.validade = validade || null;
+      if (obs !== (ocorrencia.observacao ?? "")) patch.observacao = obs || null;
+
+      if (Object.keys(patch).length <= 1) {
+        toast.info("Nenhuma alteração detectada.");
+        return;
+      }
+
+      const { error: updateErr } = await (supabase as any)
+        .from("ocorrencia_operacional")
+        .update(patch)
+        .eq("id", ocorrencia.id)
+        .eq("tenant_id", tenantId);
+      if (updateErr) throw updateErr;
+
+      const camposAlterados = Object.keys(patch).filter((k) => k !== "updated_by").join(", ");
+      const { error: histErr } = await (supabase as any)
+        .from("ocorrencia_historico")
+        .insert({
+          tenant_id: tenantId,
+          ocorrencia_id: ocorrencia.id,
+          status_anterior: ocorrencia.status,
+          status_novo: ocorrencia.status,
+          observacao: `Informações complementadas pelo supervisor. Campos alterados: ${camposAlterados}`,
+          usuario_id: usuarioId,
+        });
+      if (histErr) throw histErr;
+
+      toast.success("Informações atualizadas com sucesso.");
+      await onSave();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao complementar informações.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const tipos = Object.keys(TIPO_LABEL);
+  const prioridades = ["BAIXA", "NORMAL", "ALTA", "CRITICA"];
+  const categorias = ["", "PREVENTIVA", "CORRETIVA"];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Tipo</label>
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputClass}>
+            {tipos.map((t) => (
+              <option key={t} value={t}>{TIPO_LABEL[t] ?? t}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Prioridade</label>
+          <select value={prioridade} onChange={(e) => setPrioridade(e.target.value)} className={inputClass}>
+            {prioridades.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Categoria</label>
+          <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={inputClass}>
+            {categorias.map((c) => (
+              <option key={c || "_"} value={c}>{c === "" ? "—" : c === "PREVENTIVA" ? "Preventiva" : "Corretiva"}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Lote</label>
+          <input value={lote} onChange={(e) => setLote(e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Quantidade esperada</label>
+          <input type="number" value={qtdEsp} onChange={(e) => setQtdEsp(e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Quantidade real</label>
+          <input type="number" value={qtdReal} onChange={(e) => setQtdReal(e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Validade</label>
+          <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className={inputClass} />
+        </div>
+        <div className="md:col-span-2">
+          <label className={labelClass}>Observação</label>
+          <textarea
+            value={obs}
+            onChange={(e) => setObs(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={handleComplementar}
+          disabled={saving || !hasChanges()}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+        >
+          {saving && <Loader2 size={14} className="animate-spin" />}
+          Salvar alterações
+        </button>
+      </div>
+    </div>
+  );
+}
