@@ -188,6 +188,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
               tarefa_id: tarefaId,
               endereco_id: enderecoOrigemIdEsperado || undefined,
               endereco_descricao: enderecoOrigemDesc,
+              quantidade_esperada: Number(qtdRestante || 0),
             }}
           />
         </div>
