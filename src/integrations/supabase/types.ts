@@ -8363,6 +8363,45 @@ export type Database = {
           total_volume: number
         }[]
       }
+      rpc_relatorio_tarefas_colaborador: {
+        Args: {
+          p_armazem_id?: string
+          p_data_fim: string
+          p_data_inicio: string
+          p_empresa_id?: string
+          p_status?: string
+          p_tenant_id: string
+          p_tipo_tarefa_id?: string
+          p_usuario_id?: string
+        }
+        Returns: {
+          armazem_id: string
+          atribuido_em: string
+          concluido_em: string
+          documento_origem_id: string
+          documento_origem_tipo: string
+          duracao_segundos: number
+          empresa_id: string
+          endereco_destino: string
+          endereco_origem: string
+          espera_segundos: number
+          execucao_id: string
+          iniciado_em: string
+          lote: string
+          produto_descricao: string
+          produto_sku: string
+          quantidade_cortada: number
+          quantidade_executada: number
+          quantidade_requerida: number
+          status_execucao: string
+          tarefa_id: string
+          tempo_estimado_seg: number
+          tipo_tarefa_codigo: string
+          tipo_tarefa_descricao: string
+          usuario_id: string
+          usuario_nome: string
+        }[]
+      }
       separacao_buscar_ondas: {
         Args: {
           p_empresa_id: string
