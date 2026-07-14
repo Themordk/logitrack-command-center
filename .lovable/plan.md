@@ -1,48 +1,54 @@
-## Plano — Correção de dados nas telas do Coletor + Evolução da OcorrenciaDetalhePage
 
-Escopo 100% frontend. Nenhuma alteração em banco, RPC ou enums.
+## Plano — SLA de Ocorrências + Correções e Melhorias
 
-### 1. Coletor — corrigir contextos de ocorrência
+Escopo 100% frontend. Backend (tabelas, RPCs, buckets) já pronto.
 
-**1.1 `src/pages/coletor/ConferenciaProdutoPage.tsx`**
-No `<RegistrarOcorrenciaColetorButton contexto={...}>`:
-- `etapa`: `"RECEBIMENTO"` → `"EXPEDICAO"`
-- `tipo_documento_origem`: `"MOVIMENTO_ENTRADA"` → `"MOVIMENTO_SAIDA"`
-- Confirmar que `produto_id`, `produto_descricao` e `tarefa_id` continuam sendo enviados.
+### 1. Nova tela: SLA de Ocorrências
 
-**1.2 `src/pages/coletor/ArmazenagemExecucaoPage.tsx`**
-Ler a página para identificar a variável do endereço destino confirmado (ex.: `enderecoConfirmado` / `endDestinoId` / `pickConfirmado`) e adicionar ao contexto:
-- `endereco_id`: id do endereço destino
-- `endereco_descricao`: descrição do endereço destino
-Manter `etapa: "ARMAZENAGEM"` e `tipo_documento_origem: "MOVIMENTO_ENTRADA"`.
+**Arquivo novo:** `src/pages/OcorrenciaSlaConfigPage.tsx`
+- Padrão CRUD (mesmo modelo de `MotivosOcorrenciaPage.tsx`): `useCrud` sobre a tabela `ocorrencia_sla_config`, `CrudTable` + `CrudModal` + `DeleteConfirmDialog`.
+- Colunas: Prioridade (badge colorido BAIXA/NORMAL/ALTA/CRITICA), SLA (horas), Alerta em (%), Ativo (badge).
+- Campos do form: `prioridade` (enum), `sla_horas` (number), `notificar_percentual` (number, default 80), `ativo` (switch, default true).
+- `handleSave` injeta `armazem_id` do `TenantContext` quando disponível.
+- Título "SLA de Ocorrências", botão "Novo SLA", search "Buscar SLA...", orderBy `prioridade`.
 
-**1.3 `SeparacaoProdutoPage.tsx` e `ConsultaProdutoDetalhePage.tsx`**
-Verificar se o botão duplicado ainda existe (já foi removido em turno anterior). Se ainda houver, remover import e uso do `RegistrarOcorrenciaColetorButton`.
+**Rota:** em `src/App.tsx`, seguindo convenção do projeto (`/config/*`, não `/configuracoes/*`):
+- `case "/config/ocorrencia-sla": return <OcorrenciaSlaConfigPage />;`
+- Breadcrumb correspondente.
+- Item de menu em `TopNav.tsx` no submenu de Configurações com ícone `Clock`, label "SLA de Ocorrências", path `/config/ocorrencia-sla`.
 
-**Sem alteração:** `ConferenciaItensPage`, `AbastecimentoColetaPage`, `AbastecimentoDestinoPage`, `InventarioEnderecoPage`, `InventarioProdutoPage`.
+### 2. `MotivosOcorrenciaPage.tsx` — trocar bloqueio_estoque por tipo_ocorrencia_padrao
 
-### 2. `src/pages/OcorrenciaDetalhePage.tsx` — enriquecer detalhe
+- Remover coluna e campo `bloqueio_estoque` (consolidado em `acao_automatica = BLOQUEAR_ESTOQUE`).
+- Adicionar coluna "Tipo Padrão" (após coluna de etapa) com labels amigáveis para os 9 valores do enum.
+- Adicionar campo `tipo_ocorrencia_padrao` (enum, opcional) no form logo após `etapa_ocorrencia`.
 
-**2.1 InfoItems adicionais** (após os existentes na grid de Informações):
-- Tipo documento (map amigável de `tipo_documento_origem`)
-- ID documento origem (`documento_origem_id`, mono)
-- Execução da tarefa (`tarefa_execucao_id`, mono)
-- Resolvida por (`usuario_resolvedor.nome`) — apenas quando `resolvido_por` existe e ainda não há `resolucao`
+### 3. Quantidades automáticas no contexto do coletor
 
-**2.2 Card "Complementar informações"**
-Novo card exibido quando `podeAgir` (status ABERTA / EM_INVESTIGACAO / EM_TRATAMENTO), abaixo do card de Ações. Componente `ComplementarOcorrenciaForm` declarado inline no mesmo arquivo.
+**3.1** `src/components/ocorrencia/RegistrarOcorrenciaModal.tsx` — adicionar `quantidade_esperada?: number` e `quantidade_real?: number` à interface `OcorrenciaContexto`.
 
-Campos editáveis (pré-preenchidos): `tipo_ocorrencia`, `prioridade`, `categoria`, `quantidade_esperada`, `quantidade_real`, `lote`, `validade`, `observacao`. Grid 2 colunas, usando `inputClass`/`labelClass` locais.
+**3.2** `RegistrarOcorrenciaColetorButton.tsx` — no `useEffect` de reset ao abrir, usar `contexto.quantidade_esperada`/`quantidade_real` como default (fallback `"0"`).
 
-Ao salvar:
-1. Montar `patch` só com campos alterados (recalcular `quantidade_divergente` quando qtd muda).
-2. Se `patch` só contém `updated_by`, exibir `toast.info("Nenhuma alteração detectada.")`.
-3. `UPDATE ocorrencia_operacional` com o patch (filtro `id` + `tenant_id`).
-4. `INSERT ocorrencia_historico` com `status_anterior = status_novo = status atual` e observação listando os campos alterados.
-5. Recarregar via `load()`.
+**3.3** Passar quantidades no contexto:
+- `ConferenciaProdutoPage.tsx`: `quantidade_esperada = tarefa.quantidade_requerida`, `quantidade_real = qtdConferida`.
+- `AbastecimentoColetaPage.tsx`, `AbastecimentoDestinoPage.tsx`, `ArmazenagemExecucaoPage.tsx`: `quantidade_esperada = qtdRestante` (variável já existente em cada tela; confirmar nome ao editar).
+- Não alterar Inventário nem Separação.
 
-**2.3 Status EM_TRATAMENTO — completar mapas**
-Garantir presença em `STATUS_BADGE` (roxo), `STATUS_LABEL` ("Em tratamento") e `STATUS_DOT`. Incluir `"EM_TRATAMENTO"` no tipo `DialogAction`. Timeline: ícone `Wrench` para `status_novo === "EM_TRATAMENTO"`. Confirmar opção no select do modal "Registrar Histórico".
+### 4. Upload de evidência fotográfica no coletor
+
+Alterações em `RegistrarOcorrenciaColetorButton.tsx`:
+- Estado: `foto`, `fotoPreview`, `uploading`. Handler `handleFotoChange` (FileReader → dataURL).
+- UI: bloco "Evidência (opcional)" abaixo da lista de motivos e acima do toggle de detalhes — label com `<input type="file" accept="image/*" capture="environment">`, botão de remover, preview `<img>`.
+- No `submit`, antes da RPC: upload para `supabase.storage.from("evidencias")` em `${tenantId}/ocorrencias/${Date.now()}.${ext}`. Falha de upload apenas emite `toast.error` e segue sem foto (nunca bloqueia).
+- Após sucesso da RPC (`result.ocorrencia_id`) com `evidenciaUrl` obtido via `getPublicUrl`, `UPDATE ocorrencia_operacional SET evidencia_url = ...`.
+- `canSubmit` inclui `!uploading`; botão mostra "Enviando foto..." durante upload.
+- Reset ao abrir limpa `foto`/`fotoPreview`.
+- Imports: `Camera`, `X` de `lucide-react`.
+
+### 5. Links clicáveis em `OcorrenciaDetalhePage.tsx`
+
+- **Tarefa clicável**: usar `ocorrencia.tarefa_execucao_id` (quando presente) para navegar até `/relatorios/movimentacoes/tarefa/:id` — rota existente no App.tsx. Quando só houver `tarefa_id` sem `tarefa_execucao_id`, manter texto mono sem link.
+- **Documento de origem**: as rotas `/estoque/movimentos-entrada/:id` e `/estoque/movimentos-saida/:id` NÃO existem hoje. Conforme instrução, manter o ID como texto mono (sem link) com `title="Tela de detalhe em desenvolvimento"`.
 
 ### Fora do escopo
-Backend, componentes base de ocorrência (`RegistrarOcorrenciaColetorButton`, `RegistrarOcorrenciaModal`, `RegistrarOcorrenciaButton`), `App.tsx`, UI primitives.
+Backend/DB, componentes UI base, `SeparacaoOcorrenciasPage.tsx`, `LiberarErroTransporteModal.tsx`, criação de rotas de detalhe de movimento.

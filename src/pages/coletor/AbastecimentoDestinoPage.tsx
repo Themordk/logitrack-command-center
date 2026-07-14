@@ -187,6 +187,7 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
               tarefa_execucao_id: execId || undefined,
               endereco_id: enderecoDestinoIdEsperado || undefined,
               endereco_descricao: enderecoDestinoDesc,
+              quantidade_esperada: Number(qtdColetada || 0),
             }}
           />
         </div>

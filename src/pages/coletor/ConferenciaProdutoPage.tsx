@@ -476,6 +476,8 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
                 tarefa_id: tarefa?.id || tarefa?.tarefa_id,
                 documento_origem_id: movimentoId || undefined,
                 tipo_documento_origem: "MOVIMENTO_SAIDA",
+                quantidade_esperada: Number(tarefa?.quantidade_requerida || 0),
+                quantidade_real: Number(qtdConferida || 0),
               }}
             />
           </>

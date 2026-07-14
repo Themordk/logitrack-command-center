@@ -301,6 +301,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           endereco_descricao: enderecoDesc || undefined,
           documento_origem_id: movimentoEntradaId || undefined,
           tipo_documento_origem: "MOVIMENTO_ENTRADA",
+          quantidade_esperada: Number(qtdRestante || 0),
         }}
       />
 

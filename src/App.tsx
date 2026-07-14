@@ -41,6 +41,7 @@ import { OcorrenciaDetalhePage } from "./pages/OcorrenciaDetalhePage";
 import { BoxPage } from "./pages/BoxPage";
 import { TurnosPage } from "./pages/TurnosPage";
 import { MotivosOcorrenciaPage } from "./pages/MotivosOcorrenciaPage";
+import { OcorrenciaSlaConfigPage } from "./pages/OcorrenciaSlaConfigPage";
 import { SubgruposPage } from "./pages/SubgruposPage";
 import { IntegracaoPage } from "./pages/IntegracaoPage";
 import { TiposEntradaPage } from "./pages/TiposEntradaPage";
@@ -174,6 +175,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
   "/config/perfis": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Perfis de Acesso" }],
   "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Tipos de Tarefa" }],
+  "/config/ocorrencia-sla": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "SLA de Ocorrências" }],
 
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
@@ -284,6 +286,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/integracao": return <IntegracaoPage onNavigate={onNavigate} />;
     case "/config/perfis": return <PerfisAcessoPage />;
     case "/config/tipos-tarefa": return <TiposTarefaPage />;
+    case "/config/ocorrencia-sla": return <OcorrenciaSlaConfigPage />;
 
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;

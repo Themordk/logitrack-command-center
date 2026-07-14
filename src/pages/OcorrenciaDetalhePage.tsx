@@ -280,7 +280,16 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               )}
               {ocorrencia.tarefa_id && (
                 <InfoItem icon={<ClipboardList size={14} />} label="Tarefa">
-                  <span className="font-mono text-[10px]">{ocorrencia.tarefa_id}</span>
+                  {ocorrencia.tarefa_execucao_id ? (
+                    <button
+                      onClick={() => onNavigate(`/relatorios/movimentacoes/tarefa/${ocorrencia.tarefa_execucao_id}`)}
+                      className="font-mono text-[10px] text-primary hover:underline cursor-pointer text-left"
+                    >
+                      Ver detalhes da tarefa →
+                    </button>
+                  ) : (
+                    <span className="font-mono text-[10px]">{ocorrencia.tarefa_id}</span>
+                  )}
                 </InfoItem>
               )}
               {ocorrencia.usuario_causador?.nome && (

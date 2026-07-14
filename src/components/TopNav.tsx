@@ -109,6 +109,8 @@ const navItems: NavItem[] = [
       { label: "Integração ERP", path: "/config/integracao" },
       { label: "Perfis de Acesso", path: "/config/perfis" },
       { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
+      { label: "SLA de Ocorrências", path: "/config/ocorrencia-sla" },
+
 
     ],
   },
