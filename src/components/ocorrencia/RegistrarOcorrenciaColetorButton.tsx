@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import type { OcorrenciaContexto } from "./RegistrarOcorrenciaModal";
 
@@ -24,46 +24,45 @@ const TIPOS: Array<[string, string]> = [
   ["OUTROS", "Outros"],
 ];
 
-const ETAPAS: Array<[string, string]> = [
-  ["RECEBIMENTO", "Recebimento"],
-  ["ARMAZENAGEM", "Armazenagem"],
-  ["ABASTECIMENTO", "Abastecimento"],
-  ["MOVIMENTACAO", "Movimentação"],
-  ["SEPARACAO", "Separação"],
-  ["EXPEDICAO", "Expedição"],
-  ["INVENTARIO", "Inventário"],
-  ["AUDITORIA", "Auditoria"],
-];
-
 const inputCls = "w-full bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 text-sm text-white placeholder:text-[hsl(213,31%,35%)] focus:outline-none focus:border-[hsl(217,91%,50%)]";
 const labelCls = "text-[10px] uppercase text-[hsl(213,31%,45%)] block mb-1";
 
 export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = "Registrar Ocorrência" }: Props) {
   const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
   const [open, setOpen] = useState(false);
-
-  const etapaLocked = !!contexto.etapa;
-  const [etapa, setEtapa] = useState(contexto.etapa || "");
-  const [tipo, setTipo] = useState("");
   const [motivoId, setMotivoId] = useState("");
-  const [categoria, setCategoria] = useState("");
+  const [motivos, setMotivos] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [showDetalhes, setShowDetalhes] = useState(false);
+
+  // Campos opcionais (detalhes)
+  const [tipo, setTipo] = useState("OUTROS");
+  const [categoria, setCategoria] = useState("CORRETIVA");
   const [prioridade, setPrioridade] = useState("NORMAL");
   const [qtdEsp, setQtdEsp] = useState("0");
   const [qtdReal, setQtdReal] = useState("0");
   const [lote, setLote] = useState("");
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
-  const [motivos, setMotivos] = useState<any[]>([]);
-  const [saving, setSaving] = useState(false);
 
+  // Reset ao abrir
   useEffect(() => {
     if (!open) return;
-    setEtapa(contexto.etapa || "");
-    setTipo(""); setMotivoId(""); setCategoria(""); setPrioridade("NORMAL");
-    setQtdEsp("0"); setQtdReal("0"); setLote(""); setValidade(""); setObs("");
-  }, [open, contexto.etapa]);
+    setMotivoId("");
+    setShowDetalhes(false);
+    setTipo("OUTROS");
+    setCategoria("CORRETIVA");
+    setPrioridade("NORMAL");
+    setQtdEsp("0");
+    setQtdReal("0");
+    setLote("");
+    setValidade("");
+    setObs("");
+  }, [open]);
 
+  // Carregar motivos filtrados pela etapa do contexto
   useEffect(() => {
+    const etapa = contexto.etapa;
     if (!open || !tenantId || !etapa) { setMotivos([]); return; }
     (async () => {
       const { data, error } = await (supabase as any)
@@ -76,29 +75,30 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
       if (error) { toast.error(error.message); return; }
       setMotivos((data || []).filter((m: any) => !m.empresa_id || m.empresa_id === empresaId));
     })();
-  }, [open, tenantId, empresaId, etapa]);
+  }, [open, tenantId, empresaId, contexto.etapa]);
 
+  // Ao selecionar motivo, herda defaults
   const motivoAtual = useMemo(() => motivos.find((m) => m.id === motivoId), [motivos, motivoId]);
   useEffect(() => {
     if (motivoAtual) {
-      if (motivoAtual.categoria_padrao && !categoria) setCategoria(motivoAtual.categoria_padrao);
-      if (motivoAtual.prioridade_padrao) setPrioridade(motivoAtual.prioridade_padrao);
+      setCategoria(motivoAtual.categoria_padrao || "CORRETIVA");
+      setPrioridade(motivoAtual.prioridade_padrao || "NORMAL");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [motivoId]);
 
-  const showProduto = !!contexto.produto_id;
-  const canSubmit = !!etapa && !!tipo && !!motivoId && !!categoria && !!prioridade && !saving;
+  const canSubmit = !!motivoId && !saving && !!contexto.etapa;
+  const divergencia = Math.abs(Number(qtdEsp || 0) - Number(qtdReal || 0));
 
   const submit = async () => {
-    if (!canSubmit || !tenantId || !usuarioId) return;
+    if (!canSubmit || !tenantId || !usuarioId || !contexto.etapa) return;
     setSaving(true);
     try {
       const { data, error } = await (supabase as any).rpc("registrar_ocorrencia_operacional", {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_armazem_id: armazemId,
-        p_etapa_ocorrencia: etapa,
+        p_etapa_ocorrencia: contexto.etapa,
         p_tipo_ocorrencia: tipo,
         p_motivo_ocorrencia_id: motivoId,
         p_produto_id: contexto.produto_id || null,
@@ -115,21 +115,19 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
         p_validade: validade || null,
         p_observacao: obs || null,
         p_prioridade: prioridade,
-        p_categoria: categoria,
+        p_categoria: categoria || "CORRETIVA",
       });
       if (error) { toast.error(error.message); return; }
       let result: any = data;
       if (typeof data === "string") { try { result = JSON.parse(data); } catch { /* keep */ } }
       if (result?.sucesso === false) { toast.error(result.mensagem || "Erro ao registrar ocorrência"); return; }
-      toast.success(result?.mensagem || "Ocorrência registrada com sucesso");
+      toast.success(result?.mensagem || "Ocorrência registrada!");
       onSuccess?.({ ocorrencia_id: result?.ocorrencia_id, numero_ocorrencia: result?.numero_ocorrencia });
       setOpen(false);
     } finally {
       setSaving(false);
     }
   };
-
-  const divergencia = Math.abs(Number(qtdEsp || 0) - Number(qtdReal || 0));
 
   return (
     <>
@@ -153,27 +151,10 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
               </div>
             )}
 
-            {!etapaLocked && (
-              <div>
-                <label className={labelCls}>Etapa</label>
-                <select value={etapa} onChange={(e) => { setEtapa(e.target.value); setMotivoId(""); }} className={inputCls}>
-                  <option value="">Selecionar...</option>
-                  {ETAPAS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-              </div>
-            )}
-
+            {/* Motivos — único campo obrigatório */}
             <div>
-              <label className={labelCls}>Tipo</label>
-              <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputCls}>
-                <option value="">Selecionar...</option>
-                {TIPOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label className={labelCls}>Motivo</label>
-              <div className="flex flex-col gap-2 max-h-40 overflow-auto">
+              <label className={labelCls}>Qual o problema? *</label>
+              <div className="flex flex-col gap-2 max-h-48 overflow-auto">
                 {motivos.map((m) => (
                   <button
                     key={m.id}
@@ -187,71 +168,91 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
                     <span className="text-sm text-white">{m.descricao}</span>
                   </button>
                 ))}
-                {etapa && motivos.length === 0 && (
-                  <p className="text-xs text-[hsl(213,31%,45%)] text-center py-2">Nenhum motivo cadastrado.</p>
+                {motivos.length === 0 && (
+                  <p className="text-xs text-[hsl(213,31%,45%)] text-center py-2">Nenhum motivo cadastrado para esta etapa.</p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={labelCls}>Categoria</label>
-                <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={inputCls}>
-                  <option value="">Selecionar...</option>
-                  <option value="PREVENTIVA">Preventiva</option>
-                  <option value="CORRETIVA">Corretiva</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Prioridade</label>
-                <select value={prioridade} onChange={(e) => setPrioridade(e.target.value)} className={inputCls}>
-                  <option value="BAIXA">Baixa</option>
-                  <option value="NORMAL">Normal</option>
-                  <option value="ALTA">Alta</option>
-                  <option value="CRITICA">Crítica</option>
-                </select>
-              </div>
-            </div>
+            {/* Toggle de detalhes adicionais */}
+            <button
+              type="button"
+              onClick={() => setShowDetalhes(!showDetalhes)}
+              className="flex items-center gap-2 text-xs text-[hsl(217,91%,60%)] hover:text-[hsl(217,91%,70%)] py-1"
+            >
+              {showDetalhes ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {showDetalhes ? "Ocultar detalhes" : "Adicionar detalhes (opcional)"}
+            </button>
 
-            {showProduto && (
-              <>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className={labelCls}>Esperada</label>
-                    <input type="number" value={qtdEsp} onChange={(e) => setQtdEsp(e.target.value)} className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Real</label>
-                    <input type="number" value={qtdReal} onChange={(e) => setQtdReal(e.target.value)} className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Divergência</label>
-                    <div className={`${inputCls} flex items-center font-mono ${divergencia > 0 ? "text-red-400" : "text-green-400"}`}>{divergencia}</div>
-                  </div>
+            {showDetalhes && (
+              <div className="space-y-3 border-t border-[hsl(222,35%,22%)] pt-3">
+                <div>
+                  <label className={labelCls}>Tipo de ocorrência</label>
+                  <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputCls}>
+                    {TIPOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
                 </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className={labelCls}>Lote</label>
-                    <input value={lote} onChange={(e) => setLote(e.target.value)} className={inputCls} />
+                    <label className={labelCls}>Categoria</label>
+                    <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={inputCls}>
+                      <option value="CORRETIVA">Corretiva</option>
+                      <option value="PREVENTIVA">Preventiva</option>
+                    </select>
                   </div>
                   <div>
-                    <label className={labelCls}>Validade</label>
-                    <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className={inputCls} />
+                    <label className={labelCls}>Prioridade</label>
+                    <select value={prioridade} onChange={(e) => setPrioridade(e.target.value)} className={inputCls}>
+                      <option value="BAIXA">Baixa</option>
+                      <option value="NORMAL">Normal</option>
+                      <option value="ALTA">Alta</option>
+                      <option value="CRITICA">Crítica</option>
+                    </select>
                   </div>
                 </div>
-              </>
-            )}
 
-            <div>
-              <label className={labelCls}>Observação</label>
-              <textarea
-                value={obs}
-                onChange={(e) => setObs(e.target.value)}
-                rows={2}
-                placeholder="Descreva detalhes da ocorrência..."
-                className={inputCls}
-              />
-            </div>
+                {contexto.produto_id && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className={labelCls}>Esperada</label>
+                        <input type="number" value={qtdEsp} onChange={(e) => setQtdEsp(e.target.value)} className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Real</label>
+                        <input type="number" value={qtdReal} onChange={(e) => setQtdReal(e.target.value)} className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Divergência</label>
+                        <div className={`${inputCls} flex items-center font-mono ${divergencia > 0 ? "text-red-400" : "text-green-400"}`}>{divergencia}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={labelCls}>Lote</label>
+                        <input value={lote} onChange={(e) => setLote(e.target.value)} className={inputCls} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Validade</label>
+                        <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className={inputCls} />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className={labelCls}>Observação</label>
+                  <textarea
+                    value={obs}
+                    onChange={(e) => setObs(e.target.value)}
+                    rows={2}
+                    placeholder="Descreva detalhes..."
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <ActionButton onClick={() => setOpen(false)} variant="secondary">Cancelar</ActionButton>
