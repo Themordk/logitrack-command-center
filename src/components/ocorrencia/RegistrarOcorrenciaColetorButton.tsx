@@ -103,13 +103,36 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [motivoId]);
 
-  const canSubmit = !!motivoId && !saving && !!contexto.etapa;
+  const canSubmit = !!motivoId && !saving && !uploading && !!contexto.etapa;
   const divergencia = Math.abs(Number(qtdEsp || 0) - Number(qtdReal || 0));
 
   const submit = async () => {
     if (!canSubmit || !tenantId || !usuarioId || !contexto.etapa) return;
     setSaving(true);
     try {
+      // Upload de evidência (não bloqueia em caso de falha)
+      let evidenciaUrl: string | null = null;
+      if (foto && tenantId) {
+        setUploading(true);
+        try {
+          const ext = foto.name.split(".").pop() || "jpg";
+          const path = `${tenantId}/ocorrencias/${Date.now()}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from("evidencias")
+            .upload(path, foto, { contentType: foto.type });
+          if (uploadError) {
+            toast.error("Falha ao enviar foto: " + uploadError.message);
+          } else {
+            const { data: urlData } = supabase.storage
+              .from("evidencias")
+              .getPublicUrl(path);
+            evidenciaUrl = urlData?.publicUrl || null;
+          }
+        } finally {
+          setUploading(false);
+        }
+      }
+
       const { data, error } = await (supabase as any).rpc("registrar_ocorrencia_operacional", {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
@@ -137,6 +160,14 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
       let result: any = data;
       if (typeof data === "string") { try { result = JSON.parse(data); } catch { /* keep */ } }
       if (result?.sucesso === false) { toast.error(result.mensagem || "Erro ao registrar ocorrência"); return; }
+
+      if (evidenciaUrl && result?.ocorrencia_id) {
+        await (supabase as any)
+          .from("ocorrencia_operacional")
+          .update({ evidencia_url: evidenciaUrl })
+          .eq("id", result.ocorrencia_id);
+      }
+
       toast.success(result?.mensagem || "Ocorrência registrada!");
       onSuccess?.({ ocorrencia_id: result?.ocorrencia_id, numero_ocorrencia: result?.numero_ocorrencia });
       setOpen(false);
@@ -188,6 +219,39 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
                   <p className="text-xs text-[hsl(213,31%,45%)] text-center py-2">Nenhum motivo cadastrado para esta etapa.</p>
                 )}
               </div>
+            </div>
+
+            {/* Evidência fotográfica */}
+            <div>
+              <label className={labelCls}>Evidência (opcional)</label>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-[hsl(222,35%,30%)] bg-[hsl(222,40%,12%)] text-sm text-[hsl(213,31%,55%)] cursor-pointer hover:border-[hsl(217,91%,50%)] transition-all flex-1">
+                  <Camera size={18} />
+                  {fotoPreview ? "Trocar foto" : "Tirar foto / Selecionar imagem"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleFotoChange}
+                  />
+                </label>
+                {fotoPreview && (
+                  <button
+                    onClick={() => { setFoto(null); setFotoPreview(null); }}
+                    className="p-2 rounded-lg bg-red-500/20 text-red-400"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              {fotoPreview && (
+                <img
+                  src={fotoPreview}
+                  alt="Evidência"
+                  className="mt-2 rounded-xl border border-[hsl(222,35%,22%)] max-h-32 object-cover w-full"
+                />
+              )}
             </div>
 
             {/* Toggle de detalhes adicionais */}
@@ -272,7 +336,9 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
 
             <div className="flex gap-2">
               <ActionButton onClick={() => setOpen(false)} variant="secondary">Cancelar</ActionButton>
-              <ActionButton onClick={submit} disabled={!canSubmit} loading={saving} variant="primary">Confirmar</ActionButton>
+              <ActionButton onClick={submit} disabled={!canSubmit} loading={saving || uploading} variant="primary">
+                {uploading ? "Enviando foto..." : "Confirmar"}
+              </ActionButton>
             </div>
           </div>
         </div>
