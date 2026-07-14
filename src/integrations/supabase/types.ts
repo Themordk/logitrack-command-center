@@ -2159,7 +2159,6 @@ export type Database = {
           acao_automatica: string | null
           armazem_id: string | null
           ativo: boolean
-          bloqueio_estoque: boolean
           categoria_padrao:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
@@ -2171,12 +2170,14 @@ export type Database = {
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
           tenant_id: string
+          tipo_ocorrencia_padrao:
+            | Database["public"]["Enums"]["enum_tipo_ocorrencia"]
+            | null
         }
         Insert: {
           acao_automatica?: string | null
           armazem_id?: string | null
           ativo?: boolean
-          bloqueio_estoque?: boolean
           categoria_padrao?:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
@@ -2188,12 +2189,14 @@ export type Database = {
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
           tenant_id: string
+          tipo_ocorrencia_padrao?:
+            | Database["public"]["Enums"]["enum_tipo_ocorrencia"]
+            | null
         }
         Update: {
           acao_automatica?: string | null
           armazem_id?: string | null
           ativo?: boolean
-          bloqueio_estoque?: boolean
           categoria_padrao?:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
@@ -2205,6 +2208,9 @@ export type Database = {
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
           tenant_id?: string
+          tipo_ocorrencia_padrao?:
+            | Database["public"]["Enums"]["enum_tipo_ocorrencia"]
+            | null
         }
         Relationships: [
           {
