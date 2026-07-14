@@ -1,14 +1,31 @@
-## Plano — Exibir Saldo do Endereço na Separação
+## Plano — Fase 2C: Simplificação UX do botão de Ocorrência no Coletor
 
-Ajustes pontuais em `src/pages/coletor/SeparacaoEnderecoPage.tsx`:
+### Objetivo
+Reduzir o formulário do bottom sheet de ocorrência de ~10 campos para **1 toque obrigatório** (selecionar motivo) + detalhes opcionais expansíveis, e eliminar duplicidade na separação.
 
-1. **Interface `Tarefa`**: adicionar `saldo_endereco?: number` (o campo `endereco_id?: string` já existe).
+### 1. Reescrever `src/components/ocorrencia/RegistrarOcorrenciaColetorButton.tsx`
+- Fluxo wizard em 1 tela:
+  - Contexto (produto/endereço, somente leitura)
+  - Lista de motivos como cards selecionáveis (obrigatório)
+  - Link "Adicionar detalhes (opcional)" → expande accordion com: Tipo (default `OUTROS`), Categoria, Prioridade, Qtd Esperada/Real + Divergência, Lote, Validade, Observação
+  - Botões Cancelar / Confirmar
+- Defaults automáticos:
+  - `etapa` ← `contexto.etapa`
+  - `tipo_ocorrencia` ← `OUTROS`
+  - `categoria` ← `motivo.categoria_padrao` ?? `CORRETIVA`
+  - `prioridade` ← `motivo.prioridade_padrao` ?? `NORMAL`
+- Campos Qtd/Lote/Validade só aparecem se houver `contexto.produto_id`
+- Chamada RPC `registrar_ocorrencia_operacional` inalterada
 
-2. **Card "Produto a coletar"** — substituir os 3 boxes atuais (Requerida / Separada / Restante) por:
-   - **SALDO** — `tarefa.saldo_endereco ?? 0`, valor em azul `hsl(217,91%,60%)`
-   - **REQUERIDA** — `tarefa.quantidade_requerida`, valor branco
-   - **SEPARADA** — `tarefa.separado || 0`, valor verde `hsl(142,71%,45%)`
-   
-   Mantém `grid grid-cols-3 gap-2` e o estilo dos boxes. A variável `restante` deixa de ser usada aqui (a informação continua na tela de produto).
+### 2. Remover duplicidade em `src/pages/coletor/SeparacaoProdutoPage.tsx`
+- Remover import e uso do `RegistrarOcorrenciaColetorButton` do rodapé
+- Manter o botão ⚠️ existente no canto superior direito que leva para `SeparacaoOcorrenciasPage` (corte + ocorrência)
 
-Nenhuma outra alteração: scan, pular endereço, modais e demais componentes ficam intactos. Nenhuma nova chamada ao Supabase — `saldo_endereco` já vem no array de tarefas em `sessionStorage`.
+### 3. Remover botão em `src/pages/coletor/ConsultaProdutoDetalhePage.tsx`
+- Tela informativa sem etapa definida — remover import e uso do botão
+
+### 4. Ajuste de posicionamento (verificação)
+Nas 7 telas restantes (`ConferenciaProdutoPage`, `ConferenciaItensPage`, `ArmazenagemExecucaoPage`, `AbastecimentoColetaPage`, `AbastecimentoDestinoPage`, `InventarioEnderecoPage`, `InventarioProdutoPage`), garantir que o botão de ação principal (Confirmar/Continuar) fique acima do botão de ocorrência. Corrigir apenas onde estiver invertido.
+
+### Fora do escopo
+- Nenhuma alteração em banco, RPCs, enums, App.tsx, componentes web de ocorrência ou `SeparacaoOcorrenciasPage`.
