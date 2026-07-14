@@ -186,3 +186,59 @@ export function getCorOcupacao(pct: number): string {
   if (pct >= 50) return "hsl(45, 93%, 47%)";
   return "hsl(0, 84%, 60%)";
 }
+
+// ----------------------------------------------------------------------------
+// Drill-down por operador: histórico granular de tarefas no período.
+// ----------------------------------------------------------------------------
+
+export interface TarefaColaboradorRow {
+  execucao_id: string;
+  tarefa_id: string;
+  usuario_id: string;
+  usuario_nome: string;
+  tipo_tarefa_codigo: string;
+  tipo_tarefa_descricao: string;
+  produto_sku: string | null;
+  produto_descricao: string | null;
+  quantidade_requerida: number | null;
+  quantidade_executada: number;
+  quantidade_cortada: number;
+  atribuido_em: string;
+  iniciado_em: string | null;
+  concluido_em: string | null;
+  duracao_segundos: number | null;
+  espera_segundos: number | null;
+  tempo_estimado_seg: number | null;
+  status_execucao: string;
+  endereco_origem: string | null;
+  endereco_destino: string | null;
+  lote: string | null;
+  documento_origem_tipo: string | null;
+  documento_origem_id: string | null;
+  empresa_id: string;
+  armazem_id: string | null;
+}
+
+export async function fetchTarefasColaborador(params: {
+  tenant_id: string;
+  usuario_id: string;
+  data_inicio: string;
+  data_fim: string;
+  empresa_id?: string | null;
+  armazem_id?: string | null;
+  tipo_tarefa_id?: string | null;
+  status?: string | null;
+}): Promise<TarefaColaboradorRow[]> {
+  const { data, error } = await sb.rpc("rpc_relatorio_tarefas_colaborador", {
+    p_tenant_id: params.tenant_id,
+    p_data_inicio: params.data_inicio,
+    p_data_fim: params.data_fim,
+    p_usuario_id: params.usuario_id,
+    p_empresa_id: params.empresa_id ?? null,
+    p_armazem_id: params.armazem_id ?? null,
+    p_tipo_tarefa_id: params.tipo_tarefa_id ?? null,
+    p_status: params.status ?? null,
+  });
+  if (error) throw error;
+  return (data || []) as TarefaColaboradorRow[];
+}

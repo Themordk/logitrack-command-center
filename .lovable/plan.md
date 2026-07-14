@@ -1,54 +1,56 @@
 
-## Plano — SLA de Ocorrências + Correções e Melhorias
+## Plano — Relatório de Tarefas por Colaborador (drill-down de Produtividade)
 
-Escopo 100% frontend. Backend (tabelas, RPCs, buckets) já pronto.
+Escopo 100% frontend. RPC `rpc_relatorio_tarefas_colaborador` já existe no backend.
 
-### 1. Nova tela: SLA de Ocorrências
+### 1. Novo arquivo: `src/modules/reports/produtividade/TarefasColaboradorPage.tsx`
 
-**Arquivo novo:** `src/pages/OcorrenciaSlaConfigPage.tsx`
-- Padrão CRUD (mesmo modelo de `MotivosOcorrenciaPage.tsx`): `useCrud` sobre a tabela `ocorrencia_sla_config`, `CrudTable` + `CrudModal` + `DeleteConfirmDialog`.
-- Colunas: Prioridade (badge colorido BAIXA/NORMAL/ALTA/CRITICA), SLA (horas), Alerta em (%), Ativo (badge).
-- Campos do form: `prioridade` (enum), `sla_horas` (number), `notificar_percentual` (number, default 80), `ativo` (switch, default true).
-- `handleSave` injeta `armazem_id` do `TenantContext` quando disponível.
-- Título "SLA de Ocorrências", botão "Novo SLA", search "Buscar SLA...", orderBy `prioridade`.
+Página completa seguindo o padrão de `ProdutividadeOperadorPage.tsx` e demais relatórios em `src/modules/reports/`:
 
-**Rota:** em `src/App.tsx`, seguindo convenção do projeto (`/config/*`, não `/configuracoes/*`):
-- `case "/config/ocorrencia-sla": return <OcorrenciaSlaConfigPage />;`
-- Breadcrumb correspondente.
-- Item de menu em `TopNav.tsx` no submenu de Configurações com ícone `Clock`, label "SLA de Ocorrências", path `/config/ocorrencia-sla`.
+- Props: `usuarioId: string`, `onNavigate?: (path: string) => void`, `dataInicio?: string`, `dataFim?: string`.
+- Fallback de datas: últimos 7 dias quando query params ausentes.
+- `useTenant()` para `tenantId`, `empresaId`, `armazemId`, `usuarioNome`.
+- Chama `fetchTarefasColaborador(...)` do service em `useEffect` inicial e ao alterar filtros de servidor (tipo de tarefa, status).
+- Estado local: dados brutos, filtros de servidor (`tipoTarefaId`, `status`), filtro cliente (`buscaSku`), paginação (20/pág), sort key/dir.
+- Header: usa `ReportHeader` existente. Título "{usuario_nome}", subtítulo com período, botão voltar via `onNavigate("/relatorios/produtividade")`, botões Excel/PDF via `exportToExcel`/`exportToPdf` de `src/modules/reports/utils/exporters.ts`.
+- 4 KPI cards (Total Tarefas, Itens Movimentados, Tempo Produtivo, Produtividade/Hora) em grid responsivo, ícones `lucide-react`.
+- Filtros inline: Select Tipo de Tarefa (carregado de `tipo_tarefa` filtrado por `tenant_id`), Select Status, Input busca SKU/produto.
+- Tabela via `ReportTable` (`src/modules/reports/components/ReportTable.tsx`) já suporta sort ao clicar. Colunas: Atribuição, Execução, Tipo Tarefa, ID Tarefa (8 chars), SKU, Produto (truncar 40 com `title`), Qtd Requerida, Qtd Executada, Qtd Cortada (vermelho se >0), Duração, Espera (amarelo se >300s), Origem, Destino, Status (badge colorido), Lote.
+- Rodapé com totais (linha extra) — renderizada abaixo da tabela como faixa `bg-secondary/50`, uma vez que `ReportTable` não tem slot de footer.
+- Paginação com componente `Pagination` shadcn, 20 por página; slice do array ordenado+filtrado.
 
-### 2. `MotivosOcorrenciaPage.tsx` — trocar bloqueio_estoque por tipo_ocorrencia_padrao
+### 2. Alteração em `src/modules/reports/produtividade/produtividade.service.ts`
 
-- Remover coluna e campo `bloqueio_estoque` (consolidado em `acao_automatica = BLOQUEAR_ESTOQUE`).
-- Adicionar coluna "Tipo Padrão" (após coluna de etapa) com labels amigáveis para os 9 valores do enum.
-- Adicionar campo `tipo_ocorrencia_padrao` (enum, opcional) no form logo após `etapa_ocorrencia`.
+Adicionar função + tipagem:
 
-### 3. Quantidades automáticas no contexto do coletor
+```ts
+export interface TarefaColaboradorRow { /* conforme spec */ }
 
-**3.1** `src/components/ocorrencia/RegistrarOcorrenciaModal.tsx` — adicionar `quantidade_esperada?: number` e `quantidade_real?: number` à interface `OcorrenciaContexto`.
+export async function fetchTarefasColaborador(params: {
+  tenant_id: string; usuario_id: string; data_inicio: string; data_fim: string;
+  empresa_id?: string | null; armazem_id?: string | null;
+  tipo_tarefa_id?: string | null; status?: string | null;
+}): Promise<TarefaColaboradorRow[]>
+```
 
-**3.2** `RegistrarOcorrenciaColetorButton.tsx` — no `useEffect` de reset ao abrir, usar `contexto.quantidade_esperada`/`quantidade_real` como default (fallback `"0"`).
+Chama `rpc_relatorio_tarefas_colaborador` via `(supabase as any).rpc(...)`.
 
-**3.3** Passar quantidades no contexto:
-- `ConferenciaProdutoPage.tsx`: `quantidade_esperada = tarefa.quantidade_requerida`, `quantidade_real = qtdConferida`.
-- `AbastecimentoColetaPage.tsx`, `AbastecimentoDestinoPage.tsx`, `ArmazenagemExecucaoPage.tsx`: `quantidade_esperada = qtdRestante` (variável já existente em cada tela; confirmar nome ao editar).
-- Não alterar Inventário nem Separação.
+### 3. Alteração em `src/App.tsx`
 
-### 4. Upload de evidência fotográfica no coletor
+- Import de `TarefasColaboradorPage`.
+- Em `getBreadcrumbs`: se path começa com `/relatorios/produtividade/tarefas/`, retorna a cadeia CORE > Relatórios > Produtividade Operacional (link) > Tarefas do Operador.
+- Em `renderPage`: regex `^\/relatorios\/produtividade\/tarefas\/([a-f0-9-]+)` extraindo `usuarioId` e query params `inicio`/`fim`. Renderiza a página com props.
 
-Alterações em `RegistrarOcorrenciaColetorButton.tsx`:
-- Estado: `foto`, `fotoPreview`, `uploading`. Handler `handleFotoChange` (FileReader → dataURL).
-- UI: bloco "Evidência (opcional)" abaixo da lista de motivos e acima do toggle de detalhes — label com `<input type="file" accept="image/*" capture="environment">`, botão de remover, preview `<img>`.
-- No `submit`, antes da RPC: upload para `supabase.storage.from("evidencias")` em `${tenantId}/ocorrencias/${Date.now()}.${ext}`. Falha de upload apenas emite `toast.error` e segue sem foto (nunca bloqueia).
-- Após sucesso da RPC (`result.ocorrencia_id`) com `evidenciaUrl` obtido via `getPublicUrl`, `UPDATE ocorrencia_operacional SET evidencia_url = ...`.
-- `canSubmit` inclui `!uploading`; botão mostra "Enviando foto..." durante upload.
-- Reset ao abrir limpa `foto`/`fotoPreview`.
-- Imports: `Camera`, `X` de `lucide-react`.
+### 4. Alteração em `src/modules/reports/produtividade/ProdutividadeDashboardPage.tsx`
 
-### 5. Links clicáveis em `OcorrenciaDetalhePage.tsx`
+Na tabela "Detalhamento por Dia": adicionar `cursor-pointer`, `onClick` navegando para `/relatorios/produtividade/tarefas/${r.usuario_id}?inicio=${dataInicio}&fim=${dataFim}` via `onNavigate` (ou `window.location.hash` como fallback) e `title` explicativo.
 
-- **Tarefa clicável**: usar `ocorrencia.tarefa_execucao_id` (quando presente) para navegar até `/relatorios/movimentacoes/tarefa/:id` — rota existente no App.tsx. Quando só houver `tarefa_id` sem `tarefa_execucao_id`, manter texto mono sem link.
-- **Documento de origem**: as rotas `/estoque/movimentos-entrada/:id` e `/estoque/movimentos-saida/:id` NÃO existem hoje. Conforme instrução, manter o ID como texto mono (sem link) com `title="Tela de detalhe em desenvolvimento"`.
+### Detalhes técnicos
+
+- Datas exibidas com utilitário existente `formatDateTimeNaive` de `src/utils/dateTime.ts` (padrão do projeto — memory rule) ao invés de `parseISO+format` cru.
+- Formatação numérica pt-BR com `fmtNumberBR` do `exporters.ts`.
+- Duração/espera: helper local `formatDuracao(seg)` → `Xh Ymin` / `Xmin Ys`.
+- Exports: colunas mapeadas via `ExportColumn[]`; nome do arquivo `tarefas_operador_{slug(nome)}_{inicio}_{fim}`.
 
 ### Fora do escopo
-Backend/DB, componentes UI base, `SeparacaoOcorrenciasPage.tsx`, `LiberarErroTransporteModal.tsx`, criação de rotas de detalhe de movimento.
+Backend/RPC (já pronta), alterações em outras páginas de Produtividade além da tabela clicável.
