@@ -297,6 +297,8 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           produto_id: produtoId || undefined,
           produto_descricao: produtoDesc,
           tarefa_id: tarefaId,
+          endereco_id: enderecoId || undefined,
+          endereco_descricao: enderecoDesc || undefined,
           documento_origem_id: movimentoEntradaId || undefined,
           tipo_documento_origem: "MOVIMENTO_ENTRADA",
         }}
