@@ -161,6 +161,50 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         extraFilters={
           <>
             <select
+              value={filterArmazem}
+              onChange={(e) => { setFilterArmazem(e.target.value); setFilterSetor("all"); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Armazém: Todos</option>
+              {armazemOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={filterSetor}
+              onChange={(e) => { setFilterSetor(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Setor: Todos</option>
+              {filterSetorOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={filterTipoEstoque}
+              onChange={(e) => { setFilterTipoEstoque(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Tipo Estoque: Todos</option>
+              {tipoEstoqueOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={filterTipoEstrutura}
+              onChange={(e) => { setFilterTipoEstrutura(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Tipo Estrutura: Todos</option>
+              <option value="PORTA PALLET">PORTA PALLET</option>
+              <option value="BLOCADO">BLOCADO</option>
+              <option value="PRATELEIRA">PRATELEIRA</option>
+              <option value="FLOW RACK">FLOW RACK</option>
+              <option value="DRIVE IN">DRIVE IN</option>
+              <option value="MEZANINO">MEZANINO</option>
+              <option value="DOCA">DOCA</option>
+            </select>
+            <select
               value={filterTipo}
               onChange={(e) => { setFilterTipo(e.target.value); crud.setPage(1); }}
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
@@ -209,10 +253,21 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
               <option value="true">Ativo</option>
               <option value="false">Inativo</option>
             </select>
-            {(filterTipo !== "all" || filterSituacao !== "all" || filterLado !== "all" || filterCurva !== "all" || filterAtivo !== "all") && (
+            {(filterTipo !== "all" || filterSituacao !== "all" || filterLado !== "all" || filterCurva !== "all" || filterAtivo !== "all" || filterArmazem !== "all" || filterSetor !== "all" || filterTipoEstoque !== "all" || filterTipoEstrutura !== "all") && (
               <button
                 type="button"
-                onClick={() => { setFilterTipo("all"); setFilterSituacao("all"); setFilterLado("all"); setFilterCurva("all"); setFilterAtivo("all"); crud.setPage(1); }}
+                onClick={() => {
+                  setFilterTipo("all");
+                  setFilterSituacao("all");
+                  setFilterLado("all");
+                  setFilterCurva("all");
+                  setFilterAtivo("all");
+                  setFilterArmazem("all");
+                  setFilterSetor("all");
+                  setFilterTipoEstoque("all");
+                  setFilterTipoEstrutura("all");
+                  crud.setPage(1);
+                }}
                 className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 Limpar filtros
