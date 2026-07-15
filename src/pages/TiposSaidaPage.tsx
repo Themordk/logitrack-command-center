@@ -36,14 +36,24 @@ export function TiposSaidaPage() {
     { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
     { key: "gera_mov_automatico", label: "Gera Mov. Automático", type: "custom", render: (row) => boolBadge(row.gera_mov_automatico) },
     { key: "libera_mov_automatico", label: "Libera Mov. Automático", type: "custom", render: (row) => boolBadge(row.libera_mov_automatico) },
+    { key: "conferencia_cega", label: "Conf. Cega", type: "custom", render: (row) => boolBadge(row.conferencia_cega) },
+    { key: "gera_volume_etapa", label: "Gera Volume Em", type: "custom", render: (row) => (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-500">
+        {row.gera_volume_etapa || "CONFERÊNCIA"}
+      </span>
+    ) },
+    { key: "gera_abastecimento_automatico", label: "Abast. Automático", type: "custom", render: (row) => boolBadge(row.gera_abastecimento_automatico) },
     { key: "prioridade", label: "Prioridade", type: "custom", render: (row) => prioridadeBadge(row.prioridade) },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
   const fields: FieldSpec[] = [
+    // --- Dados gerais ---
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Tipo de saída" },
     { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Código no ERP" },
     { name: "prioridade", label: "Prioridade", type: "enum", required: true, defaultValue: "NORMAL", enumValues: ["BAIXA", "NORMAL", "ALTA", "URGENTE"] },
+
+    // --- Conferência ---
     { name: "realiza_conferencia", label: "Realiza Conferência", type: "switch", defaultValue: true },
     {
       name: "conferencia_checkout",
@@ -52,9 +62,31 @@ export function TiposSaidaPage() {
       defaultValue: false,
       disabledWhen: (f) => !f.realiza_conferencia,
     },
+    {
+      name: "conferencia_cega",
+      label: "Conferência Cega",
+      type: "switch",
+      defaultValue: false,
+      disabledWhen: (f) => !f.realiza_conferencia,
+    },
+
+    // --- Separação e volume ---
     { name: "separa_pulmao", label: "Separa Pulmão", type: "switch", defaultValue: false },
+    {
+      name: "gera_volume_etapa",
+      label: "Gera Volume na Etapa",
+      type: "enum",
+      required: true,
+      defaultValue: "CONFERÊNCIA",
+      enumValues: ["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"],
+    },
+
+    // --- Automação ---
     { name: "gera_mov_automatico", label: "Gera Mov. Automático", type: "switch", defaultValue: false },
     { name: "libera_mov_automatico", label: "Libera Mov. Automático", type: "switch", defaultValue: false },
+    { name: "gera_abastecimento_automatico", label: "Gera Abastecimento Automático", type: "switch", defaultValue: false },
+
+    // --- Status ---
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
@@ -85,7 +117,10 @@ export function TiposSaidaPage() {
         initialData={editItem}
         onSave={async (data) => {
           const payload: any = { ...data, empresa_id: empresaId };
-          if (!payload.realiza_conferencia) payload.conferencia_checkout = false;
+          if (!payload.realiza_conferencia) {
+            payload.conferencia_checkout = false;
+            payload.conferencia_cega = false;
+          }
           return editItem ? crud.update(editItem.id, payload) : crud.create(payload);
         }}
       />

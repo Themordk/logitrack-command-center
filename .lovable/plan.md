@@ -1,56 +1,53 @@
+## Plano — Motor de Ondas: Ajustes em Tipos de Saída + Roteiro de Separação
 
-## Plano — Relatório de Tarefas por Colaborador (drill-down de Produtividade)
+Escopo restrito a 2 arquivos existentes. Nenhuma rota, componente `ui/`, ou dependência nova.
 
-Escopo 100% frontend. RPC `rpc_relatorio_tarefas_colaborador` já existe no backend.
+---
 
-### 1. Novo arquivo: `src/modules/reports/produtividade/TarefasColaboradorPage.tsx`
+### 1. `src/pages/TiposSaidaPage.tsx`
 
-Página completa seguindo o padrão de `ProdutividadeOperadorPage.tsx` e demais relatórios em `src/modules/reports/`:
+Refletir 3 novos campos da tabela `tipo_saida`:
 
-- Props: `usuarioId: string`, `onNavigate?: (path: string) => void`, `dataInicio?: string`, `dataFim?: string`.
-- Fallback de datas: últimos 7 dias quando query params ausentes.
-- `useTenant()` para `tenantId`, `empresaId`, `armazemId`, `usuarioNome`.
-- Chama `fetchTarefasColaborador(...)` do service em `useEffect` inicial e ao alterar filtros de servidor (tipo de tarefa, status).
-- Estado local: dados brutos, filtros de servidor (`tipoTarefaId`, `status`), filtro cliente (`buscaSku`), paginação (20/pág), sort key/dir.
-- Header: usa `ReportHeader` existente. Título "{usuario_nome}", subtítulo com período, botão voltar via `onNavigate("/relatorios/produtividade")`, botões Excel/PDF via `exportToExcel`/`exportToPdf` de `src/modules/reports/utils/exporters.ts`.
-- 4 KPI cards (Total Tarefas, Itens Movimentados, Tempo Produtivo, Produtividade/Hora) em grid responsivo, ícones `lucide-react`.
-- Filtros inline: Select Tipo de Tarefa (carregado de `tipo_tarefa` filtrado por `tenant_id`), Select Status, Input busca SKU/produto.
-- Tabela via `ReportTable` (`src/modules/reports/components/ReportTable.tsx`) já suporta sort ao clicar. Colunas: Atribuição, Execução, Tipo Tarefa, ID Tarefa (8 chars), SKU, Produto (truncar 40 com `title`), Qtd Requerida, Qtd Executada, Qtd Cortada (vermelho se >0), Duração, Espera (amarelo se >300s), Origem, Destino, Status (badge colorido), Lote.
-- Rodapé com totais (linha extra) — renderizada abaixo da tabela como faixa `bg-secondary/50`, uma vez que `ReportTable` não tem slot de footer.
-- Paginação com componente `Pagination` shadcn, 20 por página; slice do array ordenado+filtrado.
+- **`conferencia_cega`** (bool) — conferência sem exibir quantidade esperada.
+- **`gera_volume_etapa`** (enum: `NENHUMA` | `SEPARAÇÃO` | `CONFERÊNCIA` | `CARREGAMENTO`, default `CONFERÊNCIA`).
+- **`gera_abastecimento_automatico`** (bool) — dispara abastecimento ao gerar onda.
 
-### 2. Alteração em `src/modules/reports/produtividade/produtividade.service.ts`
+Alterações:
+- **CrudTable columns**: inserir as 3 colunas entre `libera_mov_automatico` e `prioridade`. Booleans usam `boolBadge`; enum usa badge azul customizado.
+- **CrudModal fields**: reorganizar array em blocos lógicos (Dados gerais / Conferência / Separação e volume / Automação / Status). `conferencia_cega` e `conferencia_checkout` ficam `disabledWhen: !realiza_conferencia`.
+- **onSave**: quando `realiza_conferencia = false`, forçar `conferencia_checkout = false` e `conferencia_cega = false` antes de gravar.
 
-Adicionar função + tipagem:
+---
 
-```ts
-export interface TarefaColaboradorRow { /* conforme spec */ }
+### 2. `src/pages/RoteiroSeparacaoPage.tsx`
 
-export async function fetchTarefasColaborador(params: {
-  tenant_id: string; usuario_id: string; data_inicio: string; data_fim: string;
-  empresa_id?: string | null; armazem_id?: string | null;
-  tipo_tarefa_id?: string | null; status?: string | null;
-}): Promise<TarefaColaboradorRow[]>
-```
+**2.1 — Badge do armazém ativo no cabeçalho**
+- Consumir `armazemId` de `useTenant()`.
+- Buscar `armazem.descricao` e exibir como badge `bg-primary/10` ao lado do título.
 
-Chama `rpc_relatorio_tarefas_colaborador` via `(supabase as any).rpc(...)`.
+**2.2 — Prevenção de duplicatas nos agrupamentos**
+- Modais de Agrupamento de Separação e de Conferência: filtrar `AGRUPAMENTO_SEP_OPTIONS` / `AGRUPAMENTO_CONF_OPTIONS` removendo tipos já existentes na respectiva lista.
 
-### 3. Alteração em `src/App.tsx`
+**2.3 — Reformulação do contêiner "Ordem de Separação"**
+- Novo estado `ruasDisponiveis: number[]` + `loadingRuas`.
+- `fetchRuasArmazem`: consulta `endereco` com join `setor!inner(armazem_id)` filtrando pelo `armazemId` ativo; extrai ruas distintas ordenadas.
+- `fetchOrdens`: adicionar filtro `or(armazem_id.eq.${armazemId},armazem_id.is.null)`.
+- Card refatorado: subtítulo mostra nome do armazém; botão "Adicionar Rua" só aparece quando há ruas restantes; item da lista com drag-handle, número da sequência, "Rua N", `select` inline ASC/DESC (persiste no onChange) e botão de remover.
+- Modal de ordem: substituir input numérico por `<select>` populado com ruas disponíveis (excluindo já usadas).
+- `addOrdem`: incluir `armazem_id: armazemId` no insert.
+- useEffect: incluir `fetchRuasArmazem` nas dependências junto com os fetchs existentes.
 
-- Import de `TarefasColaboradorPage`.
-- Em `getBreadcrumbs`: se path começa com `/relatorios/produtividade/tarefas/`, retorna a cadeia CORE > Relatórios > Produtividade Operacional (link) > Tarefas do Operador.
-- Em `renderPage`: regex `^\/relatorios\/produtividade\/tarefas\/([a-f0-9-]+)` extraindo `usuarioId` e query params `inicio`/`fim`. Renderiza a página com props.
+Preservado: `renderDragList`, handlers de drag-and-drop e estados existentes.
 
-### 4. Alteração em `src/modules/reports/produtividade/ProdutividadeDashboardPage.tsx`
-
-Na tabela "Detalhamento por Dia": adicionar `cursor-pointer`, `onClick` navegando para `/relatorios/produtividade/tarefas/${r.usuario_id}?inicio=${dataInicio}&fim=${dataFim}` via `onNavigate` (ou `window.location.hash` como fallback) e `title` explicativo.
+---
 
 ### Detalhes técnicos
 
-- Datas exibidas com utilitário existente `formatDateTimeNaive` de `src/utils/dateTime.ts` (padrão do projeto — memory rule) ao invés de `parseISO+format` cru.
-- Formatação numérica pt-BR com `fmtNumberBR` do `exporters.ts`.
-- Duração/espera: helper local `formatDuracao(seg)` → `Xh Ymin` / `Xmin Ys`.
-- Exports: colunas mapeadas via `ExportColumn[]`; nome do arquivo `tarefas_operador_{slug(nome)}_{inicio}_{fim}`.
+- `useTenant()` já expõe `armazemId` (usado em outras páginas).
+- Coluna `armazem_id` já existe em `ordem_expedicao` (backend confirmado no prompt).
+- Sem migrations, sem edge functions, sem alterações em rotas.
 
-### Fora do escopo
-Backend/RPC (já pronta), alterações em outras páginas de Produtividade além da tabela clicável.
+### Riscos
+
+- Baixo em `TiposSaidaPage`.
+- Médio em `RoteiroSeparacaoPage`: verificar após implementação se `ordens` legadas (sem `armazem_id`) continuam aparecendo (o `or(...is.null)` cobre isso).
