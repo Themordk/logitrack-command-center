@@ -49,7 +49,6 @@ const navItems: NavItem[] = [
       { label: "Motivos de Ocorrência", path: "/armazem/motivos" },
       { label: "Veículos", path: "/armazem/veiculos" },
       { label: "Zonas de Atividade", path: "/armazem/zonas" },
-      { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
     ],
   },
   {
@@ -110,6 +109,7 @@ const navItems: NavItem[] = [
       { label: "Perfis de Acesso", path: "/config/perfis" },
       { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
       { label: "SLA de Ocorrências", path: "/config/ocorrencia-sla" },
+      { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
 
 
     ],
