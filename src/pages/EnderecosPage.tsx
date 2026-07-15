@@ -37,6 +37,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
   const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
+  const [filterSetorOptions, setFilterSetorOptions] = useState<{ value: string; label: string }[]>([]);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
