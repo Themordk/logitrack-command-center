@@ -129,9 +129,12 @@ export function useCrud<T extends Record<string, any>>({
         if (table === "produto" || table === "vw_produto_listagem") textFields.push("sku");
         if (table === "tipo_entrada" || table === "tipo_saida") textFields.push("codigo_erp");
         if (table === "veiculos") textFields.push("placa");
+        if (table === "vw_endereco_listagem") {
+          textFields.push("armazem_descricao", "setor_descricao", "tipo_estoque_descricao");
+        }
         const orParts = textFields.map((f) => `${f}.ilike.%${search}%`);
         // codigo_endereco é numeric no banco — ilike não funciona; usa eq quando o termo é numérico
-        if (table === "endereco" && /^\d+$/.test(search.trim())) {
+        if ((table === "endereco" || table === "vw_endereco_listagem") && /^\d+$/.test(search.trim())) {
           orParts.push(`codigo_endereco.eq.${search.trim()}`);
         }
         query = query.or(orParts.join(","));

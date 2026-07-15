@@ -15,13 +15,21 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   const [filterLado, setFilterLado] = useState<string>("all");
   const [filterCurva, setFilterCurva] = useState<string>("all");
   const [filterAtivo, setFilterAtivo] = useState<string>("all");
+  const [filterArmazem, setFilterArmazem] = useState<string>("all");
+  const [filterSetor, setFilterSetor] = useState<string>("all");
+  const [filterTipoEstoque, setFilterTipoEstoque] = useState<string>("all");
+  const [filterTipoEstrutura, setFilterTipoEstrutura] = useState<string>("all");
   const crudFilters: Record<string, any> = {};
   if (filterTipo !== "all") crudFilters.tipo_endereco = filterTipo;
   if (filterSituacao !== "all") crudFilters.situacao = filterSituacao;
   if (filterLado !== "all") crudFilters.lado = filterLado;
   if (filterCurva !== "all") crudFilters.curva_acesso = filterCurva;
   if (filterAtivo !== "all") crudFilters.ativo = filterAtivo === "true";
-  const crud = useCrud({ table: "endereco", tenantId, orderBy: "descricao", filters: crudFilters });
+  if (filterArmazem !== "all") crudFilters.armazem_id = filterArmazem;
+  if (filterSetor !== "all") crudFilters.setor_id = filterSetor;
+  if (filterTipoEstoque !== "all") crudFilters.tipo_estoque_id = filterTipoEstoque;
+  if (filterTipoEstrutura !== "all") crudFilters.tipo_estrutura = filterTipoEstrutura;
+  const crud = useCrud({ table: "vw_endereco_listagem", writeTable: "endereco", tenantId, orderBy: "descricao", filters: crudFilters });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -29,6 +37,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [setorOptions, setSetorOptions] = useState<{ value: string; label: string }[]>([]);
   const [tipoEstoqueOptions, setTipoEstoqueOptions] = useState<{ value: string; label: string }[]>([]);
+  const [filterSetorOptions, setFilterSetorOptions] = useState<{ value: string; label: string }[]>([]);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
@@ -68,6 +77,14 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     }
   }, [tenantId, formArmazemId]);
 
+  useEffect(() => {
+    if (tenantId && filterArmazem !== "all") {
+      fetchOptions("setor", tenantId, "descricao", { armazem_id: filterArmazem }).then(setFilterSetorOptions);
+    } else {
+      setFilterSetorOptions([]);
+    }
+  }, [tenantId, filterArmazem]);
+
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
     return `R${pad(rua)}-P${pad(predio)}-N${pad(nivel)}-A${pad(apto)}`;
@@ -78,10 +95,10 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     { key: "codigo_endereco", label: "Código" },
     { key: "tipo_endereco", label: "Tipo", render: (row) => <StatusBadge status={row.tipo_endereco === "PULMAO" ? 0 : 1} type="endereco-tipo" /> },
     { key: "situacao", label: "Situação", render: (row) => <StatusBadge status={row.situacao} type="endereco-situacao" /> },
+    { key: "tipo_estoque_descricao", label: "Tipo Estoque" },
+    { key: "armazem_descricao", label: "Armazém" },
+    { key: "setor_descricao", label: "Setor" },
     { key: "curva_acesso", label: "Curva" },
-    { key: "m3", label: "M³", type: "number" },
-    { key: "peso_total", label: "Peso Max", type: "number" },
-    { key: "total_pallet", label: "Pallets" },
     { key: "lado", label: "Lado" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
@@ -144,6 +161,50 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         extraFilters={
           <>
             <select
+              value={filterArmazem}
+              onChange={(e) => { setFilterArmazem(e.target.value); setFilterSetor("all"); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Armazém: Todos</option>
+              {armazemOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={filterSetor}
+              onChange={(e) => { setFilterSetor(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Setor: Todos</option>
+              {filterSetorOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={filterTipoEstoque}
+              onChange={(e) => { setFilterTipoEstoque(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Tipo Estoque: Todos</option>
+              {tipoEstoqueOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={filterTipoEstrutura}
+              onChange={(e) => { setFilterTipoEstrutura(e.target.value); crud.setPage(1); }}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
+            >
+              <option value="all">Tipo Estrutura: Todos</option>
+              <option value="PORTA PALLET">PORTA PALLET</option>
+              <option value="BLOCADO">BLOCADO</option>
+              <option value="PRATELEIRA">PRATELEIRA</option>
+              <option value="FLOW RACK">FLOW RACK</option>
+              <option value="DRIVE IN">DRIVE IN</option>
+              <option value="MEZANINO">MEZANINO</option>
+              <option value="DOCA">DOCA</option>
+            </select>
+            <select
               value={filterTipo}
               onChange={(e) => { setFilterTipo(e.target.value); crud.setPage(1); }}
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40"
@@ -192,10 +253,21 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
               <option value="true">Ativo</option>
               <option value="false">Inativo</option>
             </select>
-            {(filterTipo !== "all" || filterSituacao !== "all" || filterLado !== "all" || filterCurva !== "all" || filterAtivo !== "all") && (
+            {(filterTipo !== "all" || filterSituacao !== "all" || filterLado !== "all" || filterCurva !== "all" || filterAtivo !== "all" || filterArmazem !== "all" || filterSetor !== "all" || filterTipoEstoque !== "all" || filterTipoEstrutura !== "all") && (
               <button
                 type="button"
-                onClick={() => { setFilterTipo("all"); setFilterSituacao("all"); setFilterLado("all"); setFilterCurva("all"); setFilterAtivo("all"); crud.setPage(1); }}
+                onClick={() => {
+                  setFilterTipo("all");
+                  setFilterSituacao("all");
+                  setFilterLado("all");
+                  setFilterCurva("all");
+                  setFilterAtivo("all");
+                  setFilterArmazem("all");
+                  setFilterSetor("all");
+                  setFilterTipoEstoque("all");
+                  setFilterTipoEstrutura("all");
+                  crud.setPage(1);
+                }}
                 className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 Limpar filtros

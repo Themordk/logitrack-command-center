@@ -339,10 +339,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "armazem_config_endereco_armazenagem_automatica_id_fkey"
+            columns: ["endereco_armazenagem_automatica_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "armazem_config_endereco_avaria_id_fkey"
             columns: ["endereco_avaria_id"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_endereco_avaria_id_fkey"
+            columns: ["endereco_avaria_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -353,10 +367,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "armazem_config_endereco_cancelamento_id_fkey"
+            columns: ["endereco_cancelamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "armazem_config_endereco_quarentena_id_fkey"
             columns: ["endereco_quarentena_id"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armazem_config_endereco_quarentena_id_fkey"
+            columns: ["endereco_quarentena_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -1086,6 +1114,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "endereco_zona_atividade_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "endereco_zona_atividade_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1234,6 +1269,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "estoque_geral_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "estoque_geral_hu_id_fkey"
             columns: ["hu_id"]
             isOneToOne: false
@@ -1348,10 +1390,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "estoque_movimento_endereco_destino_id_fkey"
+            columns: ["endereco_destino_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "estoque_movimento_endereco_origem_id_fkey"
             columns: ["endereco_origem_id"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_endereco_origem_id_fkey"
+            columns: ["endereco_origem_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -1720,6 +1776,13 @@ export type Database = {
             columns: ["endereco_id"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventario_endereco"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -3196,6 +3259,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ocorrencia_operacional_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ocorrencia_operacional_motivo_ocorrencia_id_fkey"
             columns: ["motivo_ocorrencia_id"]
             isOneToOne: false
@@ -3731,6 +3801,13 @@ export type Database = {
             columns: ["endereco_id"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "picking_produto_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -4420,10 +4497,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tarefa_id_local_destino_fkey"
+            columns: ["id_local_destino"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tarefa_id_local_origem_fkey"
             columns: ["id_local_origem"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_id_local_origem_fkey"
+            columns: ["id_local_origem"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -4784,10 +4875,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tarefa_execucao_endereco_destino_id_fkey"
+            columns: ["endereco_destino_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tarefa_execucao_endereco_origem_id_fkey"
             columns: ["endereco_origem_id"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_endereco_origem_id_fkey"
+            columns: ["endereco_origem_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
@@ -5826,6 +5931,57 @@ export type Database = {
           },
         ]
       }
+      vw_endereco_listagem: {
+        Row: {
+          apto: number | null
+          armazem_descricao: string | null
+          armazem_id: string | null
+          ativo: boolean | null
+          codigo_endereco: number | null
+          curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
+          descricao: string | null
+          id: string | null
+          lado: Database["public"]["Enums"]["enum_lado"] | null
+          nivel: number | null
+          predio: number | null
+          rua: number | null
+          setor_descricao: string | null
+          setor_id: string | null
+          situacao: Database["public"]["Enums"]["enum_situacao_endereco"] | null
+          tenant_id: string | null
+          tipo_endereco:
+            | Database["public"]["Enums"]["enum_tipo_endereco"]
+            | null
+          tipo_estoque_descricao: string | null
+          tipo_estoque_id: string | null
+          tipo_estrutura:
+            | Database["public"]["Enums"]["tipo_estrutura_armazem"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "endereco_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endereco_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endereco_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_estoque_movimento_relatorio: {
         Row: {
           criado_em: string | null
@@ -6004,6 +6160,13 @@ export type Database = {
             columns: ["endereco_origem_id"]
             isOneToOne: false
             referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_endereco_origem_id_fkey"
+            columns: ["endereco_origem_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
             referencedColumns: ["id"]
           },
           {
