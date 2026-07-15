@@ -106,9 +106,9 @@ export function RoteiroSeparacaoPage() {
     setLoadingRuas(true);
     const { data } = await (supabase as any)
       .from("endereco")
-      .select("rua, setor!inner(armazem_id)")
+      .select("rua")
       .eq("tenant_id", tenantId)
-      .eq("setor.armazem_id", filtroArmazemId)
+      .eq("armazem_id", filtroArmazemId)
       .not("rua", "is", null);
     if (data) {
       const ruas = [...new Set(data.map((d: any) => Number(d.rua)))].sort((a: number, b: number) => a - b) as number[];
