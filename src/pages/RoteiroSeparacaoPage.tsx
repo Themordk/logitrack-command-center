@@ -43,13 +43,16 @@ interface OrdemItem {
 }
 
 export function RoteiroSeparacaoPage() {
-  const { tenantId, empresaId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
+  const [armazemNome, setArmazemNome] = useState<string>("");
   const [agrupamentos, setAgrupamentos] = useState<AgrupamentoItem[]>([]);
   const [agrupConf, setAgrupConf] = useState<AgrupamentoItem[]>([]);
   const [ordens, setOrdens] = useState<OrdemItem[]>([]);
+  const [ruasDisponiveis, setRuasDisponiveis] = useState<number[]>([]);
   const [loadingAgrup, setLoadingAgrup] = useState(true);
   const [loadingAgrupConf, setLoadingAgrupConf] = useState(true);
   const [loadingOrdem, setLoadingOrdem] = useState(true);
+  const [loadingRuas, setLoadingRuas] = useState(false);
 
   // Modals
   const [showAgrupModal, setShowAgrupModal] = useState(false);
@@ -62,6 +65,18 @@ export function RoteiroSeparacaoPage() {
   // Drag state
   const [dragType, setDragType] = useState<"agrup" | "agrupConf" | "ordem" | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!armazemId) { setArmazemNome(""); return; }
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("armazem")
+        .select("descricao")
+        .eq("id", armazemId)
+        .single();
+      if (data) setArmazemNome(data.descricao);
+    })();
+  }, [armazemId]);
 
   const fetchAgrupamentos = useCallback(async () => {
     if (!tenantId || !empresaId) return;
@@ -92,17 +107,43 @@ export function RoteiroSeparacaoPage() {
   const fetchOrdens = useCallback(async () => {
     if (!tenantId || !empresaId) return;
     setLoadingOrdem(true);
-    const { data, error } = await (supabase as any)
+    let query = (supabase as any)
       .from("ordem_expedicao")
       .select("*")
       .eq("tenant_id", tenantId)
       .eq("empresa_id", empresaId)
       .order("sequencia", { ascending: true });
+    if (armazemId) {
+      query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
+    }
+    const { data, error } = await query;
     if (!error) setOrdens(data || []);
     setLoadingOrdem(false);
-  }, [tenantId, empresaId]);
+  }, [tenantId, empresaId, armazemId]);
 
-  useEffect(() => { fetchAgrupamentos(); fetchAgrupConf(); fetchOrdens(); }, [fetchAgrupamentos, fetchAgrupConf, fetchOrdens, empresaVersion]);
+  const fetchRuasArmazem = useCallback(async () => {
+    if (!tenantId || !armazemId) { setRuasDisponiveis([]); return; }
+    setLoadingRuas(true);
+    const { data } = await (supabase as any)
+      .from("endereco")
+      .select("rua, setor!inner(armazem_id)")
+      .eq("tenant_id", tenantId)
+      .eq("setor.armazem_id", armazemId)
+      .not("rua", "is", null);
+    if (data) {
+      const ruas = [...new Set(data.map((d: any) => Number(d.rua)))].sort((a: number, b: number) => a - b) as number[];
+      setRuasDisponiveis(ruas);
+    }
+    setLoadingRuas(false);
+  }, [tenantId, armazemId]);
+
+  useEffect(() => {
+    fetchAgrupamentos();
+    fetchAgrupConf();
+    fetchOrdens();
+    fetchRuasArmazem();
+  }, [fetchAgrupamentos, fetchAgrupConf, fetchOrdens, fetchRuasArmazem, empresaVersion]);
+
 
   // Agrupamento Separação CRUD
   const addAgrupamento = async () => {
