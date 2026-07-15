@@ -49,7 +49,6 @@ const navItems: NavItem[] = [
       { label: "Motivos de Ocorrência", path: "/armazem/motivos" },
       { label: "Veículos", path: "/armazem/veiculos" },
       { label: "Zonas de Atividade", path: "/armazem/zonas" },
-      { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
     ],
   },
   {
