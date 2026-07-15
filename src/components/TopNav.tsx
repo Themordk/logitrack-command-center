@@ -109,6 +109,7 @@ const navItems: NavItem[] = [
       { label: "Perfis de Acesso", path: "/config/perfis" },
       { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
       { label: "SLA de Ocorrências", path: "/config/ocorrencia-sla" },
+      { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
 
 
     ],
