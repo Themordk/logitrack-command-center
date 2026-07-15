@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, GripVertical } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, GripVertical, Settings2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const AGRUPAMENTO_SEP_OPTIONS = [
   { value: "DOCUMENTO", label: "Documento" },
@@ -24,11 +26,6 @@ const AGRUPAMENTO_CONF_OPTIONS = [
   { value: "ROTA", label: "Rota" },
 ];
 
-const ORDENACAO_OPTIONS = [
-  { value: "ASC", label: "Crescente" },
-  { value: "DESC", label: "Decrescente" },
-];
-
 interface AgrupamentoItem {
   id?: string;
   tipo_agrupamento: string;
@@ -43,40 +40,23 @@ interface OrdemItem {
 }
 
 export function RoteiroSeparacaoPage() {
-  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
-  const [armazemNome, setArmazemNome] = useState<string>("");
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const [agrupamentos, setAgrupamentos] = useState<AgrupamentoItem[]>([]);
   const [agrupConf, setAgrupConf] = useState<AgrupamentoItem[]>([]);
   const [ordens, setOrdens] = useState<OrdemItem[]>([]);
   const [ruasDisponiveis, setRuasDisponiveis] = useState<number[]>([]);
   const [loadingAgrup, setLoadingAgrup] = useState(true);
   const [loadingAgrupConf, setLoadingAgrupConf] = useState(true);
-  const [loadingOrdem, setLoadingOrdem] = useState(true);
+  const [loadingOrdem, setLoadingOrdem] = useState(false);
   const [loadingRuas, setLoadingRuas] = useState(false);
 
-  // Modals
-  const [showAgrupModal, setShowAgrupModal] = useState(false);
-  const [agrupForm, setAgrupForm] = useState({ tipo_agrupamento: "" });
-  const [showAgrupConfModal, setShowAgrupConfModal] = useState(false);
-  const [agrupConfForm, setAgrupConfForm] = useState({ tipo_agrupamento: "" });
-  const [showOrdemModal, setShowOrdemModal] = useState(false);
-  const [ordemForm, setOrdemForm] = useState({ rua: "", ordem: "ASC" });
+  const [activeSheet, setActiveSheet] = useState<"separacao" | "conferencia" | "ordem" | null>(null);
+  const [filtroArmazemId, setFiltroArmazemId] = useState<string>("");
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
 
   // Drag state
   const [dragType, setDragType] = useState<"agrup" | "agrupConf" | "ordem" | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!armazemId) { setArmazemNome(""); return; }
-    (async () => {
-      const { data } = await (supabase as any)
-        .from("armazem")
-        .select("descricao")
-        .eq("id", armazemId)
-        .single();
-      if (data) setArmazemNome(data.descricao);
-    })();
-  }, [armazemId]);
 
   const fetchAgrupamentos = useCallback(async () => {
     if (!tenantId || !empresaId) return;
@@ -113,48 +93,63 @@ export function RoteiroSeparacaoPage() {
       .eq("tenant_id", tenantId)
       .eq("empresa_id", empresaId)
       .order("sequencia", { ascending: true });
-    if (armazemId) {
-      query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
+    if (filtroArmazemId) {
+      query = query.or(`armazem_id.eq.${filtroArmazemId},armazem_id.is.null`);
     }
     const { data, error } = await query;
     if (!error) setOrdens(data || []);
     setLoadingOrdem(false);
-  }, [tenantId, empresaId, armazemId]);
+  }, [tenantId, empresaId, filtroArmazemId]);
 
   const fetchRuasArmazem = useCallback(async () => {
-    if (!tenantId || !armazemId) { setRuasDisponiveis([]); return; }
+    if (!tenantId || !filtroArmazemId) { setRuasDisponiveis([]); return; }
     setLoadingRuas(true);
     const { data } = await (supabase as any)
       .from("endereco")
       .select("rua, setor!inner(armazem_id)")
       .eq("tenant_id", tenantId)
-      .eq("setor.armazem_id", armazemId)
+      .eq("setor.armazem_id", filtroArmazemId)
       .not("rua", "is", null);
     if (data) {
       const ruas = [...new Set(data.map((d: any) => Number(d.rua)))].sort((a: number, b: number) => a - b) as number[];
       setRuasDisponiveis(ruas);
     }
     setLoadingRuas(false);
-  }, [tenantId, armazemId]);
+  }, [tenantId, filtroArmazemId]);
 
   useEffect(() => {
     fetchAgrupamentos();
     fetchAgrupConf();
+  }, [fetchAgrupamentos, fetchAgrupConf, empresaVersion]);
+
+  useEffect(() => {
     fetchOrdens();
     fetchRuasArmazem();
-  }, [fetchAgrupamentos, fetchAgrupConf, fetchOrdens, fetchRuasArmazem, empresaVersion]);
+  }, [fetchOrdens, fetchRuasArmazem, empresaVersion]);
 
+  // Fetch armazém options (empresa scope)
+  useEffect(() => {
+    if (!tenantId || !empresaId) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("armazem")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .order("descricao");
+      if (data) setArmazemOptions(data.map((a: any) => ({ value: a.id, label: a.descricao })));
+    })();
+  }, [tenantId, empresaId, empresaVersion]);
 
-  // Agrupamento Separação CRUD
-  const addAgrupamento = async () => {
-    if (!agrupForm.tipo_agrupamento) { toast.error("Selecione o tipo de agrupamento."); return; }
+  // --- CRUD helpers ---
+  const addAgrupamentoValue = async (value: string) => {
     const seq = agrupamentos.length + 1;
     const { error } = await (supabase as any).from("agrupamento_separacao").insert({
-      tenant_id: tenantId, empresa_id: empresaId, tipo_agrupamento: agrupForm.tipo_agrupamento, sequencia: seq,
+      tenant_id: tenantId, empresa_id: empresaId, tipo_agrupamento: value, sequencia: seq,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Agrupamento adicionado.");
-    setShowAgrupModal(false);
     fetchAgrupamentos();
   };
 
@@ -164,16 +159,13 @@ export function RoteiroSeparacaoPage() {
     fetchAgrupamentos();
   };
 
-  // Agrupamento Conferência CRUD
-  const addAgrupConf = async () => {
-    if (!agrupConfForm.tipo_agrupamento) { toast.error("Selecione o tipo de agrupamento."); return; }
+  const addAgrupConfValue = async (value: string) => {
     const seq = agrupConf.length + 1;
     const { error } = await (supabase as any).from("agrupamento_conferencia").insert({
-      tenant_id: tenantId, empresa_id: empresaId, tipo_agrupamento: agrupConfForm.tipo_agrupamento, sequencia: seq,
+      tenant_id: tenantId, empresa_id: empresaId, tipo_agrupamento: value, sequencia: seq,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Agrupamento adicionado.");
-    setShowAgrupConfModal(false);
     fetchAgrupConf();
   };
 
@@ -183,17 +175,15 @@ export function RoteiroSeparacaoPage() {
     fetchAgrupConf();
   };
 
-  // Ordem CRUD
-  const addOrdem = async () => {
-    if (!ordemForm.rua) { toast.error("Selecione a rua."); return; }
+  const addOrdem = async (rua: number, ordem: string) => {
+    if (!filtroArmazemId) { toast.error("Selecione um armazém."); return; }
     const seq = ordens.length + 1;
     const { error } = await (supabase as any).from("ordem_expedicao").insert({
-      tenant_id: tenantId, empresa_id: empresaId, armazem_id: armazemId,
-      rua: Number(ordemForm.rua), ordem: ordemForm.ordem, sequencia: seq,
+      tenant_id: tenantId, empresa_id: empresaId, armazem_id: filtroArmazemId,
+      rua, ordem, sequencia: seq,
     });
     if (error) { toast.error(error.message); return; }
-    toast.success("Rua adicionada à ordem.");
-    setShowOrdemModal(false);
+    toast.success("Rua adicionada.");
     fetchOrdens();
   };
 
@@ -203,12 +193,11 @@ export function RoteiroSeparacaoPage() {
     fetchOrdens();
   };
 
-  // Drag & Drop handlers
+  // --- Drag & Drop ---
   const handleDragStart = (type: "agrup" | "agrupConf" | "ordem", idx: number) => {
     setDragType(type);
     setDragIdx(idx);
   };
-
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
 
   const handleDropAgrup = async (targetIdx: number) => {
@@ -247,220 +236,262 @@ export function RoteiroSeparacaoPage() {
     ));
   };
 
-  const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary";
+  // --- Resumos inline ---
+  const resumoSep = agrupamentos.length > 0
+    ? [...agrupamentos].sort((a, b) => a.sequencia - b.sequencia)
+        .map((a) => AGRUPAMENTO_SEP_OPTIONS.find((o) => o.value === a.tipo_agrupamento)?.label || a.tipo_agrupamento)
+        .join(" | ")
+    : "Nenhum agrupamento configurado";
 
-  const renderDragList = (
+  const resumoConf = agrupConf.length > 0
+    ? [...agrupConf].sort((a, b) => a.sequencia - b.sequencia)
+        .map((a) => AGRUPAMENTO_CONF_OPTIONS.find((o) => o.value === a.tipo_agrupamento)?.label || a.tipo_agrupamento)
+        .join(" | ")
+    : "Nenhum agrupamento configurado";
+
+  const resumoOrdem = ordens.length > 0
+    ? [...ordens].sort((a, b) => a.sequencia - b.sequencia)
+        .map((o) => `Rua ${o.rua} (${o.ordem === "ASC" ? "↑" : "↓"})`)
+        .join(" | ")
+    : "Nenhuma ordem configurada";
+
+  // --- Renderers ---
+  const renderCard = (
     title: string,
-    items: AgrupamentoItem[],
+    resumo: string,
+    onOpen: () => void,
     loading: boolean,
-    options: { value: string; label: string }[],
-    onAdd: () => void,
-    onRemove: (id: string) => void,
-    dragTypeKey: "agrup" | "agrupConf",
-    onDrop: (idx: number) => void,
   ) => (
-    <div className="card-surface overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">{title}</h2>
-        <button onClick={onAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-          <Plus size={13} /> Adicionar
+    <div className="rounded-lg border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          {loading ? (
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 size={12} className="animate-spin" /> Carregando...
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1 break-words">{resumo}</p>
+          )}
+        </div>
+        <button
+          onClick={onOpen}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-secondary transition-colors flex-shrink-0"
+        >
+          <Settings2 size={13} /> Configurar
         </button>
       </div>
-      {loading ? (
-        <div className="flex justify-center py-10"><Loader2 size={18} className="animate-spin text-muted-foreground" /></div>
-      ) : items.length === 0 ? (
-        <div className="py-10 text-center text-sm text-muted-foreground">Nenhum agrupamento configurado.</div>
-      ) : (
-        <div className="divide-y divide-border/50">
-          {items.map((item, idx) => (
-            <div
-              key={item.id}
-              draggable
-              onDragStart={() => handleDragStart(dragTypeKey, idx)}
-              onDragOver={handleDragOver}
-              onDrop={() => onDrop(idx)}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors cursor-grab active:cursor-grabbing"
-            >
-              <GripVertical size={14} className="text-muted-foreground/50 flex-shrink-0" />
-              <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">{idx + 1}</span>
-              <span className="text-sm text-foreground flex-1">
-                {options.find((o) => o.value === item.tipo_agrupamento)?.label || item.tipo_agrupamento}
-              </span>
-              <button onClick={() => onRemove(item.id!)} className="p-1 rounded hover:bg-destructive/10 transition-colors">
-                <Trash2 size={13} className="text-destructive" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
+
+  const renderAgrupamentoSheet = () => {
+    const isSep = activeSheet === "separacao";
+    const items = isSep ? agrupamentos : agrupConf;
+    const options = isSep ? AGRUPAMENTO_SEP_OPTIONS : AGRUPAMENTO_CONF_OPTIONS;
+    const onAdd = isSep ? addAgrupamentoValue : addAgrupConfValue;
+    const onRemove = isSep ? removeAgrupamento : removeAgrupConf;
+    const dragKey: "agrup" | "agrupConf" = isSep ? "agrup" : "agrupConf";
+    const onDrop = isSep ? handleDropAgrup : handleDropAgrupConf;
+
+    const marcados = options
+      .filter((o) => items.some((i) => i.tipo_agrupamento === o.value))
+      .sort((a, b) => {
+        const seqA = items.find((i) => i.tipo_agrupamento === a.value)?.sequencia || 999;
+        const seqB = items.find((i) => i.tipo_agrupamento === b.value)?.sequencia || 999;
+        return seqA - seqB;
+      });
+    const desmarcados = options
+      .filter((o) => !items.some((i) => i.tipo_agrupamento === o.value))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return [...marcados, ...desmarcados].map((option) => {
+      const item = items.find((i) => i.tipo_agrupamento === option.value);
+      const isMarcado = !!item;
+      const marcadoIdx = marcados.findIndex((m) => m.value === option.value);
+
+      return (
+        <div
+          key={option.value}
+          draggable={isMarcado}
+          onDragStart={() => isMarcado && handleDragStart(dragKey, marcadoIdx)}
+          onDragOver={handleDragOver}
+          onDrop={() => isMarcado && onDrop(marcadoIdx)}
+          className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+            isMarcado
+              ? "bg-primary/5 border border-primary/20 cursor-grab active:cursor-grabbing"
+              : "hover:bg-secondary/30 border border-transparent"
+          }`}
+        >
+          {isMarcado ? (
+            <GripVertical size={14} className="text-muted-foreground/50 flex-shrink-0" />
+          ) : (
+            <span className="w-[14px] flex-shrink-0" />
+          )}
+          <Checkbox
+            checked={isMarcado}
+            onCheckedChange={(checked) => {
+              if (checked) onAdd(option.value);
+              else if (item?.id) onRemove(item.id);
+            }}
+          />
+          <span className="text-sm text-foreground flex-1">{option.label}</span>
+          {isMarcado && (
+            <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+              {item?.sequencia || "—"}
+            </span>
+          )}
+        </div>
+      );
+    });
+  };
+
+  const renderOrdemSheet = () => {
+    if (!filtroArmazemId) {
+      return (
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          Selecione um armazém para configurar a ordem.
+        </div>
+      );
+    }
+    if (loadingRuas || loadingOrdem) {
+      return (
+        <div className="flex justify-center py-10">
+          <Loader2 size={18} className="animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (ruasDisponiveis.length === 0) {
+      return (
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          Nenhuma rua cadastrada neste armazém.
+        </div>
+      );
+    }
+
+    const marcadas = [...ordens]
+      .filter((o) => ruasDisponiveis.includes(Number(o.rua)))
+      .sort((a, b) => a.sequencia - b.sequencia);
+    const desmarcadas = ruasDisponiveis.filter((r) => !ordens.some((o) => Number(o.rua) === r));
+
+    return (
+      <>
+        {marcadas.map((item, idx) => (
+          <div
+            key={`m-${item.id}`}
+            draggable
+            onDragStart={() => handleDragStart("ordem", idx)}
+            onDragOver={handleDragOver}
+            onDrop={() => handleDropOrdem(idx)}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg bg-primary/5 border border-primary/20 cursor-grab active:cursor-grabbing transition-colors"
+          >
+            <GripVertical size={14} className="text-muted-foreground/50 flex-shrink-0" />
+            <Checkbox
+              checked
+              onCheckedChange={(checked) => { if (!checked && item.id) removeOrdem(item.id); }}
+            />
+            <span className="text-sm text-foreground flex-1">Rua {item.rua}</span>
+            <select
+              value={item.ordem || "ASC"}
+              onChange={async (e) => {
+                await (supabase as any)
+                  .from("ordem_expedicao")
+                  .update({ ordem: e.target.value })
+                  .eq("id", item.id);
+                fetchOrdens();
+              }}
+              className="h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none cursor-pointer"
+            >
+              <option value="ASC">Crescente ↑</option>
+              <option value="DESC">Decrescente ↓</option>
+            </select>
+            <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+              {item.sequencia}
+            </span>
+          </div>
+        ))}
+        {desmarcadas.map((r) => (
+          <div
+            key={`d-${r}`}
+            className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary/30 border border-transparent transition-colors"
+          >
+            <span className="w-[14px] flex-shrink-0" />
+            <Checkbox
+              checked={false}
+              onCheckedChange={(checked) => { if (checked) addOrdem(r, "ASC"); }}
+            />
+            <span className="text-sm text-foreground flex-1">Rua {r}</span>
+          </div>
+        ))}
+      </>
+    );
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 animate-fade-in">
       <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-foreground">Roteiro de Separação e Conferência</h1>
-          {armazemNome && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-              {armazemNome}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">Configure agrupamentos e ordem de separação. Arraste para reordenar.</p>
+        <h1 className="text-lg font-bold text-foreground">Roteiro de Separação e Conferência</h1>
+        <p className="text-xs text-muted-foreground">Configure os agrupamentos e a ordem de separação por rua.</p>
       </div>
 
-      <div className="flex flex-col gap-6 max-w-3xl">
-        {/* Agrupamento Separação */}
-        {renderDragList(
-          "Agrupamento de Separação",
-          agrupamentos, loadingAgrup,
-          AGRUPAMENTO_SEP_OPTIONS,
-          () => { setAgrupForm({ tipo_agrupamento: "" }); setShowAgrupModal(true); },
-          removeAgrupamento, "agrup", handleDropAgrup,
-        )}
+      <div className="flex flex-col gap-4">
+        {renderCard("Agrupamento de Separação", resumoSep, () => setActiveSheet("separacao"), loadingAgrup)}
+        {renderCard("Agrupamento de Conferência", resumoConf, () => setActiveSheet("conferencia"), loadingAgrupConf)}
+        {renderCard("Ordem de Separação", resumoOrdem, () => setActiveSheet("ordem"), loadingOrdem)}
+      </div>
 
-        {/* Agrupamento Conferência */}
-        {renderDragList(
-          "Agrupamento de Conferência",
-          agrupConf, loadingAgrupConf,
-          AGRUPAMENTO_CONF_OPTIONS,
-          () => { setAgrupConfForm({ tipo_agrupamento: "" }); setShowAgrupConfModal(true); },
-          removeAgrupConf, "agrupConf", handleDropAgrupConf,
-        )}
-
-        {/* Ordem de Separação — auto-populado com ruas do armazém */}
-        <div className="card-surface overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Ordem de Separação</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {armazemNome ? `Ruas do ${armazemNome}` : "Selecione um armazém"}
-              </p>
+      {/* Sheet Agrupamento (Separação / Conferência) */}
+      <Sheet
+        open={activeSheet === "separacao" || activeSheet === "conferencia"}
+        onOpenChange={(v) => !v && setActiveSheet(null)}
+      >
+        <SheetContent side="right" className="sm:max-w-[480px] w-full p-0 flex flex-col bg-card">
+          <SheetHeader className="px-6 pt-6 pb-3 text-left">
+            <SheetTitle className="text-lg font-bold">
+              {activeSheet === "separacao" ? "Agrupamento de Separação" : "Agrupamento de Conferência"}
+            </SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              Marque os critérios de agrupamento. A ordem define a prioridade na geração da onda.
+            </p>
+          </SheetHeader>
+          <Separator />
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+            <div className="space-y-1">
+              {activeSheet && renderAgrupamentoSheet()}
             </div>
-            {ruasDisponiveis.filter((r) => !ordens.some((o) => Number(o.rua) === r)).length > 0 && (
-              <button
-                onClick={() => { setOrdemForm({ rua: "", ordem: "ASC" }); setShowOrdemModal(true); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-              >
-                <Plus size={13} /> Adicionar Rua
-              </button>
-            )}
           </div>
-          {loadingOrdem || loadingRuas ? (
-            <div className="flex justify-center py-10"><Loader2 size={18} className="animate-spin text-muted-foreground" /></div>
-          ) : ordens.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              {ruasDisponiveis.length === 0
-                ? "Nenhuma rua cadastrada neste armazém."
-                : "Nenhuma ordem configurada. Clique em 'Adicionar Rua' para começar."}
-            </div>
-          ) : (
-            <div className="divide-y divide-border/50">
-              {ordens.map((item, idx) => (
-                <div
-                  key={item.id}
-                  draggable
-                  onDragStart={() => handleDragStart("ordem", idx)}
-                  onDragOver={handleDragOver}
-                  onDrop={() => handleDropOrdem(idx)}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors cursor-grab active:cursor-grabbing"
-                >
-                  <GripVertical size={14} className="text-muted-foreground/50 flex-shrink-0" />
-                  <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">{idx + 1}</span>
-                  <span className="text-sm text-foreground flex-1">Rua {item.rua}</span>
-                  <select
-                    value={item.ordem || "ASC"}
-                    onChange={async (e) => {
-                      const novaOrdem = e.target.value;
-                      await (supabase as any)
-                        .from("ordem_expedicao")
-                        .update({ ordem: novaOrdem })
-                        .eq("id", item.id);
-                      fetchOrdens();
-                    }}
-                    className="h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none cursor-pointer"
-                  >
-                    <option value="ASC">Crescente ↑</option>
-                    <option value="DESC">Decrescente ↓</option>
-                  </select>
-                  <button onClick={() => removeOrdem(item.id!)} className="p-1 rounded hover:bg-destructive/10 transition-colors">
-                    <Trash2 size={13} className="text-destructive" />
-                  </button>
-                </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet Ordem */}
+      <Sheet open={activeSheet === "ordem"} onOpenChange={(v) => !v && setActiveSheet(null)}>
+        <SheetContent side="right" className="sm:max-w-[480px] w-full p-0 flex flex-col bg-card">
+          <SheetHeader className="px-6 pt-6 pb-3 text-left">
+            <SheetTitle className="text-lg font-bold">Ordem de Separação</SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              Selecione as ruas e defina a ordem de percurso do separador.
+            </p>
+          </SheetHeader>
+          <Separator />
+          <div className="px-6 py-3 border-b border-border">
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Armazém</label>
+            <select
+              value={filtroArmazemId}
+              onChange={(e) => setFiltroArmazemId(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
+            >
+              <option value="">Selecione o armazém...</option>
+              {armazemOptions.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
               ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal Agrupamento Separação */}
-      <Dialog open={showAgrupModal} onOpenChange={setShowAgrupModal}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Adicionar Agrupamento de Separação</DialogTitle></DialogHeader>
-          <div className="py-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Tipo de Agrupamento *</label>
-            <select value={agrupForm.tipo_agrupamento} onChange={(e) => setAgrupForm({ tipo_agrupamento: e.target.value })} className={inputClass}>
-              <option value="">Selecione...</option>
-              {AGRUPAMENTO_SEP_OPTIONS
-                .filter((o) => !agrupamentos.some((a) => a.tipo_agrupamento === o.value))
-                .map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-          <DialogFooter>
-            <button onClick={() => setShowAgrupModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
-            <button onClick={addAgrupamento} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Adicionar</button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Agrupamento Conferência */}
-      <Dialog open={showAgrupConfModal} onOpenChange={setShowAgrupConfModal}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Adicionar Agrupamento de Conferência</DialogTitle></DialogHeader>
-          <div className="py-2">
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Tipo de Agrupamento *</label>
-            <select value={agrupConfForm.tipo_agrupamento} onChange={(e) => setAgrupConfForm({ tipo_agrupamento: e.target.value })} className={inputClass}>
-              <option value="">Selecione...</option>
-              {AGRUPAMENTO_CONF_OPTIONS
-                .filter((o) => !agrupConf.some((a) => a.tipo_agrupamento === o.value))
-                .map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <DialogFooter>
-            <button onClick={() => setShowAgrupConfModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
-            <button onClick={addAgrupConf} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Adicionar</button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Ordem — select de ruas disponíveis */}
-      <Dialog open={showOrdemModal} onOpenChange={setShowOrdemModal}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Adicionar Rua à Ordem de Separação</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rua *</label>
-              <select value={ordemForm.rua} onChange={(e) => setOrdemForm({ ...ordemForm, rua: e.target.value })} className={inputClass}>
-                <option value="">Selecione a rua...</option>
-                {ruasDisponiveis
-                  .filter((r) => !ordens.some((o) => Number(o.rua) === r))
-                  .map((r) => <option key={r} value={r}>Rua {r}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Ordenação *</label>
-              <select value={ordemForm.ordem} onChange={(e) => setOrdemForm({ ...ordemForm, ordem: e.target.value })} className={inputClass}>
-                {ORDENACAO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+            <div className="space-y-1">
+              {renderOrdemSheet()}
             </div>
           </div>
-          <DialogFooter>
-            <button onClick={() => setShowOrdemModal(false)} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
-            <button onClick={addOrdem} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Adicionar</button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
