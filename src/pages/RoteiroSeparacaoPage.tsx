@@ -299,7 +299,14 @@ export function RoteiroSeparacaoPage() {
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-6 animate-fade-in">
       <div>
-        <h1 className="text-lg font-bold text-foreground">Roteiro de Separação e Conferência</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-bold text-foreground">Roteiro de Separação e Conferência</h1>
+          {armazemNome && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+              {armazemNome}
+            </span>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">Configure agrupamentos e ordem de separação. Arraste para reordenar.</p>
       </div>
 
@@ -322,21 +329,32 @@ export function RoteiroSeparacaoPage() {
           removeAgrupConf, "agrupConf", handleDropAgrupConf,
         )}
 
-        {/* Ordem de Separação */}
+        {/* Ordem de Separação — auto-populado com ruas do armazém */}
         <div className="card-surface overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Ordem de Separação</h2>
-            <button
-              onClick={() => { setOrdemForm({ rua: "", ordem: "ASC" }); setShowOrdemModal(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Plus size={13} /> Adicionar
-            </button>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Ordem de Separação</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {armazemNome ? `Ruas do ${armazemNome}` : "Selecione um armazém"}
+              </p>
+            </div>
+            {ruasDisponiveis.filter((r) => !ordens.some((o) => Number(o.rua) === r)).length > 0 && (
+              <button
+                onClick={() => { setOrdemForm({ rua: "", ordem: "ASC" }); setShowOrdemModal(true); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus size={13} /> Adicionar Rua
+              </button>
+            )}
           </div>
-          {loadingOrdem ? (
+          {loadingOrdem || loadingRuas ? (
             <div className="flex justify-center py-10"><Loader2 size={18} className="animate-spin text-muted-foreground" /></div>
           ) : ordens.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Nenhuma ordem configurada.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              {ruasDisponiveis.length === 0
+                ? "Nenhuma rua cadastrada neste armazém."
+                : "Nenhuma ordem configurada. Clique em 'Adicionar Rua' para começar."}
+            </div>
           ) : (
             <div className="divide-y divide-border/50">
               {ordens.map((item, idx) => (
@@ -350,9 +368,22 @@ export function RoteiroSeparacaoPage() {
                 >
                   <GripVertical size={14} className="text-muted-foreground/50 flex-shrink-0" />
                   <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">{idx + 1}</span>
-                  <span className="text-sm text-foreground flex-1">
-                    Rua {item.rua} — {item.ordem === "ASC" ? "Crescente" : "Decrescente"}
-                  </span>
+                  <span className="text-sm text-foreground flex-1">Rua {item.rua}</span>
+                  <select
+                    value={item.ordem || "ASC"}
+                    onChange={async (e) => {
+                      const novaOrdem = e.target.value;
+                      await (supabase as any)
+                        .from("ordem_expedicao")
+                        .update({ ordem: novaOrdem })
+                        .eq("id", item.id);
+                      fetchOrdens();
+                    }}
+                    className="h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none cursor-pointer"
+                  >
+                    <option value="ASC">Crescente ↑</option>
+                    <option value="DESC">Decrescente ↓</option>
+                  </select>
                   <button onClick={() => removeOrdem(item.id!)} className="p-1 rounded hover:bg-destructive/10 transition-colors">
                     <Trash2 size={13} className="text-destructive" />
                   </button>
@@ -371,7 +402,9 @@ export function RoteiroSeparacaoPage() {
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Tipo de Agrupamento *</label>
             <select value={agrupForm.tipo_agrupamento} onChange={(e) => setAgrupForm({ tipo_agrupamento: e.target.value })} className={inputClass}>
               <option value="">Selecione...</option>
-              {AGRUPAMENTO_SEP_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {AGRUPAMENTO_SEP_OPTIONS
+                .filter((o) => !agrupamentos.some((a) => a.tipo_agrupamento === o.value))
+                .map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <DialogFooter>
@@ -389,7 +422,9 @@ export function RoteiroSeparacaoPage() {
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Tipo de Agrupamento *</label>
             <select value={agrupConfForm.tipo_agrupamento} onChange={(e) => setAgrupConfForm({ tipo_agrupamento: e.target.value })} className={inputClass}>
               <option value="">Selecione...</option>
-              {AGRUPAMENTO_CONF_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {AGRUPAMENTO_CONF_OPTIONS
+                .filter((o) => !agrupConf.some((a) => a.tipo_agrupamento === o.value))
+                .map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <DialogFooter>
@@ -399,14 +434,19 @@ export function RoteiroSeparacaoPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Ordem */}
+      {/* Modal Ordem — select de ruas disponíveis */}
       <Dialog open={showOrdemModal} onOpenChange={setShowOrdemModal}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Adicionar Ordem de Separação</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Adicionar Rua à Ordem de Separação</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Rua *</label>
-              <input type="number" value={ordemForm.rua} onChange={(e) => setOrdemForm({ ...ordemForm, rua: e.target.value })} className={inputClass} placeholder="1" />
+              <select value={ordemForm.rua} onChange={(e) => setOrdemForm({ ...ordemForm, rua: e.target.value })} className={inputClass}>
+                <option value="">Selecione a rua...</option>
+                {ruasDisponiveis
+                  .filter((r) => !ordens.some((o) => Number(o.rua) === r))
+                  .map((r) => <option key={r} value={r}>Rua {r}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Ordenação *</label>
