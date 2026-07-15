@@ -185,13 +185,14 @@ export function RoteiroSeparacaoPage() {
 
   // Ordem CRUD
   const addOrdem = async () => {
-    if (!ordemForm.rua) { toast.error("Informe a rua."); return; }
+    if (!ordemForm.rua) { toast.error("Selecione a rua."); return; }
     const seq = ordens.length + 1;
     const { error } = await (supabase as any).from("ordem_expedicao").insert({
-      tenant_id: tenantId, empresa_id: empresaId, rua: Number(ordemForm.rua), ordem: ordemForm.ordem, sequencia: seq,
+      tenant_id: tenantId, empresa_id: empresaId, armazem_id: armazemId,
+      rua: Number(ordemForm.rua), ordem: ordemForm.ordem, sequencia: seq,
     });
     if (error) { toast.error(error.message); return; }
-    toast.success("Ordem adicionada.");
+    toast.success("Rua adicionada à ordem.");
     setShowOrdemModal(false);
     fetchOrdens();
   };
