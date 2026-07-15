@@ -95,10 +95,10 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     { key: "codigo_endereco", label: "Código" },
     { key: "tipo_endereco", label: "Tipo", render: (row) => <StatusBadge status={row.tipo_endereco === "PULMAO" ? 0 : 1} type="endereco-tipo" /> },
     { key: "situacao", label: "Situação", render: (row) => <StatusBadge status={row.situacao} type="endereco-situacao" /> },
+    { key: "tipo_estoque_descricao", label: "Tipo Estoque" },
+    { key: "armazem_descricao", label: "Armazém" },
+    { key: "setor_descricao", label: "Setor" },
     { key: "curva_acesso", label: "Curva" },
-    { key: "m3", label: "M³", type: "number" },
-    { key: "peso_total", label: "Peso Max", type: "number" },
-    { key: "total_pallet", label: "Pallets" },
     { key: "lado", label: "Lado" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
