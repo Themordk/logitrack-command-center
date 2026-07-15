@@ -77,6 +77,14 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     }
   }, [tenantId, formArmazemId]);
 
+  useEffect(() => {
+    if (tenantId && filterArmazem !== "all") {
+      fetchOptions("setor", tenantId, "descricao", { armazem_id: filterArmazem }).then(setFilterSetorOptions);
+    } else {
+      setFilterSetorOptions([]);
+    }
+  }, [tenantId, filterArmazem]);
+
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
     return `R${pad(rua)}-P${pad(predio)}-N${pad(nivel)}-A${pad(apto)}`;
