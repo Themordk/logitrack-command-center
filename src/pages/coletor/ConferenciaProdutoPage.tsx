@@ -33,6 +33,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [eanErroMsg, setEanErroMsg] = useState<string>("");
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
+  const [modoCego, setModoCego] = useState(false);
   const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
   const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
   const quantidadeRef = useRef<HTMLInputElement>(null);
@@ -60,7 +61,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         const [movRes, usrRes] = await Promise.all([
           (supabase as any)
             .from("movimento_saida")
-            .select("tipo_saida_rel:tipo_saida(conferencia_checkout)")
+            .select("tipo_saida_rel:tipo_saida(conferencia_checkout, conferencia_cega)")
             .eq("id", movimentoId)
             .single(),
           (supabase as any)
@@ -69,11 +70,14 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
             .eq("id", usuarioId)
             .single(),
         ]);
-        const checkoutTipo = !!movRes?.data?.tipo_saida_rel?.conferencia_checkout;
+        const tipoSaidaData = movRes?.data?.tipo_saida_rel;
+        const checkoutTipo = !!tipoSaidaData?.conferencia_checkout;
         const checkoutUsr = !!usrRes?.data?.permite_checkout;
         setModoCheckout(checkoutTipo && checkoutUsr);
+        setModoCego(!!tipoSaidaData?.conferencia_cega);
       } catch {
         setModoCheckout(false);
+        setModoCego(false);
       }
     })();
   }, []);
@@ -358,9 +362,13 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout
       title={`Conferência #${numeroOnda}`}
-      titleBadge={modoCheckout ? (
-        <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wide">CHECKOUT</span>
-      ) : undefined}
+      titleBadge={
+        modoCheckout ? (
+          <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wide">CHECKOUT</span>
+        ) : modoCego ? (
+          <span className="px-2 py-0.5 rounded-md bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wide">CEGA</span>
+        ) : undefined
+      }
       onNavigate={onNavigate}
       showBack
       backPath="/coletor/conferencia/iniciar"
@@ -427,20 +435,28 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
         {/* Quantities */}
         <div className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-4">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <span className="text-[10px] text-[hsl(213,31%,45%)] uppercase block">Requerida</span>
-              <span className="text-xl font-bold text-white">{qtdRequerida}</span>
+          {modoCego ? (
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[10px] text-[hsl(213,31%,45%)] uppercase">Conferida</span>
+              <span className="text-3xl font-bold text-[#22C55E]">{qtdConferida}</span>
+              <span className="text-[10px] text-amber-400 mt-1 uppercase tracking-wider">Conferência cega ativa</span>
             </div>
-            <div>
-              <span className="text-[10px] text-[hsl(213,31%,45%)] uppercase block">Conferida</span>
-              <span className="text-xl font-bold text-[#22C55E]">{qtdConferida}</span>
+          ) : (
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <span className="text-[10px] text-[hsl(213,31%,45%)] uppercase block">Requerida</span>
+                <span className="text-xl font-bold text-white">{qtdRequerida}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[hsl(213,31%,45%)] uppercase block">Conferida</span>
+                <span className="text-xl font-bold text-[#22C55E]">{qtdConferida}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[hsl(213,31%,45%)] uppercase block">Restante</span>
+                <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{restante > 0 ? restante : 0}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] text-[hsl(213,31%,45%)] uppercase block">Restante</span>
-              <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{restante > 0 ? restante : 0}</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {!modoCheckout && (
