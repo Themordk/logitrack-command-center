@@ -3396,6 +3396,7 @@ export type Database = {
       }
       ordem_expedicao: {
         Row: {
+          armazem_id: string | null
           created_at: string
           empresa_id: string | null
           id: string
@@ -3405,6 +3406,7 @@ export type Database = {
           tenant_id: string | null
         }
         Insert: {
+          armazem_id?: string | null
           created_at?: string
           empresa_id?: string | null
           id?: string
@@ -3414,6 +3416,7 @@ export type Database = {
           tenant_id?: string | null
         }
         Update: {
+          armazem_id?: string | null
           created_at?: string
           empresa_id?: string | null
           id?: string
@@ -3423,6 +3426,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ordem_expedicao_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ordem_expedixao_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -5010,6 +5020,7 @@ export type Database = {
           conferencia_checkout: boolean
           descricao: string
           empresa_id: string
+          gera_abastecimento_automatico: boolean
           gera_mov_automatico: boolean
           gera_volume_etapa: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id: string
@@ -5026,6 +5037,7 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao: string
           empresa_id: string
+          gera_abastecimento_automatico?: boolean
           gera_mov_automatico?: boolean
           gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id?: string
@@ -5042,6 +5054,7 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao?: string
           empresa_id?: string
+          gera_abastecimento_automatico?: boolean
           gera_mov_automatico?: boolean
           gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id?: string
@@ -7088,6 +7101,19 @@ export type Database = {
             }
             Returns: Json
           }
+      criar_movimento_saida_registro: {
+        Args: {
+          p_box_id?: string
+          p_chave_agrupamento: string
+          p_empresa_id: string
+          p_prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
+          p_rota_id?: string
+          p_tenant_id: string
+          p_tipo_saida_id: string
+          p_veiculo_id?: string
+        }
+        Returns: string
+      }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: { Args: never; Returns: Json }
       dashboard_kpis: {
@@ -8087,6 +8113,14 @@ export type Database = {
           veiculo_placa: string
         }[]
       }
+      preparar_dados_agrupamento: {
+        Args: {
+          p_documentos: string[]
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       processar_movimento_estoque: {
         Args: { p_tarefa_execucao_id: string }
         Returns: undefined
@@ -8496,6 +8530,20 @@ export type Database = {
         Args: { _empresa: string; _tenant: string }
         Returns: boolean
       }
+      validar_documentos_onda: {
+        Args: {
+          p_documentos: string[]
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["resultado_validacao_docs_onda"]
+        SetofOptions: {
+          from: "*"
+          to: "resultado_validacao_docs_onda"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       enum_acao_permissao: "CREATE" | "READ" | "UPDATE" | "DELETE" | "EXECUTE"
@@ -8721,6 +8769,18 @@ export type Database = {
         total_parciais: number | null
         total_sem_saldo: number | null
         mensagem: string | null
+      }
+      resultado_validacao_docs_onda: {
+        tipo_saida_id: string | null
+        libera_mov_auto: boolean | null
+        prioridade: Database["public"]["Enums"]["enum_prioridade_onda"] | null
+        total_docs: number | null
+        realiza_conferencia: boolean | null
+        conferencia_cega: boolean | null
+        gera_volume_etapa:
+          | Database["public"]["Enums"]["enum_momento_geracao_volume"]
+          | null
+        gera_abastecimento_automatico: boolean | null
       }
     }
   }
