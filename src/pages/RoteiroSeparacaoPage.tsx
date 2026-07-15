@@ -310,7 +310,7 @@ export function RoteiroSeparacaoPage() {
         <p className="text-xs text-muted-foreground">Configure agrupamentos e ordem de separação. Arraste para reordenar.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex flex-col gap-6 max-w-3xl">
         {/* Agrupamento Separação */}
         {renderDragList(
           "Agrupamento de Separação",

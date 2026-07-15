@@ -1,111 +1,60 @@
-# Ajustes na tela de Localizações / Endereços
+# Fase 2 — Ajustes de UI: Tipos de Saída, Roteiro e Conferência Cega
 
-## Contexto
-A tela atual `/armazem/enderecos` lista endereços com colunas operacionais (M³, Peso Max, Pallets) e filtros básicos (Tipo, Situação, Lado, Curva, Status). A operação precisa de mais visibilidade sobre o agrupamento físico (armazém, setor, tipo de estoque) e estrutura.
+Escopo estrito: alterar apenas 3 arquivos existentes. Sem novas dependências, sem novos arquivos, sem tocar em `components/ui/` nem no `App.tsx`.
 
-## Objetivo
-1. Adicionar filtros por **Setor**, **Armazém**, **Tipo de Estoque** e **Tipo de Estrutura**.
-2. Remover do grid as colunas **M³**, **Peso Max** e **Pallets**.
-3. Adicionar no grid as colunas **Tipo de Estoque**, **Armazém** e **Setor**.
+## 1. `src/pages/TiposSaidaPage.tsx` — formulário com seções
 
-## Escopo
-Apenas a tela `src/pages/EnderecosPage.tsx` e uma nova view no banco para evitar N+1 e seguir o padrão *view-driven UI* do projeto.
+Substituir o `CrudModal` (grid plano) por um `Dialog` customizado com 4 seções visuais.
 
-## Plano de implementação
+- Remover import de `CrudModal` e o array `fields`.
+- Importar `Dialog/DialogContent/DialogHeader/DialogTitle/DialogFooter`, `Switch`, ícones `Save` e `Loader2`.
+- Novos estados: `form` e `saving`. Função `openModal(item)` popula defaults (descricao, codigo_erp, prioridade=NORMAL, switches, `gera_volume_etapa=CONFERÊNCIA`, ativo=true).
+- CrudTable passa a chamar `openModal(null)` no novo e `openModal(row)` no editar.
+- `handleSave`: se `realiza_conferencia=false`, força `conferencia_checkout=false` e `conferencia_cega=false`; usa `crud.update` ou `crud.create` com `empresa_id`.
+- Layout do Dialog com 4 blocos com borda/`bg-secondary/20`:
+  1. **Dados gerais**: Descrição, Código ERP, Prioridade.
+  2. **Conferência**: switches Realiza conferência / Checkout / Cega (os dois últimos desabilitados quando Realiza=off).
+  3. **Separação e volume**: switch Separa pulmão + select "Gera volume na etapa".
+  4. **Automação**: switches Gera/Libera movimento automático e Gera abastecimento automático.
+  5. Toggle **Ativo** fora dos cards.
+- Footer com botões Cancelar e Salvar (com spinner quando `saving`).
+- **Não alterar** a `CrudTable`, colunas, `boolBadge`, `prioridadeBadge` nem o `DeleteConfirmDialog`.
 
-### 1. Banco de dados — view `vw_endereco_listagem`
-Criar uma view no schema `public` que faz JOIN de `endereco` com `armazem`, `setor` e `tipo_estoque`, expondo os nomes legíveis junto aos IDs:
+## 2. `src/pages/RoteiroSeparacaoPage.tsx` — layout vertical
 
-- Campos herdados de `endereco`: `id`, `tenant_id`, `armazem_id`, `setor_id`, `tipo_estoque_id`, `rua`, `predio`, `nivel`, `apto`, `descricao`, `tipo_endereco`, `lado`, `situacao`, `curva_acesso`, `ativo`, `tipo_estrutura`, `codigo_endereco`.
-- Campos de apresentação: `armazem_descricao`, `setor_descricao`, `tipo_estoque_descricao`.
-- Criar com `WITH (security_invoker = true)` para que a RLS/política de `tenant_id` da tabela `endereco` continue sendo aplicada pelo usuário autenticado.
-- Conceder `SELECT` para `authenticated` e `service_role` (sempre incluir `service_role` para funções Edge / admin).
+Alteração única de layout: trocar
 
-```sql
-CREATE OR REPLACE VIEW public.vw_endereco_listagem AS
-SELECT
-  e.id,
-  e.tenant_id,
-  e.armazem_id,
-  e.setor_id,
-  e.tipo_estoque_id,
-  e.rua,
-  e.predio,
-  e.nivel,
-  e.apto,
-  e.descricao,
-  e.tipo_endereco,
-  e.lado,
-  e.situacao,
-  e.curva_acesso,
-  e.ativo,
-  e.tipo_estrutura,
-  e.codigo_endereco,
-  a.descricao AS armazem_descricao,
-  s.descricao AS setor_descricao,
-  te.descricao AS tipo_estoque_descricao
-FROM public.endereco e
-JOIN public.armazem a ON a.id = e.armazem_id
-JOIN public.setor s ON s.id = e.setor_id
-JOIN public.tipo_estoque te ON te.id = e.tipo_estoque_id
-WITH (security_invoker = true);
-
-GRANT SELECT ON public.vw_endereco_listagem TO authenticated;
-GRANT SELECT ON public.vw_endereco_listagem TO service_role;
+```
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 ```
 
-### 2. Hook `useCrud` — suporte à view e busca textual
-Ajustar `src/hooks/useCrud.ts` para:
-- Quando `table === 'vw_endereco_listagem'`, incluir os campos `armazem_descricao`, `setor_descricao`, `tipo_estoque_descricao` e `codigo_endereco` na busca textual (`ilike`).
-- Isso mantém o campo de busca global útil mesmo com a mudança de fonte de dados.
+por
 
-### 3. Tela `EnderecosPage.tsx` — filtros e grid
-
-#### 3.1. Estado dos filtros
-Adicionar estados `filterArmazem`, `filterSetor`, `filterTipoEstoque`, `filterTipoEstrutura` e compor `crudFilters`:
-- `armazem_id` → `filterArmazem`
-- `setor_id` → `filterSetor`
-- `tipo_estoque_id` → `filterTipoEstoque`
-- `tipo_estrutura` → `filterTipoEstrutura`
-
-Regras de UX para selects dependentes:
-- **Armazém**: opções filtradas por `empresa_id` do contexto (quando existir).
-- **Tipo de Estoque**: opções filtradas por `empresa_id` do contexto (quando existir).
-- **Setor**: opções filtradas por `armazem_id` selecionado no filtro; se nenhum armazém estiver selecionado, ficar vazio.
-- **Tipo de Estrutura**: select fixo com valores do enum (`PORTA PALLET`, `BLOCADO`, `PRATELEIRA`, `FLOW RACK`, `DRIVE IN`, `MEZANINO`, `DOCA`).
-
-#### 3.2. Chamada de dados
-Alterar `useCrud` para:
-```ts
-const crud = useCrud({
-  table: "vw_endereco_listagem",
-  writeTable: "endereco",
-  tenantId,
-  orderBy: "descricao",
-  filters: crudFilters,
-});
+```
+<div className="flex flex-col gap-6 max-w-3xl">
 ```
 
-#### 3.3. Grid
-Atualizar o array `columns`:
-- Remover: `m3`, `peso_total`, `total_pallet`.
-- Adicionar:
-  - `armazem_descricao` → "Armazém"
-  - `setor_descricao` → "Setor"
-  - `tipo_estoque_descricao` → "Tipo Estoque"
-- Ordem sugerida: Endereço, Código, Tipo, Situação, Tipo Estoque, Armazém, Setor, Curva, Lado, Status.
+Nada mais muda: mantém fetch, drag-and-drop, modais, `renderDragList`, ordem dos contêineres e `armazemId` vindo do contexto (sem hardcode).
 
-#### 3.4. UI de filtros
-Adicionar selects no `extraFilters` do `CrudTable`, logo após os filtros existentes, mantendo o mesmo estilo visual e o botão "Limpar filtros" já existente.
+## 3. `src/pages/coletor/ConferenciaProdutoPage.tsx` — conferência cega
 
-### 4. Testes e verificação
-- Abrir `/armazem/enderecos` e confirmar que os novos filtros aparecem.
-- Selecionar um armazém e verificar se o select de setor recarrega.
-- Aplicar cada filtro e confirmar que a paginação server-side reflete a contagem correta.
-- Verificar que as colunas removidas sumiram e as novas colunas exibem os nomes corretos.
-- Confirmar que Novo/Editar/Excluir continuam funcionando (writeTable aponta para `endereco`).
+Ler `conferencia_cega` do `tipo_saida` do movimento e ocultar quantidades esperadas.
 
-### 5. Não está no escopo
-- Nenhuma alteração no formulário de cadastro (modal) ou no cadastro em lote.
-- Nenhuma alteração no banco além da view de listagem.
-- Nenhuma alteração no módulo de etiquetas.
+- Novo estado `modoCego`.
+- No `useEffect` que já busca `conferencia_checkout`, expandir o `select` do `movimento_saida` para `tipo_saida_rel:tipo_saida(conferencia_checkout, conferencia_cega)` e chamar `setModoCego(!!tipoSaidaData?.conferencia_cega)` (fallback `false` no catch).
+- Card de quantidades:
+  - Se `modoCego`: mostra somente **Conferida** (verde) + rótulo "Conferência cega ativa".
+  - Caso contrário: mantém o grid atual de 3 colunas (Requerida / Conferida / Restante).
+- `titleBadge`: se `modoCheckout` mostra badge **CHECKOUT** (amber); senão, se `modoCego`, mostra badge **CEGA** (purple); caso contrário `undefined`.
+- **Não alterar**: scan de EAN, `executarConfirmacao(For)`, lógica de checkout, overlays, `ConferenciaIniciarPage`, `ConferenciaItensPage`. A confirmação segue funcionando normalmente em modo cego.
+
+## Verificação
+
+- Build/tsgo limpos.
+- Abrir modal de Tipos de Saída: 4 seções visíveis, switches de checkout/cega desabilitam ao desligar "Realiza conferência", Salvar persiste corretamente.
+- Roteiro de Separação renderiza os 3 blocos empilhados, largura limitada a `max-w-3xl`.
+- Conferência no coletor com tipo de saída `conferencia_cega=true` esconde Requerida/Restante e exibe badge CEGA.
+
+## Fora de escopo
+
+Qualquer outra tela, componente, RPC ou migração de banco.
