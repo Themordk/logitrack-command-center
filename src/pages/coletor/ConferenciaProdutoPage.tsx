@@ -79,6 +79,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         const checkoutUsr = !!usrRes?.data?.permite_checkout;
         setModoCheckout(checkoutTipo && checkoutUsr);
         setModoCego(!!tipoSaidaData?.conferencia_cega);
+        setGeraVolumeEtapa(tipoSaidaData?.gera_volume_etapa || "NENHUMA");
       } catch {
         setModoCheckout(false);
         setModoCego(false);
