@@ -350,6 +350,40 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     }
   };
 
+  const handleSalvarVolumes = async () => {
+    const qtd = Number(volumeQtd);
+    if (!qtd || qtd <= 0) {
+      toast.error("Informe uma quantidade válida.");
+      return;
+    }
+    setVolumeSaving(true);
+    try {
+      const { data, error } = await supabase.rpc("gerar_volumes_expedicao" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: localStorage.getItem("core_empresa_id"),
+        p_movimento_saida_id: movimentoId,
+        p_quantidade_volumes: qtd,
+        p_etapa_origem: "CONFERÊNCIA",
+      });
+      if (error) throw error;
+      let result: any = data;
+      if (typeof data === "string") {
+        try { result = JSON.parse(data); } catch { /* keep */ }
+      }
+      if (result?.sucesso === false) {
+        toast.error(result.mensagem || "Erro ao gerar volumes.");
+        return;
+      }
+      toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      setShowVolumeDialog(false);
+      onNavigate("/coletor/conferencia/iniciar");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar volumes.");
+    } finally {
+      setVolumeSaving(false);
+    }
+  };
+
   const handleDialogClose = () => {
     const wasOndaConcluida = resultDialog?.ondaConcluida;
     setResultDialog(null);
