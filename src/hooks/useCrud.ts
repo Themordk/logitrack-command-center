@@ -131,7 +131,8 @@ export function useCrud<T extends Record<string, any>>({
       if (search) {
         const textFields = ["descricao"];
         if (table === "hu") textFields.push("codigo_hu");
-        if (table === "volume_expedicao") textFields.push("codigo_volume");
+        if (table === "volume_expedicao" || table === "vw_volume_expedicao_lista") textFields.push("codigo_volume");
+        if (table === "vw_volume_expedicao_lista") textFields.push("parceiro_nome", "destino_carga");
         if (table === "produto" || table === "vw_produto_listagem") textFields.push("sku");
         if (table === "tipo_entrada" || table === "tipo_saida") textFields.push("codigo_erp");
         if (table === "veiculos") textFields.push("placa");
@@ -142,6 +143,9 @@ export function useCrud<T extends Record<string, any>>({
         // codigo_endereco é numeric no banco — ilike não funciona; usa eq quando o termo é numérico
         if ((table === "endereco" || table === "vw_endereco_listagem") && /^\d+$/.test(search.trim())) {
           orParts.push(`codigo_endereco.eq.${search.trim()}`);
+        }
+        if (table === "vw_volume_expedicao_lista" && /^\d+$/.test(search.trim())) {
+          orParts.push(`numero_onda.eq.${search.trim()}`);
         }
         query = query.or(orParts.join(","));
       }
