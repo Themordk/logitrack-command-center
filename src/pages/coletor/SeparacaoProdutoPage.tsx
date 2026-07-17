@@ -305,6 +305,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     sessionStorage.removeItem("coletor_separacao_lote_selecionado");
 
     if (nextIdx >= tarefas.length) {
+      if (geraVolumeEtapa === "SEPARAÇÃO") {
+        setShowVolumeDialog(true);
+        return;
+      }
       toast.success("Separação concluída para esta onda!");
       onNavigate("/coletor/separacao/iniciar");
       return;
