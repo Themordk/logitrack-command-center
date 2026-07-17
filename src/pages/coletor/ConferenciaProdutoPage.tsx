@@ -34,6 +34,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
   const [modoCego, setModoCego] = useState(false);
+  const [showVolumeDialog, setShowVolumeDialog] = useState(false);
+  const [volumeQtd, setVolumeQtd] = useState("");
+  const [volumeSaving, setVolumeSaving] = useState(false);
+  const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
   const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
   const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
   const quantidadeRef = useRef<HTMLInputElement>(null);
