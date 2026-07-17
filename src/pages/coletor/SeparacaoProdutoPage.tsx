@@ -353,6 +353,42 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     onNavigate("/coletor/separacao/endereco");
   };
 
+  const handleSalvarVolumes = async () => {
+    const qtd = Number(volumeQtd);
+    if (!qtd || qtd <= 0) {
+      toast.error("Informe uma quantidade válida.");
+      return;
+    }
+    setVolumeSaving(true);
+    try {
+      const movId = sessionStorage.getItem("coletor_separacao_movimento_id");
+      const empresaId = localStorage.getItem("core_empresa_id");
+      const { data, error } = await supabase.rpc("gerar_volumes_expedicao" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_movimento_saida_id: movId,
+        p_quantidade_volumes: qtd,
+        p_etapa_origem: "SEPARAÇÃO",
+      });
+      if (error) throw error;
+      let result: any = data;
+      if (typeof data === "string") {
+        try { result = JSON.parse(data); } catch { /* keep */ }
+      }
+      if (result?.sucesso === false) {
+        toast.error(result.mensagem || "Erro ao gerar volumes.");
+        return;
+      }
+      toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      setShowVolumeDialog(false);
+      onNavigate("/coletor/separacao/iniciar");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar volumes.");
+    } finally {
+      setVolumeSaving(false);
+    }
+  };
+
   if (!tarefa) return null;
 
   const restante = Number(tarefa.quantidade_requerida) - qtdSeparada;
