@@ -7142,6 +7142,106 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_volume_expedicao_lista: {
+        Row: {
+          codigo_volume: string | null
+          created_at: string | null
+          destino_carga: string | null
+          documento_saida_id: string | null
+          empresa_id: string | null
+          id: string | null
+          m3: number | null
+          motorista: string | null
+          movimento_saida_id: string | null
+          numero_onda: number | null
+          parceiro_id: string | null
+          parceiro_nome: string | null
+          peso_bruto: number | null
+          rota_id: string | null
+          status: Database["public"]["Enums"]["enum_status_volume"] | null
+          tenant_id: string | null
+          total_volumes_movimento: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_doc_saida_parceiro"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiro"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_rota"
+            columns: ["rota_id"]
+            isOneToOne: false
+            referencedRelation: "rotas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       assert_tenant_match: { Args: { p_tenant_id: string }; Returns: undefined }
@@ -7532,6 +7632,14 @@ export type Database = {
             }
             Returns: Json
           }
+      fn_excluir_volume_expedicao: {
+        Args: {
+          p_observacao?: string
+          p_usuario_id: string
+          p_volume_id: string
+        }
+        Returns: Json
+      }
       fn_gerar_abastecimento: {
         Args: {
           p_armazem_id: string
