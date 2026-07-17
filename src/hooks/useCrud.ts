@@ -125,6 +125,11 @@ export function useCrud<T extends Record<string, any>>({
 
       Object.entries(filters).forEach(([key, val]) => {
         if (isEmptyFilter(val)) return;
+        if (val && typeof val === "object" && !Array.isArray(val)) {
+          if ("gte" in (val as any) && (val as any).gte) query = query.gte(key, (val as any).gte);
+          if ("lte" in (val as any) && (val as any).lte) query = query.lte(key, (val as any).lte);
+          return;
+        }
         query = query.eq(key, val);
       });
 
