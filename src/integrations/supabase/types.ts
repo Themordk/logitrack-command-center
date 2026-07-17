@@ -7762,6 +7762,16 @@ export type Database = {
         }
         Returns: Json
       }
+      gerar_volumes_expedicao: {
+        Args: {
+          p_empresa_id: string
+          p_etapa_origem?: string
+          p_movimento_saida_id: string
+          p_quantidade_volumes: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       get_current_tenant: { Args: never; Returns: string }
       get_my_tenant_id: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
