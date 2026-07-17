@@ -39,6 +39,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
+  const [showVolumeDialog, setShowVolumeDialog] = useState(false);
+  const [volumeQtd, setVolumeQtd] = useState("");
+  const [volumeSaving, setVolumeSaving] = useState(false);
+  const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -79,6 +83,23 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     const rawLote = sessionStorage.getItem("coletor_separacao_lote_selecionado");
     if (rawLote) {
       try { setLoteSel(JSON.parse(rawLote)); } catch { /* ignore */ }
+    }
+
+    // Fetch gera_volume_etapa from tipo_saida
+    const movId = sessionStorage.getItem("coletor_separacao_movimento_id");
+    if (movId) {
+      (async () => {
+        try {
+          const { data: movData } = await (supabase as any)
+            .from("movimento_saida")
+            .select("tipo_saida_rel:tipo_saida(gera_volume_etapa)")
+            .eq("id", movId)
+            .single();
+          if (movData?.tipo_saida_rel?.gera_volume_etapa) {
+            setGeraVolumeEtapa(movData.tipo_saida_rel.gera_volume_etapa);
+          }
+        } catch { /* fallback NENHUMA */ }
+      })();
     }
   }, []);
 
@@ -284,6 +305,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     sessionStorage.removeItem("coletor_separacao_lote_selecionado");
 
     if (nextIdx >= tarefas.length) {
+      if (geraVolumeEtapa === "SEPARAÇÃO") {
+        setShowVolumeDialog(true);
+        return;
+      }
       toast.success("Separação concluída para esta onda!");
       onNavigate("/coletor/separacao/iniciar");
       return;
@@ -326,6 +351,42 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     }
 
     onNavigate("/coletor/separacao/endereco");
+  };
+
+  const handleSalvarVolumes = async () => {
+    const qtd = Number(volumeQtd);
+    if (!qtd || qtd <= 0) {
+      toast.error("Informe uma quantidade válida.");
+      return;
+    }
+    setVolumeSaving(true);
+    try {
+      const movId = sessionStorage.getItem("coletor_separacao_movimento_id");
+      const empresaId = localStorage.getItem("core_empresa_id");
+      const { data, error } = await supabase.rpc("gerar_volumes_expedicao" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_movimento_saida_id: movId,
+        p_quantidade_volumes: qtd,
+        p_etapa_origem: "SEPARAÇÃO",
+      });
+      if (error) throw error;
+      let result: any = data;
+      if (typeof data === "string") {
+        try { result = JSON.parse(data); } catch { /* keep */ }
+      }
+      if (result?.sucesso === false) {
+        toast.error(result.mensagem || "Erro ao gerar volumes.");
+        return;
+      }
+      toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      setShowVolumeDialog(false);
+      onNavigate("/coletor/separacao/iniciar");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar volumes.");
+    } finally {
+      setVolumeSaving(false);
+    }
   };
 
   if (!tarefa) return null;
@@ -429,6 +490,44 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       </div>
 
 
+
+      {showVolumeDialog && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center">
+                <Package size={24} className="text-[hsl(217,91%,60%)]" />
+              </div>
+              <h3 className="text-base font-bold text-white text-center">Volumes de Expedição</h3>
+              <p className="text-xs text-[hsl(213,31%,55%)] text-center">
+                Separação finalizada! Informe a quantidade de volumes gerados para esta onda.
+              </p>
+            </div>
+            <div>
+              <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">
+                Quantidade de volumes
+              </label>
+              <input
+                type="number"
+                value={volumeQtd}
+                onChange={(e) => setVolumeQtd(e.target.value)}
+                className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-2xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
+                placeholder="0"
+                min="1"
+                autoFocus
+              />
+            </div>
+            <ActionButton
+              onClick={handleSalvarVolumes}
+              disabled={!volumeQtd || Number(volumeQtd) <= 0}
+              loading={volumeSaving}
+              variant="success"
+            >
+              Confirmar Volumes
+            </ActionButton>
+          </div>
+        </div>
+      )}
 
       {/* EAN Erro Dialog - produto diferente (only close option, no confirm) */}
       {showEanErroDialog && (

@@ -34,6 +34,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
   const [modoCego, setModoCego] = useState(false);
+  const [showVolumeDialog, setShowVolumeDialog] = useState(false);
+  const [volumeQtd, setVolumeQtd] = useState("");
+  const [volumeSaving, setVolumeSaving] = useState(false);
+  const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
   const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
   const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
   const quantidadeRef = useRef<HTMLInputElement>(null);
@@ -61,7 +65,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         const [movRes, usrRes] = await Promise.all([
           (supabase as any)
             .from("movimento_saida")
-            .select("tipo_saida_rel:tipo_saida(conferencia_checkout, conferencia_cega)")
+            .select("tipo_saida_rel:tipo_saida(conferencia_checkout, conferencia_cega, gera_volume_etapa)")
             .eq("id", movimentoId)
             .single(),
           (supabase as any)
@@ -75,6 +79,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         const checkoutUsr = !!usrRes?.data?.permite_checkout;
         setModoCheckout(checkoutTipo && checkoutUsr);
         setModoCego(!!tipoSaidaData?.conferencia_cega);
+        setGeraVolumeEtapa(tipoSaidaData?.gera_volume_etapa || "NENHUMA");
       } catch {
         setModoCheckout(false);
         setModoCego(false);
@@ -305,14 +310,18 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           pendingNextRef.current = { idx: nextIdx, tarefas: newTarefas };
           showOverlay({ type: "success", message: "Item conferido — próximo", duration: 600 });
         } else {
-          // All tasks completed - show modal; navigation only on close
+          // All tasks completed
           showOverlay({ type: "success", message: "Onda finalizada!", duration: 800 });
           setTimeout(() => {
-            setResultDialog({
-              sucesso: true,
-              mensagem: `Conferência da Onda #${numeroOnda} finalizada com sucesso`,
-              ondaConcluida: true,
-            });
+            if (geraVolumeEtapa === "CONFERÊNCIA") {
+              setShowVolumeDialog(true);
+            } else {
+              setResultDialog({
+                sucesso: true,
+                mensagem: `Conferência da Onda #${numeroOnda} finalizada com sucesso`,
+                ondaConcluida: true,
+              });
+            }
           }, 850);
         }
       } else {
@@ -338,6 +347,40 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       setTarefaIdx(pending.idx);
       sessionStorage.setItem("coletor_conferencia_tarefa_idx", String(pending.idx));
       loadTarefa(pending.tarefas[pending.idx]);
+    }
+  };
+
+  const handleSalvarVolumes = async () => {
+    const qtd = Number(volumeQtd);
+    if (!qtd || qtd <= 0) {
+      toast.error("Informe uma quantidade válida.");
+      return;
+    }
+    setVolumeSaving(true);
+    try {
+      const { data, error } = await supabase.rpc("gerar_volumes_expedicao" as any, {
+        p_tenant_id: tenantId,
+        p_empresa_id: localStorage.getItem("core_empresa_id"),
+        p_movimento_saida_id: movimentoId,
+        p_quantidade_volumes: qtd,
+        p_etapa_origem: "CONFERÊNCIA",
+      });
+      if (error) throw error;
+      let result: any = data;
+      if (typeof data === "string") {
+        try { result = JSON.parse(data); } catch { /* keep */ }
+      }
+      if (result?.sucesso === false) {
+        toast.error(result.mensagem || "Erro ao gerar volumes.");
+        return;
+      }
+      toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      setShowVolumeDialog(false);
+      onNavigate("/coletor/conferencia/iniciar");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar volumes.");
+    } finally {
+      setVolumeSaving(false);
     }
   };
 
@@ -499,6 +542,44 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           </>
         )}
       </div>
+
+      {showVolumeDialog && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center">
+                <Package size={24} className="text-[hsl(217,91%,60%)]" />
+              </div>
+              <h3 className="text-base font-bold text-white text-center">Volumes de Expedição</h3>
+              <p className="text-xs text-[hsl(213,31%,55%)] text-center">
+                Conferência finalizada! Informe a quantidade de volumes gerados para esta onda.
+              </p>
+            </div>
+            <div>
+              <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">
+                Quantidade de volumes
+              </label>
+              <input
+                type="number"
+                value={volumeQtd}
+                onChange={(e) => setVolumeQtd(e.target.value)}
+                className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-2xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
+                placeholder="0"
+                min="1"
+                autoFocus
+              />
+            </div>
+            <ActionButton
+              onClick={handleSalvarVolumes}
+              disabled={!volumeQtd || Number(volumeQtd) <= 0}
+              loading={volumeSaving}
+              variant="success"
+            >
+              Confirmar Volumes
+            </ActionButton>
+          </div>
+        </div>
+      )}
 
       {/* EAN Error Dialog */}
       {showEanErroDialog && (
