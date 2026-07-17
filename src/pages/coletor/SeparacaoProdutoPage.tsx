@@ -39,6 +39,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
+  const [showVolumeDialog, setShowVolumeDialog] = useState(false);
+  const [volumeQtd, setVolumeQtd] = useState("");
+  const [volumeSaving, setVolumeSaving] = useState(false);
+  const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
