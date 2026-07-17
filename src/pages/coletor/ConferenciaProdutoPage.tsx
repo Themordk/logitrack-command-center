@@ -313,7 +313,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           // All tasks completed
           showOverlay({ type: "success", message: "Onda finalizada!", duration: 800 });
           setTimeout(() => {
-            if (geraVolumeEtapa === "SEPARAÇÃO/CONFERÊNCIA" || geraVolumeEtapa === "CONFERÊNCIA") {
+            if (geraVolumeEtapa === "CONFERÊNCIA") {
               setShowVolumeDialog(true);
             } else {
               setResultDialog({
