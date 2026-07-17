@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
+import { parseError } from "@/lib/errorMapper";
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -127,8 +128,12 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
         return;
       }
       completeLogin(usuario);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao fazer login.");
+    } catch (err: unknown) {
+      const parsed = parseError(err, "login");
+      // Preserva mensagens de negócio já bem escritas (throw new Error) quando o parser cai no fallback genérico
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      const message = fallbackToRaw && err instanceof Error ? err.message : parsed.title;
+      toast.error(message);
     } finally {
       setLoading(false);
     }
