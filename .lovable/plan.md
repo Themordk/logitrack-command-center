@@ -1,34 +1,44 @@
-# Geração de volumes de expedição no coletor
+# FASE 1 — Infraestrutura de Padronização de Mensagens
 
-Interceptar a finalização da última tarefa da onda (separação e conferência) e, quando o `tipo_saida.gera_volume_etapa` corresponder à etapa atual, exibir um dialog pedindo a quantidade de volumes e chamar a RPC `gerar_volumes_expedicao` antes de voltar à tela inicial.
+Criação de 4 arquivos novos, sem alterar nenhum arquivo existente e sem adicionar dependências. Verifiquei que `components/ui/collapsible.tsx`, `dialog.tsx` e `button.tsx` já existem no projeto.
 
-## Arquivos alterados (apenas 2)
+## Arquivos a criar
 
-### 1) `src/pages/coletor/SeparacaoProdutoPage.tsx`
+### 1. `src/lib/errorMapper.ts`
+- Interface `ParsedError` (type, title, details, errorCode, technicalMessage, instruction).
+- Constante `BUSINESS_ERROR_MAP` cobrindo todos os códigos listados: inventário, estoque/endereço, EAN/produto, tarefas, separação/conferência/expedição, abastecimento, auth, ERP, genéricos.
+- Constante `SYSTEM_ERROR_PATTERNS` com regex do Postgres/Supabase (duplicate key, RLS, FK, not-null, check, JWT, network, timeout, etc).
+- Função exportada `parseError(error, context?)`: extrai mensagem → tenta business match → tenta system pattern → fallback genérico.
+- Função exportada `formatErrorForCopy(parsed, extras?)`: JSON estruturado com timestamp.
+- Auxiliares internos `extractMessage` e `findBusinessError` (aceita Error, string, `{message}`, `{mensagem, codigo}`, JSON stringificado).
 
-- Novos estados: `showVolumeDialog`, `volumeQtd`, `volumeSaving`, `geraVolumeEtapa` (default `"NENHUMA"`).
-- No `useEffect` de inicialização, buscar `movimento_saida.tipo_saida.gera_volume_etapa` usando `coletor_separacao_movimento_id` do sessionStorage e popular `geraVolumeEtapa`.
-- Em `advanceToNext`, quando `nextIdx >= tarefas.length`: se `geraVolumeEtapa === "SEPARAÇÃO"`, abrir o dialog e retornar; caso contrário, comportamento atual (toast + navegar para `/coletor/separacao/iniciar`).
-- Nova função `handleSalvarVolumes`: valida qtd > 0, chama `supabase.rpc("gerar_volumes_expedicao", { p_tenant_id, p_empresa_id, p_movimento_saida_id, p_quantidade_volumes, p_etapa_origem: "SEPARAÇÃO" })`, trata `{ sucesso, mensagem }` e navega para `/coletor/separacao/iniciar` no sucesso.
-- Novo JSX de dialog (dark theme, ícone `Package`, input numérico grande, `ActionButton` "Confirmar Volumes") adicionado antes do fechamento do `ColetorLayout`, no mesmo nível dos demais dialogs.
+### 2. `src/components/feedback/ResultDialog.tsx`
+- Componente unificado sucesso/aviso/erro usando `Dialog`, `Button`, `Collapsible` do shadcn.
+- Props: open, onClose, type, title, details, errorCode, technicalMessage, instruction, confirmLabel, onConfirm, secondaryLabel, onSecondary, coletorMode.
+- Ícones Lucide: `CheckCircle2` / `AlertTriangle` / `XCircle` com cores do design system (green/yellow/red em bg-*/15).
+- `coletorMode`: ícones e botões maiores; oculta seção técnica; instrução destacada.
+- Modo web: seção "Detalhes técnicos" colapsável com código, mensagem técnica e botão "Copiar erro completo" (usa `formatErrorForCopy` + `toast.info` do sonner).
+- Cores via tokens: `bg-card`, `border-border`, `text-foreground`, `text-muted-foreground`.
 
-### 2) `src/pages/coletor/ConferenciaProdutoPage.tsx`
+### 3. `src/hooks/useResultDialog.ts`
+- Hook que encapsula estado do dialog e retorna `dialogProps` + `showSuccess` / `showWarning` / `showError` / `showParsedError` / `close` / `isOpen`.
+- `showError` invoca `parseError` automaticamente com `context` opcional.
+- Suporta `coletorMode` na criação para propagar ao componente.
+- Callbacks `onClose` / `onSecondary` disparados após fechar o dialog.
 
-- Mesmos novos estados.
-- Expandir o `select` existente do tipo_saida para incluir `gera_volume_etapa` e setar `geraVolumeEtapa` logo após `setModoCego(...)`.
-- Em `executarConfirmacaoFor`, no ramo de "todas as tarefas concluídas": após o overlay de sucesso, se `geraVolumeEtapa === "CONFERÊNCIA"` abrir o dialog; caso contrário, manter o `setResultDialog` atual com `ondaConcluida: true`.
-- `handleSalvarVolumes` análogo, com `p_etapa_origem: "CONFERÊNCIA"`, navegando para `/coletor/conferencia/iniciar` no sucesso.
-- JSX do dialog inserido antes do bloco do EAN Error Dialog. `Package` já está importado.
+### 4. `src/components/feedback/ErrorBoundary.tsx`
+- Classe React `ErrorBoundary` com `getDerivedStateFromError` + `componentDidCatch` (log em console).
+- Fallback UI: ícone `AlertTriangle`, título customizável (`fallbackMessage`), instrução, e botões "Tentar novamente" (reset state) e "Recarregar página" (`window.location.reload`) com ícone `RefreshCw`.
+- Prop `showDetails` exibe `error.message` em bloco monospace para diagnóstico.
 
-## Regras de comportamento
-
-- Só interrompe o fluxo quando `gera_volume_etapa` casa exatamente com a etapa (`SEPARAÇÃO` na separação, `CONFERÊNCIA` na conferência). Valores `NENHUMA` e `CARREGAMENTO` não disparam nada.
-- Fechar o dialog sem confirmar não bloqueia nada (o dialog é modal simples; sem callback de fechar além do próprio botão de confirmar — comportamento igual aos outros dialogs do coletor).
-- Nenhuma alteração em `components/ui/`, `App.tsx`, RPCs, ou outros arquivos. Sem novos arquivos e sem novas dependências.
+## Regras respeitadas
+- Nenhum arquivo existente é modificado (nem `App.tsx`, nem `components/ui/*`, nem páginas).
+- Nenhuma dependência nova.
+- Named exports em tudo.
+- Tipagem estrita (sem `as any`).
+- Aliases `@/` em todos os imports.
+- Design system dark-first via tokens CSS.
 
 ## Validação
-
-- Build TS deve passar.
-- Fluxo separação: com `gera_volume_etapa='SEPARAÇÃO'`, ao concluir a última tarefa, aparece o dialog; ao confirmar, RPC é chamada e volta para `/coletor/separacao/iniciar`.
-- Fluxo conferência: idem com `'CONFERÊNCIA'` retornando para `/coletor/conferencia/iniciar`.
-- Com `NENHUMA`/`CARREGAMENTO`: fluxo antigo inalterado.
+- Build TypeScript deve passar.
+- Nenhuma página passa a usar os novos módulos nesta fase — eles ficam prontos para adoção incremental nas próximas fases.
