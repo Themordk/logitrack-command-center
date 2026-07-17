@@ -543,6 +543,44 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         )}
       </div>
 
+      {showVolumeDialog && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center">
+                <Package size={24} className="text-[hsl(217,91%,60%)]" />
+              </div>
+              <h3 className="text-base font-bold text-white text-center">Volumes de Expedição</h3>
+              <p className="text-xs text-[hsl(213,31%,55%)] text-center">
+                Conferência finalizada! Informe a quantidade de volumes gerados para esta onda.
+              </p>
+            </div>
+            <div>
+              <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">
+                Quantidade de volumes
+              </label>
+              <input
+                type="number"
+                value={volumeQtd}
+                onChange={(e) => setVolumeQtd(e.target.value)}
+                className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-2xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
+                placeholder="0"
+                min="1"
+                autoFocus
+              />
+            </div>
+            <ActionButton
+              onClick={handleSalvarVolumes}
+              disabled={!volumeQtd || Number(volumeQtd) <= 0}
+              loading={volumeSaving}
+              variant="success"
+            >
+              Confirmar Volumes
+            </ActionButton>
+          </div>
+        </div>
+      )}
+
       {/* EAN Error Dialog */}
       {showEanErroDialog && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
