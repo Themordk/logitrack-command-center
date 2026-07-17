@@ -65,7 +65,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         const [movRes, usrRes] = await Promise.all([
           (supabase as any)
             .from("movimento_saida")
-            .select("tipo_saida_rel:tipo_saida(conferencia_checkout, conferencia_cega)")
+            .select("tipo_saida_rel:tipo_saida(conferencia_checkout, conferencia_cega, gera_volume_etapa)")
             .eq("id", movimentoId)
             .single(),
           (supabase as any)
