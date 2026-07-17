@@ -84,6 +84,23 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     if (rawLote) {
       try { setLoteSel(JSON.parse(rawLote)); } catch { /* ignore */ }
     }
+
+    // Fetch gera_volume_etapa from tipo_saida
+    const movId = sessionStorage.getItem("coletor_separacao_movimento_id");
+    if (movId) {
+      (async () => {
+        try {
+          const { data: movData } = await (supabase as any)
+            .from("movimento_saida")
+            .select("tipo_saida_rel:tipo_saida(gera_volume_etapa)")
+            .eq("id", movId)
+            .single();
+          if (movData?.tipo_saida_rel?.gera_volume_etapa) {
+            setGeraVolumeEtapa(movData.tipo_saida_rel.gera_volume_etapa);
+          }
+        } catch { /* fallback NENHUMA */ }
+      })();
+    }
   }, []);
 
   const fetchProdutoDetails = async (id: string) => {
