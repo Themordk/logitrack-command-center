@@ -3,6 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/contexts/TenantContext";
 import { sanitizeId, isEmptyFilter } from "@/lib/uuid";
+import { parseError } from "@/lib/errorMapper";
+
+function truncate(msg: string | undefined, max = 150): string | undefined {
+  if (!msg) return undefined;
+  return msg.length > max ? msg.slice(0, max) + "…" : msg;
+}
 
 // Tabelas com coluna empresa_id direta — filtradas/criadas vinculadas à empresa ativa
 const TABLES_WITH_EMPRESA = new Set([
@@ -176,10 +182,11 @@ export function useCrud<T extends Record<string, any>>({
       toast.success("Registro criado com sucesso!");
       await fetchData();
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Error creating ${table}:`, err);
-      toast.error(`Erro ao criar: ${err.message}`);
-      return false;
+      const parsed = parseError(err, `criar em ${table}`);
+      toast.error(parsed.title, { description: truncate(parsed.technicalMessage) });
+      throw err;
     }
   };
 
@@ -190,10 +197,11 @@ export function useCrud<T extends Record<string, any>>({
       toast.success("Registro atualizado com sucesso!");
       await fetchData();
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Error updating ${table}:`, err);
-      toast.error(`Erro ao atualizar: ${err.message}`);
-      return false;
+      const parsed = parseError(err, `atualizar em ${table}`);
+      toast.error(parsed.title, { description: truncate(parsed.technicalMessage) });
+      throw err;
     }
   };
 
@@ -210,10 +218,11 @@ export function useCrud<T extends Record<string, any>>({
       toast.success("Registro removido com sucesso!");
       await fetchData();
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Error removing ${table}:`, err);
-      toast.error(`Erro ao remover: ${err.message}`);
-      return false;
+      const parsed = parseError(err, `excluir de ${table}`);
+      toast.error(parsed.title, { description: truncate(parsed.technicalMessage) });
+      throw err;
     }
   };
 

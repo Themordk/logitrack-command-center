@@ -205,6 +205,11 @@ const SYSTEM_ERROR_PATTERNS: Array<{
   instruction: string;
 }> = [
   {
+    pattern: /Invalid login credentials/i,
+    title: "Usuário ou senha incorretos.",
+    instruction: "Verifique seus dados e tente novamente.",
+  },
+  {
     pattern: /duplicate key/i,
     title: "Este registro já existe no sistema.",
     instruction: "Verifique se não há dados duplicados.",

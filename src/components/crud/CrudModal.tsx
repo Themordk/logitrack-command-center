@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { Save, Loader2, AlertCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 export interface FieldSpec {
   name: string;
@@ -92,9 +94,20 @@ export function CrudModal({ open, onClose, title, fields, initialData, onSave, o
         cleanData[f.name] = val;
       }
     });
-    const ok = await onSave(cleanData);
-    setSaving(false);
-    if (ok) onClose();
+    try {
+      const ok = await onSave(cleanData);
+      if (ok) onClose();
+    } catch (err: unknown) {
+      const parsed = parseError(err, "salvar registro");
+      const desc = parsed.technicalMessage
+        ? parsed.technicalMessage.length > 150
+          ? parsed.technicalMessage.slice(0, 150) + "…"
+          : parsed.technicalMessage
+        : undefined;
+      toast.error(parsed.title, { description: desc });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -589,15 +590,17 @@ function AppContent() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TenantBootProvider>
-        <TenantProvider>
-          <PermissionsProvider>
-            <UpdatePrompt />
-            <AppContent />
-          </PermissionsProvider>
-        </TenantProvider>
-      </TenantBootProvider>
-    </QueryClientProvider>
+    <ErrorBoundary showDetails>
+      <QueryClientProvider client={queryClient}>
+        <TenantBootProvider>
+          <TenantProvider>
+            <PermissionsProvider>
+              <UpdatePrompt />
+              <AppContent />
+            </PermissionsProvider>
+          </TenantProvider>
+        </TenantBootProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
