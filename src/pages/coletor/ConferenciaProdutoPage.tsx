@@ -310,14 +310,18 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           pendingNextRef.current = { idx: nextIdx, tarefas: newTarefas };
           showOverlay({ type: "success", message: "Item conferido — próximo", duration: 600 });
         } else {
-          // All tasks completed - show modal; navigation only on close
+          // All tasks completed
           showOverlay({ type: "success", message: "Onda finalizada!", duration: 800 });
           setTimeout(() => {
-            setResultDialog({
-              sucesso: true,
-              mensagem: `Conferência da Onda #${numeroOnda} finalizada com sucesso`,
-              ondaConcluida: true,
-            });
+            if (geraVolumeEtapa === "SEPARAÇÃO/CONFERÊNCIA" || geraVolumeEtapa === "CONFERÊNCIA") {
+              setShowVolumeDialog(true);
+            } else {
+              setResultDialog({
+                sucesso: true,
+                mensagem: `Conferência da Onda #${numeroOnda} finalizada com sucesso`,
+                ondaConcluida: true,
+              });
+            }
           }, 850);
         }
       } else {
