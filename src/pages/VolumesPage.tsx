@@ -100,7 +100,11 @@ export function VolumesPage() {
       <span className="text-sm text-muted-foreground">{row.destino_carga ?? "—"}</span>
     )},
     { key: "peso_bruto", label: "Peso (kg)", type: "number" },
-    { key: "m3", label: "M³", type: "number" },
+    { key: "numero_volume", label: "Nº Volume", render: (row) => (
+      <span className="text-sm font-semibold text-foreground">
+        {row.numero_volume ?? "—"}{row.total_volumes_movimento ? ` / ${row.total_volumes_movimento}` : ""}
+      </span>
+    )},
     { key: "total_volumes_movimento", label: "Vols. Mov.", render: (row) => (
       <span className="text-sm text-muted-foreground">{row.total_volumes_movimento ?? "—"}</span>
     )},
