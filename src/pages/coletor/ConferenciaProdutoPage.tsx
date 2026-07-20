@@ -386,13 +386,6 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     }
   };
 
-  const handleDialogClose = () => {
-    const wasOndaConcluida = resultDialog?.ondaConcluida;
-    setResultDialog(null);
-    if (wasOndaConcluida) {
-      onNavigate("/coletor/conferencia/iniciar");
-    }
-  };
 
   if (!tarefa) {
     return (
