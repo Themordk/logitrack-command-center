@@ -379,6 +379,10 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </div>
               )}
 
+              <p className="text-[10px] text-muted-foreground italic">
+                Seta direcional, impressão em 2 colunas e intervalo são valores padrão de impressão. O operador pode alterá-los no momento de imprimir.
+              </p>
+
               <div className="flex items-center gap-4 py-1">
                 <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
                   <input
