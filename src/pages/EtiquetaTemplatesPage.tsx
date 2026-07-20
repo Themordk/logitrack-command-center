@@ -111,6 +111,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         com_logo: draft.com_logo,
         logo_url: draft.logo_url,
         campos: draft.campos,
+        largura_mm: draft.largura_mm,
+        altura_mm: draft.altura_mm,
+        duas_colunas: draft.duas_colunas,
+        intervalo_colunas_mm: draft.intervalo_colunas_mm,
+        direcao_seta: draft.direcao_seta,
+        escala_fonte: draft.escala_fonte,
         ativo: true,
         updated_at: new Date().toISOString(),
       };
@@ -169,6 +175,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       com_logo: draft.com_logo,
       logo_url: draft.logo_url,
       campos: draft.campos,
+      largura_mm: draft.largura_mm,
+      altura_mm: draft.altura_mm,
+      duas_colunas: draft.duas_colunas,
+      intervalo_colunas_mm: draft.intervalo_colunas_mm,
+      direcao_seta: draft.direcao_seta,
+      escala_fonte: draft.escala_fonte,
     };
   }, [draft]);
 
