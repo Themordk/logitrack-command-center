@@ -187,6 +187,47 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
               </div>
             )}
 
+            <div className="border border-border/50 rounded-lg p-3 space-y-3">
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções de impressão</p>
+
+              <SelectField
+                label="Seta Direcional"
+                value={direcaoSeta}
+                onChange={(v) => setDirecaoSeta(v as any)}
+                options={[
+                  { value: "NENHUMA", label: "Nenhuma" },
+                  { value: "CIMA", label: "↑ Para cima" },
+                  { value: "BAIXO", label: "↓ Para baixo" },
+                  { value: "ESQUERDA", label: "← Para esquerda" },
+                  { value: "DIREITA", label: "→ Para direita" },
+                ]}
+              />
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={duasColunas}
+                    onChange={(e) => setDuasColunas(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-primary"
+                  />
+                  Impressão em 2 colunas
+                </label>
+                {duasColunas && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Intervalo:</span>
+                    <input
+                      type="number" min={0} max={20} step={1}
+                      value={intervaloColunasMm}
+                      onChange={(e) => setIntervaloColunasMm(Number(e.target.value) || 0)}
+                      className="w-16 h-7 px-2 text-xs rounded bg-secondary border border-border text-foreground outline-none"
+                    />
+                    <span className="text-[10px] text-muted-foreground">mm</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="text-[10px] text-muted-foreground bg-secondary/50 rounded px-2 py-1.5">
               Otimizado para Elgin L42PRO · 203 DPI · Code128 · Dimensões fixas em pixels
             </div>
