@@ -1,34 +1,43 @@
+## Ajustes na tela /atividades/movimentos (Movimentos de Entrada)
 
-## Objetivo
-Entregas do dia 20/07 no coletor de recebimento:
-1. Bloquear confirmação com validades inválidas.
-2. Sinalizar visualmente itens com status DIVERGENTE nas telas de execução e conferência.
+### 1. Novos filtros (RPC já suporta)
+A RPC `listar_movimentos_entrada` já aceita `p_tipo_entrada_id`, `p_placa_veiculo`, `p_box_id` e `p_parceiro_codigo_erp`. Basta acrescentar os controles de UI e enviar os parâmetros.
 
-## 1. Validação de datas — `src/pages/coletor/RecebimentoExecucaoPage.tsx`
+Em `src/pages/MovimentoEntradaPage.tsx`:
+- Adicionar 4 novos estados de filtro:
+  - `filterTipoEntradaId` — `<select>` populado por `tipo_entrada` (empresa/tenant ativos, `ativo=true`, ordenado por descrição). Carregado via `useQuery` estático.
+  - `filterPlacaVeiculo` — `<input text>` com debounce (400 ms), padroniza uppercase.
+  - `filterBoxId` — `<select>` populado por `box` (tenant + armazém ativo se houver, `ativo=true`).
+  - `filterParceiroCodigoErp` — `<input text>` com debounce (400 ms).
+- Incluir os novos valores no `queryKey` e no payload da RPC (`p_tipo_entrada_id`, `p_placa_veiculo`, `p_box_id`, `p_parceiro_codigo_erp`), enviando `null` quando vazios.
+- Resetar página ao alterar qualquer novo filtro.
+- Manter layout inline atual (`flex flex-wrap`), inserindo os campos na mesma linha dos existentes.
 
-Modal Lote/Validade (`showLoteModal`):
+### 2. Truncar razão social do card do movimento (máx. 35 caracteres)
+No card do movimento (`movements.map` em torno da L582), aplicar truncamento no `parceiro_nome`:
+- Utilitário local: `const truncate = (s, n=35) => s && s.length > n ? s.slice(0, n) + '…' : s;`
+- Exibir `truncate(mov.parceiro_nome)`, mantendo `title={mov.parceiro_nome}` para tooltip nativo.
+- Preserva o `MoreVertical` sempre acessível sem scroll horizontal.
 
-- Adicionar validação derivada dos inputs `fabricacao` e `validade` (comparação de strings `YYYY-MM-DD` — segura, sem timezone).
-  - **Regra A**: `validade < fabricacao` → inválido, mensagem "Validade não pode ser anterior à fabricação".
-  - **Regra B**: `validade < hoje` (data atual em Fortaleza) → inválido, mensagem "Produto vencido — validade não pode ser anterior à data atual".
-- Exibir uma faixa vermelha (`bg-[#E02424]/15 text-[#E02424]`) logo abaixo dos campos de data quando houver erro.
-- Estender o `disabled` do `ActionButton` CONFIRMAR (linha 468) para incluir a flag de erro; assim o registro fica bloqueado no modal (o produto anterior permanece intacto e o usuário pode corrigir ou cancelar).
-- Manter a lógica atual para tipos de controle que não pedem validade (`LOTE` puro sem validade também exige fabricação/validade hoje — a regra só é ativada quando o input `validade` está preenchido; mas como o modal já exige ambos preenchidos para `VALIDADE`/`LOTE`/`LOTE_SERIE`, a validação sempre roda nesses tipos).
+### 3. Exibir Tipo de Entrada no card, alinhado à direita da Data
+- A RPC já retorna `tipo_entrada_descricao`. Propagar esse campo do `listRows` para `MovEntry` (novo campo `tipo_entrada_descricao?: string`).
+- Substituir a linha atual `<p className="text-xs text-muted-foreground">{fmtDate(...)}</p>` por um `flex justify-between`:
+  ```
+  <div className="flex items-center justify-between mt-1">
+    <span className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</span>
+    <span className="text-xs text-muted-foreground truncate max-w-[45%] text-right">
+      {mov.tipo_entrada_descricao || '—'}
+    </span>
+  </div>
+  ```
 
-Hoje em Fortaleza: derivar como `new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" })` para obter `YYYY-MM-DD` comparável.
+### 4. Aba "Informações" — incluir campos faltantes do movimento
+Ampliar a view/interface e o card "Dados do Movimento":
+- Estender `MovimentoInfo` com os campos hoje ausentes: `tipo_entrada_descricao`, `numero_movimento`, `status`, `created_at`, `usuario_criacao` (login), `total_volume`, `total_volume_conferido` já existem.
+- Verificar se `vw_movimento_entrada_info` já expõe esses campos. Caso `tipo_entrada_descricao` ou `numero_movimento` estejam faltando, criar migração para adicioná-los à view (join com `tipo_entrada` e coluna direta de `movimento_entrada`).
+- No JSX da aba "Informações", adicionar novos campos ao grid "Dados do Movimento" (transformar em `grid-cols-3`) exibindo: **Nº Movimento**, **Tipo de Entrada**, **Status**, **Data Criação** — em complemento aos já existentes (Armazém, Box, Placa, Valor Descarga, Crossdocking, Observação).
 
-## 2. Ícone de atenção para itens DIVERGENTES
-
-### 2.1 `RecebimentoExecucaoPage.tsx` (lista "Itens conferidos")
-- O select da view já traz `status` por linha (linhas 116/132). Onde `status === "DIVERGENTE"` exibir um `AlertTriangle` (lucide, já importado) size 16, cor `#F59E0B`, ao lado do SKU (dentro do bloco `flex justify-between items-baseline`, linha 360).
-- Tooltip via `title="Item divergente"` para acessibilidade.
-
-### 2.2 `RecebimentoConferenciaPage.tsx` (resumo agrupado por SKU)
-- Incluir `status` no `.select(...)` do `loadResumo` (linha 43).
-- Ao agrupar por SKU (linhas 48-60), marcar `divergente: true` se qualquer linha do grupo tiver `status === "DIVERGENTE"`. Adicionar campo `divergente?: boolean` na interface `ItemResumo`.
-- No card do item (linha 124), renderizar `AlertTriangle` (size 16, `#F59E0B`) ao lado da descrição quando `item.divergente`.
-
-## Escopo excluído
-- Nenhuma alteração em RPCs, views ou schema.
-- Nenhuma mudança em outras rotas (`/coletor/recebimento/iniciar`, `/concluido`, etc.).
-- Não altera regras de finalização — apenas indicação visual e bloqueio local do modal de datas.
+### Detalhes técnicos
+- Nenhuma mudança lógica na RPC (`listar_movimentos_entrada` já aceita todos os parâmetros).
+- Migração SQL apenas se `vw_movimento_entrada_info` não retornar `tipo_entrada_descricao`/`numero_movimento`; a confirmação será feita na primeira leitura antes de aplicar a migração.
+- Sem alteração no coletor.
