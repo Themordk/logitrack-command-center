@@ -24,6 +24,12 @@ export interface EtiquetaConfig {
   campos: CampoEtiqueta[];
   versao: number;
   ativo: boolean;
+  largura_mm: number;
+  altura_mm: number;
+  duas_colunas: boolean;
+  intervalo_colunas_mm: number;
+  direcao_seta: "CIMA" | "BAIXO" | "ESQUERDA" | "DIREITA" | "NENHUMA";
+  escala_fonte: number;
 }
 
 export function useEtiquetaTemplate(tipo: string, empresaId?: string | null) {

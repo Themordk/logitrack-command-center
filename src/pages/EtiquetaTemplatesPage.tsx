@@ -111,6 +111,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         com_logo: draft.com_logo,
         logo_url: draft.logo_url,
         campos: draft.campos,
+        largura_mm: draft.largura_mm,
+        altura_mm: draft.altura_mm,
+        duas_colunas: draft.duas_colunas,
+        intervalo_colunas_mm: draft.intervalo_colunas_mm,
+        direcao_seta: draft.direcao_seta,
+        escala_fonte: draft.escala_fonte,
         ativo: true,
         updated_at: new Date().toISOString(),
       };
@@ -169,6 +175,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       com_logo: draft.com_logo,
       logo_url: draft.logo_url,
       campos: draft.campos,
+      largura_mm: draft.largura_mm,
+      altura_mm: draft.altura_mm,
+      duas_colunas: draft.duas_colunas,
+      intervalo_colunas_mm: draft.intervalo_colunas_mm,
+      direcao_seta: draft.direcao_seta,
+      escala_fonte: draft.escala_fonte,
     };
   }, [draft]);
 
@@ -273,6 +285,80 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                   </select>
                 </div>
               </div>
+
+              {/* Dimensões customizadas (mm) */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Largura (mm)</label>
+                  <input
+                    type="number" min={10} max={300} step={1}
+                    value={draft.largura_mm ?? 0}
+                    onChange={(e) => setDraft({ ...draft, largura_mm: Number(e.target.value) || 0 })}
+                    className="w-full bg-secondary text-foreground text-sm rounded-md px-2 py-2 border border-border outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Altura (mm)</label>
+                  <input
+                    type="number" min={10} max={300} step={1}
+                    value={draft.altura_mm ?? 0}
+                    onChange={(e) => setDraft({ ...draft, altura_mm: Number(e.target.value) || 0 })}
+                    className="w-full bg-secondary text-foreground text-sm rounded-md px-2 py-2 border border-border outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Escala Fonte</label>
+                  <select
+                    value={String(draft.escala_fonte ?? 1)}
+                    onChange={(e) => setDraft({ ...draft, escala_fonte: Number(e.target.value) })}
+                    className="w-full bg-secondary text-foreground text-sm rounded-md px-2 py-2 border border-border outline-none"
+                  >
+                    {[0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.5].map((v) => (
+                      <option key={v} value={v}>{v.toFixed(2)}×</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Duas colunas */}
+              <div className="grid grid-cols-2 gap-2 items-end">
+                <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!draft.duas_colunas}
+                    onChange={(e) => setDraft({ ...draft, duas_colunas: e.target.checked })}
+                    className="accent-primary"
+                  />
+                  Impressão em 2 colunas
+                </label>
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Intervalo (mm)</label>
+                  <input
+                    type="number" min={0} max={20} step={1}
+                    value={draft.intervalo_colunas_mm ?? 3}
+                    disabled={!draft.duas_colunas}
+                    onChange={(e) => setDraft({ ...draft, intervalo_colunas_mm: Number(e.target.value) || 0 })}
+                    className="w-full bg-secondary text-foreground text-sm rounded-md px-2 py-2 border border-border outline-none disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              {tipo === "ENDERECO" && (
+                <div>
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Direção da Seta</label>
+                  <select
+                    value={draft.direcao_seta ?? "NENHUMA"}
+                    onChange={(e) => setDraft({ ...draft, direcao_seta: e.target.value as any })}
+                    className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none"
+                  >
+                    <option value="NENHUMA">Nenhuma</option>
+                    <option value="CIMA">↑ Cima</option>
+                    <option value="BAIXO">↓ Baixo</option>
+                    <option value="ESQUERDA">← Esquerda</option>
+                    <option value="DIREITA">→ Direita</option>
+                  </select>
+                </div>
+              )}
 
               <div className="flex items-center gap-4 py-1">
                 <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">

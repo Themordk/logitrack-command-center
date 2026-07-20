@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Printer, X, Eye, Settings2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaHUPreview } from "./EtiquetaHUPreview";
-import { getPrintCSS, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
+import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
 import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
 import { useTenant } from "@/contexts/TenantContext";
 
@@ -31,7 +31,9 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
-    const css = getPrintCSS(template);
+    const css = config
+      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3)
+      : getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas HU – CORE LogiTrack</title><style>${css}</style></head><body>${printContent.innerHTML}</body></html>`;
