@@ -27,9 +27,10 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
   const [eanConfirmado, setEanConfirmado] = useState(false);
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showZeroConfirm, setShowZeroConfirm] = useState(false);
+  const result = useResultDialog({ coletorMode: true });
+
+
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
