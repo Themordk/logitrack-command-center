@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 import { fetchTarefasPendentesOnda, type TarefaPendenteDetalhe } from "@/lib/operadoresAtribuidos";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   open: boolean;
@@ -92,7 +93,7 @@ export function ReatribuirTarefasModal({
         const uniq = new Set(tList.map((t) => t.usuario_id));
         if (uniq.size === 1) setSelectedOperadores(uniq);
       })
-      .catch((err) => toast.error(err.message))
+      .catch((err) => toast.error(parseError(err, "reatribuir-tarefas-modal").title))
       .finally(() => setLoading(false));
   }, [open, movimentoSaidaId, tenantId, empresaId]);
 

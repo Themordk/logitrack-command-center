@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle, Package, MapPin, User, Loader2 } from "lucide-react";
+import { parseError } from "@/lib/errorMapper";
 
 export interface OcorrenciaContexto {
   etapa?: string;
@@ -96,7 +97,7 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
         .eq("etapa_ocorrencia", etapa)
         .eq("ativo", true)
         .order("descricao");
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(parseError(error, "registrar-ocorrencia-modal").title); return; }
       const filtered = (data || []).filter((m: any) => !m.empresa_id || m.empresa_id === empresaId);
       setMotivos(filtered);
     })();
@@ -144,7 +145,7 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
         p_prioridade: prioridade,
         p_categoria: categoria,
       });
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(parseError(error, "registrar-ocorrencia-modal").title); return; }
       let result: any = data;
       if (typeof data === "string") {
         try { result = JSON.parse(data); } catch { /* keep */ }

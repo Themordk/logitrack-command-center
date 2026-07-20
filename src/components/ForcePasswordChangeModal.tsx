@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   open: boolean;
@@ -45,7 +46,7 @@ export function ForcePasswordChangeModal({ open, usuarioId, onSuccess, variant =
       toast.success("Senha alterada com sucesso!");
       onSuccess();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao alterar senha.");
+      toast.error((() => { const p = parseError(err, "force-password-change-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao alterar senha." : p.title; })());
     } finally {
       setLoading(false);
     }

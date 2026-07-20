@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AlertTriangle, ChevronDown, ChevronUp, Camera, X } from "lucide-react";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import type { OcorrenciaContexto } from "./RegistrarOcorrenciaModal";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   contexto: OcorrenciaContexto;
@@ -88,7 +89,7 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
         .eq("etapa_ocorrencia", etapa)
         .eq("ativo", true)
         .order("descricao");
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(parseError(error, "registrar-ocorrencia-coletor-button").title); return; }
       setMotivos((data || []).filter((m: any) => !m.empresa_id || m.empresa_id === empresaId));
     })();
   }, [open, tenantId, empresaId, contexto.etapa]);
@@ -156,7 +157,7 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
         p_prioridade: prioridade,
         p_categoria: categoria || "CORRETIVA",
       });
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(parseError(error, "registrar-ocorrencia-coletor-button").title); return; }
       let result: any = data;
       if (typeof data === "string") { try { result = JSON.parse(data); } catch { /* keep */ } }
       if (result?.sucesso === false) { toast.error(result.mensagem || "Erro ao registrar ocorrência"); return; }
