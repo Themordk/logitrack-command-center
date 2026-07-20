@@ -600,6 +600,32 @@ export function MovimentoEntradaPage() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Tipo Entrada</label>
+          <select value={filterTipoEntradaId} onChange={(e) => setFilterTipoEntradaId(e.target.value)} className={cn(inputClass, "w-40")}>
+            <option value="">Todos</option>
+            {(tiposEntradaQuery.data || []).map((t) => (
+              <option key={t.id} value={t.id}>{t.descricao}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Box</label>
+          <select value={filterBoxId} onChange={(e) => setFilterBoxId(e.target.value)} className={cn(inputClass, "w-32")}>
+            <option value="">Todos</option>
+            {(boxesQuery.data || []).map((b) => (
+              <option key={b.id} value={b.id}>{b.descricao}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Placa</label>
+          <input type="text" value={filterPlacaVeiculo} onChange={(e) => setFilterPlacaVeiculo(e.target.value.toUpperCase())} placeholder="ABC-1234" className={cn(inputClass, "w-24")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Cód. ERP Parceiro</label>
+          <input type="text" value={filterParceiroCodigoErp} onChange={(e) => setFilterParceiroCodigoErp(e.target.value)} placeholder="Código" className={cn(inputClass, "w-28")} />
+        </div>
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
         </button>
