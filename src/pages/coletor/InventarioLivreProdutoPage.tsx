@@ -137,54 +137,47 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && result.sucesso === false) {
-        const msg = result.mensagem || ERROR_MAP[result.codigo] || "Erro desconhecido";
-        setResultDialog({ sucesso: false, mensagem: msg });
+      if (rpcResult && typeof rpcResult === "object" && rpcResult.sucesso === false) {
+        const msg = rpcResult.mensagem || ERROR_MAP[rpcResult.codigo] || "Erro desconhecido";
+        result.showWarning(msg);
         return;
       }
 
-      const isDiverg = result?.resultado === "DIVERGENCIA";
-      const mensagem = isDiverg
-        ? `Contagem registrada — Divergência: ${result.divergencia} (Sistema: ${result.saldo_sistema}, Contado: ${result.quantidade_contada})`
-        : "Contagem registrada!";
+      const isDiverg = rpcResult?.resultado === "DIVERGENCIA";
+      const details = isDiverg
+        ? `Divergência: ${(rpcResult.divergencia ?? 0) > 0 ? "+" : ""}${rpcResult.divergencia} • Sistema: ${rpcResult.saldo_sistema} • Contado: ${rpcResult.quantidade_contada}`
+        : "Sem divergência";
 
-      setResultDialog({
-        sucesso: true,
-        mensagem,
-        divergencia: result?.divergencia,
-        saldoSistema: result?.saldo_sistema,
-        quantidadeContada: result?.quantidade_contada,
+      result.showSuccess("Contagem registrada!", {
+        details,
+        onClose: resetForm,
       });
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message || "Erro ao registrar contagem." });
+    } catch (err: unknown) {
+      result.showError(err, { context: "inventario-livre-contagem" });
     } finally {
       setConfirming(false);
       setShowLoteModal(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      setEanScanned("");
-      setEmbalagemInfo(null);
-      setProdutoInfo(null);
-      setEanConfirmado(false);
-      setQuantidade("");
-      setLote("");
-      setFabricacao("");
-      setValidade("");
-      toast.info("Escaneie outro produto ou volte para endereços.");
-    }
+  const resetForm = () => {
+    setEanScanned("");
+    setEmbalagemInfo(null);
+    setProdutoInfo(null);
+    setEanConfirmado(false);
+    setQuantidade("");
+    setLote("");
+    setFabricacao("");
+    setValidade("");
+    toast.info("Escaneie outro produto ou volte para endereços.");
   };
 
-  const hasDivergencia = resultDialog?.sucesso && (resultDialog.divergencia ?? 0) !== 0;
+
 
   return (
     <ColetorLayout
