@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { EnderecoSearchInput } from "./EnderecoSearchInput";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   open: boolean;
@@ -69,7 +70,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       .maybeSingle();
     setSaving(false);
     if (error) {
-      toast.error(error.message || "Erro ao salvar configuração.");
+      toast.error((() => { const p = parseError(error, "armazem-config-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao salvar configuração." : p.title; })());
       return;
     }
     if (data?.id) setConfigId(data.id);
@@ -87,7 +88,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       .eq("tenant_id", tenantId);
     setRemoving(false);
     if (error) {
-      toast.error(error.message || "Erro ao remover configuração.");
+      toast.error((() => { const p = parseError(error, "armazem-config-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao remover configuração." : p.title; })());
       return false;
     }
     toast.success("Configuração removida.");

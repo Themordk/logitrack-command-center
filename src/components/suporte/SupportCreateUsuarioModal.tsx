@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   tenant: { id: string; nome: string };
@@ -74,7 +75,7 @@ export function SupportCreateUsuarioModal({ tenant, onClose, onCreated }: Props)
       toast.success("Usuário criado com sucesso");
       onCreated();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "support-create-usuario-modal").title);
     } finally {
       setSaving(false);
     }

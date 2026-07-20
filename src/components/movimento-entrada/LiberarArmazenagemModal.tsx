@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, CheckCircle2, AlertTriangle, Clock, Package } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   open: boolean;
@@ -94,7 +95,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
         else if (conf === 0 && div > 0) setStep("ocorrencias");
         else setStep("resumo");
       } catch (err: any) {
-        toast.error(err.message || "Falha ao carregar itens");
+        toast.error((() => { const p = parseError(err, "liberar-armazenagem-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao carregar itens" : p.title; })());
       } finally {
         if (active) setLoading(false);
       }
@@ -154,7 +155,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
         onClose();
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao liberar armazenagem.");
+      toast.error((() => { const p = parseError(err, "liberar-armazenagem-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao liberar armazenagem." : p.title; })());
     } finally {
       setLiberandoConferidos(false);
     }
@@ -200,7 +201,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
         onClose();
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao registrar ocorrência.");
+      toast.error((() => { const p = parseError(err, "liberar-armazenagem-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao registrar ocorrência." : p.title; })());
     } finally {
       setLoadingItemIds((m) => {
         const { [itemId]: _omit, ...rest } = m;
@@ -246,7 +247,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
         onClose();
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao registrar ocorrências.");
+      toast.error((() => { const p = parseError(err, "liberar-armazenagem-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao registrar ocorrências." : p.title; })());
     } finally {
       setSubmittingOcorrencias(false);
     }

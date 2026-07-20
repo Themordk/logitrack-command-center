@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { X, Loader2, Building2, Briefcase } from "lucide-react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   onClose: () => void;
@@ -77,7 +78,7 @@ export function SupportCreateTenantModal({ onClose, onCreated }: Props) {
       toast.success(`Tenant "${data.tenant.nome}" criado com sucesso.`);
       onCreated();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "support-create-tenant-modal").title);
     } finally {
       setSaving(false);
     }

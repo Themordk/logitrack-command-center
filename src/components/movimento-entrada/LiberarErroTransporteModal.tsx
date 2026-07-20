@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Truck, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   open: boolean;
@@ -55,7 +56,7 @@ export function LiberarErroTransporteModal({ open, onClose, movimentoEntradaId, 
         setTotalConferido(Number(movRes.data?.total_volume_conferido) || 0);
         setMotivos(motRes.data || []);
       } catch (err: any) {
-        toast.error(err.message || "Falha ao carregar dados");
+        toast.error((() => { const p = parseError(err, "liberar-erro-transporte-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao carregar dados" : p.title; })());
       } finally {
         if (active) setLoading(false);
       }
@@ -94,7 +95,7 @@ export function LiberarErroTransporteModal({ open, onClose, movimentoEntradaId, 
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao registrar ocorrência.");
+      toast.error((() => { const p = parseError(err, "liberar-erro-transporte-modal"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao registrar ocorrência." : p.title; })());
     } finally {
       setSubmitting(false);
     }
