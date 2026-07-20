@@ -8546,6 +8546,7 @@ export type Database = {
       }
       listar_movimentos_entrada: {
         Args: {
+          p_box_id?: string
           p_data_ate?: string
           p_data_de?: string
           p_empresa_id?: string
@@ -8553,8 +8554,11 @@ export type Database = {
           p_numero_nf?: string
           p_page?: number
           p_page_size?: number
+          p_parceiro_codigo_erp?: string
+          p_placa_veiculo?: string
           p_status?: string
           p_tenant_id: string
+          p_tipo_entrada_id?: string
         }
         Returns: {
           box_descricao: string
@@ -8564,6 +8568,7 @@ export type Database = {
           operador_nome: string
           parceiro_nome: string
           status: string
+          tipo_entrada_descricao: string
           total_armazenado: number
           total_conferido: number
           total_esperado: number
