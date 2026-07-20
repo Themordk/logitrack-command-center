@@ -202,7 +202,21 @@ export function MovimentoSaidaPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, tenantId, empresaId]);
+  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
+
+  // Tipo Saida options
+  const tipoSaidaOptionsQuery = useQuery({
+    queryKey: ["tipo-saida-options", tenantId, empresaId],
+    queryFn: async () => {
+      let q = (supabase as any).from("tipo_saida").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+      if (empresaId) q = q.eq("empresa_id", empresaId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  });
 
   // List via RPC (server-side pagination)
   const listQuery = useQuery({
@@ -214,6 +228,11 @@ export function MovimentoSaidaPage() {
       filterDateFrom,
       filterDateTo,
       debouncedOnda,
+      debouncedNumeroDocumento,
+      filterTipoSaidaId,
+      debouncedParceiroCodigoErp,
+      debouncedVendedor,
+      debouncedTransportador,
       page,
     ],
     queryFn: async () => {
@@ -224,6 +243,11 @@ export function MovimentoSaidaPage() {
         p_data_de: filterDateFrom || null,
         p_data_ate: filterDateTo || null,
         p_numero_onda: debouncedOnda ? Number(debouncedOnda) : null,
+        p_numero_documento: debouncedNumeroDocumento ? Number(debouncedNumeroDocumento) : null,
+        p_tipo_saida_id: filterTipoSaidaId || null,
+        p_parceiro_codigo_erp: debouncedParceiroCodigoErp || null,
+        p_vendedor: debouncedVendedor || null,
+        p_transportador: debouncedTransportador || null,
         p_page: page,
         p_page_size: pageSize,
       });
