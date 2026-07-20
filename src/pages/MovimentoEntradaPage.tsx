@@ -876,6 +876,29 @@ export function MovimentoEntradaPage() {
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : movimentoInfo ? (
                   <div className="space-y-6">
+                    {/* Identificação */}
+                    <div className="rounded-lg border border-border p-4 bg-secondary/20">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase mb-3">Identificação</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Nº Movimento</p>
+                          <p className="text-sm font-mono font-medium text-foreground">MOV-{movimentoInfo.numero_movimento ?? "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Status</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.status ? (STATUS_MAP[movimentoInfo.status]?.label || movimentoInfo.status) : "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Data de Criação</p>
+                          <p className="text-sm font-medium text-foreground">{fmtDateTime(movimentoInfo.created_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Tipo de Entrada</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.tipo_entrada_descricao || "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Volumes */}
                     <div className="rounded-lg border border-border p-4 bg-secondary/20">
                       <h3 className="text-xs font-bold text-muted-foreground uppercase mb-3">Volumes</h3>
@@ -894,6 +917,7 @@ export function MovimentoEntradaPage() {
                         </div>
                       </div>
                     </div>
+
 
                     {/* Dados do movimento */}
                     <div className="rounded-lg border border-border p-4 bg-secondary/20">
