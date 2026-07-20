@@ -164,8 +164,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        // EAN not found at all - show error dialog
-        setShowEanErroDialog(true);
+        result.showWarning("EAN não cadastrado no sistema.", {
+          instruction: "Escaneie o EAN correto do produto.",
+        });
         setEanScanned(code);
         return;
       }
@@ -176,23 +177,23 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       const currentProdutoId = produtoId || tarefa.produto_id;
 
       if (!currentProdutoId || emb.produto_id !== currentProdutoId) {
-        // EAN belongs to different product - show error dialog (no option to confirm)
-        setShowEanErroDialog(true);
+        result.showWarning("Este EAN não pertence ao produto esperado.", {
+          instruction: "Escaneie o EAN correto do produto.",
+          onClose: () => setEanScanned(""),
+        });
         return;
       }
 
       setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
       setEanConfirmado(true);
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const parsed = parseError(err, "separacao-ean");
+      toast.error(parsed.title);
     }
   };
 
-  const handleCancelarEanErro = () => {
-    setShowEanErroDialog(false);
-    setEanScanned("");
-  };
+
 
   const handleConfirmar = async () => {
     if (!tarefa || !quantidade || !usuarioId) return;
