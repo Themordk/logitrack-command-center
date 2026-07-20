@@ -230,9 +230,9 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={opt} config={config ?? undefined} />
+              <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={opt} config={configOverride} />
             </div>
-            <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={opt} config={config ?? undefined} />
+            <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={opt} config={configOverride} />
           </div>
         </div>
       )}
