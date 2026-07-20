@@ -1,10 +1,11 @@
 import { useRef, useMemo } from "react";
-import { Printer, X, Eye } from "lucide-react";
+import { Printer, X, Eye, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaVolumePreview, type VolumeLike } from "./EtiquetaVolumePreview";
-import { getPrintCSS, TEMPLATES } from "./thermalEngine";
+import { getPrintCSS, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
 import { useTenant } from "@/contexts/TenantContext";
 import { formatDateTime } from "@/utils/dateTime";
+import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
 
 interface PrintEtiquetaVolumeModalProps {
   open: boolean;
@@ -14,9 +15,11 @@ interface PrintEtiquetaVolumeModalProps {
 
 export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtiquetaVolumeModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  const { usuarioNome } = useTenant();
+  const { usuarioNome, empresaId } = useTenant();
   const dataHora = useMemo(() => formatDateTime(new Date()), [open]);
-  const template = TEMPLATES.ARMAZEM_100x40_H;
+  const { config, loading } = useEtiquetaTemplate("VOLUME", empresaId);
+
+  const template = config ? getTemplateFromConfig(config) : TEMPLATES.ARMAZEM_100x40_H;
 
   const triggerPrint = () => {
     const printContent = printRef.current;
@@ -39,22 +42,30 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
         <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Eye size={18} className="text-primary" />
-            Preview de Etiquetas — {volumes.length} volume{plural ? "s" : ""} · 100mm × 40mm (800×320px @ 203 DPI)
+            Preview — {volumes.length} volume{plural ? "s" : ""} · {template.widthMm}×{template.heightMm}mm
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6 bg-black/40">
-          <div ref={printRef} style={{ display: "none" }}>
-            <EtiquetaVolumePreview volumes={volumes} isPrint usuario={usuarioNome ?? undefined} dataHora={dataHora} />
-          </div>
-          <EtiquetaVolumePreview volumes={volumes} isPrint={false} usuario={usuarioNome ?? undefined} dataHora={dataHora} />
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 size={16} className="animate-spin" /> Carregando template...
+            </div>
+          ) : (
+            <>
+              <div ref={printRef} style={{ display: "none" }}>
+                <EtiquetaVolumePreview volumes={volumes} isPrint usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+              </div>
+              <EtiquetaVolumePreview volumes={volumes} isPrint={false} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+            </>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-border shrink-0">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <X size={14} className="inline mr-1" /> Fechar
           </button>
-          <button onClick={triggerPrint} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
+          <button onClick={triggerPrint} disabled={loading} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
             <Printer size={15} /> Imprimir {volumes.length} etiqueta{plural ? "s" : ""}
           </button>
         </div>

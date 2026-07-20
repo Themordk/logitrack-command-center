@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   EtiquetaProdutoPreview,
@@ -9,6 +9,8 @@ import {
   type OrientacaoEtiqueta,
 } from "./EtiquetaProdutoPreview";
 import { getPrintCSS, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
+import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface Props {
   open: boolean;
@@ -25,6 +27,17 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const [opt, setOpt] = useState<EtiquetaProdutoOptions>({});
   const printRef = useRef<HTMLDivElement>(null);
+  const { empresaId } = useTenant();
+  const { config, loading: loadingConfig } = useEtiquetaTemplate("PRODUTO", empresaId);
+  const [defaultsApplied, setDefaultsApplied] = useState(false);
+
+  useEffect(() => {
+    if (config && !defaultsApplied) {
+      if (config.tamanho) setTamanho(config.tamanho as TamanhoEtiqueta);
+      if (config.orientacao) setOrientacao(config.orientacao as OrientacaoEtiqueta);
+      setDefaultsApplied(true);
+    }
+  }, [config, defaultsApplied]);
 
   const plural = items.length > 1;
   const template = getTemplateFromSelection(tamanho, orientacao);
@@ -174,9 +187,9 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={opt} />
+              <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={opt} config={config ?? undefined} />
             </div>
-            <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={opt} />
+            <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={opt} config={config ?? undefined} />
           </div>
         </div>
       )}

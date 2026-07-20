@@ -43,6 +43,14 @@ interface PreviewProps {
   orientacao: OrientacaoEtiqueta;
   isPrint?: boolean;
   options?: EtiquetaProdutoOptions;
+  config?: {
+    tamanho: string;
+    orientacao: "horizontal" | "vertical";
+    com_cabecalho: boolean;
+    com_logo: boolean;
+    logo_url: string | null;
+    campos: import("@/hooks/useEtiquetaTemplate").CampoEtiqueta[];
+  };
 }
 
 function getLabelData(item: EtiquetaProdutoItem): LabelData {
@@ -212,9 +220,26 @@ function TemplateVertical({
 }
 
 export function EtiquetaProdutoPreview({
-  items, tamanho, orientacao, isPrint = false, options = {},
+  items, tamanho, orientacao, isPrint = false, options = {}, config,
 }: PreviewProps) {
-  const template = getTemplateFromSelection(tamanho, orientacao);
+  const effTamanho = (config?.tamanho as TamanhoEtiqueta) || tamanho;
+  const effOrientacao = (config?.orientacao as OrientacaoEtiqueta) || orientacao;
+  const effOptions: EtiquetaProdutoOptions = config
+    ? (() => {
+        const ativas = new Set((config.campos || []).filter((c) => c.ativo).map((c) => c.chave));
+        return {
+          incluirQRCode: ativas.has("qr_code") || options.incluirQRCode,
+          incluirMarca: ativas.has("marca"),
+          incluirAltura: ativas.has("altura"),
+          incluirLargura: ativas.has("largura"),
+          incluirComprimento: ativas.has("comprimento"),
+          incluirPesoBruto: ativas.has("peso_bruto"),
+          incluirPesoLiquido: ativas.has("peso_liquido"),
+          incluirM3: ativas.has("m3"),
+        };
+      })()
+    : options;
+  const template = getTemplateFromSelection(effTamanho, effOrientacao);
   return (
     <>
       {items.map((it, idx) => (
@@ -229,7 +254,7 @@ export function EtiquetaProdutoPreview({
           {template.orientation === "vertical" ? (
             <TemplateVertical item={it} template={template} isPrint={isPrint} />
           ) : (
-            <TemplateHorizontal item={it} template={template} isPrint={isPrint} options={options} />
+            <TemplateHorizontal item={it} template={template} isPrint={isPrint} options={effOptions} />
           )}
         </div>
       ))}

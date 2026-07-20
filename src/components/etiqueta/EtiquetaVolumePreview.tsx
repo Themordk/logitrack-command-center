@@ -4,6 +4,8 @@
  */
 import { BarcodeRenderer } from "./BarcodeRenderer";
 import { Building2, MapPin, Calendar, Package, AlertTriangle } from "lucide-react";
+import { getTemplateFromConfig } from "./thermalEngine";
+import type { CampoEtiqueta } from "@/hooks/useEtiquetaTemplate";
 
 export interface VolumeLike {
   id: string;
@@ -14,6 +16,20 @@ export interface VolumeLike {
   numero_onda?: number | null;
   numero_volume?: number | null;
   total_volumes_movimento?: number | null;
+  peso?: number | string | null;
+  nota_fiscal?: string | null;
+  pedido?: string | null;
+  transportadora?: string | null;
+  observacao?: string | null;
+}
+
+export interface EtiquetaTemplateOverride {
+  tamanho: string;
+  orientacao: "horizontal" | "vertical";
+  com_cabecalho: boolean;
+  com_logo: boolean;
+  logo_url: string | null;
+  campos: CampoEtiqueta[];
 }
 
 interface EtiquetaVolumePreviewProps {
@@ -21,12 +37,14 @@ interface EtiquetaVolumePreviewProps {
   isPrint?: boolean;
   usuario?: string;
   dataHora?: string;
+  config?: EtiquetaTemplateOverride;
 }
 
 function formatDataHora(v?: string | null): string {
   if (!v) return "—";
   try {
     const d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } catch {
@@ -34,7 +52,43 @@ function formatDataHora(v?: string | null): string {
   }
 }
 
-function TemplateVolume({
+const CAMPO_LABEL: Record<string, string> = {
+  codigo_volume: "CÓDIGO",
+  parceiro_nome: "RAZÃO SOCIAL",
+  destino_carga: "DESTINO",
+  numero_onda: "ONDA",
+  numero_volume: "VOLUME",
+  total_volumes: "TOTAL",
+  data_hora: "DATA/HORA",
+  usuario: "USUÁRIO",
+  peso: "PESO",
+  nota_fiscal: "NF",
+  pedido: "PEDIDO",
+  transportadora: "TRANSPORTADORA",
+  observacao: "OBS",
+};
+
+function getCampoValor(chave: string, volume: VolumeLike, usuario?: string, dataHora?: string): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  switch (chave) {
+    case "codigo_volume": return volume.codigo_volume || "—";
+    case "parceiro_nome": return (volume.parceiro_nome || "—").toUpperCase();
+    case "destino_carga": return (volume.destino_carga || "—").toUpperCase();
+    case "numero_onda": return volume.numero_onda != null ? String(volume.numero_onda) : "—";
+    case "numero_volume": return volume.numero_volume != null ? pad(volume.numero_volume) : "—";
+    case "total_volumes": return volume.total_volumes_movimento != null ? pad(volume.total_volumes_movimento) : "—";
+    case "data_hora": return formatDataHora(volume.created_at || dataHora);
+    case "usuario": return (usuario || "—").toUpperCase();
+    case "peso": return volume.peso != null ? String(volume.peso) : "—";
+    case "nota_fiscal": return volume.nota_fiscal || "—";
+    case "pedido": return volume.pedido || "—";
+    case "transportadora": return (volume.transportadora || "—").toUpperCase();
+    case "observacao": return volume.observacao || "—";
+    default: return "—";
+  }
+}
+
+function TemplateVolumeDefault({
   volume,
   isPrint,
   usuario,
@@ -70,7 +124,6 @@ function TemplateVolume({
         boxSizing: "border-box",
       }}
     >
-      {/* Header preto */}
       <div style={{ background: "#000", color: "#FFF", height: 60, display: "flex", alignItems: "center", padding: "0 16px", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 28, height: 28, background: "#FFF", color: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16 }}>C</div>
@@ -93,9 +146,7 @@ function TemplateVolume({
         </div>
       </div>
 
-      {/* Corpo */}
       <div style={{ flex: 1, display: "flex", padding: "10px 14px", gap: 10 }}>
-        {/* Coluna esquerda */}
         <div style={{ flex: 1.5, display: "flex", flexDirection: "column", gap: 6, borderRight: "1px dashed #000", paddingRight: 12 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8, borderBottom: "1px solid #000", paddingBottom: 6 }}>
             <Building2 size={18} />
@@ -137,7 +188,6 @@ function TemplateVolume({
           </div>
         </div>
 
-        {/* Coluna direita */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
           <div style={{ background: "#000", color: "#FFF", padding: "2px 10px", fontSize: 10, fontWeight: 700, letterSpacing: 1, borderRadius: 3 }}>
             CÓDIGO DO VOLUME
@@ -148,7 +198,6 @@ function TemplateVolume({
         </div>
       </div>
 
-      {/* Rodapé */}
       <div style={{ borderTop: "1px dashed #000", height: 46, display: "flex", alignItems: "center", padding: "0 14px", gap: 12 }}>
         <AlertTriangle size={22} />
         <div style={{ flex: 1, fontSize: 10, lineHeight: 1.2 }}>
@@ -164,11 +213,90 @@ function TemplateVolume({
   );
 }
 
-export function EtiquetaVolumePreview({ volumes, isPrint = false, usuario, dataHora }: EtiquetaVolumePreviewProps) {
+function TemplateVolumeConfig({
+  volume,
+  isPrint,
+  usuario,
+  dataHora,
+  config,
+}: {
+  volume: VolumeLike;
+  isPrint: boolean;
+  usuario?: string;
+  dataHora?: string;
+  config: EtiquetaTemplateOverride;
+}) {
+  const spec = getTemplateFromConfig(config);
+  const { widthPx: WPX, heightPx: HPX } = spec;
+  const codigo = volume.codigo_volume;
+
+  const campos = (config.campos || [])
+    .filter((c) => c.ativo)
+    .sort((a, b) => a.ordem - b.ordem);
+
+  const showHeader = config.com_cabecalho !== false;
+  const headerH = showHeader ? 52 : 0;
+  const barcodeAreaH = 110;
+  const bodyH = HPX - headerH - barcodeAreaH;
+
+  return (
+    <div
+      className="etiqueta-thermal"
+      style={{
+        width: `${WPX}px`,
+        height: `${HPX}px`,
+        background: "#FFFFFF",
+        color: "#000000",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        border: isPrint ? "none" : "1px solid #D1D5DB",
+        borderRadius: isPrint ? 0 : "10px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+      }}
+    >
+      {showHeader && (
+        <div style={{ background: "#000", color: "#FFF", height: headerH, display: "flex", alignItems: "center", padding: "0 16px", gap: 12, flexShrink: 0 }}>
+          {config.com_logo && config.logo_url ? (
+            <img src={config.logo_url} alt="Logo" style={{ maxHeight: 36, maxWidth: 120, objectFit: "contain", background: "#FFF", padding: 2 }} />
+          ) : null}
+          <div style={{ flex: 1, textAlign: "center", fontWeight: 900, fontSize: 18, letterSpacing: 2 }}>
+            VOLUME DE EXPEDIÇÃO
+          </div>
+        </div>
+      )}
+
+      <div style={{ height: barcodeAreaH, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 4, background: "#FFFFFF", flexShrink: 0 }}>
+        <BarcodeRenderer value={codigo} moduleWidth={3} height={72} margin={4} maxWidth={WPX - 40} />
+        <div style={{ fontSize: 14, fontFamily: "monospace", fontWeight: 800, letterSpacing: 1 }}>{codigo}</div>
+      </div>
+
+      <div style={{ height: bodyH, padding: "6px 14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 14px", alignContent: "start", overflow: "hidden", background: "#FFFFFF" }}>
+        {campos.filter((c) => c.chave !== "codigo_volume").map((c) => {
+          const val = getCampoValor(c.chave, volume, usuario, dataHora);
+          const label = CAMPO_LABEL[c.chave] || c.label?.toUpperCase() || c.chave.toUpperCase();
+          return (
+            <div key={c.chave} style={{ display: "flex", flexDirection: "column", lineHeight: 1.1, borderBottom: "1px dotted #999", paddingBottom: 2 }}>
+              <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5, color: "#333" }}>{label}</span>
+              <span style={{ fontSize: 11, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{val}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function EtiquetaVolumePreview({ volumes, isPrint = false, usuario, dataHora, config }: EtiquetaVolumePreviewProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: isPrint ? 0 : 16, alignItems: "center" }}>
       {volumes.map((v) => (
-        <TemplateVolume key={v.id} volume={v} isPrint={isPrint} usuario={usuario} dataHora={dataHora} />
+        config ? (
+          <TemplateVolumeConfig key={v.id} volume={v} isPrint={isPrint} usuario={usuario} dataHora={dataHora} config={config} />
+        ) : (
+          <TemplateVolumeDefault key={v.id} volume={v} isPrint={isPrint} usuario={usuario} dataHora={dataHora} />
+        )
       ))}
     </div>
   );

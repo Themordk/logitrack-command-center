@@ -34,6 +34,7 @@ import { HUsPage } from "./pages/HUsPage";
 import { VolumesPage } from "./pages/VolumesPage";
 import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
+import { EtiquetaTemplatesPage } from "./pages/EtiquetaTemplatesPage";
 
 import { EntradasPage } from "./pages/EntradasPage";
 import { MovimentoEntradaPage } from "./pages/MovimentoEntradaPage";
@@ -148,6 +149,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/armazem/enderecos/lote": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Endereços", path: "/armazem/enderecos" }, { label: "Cadastro em Lote" }],
   "/armazem/veiculos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Veículos" }],
   "/armazem/zonas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Zonas de Atividade" }],
+  "/armazem/etiquetas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Templates de Etiqueta" }],
   "/armazem/box": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Box" }],
   "/armazem/turnos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Turnos" }],
   "/armazem/motivos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Motivos de Ocorrência" }],
@@ -268,6 +270,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/enderecos/lote": return <EnderecosBatchPage onNavigate={onNavigate} />;
     case "/armazem/veiculos": return <VeiculosPage />;
     case "/armazem/zonas": return <ZonasAtividadePage />;
+    case "/armazem/etiquetas": return <EtiquetaTemplatesPage onNavigate={onNavigate} />;
     case "/armazem/box": return <BoxPage />;
     case "/armazem/turnos": return <TurnosPage />;
     case "/armazem/motivos": return <MotivosOcorrenciaPage />;

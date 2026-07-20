@@ -41,6 +41,15 @@ interface EtiquetaEnderecoPreviewProps {
   usuario?: string;
   /** Data/hora exibida no header do template BIN. Default: agora */
   dataHora?: string;
+  /** Override vindo do gerenciador de templates. Se presente, sobrescreve tamanho/orientacao. */
+  config?: {
+    tamanho: string;
+    orientacao: "horizontal" | "vertical";
+    com_cabecalho: boolean;
+    com_logo: boolean;
+    logo_url: string | null;
+    campos: import("@/hooks/useEtiquetaTemplate").CampoEtiqueta[];
+  };
 }
 
 function getLabelData(endereco: EnderecoLike): LabelData {
@@ -648,8 +657,23 @@ export function EtiquetaEnderecoPreview({
   options = {},
   usuario,
   dataHora,
+  config,
 }: EtiquetaEnderecoPreviewProps) {
-  const template = getTemplateFromSelection(tamanho, orientacao);
+  // Se config vier do gerenciador de templates, ela sobrescreve tamanho/orientacao.
+  const effTamanho = (config?.tamanho as TamanhoEtiqueta) || tamanho;
+  const effOrientacao = (config?.orientacao as OrientacaoEtiqueta) || orientacao;
+  // Campos ativos → EtiquetaOptions (retrocompatível).
+  const effOptions: EtiquetaOptions = config
+    ? (() => {
+        const ativas = new Set((config.campos || []).filter((c) => c.ativo).map((c) => c.chave));
+        return {
+          incluirQRCode: ativas.has("qr_code") || options.incluirQRCode,
+          incluirCurvaAcesso: ativas.has("curva_acesso"),
+          incluirTipoEndereco: ativas.has("tipo_endereco"),
+        };
+      })()
+    : options;
+  const template = getTemplateFromSelection(effTamanho, effOrientacao);
 
   return (
     <>
@@ -669,7 +693,7 @@ export function EtiquetaEnderecoPreview({
             endereco={end}
             template={template}
             isPrint={isPrint}
-            options={options}
+            options={effOptions}
             usuario={usuario}
             dataHora={dataHora}
           />

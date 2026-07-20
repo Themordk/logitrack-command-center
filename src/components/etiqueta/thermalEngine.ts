@@ -184,3 +184,21 @@ export function getTemplateFromSelection(
   if (tamanho === "50x20" && orientacao === "horizontal") return TEMPLATES.LOJA_50x20_H;
   return TEMPLATES.LOJA_50x20_V;
 }
+
+// ─── Config-aware helpers ───
+
+export type TipoEtiqueta = "ENDERECO" | "HU" | "PRODUTO" | "VOLUME";
+
+export interface EtiquetaConfigLike {
+  tamanho: string;
+  orientacao: "horizontal" | "vertical";
+}
+
+/**
+ * Converte uma config de template (vinda do banco) em um TemplateSpec existente.
+ * Reutiliza getTemplateFromSelection para não duplicar lógica.
+ */
+export function getTemplateFromConfig(config: EtiquetaConfigLike): TemplateSpec {
+  const tamanho = (config.tamanho as "100x40" | "50x20" | "80x20") || "100x40";
+  return getTemplateFromSelection(tamanho, config.orientacao || "horizontal");
+}
