@@ -4,7 +4,10 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, XCircle, Package, Navigation } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, Package, Navigation } from "lucide-react";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
 import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -49,7 +52,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [outrosEnderecos, setOutrosEnderecos] = useState<EnderecoAlternativo[]>([]);
   const [loadingEnderecos, setLoadingEnderecos] = useState(false);
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
-  const [errorDialog, setErrorDialog] = useState<string | null>(null);
+  const result = useResultDialog({ coletorMode: true });
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
 
   useEffect(() => {
