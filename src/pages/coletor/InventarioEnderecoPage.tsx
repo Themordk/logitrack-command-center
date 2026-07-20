@@ -120,7 +120,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       const expectedId = tarefa.endereco_id || tarefa.id_local_origem;
 
       if (!found || found.id !== expectedId) {
-        setErrorDialog("Endereço incorreto! Escaneie o endereço informado.");
+        result.showWarning("Endereço incorreto! Escaneie o endereço informado.", { onClose: () => setLastScanned("") });
         setLoading(false);
         return;
       }
