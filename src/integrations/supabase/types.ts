@@ -7272,6 +7272,7 @@ export type Database = {
           motorista: string | null
           movimento_saida_id: string | null
           numero_onda: number | null
+          numero_volume: number | null
           parceiro_id: string | null
           parceiro_nome: string | null
           peso_bruto: number | null
