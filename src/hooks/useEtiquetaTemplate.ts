@@ -30,7 +30,9 @@ export interface EtiquetaConfig {
   intervalo_colunas_mm: number;
   direcao_seta: "CIMA" | "BAIXO" | "ESQUERDA" | "DIREITA" | "NENHUMA";
   escala_fonte: number;
+  padrao?: boolean;
 }
+
 
 export function useEtiquetaTemplate(tipo: string, empresaId?: string | null) {
   const [config, setConfig] = useState<EtiquetaConfig | null>(null);
