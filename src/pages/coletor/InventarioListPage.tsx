@@ -128,9 +128,7 @@ export function InventarioListPage({ onNavigate }: Props) {
     }
   };
 
-      }
-    }
-  };
+
 
   const STATUS_LABEL: Record<string, string> = {
     CRIADO: "Criado",
