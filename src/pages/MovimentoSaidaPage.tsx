@@ -84,7 +84,19 @@ interface MovSaida {
   parceiro_nome?: string;
   box_nome?: string;
   operadores_atribuidos?: string[];
+  tipo_saida_descricao?: string;
+  rota_descricao?: string | null;
+  veiculo_placa?: string | null;
+  operador_nome?: string | null;
+  total_itens?: number;
+  total_esperado?: number;
+  total_separado?: number;
+  total_conferido?: number;
+  total_cortado?: number;
 }
+
+const truncate = (s: string | null | undefined, n = 35) =>
+  s && s.length > n ? s.slice(0, n) + "…" : (s || "");
 
 interface OcorrenciaItem {
   sku?: string;
