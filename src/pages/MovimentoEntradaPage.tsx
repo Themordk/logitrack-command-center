@@ -76,6 +76,7 @@ interface MovEntry {
   created_at: string;
   placa_veiculo: string | null;
   parceiro_nome?: string;
+  tipo_entrada_descricao?: string;
   operadores_atribuidos?: string[];
 }
 
@@ -125,6 +126,10 @@ interface ArmazenagemItem {
 }
 
 interface MovimentoInfo {
+  numero_movimento: number | null;
+  status: string | null;
+  created_at: string | null;
+  tipo_entrada_descricao: string | null;
   confirma_volume: boolean;
   total_volume: number | null;
   total_volume_conferido: number | null;
@@ -179,6 +184,10 @@ export function MovimentoEntradaPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterDocumento, setFilterDocumento] = useState("");
+  const [filterTipoEntradaId, setFilterTipoEntradaId] = useState("");
+  const [filterPlacaVeiculo, setFilterPlacaVeiculo] = useState("");
+  const [filterBoxId, setFilterBoxId] = useState("");
+  const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [page, setPage] = useState(1);
@@ -186,11 +195,42 @@ export function MovimentoEntradaPage() {
 
   const debouncedNumero = useDebounce(filterNumero, 400);
   const debouncedDocumento = useDebounce(filterDocumento, 400);
+  const debouncedPlaca = useDebounce(filterPlacaVeiculo, 400);
+  const debouncedParceiroErp = useDebounce(filterParceiroCodigoErp, 400);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedNumero, debouncedDocumento, filterStatus, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
+  }, [debouncedNumero, debouncedDocumento, debouncedPlaca, debouncedParceiroErp, filterStatus, filterTipoEntradaId, filterBoxId, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
+
+  // Tipos de entrada e boxes para filtros
+  const tiposEntradaQuery = useQuery({
+    queryKey: ["filter-tipos-entrada", tenantId, empresaId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("tipo_entrada")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .order("descricao");
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 5 * 60_000,
+  });
+
+  const boxesQuery = useQuery({
+    queryKey: ["filter-boxes", tenantId, armazemId],
+    queryFn: async () => {
+      let q = (supabase as any).from("box").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+      if (armazemId) q = q.eq("armazem_id", armazemId);
+      const { data } = await q;
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId,
+    staleTime: 5 * 60_000,
+  });
 
   // List via RPC (server-side pagination)
   const listQuery = useQuery({
@@ -200,10 +240,14 @@ export function MovimentoEntradaPage() {
       empresaId,
       armazemId,
       filterStatus,
+      filterTipoEntradaId,
+      filterBoxId,
       filterDateFrom,
       filterDateTo,
       debouncedNumero,
       debouncedDocumento,
+      debouncedPlaca,
+      debouncedParceiroErp,
       page,
     ],
     queryFn: async () => {
@@ -215,11 +259,15 @@ export function MovimentoEntradaPage() {
         p_data_ate: filterDateTo || null,
         p_numero_movimento: debouncedNumero ? Number(debouncedNumero) : null,
         p_numero_nf: debouncedDocumento || null,
+        p_tipo_entrada_id: filterTipoEntradaId || null,
+        p_placa_veiculo: debouncedPlaca ? debouncedPlaca.toUpperCase() : null,
+        p_box_id: filterBoxId || null,
+        p_parceiro_codigo_erp: debouncedParceiroErp || null,
         p_page: page,
         p_page_size: pageSize,
       });
       if (error) throw error;
-      return (data || []) as MovimentoEntradaListItem[];
+      return (data || []) as (MovimentoEntradaListItem & { tipo_entrada_descricao?: string })[];
     },
     enabled: !!tenantId && !!empresaId,
     staleTime: 30_000,
@@ -251,6 +299,7 @@ export function MovimentoEntradaPage() {
       created_at: r.created_at,
       placa_veiculo: null,
       parceiro_nome: r.parceiro_nome || "—",
+      tipo_entrada_descricao: (r as any).tipo_entrada_descricao || "—",
       operadores_atribuidos: opsMap.get(r.id) || [],
     }));
   }, [listRows, opsQuery.data]);
@@ -339,6 +388,10 @@ export function MovimentoEntradaPage() {
 
       if (infoData) {
         setMovimentoInfo({
+          numero_movimento: infoData.numero_movimento ?? null,
+          status: infoData.status ?? null,
+          created_at: infoData.created_at ?? null,
+          tipo_entrada_descricao: infoData.tipo_entrada_descricao ?? null,
           confirma_volume: infoData.confirma_volume,
           total_volume: infoData.total_volume,
           total_volume_conferido: infoData.total_volume_conferido,
@@ -547,6 +600,32 @@ export function MovimentoEntradaPage() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Tipo Entrada</label>
+          <select value={filterTipoEntradaId} onChange={(e) => setFilterTipoEntradaId(e.target.value)} className={cn(inputClass, "w-40")}>
+            <option value="">Todos</option>
+            {(tiposEntradaQuery.data || []).map((t) => (
+              <option key={t.id} value={t.id}>{t.descricao}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Box</label>
+          <select value={filterBoxId} onChange={(e) => setFilterBoxId(e.target.value)} className={cn(inputClass, "w-32")}>
+            <option value="">Todos</option>
+            {(boxesQuery.data || []).map((b) => (
+              <option key={b.id} value={b.id}>{b.descricao}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Placa</label>
+          <input type="text" value={filterPlacaVeiculo} onChange={(e) => setFilterPlacaVeiculo(e.target.value.toUpperCase())} placeholder="ABC-1234" className={cn(inputClass, "w-24")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Cód. ERP Parceiro</label>
+          <input type="text" value={filterParceiroCodigoErp} onChange={(e) => setFilterParceiroCodigoErp(e.target.value)} placeholder="Código" className={cn(inputClass, "w-28")} />
+        </div>
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
         </button>
@@ -579,9 +658,14 @@ export function MovimentoEntradaPage() {
                         </span>
                         <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>
+                        {(mov.parceiro_nome || "").length > 35 ? `${(mov.parceiro_nome || "").slice(0, 35)}…` : mov.parceiro_nome}
+                      </p>
                       <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
-                      <p className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[55%] text-right" title={mov.tipo_entrada_descricao}>{mov.tipo_entrada_descricao}</p>
+                      </div>
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -792,6 +876,29 @@ export function MovimentoEntradaPage() {
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : movimentoInfo ? (
                   <div className="space-y-6">
+                    {/* Identificação */}
+                    <div className="rounded-lg border border-border p-4 bg-secondary/20">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase mb-3">Identificação</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Nº Movimento</p>
+                          <p className="text-sm font-mono font-medium text-foreground">MOV-{movimentoInfo.numero_movimento ?? "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Status</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.status ? (STATUS_MAP[movimentoInfo.status]?.label || movimentoInfo.status) : "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Data de Criação</p>
+                          <p className="text-sm font-medium text-foreground">{fmtDateTime(movimentoInfo.created_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Tipo de Entrada</p>
+                          <p className="text-sm font-medium text-foreground">{movimentoInfo.tipo_entrada_descricao || "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Volumes */}
                     <div className="rounded-lg border border-border p-4 bg-secondary/20">
                       <h3 className="text-xs font-bold text-muted-foreground uppercase mb-3">Volumes</h3>
@@ -810,6 +917,7 @@ export function MovimentoEntradaPage() {
                         </div>
                       </div>
                     </div>
+
 
                     {/* Dados do movimento */}
                     <div className="rounded-lg border border-border p-4 bg-secondary/20">

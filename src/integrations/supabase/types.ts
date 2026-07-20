@@ -6532,11 +6532,16 @@ export type Database = {
           armazem_descricao: string | null
           box_descricao: string | null
           confirma_volume: boolean | null
+          created_at: string | null
           crossdocking: boolean | null
           movimento_id: string | null
+          numero_movimento: number | null
           observacao: string | null
           placa_veiculo: string | null
+          status: Database["public"]["Enums"]["enum_status_mov_entrada"] | null
           tenant_id: string | null
+          tipo_entrada_descricao: string | null
+          tipo_entrada_id: string | null
           total_volume: number | null
           total_volume_conferido: number | null
           valor_descarga: number | null
@@ -6554,6 +6559,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_entrada_tipo_entrada_id_fkey"
+            columns: ["tipo_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_entrada"
             referencedColumns: ["id"]
           },
         ]
