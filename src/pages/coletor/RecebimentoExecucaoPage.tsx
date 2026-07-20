@@ -357,8 +357,15 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
                 {items.map((item) => (
                   <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2 shrink-0">
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline">
-                        <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
+                      <div className="flex justify-between items-baseline gap-2">
+                        <span className="font-mono text-sm font-bold text-white flex items-center gap-1">
+                          {item.sku}
+                          {item.status === "DIVERGENTE" && (
+                            <span title="Item divergente">
+                              <AlertTriangle size={14} className="text-[#F59E0B]" />
+                            </span>
+                          )}
+                        </span>
                         <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
                       </div>
                       <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
