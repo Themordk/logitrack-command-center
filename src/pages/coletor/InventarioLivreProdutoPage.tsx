@@ -4,7 +4,11 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { MapPin, Package, BoxIcon, CheckCircle, XCircle } from "lucide-react";
+import { MapPin, Package, BoxIcon } from "lucide-react";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -30,18 +34,13 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
   const [eanConfirmado, setEanConfirmado] = useState(false);
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{
-    sucesso: boolean;
-    mensagem: string;
-    divergencia?: number;
-    saldoSistema?: number;
-    quantidadeContada?: number;
-  } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showLoteModal, setShowLoteModal] = useState(false);
   const [lote, setLote] = useState("");
   const [fabricacao, setFabricacao] = useState("");
   const [validade, setValidade] = useState("");
+  const result = useResultDialog({ coletorMode: true });
+
+
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const inventarioId = sessionStorage.getItem("coletor_inventario_id") || "";
@@ -70,7 +69,10 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
         .eq("ean", code)
         .limit(1);
       if (error || !data || data.length === 0) {
-        setShowEanErroDialog(true);
+        result.showWarning("EAN não cadastrado no sistema.", {
+          instruction: "Escaneie o EAN correto do produto.",
+          onClose: () => setEanScanned(""),
+        });
         return;
       }
       const emb = data[0];
@@ -86,9 +88,11 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       setProdutoInfo({ sku: produto?.sku || "—", descricao: produto?.descricao || "—", tipo_controle: produto?.tipo_controle || "UNIDADE" });
       setEanConfirmado(true);
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao validar EAN.");
+    } catch (err: unknown) {
+      const parsed = parseError(err, "inventario-livre-ean");
+      toast.error(parsed.title);
     }
+
   };
 
   const requiresLote = () => {
@@ -133,54 +137,47 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && result.sucesso === false) {
-        const msg = result.mensagem || ERROR_MAP[result.codigo] || "Erro desconhecido";
-        setResultDialog({ sucesso: false, mensagem: msg });
+      if (rpcResult && typeof rpcResult === "object" && rpcResult.sucesso === false) {
+        const msg = rpcResult.mensagem || ERROR_MAP[rpcResult.codigo] || "Erro desconhecido";
+        result.showWarning(msg);
         return;
       }
 
-      const isDiverg = result?.resultado === "DIVERGENCIA";
-      const mensagem = isDiverg
-        ? `Contagem registrada — Divergência: ${result.divergencia} (Sistema: ${result.saldo_sistema}, Contado: ${result.quantidade_contada})`
-        : "Contagem registrada!";
+      const isDiverg = rpcResult?.resultado === "DIVERGENCIA";
+      const details = isDiverg
+        ? `Divergência: ${(rpcResult.divergencia ?? 0) > 0 ? "+" : ""}${rpcResult.divergencia} • Sistema: ${rpcResult.saldo_sistema} • Contado: ${rpcResult.quantidade_contada}`
+        : "Sem divergência";
 
-      setResultDialog({
-        sucesso: true,
-        mensagem,
-        divergencia: result?.divergencia,
-        saldoSistema: result?.saldo_sistema,
-        quantidadeContada: result?.quantidade_contada,
+      result.showSuccess("Contagem registrada!", {
+        details,
+        onClose: resetForm,
       });
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message || "Erro ao registrar contagem." });
+    } catch (err: unknown) {
+      result.showError(err, { context: "inventario-livre-contagem" });
     } finally {
       setConfirming(false);
       setShowLoteModal(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      setEanScanned("");
-      setEmbalagemInfo(null);
-      setProdutoInfo(null);
-      setEanConfirmado(false);
-      setQuantidade("");
-      setLote("");
-      setFabricacao("");
-      setValidade("");
-      toast.info("Escaneie outro produto ou volte para endereços.");
-    }
+  const resetForm = () => {
+    setEanScanned("");
+    setEmbalagemInfo(null);
+    setProdutoInfo(null);
+    setEanConfirmado(false);
+    setQuantidade("");
+    setLote("");
+    setFabricacao("");
+    setValidade("");
+    toast.info("Escaneie outro produto ou volte para endereços.");
   };
 
-  const hasDivergencia = resultDialog?.sucesso && (resultDialog.divergencia ?? 0) !== 0;
+
 
   return (
     <ColetorLayout
@@ -265,60 +262,8 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
         </ActionButton>
       </div>
 
-      {/* EAN Error Dialog */}
-      {showEanErroDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">EAN Inválido</h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN escaneado não foi encontrado.
-              </p>
-            </div>
-            <ActionButton onClick={() => { setShowEanErroDialog(false); setEanScanned(""); }} variant="primary">
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
 
-      {/* Result Dialog */}
-      {resultDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              {resultDialog.sucesso ? (
-                <CheckCircle size={48} className="text-[#22C55E]" />
-              ) : (
-                <XCircle size={48} className="text-[#E02424]" />
-              )}
-              <h3 className="text-base font-bold text-white text-center">
-                {resultDialog.sucesso ? "Sucesso" : "Erro"}
-              </h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
-
-              {resultDialog.sucesso && hasDivergencia && (
-                <div className="w-full rounded-xl bg-red-500/10 border border-red-500/30 p-3 text-center">
-                  <p className="text-xs text-red-300">
-                    Divergência: <span className="font-bold">{(resultDialog.divergencia ?? 0) > 0 ? "+" : ""}{resultDialog.divergencia}</span>
-                    {" "}| Sistema: <span className="font-bold">{resultDialog.saldoSistema}</span>
-                    {" "}| Contado: <span className="font-bold">{resultDialog.quantidadeContada}</span>
-                  </p>
-                </div>
-              )}
-              {resultDialog.sucesso && !hasDivergencia && (
-                <div className="w-full rounded-xl bg-green-500/10 border border-green-500/30 p-3 text-center">
-                  <p className="text-xs text-green-300 font-bold">✓ Sem divergência</p>
-                </div>
-              )}
-            </div>
-            <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
-              {resultDialog.sucesso ? "Continuar" : "Fechar"}
-            </ActionButton>
-          </div>
-        </div>
-      )}
 
       {/* Lote/Validade Modal */}
       {showLoteModal && produtoInfo && (

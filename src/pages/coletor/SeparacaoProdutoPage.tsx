@@ -4,9 +4,13 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ScanField } from "@/components/coletor/ScanField";
 import { toast } from "sonner";
-import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon } from "lucide-react";
+import { Package, AlertTriangle, BoxIcon } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDate } from "@/utils/dateTime";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -36,10 +40,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [qtdSeparada, setQtdSeparada] = useState(0);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const result = useResultDialog({ coletorMode: true });
   const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
   const [showVolumeDialog, setShowVolumeDialog] = useState(false);
+
   const [volumeQtd, setVolumeQtd] = useState("");
   const [volumeSaving, setVolumeSaving] = useState(false);
   const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
@@ -160,8 +164,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        // EAN not found at all - show error dialog
-        setShowEanErroDialog(true);
+        result.showWarning("EAN não cadastrado no sistema.", {
+          instruction: "Escaneie o EAN correto do produto.",
+        });
         setEanScanned(code);
         return;
       }
@@ -172,23 +177,23 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       const currentProdutoId = produtoId || tarefa.produto_id;
 
       if (!currentProdutoId || emb.produto_id !== currentProdutoId) {
-        // EAN belongs to different product - show error dialog (no option to confirm)
-        setShowEanErroDialog(true);
+        result.showWarning("Este EAN não pertence ao produto esperado.", {
+          instruction: "Escaneie o EAN correto do produto.",
+          onClose: () => setEanScanned(""),
+        });
         return;
       }
 
       setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
       setEanConfirmado(true);
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const parsed = parseError(err, "separacao-ean");
+      toast.error(parsed.title);
     }
   };
 
-  const handleCancelarEanErro = () => {
-    setShowEanErroDialog(false);
-    setEanScanned("");
-  };
+
 
   const handleConfirmar = async () => {
     if (!tarefa || !quantidade || !usuarioId) return;
@@ -212,10 +217,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
     // Validação de saldo do lote selecionado
     if (loteSel && qtdFinal > loteSel.saldo_disponivel) {
-      setResultDialog({
-        sucesso: false,
-        mensagem: `Quantidade (${qtdFinal}) excede o saldo disponível no lote (${loteSel.saldo_disponivel}). Volte e selecione outro lote ou ajuste a quantidade.`,
-      });
+      result.showWarning(
+        `Quantidade (${qtdFinal}) excede o saldo disponível no lote (${loteSel.saldo_disponivel}).`,
+        { instruction: "Volte e selecione outro lote ou ajuste a quantidade." },
+      );
       return;
     }
 
@@ -236,13 +241,13 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao registrar coleta" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro ao registrar coleta");
         return;
       }
 
@@ -262,7 +267,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             setQtdSeparada(serverSeparada);
             setQuantidade("");
             if (serverSeparada >= Number(tarefaAtualizada.quantidade_requerida) || tarefaAtualizada.status === "CONCLUIDA") {
-              setResultDialog({ sucesso: true, mensagem: "Quantidade completa! Avançando para próxima tarefa." });
+              result.showSuccess("Quantidade completa! Avançando para próxima tarefa.", {
+                onClose: advanceToNext,
+              });
               return;
             }
             toast.success("Quantidade registrada!");
@@ -277,24 +284,20 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       setQuantidade("");
 
       if (newQtdSeparada >= Number(tarefa.quantidade_requerida)) {
-        setResultDialog({ sucesso: true, mensagem: "Quantidade completa! Avançando para próxima tarefa." });
+        result.showSuccess("Quantidade completa! Avançando para próxima tarefa.", {
+          onClose: advanceToNext,
+        });
       } else {
         toast.success("Quantidade registrada!");
       }
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao" });
     } finally {
       setConfirming(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      advanceToNext();
-    }
-  };
+
 
   const advanceToNext = () => {
     const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
@@ -529,45 +532,8 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* EAN Erro Dialog - produto diferente (only close option, no confirm) */}
-      {showEanErroDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">EAN Inválido</h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN escaneado não foi encontrado ou não pertence ao produto esperado. Escaneie o EAN correto do produto.
-              </p>
-            </div>
-            <ActionButton onClick={handleCancelarEanErro} variant="primary">
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
 
-      {/* Result Dialog */}
-      {resultDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              {resultDialog.sucesso ? (
-                <CheckCircle size={48} className="text-[#22C55E]" />
-              ) : (
-                <XCircle size={48} className="text-[#E02424]" />
-              )}
-              <h3 className="text-base font-bold text-white text-center">
-                {resultDialog.sucesso ? "Sucesso" : "Erro"}
-              </h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
-            </div>
-            <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
-              {resultDialog.sucesso ? "Continuar" : "Fechar"}
-            </ActionButton>
-          </div>
-        </div>
-      )}
     </ColetorLayout>
   );
 }

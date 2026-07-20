@@ -4,9 +4,13 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { Package, BoxIcon, CheckCircle, XCircle } from "lucide-react";
+import { Package, BoxIcon, XCircle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -23,9 +27,10 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
   const [eanConfirmado, setEanConfirmado] = useState(false);
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showZeroConfirm, setShowZeroConfirm] = useState(false);
+  const result = useResultDialog({ coletorMode: true });
+
+
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -55,7 +60,10 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        setShowEanErroDialog(true);
+        result.showWarning("EAN não cadastrado no sistema.", {
+          instruction: "Escaneie o EAN correto do produto.",
+          onClose: () => setEanScanned(""),
+        });
         return;
       }
 
@@ -63,16 +71,21 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       // Validate product matches
       const currentProdutoId = tarefa.produto_id;
       if (currentProdutoId && emb.produto_id !== currentProdutoId) {
-        setShowEanErroDialog(true);
+        result.showWarning("Este EAN não pertence ao produto esperado.", {
+          instruction: "Escaneie o EAN correto do produto.",
+          onClose: () => setEanScanned(""),
+        });
         return;
       }
 
       setEmbalagemInfo({ ean: emb.ean, fator: emb.fator, embalagem: emb.embalagem });
       setEanConfirmado(true);
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const parsed = parseError(err, "inventario-ean");
+      toast.error(parsed.title);
     }
+
   };
 
   const handleConfirmar = async () => {
@@ -113,62 +126,57 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao registrar contagem" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro ao registrar contagem");
         return;
       }
 
-      setResultDialog({ sucesso: true, mensagem: "Contagem registrada com sucesso!" });
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+      result.showSuccess("Contagem registrada com sucesso!", { onClose: advanceToNext });
+    } catch (err: unknown) {
+      result.showError(err, { context: "inventario-contagem" });
     } finally {
       setConfirming(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      // Advance to next task
-      const tarefas = JSON.parse(sessionStorage.getItem("coletor_inventario_tarefas") || "[]");
-      const idx = Number(sessionStorage.getItem("coletor_inventario_tarefa_idx") || "0");
-      const nextIdx = idx + 1;
+  const advanceToNext = () => {
+    const tarefas = JSON.parse(sessionStorage.getItem("coletor_inventario_tarefas") || "[]");
+    const idx = Number(sessionStorage.getItem("coletor_inventario_tarefa_idx") || "0");
+    const nextIdx = idx + 1;
 
-      if (nextIdx >= tarefas.length) {
-        toast.success("Todas as contagens foram concluídas!");
-        onNavigate("/coletor/inventario");
-        return;
-      }
-
-      const proxima = tarefas[nextIdx];
-      sessionStorage.setItem("coletor_inventario_tarefa_idx", String(nextIdx));
-
-      const enderecoAtual =
-        tarefa?.endereco_id || tarefa?.id_local_origem || tarefa?.codigo_endereco;
-      const enderecoProxima =
-        proxima?.endereco_id || proxima?.id_local_origem || proxima?.codigo_endereco;
-
-      if (enderecoAtual && enderecoProxima && enderecoAtual === enderecoProxima) {
-        // Same address: update product context in place, stay on /produto
-        sessionStorage.setItem("coletor_inventario_tarefa_atual", JSON.stringify(proxima));
-        setTarefa(proxima);
-        setEanScanned("");
-        setEmbalagemInfo(null);
-        setEanConfirmado(false);
-        setQuantidade("");
-        toast.success("Próximo produto no mesmo endereço");
-        return;
-      }
-
-      onNavigate("/coletor/inventario/endereco");
+    if (nextIdx >= tarefas.length) {
+      toast.success("Todas as contagens foram concluídas!");
+      onNavigate("/coletor/inventario");
+      return;
     }
+
+    const proxima = tarefas[nextIdx];
+    sessionStorage.setItem("coletor_inventario_tarefa_idx", String(nextIdx));
+
+    const enderecoAtual =
+      tarefa?.endereco_id || tarefa?.id_local_origem || tarefa?.codigo_endereco;
+    const enderecoProxima =
+      proxima?.endereco_id || proxima?.id_local_origem || proxima?.codigo_endereco;
+
+    if (enderecoAtual && enderecoProxima && enderecoAtual === enderecoProxima) {
+      sessionStorage.setItem("coletor_inventario_tarefa_atual", JSON.stringify(proxima));
+      setTarefa(proxima);
+      setEanScanned("");
+      setEmbalagemInfo(null);
+      setEanConfirmado(false);
+      setQuantidade("");
+      toast.success("Próximo produto no mesmo endereço");
+      return;
+    }
+
+    onNavigate("/coletor/inventario/endereco");
   };
+
 
 
   if (!tarefa) return null;
@@ -287,45 +295,8 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* EAN Error Dialog */}
-      {showEanErroDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">EAN Inválido</h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                O EAN escaneado não foi encontrado ou não pertence ao produto esperado.
-              </p>
-            </div>
-            <ActionButton onClick={() => { setShowEanErroDialog(false); setEanScanned(""); }} variant="primary">
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
 
-      {/* Result Dialog */}
-      {resultDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              {resultDialog.sucesso ? (
-                <CheckCircle size={48} className="text-[#22C55E]" />
-              ) : (
-                <XCircle size={48} className="text-[#E02424]" />
-              )}
-              <h3 className="text-base font-bold text-white text-center">
-                {resultDialog.sucesso ? "Sucesso" : "Erro"}
-              </h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
-            </div>
-            <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
-              {resultDialog.sucesso ? "Continuar" : "Fechar"}
-            </ActionButton>
-          </div>
-        </div>
-      )}
     </ColetorLayout>
   );
 }
