@@ -1,65 +1,53 @@
 
 ## Objetivo
 
-Implementar UI completa de gerenciamento de templates de etiqueta consumindo a RPC `resolver_etiqueta_template` e a tabela `etiqueta_template` (já existentes no backend). 4 tipos: ENDERECO, HU, PRODUTO, VOLUME.
+Suportar 6 novas colunas em `etiqueta_template` (`largura_mm`, `altura_mm`, `duas_colunas`, `intervalo_colunas_mm`, `direcao_seta`, `escala_fonte`), corrigir o layout ilegível da etiqueta vertical de endereço, e habilitar impressão em rolo de duas colunas.
 
 ## Etapas
 
-### 1. Hook `src/hooks/useEtiquetaTemplate.ts` (novo)
-Exporta `useEtiquetaTemplate(tipo, empresaId)`, tipos `EtiquetaConfig` e `CampoEtiqueta`. Chama `(supabase.rpc as any)("resolver_etiqueta_template", { p_tipo, p_empresa_id })`, faz parse do JSONB `campos`.
+### 1. `src/hooks/useEtiquetaTemplate.ts`
+Adicionar à interface `EtiquetaConfig` os 6 novos campos. Sem outras mudanças.
 
-### 2. `src/components/etiqueta/thermalEngine.ts` — append-only
-Adicionar ao fim: `TipoEtiqueta`, `EtiquetaConfigLike` e `getTemplateFromConfig(config)` (wrapper sobre `getTemplateFromSelection`). Não tocar código existente.
+### 2. `src/components/etiqueta/thermalEngine.ts`
+- Ampliar `EtiquetaConfigLike` com `largura_mm?` e `altura_mm?`.
+- Reescrever `getTemplateFromConfig`: quando `largura_mm`/`altura_mm` presentes, calcula `widthPx/heightPx` via `MM_TO_PX` e escala barcode/QR conforme `isSmall = w<=50 || h<=25`. Caso contrário mantém fallback `getTemplateFromSelection`.
+- Adicionar `getPrintCSSFromConfig(widthMm, heightMm, duasColunas=false, intervaloMm=3)` retornando CSS `@page` com largura dobrada + gap quando duas colunas, e regras `.etiqueta-row` (flex).
 
-### 3. Adaptar os 4 previews (retrocompatível — `config?` opcional)
-- **`EtiquetaVolumePreview.tsx`**: aceitar `config?`. Se presente, usar dimensões via `getTemplateFromConfig`, respeitar `com_cabecalho`, `com_logo`/`logo_url`. **Remover marca fixa "CORE / LogiTrack"** — substituir por `<img>` do `logo_url` ou nada. Filtrar/ordenar campos por `ativo` + `ordem`; `campo.chave` puxa de `volume[chave]` ou dos props `usuario`/`dataHora`.
-- **`EtiquetaHUPreview.tsx`**: mesma estrutura; dimensões vindas do config em vez de 800×320 hardcoded.
-- **`EtiquetaEnderecoPreview.tsx`**: quando `config` presente, ele sobrescreve `tamanho`/`orientacao` recebidos por prop; respeitar `com_cabecalho`/logo.
-- **`EtiquetaProdutoPreview.tsx`**: mapear `config.campos[].ativo` (por `chave`: `marca`, `altura`, `largura`, `comprimento`, `peso_bruto`, `peso_liquido`, `m3`) para o `EtiquetaProdutoOptions` existente.
+### 3. Redesign vertical de endereço — `EtiquetaEnderecoPreview.tsx`
+- Reescrever completamente `TemplateVertical`. Layout topo→base: cabeçalho opcional (logo/marca) → número do apto (fonte ~50px) → nível (~30px) → `ArrowSVG` (~60px) → `BarcodeRenderer` **horizontal** → código completo (`RR.PPP.NN.AA`). Nada de `writingMode` ou `rotate`; nunca `BarcodeRendererVertical`.
+- Extrair `apto`/`nivel` de `data.apto`/`data.nivel`; fallback parseando `displayText` (`R01-P02-N03-A04`) via split.
+- Adicionar helper interno `ArrowSVG({ direction, size })` — polígono sólido preto (`points="50,5 90,55 65,55 65,95 35,95 35,55 10,55"`), rotacionado 0/90/180/270 para CIMA/DIREITA/BAIXO/ESQUERDA. Não usar Lucide.
+- Adicionar prop opcional `direcaoSeta`. Resolução: `config?.direcao_seta ?? direcaoSeta ?? "NENHUMA"`; se `NENHUMA`, oculta seta.
+- Em `TemplateHorizontal`: quando seta ≠ `NENHUMA`, dividir layout em duas colunas (conteúdo | coluna vertical com ArrowSVG grande à direita). Sem seta, mantém render atual.
+- Aplicar `config?.escala_fonte ?? 1` como multiplicador em todos os `fontSize` do arquivo (tanto vertical quanto horizontal).
 
-Sem `config` → comportamento atual idêntico.
+### 4. Escala de fonte nos demais previews
+`EtiquetaHUPreview`, `EtiquetaProdutoPreview`, `EtiquetaVolumePreview`: multiplicar `fontSize` inline por `config?.escala_fonte ?? 1`. Sem outras mudanças estruturais.
 
-### 4. Ligar os 4 `PrintEtiqueta*Modal.tsx`
-Em cada modal, adicionar:
-```ts
-const { empresaId } = useTenant();
-const { config, loading } = useEtiquetaTemplate("<TIPO>", empresaId);
-```
-- Usar `config.tamanho`/`config.orientacao` como default inicial dos selects (só na primeira montagem).
-- Passar `config ?? undefined` ao Preview.
-- `getPrintCSS`: derivar do `getTemplateFromConfig(config)` quando presente.
-- Loading do hook → spinner `Loader2` dentro do modal.
-- Se config for null → defaults hardcoded atuais.
+### 5. `src/pages/EtiquetaTemplatesPage.tsx`
+- Trocar select "Tamanho" por dois inputs `type="number"` (`min=10`, `max=300`) para `largura_mm` e `altura_mm`. Ao alterar, também atualizar `draft.tamanho = "${largura}x${altura}"` e derivar `orientacao`: `w>h → horizontal`, `h>w → vertical`, `w===h → mantém`.
+- Remover o select de orientação (agora derivado).
+- Novo bloco: switch "Rolo com duas colunas" (`draft.duas_colunas`) + input numérico "Intervalo entre colunas (mm)" (`draft.intervalo_colunas_mm`, exibido só quando ativo).
+- Novo bloco (somente `tipo === "ENDERECO"`): select "Seta direcional" com opções NENHUMA/CIMA/BAIXO/ESQUERDA/DIREITA (`draft.direcao_seta`).
+- Novo bloco: seletor discreto de "Escala de fonte" com botões 0.8 / 1.0 / 1.2 / 1.5 (`draft.escala_fonte`).
+- Ajustar sync do `draft` em `useEffect(config)` para preencher defaults dos 6 novos campos (`?? 100`, `?? 40`, `?? false`, `?? 3`, `?? "NENHUMA"`, `?? 1.0`).
+- Incluir os 6 campos no `payload` de `handleSave` e no `previewConfig` do memo.
+- Atualizar `TAMANHOS_POR_TIPO` deixa de ser usado — remover ou manter só como referência (será removido).
 
-### 5. Tela `src/pages/EtiquetaTemplatesPage.tsx` (nova)
-Layout 2 colunas (dark design system, sem cores hex hardcoded):
-
-**Esquerda — Controles:**
-- Select de empresa (query `empresa` do tenant + opção "Padrão do tenant" = null).
-- Tabs dos 4 tipos com ícones (MapPin, Package, Barcode, Box).
-- Ao mudar empresa/tipo: chamar hook. Se `config.empresa_id === null` e empresa selecionada é específica, badge `muted` "Usando padrão do tenant".
-- Campos do form: `nome` (input), `tamanho` (select 100x40 / 50x20 / 80x20 — só 100x40 para HU/VOLUME), `orientacao` (desabilitado se 80x20), switches `com_cabecalho` e `com_logo` (logo dependente de cabeçalho), input `logo_url`.
-- Lista de `campos`: cada item com label, switch `ativo`, botões ↑/↓ para reordenar (reindexa `ordem`).
-
-**Direita — Preview ao vivo:**
-- Renderiza o `Etiqueta*Preview` do tipo selecionado com `config` em edição (estado local), usando dados mock.
-- Moldura branca simulando etiqueta física.
-
-**Ações:**
-- **Salvar**: se `config.empresa_id === null` e empresa específica selecionada → INSERT (novo override). Senão → UPDATE por `id`. Grava `tenant_id`, `empresa_id`, `tipo`, `nome`, `tamanho`, `orientacao`, `com_cabecalho`, `com_logo`, `logo_url`, `campos` (JSON), `updated_at`. Sucesso: `toast.success`. Erro: `parseError` + `toast.error(parsed.title)`.
-- **Restaurar padrão**: só habilitado se o template atual é override da empresa. `DeleteConfirmDialog` → DELETE do registro; recarrega hook (volta ao padrão do tenant).
-
-### 6. Registro de rota e menu
-- `App.tsx`: import + `case "/armazem/etiquetas": return <EtiquetaTemplatesPage onNavigate={onNavigate} />;` + entry em `breadcrumbs`.
-- `TopNav.tsx`: no grupo "Armazém", após "Zonas de Atividade", adicionar `{ label: "Templates de Etiqueta", path: "/armazem/etiquetas" }`.
+### 6. `PrintEtiqueta*Modal.tsx` (4 arquivos)
+- Importar `getPrintCSSFromConfig`. Ao montar HTML de impressão: `const css = config?.largura_mm ? getPrintCSSFromConfig(config.largura_mm, config.altura_mm, config.duas_colunas, config.intervalo_colunas_mm) : getPrintCSS(template);`
+- Quando `config?.duas_colunas`, agrupar itens em pares e envolver cada par em `<div class="etiqueta-row">…</div>`; cada etiqueta interna mantém a classe `etiqueta-thermal`. Caso contrário, render 1 por vez (comportamento atual).
 
 ## Regras
-- `as any` na RPC (types gerados não cobrem).
-- Sem novas dependências, sem react-router, sem editar `src/components/ui/`.
-- Design system: tokens semânticos, não cores hex novas.
-- Erros: `parseError` + `toast.error(parsed.title)`.
-- Retrocompatibilidade obrigatória em todos os previews.
+
+- Retrocompatibilidade: sem `config`, tudo funciona como hoje.
+- Sem novas dependências, sem tocar em `src/components/ui/`.
+- Cores hex `#000`/`#FFF` só dentro do render físico da etiqueta; UI usa tokens semânticos.
+- `parseError` + `toast.error(parsed.title)` em erros (padrão existente).
+- Seta sempre como polígono SVG sólido (nunca Lucide, nunca `stroke` fino).
 
 ## Arquivos afetados
-- **Novos**: `src/hooks/useEtiquetaTemplate.ts`, `src/pages/EtiquetaTemplatesPage.tsx`.
-- **Alterados**: `thermalEngine.ts` (append), 4 previews, 4 print modals, `App.tsx`, `TopNav.tsx`.
+
+**Alterados:** `src/hooks/useEtiquetaTemplate.ts`, `src/components/etiqueta/thermalEngine.ts`, `src/components/etiqueta/EtiquetaEnderecoPreview.tsx`, `src/components/etiqueta/EtiquetaHUPreview.tsx`, `src/components/etiqueta/EtiquetaProdutoPreview.tsx`, `src/components/etiqueta/EtiquetaVolumePreview.tsx`, `src/components/etiqueta/PrintEtiquetaEnderecoModal.tsx`, `src/components/etiqueta/PrintEtiquetaHUModal.tsx`, `src/components/etiqueta/PrintEtiquetaProdutoModal.tsx`, `src/components/etiqueta/PrintEtiquetaVolumeModal.tsx`, `src/pages/EtiquetaTemplatesPage.tsx`.
+
+**Novos:** nenhum.
