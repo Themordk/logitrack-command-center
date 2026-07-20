@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
