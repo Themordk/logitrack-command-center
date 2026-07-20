@@ -40,10 +40,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [qtdSeparada, setQtdSeparada] = useState(0);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
+  const result = useResultDialog({ coletorMode: true });
   const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
   const [showVolumeDialog, setShowVolumeDialog] = useState(false);
+
   const [volumeQtd, setVolumeQtd] = useState("");
   const [volumeSaving, setVolumeSaving] = useState(false);
   const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
