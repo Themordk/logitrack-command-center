@@ -40,12 +40,12 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
     divergencia?: number;
     saldoSistema?: number;
     quantidadeContada?: number;
-  } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
   const [showLoteModal, setShowLoteModal] = useState(false);
   const [lote, setLote] = useState("");
   const [fabricacao, setFabricacao] = useState("");
   const [validade, setValidade] = useState("");
+  const result = useResultDialog({ coletorMode: true });
+
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
   const inventarioId = sessionStorage.getItem("coletor_inventario_id") || "";
