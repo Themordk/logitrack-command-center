@@ -658,9 +658,14 @@ export function MovimentoEntradaPage() {
                         </span>
                         <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>
+                        {(mov.parceiro_nome || "").length > 35 ? `${(mov.parceiro_nome || "").slice(0, 35)}…` : mov.parceiro_nome}
+                      </p>
                       <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
-                      <p className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[55%] text-right" title={mov.tipo_entrada_descricao}>{mov.tipo_entrada_descricao}</p>
+                      </div>
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
