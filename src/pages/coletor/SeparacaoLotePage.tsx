@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Layers, Loader2, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -119,7 +120,9 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
       setLotes(lista);
       if (lista.length > 0) setSelectedIdx(0); // PVPS pré-selecionado
     } catch (err: any) {
-      toast.error(err.message || "Erro ao carregar lotes.");
+      const parsed = parseError(err, "separacao-lote");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao carregar lotes." : parsed.title);
       setLotes([]);
     } finally {
       setLoading(false);

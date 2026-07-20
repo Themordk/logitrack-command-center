@@ -4,7 +4,10 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, XCircle, Package, Navigation } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, Package, Navigation } from "lucide-react";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
 import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -49,7 +52,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [outrosEnderecos, setOutrosEnderecos] = useState<EnderecoAlternativo[]>([]);
   const [loadingEnderecos, setLoadingEnderecos] = useState(false);
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
-  const [errorDialog, setErrorDialog] = useState<string | null>(null);
+  const result = useResultDialog({ coletorMode: true });
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
 
   useEffect(() => {
@@ -120,7 +123,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
       if (endCheck && endCheck.length > 0 && !["LIVRE", "OCUPADO"].includes(endCheck[0].situacao)) {
-        setErrorDialog(`Endereço ${endCheck[0].descricao} está ${endCheck[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
+        result.showWarning(
+          `Endereço ${endCheck[0].descricao} está ${endCheck[0].situacao}.`,
+          { instruction: "Movimentações não são permitidas. Procure a supervisão.", onClose: () => setLastScanned("") }
+        );
         return;
       }
 
@@ -131,22 +137,22 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any;
+      let rpcResult: any;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { result = data; }
+        try { rpcResult = JSON.parse(data); } catch { rpcResult = data; }
       } else {
-        result = data;
+        rpcResult = data;
       }
 
       // Handle object result with sucesso field
-      if (result && typeof result === "object" && result.sucesso === false) {
-        setErrorDialog(result.mensagem || "Endereço incorreto! Escaneie o endereço informado.");
+      if (rpcResult && typeof rpcResult === "object" && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Endereço incorreto! Escaneie o endereço informado.", { onClose: () => setLastScanned("") });
         return;
       }
 
       // Handle string error result
-      if (typeof result === "string" && result.toLowerCase().includes("erro")) {
-        setErrorDialog(result);
+      if (typeof rpcResult === "string" && rpcResult.toLowerCase().includes("erro")) {
+        result.showWarning(rpcResult, { onClose: () => setLastScanned("") });
         return;
       }
 
@@ -158,9 +164,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       sessionStorage.removeItem("coletor_separacao_lote_selecionado");
       toast.success("Endereço confirmado!");
       onNavigate(requerLote(tarefa.tipo_controle) ? "/coletor/separacao/lote" : "/coletor/separacao/produto");
-    } catch (err: any) {
-      setErrorDialog(err.message || "Erro ao confirmar endereço.");
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao-endereco", onClose: () => setLastScanned("") });
     }
+
   };
 
   const handlePular = () => {
@@ -249,7 +256,8 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
       setOutrosEnderecos(lista);
     } catch (err: any) {
-      toast.error(err.message);
+      const parsed = parseError(err, "separacao-endereco");
+      toast.error(parsed.title);
     } finally {
       setLoadingEnderecos(false);
     }
@@ -451,21 +459,8 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       </div>
 
 
-      {/* Error Dialog */}
-      {errorDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">Endereço Incorreto</h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{errorDialog}</p>
-            </div>
-            <ActionButton onClick={() => { setErrorDialog(null); setLastScanned(""); }} variant="primary">
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
+
 
       {/* Outros Endereços Modal */}
       {showOutrosEnderecos && (

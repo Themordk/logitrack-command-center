@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -54,7 +55,9 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
     setClearingId(null);
 
     if (error) {
-      toast.error(error.message || "Erro ao limpar conferência.");
+      const parsed = parseError(error, "conferencia-itens");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao limpar conferência." : parsed.title);
       return;
     }
 

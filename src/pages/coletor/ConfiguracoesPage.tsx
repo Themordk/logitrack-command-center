@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { Settings, Smartphone, ScanBarcode, Lock, Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -78,7 +79,9 @@ export function ConfiguracoesPage({ onNavigate }: Props) {
       setNovaSenha("");
       setConfirmarSenha("");
     } catch (err: any) {
-      toast.error(err.message || "Erro ao alterar senha.");
+      const parsed = parseError(err, "configuracoes-coletor");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao alterar senha." : parsed.title);
     } finally {
       setChangingPassword(false);
     }

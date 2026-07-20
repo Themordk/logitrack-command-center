@@ -4,8 +4,11 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, ListOrdered, XCircle, Loader2 } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, ListOrdered, Loader2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -31,7 +34,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showEnderecoList, setShowEnderecoList] = useState(false);
-  const [errorDialog, setErrorDialog] = useState<string | null>(null);
+  const result = useResultDialog({ coletorMode: true });
   const [loadingEnderecos, setLoadingEnderecos] = useState(true);
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
@@ -117,7 +120,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       const expectedId = tarefa.endereco_id || tarefa.id_local_origem;
 
       if (!found || found.id !== expectedId) {
-        setErrorDialog("Endereço incorreto! Escaneie o endereço informado.");
+        result.showWarning("Endereço incorreto! Escaneie o endereço informado.", { onClose: () => setLastScanned("") });
         setLoading(false);
         return;
       }
@@ -132,7 +135,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       toast.success("Endereço confirmado!");
       onNavigate("/coletor/inventario/produto");
     } catch {
-      setErrorDialog("Erro ao validar endereço.");
+      result.showError(new Error("Erro ao validar endereço."), { context: "inventario-endereco", onClose: () => setLastScanned("") });
     } finally {
       setLoading(false);
     }
@@ -267,21 +270,8 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
         />
       </div>
 
-      {/* Error Dialog */}
-      {errorDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">Endereço Incorreto</h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{errorDialog}</p>
-            </div>
-            <ActionButton onClick={() => { setErrorDialog(null); setLastScanned(""); }} variant="primary">
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
+
 
       {/* Endereços do Inventário Modal */}
       {showEnderecoList && (

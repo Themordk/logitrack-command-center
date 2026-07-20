@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
+import { parseError } from "@/lib/errorMapper";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -109,7 +110,9 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
         onNavigate("/coletor/recebimento/execucao");
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao iniciar conferência.");
+      const parsed = parseError(err, "recebimento-iniciar");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao iniciar conferência." : parsed.title);
     } finally {
       setConfirming(false);
     }

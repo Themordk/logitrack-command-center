@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDateTimeShort } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -249,7 +250,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       setTimeout(() => { loadConferencia(); refreshTarefas(); }, 800);
     } catch (err: any) {
-      toast.error(err.message || "Erro ao confirmar.");
+      const parsed = parseError(err, "recebimento-execucao");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao confirmar." : parsed.title);
       showOverlayMsg("error", "Erro ao confirmar");
     } finally {
       setSaving(false);
@@ -280,7 +283,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       loadConferencia();
       refreshTarefas();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao cancelar.");
+      const parsed = parseError(err, "recebimento-execucao");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao cancelar." : parsed.title);
     } finally {
       setDeleting(null);
     }

@@ -4,7 +4,10 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { MapPin, XCircle } from "lucide-react";
+import { MapPin } from "lucide-react";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -13,7 +16,7 @@ const HISTORICO_KEY = "coletor_inventario_livre_historico";
 export function InventarioLivreEnderecoPage({ onNavigate }: Props) {
   const [lastScanned, setLastScanned] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorDialog, setErrorDialog] = useState<string | null>(null);
+  const result = useResultDialog({ coletorMode: true });
   const [contados, setContados] = useState(0);
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
@@ -41,7 +44,7 @@ export function InventarioLivreEnderecoPage({ onNavigate }: Props) {
 
       const found = enderecos?.[0];
       if (!found) {
-        setErrorDialog("Endereço não encontrado.");
+        result.showWarning("Endereço não encontrado.", { onClose: () => setLastScanned("") });
         setLoading(false);
         return;
       }
@@ -62,8 +65,8 @@ export function InventarioLivreEnderecoPage({ onNavigate }: Props) {
 
       toast.success("Endereço confirmado!");
       onNavigate("/coletor/inventario/livre/produto");
-    } catch (err: any) {
-      setErrorDialog(err.message || "Erro ao validar endereço.");
+    } catch (err: unknown) {
+      result.showError(err, { context: "inventario-livre-endereco", onClose: () => setLastScanned("") });
     } finally {
       setLoading(false);
     }
@@ -118,20 +121,8 @@ export function InventarioLivreEnderecoPage({ onNavigate }: Props) {
         </ActionButton>
       </div>
 
-      {errorDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">Endereço não encontrado</h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{errorDialog}</p>
-            </div>
-            <ActionButton onClick={() => { setErrorDialog(null); setLastScanned(""); }} variant="primary">
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
     </ColetorLayout>
   );
 }
+
