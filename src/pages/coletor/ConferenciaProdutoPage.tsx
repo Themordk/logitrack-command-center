@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Package, CheckCircle, XCircle, BoxIcon, MoreVertical, List } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -28,9 +30,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [qtdConferida, setQtdConferida] = useState(0);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string; ondaConcluida?: boolean } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
-  const [eanErroMsg, setEanErroMsg] = useState<string>("");
+  const result = useResultDialog({ coletorMode: true });
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
   const [modoCego, setModoCego] = useState(false);
