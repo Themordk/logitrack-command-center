@@ -43,6 +43,14 @@ interface PreviewProps {
   orientacao: OrientacaoEtiqueta;
   isPrint?: boolean;
   options?: EtiquetaProdutoOptions;
+  config?: {
+    tamanho: string;
+    orientacao: "horizontal" | "vertical";
+    com_cabecalho: boolean;
+    com_logo: boolean;
+    logo_url: string | null;
+    campos: import("@/hooks/useEtiquetaTemplate").CampoEtiqueta[];
+  };
 }
 
 function getLabelData(item: EtiquetaProdutoItem): LabelData {
