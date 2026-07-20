@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaEnderecoPreview, TamanhoEtiqueta, OrientacaoEtiqueta, EtiquetaOptions } from "./EtiquetaEnderecoPreview";
-import { getPrintCSS, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
+import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
 import { useTenant } from "@/contexts/TenantContext";
 import { formatDateTime } from "@/utils/dateTime";
 import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
@@ -77,7 +77,13 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
-    const css = getPrintCSS(template);
+    let css: string;
+    if (config) {
+      const spec = getTemplateFromConfig(config);
+      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3);
+    } else {
+      css = getPrintCSS(template);
+    }
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas CORE LogiTrack</title><style>${css}</style></head><body>${printContent.innerHTML}</body></html>`;

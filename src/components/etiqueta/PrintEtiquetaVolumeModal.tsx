@@ -2,7 +2,7 @@ import { useRef, useMemo } from "react";
 import { Printer, X, Eye, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaVolumePreview, type VolumeLike } from "./EtiquetaVolumePreview";
-import { getPrintCSS, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
+import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
 import { useTenant } from "@/contexts/TenantContext";
 import { formatDateTime } from "@/utils/dateTime";
 import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
@@ -24,7 +24,9 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
-    const css = getPrintCSS(template);
+    const css = config
+      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3)
+      : getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas Volume – CORE LogiTrack</title><style>${css}</style></head><body>${printContent.innerHTML}</body></html>`;

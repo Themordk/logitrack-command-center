@@ -8,7 +8,7 @@ import {
   type TamanhoEtiqueta,
   type OrientacaoEtiqueta,
 } from "./EtiquetaProdutoPreview";
-import { getPrintCSS, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
+import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
 import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
 import { useTenant } from "@/contexts/TenantContext";
 
@@ -59,7 +59,13 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
-    const css = getPrintCSS(template);
+    let css: string;
+    if (config) {
+      const spec = getTemplateFromConfig(config);
+      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3);
+    } else {
+      css = getPrintCSS(template);
+    }
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas de Produto – CORE</title><style>${css}</style></head><body>${printContent.innerHTML}</body></html>`;
