@@ -192,13 +192,110 @@ export type TipoEtiqueta = "ENDERECO" | "HU" | "PRODUTO" | "VOLUME";
 export interface EtiquetaConfigLike {
   tamanho: string;
   orientacao: "horizontal" | "vertical";
+  largura_mm?: number;
+  altura_mm?: number;
 }
 
 /**
- * Converte uma config de template (vinda do banco) em um TemplateSpec existente.
- * Reutiliza getTemplateFromSelection para não duplicar lógica.
+ * Converte uma config de template (vinda do banco) em um TemplateSpec.
+ * Se `largura_mm`/`altura_mm` presentes → dimensões customizadas.
+ * Caso contrário → fallback para preset via `getTemplateFromSelection`.
  */
 export function getTemplateFromConfig(config: EtiquetaConfigLike): TemplateSpec {
+  if (config.largura_mm && config.altura_mm) {
+    const widthMm = config.largura_mm;
+    const heightMm = config.altura_mm;
+    const widthPx = Math.round(widthMm * MM_TO_PX);
+    const heightPx = Math.round(heightMm * MM_TO_PX);
+    const isSmall = widthMm <= 50 || heightMm <= 25;
+    return {
+      id: `CUSTOM_${widthMm}x${heightMm}` as TemplateId,
+      widthMm,
+      heightMm,
+      widthPx,
+      heightPx,
+      orientation: config.orientacao || (widthMm >= heightMm ? "horizontal" : "vertical"),
+      barcode: {
+        moduleWidth: isSmall ? 2 : 3,
+        height: isSmall ? 60 : 120,
+        margin: isSmall ? 10 : 16,
+      },
+      qrCode: {
+        size: isSmall ? 48 : 96,
+        margin: 2,
+      },
+      quietZone: {
+        horizontal: isSmall ? 12 : 16,
+        vertical: isSmall ? 10 : 12,
+      },
+    };
+  }
   const tamanho = (config.tamanho as "100x40" | "50x20" | "80x20") || "100x40";
   return getTemplateFromSelection(tamanho, config.orientacao || "horizontal");
 }
+
+/**
+ * CSS de impressão para dimensões customizadas, com suporte opcional a impressão
+ * em rolo de duas colunas (linhas com dois rótulos lado a lado + gap horizontal).
+ */
+export function getPrintCSSFromConfig(
+  widthMm: number,
+  heightMm: number,
+  duasColunas: boolean = false,
+  intervaloColunasMm: number = 3
+): string {
+  const pageWidth = duasColunas ? widthMm * 2 + intervaloColunasMm : widthMm;
+  return `
+    @media print {
+      @page {
+        size: ${pageWidth}mm ${heightMm}mm;
+        margin: 0;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        zoom: 1 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      * {
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        -webkit-font-smoothing: none;
+      }
+      .etiqueta-thermal {
+        page-break-after: always;
+        break-after: page;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      ${duasColunas ? `
+      .etiqueta-row {
+        display: flex;
+        flex-direction: row;
+        gap: ${intervaloColunasMm}mm;
+        page-break-after: always;
+        break-after: page;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .etiqueta-row .etiqueta-thermal {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      ` : ""}
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: white; }
+    .etiqueta-thermal {
+      page-break-after: always;
+      break-after: page;
+    }
+    .etiqueta-row {
+      display: flex;
+      flex-direction: row;
+      gap: ${intervaloColunasMm}mm;
+    }
+  `;
+}
+
