@@ -135,7 +135,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       toast.success("Endereço confirmado!");
       onNavigate("/coletor/inventario/produto");
     } catch {
-      setErrorDialog("Erro ao validar endereço.");
+      result.showError(new Error("Erro ao validar endereço."), { context: "inventario-endereco", onClose: () => setLastScanned("") });
     } finally {
       setLoading(false);
     }
