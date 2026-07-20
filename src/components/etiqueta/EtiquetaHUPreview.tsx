@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
-import { QRCodeRenderer } from "./QRCodeRenderer";
+import { getTemplateFromConfig } from "./thermalEngine";
+import type { CampoEtiqueta } from "@/hooks/useEtiquetaTemplate";
 
 interface HULike {
   id: string | number;
@@ -9,14 +10,23 @@ interface HULike {
   tamanho?: string;
 }
 
+export interface EtiquetaTemplateOverride {
+  tamanho: string;
+  orientacao: "horizontal" | "vertical";
+  com_cabecalho: boolean;
+  com_logo: boolean;
+  logo_url: string | null;
+  campos: CampoEtiqueta[];
+}
+
 interface EtiquetaHUPreviewProps {
   hus: HULike[];
   isPrint?: boolean;
+  config?: EtiquetaTemplateOverride;
 }
 
-// Fixed 203 DPI dimensions: 100mm x 40mm = 800px x 320px
-const W_PX = 800;
-const H_PX = 320;
+const DEFAULT_W = 800;
+const DEFAULT_H = 320;
 
 function BarcodeHU({ value }: { value: string }) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -42,15 +52,32 @@ function BarcodeHU({ value }: { value: string }) {
   return <svg ref={svgRef} style={{ display: "block" }} />;
 }
 
-function EtiquetaHUSingle({ hu, isPrint }: { hu: HULike; isPrint: boolean }) {
+function EtiquetaHUSingle({
+  hu,
+  isPrint,
+  config,
+}: {
+  hu: HULike;
+  isPrint: boolean;
+  config?: EtiquetaTemplateOverride;
+}) {
   const label = hu.codigo_hu || "";
+  const spec = config ? getTemplateFromConfig(config) : null;
+  const WPX = spec?.widthPx ?? DEFAULT_W;
+  const HPX = spec?.heightPx ?? DEFAULT_H;
+  const showHeader = config ? config.com_cabecalho !== false : true;
+  const showLogo = config ? config.com_logo && !!config.logo_url : false;
+
+  const campos = config
+    ? (config.campos || []).filter((c) => c.ativo).sort((a, b) => a.ordem - b.ordem)
+    : null;
 
   return (
     <div
       className="etiqueta-thermal"
       style={{
-        width: `${W_PX}px`,
-        height: `${H_PX}px`,
+        width: `${WPX}px`,
+        height: `${HPX}px`,
         background: "#FFFFFF",
         overflow: "hidden",
         pageBreakInside: "avoid",
@@ -62,27 +89,31 @@ function EtiquetaHUSingle({ hu, isPrint }: { hu: HULike; isPrint: boolean }) {
         flexDirection: "column",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          height: "56px",
-          background: "#FFFFFF",
-          borderBottom: "3px solid #000000",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingLeft: "16px",
-          paddingRight: "16px",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ color: "#000000", fontSize: "14px", fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase" }}>
-          CORE LOGITRACK
-        </span>
-        <span style={{ color: "#000000", fontSize: "11px", fontWeight: 700 }}>HU</span>
-      </div>
+      {showHeader && (
+        <div
+          style={{
+            height: "56px",
+            background: "#FFFFFF",
+            borderBottom: "3px solid #000000",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingLeft: "16px",
+            paddingRight: "16px",
+            flexShrink: 0,
+          }}
+        >
+          {showLogo && config?.logo_url ? (
+            <img src={config.logo_url} alt="Logo" style={{ maxHeight: 40, maxWidth: 140, objectFit: "contain" }} />
+          ) : (
+            <span style={{ color: "#000000", fontSize: "14px", fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase" }}>
+              {config ? "" : "CORE LOGITRACK"}
+            </span>
+          )}
+          <span style={{ color: "#000000", fontSize: "11px", fontWeight: 700 }}>HU</span>
+        </div>
+      )}
 
-      {/* Barcode */}
       <div
         style={{
           flex: 1,
@@ -100,7 +131,6 @@ function EtiquetaHUSingle({ hu, isPrint }: { hu: HULike; isPrint: boolean }) {
         )}
       </div>
 
-      {/* Code text */}
       <div
         style={{
           height: "36px",
@@ -118,7 +148,6 @@ function EtiquetaHUSingle({ hu, isPrint }: { hu: HULike; isPrint: boolean }) {
         {label}
       </div>
 
-      {/* Info */}
       <div
         style={{
           height: "28px",
@@ -133,14 +162,33 @@ function EtiquetaHUSingle({ hu, isPrint }: { hu: HULike; isPrint: boolean }) {
           background: "#FFFFFF",
         }}
       >
-        {hu.tamanho && <span>TAM: {hu.tamanho}</span>}
-        {hu.tipo_hu && <span>TIPO: {hu.tipo_hu}</span>}
+        {campos
+          ? campos
+              .filter((c) => c.chave !== "codigo_hu")
+              .map((c) => {
+                const val =
+                  c.chave === "tipo_hu" ? hu.tipo_hu :
+                  c.chave === "tamanho" ? hu.tamanho :
+                  (hu as any)[c.chave];
+                if (val == null || val === "") return null;
+                return (
+                  <span key={c.chave}>
+                    {(c.label || c.chave).toUpperCase()}: {String(val)}
+                  </span>
+                );
+              })
+          : (
+              <>
+                {hu.tamanho && <span>TAM: {hu.tamanho}</span>}
+                {hu.tipo_hu && <span>TIPO: {hu.tipo_hu}</span>}
+              </>
+            )}
       </div>
     </div>
   );
 }
 
-export function EtiquetaHUPreview({ hus, isPrint = false }: EtiquetaHUPreviewProps) {
+export function EtiquetaHUPreview({ hus, isPrint = false, config }: EtiquetaHUPreviewProps) {
   return (
     <>
       {hus.map((hu, idx) => (
@@ -155,7 +203,7 @@ export function EtiquetaHUPreview({ hus, isPrint = false }: EtiquetaHUPreviewPro
             marginBottom: isPrint ? "0" : idx < hus.length - 1 ? "24px" : "0",
           }}
         >
-          <EtiquetaHUSingle hu={hu} isPrint={isPrint} />
+          <EtiquetaHUSingle hu={hu} isPrint={isPrint} config={config} />
         </div>
       ))}
     </>
