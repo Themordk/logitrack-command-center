@@ -1526,14 +1526,20 @@ export type Database = {
       }
       etiqueta_template: {
         Row: {
+          altura_mm: number
           ativo: boolean
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
           created_at: string
           created_by: string | null
+          direcao_seta: string
+          duas_colunas: boolean
           empresa_id: string | null
+          escala_fonte: number
           id: string
+          intervalo_colunas_mm: number
+          largura_mm: number
           logo_url: string | null
           nome: string
           orientacao: string
@@ -1545,14 +1551,20 @@ export type Database = {
           versao: number
         }
         Insert: {
+          altura_mm?: number
           ativo?: boolean
           campos?: Json
           com_cabecalho?: boolean
           com_logo?: boolean
           created_at?: string
           created_by?: string | null
+          direcao_seta?: string
+          duas_colunas?: boolean
           empresa_id?: string | null
+          escala_fonte?: number
           id?: string
+          intervalo_colunas_mm?: number
+          largura_mm?: number
           logo_url?: string | null
           nome: string
           orientacao?: string
@@ -1564,14 +1576,20 @@ export type Database = {
           versao?: number
         }
         Update: {
+          altura_mm?: number
           ativo?: boolean
           campos?: Json
           com_cabecalho?: boolean
           com_logo?: boolean
           created_at?: string
           created_by?: string | null
+          direcao_seta?: string
+          duas_colunas?: boolean
           empresa_id?: string | null
+          escala_fonte?: number
           id?: string
+          intervalo_colunas_mm?: number
+          largura_mm?: number
           logo_url?: string | null
           nome?: string
           orientacao?: string
@@ -5654,6 +5672,7 @@ export type Database = {
           id: string
           m3: number | null
           movimento_saida_id: string
+          numero_volume: number | null
           peso_bruto: number | null
           status: Database["public"]["Enums"]["enum_status_volume"]
           tenant_id: string
@@ -5666,6 +5685,7 @@ export type Database = {
           id?: string
           m3?: number | null
           movimento_saida_id: string
+          numero_volume?: number | null
           peso_bruto?: number | null
           status?: Database["public"]["Enums"]["enum_status_volume"]
           tenant_id: string
@@ -5678,6 +5698,7 @@ export type Database = {
           id?: string
           m3?: number | null
           movimento_saida_id?: string
+          numero_volume?: number | null
           peso_bruto?: number | null
           status?: Database["public"]["Enums"]["enum_status_volume"]
           tenant_id?: string
@@ -8748,14 +8769,20 @@ export type Database = {
       resolver_etiqueta_template: {
         Args: { p_empresa_id?: string; p_tipo: string }
         Returns: {
+          altura_mm: number
           ativo: boolean
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
           created_at: string
           created_by: string | null
+          direcao_seta: string
+          duas_colunas: boolean
           empresa_id: string | null
+          escala_fonte: number
           id: string
+          intervalo_colunas_mm: number
+          largura_mm: number
           logo_url: string | null
           nome: string
           orientacao: string
