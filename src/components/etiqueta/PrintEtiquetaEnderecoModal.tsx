@@ -264,9 +264,9 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+              <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} direcaoSeta={direcaoSeta} config={configOverride} />
             </div>
-            <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+            <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} direcaoSeta={direcaoSeta} config={configOverride} />
           </div>
         </div>
       )}
