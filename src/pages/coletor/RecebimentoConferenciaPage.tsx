@@ -18,6 +18,7 @@ interface ItemResumo {
   quantidade_executada: number;
   concluido_em: string | null;
   lote: string;
+  divergente?: boolean;
 }
 
 export function RecebimentoConferenciaPage({ onNavigate }: Props) {
@@ -40,7 +41,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     try {
       const { data, error } = await (supabase as any)
         .from("vw_movimento_entrada_conferencia_detalhe")
-        .select("movimento_id, tarefa_execucao_id, sku, descricao, operador, codigo_hu, quantidade_executada, concluido_em, lote")
+        .select("movimento_id, tarefa_execucao_id, sku, descricao, operador, codigo_hu, quantidade_executada, concluido_em, lote, status")
         .eq("movimento_id", movimentoId);
       if (error) throw error;
 
@@ -48,13 +49,16 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       const grouped = new Map<string, ItemResumo>();
       for (const row of (data || [])) {
         const key = row.sku || row.tarefa_execucao_id;
+        const isDiv = row.status === "DIVERGENTE";
         if (grouped.has(key)) {
           const existing = grouped.get(key)!;
           existing.quantidade_executada += Number(row.quantidade_executada || 0);
+          if (isDiv) existing.divergente = true;
         } else {
           grouped.set(key, {
             ...row,
             quantidade_executada: Number(row.quantidade_executada || 0),
+            divergente: isDiv,
           });
         }
       }
@@ -122,8 +126,13 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
         <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
           {itens.map((item, idx) => (
             <div key={item.sku || idx} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 shrink-0">
-              <div className="flex justify-between items-start mb-1">
+              <div className="flex justify-between items-start mb-1 gap-2">
                 <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
+                {item.divergente && (
+                  <span title="Item divergente" className="shrink-0">
+                    <AlertTriangle size={16} className="text-[#F59E0B]" />
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => {

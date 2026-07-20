@@ -357,8 +357,15 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
                 {items.map((item) => (
                   <div key={item.tarefa_execucao_id} className="p-2 rounded-lg bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,20%)] flex items-center gap-2 shrink-0">
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline">
-                        <span className="font-mono text-sm font-bold text-white">{item.sku}</span>
+                      <div className="flex justify-between items-baseline gap-2">
+                        <span className="font-mono text-sm font-bold text-white flex items-center gap-1">
+                          {item.sku}
+                          {item.status === "DIVERGENTE" && (
+                            <span title="Item divergente">
+                              <AlertTriangle size={14} className="text-[#F59E0B]" />
+                            </span>
+                          )}
+                        </span>
                         <span className="text-sm font-bold text-[#22C55E]">{item.quantidade_executada}</span>
                       </div>
                       <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.descricao}</p>
@@ -419,7 +426,16 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       )}
 
       {/* Lote/Validade Modal */}
-      {showLoteModal && currentProduct && (
+      {showLoteModal && currentProduct && (() => {
+        const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });
+        let dateError = "";
+        if (fabricacao && validade) {
+          if (validade < fabricacao) dateError = "Validade não pode ser anterior à fabricação.";
+          else if (validade < hoje) dateError = "Produto vencido — validade anterior à data atual.";
+        }
+        const needsDates = currentProduct.tipo_controle === "VALIDADE" || currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE";
+        const needsLote = currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE";
+        return (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center p-4">
           <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-3 animate-in slide-in-from-bottom duration-200">
             <h3 className="text-lg font-bold text-white">
@@ -431,14 +447,14 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
               <p className="text-2xl font-bold text-white">{quantidade}</p>
             </div>
 
-            {(currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && (
+            {needsLote && (
               <div>
                 <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Lote *</label>
                 <input value={lote} onChange={(e) => setLote(e.target.value)} className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-lg text-white outline-none focus:border-[hsl(217,91%,50%)]" autoFocus />
               </div>
             )}
 
-            {(currentProduct.tipo_controle === "VALIDADE" || currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && (
+            {needsDates && (
               <>
                 <div>
                   <label className="block text-xs font-semibold text-[hsl(213,31%,55%)] mb-1 uppercase">Fabricação *</label>
@@ -458,6 +474,12 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
                     className="w-full h-12 px-3 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,14%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
                   />
                 </div>
+                {dateError && (
+                  <div className="rounded-lg bg-[#E02424]/15 border border-[#E02424]/40 px-3 py-2 flex items-start gap-2">
+                    <AlertTriangle size={16} className="text-[#E02424] shrink-0 mt-0.5" />
+                    <span className="text-xs text-[#E02424] font-semibold">{dateError}</span>
+                  </div>
+                )}
               </>
             )}
 
@@ -466,8 +488,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
               loading={saving}
               variant="success"
               disabled={
-                ((currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && !lote) ||
-                ((currentProduct.tipo_controle === "VALIDADE" || currentProduct.tipo_controle === "LOTE" || currentProduct.tipo_controle === "LOTE_SERIE") && (!fabricacao || !validade))
+                (needsLote && !lote) ||
+                (needsDates && (!fabricacao || !validade)) ||
+                !!dateError
               }
             >
               CONFIRMAR
@@ -475,7 +498,8 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
             <ActionButton onClick={() => setShowLoteModal(false)} variant="secondary">CANCELAR</ActionButton>
           </div>
         </div>
-      )}
+        );
+      })()}
     </ColetorLayout>
   );
 }
