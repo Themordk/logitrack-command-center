@@ -53,8 +53,9 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
         return (a.numero_onda || 0) - (b.numero_onda || 0);
       });
       setOndas(parsed);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const parsed = parseError(err, "conferencia-ondas");
+      toast.error(parsed.title);
     } finally {
       setLoading(false);
     }
@@ -75,17 +76,17 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao buscar tarefas" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro ao buscar tarefas");
         return;
       }
 
-      const tarefas = Array.isArray(result) ? result : [];
+      const tarefas = Array.isArray(rpcResult) ? rpcResult : [];
 
       sessionStorage.setItem("coletor_conferencia_movimento_id", selectedId);
       sessionStorage.setItem("coletor_conferencia_numero_onda", String(onda.numero_onda));
@@ -93,25 +94,21 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
       sessionStorage.setItem("coletor_conferencia_tarefa_idx", "0");
 
       if (tarefas.length === 0) {
-        setResultDialog({ sucesso: false, mensagem: "Nenhuma tarefa pendente para esta onda." });
+        result.showWarning("Nenhuma tarefa pendente para esta onda.");
         return;
       }
 
-      setResultDialog({ sucesso: true, mensagem: `Conferência da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!` });
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+      result.showSuccess(`Conferência da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!`, {
+        onClose: () => onNavigate("/coletor/conferencia/produto"),
+      });
+    } catch (err: unknown) {
+      result.showError(err, { context: "conferencia-iniciar" });
     } finally {
       setStarting(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      onNavigate("/coletor/conferencia/produto");
-    }
-  };
+
 
   const getPrioridadeColor = (p: string) => {
     const upper = (p || "").toUpperCase();
