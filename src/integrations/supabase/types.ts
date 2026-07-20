@@ -7675,6 +7675,51 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_gme_analisar_documentos: {
+        Args: { p_documento_entrada_ids: string[]; p_tenant_id: string }
+        Returns: Record<string, unknown>
+      }
+      fn_gme_criar_manual: {
+        Args: {
+          p_armazem_id: string
+          p_box_id: string
+          p_confirma_volume: boolean
+          p_crossdocking: boolean
+          p_documento_entrada_ids: string[]
+          p_observacao: string
+          p_placa_veiculo: string
+          p_tenant_id: string
+          p_usuario_id: string
+          p_valor_descarga: number
+        }
+        Returns: Json
+      }
+      fn_gme_persistir_movimento: {
+        Args: {
+          p_armazem_id: string
+          p_box_id: string
+          p_confirma_volume: boolean
+          p_crossdocking: boolean
+          p_documento_entrada_ids: string[]
+          p_empresa_id: string
+          p_observacao: string
+          p_placa_veiculo: string
+          p_tenant_id: string
+          p_tipo_entrada_id: string
+          p_total_volume: number
+          p_usuario_id: string
+          p_valor_descarga: number
+        }
+        Returns: Record<string, unknown>
+      }
+      fn_gme_processar_automatico: {
+        Args: { p_tenant_id: string; p_usuario_id: string }
+        Returns: Json
+      }
+      fn_gme_validar_box: {
+        Args: { p_armazem_id: string; p_box_id: string; p_tenant_id: string }
+        Returns: undefined
+      }
       fn_inventario_buscar_tarefas: {
         Args: {
           p_contagem_inventario: number
@@ -7763,12 +7808,176 @@ export type Database = {
         }
         Returns: string
       }
+      fn_liberar_armz_carregar_contexto: {
+        Args: { p_movimento_entrada_id: string; p_tenant_id: string }
+        Returns: Record<string, unknown>
+      }
+      fn_liberar_armz_concluir_conferencia: {
+        Args: {
+          p_item_ids: string[]
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_tipo_tarefa_armz_id: string
+        }
+        Returns: number
+      }
+      fn_liberar_armz_contar_itens: {
+        Args: { p_movimento_entrada_id: string; p_tenant_id: string }
+        Returns: Record<string, unknown>
+      }
+      fn_liberar_armz_criar_tarefas: {
+        Args: {
+          p_armazem_id: string
+          p_automatica: boolean
+          p_empresa_id: string
+          p_endereco_auto_id: string
+          p_item_ids: string[]
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_tipo_tarefa_armz_id: string
+          p_usuario_id: string
+        }
+        Returns: number
+      }
+      fn_liberar_armz_executar_automatica: {
+        Args: {
+          p_endereco_auto_id: string
+          p_item_ids: string[]
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_tipo_tarefa_armz_id: string
+          p_usuario_id: string
+        }
+        Returns: number
+      }
+      fn_liberar_armz_finalizar_automatico: {
+        Args: {
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
+      fn_liberar_armz_finalizar_manual: {
+        Args: {
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: string
+      }
+      fn_liberar_armz_normalizar_divergentes: {
+        Args: { p_itens_divergentes: Json }
+        Returns: Json
+      }
+      fn_liberar_armz_processar_divergentes: {
+        Args: {
+          p_armazem_id: string
+          p_divergentes: Json
+          p_empresa_id: string
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: number
+      }
       fn_limpar_conferencia_entrada: {
         Args: {
           p_quantidade: number
           p_tarefa_execucao_id: string
           p_tarefa_id: string
           p_tenant_id: string
+        }
+        Returns: undefined
+      }
+      fn_pme_atualizar_situacao_endereco: {
+        Args: {
+          p_endereco_destino_id: string
+          p_endereco_origem_id: string
+          p_tenant_id: string
+          p_tipo_movimento: number
+        }
+        Returns: undefined
+      }
+      fn_pme_baixar_estoque_origem: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_origem_id: string
+          p_fabricacao: string
+          p_hu_id: string
+          p_lote: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+          p_validade: string
+        }
+        Returns: undefined
+      }
+      fn_pme_capturar_saldos_anteriores: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_destino_id: string
+          p_endereco_origem_id: string
+          p_produto_id: string
+          p_tenant_id: string
+          p_tipo_movimento: number
+        }
+        Returns: Record<string, unknown>
+      }
+      fn_pme_carregar_execucao: {
+        Args: { p_tarefa_execucao_id: string }
+        Returns: Record<string, unknown>
+      }
+      fn_pme_creditar_estoque_destino: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_destino_id: string
+          p_fabricacao: string
+          p_hu_id: string
+          p_lote: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+          p_validade: string
+        }
+        Returns: undefined
+      }
+      fn_pme_processar_inventario: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_origem_id: string
+          p_fabricacao: string
+          p_hu_id: string
+          p_id_documento_origem: string
+          p_lote: string
+          p_produto_id: string
+          p_tarefa_id: string
+          p_te_id: string
+          p_tenant_id: string
+          p_tipo_documento_origem: string
+          p_tipo_movimento: number
+          p_usuario_id: string
+          p_validade: string
+        }
+        Returns: undefined
+      }
+      fn_pme_processar_normal: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_destino_id: string
+          p_endereco_origem_id: string
+          p_fabricacao: string
+          p_hu_id: string
+          p_id_documento_origem: string
+          p_lote: string
+          p_produto_id: string
+          p_quantidade: number
+          p_te_id: string
+          p_tenant_id: string
+          p_tipo_documento_origem: string
+          p_tipo_movimento: number
+          p_usuario_id: string
+          p_validade: string
         }
         Returns: undefined
       }
