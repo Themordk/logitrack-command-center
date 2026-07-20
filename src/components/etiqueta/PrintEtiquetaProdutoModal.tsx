@@ -9,8 +9,11 @@ import {
   type OrientacaoEtiqueta,
 } from "./EtiquetaProdutoPreview";
 import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
-import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
 import { useTenant } from "@/contexts/TenantContext";
+import { supabase } from "@/integrations/supabase/client";
+import { parseError } from "@/lib/errorMapper";
+import { toast } from "sonner";
+import type { EtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 
 interface Props {
   open: boolean;
@@ -21,8 +24,6 @@ interface Props {
 type Saida = "preview" | "imprimir";
 
 export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
-  const [tamanho, setTamanho] = useState<TamanhoEtiqueta>("100x40");
-  const [orientacao, setOrientacao] = useState<OrientacaoEtiqueta>("horizontal");
   const [saida, setSaida] = useState<Saida>("preview");
   const [showPreview, setShowPreview] = useState(false);
   const [opt, setOpt] = useState<EtiquetaProdutoOptions>({});
@@ -30,26 +31,57 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const { empresaId } = useTenant();
-  const { config, loading: loadingConfig } = useEtiquetaTemplate("PRODUTO", empresaId);
-  const [defaultsApplied, setDefaultsApplied] = useState(false);
+
+  const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
+  const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
+  const [loadingConfig, setLoadingConfig] = useState(false);
 
   useEffect(() => {
-    if (config && !defaultsApplied) {
-      if (config.tamanho) setTamanho(config.tamanho as TamanhoEtiqueta);
-      if (config.orientacao) setOrientacao(config.orientacao as OrientacaoEtiqueta);
-      setDuasColunas(!!config.duas_colunas);
-      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
-      setDefaultsApplied(true);
+    if (!open) return;
+    let cancelled = false;
+    async function load() {
+      setLoadingConfig(true);
+      try {
+        const { data, error } = await (supabase.rpc as any)(
+          "listar_etiqueta_templates",
+          { p_tipo: "PRODUTO", p_empresa_id: empresaId || null }
+        );
+        if (cancelled) return;
+        if (error) throw error;
+        const parsed: EtiquetaConfig[] = (data || []).map((row: any) => ({
+          ...row,
+          campos: typeof row.campos === "string" ? JSON.parse(row.campos) : row.campos,
+        }));
+        setTemplates(parsed);
+        const padrao = parsed.find((t) => t.padrao) || parsed[0] || null;
+        setSelectedConfig(padrao);
+      } catch (err: any) {
+        if (!cancelled) toast.error(parseError(err, "carregar templates").title);
+      } finally {
+        if (!cancelled) setLoadingConfig(false);
+      }
     }
-  }, [config, defaultsApplied]);
+    load();
+    return () => { cancelled = true; };
+  }, [open, empresaId]);
+
+  useEffect(() => {
+    if (selectedConfig) {
+      setDuasColunas(!!selectedConfig.duas_colunas);
+      setIntervaloColunasMm(selectedConfig.intervalo_colunas_mm ?? 3);
+    }
+  }, [selectedConfig]);
+
+  const tamanho: TamanhoEtiqueta = (selectedConfig?.tamanho as TamanhoEtiqueta) || "100x40";
+  const orientacao: OrientacaoEtiqueta = (selectedConfig?.orientacao as OrientacaoEtiqueta) || "horizontal";
 
   const configOverride = useMemo(() => {
-    if (!config) return undefined;
-    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
-  }, [config, duasColunas, intervaloColunasMm]);
+    if (!selectedConfig) return undefined;
+    return { ...selectedConfig, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [selectedConfig, duasColunas, intervaloColunasMm]);
 
   const plural = items.length > 1;
-  const template = getTemplateFromSelection(tamanho, orientacao);
+  const template = selectedConfig ? getTemplateFromConfig(selectedConfig) : getTemplateFromSelection(tamanho, orientacao);
 
   const validationErrors: string[] = [];
   items.forEach((it) => {
@@ -69,8 +101,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
     const printContent = printRef.current;
     if (!printContent) return;
     let css: string;
-    if (config) {
-      const spec = getTemplateFromConfig(config);
+    if (selectedConfig) {
+      const spec = getTemplateFromConfig(selectedConfig);
       css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, duasColunas, intervaloColunasMm);
     } else {
       css = getPrintCSS(template);
@@ -122,9 +154,15 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
           <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
             <Settings2 size={13} className="text-primary shrink-0" />
             <span className="text-xs text-primary font-medium">
-              {items.length} {plural ? "etiquetas" : "etiqueta"} · Template: {template.id}
+              {items.length} {plural ? "etiquetas" : "etiqueta"}
             </span>
           </div>
+
+          {loadingConfig && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 size={12} className="animate-spin" /> Carregando templates...
+            </div>
+          )}
 
           {hasErrors && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
@@ -138,14 +176,38 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
           )}
 
           <div className="space-y-4">
-            <SelectField label="📐 Tamanho" value={tamanho} onChange={(v) => setTamanho(v as TamanhoEtiqueta)} options={[
-              { value: "100x40", label: "100mm × 40mm – 800×320px (Industrial)" },
-              { value: "50x20", label: "50mm × 20mm – 400×160px (Compacta)" },
-            ]} />
-            <SelectField label="🔄 Orientação" value={orientacao} onChange={(v) => setOrientacao(v as OrientacaoEtiqueta)} options={[
-              { value: "horizontal", label: "Horizontal (Paisagem)" },
-              { value: "vertical", label: "Vertical (Retrato)" },
-            ]} />
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                📐 Template
+              </label>
+              <select
+                value={selectedConfig?.id || ""}
+                onChange={(e) => {
+                  const t = templates.find((t) => t.id === e.target.value);
+                  if (t) setSelectedConfig(t);
+                }}
+                disabled={templates.length === 0}
+                className="w-full h-10 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+              >
+                {templates.length === 0 ? (
+                  <option value="">Nenhum template cadastrado</option>
+                ) : (
+                  templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome} — {t.largura_mm}×{t.altura_mm}mm{t.padrao ? " (Padrão)" : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+              {selectedConfig && (
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  {selectedConfig.largura_mm}×{selectedConfig.altura_mm}mm ·{" "}
+                  {selectedConfig.orientacao === "horizontal" ? "Paisagem" : "Retrato"} ·{" "}
+                  {Math.round(Number(selectedConfig.largura_mm) * 8)}×{Math.round(Number(selectedConfig.altura_mm) * 8)}px
+                </div>
+              )}
+            </div>
+
             <SelectField label="🖨️ Saída" value={saida} onChange={(v) => setSaida(v as Saida)} options={[
               { value: "preview", label: "Visualizar (Preview)" },
               { value: "imprimir", label: "Imprimir Diretamente" },
@@ -193,7 +255,6 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
               </div>
             </div>
 
-
             <div className="text-[10px] text-muted-foreground bg-secondary/50 rounded px-2 py-1.5">
               Otimizado para Elgin L42PRO · 203 DPI · Code128 · Dimensões fixas em pixels
             </div>
@@ -203,7 +264,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">Cancelar</button>
             <button
               onClick={handleGerar}
-              disabled={hasErrors}
+              disabled={hasErrors || !selectedConfig}
               className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saida === "preview" ? <><Eye size={15} />Gerar Preview</> : <><Printer size={15} />Imprimir Agora</>}
@@ -219,7 +280,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
               <Eye size={18} className="text-primary" />
               <div>
                 <p className="text-sm font-semibold text-foreground">Preview – {items.length} {plural ? "etiquetas" : "etiqueta"}</p>
-                <p className="text-xs text-muted-foreground">{template.id} · {template.widthPx}×{template.heightPx}px · 203 DPI</p>
+                <p className="text-xs text-muted-foreground">{template.widthMm}×{template.heightMm}mm · {template.widthPx}×{template.heightPx}px · 203 DPI</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

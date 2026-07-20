@@ -5,7 +5,10 @@ import { EtiquetaVolumePreview, type VolumeLike } from "./EtiquetaVolumePreview"
 import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
 import { useTenant } from "@/contexts/TenantContext";
 import { formatDateTime } from "@/utils/dateTime";
-import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
+import { supabase } from "@/integrations/supabase/client";
+import { parseError } from "@/lib/errorMapper";
+import { toast } from "sonner";
+import type { EtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 
 interface PrintEtiquetaVolumeModalProps {
   open: boolean;
@@ -17,30 +20,60 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
   const printRef = useRef<HTMLDivElement>(null);
   const { usuarioNome, empresaId } = useTenant();
   const dataHora = useMemo(() => formatDateTime(new Date()), [open]);
-  const { config, loading } = useEtiquetaTemplate("VOLUME", empresaId);
   const [duasColunas, setDuasColunas] = useState(false);
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
-  const [defaultsApplied, setDefaultsApplied] = useState(false);
+
+  const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
+  const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (config && !defaultsApplied) {
-      setDuasColunas(!!config.duas_colunas);
-      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
-      setDefaultsApplied(true);
+    if (!open) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const { data, error } = await (supabase.rpc as any)(
+          "listar_etiqueta_templates",
+          { p_tipo: "VOLUME", p_empresa_id: empresaId || null }
+        );
+        if (cancelled) return;
+        if (error) throw error;
+        const parsed: EtiquetaConfig[] = (data || []).map((row: any) => ({
+          ...row,
+          campos: typeof row.campos === "string" ? JSON.parse(row.campos) : row.campos,
+        }));
+        setTemplates(parsed);
+        const padrao = parsed.find((t) => t.padrao) || parsed[0] || null;
+        setSelectedConfig(padrao);
+      } catch (err: any) {
+        if (!cancelled) toast.error(parseError(err, "carregar templates").title);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }, [config, defaultsApplied]);
+    load();
+    return () => { cancelled = true; };
+  }, [open, empresaId]);
 
-  const template = config ? getTemplateFromConfig(config) : TEMPLATES.ARMAZEM_100x40_H;
+  useEffect(() => {
+    if (selectedConfig) {
+      setDuasColunas(!!selectedConfig.duas_colunas);
+      setIntervaloColunasMm(selectedConfig.intervalo_colunas_mm ?? 3);
+    }
+  }, [selectedConfig]);
+
+  const template = selectedConfig ? getTemplateFromConfig(selectedConfig) : TEMPLATES.ARMAZEM_100x40_H;
 
   const configOverride = useMemo(() => {
-    if (!config) return undefined;
-    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
-  }, [config, duasColunas, intervaloColunasMm]);
+    if (!selectedConfig) return undefined;
+    return { ...selectedConfig, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [selectedConfig, duasColunas, intervaloColunasMm]);
 
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
-    const css = config
+    const css = selectedConfig
       ? getPrintCSSFromConfig(template.widthMm, template.heightMm, duasColunas, intervaloColunasMm)
       : getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
@@ -65,7 +98,30 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
         </DialogHeader>
 
         <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 flex-wrap">
-          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções de impressão:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">📐 Template:</span>
+            <select
+              value={selectedConfig?.id || ""}
+              onChange={(e) => {
+                const t = templates.find((t) => t.id === e.target.value);
+                if (t) setSelectedConfig(t);
+              }}
+              disabled={templates.length === 0}
+              className="h-8 px-2 rounded-md bg-secondary border border-border text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+            >
+              {templates.length === 0 ? (
+                <option value="">Nenhum template</option>
+              ) : (
+                templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nome} — {t.largura_mm}×{t.altura_mm}mm{t.padrao ? " (Padrão)" : ""}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+          <div className="w-px h-5 bg-border" />
+          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções:</span>
           <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
             <input
               type="checkbox"
@@ -108,7 +164,7 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <X size={14} className="inline mr-1" /> Fechar
           </button>
-          <button onClick={triggerPrint} disabled={loading} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+          <button onClick={triggerPrint} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
             <Printer size={15} /> Imprimir {volumes.length} etiqueta{plural ? "s" : ""}
           </button>
         </div>

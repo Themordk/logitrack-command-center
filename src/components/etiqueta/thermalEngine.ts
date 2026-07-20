@@ -275,6 +275,7 @@ export function getPrintCSSFromConfig(
         display: flex;
         flex-direction: row;
         gap: ${intervaloColunasMm}mm;
+        justify-content: flex-start;
         page-break-after: always;
         break-after: page;
         page-break-inside: avoid;
@@ -283,6 +284,7 @@ export function getPrintCSSFromConfig(
       .etiqueta-row .etiqueta-thermal {
         page-break-after: auto;
         break-after: auto;
+        flex-shrink: 0;
       }
       ` : ""}
     }
@@ -296,7 +298,12 @@ export function getPrintCSSFromConfig(
       display: flex;
       flex-direction: row;
       gap: ${intervaloColunasMm}mm;
+      justify-content: flex-start;
     }
+    .etiqueta-row .etiqueta-thermal {
+      flex-shrink: 0;
+    }
+
   `;
 }
 

@@ -3,8 +3,11 @@ import { Printer, X, Eye, Settings2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaHUPreview } from "./EtiquetaHUPreview";
 import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
-import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
 import { useTenant } from "@/contexts/TenantContext";
+import { supabase } from "@/integrations/supabase/client";
+import { parseError } from "@/lib/errorMapper";
+import { toast } from "sonner";
+import type { EtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 
 interface PrintEtiquetaHUModalProps {
   open: boolean;
@@ -19,25 +22,56 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const [showPreview, setShowPreview] = useState(false);
   const [duasColunas, setDuasColunas] = useState(false);
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
-  const [defaultsApplied, setDefaultsApplied] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const plural = hus.length > 1;
   const { empresaId } = useTenant();
-  const { config, loading } = useEtiquetaTemplate("HU", empresaId);
-  const template = config ? getTemplateFromConfig(config) : TEMPLATES.ARMAZEM_100x40_H;
+
+  const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
+  const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (config && !defaultsApplied) {
-      setDuasColunas(!!config.duas_colunas);
-      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
-      setDefaultsApplied(true);
+    if (!open) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const { data, error } = await (supabase.rpc as any)(
+          "listar_etiqueta_templates",
+          { p_tipo: "HU", p_empresa_id: empresaId || null }
+        );
+        if (cancelled) return;
+        if (error) throw error;
+        const parsed: EtiquetaConfig[] = (data || []).map((row: any) => ({
+          ...row,
+          campos: typeof row.campos === "string" ? JSON.parse(row.campos) : row.campos,
+        }));
+        setTemplates(parsed);
+        const padrao = parsed.find((t) => t.padrao) || parsed[0] || null;
+        setSelectedConfig(padrao);
+      } catch (err: any) {
+        if (!cancelled) toast.error(parseError(err, "carregar templates").title);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-  }, [config, defaultsApplied]);
+    load();
+    return () => { cancelled = true; };
+  }, [open, empresaId]);
+
+  useEffect(() => {
+    if (selectedConfig) {
+      setDuasColunas(!!selectedConfig.duas_colunas);
+      setIntervaloColunasMm(selectedConfig.intervalo_colunas_mm ?? 3);
+    }
+  }, [selectedConfig]);
+
+  const template = selectedConfig ? getTemplateFromConfig(selectedConfig) : TEMPLATES.ARMAZEM_100x40_H;
 
   const configOverride = useMemo(() => {
-    if (!config) return undefined;
-    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
-  }, [config, duasColunas, intervaloColunasMm]);
+    if (!selectedConfig) return undefined;
+    return { ...selectedConfig, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [selectedConfig, duasColunas, intervaloColunasMm]);
 
   const handleGerar = () => {
     if (saida === "preview") setShowPreview(true);
@@ -47,7 +81,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
-    const css = config
+    const css = selectedConfig
       ? getPrintCSSFromConfig(template.widthMm, template.heightMm, duasColunas, intervaloColunasMm)
       : getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
@@ -79,11 +113,43 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
 
           {loading && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 size={12} className="animate-spin" /> Resolvendo template...
+              <Loader2 size={12} className="animate-spin" /> Carregando templates...
             </div>
           )}
 
           <div className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                📐 Template
+              </label>
+              <select
+                value={selectedConfig?.id || ""}
+                onChange={(e) => {
+                  const t = templates.find((t) => t.id === e.target.value);
+                  if (t) setSelectedConfig(t);
+                }}
+                disabled={templates.length === 0}
+                className="w-full h-10 px-3 rounded-lg bg-secondary border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+              >
+                {templates.length === 0 ? (
+                  <option value="">Nenhum template cadastrado</option>
+                ) : (
+                  templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome} — {t.largura_mm}×{t.altura_mm}mm{t.padrao ? " (Padrão)" : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+              {selectedConfig && (
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  {selectedConfig.largura_mm}×{selectedConfig.altura_mm}mm ·{" "}
+                  {selectedConfig.orientacao === "horizontal" ? "Paisagem" : "Retrato"} ·{" "}
+                  {Math.round(Number(selectedConfig.largura_mm) * 8)}×{Math.round(Number(selectedConfig.altura_mm) * 8)}px
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">🖨️ Saída</label>
               <select
@@ -126,7 +192,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
 
           <div className="flex items-center justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">Cancelar</button>
-            <button onClick={handleGerar} disabled={loading} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <button onClick={handleGerar} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
               {saida === "preview" ? <><Eye size={15} />Gerar Preview</> : <><Printer size={15} />Imprimir Agora</>}
             </button>
           </div>
