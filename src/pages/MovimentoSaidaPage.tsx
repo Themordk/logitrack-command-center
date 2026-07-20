@@ -84,7 +84,19 @@ interface MovSaida {
   parceiro_nome?: string;
   box_nome?: string;
   operadores_atribuidos?: string[];
+  tipo_saida_descricao?: string;
+  rota_descricao?: string | null;
+  veiculo_placa?: string | null;
+  operador_nome?: string | null;
+  total_itens?: number;
+  total_esperado?: number;
+  total_separado?: number;
+  total_conferido?: number;
+  total_cortado?: number;
 }
+
+const truncate = (s: string | null | undefined, n = 35) =>
+  s && s.length > n ? s.slice(0, n) + "…" : (s || "");
 
 interface OcorrenciaItem {
   sku?: string;
@@ -133,8 +145,17 @@ export function MovimentoSaidaPage() {
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterNumeroDocumento, setFilterNumeroDocumento] = useState("");
+  const [filterTipoSaidaId, setFilterTipoSaidaId] = useState("");
+  const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
+  const [filterVendedor, setFilterVendedor] = useState("");
+  const [filterTransportador, setFilterTransportador] = useState("");
 
   const debouncedOnda = useDebounce(filterOnda, 400);
+  const debouncedNumeroDocumento = useDebounce(filterNumeroDocumento, 400);
+  const debouncedParceiroCodigoErp = useDebounce(filterParceiroCodigoErp, 400);
+  const debouncedVendedor = useDebounce(filterVendedor, 400);
+  const debouncedTransportador = useDebounce(filterTransportador, 400);
 
   const [tabSeparacao, setTabSeparacao] = useState<any[]>([]);
   const [tabConferencia, setTabConferencia] = useState<any[]>([]);
@@ -181,7 +202,21 @@ export function MovimentoSaidaPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, tenantId, empresaId]);
+  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
+
+  // Tipo Saida options
+  const tipoSaidaOptionsQuery = useQuery({
+    queryKey: ["tipo-saida-options", tenantId, empresaId],
+    queryFn: async () => {
+      let q = (supabase as any).from("tipo_saida").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+      if (empresaId) q = q.eq("empresa_id", empresaId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId,
+    staleTime: 60_000,
+  });
 
   // List via RPC (server-side pagination)
   const listQuery = useQuery({
@@ -193,6 +228,11 @@ export function MovimentoSaidaPage() {
       filterDateFrom,
       filterDateTo,
       debouncedOnda,
+      debouncedNumeroDocumento,
+      filterTipoSaidaId,
+      debouncedParceiroCodigoErp,
+      debouncedVendedor,
+      debouncedTransportador,
       page,
     ],
     queryFn: async () => {
@@ -203,6 +243,11 @@ export function MovimentoSaidaPage() {
         p_data_de: filterDateFrom || null,
         p_data_ate: filterDateTo || null,
         p_numero_onda: debouncedOnda ? Number(debouncedOnda) : null,
+        p_numero_documento: debouncedNumeroDocumento ? Number(debouncedNumeroDocumento) : null,
+        p_tipo_saida_id: filterTipoSaidaId || null,
+        p_parceiro_codigo_erp: debouncedParceiroCodigoErp || null,
+        p_vendedor: debouncedVendedor || null,
+        p_transportador: debouncedTransportador || null,
         p_page: page,
         p_page_size: pageSize,
       });
@@ -229,8 +274,30 @@ export function MovimentoSaidaPage() {
     staleTime: 30_000,
   });
 
+  const tipoSaidaMapQuery = useQuery({
+    queryKey: ["ondas-tipo-saida-map", tenantId, movIdsKey],
+    queryFn: async () => {
+      const ids = movIdsKey ? movIdsKey.split(",") : [];
+      if (ids.length === 0) return new Map<string, string>();
+      const { data, error } = await (supabase as any)
+        .from("movimento_saida_documento")
+        .select("movimento_saida_id, documento_saida:documento_saida_id(tipo_saida:tipo_pedido_id(descricao))")
+        .in("movimento_saida_id", ids);
+      if (error) throw error;
+      const map = new Map<string, string>();
+      for (const row of (data || []) as any[]) {
+        const desc = row?.documento_saida?.tipo_saida?.descricao;
+        if (desc && !map.has(row.movimento_saida_id)) map.set(row.movimento_saida_id, desc);
+      }
+      return map;
+    },
+    enabled: !!tenantId && listRows.length > 0,
+    staleTime: 30_000,
+  });
+
   const movimentos: MovSaida[] = useMemo(() => {
     const opsMap = opsQuery.data || new Map<string, string[]>();
+    const tsMap = tipoSaidaMapQuery.data || new Map<string, string>();
     return listRows.map((r) => ({
       id: r.id,
       numero_onda: r.numero_onda,
@@ -251,13 +318,23 @@ export function MovimentoSaidaPage() {
       parceiro_nome: r.parceiro_nome || "—",
       box_nome: r.box_descricao || "—",
       operadores_atribuidos: opsMap.get(r.id) || [],
+      tipo_saida_descricao: tsMap.get(r.id) || "",
+      rota_descricao: r.rota_descricao || null,
+      veiculo_placa: r.veiculo_placa || null,
+      operador_nome: r.operador_nome || null,
+      total_itens: Number(r.total_itens || 0),
+      total_esperado: Number(r.total_esperado || 0),
+      total_separado: Number(r.total_separado || 0),
+      total_conferido: Number(r.total_conferido || 0),
+      total_cortado: Number(r.total_cortado || 0),
     }));
-  }, [listRows, opsQuery.data, empresaId]);
+  }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, empresaId]);
 
   const fetchMovimentos = useCallback(() => {
     listQuery.refetch();
     opsQuery.refetch();
-  }, [listQuery, opsQuery]);
+    tipoSaidaMapQuery.refetch();
+  }, [listQuery, opsQuery, tipoSaidaMapQuery]);
 
   // Items tab via RPC (lazy)
   const itemsQuery = useQuery({
@@ -645,6 +722,31 @@ export function MovimentoSaidaPage() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
+          <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Tipo Saída</label>
+          <select value={filterTipoSaidaId} onChange={(e) => setFilterTipoSaidaId(e.target.value)} className={cn(inputClass, "w-40")}>
+            <option value="">Todos</option>
+            {(tipoSaidaOptionsQuery.data || []).map((t) => (
+              <option key={t.id} value={t.id}>{t.descricao}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Cód. ERP Parceiro</label>
+          <input type="text" value={filterParceiroCodigoErp} onChange={(e) => setFilterParceiroCodigoErp(e.target.value)} placeholder="Código" className={cn(inputClass, "w-28")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Vendedor</label>
+          <input type="text" value={filterVendedor} onChange={(e) => setFilterVendedor(e.target.value)} placeholder="Nome" className={cn(inputClass, "w-32")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Transportador</label>
+          <input type="text" value={filterTransportador} onChange={(e) => setFilterTransportador(e.target.value)} placeholder="Nome" className={cn(inputClass, "w-32")} />
+        </div>
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
         </button>
@@ -745,9 +847,14 @@ export function MovimentoSaidaPage() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>{truncate(mov.parceiro_nome, 35)}</p>
                     <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
-                    <p className="text-xs text-muted-foreground">Box: {mov.box_nome} • {formatDate(mov.data_emissao)}</p>
+                    <div className="flex items-center justify-between mt-0.5 gap-2">
+                      <span className="text-xs text-muted-foreground truncate">Box: {mov.box_nome} • {formatDate(mov.data_emissao)}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[45%] text-right" title={mov.tipo_saida_descricao || ""}>
+                        {mov.tipo_saida_descricao || "—"}
+                      </span>
+                    </div>
                   </div>
                 );
               })
@@ -934,15 +1041,25 @@ export function MovimentoSaidaPage() {
                         {[
                           ["Nº Onda", `#${selectedMov.numero_onda}`],
                           ["Status", STATUS_MAP[selectedMov.status]?.label || selectedMov.status],
+                          ["Tipo de Saída", selectedMov.tipo_saida_descricao || "—"],
+                          ["Parceiro", selectedMov.parceiro_nome || "—"],
                           ["Data Emissão", formatDate(selectedMov.data_emissao)],
-                          ["Destino", selectedMov.destino_carga],
-                          ["Motorista", selectedMov.motorista || "—"],
                           ["Prioridade", selectedMov.prioridade || "—"],
+                          ["Box", selectedMov.box_nome || "—"],
+                          ["Rota", selectedMov.rota_descricao || "—"],
+                          ["Placa Veículo", selectedMov.veiculo_placa || "—"],
+                          ["Motorista", selectedMov.motorista || "—"],
+                          ["Operador", selectedMov.operador_nome || "—"],
+                          ["Destino", selectedMov.destino_carga || "—"],
                           ["Total Pedidos", String(selectedMov.total_pedidos || 0)],
+                          ["Total de Itens", String(selectedMov.total_itens || 0)],
                           ["Total Volumes", String(selectedMov.total_volume)],
+                          ["Total Esperado", Number(selectedMov.total_esperado || 0).toLocaleString("pt-BR")],
+                          ["Total Separado", Number(selectedMov.total_separado || 0).toLocaleString("pt-BR")],
+                          ["Total Conferido", Number(selectedMov.total_conferido || 0).toLocaleString("pt-BR")],
+                          ["Total Cortado", Number(selectedMov.total_cortado || 0).toLocaleString("pt-BR")],
                           ["Peso Total", selectedMov.peso_total ? `${Number(selectedMov.peso_total).toFixed(2)} kg` : "—"],
                           ["M³", selectedMov.m3 ? Number(selectedMov.m3).toFixed(3) : "—"],
-                          ["Box", selectedMov.box_nome || "—"],
                           ["Observação", selectedMov.observacao || "—"],
                         ].map(([label, value]) => (
                           <div key={label} className="p-2 rounded-md bg-secondary/30 border border-border/50">

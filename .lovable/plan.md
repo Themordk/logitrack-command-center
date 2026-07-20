@@ -1,43 +1,53 @@
-## Ajustes na tela /atividades/movimentos (Movimentos de Entrada)
+## Ajustes na tela /atividades/mov-saida (Ondas de Carregamento)
 
-### 1. Novos filtros (RPC já suporta)
-A RPC `listar_movimentos_entrada` já aceita `p_tipo_entrada_id`, `p_placa_veiculo`, `p_box_id` e `p_parceiro_codigo_erp`. Basta acrescentar os controles de UI e enviar os parâmetros.
+### 1. Novos filtros (RPC já suporta todos os parâmetros)
+A RPC `listar_ondas_carregamento` já aceita `p_numero_documento`, `p_tipo_saida_id`, `p_parceiro_codigo_erp`, `p_vendedor` e `p_transportador`.
 
-Em `src/pages/MovimentoEntradaPage.tsx`:
-- Adicionar 4 novos estados de filtro:
-  - `filterTipoEntradaId` — `<select>` populado por `tipo_entrada` (empresa/tenant ativos, `ativo=true`, ordenado por descrição). Carregado via `useQuery` estático.
-  - `filterPlacaVeiculo` — `<input text>` com debounce (400 ms), padroniza uppercase.
-  - `filterBoxId` — `<select>` populado por `box` (tenant + armazém ativo se houver, `ativo=true`).
-  - `filterParceiroCodigoErp` — `<input text>` com debounce (400 ms).
-- Incluir os novos valores no `queryKey` e no payload da RPC (`p_tipo_entrada_id`, `p_placa_veiculo`, `p_box_id`, `p_parceiro_codigo_erp`), enviando `null` quando vazios.
-- Resetar página ao alterar qualquer novo filtro.
-- Manter layout inline atual (`flex flex-wrap`), inserindo os campos na mesma linha dos existentes.
+Em `src/pages/MovimentoSaidaPage.tsx` adicionar os seguintes estados/controles, na mesma linha inline dos filtros atuais:
+- `filterNumeroDocumento` — `<input number>` com debounce (400 ms), enviado como `Number(...)` ou `null`.
+- `filterTipoSaidaId` — `<select>` populado por `tipo_saida` (`tenant_id`, `empresa_id` quando houver, `ativo=true`, `orderBy=descricao`) via `useQuery` estático.
+- `filterParceiroCodigoErp` — `<input text>` com debounce (400 ms).
+- `filterVendedor` — `<input text>` com debounce (400 ms).
+- `filterTransportador` — `<input text>` com debounce (400 ms).
 
-### 2. Truncar razão social do card do movimento (máx. 35 caracteres)
-No card do movimento (`movements.map` em torno da L582), aplicar truncamento no `parceiro_nome`:
-- Utilitário local: `const truncate = (s, n=35) => s && s.length > n ? s.slice(0, n) + '…' : s;`
-- Exibir `truncate(mov.parceiro_nome)`, mantendo `title={mov.parceiro_nome}` para tooltip nativo.
-- Preserva o `MoreVertical` sempre acessível sem scroll horizontal.
+Ajustes na `listQuery`:
+- Incluir os cinco novos valores debounced no `queryKey`.
+- Enviar os novos parâmetros no payload da RPC (`null` quando vazios).
+- Resetar `page` para 1 no `useEffect` de dependências dos filtros.
 
-### 3. Exibir Tipo de Entrada no card, alinhado à direita da Data
-- A RPC já retorna `tipo_entrada_descricao`. Propagar esse campo do `listRows` para `MovEntry` (novo campo `tipo_entrada_descricao?: string`).
-- Substituir a linha atual `<p className="text-xs text-muted-foreground">{fmtDate(...)}</p>` por um `flex justify-between`:
+### 2. Truncar razão social do card (máx. 35 caracteres)
+No card do movimento (L748):
+- Utilitário local `const truncate = (s, n=35) => s && s.length > n ? s.slice(0, n) + '…' : s;`
+- Substituir `{mov.parceiro_nome}` por `{truncate(mov.parceiro_nome)}` e adicionar `title={mov.parceiro_nome}` para tooltip nativo.
+
+### 3. Exibir Tipo de Saída no card, alinhado à direita da Data
+Contexto verificado: a RPC **não retorna** `tipo_saida_descricao` (Returns confirmadas via `pg_get_functiondef`). Como o requisito exige "nenhuma mudança na RPC", buscar o rótulo em query auxiliar, no padrão já usado por `opsQuery`:
+- Nova `tipoSaidaMapQuery` (`useQuery`), dependendo de `movIdsKey`:
+  - `select movimento_saida_id, documento_saida:tipo_pedido_id ( tipo_saida:tipo_pedido_id ( descricao ) )` a partir de `movimento_saida_documento` (JOIN → `documento_saida.tipo_pedido_id` → `tipo_saida.descricao`) filtrando por `movimento_saida_id in (ids)`.
+  - Reduzir para `Map<movimentoId, descricao>` — pegar o primeiro tipo distinto (na prática a onda tem um único `tipo_saida` porque o motor agrupa por tipo).
+- Propagar `tipo_saida_descricao?: string` na interface `MovSaida` e no `movimentos` memo.
+- Substituir a linha `Box: {mov.box_nome} • {formatDate(mov.data_emissao)}` (L750) por dois elementos em `flex justify-between`:
   ```
-  <div className="flex items-center justify-between mt-1">
-    <span className="text-xs text-muted-foreground">{fmtDate(mov.created_at)}</span>
+  <div className="flex items-center justify-between mt-0.5">
+    <span className="text-xs text-muted-foreground">Box: {mov.box_nome} • {formatDate(mov.data_emissao)}</span>
     <span className="text-xs text-muted-foreground truncate max-w-[45%] text-right">
-      {mov.tipo_entrada_descricao || '—'}
+      {mov.tipo_saida_descricao || '—'}
     </span>
   </div>
   ```
 
-### 4. Aba "Informações" — incluir campos faltantes do movimento
-Ampliar a view/interface e o card "Dados do Movimento":
-- Estender `MovimentoInfo` com os campos hoje ausentes: `tipo_entrada_descricao`, `numero_movimento`, `status`, `created_at`, `usuario_criacao` (login), `total_volume`, `total_volume_conferido` já existem.
-- Verificar se `vw_movimento_entrada_info` já expõe esses campos. Caso `tipo_entrada_descricao` ou `numero_movimento` estejam faltando, criar migração para adicioná-los à view (join com `tipo_entrada` e coluna direta de `movimento_entrada`).
-- No JSX da aba "Informações", adicionar novos campos ao grid "Dados do Movimento" (transformar em `grid-cols-3`) exibindo: **Nº Movimento**, **Tipo de Entrada**, **Status**, **Data Criação** — em complemento aos já existentes (Armazém, Box, Placa, Valor Descarga, Crossdocking, Observação).
+### 4. Aba "Informações" — incluir campos faltantes
+Campos do `movimento_saida` hoje ausentes do card "Dados do Movimento" (grid em L933): `numero_documento` (nº do movimento interno, se existir), `total_esperado`, `total_separado`, `total_conferido`, `total_cortado`, `total_itens`, `data_criacao`, `operador_nome`, `rota_descricao`, `veiculo_placa`, `tipo_saida_descricao`.
+
+Alterações:
+- Propagar os campos da RPC (`total_itens`, `total_esperado`, `total_separado`, `total_conferido`, `total_cortado`, `operador_nome`, `rota_descricao`, `veiculo_placa`) para dentro de `MovSaida` no memo `movimentos` (hoje descartados). Não requer migração — já vêm de `listar_ondas_carregamento`.
+- Reutilizar o `tipoSaidaMapQuery` do item 3 para o campo Tipo de Saída.
+- Ampliar o array do grid `Dados do Movimento` com os novos rótulos:
+  `Tipo de Saída`, `Rota`, `Placa Veículo`, `Operador`, `Total de Itens`, `Total Esperado`, `Total Separado`, `Total Conferido`, `Total Cortado`.
+- Manter `grid-cols-3` (o layout já é responsivo).
 
 ### Detalhes técnicos
-- Nenhuma mudança lógica na RPC (`listar_movimentos_entrada` já aceita todos os parâmetros).
-- Migração SQL apenas se `vw_movimento_entrada_info` não retornar `tipo_entrada_descricao`/`numero_movimento`; a confirmação será feita na primeira leitura antes de aplicar a migração.
-- Sem alteração no coletor.
+- Nenhuma mudança na RPC ou nas views de banco.
+- Toda a lógica adicional é frontend + uma query auxiliar (`tipoSaidaMapQuery`) já dentro do escopo de UI.
+- Manter o padrão de `useDebounce(400)`, `queryKey` incluindo filtros e `staleTime: 30_000` já vigente.
+- Sem alterações no coletor.
