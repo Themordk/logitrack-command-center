@@ -76,6 +76,7 @@ interface MovEntry {
   created_at: string;
   placa_veiculo: string | null;
   parceiro_nome?: string;
+  tipo_entrada_descricao?: string;
   operadores_atribuidos?: string[];
 }
 
