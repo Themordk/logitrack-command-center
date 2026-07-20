@@ -388,6 +388,10 @@ export function MovimentoEntradaPage() {
 
       if (infoData) {
         setMovimentoInfo({
+          numero_movimento: infoData.numero_movimento ?? null,
+          status: infoData.status ?? null,
+          created_at: infoData.created_at ?? null,
+          tipo_entrada_descricao: infoData.tipo_entrada_descricao ?? null,
           confirma_volume: infoData.confirma_volume,
           total_volume: infoData.total_volume,
           total_volume_conferido: infoData.total_volume_conferido,
