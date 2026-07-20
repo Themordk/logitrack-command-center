@@ -722,6 +722,31 @@ export function MovimentoSaidaPage() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
+          <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Tipo Saída</label>
+          <select value={filterTipoSaidaId} onChange={(e) => setFilterTipoSaidaId(e.target.value)} className={cn(inputClass, "w-40")}>
+            <option value="">Todos</option>
+            {(tipoSaidaOptionsQuery.data || []).map((t) => (
+              <option key={t.id} value={t.id}>{t.descricao}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Cód. ERP Parceiro</label>
+          <input type="text" value={filterParceiroCodigoErp} onChange={(e) => setFilterParceiroCodigoErp(e.target.value)} placeholder="Código" className={cn(inputClass, "w-28")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Vendedor</label>
+          <input type="text" value={filterVendedor} onChange={(e) => setFilterVendedor(e.target.value)} placeholder="Nome" className={cn(inputClass, "w-32")} />
+        </div>
+        <div>
+          <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Transportador</label>
+          <input type="text" value={filterTransportador} onChange={(e) => setFilterTransportador(e.target.value)} placeholder="Nome" className={cn(inputClass, "w-32")} />
+        </div>
         <button onClick={handleSearch} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1">
           <Search size={12} /> Filtrar
         </button>
