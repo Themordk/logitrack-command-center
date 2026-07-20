@@ -126,62 +126,57 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao registrar contagem" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro ao registrar contagem");
         return;
       }
 
-      setResultDialog({ sucesso: true, mensagem: "Contagem registrada com sucesso!" });
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+      result.showSuccess("Contagem registrada com sucesso!", { onClose: advanceToNext });
+    } catch (err: unknown) {
+      result.showError(err, { context: "inventario-contagem" });
     } finally {
       setConfirming(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      // Advance to next task
-      const tarefas = JSON.parse(sessionStorage.getItem("coletor_inventario_tarefas") || "[]");
-      const idx = Number(sessionStorage.getItem("coletor_inventario_tarefa_idx") || "0");
-      const nextIdx = idx + 1;
+  const advanceToNext = () => {
+    const tarefas = JSON.parse(sessionStorage.getItem("coletor_inventario_tarefas") || "[]");
+    const idx = Number(sessionStorage.getItem("coletor_inventario_tarefa_idx") || "0");
+    const nextIdx = idx + 1;
 
-      if (nextIdx >= tarefas.length) {
-        toast.success("Todas as contagens foram concluídas!");
-        onNavigate("/coletor/inventario");
-        return;
-      }
-
-      const proxima = tarefas[nextIdx];
-      sessionStorage.setItem("coletor_inventario_tarefa_idx", String(nextIdx));
-
-      const enderecoAtual =
-        tarefa?.endereco_id || tarefa?.id_local_origem || tarefa?.codigo_endereco;
-      const enderecoProxima =
-        proxima?.endereco_id || proxima?.id_local_origem || proxima?.codigo_endereco;
-
-      if (enderecoAtual && enderecoProxima && enderecoAtual === enderecoProxima) {
-        // Same address: update product context in place, stay on /produto
-        sessionStorage.setItem("coletor_inventario_tarefa_atual", JSON.stringify(proxima));
-        setTarefa(proxima);
-        setEanScanned("");
-        setEmbalagemInfo(null);
-        setEanConfirmado(false);
-        setQuantidade("");
-        toast.success("Próximo produto no mesmo endereço");
-        return;
-      }
-
-      onNavigate("/coletor/inventario/endereco");
+    if (nextIdx >= tarefas.length) {
+      toast.success("Todas as contagens foram concluídas!");
+      onNavigate("/coletor/inventario");
+      return;
     }
+
+    const proxima = tarefas[nextIdx];
+    sessionStorage.setItem("coletor_inventario_tarefa_idx", String(nextIdx));
+
+    const enderecoAtual =
+      tarefa?.endereco_id || tarefa?.id_local_origem || tarefa?.codigo_endereco;
+    const enderecoProxima =
+      proxima?.endereco_id || proxima?.id_local_origem || proxima?.codigo_endereco;
+
+    if (enderecoAtual && enderecoProxima && enderecoAtual === enderecoProxima) {
+      sessionStorage.setItem("coletor_inventario_tarefa_atual", JSON.stringify(proxima));
+      setTarefa(proxima);
+      setEanScanned("");
+      setEmbalagemInfo(null);
+      setEanConfirmado(false);
+      setQuantidade("");
+      toast.success("Próximo produto no mesmo endereço");
+      return;
+    }
+
+    onNavigate("/coletor/inventario/endereco");
   };
+
 
 
   if (!tarefa) return null;
