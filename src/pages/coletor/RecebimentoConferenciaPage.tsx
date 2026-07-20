@@ -18,6 +18,7 @@ interface ItemResumo {
   quantidade_executada: number;
   concluido_em: string | null;
   lote: string;
+  divergente?: boolean;
 }
 
 export function RecebimentoConferenciaPage({ onNavigate }: Props) {
