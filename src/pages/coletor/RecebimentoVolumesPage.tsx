@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2, PackageCheck, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -74,7 +75,9 @@ export function RecebimentoVolumesPage({ onNavigate }: Props) {
         setErroTransporte(true);
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao confirmar volumes.");
+      const parsed = parseError(err, "recebimento-volumes");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao confirmar volumes." : parsed.title);
     } finally {
       setSubmitting(false);
     }

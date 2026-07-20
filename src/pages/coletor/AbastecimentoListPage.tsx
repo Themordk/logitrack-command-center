@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { Loader2, Archive, MapPin, ArrowDownToLine, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -55,7 +56,9 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
       if (error) throw error;
       setTarefas((data as TarefaAbastecimento[]) || []);
     } catch (e: any) {
-      toast.error(e.message || "Erro ao carregar tarefas");
+      const parsed = parseError(e, "abastecimento-lista");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao carregar tarefas" : parsed.title);
     } finally {
       setLoading(false);
     }

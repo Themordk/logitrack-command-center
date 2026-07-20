@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle } from "lucide-react";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -93,7 +94,9 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       }
       setTimeout(() => onNavigate("/coletor/recebimento/concluido"), 1200);
     } catch (err: any) {
-      toast.error(err.message || "Erro ao finalizar.");
+      const parsed = parseError(err, "recebimento-conferencia");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao finalizar." : parsed.title);
     } finally {
       setFinalizing(false);
     }

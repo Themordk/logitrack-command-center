@@ -256,7 +256,8 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
       setOutrosEnderecos(lista);
     } catch (err: any) {
-      toast.error(err.message);
+      const parsed = parseError(err, "separacao-endereco");
+      toast.error(parsed.title);
     } finally {
       setLoadingEnderecos(false);
     }

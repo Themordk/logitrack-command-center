@@ -10,6 +10,7 @@ import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -380,7 +381,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       setShowVolumeDialog(false);
       onNavigate("/coletor/conferencia/iniciar");
     } catch (err: any) {
-      toast.error(err.message || "Erro ao gerar volumes.");
+      const parsed = parseError(err, "conferencia-produto");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao gerar volumes." : parsed.title);
     } finally {
       setVolumeSaving(false);
     }

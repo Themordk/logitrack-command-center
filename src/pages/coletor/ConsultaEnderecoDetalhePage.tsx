@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -90,7 +91,9 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
       toast.success("Configurações salvas.");
       load();
     } catch (e: any) {
-      toast.error(e.message || "Erro ao salvar.");
+      const parsed = parseError(e, "consulta-endereco-detalhe");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao salvar." : parsed.title);
     } finally {
       setSaving(false);
     }
@@ -112,7 +115,9 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
       toast.success("Cubagem salva.");
       load();
     } catch (e: any) {
-      toast.error(e.message || "Erro ao salvar.");
+      const parsed = parseError(e, "consulta-endereco-detalhe");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao salvar." : parsed.title);
     } finally {
       setSaving(false);
     }

@@ -386,7 +386,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       setShowVolumeDialog(false);
       onNavigate("/coletor/separacao/iniciar");
     } catch (err: any) {
-      toast.error(err.message || "Erro ao gerar volumes.");
+      const parsed = parseError(err, "separacao-produto");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao gerar volumes." : parsed.title);
     } finally {
       setVolumeSaving(false);
     }
