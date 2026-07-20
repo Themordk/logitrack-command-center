@@ -99,7 +99,13 @@ export function UsuariosPage() {
         body: { usuario_id: resetConfirm.id },
       });
       if (error || !data?.success) {
-        toast.error(data?.error || error?.message || "Erro ao resetar senha.");
+        if (data?.error) {
+          toast.error(data.error);
+        } else {
+          const parsed = parseError(error, "resetar senha");
+          const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+          toast.error(fallbackToRaw ? "Erro ao resetar senha." : parsed.title);
+        }
       } else {
         toast.success(data.message || "Senha resetada com sucesso!");
       }
@@ -174,7 +180,13 @@ export function UsuariosPage() {
             },
           });
           if (error || !result?.success) {
-            toast.error(result?.error || error?.message || "Erro ao criar usuário");
+            if (result?.error) {
+              toast.error(result.error);
+            } else {
+              const parsed = parseError(error, "criar usuario");
+              const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+              toast.error(fallbackToRaw ? "Erro ao criar usuário" : parsed.title);
+            }
             return false;
           }
           toast.success("Usuário criado com sucesso!");

@@ -11,6 +11,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/utils/dateTime";
 import { parseEndereco } from "./utils";
 import { AddEnderecosDialog } from "./AddEnderecosDialog";
+import { parseError } from "@/lib/errorMapper";
 
 const PAGE_SIZE = 50;
 
@@ -88,7 +89,9 @@ export function ZonaEnderecosSheet({ zona, tenantId, armazemNome, onClose, onCou
       setData(res || []);
       setTotal(count || 0);
     } catch (e: any) {
-      toast.error(`Erro ao carregar endereços: ${e.message || e}`);
+      const parsed = parseError(e, "carregar enderecos-zona");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao carregar endereços." : parsed.title);
     } finally {
       setLoading(false);
     }
@@ -108,7 +111,7 @@ export function ZonaEnderecosSheet({ zona, tenantId, armazemNome, onClose, onCou
         label: "Confirmar",
         onClick: async () => {
           const { error } = await (supabase as any).from("endereco_zona_atividade").delete().eq("id", vinculo.id);
-          if (error) { toast.error(`Erro: ${error.message}`); return; }
+          if (error) { toast.error(parseError(error, "desvincular endereco").title); return; }
           toast.success("Endereço desvinculado.");
           setData((prev) => prev.filter((v) => v.id !== vinculo.id));
           setTotal((t) => Math.max(0, t - 1));

@@ -166,7 +166,10 @@ export function useCrud<T extends Record<string, any>>({
       setTotal(count || 0);
     } catch (err: any) {
       console.error(`Error fetching ${table}:`, err);
-      toast.error(`Erro ao carregar dados: ${err.message}`);
+      {
+        const parsed = parseError(err, `carregar ${table}`);
+        toast.error(parsed.title);
+      }
       setData([]);
     } finally {
       setLoading(false);

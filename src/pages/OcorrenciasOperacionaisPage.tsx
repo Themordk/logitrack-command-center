@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 import { RegistrarOcorrenciaButton } from "@/components/ocorrencia/RegistrarOcorrenciaButton";
+import { parseError } from "@/lib/errorMapper";
 
 
 
@@ -180,7 +181,11 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   const loading = listQuery.isLoading;
 
   useEffect(() => {
-    if (listQuery.error) toast.error((listQuery.error as Error).message || "Falha ao carregar ocorrências.");
+    if (listQuery.error) {
+      const parsed = parseError(listQuery.error, "carregar ocorrencias");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Falha ao carregar ocorrências." : parsed.title);
+    }
   }, [listQuery.error]);
 
   const filtered = useMemo(() => {

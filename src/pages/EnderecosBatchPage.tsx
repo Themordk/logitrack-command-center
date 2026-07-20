@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   onNavigate?: (path: string) => void;
@@ -212,7 +213,9 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
         const chunk = toInsert.slice(i, i + CHUNK_SIZE);
         const { error } = await (supabase as any).from("endereco").insert(chunk);
         if (error) {
-          toast.error(`Erro após ${inserted} criados: ${error.message}`);
+          const parsed = parseError(error, "gerar enderecos");
+          const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+          toast.error(fallbackToRaw ? `Erro após ${inserted} criados.` : parsed.title);
           setGenerating(false);
           return;
         }
@@ -227,7 +230,9 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
       );
       onNavigate?.("/armazem/enderecos");
     } catch (e: any) {
-      toast.error(`Erro ao gerar: ${e.message}`);
+      const parsed = parseError(e, "gerar enderecos");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao gerar." : parsed.title);
     } finally {
       setGenerating(false);
     }

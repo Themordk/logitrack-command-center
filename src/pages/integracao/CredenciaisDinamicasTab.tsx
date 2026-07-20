@@ -5,6 +5,7 @@ import { Eye, EyeOff, Loader2, Save, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useErpProvedor, type EsquemaCampo } from "./useErpProvedor";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   erpId: string;
@@ -133,7 +134,9 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
       toast.success("Credenciais salvas!");
       onSaved?.();
     } catch (e: any) {
-      toast.error(`Erro ao salvar: ${e.message || e}`);
+      const parsed = parseError(e, "salvar credenciais");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao salvar." : parsed.title);
     } finally {
       setSaving(false);
     }
