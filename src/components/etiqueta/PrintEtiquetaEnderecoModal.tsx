@@ -1,10 +1,11 @@
-import { useState, useRef, useMemo } from "react";
-import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle } from "lucide-react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaEnderecoPreview, TamanhoEtiqueta, OrientacaoEtiqueta, EtiquetaOptions } from "./EtiquetaEnderecoPreview";
 import { getPrintCSS, getTemplateFromSelection, validateLabel, type LabelData } from "./thermalEngine";
 import { useTenant } from "@/contexts/TenantContext";
 import { formatDateTime } from "@/utils/dateTime";
+import { useEtiquetaTemplate } from "@/hooks/useEtiquetaTemplate";
 
 interface PrintEtiquetaEnderecoModalProps {
   open: boolean;
@@ -34,8 +35,19 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   const [incluirCurvaAcesso, setIncluirCurvaAcesso] = useState(false);
   const [incluirTipoEndereco, setIncluirTipoEndereco] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
-  const { usuarioNome } = useTenant();
+  const { usuarioNome, empresaId } = useTenant();
+  const { config, loading: loadingConfig } = useEtiquetaTemplate("ENDERECO", empresaId);
   const dataHora = useMemo(() => formatDateTime(new Date()), [open, showPreview]);
+  const [defaultsApplied, setDefaultsApplied] = useState(false);
+
+  // Aplica defaults do template resolvido apenas uma vez ao abrir.
+  useEffect(() => {
+    if (config && !defaultsApplied) {
+      if (config.tamanho) setTamanho(config.tamanho as TamanhoEtiqueta);
+      if (config.orientacao) setOrientacao(config.orientacao as OrientacaoEtiqueta);
+      setDefaultsApplied(true);
+    }
+  }, [config, defaultsApplied]);
 
   const plural = enderecos.length > 1;
   const etiquetaOptions: EtiquetaOptions = { incluirQRCode, incluirCurvaAcesso, incluirTipoEndereco };
