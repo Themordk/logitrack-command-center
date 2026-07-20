@@ -274,8 +274,30 @@ export function MovimentoSaidaPage() {
     staleTime: 30_000,
   });
 
+  const tipoSaidaMapQuery = useQuery({
+    queryKey: ["ondas-tipo-saida-map", tenantId, movIdsKey],
+    queryFn: async () => {
+      const ids = movIdsKey ? movIdsKey.split(",") : [];
+      if (ids.length === 0) return new Map<string, string>();
+      const { data, error } = await (supabase as any)
+        .from("movimento_saida_documento")
+        .select("movimento_saida_id, documento_saida:documento_saida_id(tipo_saida:tipo_pedido_id(descricao))")
+        .in("movimento_saida_id", ids);
+      if (error) throw error;
+      const map = new Map<string, string>();
+      for (const row of (data || []) as any[]) {
+        const desc = row?.documento_saida?.tipo_saida?.descricao;
+        if (desc && !map.has(row.movimento_saida_id)) map.set(row.movimento_saida_id, desc);
+      }
+      return map;
+    },
+    enabled: !!tenantId && listRows.length > 0,
+    staleTime: 30_000,
+  });
+
   const movimentos: MovSaida[] = useMemo(() => {
     const opsMap = opsQuery.data || new Map<string, string[]>();
+    const tsMap = tipoSaidaMapQuery.data || new Map<string, string>();
     return listRows.map((r) => ({
       id: r.id,
       numero_onda: r.numero_onda,
@@ -296,13 +318,23 @@ export function MovimentoSaidaPage() {
       parceiro_nome: r.parceiro_nome || "—",
       box_nome: r.box_descricao || "—",
       operadores_atribuidos: opsMap.get(r.id) || [],
+      tipo_saida_descricao: tsMap.get(r.id) || "",
+      rota_descricao: r.rota_descricao || null,
+      veiculo_placa: r.veiculo_placa || null,
+      operador_nome: r.operador_nome || null,
+      total_itens: Number(r.total_itens || 0),
+      total_esperado: Number(r.total_esperado || 0),
+      total_separado: Number(r.total_separado || 0),
+      total_conferido: Number(r.total_conferido || 0),
+      total_cortado: Number(r.total_cortado || 0),
     }));
-  }, [listRows, opsQuery.data, empresaId]);
+  }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, empresaId]);
 
   const fetchMovimentos = useCallback(() => {
     listQuery.refetch();
     opsQuery.refetch();
-  }, [listQuery, opsQuery]);
+    tipoSaidaMapQuery.refetch();
+  }, [listQuery, opsQuery, tipoSaidaMapQuery]);
 
   // Items tab via RPC (lazy)
   const itemsQuery = useQuery({
