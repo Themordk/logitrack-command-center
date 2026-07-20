@@ -217,10 +217,10 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
     // Validação de saldo do lote selecionado
     if (loteSel && qtdFinal > loteSel.saldo_disponivel) {
-      setResultDialog({
-        sucesso: false,
-        mensagem: `Quantidade (${qtdFinal}) excede o saldo disponível no lote (${loteSel.saldo_disponivel}). Volte e selecione outro lote ou ajuste a quantidade.`,
-      });
+      result.showWarning(
+        `Quantidade (${qtdFinal}) excede o saldo disponível no lote (${loteSel.saldo_disponivel}).`,
+        { instruction: "Volte e selecione outro lote ou ajuste a quantidade." },
+      );
       return;
     }
 
@@ -241,13 +241,13 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao registrar coleta" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro ao registrar coleta");
         return;
       }
 
@@ -267,7 +267,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
             setQtdSeparada(serverSeparada);
             setQuantidade("");
             if (serverSeparada >= Number(tarefaAtualizada.quantidade_requerida) || tarefaAtualizada.status === "CONCLUIDA") {
-              setResultDialog({ sucesso: true, mensagem: "Quantidade completa! Avançando para próxima tarefa." });
+              result.showSuccess("Quantidade completa! Avançando para próxima tarefa.", {
+                onClose: advanceToNext,
+              });
               return;
             }
             toast.success("Quantidade registrada!");
@@ -282,24 +284,20 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       setQuantidade("");
 
       if (newQtdSeparada >= Number(tarefa.quantidade_requerida)) {
-        setResultDialog({ sucesso: true, mensagem: "Quantidade completa! Avançando para próxima tarefa." });
+        result.showSuccess("Quantidade completa! Avançando para próxima tarefa.", {
+          onClose: advanceToNext,
+        });
       } else {
         toast.success("Quantidade registrada!");
       }
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao" });
     } finally {
       setConfirming(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      advanceToNext();
-    }
-  };
+
 
   const advanceToNext = () => {
     const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
