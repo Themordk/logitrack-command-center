@@ -123,7 +123,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
       if (endCheck && endCheck.length > 0 && !["LIVRE", "OCUPADO"].includes(endCheck[0].situacao)) {
-        setErrorDialog(`Endereço ${endCheck[0].descricao} está ${endCheck[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
+        result.showWarning(
+          `Endereço ${endCheck[0].descricao} está ${endCheck[0].situacao}.`,
+          { instruction: "Movimentações não são permitidas. Procure a supervisão.", onClose: () => setLastScanned("") }
+        );
         return;
       }
 
@@ -134,22 +137,22 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any;
+      let rpcResult: any;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { result = data; }
+        try { rpcResult = JSON.parse(data); } catch { rpcResult = data; }
       } else {
-        result = data;
+        rpcResult = data;
       }
 
       // Handle object result with sucesso field
-      if (result && typeof result === "object" && result.sucesso === false) {
-        setErrorDialog(result.mensagem || "Endereço incorreto! Escaneie o endereço informado.");
+      if (rpcResult && typeof rpcResult === "object" && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Endereço incorreto! Escaneie o endereço informado.", { onClose: () => setLastScanned("") });
         return;
       }
 
       // Handle string error result
-      if (typeof result === "string" && result.toLowerCase().includes("erro")) {
-        setErrorDialog(result);
+      if (typeof rpcResult === "string" && rpcResult.toLowerCase().includes("erro")) {
+        result.showWarning(rpcResult, { onClose: () => setLastScanned("") });
         return;
       }
 
@@ -161,9 +164,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       sessionStorage.removeItem("coletor_separacao_lote_selecionado");
       toast.success("Endereço confirmado!");
       onNavigate(requerLote(tarefa.tipo_controle) ? "/coletor/separacao/lote" : "/coletor/separacao/produto");
-    } catch (err: any) {
-      setErrorDialog(err.message || "Erro ao confirmar endereço.");
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao-endereco", onClose: () => setLastScanned("") });
     }
+
   };
 
   const handlePular = () => {
