@@ -276,7 +276,19 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Orientação</label>
                   <select
                     value={draft.orientacao}
-                    onChange={(e) => setDraft({ ...draft, orientacao: e.target.value as "horizontal" | "vertical" })}
+                    onChange={(e) => {
+                      const newOri = e.target.value as "horizontal" | "vertical";
+                      if (newOri !== draft.orientacao) {
+                        setDraft({
+                          ...draft,
+                          orientacao: newOri,
+                          largura_mm: draft.altura_mm,
+                          altura_mm: draft.largura_mm,
+                        });
+                      } else {
+                        setDraft({ ...draft, orientacao: newOri });
+                      }
+                    }}
                     disabled={draft.tamanho === "80x20"}
                     className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none disabled:opacity-50"
                   >
@@ -285,6 +297,13 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                   </select>
                 </div>
               </div>
+
+              {((draft.orientacao === "vertical" && (draft.largura_mm ?? 0) >= (draft.altura_mm ?? 0)) ||
+                (draft.orientacao === "horizontal" && (draft.altura_mm ?? 0) > (draft.largura_mm ?? 0))) && (
+                <p className="text-[10px] text-amber-500 italic">
+                  Aviso: as dimensões não correspondem à orientação selecionada. Ajuste largura/altura ou troque a orientação.
+                </p>
+              )}
 
               {/* Dimensões customizadas (mm) */}
               <div className="grid grid-cols-3 gap-2">
@@ -359,6 +378,10 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                   </select>
                 </div>
               )}
+
+              <p className="text-[10px] text-muted-foreground italic">
+                Seta direcional, impressão em 2 colunas e intervalo são valores padrão de impressão. O operador pode alterá-los no momento de imprimir.
+              </p>
 
               <div className="flex items-center gap-4 py-1">
                 <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">

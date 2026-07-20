@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -26,6 +26,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
   const [saida, setSaida] = useState<Saida>("preview");
   const [showPreview, setShowPreview] = useState(false);
   const [opt, setOpt] = useState<EtiquetaProdutoOptions>({});
+  const [duasColunas, setDuasColunas] = useState(false);
+  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const { empresaId } = useTenant();
   const { config, loading: loadingConfig } = useEtiquetaTemplate("PRODUTO", empresaId);
@@ -35,9 +37,16 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
     if (config && !defaultsApplied) {
       if (config.tamanho) setTamanho(config.tamanho as TamanhoEtiqueta);
       if (config.orientacao) setOrientacao(config.orientacao as OrientacaoEtiqueta);
+      setDuasColunas(!!config.duas_colunas);
+      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
       setDefaultsApplied(true);
     }
   }, [config, defaultsApplied]);
+
+  const configOverride = useMemo(() => {
+    if (!config) return undefined;
+    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [config, duasColunas, intervaloColunasMm]);
 
   const plural = items.length > 1;
   const template = getTemplateFromSelection(tamanho, orientacao);
@@ -62,7 +71,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
     let css: string;
     if (config) {
       const spec = getTemplateFromConfig(config);
-      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3);
+      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, duasColunas, intervaloColunasMm);
     } else {
       css = getPrintCSS(template);
     }
@@ -157,6 +166,34 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
               </div>
             </div>
 
+            <div className="border border-border/50 rounded-lg p-3 space-y-2">
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções de impressão</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={duasColunas}
+                    onChange={(e) => setDuasColunas(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-primary"
+                  />
+                  Impressão em 2 colunas
+                </label>
+                {duasColunas && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Intervalo:</span>
+                    <input
+                      type="number" min={0} max={20} step={1}
+                      value={intervaloColunasMm}
+                      onChange={(e) => setIntervaloColunasMm(Number(e.target.value) || 0)}
+                      className="w-16 h-7 px-2 text-xs rounded bg-secondary border border-border text-foreground outline-none"
+                    />
+                    <span className="text-[10px] text-muted-foreground">mm</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+
             <div className="text-[10px] text-muted-foreground bg-secondary/50 rounded px-2 py-1.5">
               Otimizado para Elgin L42PRO · 203 DPI · Code128 · Dimensões fixas em pixels
             </div>
@@ -193,9 +230,9 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={opt} config={config ?? undefined} />
+              <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={opt} config={configOverride} />
             </div>
-            <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={opt} config={config ?? undefined} />
+            <EtiquetaProdutoPreview items={items} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={opt} config={configOverride} />
           </div>
         </div>
       )}

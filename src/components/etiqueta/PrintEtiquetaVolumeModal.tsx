@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { Printer, X, Eye, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaVolumePreview, type VolumeLike } from "./EtiquetaVolumePreview";
@@ -18,14 +18,30 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
   const { usuarioNome, empresaId } = useTenant();
   const dataHora = useMemo(() => formatDateTime(new Date()), [open]);
   const { config, loading } = useEtiquetaTemplate("VOLUME", empresaId);
+  const [duasColunas, setDuasColunas] = useState(false);
+  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
+  const [defaultsApplied, setDefaultsApplied] = useState(false);
+
+  useEffect(() => {
+    if (config && !defaultsApplied) {
+      setDuasColunas(!!config.duas_colunas);
+      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
+      setDefaultsApplied(true);
+    }
+  }, [config, defaultsApplied]);
 
   const template = config ? getTemplateFromConfig(config) : TEMPLATES.ARMAZEM_100x40_H;
+
+  const configOverride = useMemo(() => {
+    if (!config) return undefined;
+    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [config, duasColunas, intervaloColunasMm]);
 
   const triggerPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
     const css = config
-      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3)
+      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, duasColunas, intervaloColunasMm)
       : getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
@@ -48,6 +64,31 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
           </DialogTitle>
         </DialogHeader>
 
+        <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 flex-wrap">
+          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções de impressão:</span>
+          <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={duasColunas}
+              onChange={(e) => setDuasColunas(e.target.checked)}
+              className="w-3.5 h-3.5 accent-primary"
+            />
+            Impressão em 2 colunas
+          </label>
+          {duasColunas && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Intervalo:</span>
+              <input
+                type="number" min={0} max={20} step={1}
+                value={intervaloColunasMm}
+                onChange={(e) => setIntervaloColunasMm(Number(e.target.value) || 0)}
+                className="w-16 h-7 px-2 text-xs rounded bg-secondary border border-border text-foreground outline-none"
+              />
+              <span className="text-[10px] text-muted-foreground">mm</span>
+            </div>
+          )}
+        </div>
+
         <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6 bg-black/40">
           {loading ? (
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -56,9 +97,9 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
           ) : (
             <>
               <div ref={printRef} style={{ display: "none" }}>
-                <EtiquetaVolumePreview volumes={volumes} isPrint usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+                <EtiquetaVolumePreview volumes={volumes} isPrint usuario={usuarioNome ?? undefined} dataHora={dataHora} config={configOverride} />
               </div>
-              <EtiquetaVolumePreview volumes={volumes} isPrint={false} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+              <EtiquetaVolumePreview volumes={volumes} isPrint={false} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={configOverride} />
             </>
           )}
         </div>

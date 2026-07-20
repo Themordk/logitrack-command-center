@@ -34,6 +34,9 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   const [incluirQRCode, setIncluirQRCode] = useState(false);
   const [incluirCurvaAcesso, setIncluirCurvaAcesso] = useState(false);
   const [incluirTipoEndereco, setIncluirTipoEndereco] = useState(false);
+  const [direcaoSeta, setDirecaoSeta] = useState<"CIMA" | "BAIXO" | "ESQUERDA" | "DIREITA" | "NENHUMA">("NENHUMA");
+  const [duasColunas, setDuasColunas] = useState(false);
+  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const { usuarioNome, empresaId } = useTenant();
   const { config, loading: loadingConfig } = useEtiquetaTemplate("ENDERECO", empresaId);
@@ -45,12 +48,26 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
     if (config && !defaultsApplied) {
       if (config.tamanho) setTamanho(config.tamanho as TamanhoEtiqueta);
       if (config.orientacao) setOrientacao(config.orientacao as OrientacaoEtiqueta);
+      setDirecaoSeta((config.direcao_seta as any) || "NENHUMA");
+      setDuasColunas(!!config.duas_colunas);
+      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
       setDefaultsApplied(true);
     }
   }, [config, defaultsApplied]);
 
   const plural = enderecos.length > 1;
   const etiquetaOptions: EtiquetaOptions = { incluirQRCode, incluirCurvaAcesso, incluirTipoEndereco };
+
+  // Config override aplicado ao preview / impressão (não persiste)
+  const configOverride = useMemo(() => {
+    if (!config) return undefined;
+    return {
+      ...config,
+      direcao_seta: direcaoSeta,
+      duas_colunas: duasColunas,
+      intervalo_colunas_mm: intervaloColunasMm,
+    };
+  }, [config, direcaoSeta, duasColunas, intervaloColunasMm]);
 
   // Pre-validate all labels
   const template = getTemplateFromSelection(tamanho, orientacao);
@@ -80,7 +97,7 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
     let css: string;
     if (config) {
       const spec = getTemplateFromConfig(config);
-      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3);
+      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, duasColunas, intervaloColunasMm);
     } else {
       css = getPrintCSS(template);
     }
@@ -170,6 +187,47 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
               </div>
             )}
 
+            <div className="border border-border/50 rounded-lg p-3 space-y-3">
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções de impressão</p>
+
+              <SelectField
+                label="Seta Direcional"
+                value={direcaoSeta}
+                onChange={(v) => setDirecaoSeta(v as any)}
+                options={[
+                  { value: "NENHUMA", label: "Nenhuma" },
+                  { value: "CIMA", label: "↑ Para cima" },
+                  { value: "BAIXO", label: "↓ Para baixo" },
+                  { value: "ESQUERDA", label: "← Para esquerda" },
+                  { value: "DIREITA", label: "→ Para direita" },
+                ]}
+              />
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={duasColunas}
+                    onChange={(e) => setDuasColunas(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-primary"
+                  />
+                  Impressão em 2 colunas
+                </label>
+                {duasColunas && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Intervalo:</span>
+                    <input
+                      type="number" min={0} max={20} step={1}
+                      value={intervaloColunasMm}
+                      onChange={(e) => setIntervaloColunasMm(Number(e.target.value) || 0)}
+                      className="w-16 h-7 px-2 text-xs rounded bg-secondary border border-border text-foreground outline-none"
+                    />
+                    <span className="text-[10px] text-muted-foreground">mm</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="text-[10px] text-muted-foreground bg-secondary/50 rounded px-2 py-1.5">
               Otimizado para Elgin L42PRO · 203 DPI · Code128 · Dimensões fixas em pixels
             </div>
@@ -206,9 +264,9 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+              <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={true} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} direcaoSeta={direcaoSeta} config={configOverride} />
             </div>
-            <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={config ?? undefined} />
+            <EtiquetaEnderecoPreview enderecos={enderecos} tamanho={tamanho} orientacao={orientacao} isPrint={false} options={etiquetaOptions} usuario={usuarioNome ?? undefined} dataHora={dataHora} direcaoSeta={direcaoSeta} config={configOverride} />
           </div>
         </div>
       )}

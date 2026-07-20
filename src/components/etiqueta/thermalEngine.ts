@@ -202,22 +202,23 @@ export interface EtiquetaConfigLike {
  * Caso contrário → fallback para preset via `getTemplateFromSelection`.
  */
 export function getTemplateFromConfig(config: EtiquetaConfigLike): TemplateSpec {
-  if (config.largura_mm && config.altura_mm) {
+  if (config.largura_mm && config.altura_mm && config.largura_mm > 0 && config.altura_mm > 0) {
     const widthMm = config.largura_mm;
     const heightMm = config.altura_mm;
     const widthPx = Math.round(widthMm * MM_TO_PX);
     const heightPx = Math.round(heightMm * MM_TO_PX);
     const isSmall = widthMm <= 50 || heightMm <= 25;
+    const isVertical = heightMm > widthMm;
     return {
       id: `CUSTOM_${widthMm}x${heightMm}` as TemplateId,
       widthMm,
       heightMm,
       widthPx,
       heightPx,
-      orientation: config.orientacao || (widthMm >= heightMm ? "horizontal" : "vertical"),
+      orientation: isVertical ? "vertical" : "horizontal",
       barcode: {
         moduleWidth: isSmall ? 2 : 3,
-        height: isSmall ? 60 : 120,
+        height: isSmall ? 60 : Math.min(120, Math.round(heightPx * 0.15)),
         margin: isSmall ? 10 : 16,
       },
       qrCode: {

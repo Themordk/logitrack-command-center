@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Printer, X, Eye, Settings2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaHUPreview } from "./EtiquetaHUPreview";
@@ -17,11 +17,27 @@ type Saida = "preview" | "imprimir";
 export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModalProps) {
   const [saida, setSaida] = useState<Saida>("preview");
   const [showPreview, setShowPreview] = useState(false);
+  const [duasColunas, setDuasColunas] = useState(false);
+  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
+  const [defaultsApplied, setDefaultsApplied] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const plural = hus.length > 1;
   const { empresaId } = useTenant();
   const { config, loading } = useEtiquetaTemplate("HU", empresaId);
   const template = config ? getTemplateFromConfig(config) : TEMPLATES.ARMAZEM_100x40_H;
+
+  useEffect(() => {
+    if (config && !defaultsApplied) {
+      setDuasColunas(!!config.duas_colunas);
+      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
+      setDefaultsApplied(true);
+    }
+  }, [config, defaultsApplied]);
+
+  const configOverride = useMemo(() => {
+    if (!config) return undefined;
+    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [config, duasColunas, intervaloColunasMm]);
 
   const handleGerar = () => {
     if (saida === "preview") setShowPreview(true);
@@ -32,7 +48,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
     const printContent = printRef.current;
     if (!printContent) return;
     const css = config
-      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3)
+      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, duasColunas, intervaloColunasMm)
       : getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
@@ -79,6 +95,33 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
                 <option value="imprimir">Imprimir Diretamente</option>
               </select>
             </div>
+
+            <div className="border border-border/50 rounded-lg p-3 space-y-2">
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções de impressão</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={duasColunas}
+                    onChange={(e) => setDuasColunas(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-primary"
+                  />
+                  Impressão em 2 colunas
+                </label>
+                {duasColunas && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Intervalo:</span>
+                    <input
+                      type="number" min={0} max={20} step={1}
+                      value={intervaloColunasMm}
+                      onChange={(e) => setIntervaloColunasMm(Number(e.target.value) || 0)}
+                      className="w-16 h-7 px-2 text-xs rounded bg-secondary border border-border text-foreground outline-none"
+                    />
+                    <span className="text-[10px] text-muted-foreground">mm</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -110,9 +153,9 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaHUPreview hus={hus} isPrint={true} config={config ?? undefined} />
+              <EtiquetaHUPreview hus={hus} isPrint={true} config={configOverride} />
             </div>
-            <EtiquetaHUPreview hus={hus} isPrint={false} config={config ?? undefined} />
+            <EtiquetaHUPreview hus={hus} isPrint={false} config={configOverride} />
           </div>
         </div>
       )}
