@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { SupportLayout } from "@/components/suporte/SupportLayout";
 import { SupportCreateUsuarioModal } from "@/components/suporte/SupportCreateUsuarioModal";
 import { SupportCreateTenantModal } from "@/components/suporte/SupportCreateTenantModal";
+import { parseError } from "@/lib/errorMapper";
 
 interface TenantRow {
   id: string;
@@ -47,7 +48,7 @@ export function SupportTenantsPage({ onNavigate }: Props) {
       if (!resp.ok || !json.success) throw new Error(json.error || "Erro ao listar tenants");
       setTenants(json.tenants);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "support-tenants-page").title);
     } finally {
       setLoading(false);
     }
@@ -75,7 +76,7 @@ export function SupportTenantsPage({ onNavigate }: Props) {
       toast.success(`Tenant ${!t.ativo ? "ativado" : "desativado"}`);
       fetchTenants(filtro);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "support-tenants-page").title);
     }
   };
 

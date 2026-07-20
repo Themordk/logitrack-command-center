@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, Play, Pause, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
@@ -123,7 +124,7 @@ export function InventarioPage({ onNavigate }: Props) {
       toast.success(`Inventário ${label} com sucesso!`);
       fetchInventarios();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "inventario-page").title);
     }
   };
 

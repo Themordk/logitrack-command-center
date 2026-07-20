@@ -6,6 +6,7 @@ import { Loader2, GripVertical, Settings2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { parseError } from "@/lib/errorMapper";
 
 const AGRUPAMENTO_SEP_OPTIONS = [
   { value: "DOCUMENTO", label: "Documento" },
@@ -148,7 +149,7 @@ export function RoteiroSeparacaoPage() {
     const { error } = await (supabase as any).from("agrupamento_separacao").insert({
       tenant_id: tenantId, empresa_id: empresaId, tipo_agrupamento: value, sequencia: seq,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(parseError(error, "roteiro-separacao-page").title); return; }
     toast.success("Agrupamento adicionado.");
     fetchAgrupamentos();
   };
@@ -164,7 +165,7 @@ export function RoteiroSeparacaoPage() {
     const { error } = await (supabase as any).from("agrupamento_conferencia").insert({
       tenant_id: tenantId, empresa_id: empresaId, tipo_agrupamento: value, sequencia: seq,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(parseError(error, "roteiro-separacao-page").title); return; }
     toast.success("Agrupamento adicionado.");
     fetchAgrupConf();
   };
@@ -182,7 +183,7 @@ export function RoteiroSeparacaoPage() {
       tenant_id: tenantId, empresa_id: empresaId, armazem_id: filtroArmazemId,
       rua, ordem, sequencia: seq,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(parseError(error, "roteiro-separacao-page").title); return; }
     toast.success("Rua adicionada.");
     fetchOrdens();
   };

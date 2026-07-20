@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseError } from "@/lib/errorMapper";
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
@@ -88,7 +89,7 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
       .update({ status: "CANCELADA" })
       .eq("id", tarefaId);
     if (error) {
-      toast.error(error.message);
+      toast.error(parseError(error, "abastecimento-detalhe-page").title);
     } else {
       toast.success("Tarefa cancelada");
       fetchTarefas();
@@ -109,7 +110,7 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
       setPrioridadeDialogId(null);
       fetchTarefas();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "abastecimento-detalhe-page").title);
     } finally {
       setSavingPrioridade(false);
     }

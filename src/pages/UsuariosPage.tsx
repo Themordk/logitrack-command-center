@@ -7,6 +7,7 @@ import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { KeyRound, Loader2 } from "lucide-react";
+import { parseError } from "@/lib/errorMapper";
 
 export function UsuariosPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
@@ -103,7 +104,7 @@ export function UsuariosPage() {
         toast.success(data.message || "Senha resetada com sucesso!");
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao resetar senha.");
+      toast.error((() => { const p = parseError(err, "usuarios-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao resetar senha." : p.title; })());
     } finally {
       setResetting(false);
       setResetConfirm(null);

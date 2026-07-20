@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -61,7 +62,7 @@ export function InventarioExecucaoPage({ onNavigate, inventarioId, numeroInventa
       })));
       setTotal(count || 0);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "inventario-execucao-page").title);
     } finally {
       setLoading(false);
     }

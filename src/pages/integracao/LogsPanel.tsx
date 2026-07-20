@@ -6,6 +6,7 @@ import { Loader2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { formatDateTime } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 const PAGE_SIZE = 20;
 
@@ -80,7 +81,7 @@ export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
       setHasNext(rows.length > PAGE_SIZE);
       setData(rows.slice(0, PAGE_SIZE));
     } catch (e: any) {
-      toast.error(e.message || "Erro ao carregar logs");
+      toast.error((() => { const p = parseError(e, "logs-panel"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao carregar logs" : p.title; })());
       setData([]);
       setHasNext(false);
     } finally {
@@ -121,7 +122,7 @@ export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      toast.error(e.message || "Erro ao exportar");
+      toast.error((() => { const p = parseError(e, "logs-panel"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao exportar" : p.title; })());
     }
   };
 

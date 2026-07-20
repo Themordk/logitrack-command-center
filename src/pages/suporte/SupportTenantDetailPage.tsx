@@ -4,6 +4,7 @@ import { Loader2, Building2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { SupportLayout } from "@/components/suporte/SupportLayout";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   tenantId: string;
@@ -26,7 +27,7 @@ export function SupportTenantDetailPage({ tenantId, onNavigate }: Props) {
         if (!resp.ok || !json.success) throw new Error(json.error);
         setData(json);
       } catch (err: any) {
-        toast.error(err.message);
+        toast.error(parseError(err, "support-tenant-detail-page").title);
       } finally {
         setLoading(false);
       }

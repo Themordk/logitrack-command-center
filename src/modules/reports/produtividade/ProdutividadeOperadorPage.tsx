@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
 import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   usuarioId: string;
@@ -77,7 +78,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
       setTimeline(data);
       setGeneratedAt(nowDisplay());
     } catch (err: any) {
-      toast.error(err.message || "Erro ao carregar dados.");
+      toast.error((() => { const p = parseError(err, "produtividade-operador-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao carregar dados." : p.title; })());
     } finally {
       setLoading(false);
     }

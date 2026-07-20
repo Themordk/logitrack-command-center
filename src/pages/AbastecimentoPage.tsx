@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { formatDate } from "@/utils/dateTime";
 import { Loader2, ArrowDownToLine, ShieldAlert, Eye, Ban, ChevronLeft, ChevronRight } from "lucide-react";
+import { parseError } from "@/lib/errorMapper";
 
 
 interface Abastecimento {
@@ -131,7 +132,7 @@ export function AbastecimentoPage({ onNavigate }: AbastecimentoPageProps) {
       .from("abastecimento")
       .update({ status: "CANCELADO" })
       .eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(parseError(error, "abastecimento-page").title); return; }
     toast.success("Abastecimento cancelado");
     fetchData();
   };

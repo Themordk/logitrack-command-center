@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft, Eye, Eraser, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+import { parseError } from "@/lib/errorMapper";
   AlertDialog,
   AlertDialogContent,
   AlertDialogHeader,
@@ -122,7 +123,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
       setItens(data || []);
       setTotal(count || 0);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "inventario-itens-page").title);
     } finally {
       setLoading(false);
     }
@@ -211,7 +212,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
       setZerarOpen(false);
       fetchItens();
     } catch (err: any) {
-      toast.error(err.message || "Falha ao zerar itens.");
+      toast.error((() => { const p = parseError(err, "inventario-itens-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao zerar itens." : p.title; })());
     } finally {
       setZerando(false);
     }
