@@ -34,6 +34,9 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   const [incluirQRCode, setIncluirQRCode] = useState(false);
   const [incluirCurvaAcesso, setIncluirCurvaAcesso] = useState(false);
   const [incluirTipoEndereco, setIncluirTipoEndereco] = useState(false);
+  const [direcaoSeta, setDirecaoSeta] = useState<"CIMA" | "BAIXO" | "ESQUERDA" | "DIREITA" | "NENHUMA">("NENHUMA");
+  const [duasColunas, setDuasColunas] = useState(false);
+  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const { usuarioNome, empresaId } = useTenant();
   const { config, loading: loadingConfig } = useEtiquetaTemplate("ENDERECO", empresaId);
@@ -45,12 +48,26 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
     if (config && !defaultsApplied) {
       if (config.tamanho) setTamanho(config.tamanho as TamanhoEtiqueta);
       if (config.orientacao) setOrientacao(config.orientacao as OrientacaoEtiqueta);
+      setDirecaoSeta((config.direcao_seta as any) || "NENHUMA");
+      setDuasColunas(!!config.duas_colunas);
+      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
       setDefaultsApplied(true);
     }
   }, [config, defaultsApplied]);
 
   const plural = enderecos.length > 1;
   const etiquetaOptions: EtiquetaOptions = { incluirQRCode, incluirCurvaAcesso, incluirTipoEndereco };
+
+  // Config override aplicado ao preview / impressão (não persiste)
+  const configOverride = useMemo(() => {
+    if (!config) return undefined;
+    return {
+      ...config,
+      direcao_seta: direcaoSeta,
+      duas_colunas: duasColunas,
+      intervalo_colunas_mm: intervaloColunasMm,
+    };
+  }, [config, direcaoSeta, duasColunas, intervaloColunasMm]);
 
   // Pre-validate all labels
   const template = getTemplateFromSelection(tamanho, orientacao);
@@ -80,7 +97,7 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
     let css: string;
     if (config) {
       const spec = getTemplateFromConfig(config);
-      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3);
+      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, duasColunas, intervaloColunasMm);
     } else {
       css = getPrintCSS(template);
     }
