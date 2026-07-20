@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Printer, X, Eye, Settings2, ChevronDown, AlertTriangle, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -26,6 +26,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
   const [saida, setSaida] = useState<Saida>("preview");
   const [showPreview, setShowPreview] = useState(false);
   const [opt, setOpt] = useState<EtiquetaProdutoOptions>({});
+  const [duasColunas, setDuasColunas] = useState(false);
+  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const { empresaId } = useTenant();
   const { config, loading: loadingConfig } = useEtiquetaTemplate("PRODUTO", empresaId);
@@ -35,9 +37,16 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
     if (config && !defaultsApplied) {
       if (config.tamanho) setTamanho(config.tamanho as TamanhoEtiqueta);
       if (config.orientacao) setOrientacao(config.orientacao as OrientacaoEtiqueta);
+      setDuasColunas(!!config.duas_colunas);
+      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
       setDefaultsApplied(true);
     }
   }, [config, defaultsApplied]);
+
+  const configOverride = useMemo(() => {
+    if (!config) return undefined;
+    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [config, duasColunas, intervaloColunasMm]);
 
   const plural = items.length > 1;
   const template = getTemplateFromSelection(tamanho, orientacao);
@@ -62,7 +71,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
     let css: string;
     if (config) {
       const spec = getTemplateFromConfig(config);
-      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3);
+      css = getPrintCSSFromConfig(spec.widthMm, spec.heightMm, duasColunas, intervaloColunasMm);
     } else {
       css = getPrintCSS(template);
     }
