@@ -153,9 +153,9 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaHUPreview hus={hus} isPrint={true} config={config ?? undefined} />
+              <EtiquetaHUPreview hus={hus} isPrint={true} config={configOverride} />
             </div>
-            <EtiquetaHUPreview hus={hus} isPrint={false} config={config ?? undefined} />
+            <EtiquetaHUPreview hus={hus} isPrint={false} config={configOverride} />
           </div>
         </div>
       )}
