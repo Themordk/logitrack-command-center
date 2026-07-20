@@ -129,9 +129,9 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
               <div className="flex justify-between items-start mb-1 gap-2">
                 <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
                 {item.divergente && (
-                  <AlertTriangle size={16} className="text-[#F59E0B] shrink-0" aria-label="Item divergente">
-                    <title>Item divergente</title>
-                  </AlertTriangle>
+                  <span title="Item divergente" className="shrink-0">
+                    <AlertTriangle size={16} className="text-[#F59E0B]" />
+                  </span>
                 )}
               </div>
               <button
