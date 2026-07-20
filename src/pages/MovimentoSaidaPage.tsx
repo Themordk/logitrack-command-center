@@ -145,8 +145,17 @@ export function MovimentoSaidaPage() {
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterNumeroDocumento, setFilterNumeroDocumento] = useState("");
+  const [filterTipoSaidaId, setFilterTipoSaidaId] = useState("");
+  const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
+  const [filterVendedor, setFilterVendedor] = useState("");
+  const [filterTransportador, setFilterTransportador] = useState("");
 
   const debouncedOnda = useDebounce(filterOnda, 400);
+  const debouncedNumeroDocumento = useDebounce(filterNumeroDocumento, 400);
+  const debouncedParceiroCodigoErp = useDebounce(filterParceiroCodigoErp, 400);
+  const debouncedVendedor = useDebounce(filterVendedor, 400);
+  const debouncedTransportador = useDebounce(filterTransportador, 400);
 
   const [tabSeparacao, setTabSeparacao] = useState<any[]>([]);
   const [tabConferencia, setTabConferencia] = useState<any[]>([]);
