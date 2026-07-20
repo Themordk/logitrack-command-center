@@ -34,7 +34,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showEnderecoList, setShowEnderecoList] = useState(false);
-  const [errorDialog, setErrorDialog] = useState<string | null>(null);
+  const result = useResultDialog({ coletorMode: true });
   const [loadingEnderecos, setLoadingEnderecos] = useState(true);
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
