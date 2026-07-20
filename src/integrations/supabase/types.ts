@@ -1524,6 +1524,88 @@ export type Database = {
           },
         ]
       }
+      etiqueta_template: {
+        Row: {
+          ativo: boolean
+          campos: Json
+          com_cabecalho: boolean
+          com_logo: boolean
+          created_at: string
+          created_by: string | null
+          empresa_id: string | null
+          id: string
+          logo_url: string | null
+          nome: string
+          orientacao: string
+          tamanho: string
+          tenant_id: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+          versao: number
+        }
+        Insert: {
+          ativo?: boolean
+          campos?: Json
+          com_cabecalho?: boolean
+          com_logo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string | null
+          id?: string
+          logo_url?: string | null
+          nome: string
+          orientacao?: string
+          tamanho?: string
+          tenant_id: string
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Update: {
+          ativo?: boolean
+          campos?: Json
+          com_cabecalho?: boolean
+          com_logo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string | null
+          id?: string
+          logo_url?: string | null
+          nome?: string
+          orientacao?: string
+          tamanho?: string
+          tenant_id?: string
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etiqueta_template_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etiqueta_template_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etiqueta_template_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grupo_produto: {
         Row: {
           ativo: boolean
@@ -8662,6 +8744,34 @@ export type Database = {
           p_validade?: string
         }
         Returns: Json
+      }
+      resolver_etiqueta_template: {
+        Args: { p_empresa_id?: string; p_tipo: string }
+        Returns: {
+          ativo: boolean
+          campos: Json
+          com_cabecalho: boolean
+          com_logo: boolean
+          created_at: string
+          created_by: string | null
+          empresa_id: string | null
+          id: string
+          logo_url: string | null
+          nome: string
+          orientacao: string
+          tamanho: string
+          tenant_id: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+          versao: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "etiqueta_template"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       rpc_coletor_abastecimento_confirmar_coleta: {
         Args: {
