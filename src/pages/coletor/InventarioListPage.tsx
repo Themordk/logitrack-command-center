@@ -42,8 +42,9 @@ export function InventarioListPage({ onNavigate }: Props) {
         .select("*");
       if (error) throw error;
       setInventarios(data || []);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao carregar inventários.");
+    } catch (err: unknown) {
+      const parsed = parseError(err, "inventario-lista");
+      toast.error(parsed.title);
     } finally {
       setLoading(false);
     }
@@ -54,6 +55,15 @@ export function InventarioListPage({ onNavigate }: Props) {
   const handleIniciarClick = () => {
     if (!selectedId) return;
     setShowContagemPopup(true);
+  };
+
+  const navigateAfterStart = () => {
+    const modo = sessionStorage.getItem("coletor_inventario_modo");
+    if (modo === "CONTAGEM_LIVRE") {
+      onNavigate("/coletor/inventario/livre/endereco");
+    } else {
+      onNavigate("/coletor/inventario/endereco");
+    }
   };
 
   const handleSelectContagem = async (contagem: number) => {
@@ -73,17 +83,17 @@ export function InventarioListPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao buscar tarefas" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro ao buscar tarefas");
         return;
       }
 
-      const tarefas = Array.isArray(result) ? result : [];
+      const tarefas = Array.isArray(rpcResult) ? rpcResult : [];
 
       // Detectar modo contagem livre (inventário GERAL)
       const isContagemLivre = tarefas.length === 1 && tarefas[0]?.status === "CONTAGEM_LIVRE";
@@ -94,35 +104,30 @@ export function InventarioListPage({ onNavigate }: Props) {
 
       if (isContagemLivre) {
         sessionStorage.setItem("coletor_inventario_modo", "CONTAGEM_LIVRE");
-        setResultDialog({ sucesso: true, mensagem: `Inventário #${inv.numero_inventario} — Contagem Livre iniciada!` });
+        result.showSuccess(`Inventário #${inv.numero_inventario} — Contagem Livre iniciada!`, {
+          onClose: navigateAfterStart,
+        });
       } else {
         sessionStorage.setItem("coletor_inventario_modo", "DIRIGIDO");
         sessionStorage.setItem("coletor_inventario_tarefas", JSON.stringify(tarefas));
         sessionStorage.setItem("coletor_inventario_tarefa_idx", "0");
 
         if (tarefas.length === 0) {
-          setResultDialog({ sucesso: false, mensagem: "Nenhuma tarefa pendente para este inventário." });
+          result.showWarning("Nenhuma tarefa pendente para este inventário.");
           return;
         }
 
-        setResultDialog({ sucesso: true, mensagem: `Inventário #${inv.numero_inventario} iniciado com ${tarefas.length} tarefa(s)!` });
+        result.showSuccess(`Inventário #${inv.numero_inventario} iniciado com ${tarefas.length} tarefa(s)!`, {
+          onClose: navigateAfterStart,
+        });
       }
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+    } catch (err: unknown) {
+      result.showError(err, { context: "inventario-iniciar" });
     } finally {
       setStarting(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      const modo = sessionStorage.getItem("coletor_inventario_modo");
-      if (modo === "CONTAGEM_LIVRE") {
-        onNavigate("/coletor/inventario/livre/endereco");
-      } else {
-        onNavigate("/coletor/inventario/endereco");
       }
     }
   };
