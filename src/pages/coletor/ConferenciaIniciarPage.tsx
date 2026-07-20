@@ -26,7 +26,8 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
+  const result = useResultDialog({ coletorMode: true });
+
 
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
