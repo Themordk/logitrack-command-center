@@ -94,6 +94,19 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
     loadMotivos();
   };
 
+  const advanceToNext = () => {
+    const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
+    const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
+    const nextIdx = idx + 1;
+    if (nextIdx >= tarefas.length) {
+      toast.success("Separação concluída para esta onda!");
+      onNavigate("/coletor/separacao/iniciar");
+    } else {
+      sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
+      onNavigate("/coletor/separacao/endereco");
+    }
+  };
+
   const handleConfirm = async () => {
     if (!selectedMotivo || !tarefa || !showMotivoModal) return;
     setProcessing(true);
@@ -108,18 +121,18 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
         });
         if (error) throw error;
 
-        let result: any = data;
+        let rpcResult: any = data;
         if (typeof data === "string") {
-          try { result = JSON.parse(data); } catch { /* keep */ }
+          try { rpcResult = JSON.parse(data); } catch { /* keep */ }
         }
 
-        if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-          setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao cortar saldo" });
+        if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+          result.showWarning(rpcResult.mensagem || "Erro ao cortar saldo");
           setShowMotivoModal(null);
           return;
         }
 
-        setResultDialog({ sucesso: true, mensagem: "Ocorrência registrada e saldo cortado com sucesso!" });
+        result.showSuccess("Ocorrência registrada e saldo cortado com sucesso!", { onClose: advanceToNext });
         setShowMotivoModal(null);
       } else {
         // Abastecimento
@@ -140,34 +153,17 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
           .insert(payload);
         if (error) throw error;
 
-        setResultDialog({ sucesso: true, mensagem: "Solicitação de abastecimento registrada com sucesso!" });
+        result.showSuccess("Solicitação de abastecimento registrada com sucesso!", { onClose: advanceToNext });
         setShowMotivoModal(null);
       }
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao-ocorrencia" });
       setShowMotivoModal(null);
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-
-    if (wasSuccess) {
-      const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
-      const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
-      const nextIdx = idx + 1;
-      if (nextIdx >= tarefas.length) {
-        toast.success("Separação concluída para esta onda!");
-        onNavigate("/coletor/separacao/iniciar");
-      } else {
-        sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
-        onNavigate("/coletor/separacao/endereco");
-      }
-    }
-  };
 
   if (!tarefa) return null;
 
