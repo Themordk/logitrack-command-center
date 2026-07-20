@@ -126,8 +126,13 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
         <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
           {itens.map((item, idx) => (
             <div key={item.sku || idx} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 shrink-0">
-              <div className="flex justify-between items-start mb-1">
+              <div className="flex justify-between items-start mb-1 gap-2">
                 <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
+                {item.divergente && (
+                  <AlertTriangle size={16} className="text-[#F59E0B] shrink-0" aria-label="Item divergente">
+                    <title>Item divergente</title>
+                  </AlertTriangle>
+                )}
               </div>
               <button
                 onClick={() => {
