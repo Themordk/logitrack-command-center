@@ -131,8 +131,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       .maybeSingle();
 
     if (!emb) {
-      setEanErroMsg("EAN não cadastrado no sistema.");
-      setShowEanErroDialog(true);
+      result.showWarning("EAN não cadastrado no sistema.", {
+        instruction: "Verifique o EAN e escaneie novamente.",
+        onClose: () => setEanScanned(""),
+      });
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
@@ -155,8 +157,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         setEanConfirmado(false);
         return;
       }
-      setEanErroMsg("Este EAN não pertence a nenhum item desta conferência.");
-      setShowEanErroDialog(true);
+      result.showWarning("Este EAN não pertence a nenhum item desta conferência.", {
+        instruction: "Confira o produto e tente novamente.",
+        onClose: () => setEanScanned(""),
+      });
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
