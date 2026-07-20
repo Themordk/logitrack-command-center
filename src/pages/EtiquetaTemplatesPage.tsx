@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
-import { useEtiquetaTemplate, type EtiquetaConfig, type CampoEtiqueta, type TipoEtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
+import { type EtiquetaConfig, type CampoEtiqueta, type TipoEtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 import { parseError } from "@/lib/errorMapper";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { EtiquetaEnderecoPreview } from "@/components/etiqueta/EtiquetaEnderecoPreview";
@@ -18,9 +18,11 @@ import {
   ArrowDown,
   Loader2,
   Save,
-  RotateCcw,
   Building2,
   Info,
+  Plus,
+  Trash2,
+  Star,
 } from "lucide-react";
 
 interface Props {
@@ -34,29 +36,53 @@ const TIPOS: { key: TipoEtiquetaConfig; label: string; icon: React.ReactNode }[]
   { key: "VOLUME", label: "Volume", icon: <Box size={14} /> },
 ];
 
-const TAMANHOS_POR_TIPO: Record<TipoEtiquetaConfig, string[]> = {
-  ENDERECO: ["100x40", "50x20", "80x20"],
-  HU: ["100x40"],
-  PRODUTO: ["100x40", "50x20"],
-  VOLUME: ["100x40"],
-};
-
 interface Empresa {
   id: string;
   razaosocial: string;
   codigo: string | null;
 }
 
+const DEFAULT_CAMPOS_BY_TIPO: Record<TipoEtiquetaConfig, CampoEtiqueta[]> = {
+  ENDERECO: [
+    { chave: "descricao", label: "Descrição", ativo: true, ordem: 1 },
+    { chave: "codigo_endereco", label: "Código", ativo: true, ordem: 2 },
+  ],
+  HU: [
+    { chave: "codigo_hu", label: "Código HU", ativo: true, ordem: 1 },
+    { chave: "tipo_hu", label: "Tipo", ativo: true, ordem: 2 },
+  ],
+  PRODUTO: [
+    { chave: "sku", label: "SKU", ativo: true, ordem: 1 },
+    { chave: "descricao", label: "Descrição", ativo: true, ordem: 2 },
+    { chave: "ean", label: "EAN", ativo: true, ordem: 3 },
+  ],
+  VOLUME: [
+    { chave: "codigo_volume", label: "Código", ativo: true, ordem: 1 },
+    { chave: "parceiro_nome", label: "Cliente", ativo: true, ordem: 2 },
+  ],
+};
+
+function parseTemplateRow(row: any): EtiquetaConfig {
+  return {
+    ...row,
+    campos: typeof row.campos === "string" ? JSON.parse(row.campos) : row.campos,
+  };
+}
+
 export function EtiquetaTemplatesPage({ onNavigate }: Props) {
-  const { tenantId, empresaId: currentEmpresaId } = useTenant();
+  const { tenantId } = useTenant();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [empresaSel, setEmpresaSel] = useState<string>(""); // "" = padrão do tenant
   const [tipo, setTipo] = useState<TipoEtiquetaConfig>("ENDERECO");
-  const { config, loading, reload } = useEtiquetaTemplate(tipo, empresaSel || null);
+
+  const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reloadFlag, setReloadFlag] = useState(0);
 
   const [draft, setDraft] = useState<EtiquetaConfig | null>(null);
   const [saving, setSaving] = useState(false);
-  const [confirmRestore, setConfirmRestore] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Carrega empresas do tenant
   useEffect(() => {
@@ -70,13 +96,46 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       .then(({ data }: any) => setEmpresas(data || []));
   }, [tenantId]);
 
-  // Sincroniza draft com config resolvido
+  // Carrega TODOS os templates do tipo/empresa
   useEffect(() => {
-    if (config) setDraft(structuredClone(config));
-  }, [config]);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const { data, error } = await (supabase.rpc as any)(
+          "listar_etiqueta_templates",
+          { p_tipo: tipo, p_empresa_id: empresaSel || null }
+        );
+        if (cancelled) return;
+        if (error) throw error;
+        const parsed = (data || []).map(parseTemplateRow);
+        setTemplates(parsed);
+        // Seleciona padrão ou primeiro
+        const padrao = parsed.find((t: EtiquetaConfig) => t.padrao);
+        setSelectedTemplateId(padrao?.id || parsed[0]?.id || null);
+      } catch (err: any) {
+        if (!cancelled) {
+          setTemplates([]);
+          setSelectedTemplateId(null);
+          const parsed = parseError(err, "carregar templates");
+          toast.error(parsed.title);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [tipo, empresaSel, reloadFlag]);
 
-  const isOverride = draft?.empresa_id != null && draft.empresa_id === empresaSel;
-  const isInherited = empresaSel !== "" && draft?.empresa_id == null;
+  const reload = useCallback(() => setReloadFlag((v) => v + 1), []);
+
+  // Sincroniza draft ao trocar seleção
+  useEffect(() => {
+    const selected = templates.find((t) => t.id === selectedTemplateId);
+    if (selected) setDraft(structuredClone(selected));
+    else setDraft(null);
+  }, [selectedTemplateId, templates]);
 
   const handleFieldToggle = (chave: string) => {
     if (!draft) return;
@@ -101,9 +160,6 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     setSaving(true);
     try {
       const payload = {
-        tenant_id: tenantId,
-        empresa_id: empresaSel || null,
-        tipo: draft.tipo,
         nome: draft.nome,
         tamanho: draft.tamanho,
         orientacao: draft.orientacao,
@@ -117,52 +173,120 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         intervalo_colunas_mm: draft.intervalo_colunas_mm,
         direcao_seta: draft.direcao_seta,
         escala_fonte: draft.escala_fonte,
-        ativo: true,
         updated_at: new Date().toISOString(),
       };
-
-      // Se estamos herdando o padrão do tenant e usuário escolheu uma empresa,
-      // criar novo override para essa empresa.
-      if (isInherited) {
-        const { error } = await (supabase as any)
-          .from("etiqueta_template")
-          .insert(payload);
-        if (error) throw error;
-      } else {
-        // Atualiza o registro existente (padrão do tenant ou override)
-        const { error } = await (supabase as any)
-          .from("etiqueta_template")
-          .update(payload)
-          .eq("id", draft.id);
-        if (error) throw error;
-      }
+      const { error } = await (supabase as any)
+        .from("etiqueta_template")
+        .update(payload)
+        .eq("id", draft.id);
+      if (error) throw error;
       toast.success("Template salvo com sucesso!");
       reload();
     } catch (err: any) {
       const parsed = parseError(err, "salvar template de etiqueta");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao salvar template." : parsed.title);
+      toast.error(parsed.title);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRestore = async (): Promise<boolean> => {
-    if (!draft || !isOverride) return false;
+  const handleCreateNew = async () => {
+    if (!tenantId) return;
+    try {
+      const baseCampos = templates[0]?.campos || DEFAULT_CAMPOS_BY_TIPO[tipo];
+      const payload = {
+        tenant_id: tenantId,
+        empresa_id: empresaSel || null,
+        tipo,
+        nome: `Novo Template ${tipo}`,
+        tamanho: "100x40",
+        orientacao: "horizontal",
+        largura_mm: 100,
+        altura_mm: 40,
+        com_cabecalho: true,
+        com_logo: false,
+        logo_url: null,
+        campos: baseCampos,
+        padrao: false,
+        ativo: true,
+        duas_colunas: false,
+        intervalo_colunas_mm: 3,
+        direcao_seta: "NENHUMA",
+        escala_fonte: 1.0,
+      };
+      const { data, error } = await (supabase as any)
+        .from("etiqueta_template")
+        .insert(payload)
+        .select()
+        .single();
+      if (error) throw error;
+      toast.success("Template criado!");
+      // Recarrega e seleciona o novo
+      const newId = data?.id;
+      setReloadFlag((v) => v + 1);
+      if (newId) {
+        // aguarda o effect recarregar e então selecionar
+        setTimeout(() => setSelectedTemplateId(newId), 0);
+      }
+    } catch (err: any) {
+      const parsed = parseError(err, "criar template");
+      toast.error(parsed.title);
+    }
+  };
+
+  const handleDelete = async (): Promise<boolean> => {
+    if (!draft) return false;
+    if (draft.padrao) {
+      toast.error("Não é possível excluir o template padrão.");
+      return false;
+    }
     try {
       const { error } = await (supabase as any)
         .from("etiqueta_template")
-        .delete()
+        .update({ ativo: false, updated_at: new Date().toISOString() })
         .eq("id", draft.id);
       if (error) throw error;
-      toast.success("Override removido. Voltando ao padrão do tenant.");
+      toast.success("Template excluído.");
+      setSelectedTemplateId(null);
       reload();
       return true;
     } catch (err: any) {
-      const parsed = parseError(err, "restaurar padrão do tenant");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao restaurar padrão." : parsed.title);
+      const parsed = parseError(err, "excluir template");
+      toast.error(parsed.title);
       return false;
+    }
+  };
+
+  const handleSetPadrao = async () => {
+    if (!draft || !tenantId || draft.padrao) return;
+    try {
+      // Desmarca padrão atual no mesmo escopo (tenant + tipo + empresa)
+      let unsetQuery = (supabase as any)
+        .from("etiqueta_template")
+        .update({ padrao: false, updated_at: new Date().toISOString() })
+        .eq("tenant_id", tenantId)
+        .eq("tipo", tipo)
+        .eq("ativo", true);
+      if (empresaSel) {
+        unsetQuery = unsetQuery.eq("empresa_id", empresaSel);
+      } else {
+        unsetQuery = unsetQuery.is("empresa_id", null);
+      }
+      const { error: e1 } = await unsetQuery;
+      if (e1) throw e1;
+
+      // Marca este como padrão
+      const { error: e2 } = await (supabase as any)
+        .from("etiqueta_template")
+        .update({ padrao: true, updated_at: new Date().toISOString() })
+        .eq("id", draft.id);
+      if (e2) throw e2;
+
+      toast.success("Template definido como padrão!");
+      reload();
+    } catch (err: any) {
+      const parsed = parseError(err, "definir padrão");
+      toast.error(parsed.title);
     }
   };
 
@@ -189,7 +313,9 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-foreground">Templates de Etiqueta</h1>
-          <p className="text-xs text-muted-foreground">Configuração de etiquetas por empresa. O padrão do tenant é usado quando não há override.</p>
+          <p className="text-xs text-muted-foreground">
+            Configure múltiplos templates por tipo. Marque um como padrão para ser pré-selecionado nos modais de impressão.
+          </p>
         </div>
       </div>
 
@@ -235,42 +361,113 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
               </div>
             </div>
 
-            {isInherited && (
-              <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-md px-2.5 py-2 text-[11px] text-muted-foreground">
-                <Info size={12} className="mt-0.5 shrink-0" />
-                <span>Esta empresa está usando o <b>padrão do tenant</b>. Salvar criará um override específico.</span>
+            {/* Lista de templates */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Templates ({templates.length})
+                </span>
+                <button
+                  onClick={handleCreateNew}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                >
+                  <Plus size={14} /> Novo template
+                </button>
               </div>
-            )}
+
+              {loading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-3">
+                  <Loader2 size={12} className="animate-spin" /> Carregando...
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-md px-2.5 py-2 text-[11px] text-muted-foreground">
+                  <Info size={12} className="mt-0.5 shrink-0" />
+                  <span>Nenhum template cadastrado. Clique em "Novo template" para criar.</span>
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-[260px] overflow-auto pr-1">
+                  {templates.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTemplateId(t.id)}
+                      className={`p-2 rounded-lg border cursor-pointer transition-colors ${
+                        selectedTemplateId === t.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-muted-foreground bg-secondary/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground truncate">{t.nome}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {t.padrao && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-semibold">
+                              PADRÃO
+                            </span>
+                          )}
+                          {t.empresa_id == null && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground font-semibold">
+                              TENANT
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        {t.largura_mm}×{t.altura_mm}mm · {t.orientacao}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {loading || !draft ? (
             <div className="bg-card border border-border rounded-lg p-6 flex items-center justify-center text-muted-foreground text-sm">
-              <Loader2 size={14} className="animate-spin mr-2" /> Carregando template...
+              {loading ? (
+                <><Loader2 size={14} className="animate-spin mr-2" /> Carregando template...</>
+              ) : (
+                <span>Selecione ou crie um template para editar.</span>
+              )}
             </div>
           ) : (
             <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-              <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Nome do Template</label>
-                <input
-                  type="text"
-                  value={draft.nome}
-                  onChange={(e) => setDraft({ ...draft, nome: e.target.value })}
-                  className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none focus:ring-2 focus:ring-primary/50"
-                />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">
+                    Nome do Template
+                  </label>
+                  <input
+                    type="text"
+                    value={draft.nome}
+                    onChange={(e) => setDraft({ ...draft, nome: e.target.value })}
+                    className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+                <button
+                  onClick={handleSetPadrao}
+                  disabled={draft.padrao}
+                  title={draft.padrao ? "Já é o padrão" : "Marcar como padrão"}
+                  className={`mt-5 flex items-center gap-1 px-2.5 py-2 rounded-md border text-xs transition-colors ${
+                    draft.padrao
+                      ? "border-primary/40 bg-primary/10 text-primary cursor-default"
+                      : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  <Star size={12} className={draft.padrao ? "fill-current" : ""} />
+                  {draft.padrao ? "Padrão" : "Tornar padrão"}
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Tamanho</label>
-                  <select
+                  <input
+                    type="text"
                     value={draft.tamanho}
                     onChange={(e) => setDraft({ ...draft, tamanho: e.target.value })}
+                    placeholder="100x40"
                     className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none"
-                  >
-                    {TAMANHOS_POR_TIPO[tipo].map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Orientação</label>
@@ -289,8 +486,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                         setDraft({ ...draft, orientacao: newOri });
                       }
                     }}
-                    disabled={draft.tamanho === "80x20"}
-                    className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none disabled:opacity-50"
+                    className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none"
                   >
                     <option value="horizontal">Horizontal</option>
                     <option value="vertical">Vertical</option>
@@ -468,14 +664,14 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                   {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                   Salvar
                 </button>
-                {isOverride && (
+                {!draft.padrao && (
                   <button
-                    onClick={() => setConfirmRestore(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    title="Excluir o override e voltar ao padrão do tenant"
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-destructive/40 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Excluir template"
                   >
-                    <RotateCcw size={12} />
-                    Restaurar padrão
+                    <Trash2 size={12} />
+                    Excluir
                   </button>
                 )}
               </div>
@@ -493,11 +689,11 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       </div>
 
       <DeleteConfirmDialog
-        open={confirmRestore}
-        onClose={() => setConfirmRestore(false)}
-        onConfirm={handleRestore}
-        title="Restaurar padrão do tenant"
-        description="O template específico desta empresa será excluído e ela voltará a usar o padrão do tenant. Continuar?"
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+        title="Excluir template"
+        description="Este template será desativado. Continuar?"
       />
     </div>
   );
