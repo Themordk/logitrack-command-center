@@ -4,8 +4,11 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, ListOrdered, XCircle, Loader2 } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, ListOrdered, Loader2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
