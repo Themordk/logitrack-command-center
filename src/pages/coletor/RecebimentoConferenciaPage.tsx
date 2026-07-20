@@ -41,7 +41,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     try {
       const { data, error } = await (supabase as any)
         .from("vw_movimento_entrada_conferencia_detalhe")
-        .select("movimento_id, tarefa_execucao_id, sku, descricao, operador, codigo_hu, quantidade_executada, concluido_em, lote")
+        .select("movimento_id, tarefa_execucao_id, sku, descricao, operador, codigo_hu, quantidade_executada, concluido_em, lote, status")
         .eq("movimento_id", movimentoId);
       if (error) throw error;
 
@@ -49,13 +49,16 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       const grouped = new Map<string, ItemResumo>();
       for (const row of (data || [])) {
         const key = row.sku || row.tarefa_execucao_id;
+        const isDiv = row.status === "DIVERGENTE";
         if (grouped.has(key)) {
           const existing = grouped.get(key)!;
           existing.quantidade_executada += Number(row.quantidade_executada || 0);
+          if (isDiv) existing.divergente = true;
         } else {
           grouped.set(key, {
             ...row,
             quantidade_executada: Number(row.quantidade_executada || 0),
+            divergente: isDiv,
           });
         }
       }
