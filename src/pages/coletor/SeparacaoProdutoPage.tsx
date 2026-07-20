@@ -4,9 +4,13 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ScanField } from "@/components/coletor/ScanField";
 import { toast } from "sonner";
-import { Package, AlertTriangle, CheckCircle, XCircle, BoxIcon } from "lucide-react";
+import { Package, AlertTriangle, BoxIcon } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDate } from "@/utils/dateTime";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 
 interface Props { onNavigate: (path: string) => void; }
