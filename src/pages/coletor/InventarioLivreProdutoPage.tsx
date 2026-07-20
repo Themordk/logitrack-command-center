@@ -69,7 +69,10 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
         .eq("ean", code)
         .limit(1);
       if (error || !data || data.length === 0) {
-        setShowEanErroDialog(true);
+        result.showWarning("EAN não cadastrado no sistema.", {
+          instruction: "Escaneie o EAN correto do produto.",
+          onClose: () => setEanScanned(""),
+        });
         return;
       }
       const emb = data[0];
@@ -85,9 +88,11 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       setProdutoInfo({ sku: produto?.sku || "—", descricao: produto?.descricao || "—", tipo_controle: produto?.tipo_controle || "UNIDADE" });
       setEanConfirmado(true);
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao validar EAN.");
+    } catch (err: unknown) {
+      const parsed = parseError(err, "inventario-livre-ean");
+      toast.error(parsed.title);
     }
+
   };
 
   const requiresLote = () => {
