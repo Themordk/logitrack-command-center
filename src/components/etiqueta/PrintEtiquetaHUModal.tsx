@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Printer, X, Eye, Settings2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetaHUPreview } from "./EtiquetaHUPreview";
@@ -17,11 +17,27 @@ type Saida = "preview" | "imprimir";
 export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModalProps) {
   const [saida, setSaida] = useState<Saida>("preview");
   const [showPreview, setShowPreview] = useState(false);
+  const [duasColunas, setDuasColunas] = useState(false);
+  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
+  const [defaultsApplied, setDefaultsApplied] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const plural = hus.length > 1;
   const { empresaId } = useTenant();
   const { config, loading } = useEtiquetaTemplate("HU", empresaId);
   const template = config ? getTemplateFromConfig(config) : TEMPLATES.ARMAZEM_100x40_H;
+
+  useEffect(() => {
+    if (config && !defaultsApplied) {
+      setDuasColunas(!!config.duas_colunas);
+      setIntervaloColunasMm(config.intervalo_colunas_mm ?? 3);
+      setDefaultsApplied(true);
+    }
+  }, [config, defaultsApplied]);
+
+  const configOverride = useMemo(() => {
+    if (!config) return undefined;
+    return { ...config, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
+  }, [config, duasColunas, intervaloColunasMm]);
 
   const handleGerar = () => {
     if (saida === "preview") setShowPreview(true);
@@ -32,7 +48,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
     const printContent = printRef.current;
     if (!printContent) return;
     const css = config
-      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, !!config.duas_colunas, config.intervalo_colunas_mm ?? 3)
+      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, duasColunas, intervaloColunasMm)
       : getPrintCSS(template);
     const win = window.open("", "_blank", "width=900,height=700");
     if (!win) return;
