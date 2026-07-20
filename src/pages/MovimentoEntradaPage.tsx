@@ -184,6 +184,10 @@ export function MovimentoEntradaPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterDocumento, setFilterDocumento] = useState("");
+  const [filterTipoEntradaId, setFilterTipoEntradaId] = useState("");
+  const [filterPlacaVeiculo, setFilterPlacaVeiculo] = useState("");
+  const [filterBoxId, setFilterBoxId] = useState("");
+  const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [page, setPage] = useState(1);
@@ -191,11 +195,42 @@ export function MovimentoEntradaPage() {
 
   const debouncedNumero = useDebounce(filterNumero, 400);
   const debouncedDocumento = useDebounce(filterDocumento, 400);
+  const debouncedPlaca = useDebounce(filterPlacaVeiculo, 400);
+  const debouncedParceiroErp = useDebounce(filterParceiroCodigoErp, 400);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedNumero, debouncedDocumento, filterStatus, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
+  }, [debouncedNumero, debouncedDocumento, debouncedPlaca, debouncedParceiroErp, filterStatus, filterTipoEntradaId, filterBoxId, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
+
+  // Tipos de entrada e boxes para filtros
+  const tiposEntradaQuery = useQuery({
+    queryKey: ["filter-tipos-entrada", tenantId, empresaId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("tipo_entrada")
+        .select("id, descricao")
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .order("descricao");
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 5 * 60_000,
+  });
+
+  const boxesQuery = useQuery({
+    queryKey: ["filter-boxes", tenantId, armazemId],
+    queryFn: async () => {
+      let q = (supabase as any).from("box").select("id, descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+      if (armazemId) q = q.eq("armazem_id", armazemId);
+      const { data } = await q;
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId,
+    staleTime: 5 * 60_000,
+  });
 
   // List via RPC (server-side pagination)
   const listQuery = useQuery({
@@ -205,10 +240,14 @@ export function MovimentoEntradaPage() {
       empresaId,
       armazemId,
       filterStatus,
+      filterTipoEntradaId,
+      filterBoxId,
       filterDateFrom,
       filterDateTo,
       debouncedNumero,
       debouncedDocumento,
+      debouncedPlaca,
+      debouncedParceiroErp,
       page,
     ],
     queryFn: async () => {
@@ -220,11 +259,15 @@ export function MovimentoEntradaPage() {
         p_data_ate: filterDateTo || null,
         p_numero_movimento: debouncedNumero ? Number(debouncedNumero) : null,
         p_numero_nf: debouncedDocumento || null,
+        p_tipo_entrada_id: filterTipoEntradaId || null,
+        p_placa_veiculo: debouncedPlaca ? debouncedPlaca.toUpperCase() : null,
+        p_box_id: filterBoxId || null,
+        p_parceiro_codigo_erp: debouncedParceiroErp || null,
         p_page: page,
         p_page_size: pageSize,
       });
       if (error) throw error;
-      return (data || []) as MovimentoEntradaListItem[];
+      return (data || []) as (MovimentoEntradaListItem & { tipo_entrada_descricao?: string })[];
     },
     enabled: !!tenantId && !!empresaId,
     staleTime: 30_000,
