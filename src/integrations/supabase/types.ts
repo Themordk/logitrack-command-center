@@ -8593,11 +8593,16 @@ export type Database = {
           p_data_ate?: string
           p_data_de?: string
           p_empresa_id?: string
+          p_numero_documento?: number
           p_numero_onda?: number
           p_page?: number
           p_page_size?: number
+          p_parceiro_codigo_erp?: string
           p_status?: string
           p_tenant_id: string
+          p_tipo_saida_id?: string
+          p_transportador?: string
+          p_vendedor?: string
         }
         Returns: {
           box_descricao: string
