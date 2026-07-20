@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -22,7 +26,8 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
+  const result = useResultDialog({ coletorMode: true });
+
 
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
@@ -48,8 +53,9 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
         return (a.numero_onda || 0) - (b.numero_onda || 0);
       });
       setOndas(parsed);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const parsed = parseError(err, "conferencia-ondas");
+      toast.error(parsed.title);
     } finally {
       setLoading(false);
     }
@@ -70,17 +76,17 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao buscar tarefas" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro ao buscar tarefas");
         return;
       }
 
-      const tarefas = Array.isArray(result) ? result : [];
+      const tarefas = Array.isArray(rpcResult) ? rpcResult : [];
 
       sessionStorage.setItem("coletor_conferencia_movimento_id", selectedId);
       sessionStorage.setItem("coletor_conferencia_numero_onda", String(onda.numero_onda));
@@ -88,25 +94,21 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
       sessionStorage.setItem("coletor_conferencia_tarefa_idx", "0");
 
       if (tarefas.length === 0) {
-        setResultDialog({ sucesso: false, mensagem: "Nenhuma tarefa pendente para esta onda." });
+        result.showWarning("Nenhuma tarefa pendente para esta onda.");
         return;
       }
 
-      setResultDialog({ sucesso: true, mensagem: `Conferência da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!` });
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+      result.showSuccess(`Conferência da Onda #${onda.numero_onda} iniciada com ${tarefas.length} tarefa(s)!`, {
+        onClose: () => onNavigate("/coletor/conferencia/produto"),
+      });
+    } catch (err: unknown) {
+      result.showError(err, { context: "conferencia-iniciar" });
     } finally {
       setStarting(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-    if (wasSuccess) {
-      onNavigate("/coletor/conferencia/produto");
-    }
-  };
+
 
   const getPrioridadeColor = (p: string) => {
     const upper = (p || "").toUpperCase();
@@ -172,26 +174,8 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
         </div>
       </div>
 
-      {resultDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              {resultDialog.sucesso ? (
-                <CheckCircle size={48} className="text-[#22C55E]" />
-              ) : (
-                <XCircle size={48} className="text-[#E02424]" />
-              )}
-              <h3 className="text-base font-bold text-white text-center">
-                {resultDialog.sucesso ? "Sucesso" : "Erro"}
-              </h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
-            </div>
-            <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
-              {resultDialog.sucesso ? "Continuar" : "Fechar"}
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
+
     </ColetorLayout>
   );
 }

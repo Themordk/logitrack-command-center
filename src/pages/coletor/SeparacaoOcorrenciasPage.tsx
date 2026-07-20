@@ -3,7 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { AlertTriangle, Truck, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, Truck, Loader2 } from "lucide-react";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -21,7 +25,7 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [observacao, setObservacao] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
+  const result = useResultDialog({ coletorMode: true });
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -90,6 +94,19 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
     loadMotivos();
   };
 
+  const advanceToNext = () => {
+    const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
+    const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
+    const nextIdx = idx + 1;
+    if (nextIdx >= tarefas.length) {
+      toast.success("Separação concluída para esta onda!");
+      onNavigate("/coletor/separacao/iniciar");
+    } else {
+      sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
+      onNavigate("/coletor/separacao/endereco");
+    }
+  };
+
   const handleConfirm = async () => {
     if (!selectedMotivo || !tarefa || !showMotivoModal) return;
     setProcessing(true);
@@ -104,18 +121,18 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
         });
         if (error) throw error;
 
-        let result: any = data;
+        let rpcResult: any = data;
         if (typeof data === "string") {
-          try { result = JSON.parse(data); } catch { /* keep */ }
+          try { rpcResult = JSON.parse(data); } catch { /* keep */ }
         }
 
-        if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-          setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro ao cortar saldo" });
+        if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+          result.showWarning(rpcResult.mensagem || "Erro ao cortar saldo");
           setShowMotivoModal(null);
           return;
         }
 
-        setResultDialog({ sucesso: true, mensagem: "Ocorrência registrada e saldo cortado com sucesso!" });
+        result.showSuccess("Ocorrência registrada e saldo cortado com sucesso!", { onClose: advanceToNext });
         setShowMotivoModal(null);
       } else {
         // Abastecimento
@@ -136,34 +153,17 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
           .insert(payload);
         if (error) throw error;
 
-        setResultDialog({ sucesso: true, mensagem: "Solicitação de abastecimento registrada com sucesso!" });
+        result.showSuccess("Solicitação de abastecimento registrada com sucesso!", { onClose: advanceToNext });
         setShowMotivoModal(null);
       }
-    } catch (err: any) {
-      setResultDialog({ sucesso: false, mensagem: err.message });
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao-ocorrencia" });
       setShowMotivoModal(null);
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDialogClose = () => {
-    const wasSuccess = resultDialog?.sucesso;
-    setResultDialog(null);
-
-    if (wasSuccess) {
-      const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
-      const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
-      const nextIdx = idx + 1;
-      if (nextIdx >= tarefas.length) {
-        toast.success("Separação concluída para esta onda!");
-        onNavigate("/coletor/separacao/iniciar");
-      } else {
-        sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
-        onNavigate("/coletor/separacao/endereco");
-      }
-    }
-  };
 
   if (!tarefa) return null;
 
@@ -267,27 +267,8 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* Result Dialog */}
-      {resultDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              {resultDialog.sucesso ? (
-                <CheckCircle size={48} className="text-[#22C55E]" />
-              ) : (
-                <XCircle size={48} className="text-[#E02424]" />
-              )}
-              <h3 className="text-base font-bold text-white text-center">
-                {resultDialog.sucesso ? "Sucesso" : "Erro"}
-              </h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
-            </div>
-            <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
-              {resultDialog.sucesso ? "Continuar" : "Fechar"}
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <ResultDialog {...result.dialogProps} />
+
     </ColetorLayout>
   );
 }
