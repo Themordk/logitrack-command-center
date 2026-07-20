@@ -299,6 +299,7 @@ export function MovimentoEntradaPage() {
       created_at: r.created_at,
       placa_veiculo: null,
       parceiro_nome: r.parceiro_nome || "—",
+      tipo_entrada_descricao: (r as any).tipo_entrada_descricao || "—",
       operadores_atribuidos: opsMap.get(r.id) || [],
     }));
   }, [listRows, opsQuery.data]);
