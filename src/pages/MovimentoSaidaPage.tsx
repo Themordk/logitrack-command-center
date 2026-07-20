@@ -847,9 +847,14 @@ export function MovimentoSaidaPage() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 truncate">{mov.parceiro_nome}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>{truncate(mov.parceiro_nome, 35)}</p>
                     <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
-                    <p className="text-xs text-muted-foreground">Box: {mov.box_nome} • {formatDate(mov.data_emissao)}</p>
+                    <div className="flex items-center justify-between mt-0.5 gap-2">
+                      <span className="text-xs text-muted-foreground truncate">Box: {mov.box_nome} • {formatDate(mov.data_emissao)}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[45%] text-right" title={mov.tipo_saida_descricao || ""}>
+                        {mov.tipo_saida_descricao || "—"}
+                      </span>
+                    </div>
                   </div>
                 );
               })
