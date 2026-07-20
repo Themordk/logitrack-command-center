@@ -34,17 +34,12 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
   const [eanConfirmado, setEanConfirmado] = useState(false);
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{
-    sucesso: boolean;
-    mensagem: string;
-    divergencia?: number;
-    saldoSistema?: number;
-    quantidadeContada?: number;
   const [showLoteModal, setShowLoteModal] = useState(false);
   const [lote, setLote] = useState("");
   const [fabricacao, setFabricacao] = useState("");
   const [validade, setValidade] = useState("");
   const result = useResultDialog({ coletorMode: true });
+
 
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
