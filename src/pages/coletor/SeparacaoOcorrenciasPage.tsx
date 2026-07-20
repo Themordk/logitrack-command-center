@@ -3,7 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { AlertTriangle, Truck, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, Truck, Loader2 } from "lucide-react";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { parseError } from "@/lib/errorMapper";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
