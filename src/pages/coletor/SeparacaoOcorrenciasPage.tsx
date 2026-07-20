@@ -25,7 +25,7 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
   const [selectedMotivo, setSelectedMotivo] = useState("");
   const [observacao, setObservacao] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
+  const result = useResultDialog({ coletorMode: true });
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
