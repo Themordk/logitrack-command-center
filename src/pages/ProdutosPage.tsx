@@ -14,6 +14,7 @@ import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package, Printer, Aler
 import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaProdutoModal";
 import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoPreview";
 import { EnderecoSearchInput } from "@/components/armazem/EnderecoSearchInput";
+import { parseError } from "@/lib/errorMapper";
 
 const TIPO_PICKING_OPTIONS = [
   { value: "MASTER", label: "Master" },
@@ -216,11 +217,11 @@ function ProdutoDetailModal({
       toast.success("Embalagem salva!");
       setEmbModalOpen(false);
       loadEmbalagens();
-    } catch (err: any) { toast.error(err.message); } finally { setEmbSaving(false); }
+    } catch (err: any) { toast.error(parseError(err, "produtos-page").title); } finally { setEmbSaving(false); }
   };
   const deleteEmb = async (id: string) => {
     const { error } = await (supabase as any).from("produto_embalagem").update({ ativo: false }).eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Removido!"); loadEmbalagens(); }
+    if (error) toast.error(parseError(error, "produtos-page").title); else { toast.success("Removido!"); loadEmbalagens(); }
   };
 
   // ── Picking CRUD ──
@@ -261,11 +262,11 @@ function ProdutoDetailModal({
       toast.success("Picking salvo!");
       setPickModalOpen(false);
       loadPickings();
-    } catch (err: any) { toast.error(err.message); } finally { setPickSaving(false); }
+    } catch (err: any) { toast.error(parseError(err, "produtos-page").title); } finally { setPickSaving(false); }
   };
   const deletePick = async (id: string) => {
     const { error } = await (supabase as any).from("picking_produto").delete().eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Picking removido!"); loadPickings(); }
+    if (error) toast.error(parseError(error, "produtos-page").title); else { toast.success("Picking removido!"); loadPickings(); }
   };
 
   const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30";
@@ -666,7 +667,7 @@ export function ProdutosPage() {
       .in("produto_id", ids)
       .eq("tenant_id", tenantId)
       .eq("ativo", true);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(parseError(error, "produtos-page").title); return; }
     const rows = (data || []) as any[];
     if (!rows.length) { toast.error("Nenhuma embalagem ativa encontrada para os produtos selecionados"); return; }
     const items: EtiquetaProdutoItem[] = rows.map((e) => ({

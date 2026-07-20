@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -101,7 +102,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
       setOcorrencia(ocoRes.data);
       setHistorico(histRes.data || []);
     } catch (err: any) {
-      toast.error(err.message || "Falha ao carregar ocorrência.");
+      toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao carregar ocorrência." : p.title; })());
     } finally {
       setLoading(false);
     }
@@ -140,7 +141,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
       setDialogAction(null);
       await load();
     } catch (err: any) {
-      toast.error(err.message || "Falha ao atualizar.");
+      toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao atualizar." : p.title; })());
     } finally {
       setSubmitting(false);
     }
@@ -200,7 +201,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
       setHistOpen(false);
       await load();
     } catch (err: any) {
-      toast.error(err.message || "Falha ao registrar histórico.");
+      toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao registrar histórico." : p.title; })());
     } finally {
       setHistSaving(false);
     }
@@ -732,7 +733,7 @@ function ComplementarOcorrenciaForm({
       toast.success("Informações atualizadas com sucesso.");
       await onSave();
     } catch (err: any) {
-      toast.error(err.message || "Erro ao complementar informações.");
+      toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao complementar informações." : p.title; })());
     } finally {
       setSaving(false);
     }

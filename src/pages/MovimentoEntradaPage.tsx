@@ -15,6 +15,7 @@ import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuid
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
 import { LiberarErroTransporteModal } from "@/components/movimento-entrada/LiberarErroTransporteModal";
+import { parseError } from "@/lib/errorMapper";
 
 interface MovimentoEntradaListItem {
   id: string;
@@ -418,7 +419,7 @@ export function MovimentoEntradaPage() {
         qtd_volume: d.qtd_volume,
       })));
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-entrada-page").title);
     } finally {
       setDetailLoading(false);
     }
@@ -445,7 +446,7 @@ export function MovimentoEntradaPage() {
         if (selectedMov === movId) loadDetails(movId, "LIBERADO");
       }
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-entrada-page").title);
     }
   };
 
@@ -464,7 +465,7 @@ export function MovimentoEntradaPage() {
       fetchMovements();
       if (selectedMov === movId) loadDetails(movId, "GERADO");
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-entrada-page").title);
     }
   };
 
@@ -552,7 +553,7 @@ export function MovimentoEntradaPage() {
       }
     } catch (err: any) {
       setCancelarResult({ error: err.message });
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-entrada-page").title);
     } finally {
       setCancelando(false);
     }

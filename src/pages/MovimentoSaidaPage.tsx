@@ -13,6 +13,7 @@ import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 interface OndaCarregamentoListItem {
   id: string;
@@ -368,7 +369,7 @@ export function MovimentoSaidaPage() {
         parceiro: d.parceiro || "—",
       })));
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     } finally {
       setTabLoading(false);
     }
@@ -445,7 +446,7 @@ export function MovimentoSaidaPage() {
         }
       }
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     }
   };
 
@@ -463,7 +464,7 @@ export function MovimentoSaidaPage() {
         setSelectedMov((prev) => prev ? { ...prev, status: "CRIADA" } : null);
       }
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     }
   };
 
@@ -493,7 +494,7 @@ export function MovimentoSaidaPage() {
         toast.error(result?.mensagem || "Erro ao cancelar onda.");
       }
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     } finally {
       setDeleting(false);
     }
@@ -510,7 +511,7 @@ export function MovimentoSaidaPage() {
       toast.success(typeof data === "string" ? data : "Abastecimento preventivo gerado!");
       setLiberarDialogOpen(false);
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     }
   };
 
@@ -588,7 +589,7 @@ export function MovimentoSaidaPage() {
         if (pickingOcs.length > 0) fetchSaldoPulmao(pickingOcs, "ocorrencias");
       }
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     } finally {
       setAbastItemLoading(null);
     }
@@ -659,7 +660,7 @@ export function MovimentoSaidaPage() {
         };
       });
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     } finally {
       setCorteSaving(false);
     }
@@ -681,7 +682,7 @@ export function MovimentoSaidaPage() {
         setSelectedMov((prev) => prev ? { ...prev, prioridade: prioridadeValue } : null);
       }
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(parseError(err, "movimento-saida-page").title);
     } finally {
       setSavingPrioridade(false);
     }
@@ -1462,7 +1463,7 @@ export function MovimentoSaidaPage() {
                   if (selectedId) loadTabData(selectedId);
                   fetchMovimentos();
                 } catch (err: any) {
-                  toast.error(err.message || "Erro ao limpar separação do item.");
+                  toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar separação do item." : p.title; })());
                 } finally {
                   setLimparSepItemLoading(false);
                 }
@@ -1503,7 +1504,7 @@ export function MovimentoSaidaPage() {
                   if (selectedId) loadTabData(selectedId);
                   fetchMovimentos();
                 } catch (err: any) {
-                  toast.error(err.message || "Erro ao limpar conferência do item.");
+                  toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar conferência do item." : p.title; })());
                 } finally {
                   setLimparConfItemLoading(false);
                 }
