@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Play, Pause, RotateCcw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   tenantId: string;
@@ -135,7 +136,8 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
       if (error) throw error;
       onChanged?.();
     } catch (e: any) {
-      toast.error(`Erro: ${e.message || e}`);
+      const parsed = parseError(e, "sync-config");
+      toast.error(parsed.title);
       load();
     }
   };
@@ -160,7 +162,9 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
       if (error) throw error;
       toast.success(`${entidade}: execução iniciada`);
     } catch (e: any) {
-      toast.error(`Falha ao executar: ${e.message || e}`);
+      const parsed = parseError(e, "executar sync");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Falha ao executar." : parsed.title);
     } finally {
       setTimeout(() => {
         setRunning((p) => ({ ...p, [k]: false }));
@@ -181,7 +185,9 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
       toast.success("Cursor resetado");
       load();
     } catch (e: any) {
-      toast.error(`Erro ao resetar: ${e.message || e}`);
+      const parsed = parseError(e, "resetar cursor");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao resetar." : parsed.title);
     }
   };
 

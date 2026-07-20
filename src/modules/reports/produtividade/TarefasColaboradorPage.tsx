@@ -20,6 +20,7 @@ import {
   Pagination, PaginationContent, PaginationItem, PaginationLink,
   PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
+import { parseError } from "@/lib/errorMapper";
 
 interface Props {
   usuarioId: string;
@@ -129,7 +130,9 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
       setGeneratedAt(nowDisplay());
       setPage(1);
     } catch (e: any) {
-      toast.error(e?.message || "Erro ao carregar tarefas.");
+      const parsed = parseError(e, "carregar tarefas-colaborador");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao carregar tarefas." : parsed.title);
     } finally {
       setLoading(false);
     }

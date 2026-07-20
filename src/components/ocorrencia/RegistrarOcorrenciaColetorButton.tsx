@@ -122,7 +122,9 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
             .from("evidencias")
             .upload(path, foto, { contentType: foto.type });
           if (uploadError) {
-            toast.error("Falha ao enviar foto: " + uploadError.message);
+            const parsed = parseError(uploadError, "upload evidencia");
+            const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+            toast.error(fallbackToRaw ? "Falha ao enviar foto." : parsed.title);
           } else {
             const { data: urlData } = supabase.storage
               .from("evidencias")

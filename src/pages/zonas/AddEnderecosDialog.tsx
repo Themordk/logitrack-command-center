@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/useDebounce";
 import { parseEndereco } from "./utils";
+import { parseError } from "@/lib/errorMapper";
 
 const PAGE_SIZE = 100;
 
@@ -53,7 +54,7 @@ export function AddEnderecosDialog({ open, zona, tenantId, onClose, onAdded }: P
         .eq("tenant_id", tenantId)
         .eq("zona_atividade_id", zona.id)
         .limit(50000);
-      if (error) { toast.error(`Erro: ${error.message}`); setVinculadosIds([]); return; }
+      if (error) { toast.error(parseError(error, "carregar vinculados").title); setVinculadosIds([]); return; }
       setVinculadosIds((data || []).map((d: any) => d.endereco_id));
     })();
   }, [open, zona, tenantId]);
@@ -108,7 +109,9 @@ export function AddEnderecosDialog({ open, zona, tenantId, onClose, onAdded }: P
       setData(res || []);
       setTotal(count || 0);
     } catch (e: any) {
-      toast.error(`Erro ao carregar disponíveis: ${e.message || e}`);
+      const parsed = parseError(e, "carregar disponiveis");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao carregar disponíveis." : parsed.title);
     } finally {
       setLoading(false);
     }
@@ -161,7 +164,9 @@ export function AddEnderecosDialog({ open, zona, tenantId, onClose, onAdded }: P
       onAdded();
       onClose();
     } catch (e: any) {
-      toast.error(`Erro ao vincular endereços. ${e.message || ""}`);
+      const parsed = parseError(e, "vincular enderecos");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao vincular endereços." : parsed.title);
     } finally {
       setSaving(false);
     }

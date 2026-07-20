@@ -186,7 +186,8 @@ function ProdutoDetailModal({
       onSaved();
       onClose();
     } catch (err: any) {
-      toast.error(`Erro: ${err.message}`);
+      const parsed = parseError(err, "salvar produto");
+      toast.error(parsed.title);
     } finally {
       setSaving(false);
     }

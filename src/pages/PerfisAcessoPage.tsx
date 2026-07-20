@@ -4,6 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { Loader2, Plus, Edit2, Trash2, Shield, ChevronDown, ChevronRight, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseError } from "@/lib/errorMapper";
 
 interface Perfil {
   id: string;
@@ -136,7 +137,9 @@ export function PerfisAcessoPage() {
       .from("perfil")
       .insert({ tenant_id: tenantId, nome: editingName.trim(), descricao: editingDesc || null });
     if (error) {
-      toast.error("Erro ao criar perfil: " + error.message);
+      const parsed = parseError(error, "criar perfil");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao criar perfil." : parsed.title);
       return;
     }
     toast.success("Perfil criado!");

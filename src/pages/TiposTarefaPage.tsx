@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Save, Loader2 } from "lucide-react";
+import { parseError } from "@/lib/errorMapper";
 
 interface TipoTarefa {
   id: string;
@@ -47,7 +48,7 @@ export function TiposTarefaPage() {
       .select("*")
       .eq("tenant_id", tenantId)
       .order("codigo");
-    if (error) toast.error(`Erro: ${error.message}`);
+    if (error) toast.error(parseError(error, "carregar tipos-tarefa").title);
     setData(rows || []);
     setLoading(false);
   };
@@ -151,7 +152,7 @@ function TipoTarefaEditModal({
     };
     const { error } = await (supabase as any).from("tipo_tarefa").update(payload).eq("id", item.id);
     setSaving(false);
-    if (error) { toast.error(`Erro: ${error.message}`); return; }
+    if (error) { toast.error(parseError(error, "salvar tipo-tarefa").title); return; }
     toast.success("Tipo de tarefa atualizado!");
     onSaved();
   };

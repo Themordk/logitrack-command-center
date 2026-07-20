@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, ArrowUpDown, Check } from "lucide-react";
+import { parseError } from "@/lib/errorMapper";
 
 interface SimItem {
   produto_id: string;
@@ -88,7 +89,9 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
         // Select all by default
         setSelected(new Set(parsed.map((_, i) => i)));
       } catch (e: any) {
-        toast.error("Erro na simulação: " + e.message);
+        const parsed = parseError(e, "simular abastecimento");
+        const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+        toast.error(fallbackToRaw ? "Erro na simulação." : parsed.title);
       } finally {
         setLoading(false);
       }
@@ -225,7 +228,9 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
       toast.success(`${totalTarefas} tarefa(s) de abastecimento gerada(s)`);
       onNavigate("/atividades/abastecimento");
     } catch (e: any) {
-      toast.error("Erro ao gerar: " + e.message);
+      const parsed = parseError(e, "gerar abastecimento");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao gerar." : parsed.title);
     } finally {
       setGenerating(false);
     }

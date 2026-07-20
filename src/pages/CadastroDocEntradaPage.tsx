@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ProdutoSearchInput, ProdutoSearchResult } from "@/components/produto/ProdutoSearchInput";
+import { parseError } from "@/lib/errorMapper";
 
 interface DocItem {
   id?: string;
@@ -148,7 +149,8 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
         setItems([]);
       }
     } catch (err: any) {
-      toast.error(`Erro: ${err.message}`);
+      const parsed = parseError(err, "salvar doc-entrada");
+      toast.error(parsed.title);
     } finally {
       setSaving(false);
     }
