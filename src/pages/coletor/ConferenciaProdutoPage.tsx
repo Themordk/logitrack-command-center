@@ -245,13 +245,13 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro na conferência" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro na conferência");
         return;
       }
 
@@ -320,10 +320,8 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
             if (geraVolumeEtapa === "CONFERÊNCIA") {
               setShowVolumeDialog(true);
             } else {
-              setResultDialog({
-                sucesso: true,
-                mensagem: `Conferência da Onda #${numeroOnda} finalizada com sucesso`,
-                ondaConcluida: true,
+              result.showSuccess(`Conferência da Onda #${numeroOnda} finalizada com sucesso`, {
+                onClose: () => onNavigate("/coletor/conferencia/iniciar"),
               });
             }
           }, 850);
@@ -337,7 +335,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       }
     } catch (err: any) {
       setOverlay({ type: "error", message: "Erro" });
-      setResultDialog({ sucesso: false, mensagem: err.message });
+      result.showError(err, { context: "conferencia" });
     } finally {
       setConfirming(false);
     }
