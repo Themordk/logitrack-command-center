@@ -1543,6 +1543,7 @@ export type Database = {
           logo_url: string | null
           nome: string
           orientacao: string
+          padrao: boolean
           tamanho: string
           tenant_id: string
           tipo: string
@@ -1568,6 +1569,7 @@ export type Database = {
           logo_url?: string | null
           nome: string
           orientacao?: string
+          padrao?: boolean
           tamanho?: string
           tenant_id: string
           tipo: string
@@ -1593,6 +1595,7 @@ export type Database = {
           logo_url?: string | null
           nome?: string
           orientacao?: string
+          padrao?: boolean
           tamanho?: string
           tenant_id?: string
           tipo?: string
@@ -8659,6 +8662,41 @@ export type Database = {
         }
         Returns: Json
       }
+      listar_etiqueta_templates: {
+        Args: { p_empresa_id?: string; p_tipo: string }
+        Returns: {
+          altura_mm: number
+          ativo: boolean
+          campos: Json
+          com_cabecalho: boolean
+          com_logo: boolean
+          created_at: string
+          created_by: string | null
+          direcao_seta: string
+          duas_colunas: boolean
+          empresa_id: string | null
+          escala_fonte: number
+          id: string
+          intervalo_colunas_mm: number
+          largura_mm: number
+          logo_url: string | null
+          nome: string
+          orientacao: string
+          padrao: boolean
+          tamanho: string
+          tenant_id: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+          versao: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "etiqueta_template"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       listar_movimentos_entrada: {
         Args: {
           p_box_id?: string
@@ -8786,6 +8824,7 @@ export type Database = {
           logo_url: string | null
           nome: string
           orientacao: string
+          padrao: boolean
           tamanho: string
           tenant_id: string
           tipo: string
