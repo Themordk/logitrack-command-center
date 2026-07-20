@@ -1,53 +1,75 @@
-## Ajustes na tela /atividades/mov-saida (Ondas de Carregamento)
 
-### 1. Novos filtros (RPC já suporta todos os parâmetros)
-A RPC `listar_ondas_carregamento` já aceita `p_numero_documento`, `p_tipo_saida_id`, `p_parceiro_codigo_erp`, `p_vendedor` e `p_transportador`.
+Execução integral do documento `plano-acao-ui-logitrack.md`, em duas partes independentes e sequenciais. Cada fase é reversível.
 
-Em `src/pages/MovimentoSaidaPage.tsx` adicionar os seguintes estados/controles, na mesma linha inline dos filtros atuais:
-- `filterNumeroDocumento` — `<input number>` com debounce (400 ms), enviado como `Number(...)` ou `null`.
-- `filterTipoSaidaId` — `<select>` populado por `tipo_saida` (`tenant_id`, `empresa_id` quando houver, `ativo=true`, `orderBy=descricao`) via `useQuery` estático.
-- `filterParceiroCodigoErp` — `<input text>` com debounce (400 ms).
-- `filterVendedor` — `<input text>` com debounce (400 ms).
-- `filterTransportador` — `<input text>` com debounce (400 ms).
+---
 
-Ajustes na `listQuery`:
-- Incluir os cinco novos valores debounced no `queryKey`.
-- Enviar os novos parâmetros no payload da RPC (`null` quando vazios).
-- Resetar `page` para 1 no `useEffect` de dependências dos filtros.
+## PARTE 1 — Padronização de mensagens (só UI, sem banco)
 
-### 2. Truncar razão social do card (máx. 35 caracteres)
-No card do movimento (L748):
-- Utilitário local `const truncate = (s, n=35) => s && s.length > n ? s.slice(0, n) + '…' : s;`
-- Substituir `{mov.parceiro_nome}` por `{truncate(mov.parceiro_nome)}` e adicionar `title={mov.parceiro_nome}` para tooltip nativo.
+Infra existente reutilizada (não recriar): `src/lib/errorMapper.ts`, `src/components/feedback/ResultDialog.tsx`, `src/hooks/useResultDialog.ts`, `src/components/feedback/ErrorBoundary.tsx`.
 
-### 3. Exibir Tipo de Saída no card, alinhado à direita da Data
-Contexto verificado: a RPC **não retorna** `tipo_saida_descricao` (Returns confirmadas via `pg_get_functiondef`). Como o requisito exige "nenhuma mudança na RPC", buscar o rótulo em query auxiliar, no padrão já usado por `opsQuery`:
-- Nova `tipoSaidaMapQuery` (`useQuery`), dependendo de `movIdsKey`:
-  - `select movimento_saida_id, documento_saida:tipo_pedido_id ( tipo_saida:tipo_pedido_id ( descricao ) )` a partir de `movimento_saida_documento` (JOIN → `documento_saida.tipo_pedido_id` → `tipo_saida.descricao`) filtrando por `movimento_saida_id in (ids)`.
-  - Reduzir para `Map<movimentoId, descricao>` — pegar o primeiro tipo distinto (na prática a onda tem um único `tipo_saida` porque o motor agrupa por tipo).
-- Propagar `tipo_saida_descricao?: string` na interface `MovSaida` e no `movimentos` memo.
-- Substituir a linha `Box: {mov.box_nome} • {formatDate(mov.data_emissao)}` (L750) por dois elementos em `flex justify-between`:
-  ```
-  <div className="flex items-center justify-between mt-0.5">
-    <span className="text-xs text-muted-foreground">Box: {mov.box_nome} • {formatDate(mov.data_emissao)}</span>
-    <span className="text-xs text-muted-foreground truncate max-w-[45%] text-right">
-      {mov.tipo_saida_descricao || '—'}
-    </span>
-  </div>
-  ```
+### Fase 1.1 — Login do coletor
+- Em `src/pages/coletor/ColetorLoginPage.tsx`, no `catch` do login: importar `parseError` e usar `parsed.title` no `toast.error`, preservando `err.message` como fallback quando `parsed` cair no genérico (espelhar exatamente o padrão do `src/pages/LoginPage.tsx`).
+- Não trocar `toast` por dialog; sem outras alterações.
 
-### 4. Aba "Informações" — incluir campos faltantes
-Campos do `movimento_saida` hoje ausentes do card "Dados do Movimento" (grid em L933): `numero_documento` (nº do movimento interno, se existir), `total_esperado`, `total_separado`, `total_conferido`, `total_cortado`, `total_itens`, `data_criacao`, `operador_nome`, `rota_descricao`, `veiculo_placa`, `tipo_saida_descricao`.
+### Fase 1.2 — Coletor: dialogs inline → `ResultDialog`
+Páginas: `ConferenciaProdutoPage`, `SeparacaoProdutoPage`, `InventarioProdutoPage`, `InventarioLivreProdutoPage`, `ConferenciaIniciarPage`, `SeparacaoIniciarPage`, `SeparacaoOcorrenciasPage`, `InventarioListPage`.
+- Substituir `useState resultDialog` + JSX inline por `const result = useResultDialog({ coletorMode: true })`.
+- Mapear: sucesso → `result.showSuccess(msg, { onClose })`; validação → `result.showWarning(msg, { instruction })`; exceção → `result.showError(err, { context })`.
+- Unificar `showEanErroDialog` no mesmo padrão (`showWarning` com instrução).
+- Renderizar `<ResultDialog {...result.dialogProps} />` no fim. Manter `StatusOverlay`.
 
-Alterações:
-- Propagar os campos da RPC (`total_itens`, `total_esperado`, `total_separado`, `total_conferido`, `total_cortado`, `operador_nome`, `rota_descricao`, `veiculo_placa`) para dentro de `MovSaida` no memo `movimentos` (hoje descartados). Não requer migração — já vêm de `listar_ondas_carregamento`.
-- Reutilizar o `tipoSaidaMapQuery` do item 3 para o campo Tipo de Saída.
-- Ampliar o array do grid `Dados do Movimento` com os novos rótulos:
-  `Tipo de Saída`, `Rota`, `Placa Veículo`, `Operador`, `Total de Itens`, `Total Esperado`, `Total Separado`, `Total Conferido`, `Total Cortado`.
-- Manter `grid-cols-3` (o layout já é responsivo).
+### Fase 1.3 — Coletor: `errorDialog` → `ResultDialog`
+Páginas: `InventarioEnderecoPage`, `InventarioLivreEnderecoPage`, `SeparacaoEnderecoPage`. Mesma mecânica da 1.2, removendo o estado `errorDialog`.
 
-### Detalhes técnicos
-- Nenhuma mudança na RPC ou nas views de banco.
-- Toda a lógica adicional é frontend + uma query auxiliar (`tipoSaidaMapQuery`) já dentro do escopo de UI.
-- Manter o padrão de `useDebounce(400)`, `queryKey` incluindo filtros e `staleTime: 30_000` já vigente.
-- Sem alterações no coletor.
+### Fase 1.4 — Varredura de `toast.error(err.message)` cru
+Em lotes: `src/pages/coletor/` → `src/components/` → `src/pages/` → `src/modules/reports/`.
+- Substituir por `const parsed = parseError(err, "<contexto>"); toast.error(parsed.title);`, preservando fallback em pt-BR quando `parsed` cair no genérico. Não trocar toast por dialog aqui, não mexer em `try/catch` nem em lógica.
+
+### Checklist Parte 1
+- Login do coletor traduz erros; `useResultDialog` com uso > 0; sem dialogs inline no coletor; `errorDialog`/`showEanErroDialog` eliminados; `toast.error(*.message)` reduzido ao mínimo.
+
+---
+
+## PARTE 2 — Etiquetas por empresa
+
+### Fase 2.1 — Banco (via `supabase--migration`)
+Criar tabela `public.etiqueta_template` com colunas `id, tenant_id, empresa_id (NULLABLE), tipo (ENDERECO|HU|PRODUTO|VOLUME), nome, tamanho, orientacao, com_cabecalho, com_logo, logo_url, campos jsonb, versao, ativo, created_at/updated_at/by`.
+- Índice único parcial `(tenant_id, empresa_id, tipo) WHERE ativo` com `NULLS NOT DISTINCT`.
+- GRANTs: `SELECT, INSERT, UPDATE, DELETE` a `authenticated`; `ALL` a `service_role`.
+- RLS: `SELECT` amplo dentro do tenant; `INSERT/UPDATE/DELETE` restritos a `tenant_id = get_current_tenant()`.
+- Trigger `set_updated_at` (confirmar nome real da função do projeto antes de aplicar).
+- RPC `resolver_etiqueta_template(p_tipo, p_empresa_id)` retornando o template com cascata `empresa_id NULLS LAST`.
+
+### Fase 2.2 — Seed padrão por tenant (via `supabase--insert`)
+Para cada tenant existente, inserir 4 registros `empresa_id = NULL` (ENDERECO/HU/PRODUTO/VOLUME) com `tamanho='100x40'`, refletindo o layout atual dos 4 previews. Campos em JSONB: `[{chave, label, ativo, ordem}]`. Volume começa com `com_logo=false, com_cabecalho=true`.
+
+### Fase 2.3 — Motor + hook de resolução
+- Estender `src/components/etiqueta/thermalEngine.ts` com tipo `EtiquetaConfig` e função `getTemplateFromConfig(config)` mapeando para os `TemplateSpec` existentes. Não recriar o arquivo.
+- Criar `src/hooks/useEtiquetaTemplate.ts` chamando a RPC `resolver_etiqueta_template` (padrão `as any`), retornando `{ config, loading }`.
+- Nos 4 `Etiqueta*Preview.tsx`, aceitar prop opcional `config?: EtiquetaConfig`. Quando presente, aplicar `tamanho/orientacao/com_cabecalho/com_logo/logo_url` e renderizar só campos `ativo: true` na `ordem`. Sem `config`, comportamento atual (retrocompat).
+- `EtiquetaVolumePreview`: remover marca "CORE LogiTrack" hardcoded; se `com_logo && logo_url` renderiza logo da empresa, caso contrário apenas título neutro.
+
+### Fase 2.4 — Tela `EtiquetaTemplatesPage`
+- Criar `src/pages/EtiquetaTemplatesPage.tsx` (hash routing, `useTenant`, `PermissionGate`, design system dark).
+- Seletor Empresa (ou "Padrão do tenant") + Tipo. Ao selecionar, chama `resolver_etiqueta_template`.
+- Controles: tamanho (100x40/50x20/80x20), orientação (H/V), switches "Com cabeçalho" / "Com logo" + upload/URL, lista de campos com switch ativo + reorder (setas). Para VOLUME incluir campos candidatos extras: peso, NF, pedido, transportadora, observação.
+- Preview ao vivo à direita, reusando o `Etiqueta*Preview` correspondente com a `config` em edição.
+- Salvar: se editando o padrão do tenant e a empresa selecionada é específica, cria novo registro com `empresa_id` (override); senão atualiza o existente. Usar `useCrud` sobre `etiqueta_template` onde aplicável.
+- Registrar em `App.tsx` (lazy + `case` no `renderPage`), breadcrumb e entrada em `TopNav.tsx` sob Configurações, gated por `PermissionGate`.
+
+### Fase 2.5 — PrintModals lendo o template resolvido
+- Em `PrintEtiquetaEnderecoModal`, `PrintEtiquetaHUModal`, `PrintEtiquetaProdutoModal`, `PrintEtiquetaVolumeModal`: resolver via `useEtiquetaTemplate(tipo, empresaId)` e passar `config` para o preview correspondente. Fluxo `window.open`/`window.print` inalterado. Se não houver template, imprime como hoje.
+
+### Checklist Parte 2
+- Tabela + RLS + índice único; RPC de cascata; seed padrão por tenant; previews leem `config`; volume sem marca "CORE LogiTrack"; tela de gerenciamento funcional; PrintModals respeitando template.
+
+---
+
+## Detalhes técnicos
+
+- Sem novas dependências em nenhuma fase.
+- Nenhuma alteração em tabela existente na Parte 2 — só criação isolada.
+- Confirmar no início da 2.1 o nome real da função de `updated_at` (`set_updated_at` no plano) via `supabase--read_query` antes de aplicar a migration; ajustar se divergir. Confirmar também presença de `get_current_tenant()`.
+- Ordem obrigatória de execução: 1.1 → 1.2 → 1.3 → 1.4 → 2.1 → 2.2 → 2.3 → 2.4 → 2.5. Validar build após cada fase.
+- Todas as mensagens novas devem passar por `parseError` (Parte 1) ou serem estáticas em pt-BR (Parte 2 UI).
+- Design system dark-first, sem cores hardcoded, ícones Lucide, Sonner para toasts, shadcn/ui para modais.
