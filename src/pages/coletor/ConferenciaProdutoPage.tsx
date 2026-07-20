@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Package, CheckCircle, XCircle, BoxIcon, MoreVertical, List } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -28,9 +30,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [qtdConferida, setQtdConferida] = useState(0);
-  const [resultDialog, setResultDialog] = useState<{ sucesso: boolean; mensagem: string; ondaConcluida?: boolean } | null>(null);
-  const [showEanErroDialog, setShowEanErroDialog] = useState(false);
-  const [eanErroMsg, setEanErroMsg] = useState<string>("");
+  const result = useResultDialog({ coletorMode: true });
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
   const [modoCego, setModoCego] = useState(false);
@@ -131,8 +131,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       .maybeSingle();
 
     if (!emb) {
-      setEanErroMsg("EAN não cadastrado no sistema.");
-      setShowEanErroDialog(true);
+      result.showWarning("EAN não cadastrado no sistema.", {
+        instruction: "Verifique o EAN e escaneie novamente.",
+        onClose: () => setEanScanned(""),
+      });
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
@@ -155,8 +157,10 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         setEanConfirmado(false);
         return;
       }
-      setEanErroMsg("Este EAN não pertence a nenhum item desta conferência.");
-      setShowEanErroDialog(true);
+      result.showWarning("Este EAN não pertence a nenhum item desta conferência.", {
+        instruction: "Confira o produto e tente novamente.",
+        onClose: () => setEanScanned(""),
+      });
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       return;
@@ -241,13 +245,13 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       });
       if (error) throw error;
 
-      let result: any = data;
+      let rpcResult: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
       }
 
-      if (result && typeof result === "object" && !Array.isArray(result) && result.sucesso === false) {
-        setResultDialog({ sucesso: false, mensagem: result.mensagem || "Erro na conferência" });
+      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+        result.showWarning(rpcResult.mensagem || "Erro na conferência");
         return;
       }
 
@@ -316,10 +320,8 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
             if (geraVolumeEtapa === "CONFERÊNCIA") {
               setShowVolumeDialog(true);
             } else {
-              setResultDialog({
-                sucesso: true,
-                mensagem: `Conferência da Onda #${numeroOnda} finalizada com sucesso`,
-                ondaConcluida: true,
+              result.showSuccess(`Conferência da Onda #${numeroOnda} finalizada com sucesso`, {
+                onClose: () => onNavigate("/coletor/conferencia/iniciar"),
               });
             }
           }, 850);
@@ -333,7 +335,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       }
     } catch (err: any) {
       setOverlay({ type: "error", message: "Erro" });
-      setResultDialog({ sucesso: false, mensagem: err.message });
+      result.showError(err, { context: "conferencia" });
     } finally {
       setConfirming(false);
     }
@@ -384,13 +386,6 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     }
   };
 
-  const handleDialogClose = () => {
-    const wasOndaConcluida = resultDialog?.ondaConcluida;
-    setResultDialog(null);
-    if (wasOndaConcluida) {
-      onNavigate("/coletor/conferencia/iniciar");
-    }
-  };
 
   if (!tarefa) {
     return (
@@ -581,46 +576,8 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {/* EAN Error Dialog */}
-      {showEanErroDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              <XCircle size={48} className="text-[#E02424]" />
-              <h3 className="text-base font-bold text-white text-center">EAN Incorreto</h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">
-                {eanErroMsg || "O EAN informado não pertence a esta conferência."}
-              </p>
+      <ResultDialog {...result.dialogProps} />
 
-            </div>
-            <ActionButton onClick={() => { setShowEanErroDialog(false); setEanScanned(""); }}>
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
-
-      {/* Result Dialog */}
-      {resultDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex flex-col items-center gap-3">
-              {resultDialog.sucesso ? (
-                <CheckCircle size={48} className="text-[#22C55E]" />
-              ) : (
-                <XCircle size={48} className="text-[#E02424]" />
-              )}
-              <h3 className="text-base font-bold text-white text-center">
-                {resultDialog.sucesso ? "Sucesso" : "Erro"}
-              </h3>
-              <p className="text-sm text-[hsl(213,31%,75%)] text-center">{resultDialog.mensagem}</p>
-            </div>
-            <ActionButton onClick={handleDialogClose} variant={resultDialog.sucesso ? "success" : "primary"}>
-              Fechar
-            </ActionButton>
-          </div>
-        </div>
-      )}
 
       {/* Success/error overlay for visual feedback */}
       <StatusOverlay

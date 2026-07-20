@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Boxes, Loader2, User, Lock } from "lucide-react";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { toast } from "sonner";
+import { parseError } from "@/lib/errorMapper";
 
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
@@ -83,8 +84,11 @@ export function ColetorLoginPage({ onNavigate }: Props) {
       }
 
       await completeLogin(usuario);
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao fazer login.");
+    } catch (err: unknown) {
+      const parsed = parseError(err, "login-coletor");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      const message = fallbackToRaw && err instanceof Error ? err.message : parsed.title;
+      toast.error(message);
     } finally {
       setLoading(false);
     }
