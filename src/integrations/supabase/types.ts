@@ -983,6 +983,7 @@ export type Database = {
           apto: number
           armazem_id: string
           ativo: boolean
+          capacidade_unidades: number | null
           codigo_endereco: number | null
           comprimento: number | null
           curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
@@ -1010,6 +1011,7 @@ export type Database = {
           apto: number
           armazem_id: string
           ativo?: boolean
+          capacidade_unidades?: number | null
           codigo_endereco?: number | null
           comprimento?: number | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
@@ -1037,6 +1039,7 @@ export type Database = {
           apto?: number
           armazem_id?: string
           ativo?: boolean
+          capacidade_unidades?: number | null
           codigo_endereco?: number | null
           comprimento?: number | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
@@ -1679,53 +1682,147 @@ export type Database = {
       hu: {
         Row: {
           altura: number | null
+          armazem_id: string | null
+          ativo: boolean
           codigo_hu: string | null
+          created_at: string
+          created_by: string | null
           disponibilidade:
             | Database["public"]["Enums"]["enum_disponibilidade_hu"]
             | null
           empresa_id: string | null
+          endereco_id: string | null
           id: string
           m3: number | null
+          movimento_entrada_id: string | null
           peso_bruto: number | null
+          status: Database["public"]["Enums"]["enum_status_hu"] | null
           tamanho: Database["public"]["Enums"]["enum_tamanho_hu"] | null
           tenant_id: string
           tipo_hu: Database["public"]["Enums"]["enum_tipo_hu"] | null
+          updated_at: string
         }
         Insert: {
           altura?: number | null
+          armazem_id?: string | null
+          ativo?: boolean
           codigo_hu?: string | null
+          created_at?: string
+          created_by?: string | null
           disponibilidade?:
             | Database["public"]["Enums"]["enum_disponibilidade_hu"]
             | null
           empresa_id?: string | null
+          endereco_id?: string | null
           id?: string
           m3?: number | null
+          movimento_entrada_id?: string | null
           peso_bruto?: number | null
+          status?: Database["public"]["Enums"]["enum_status_hu"] | null
           tamanho?: Database["public"]["Enums"]["enum_tamanho_hu"] | null
           tenant_id: string
           tipo_hu?: Database["public"]["Enums"]["enum_tipo_hu"] | null
+          updated_at?: string
         }
         Update: {
           altura?: number | null
+          armazem_id?: string | null
+          ativo?: boolean
           codigo_hu?: string | null
+          created_at?: string
+          created_by?: string | null
           disponibilidade?:
             | Database["public"]["Enums"]["enum_disponibilidade_hu"]
             | null
           empresa_id?: string | null
+          endereco_id?: string | null
           id?: string
           m3?: number | null
+          movimento_entrada_id?: string | null
           peso_bruto?: number | null
+          status?: Database["public"]["Enums"]["enum_status_hu"] | null
           tamanho?: Database["public"]["Enums"]["enum_tamanho_hu"] | null
           tenant_id?: string
           tipo_hu?: Database["public"]["Enums"]["enum_tipo_hu"] | null
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "hu_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "hu_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "v_recebimento_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "hu_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_info"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "hu_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_movimento_entrada_id_fkey"
+            columns: ["movimento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_resumo"
+            referencedColumns: ["movimento_id"]
           },
           {
             foreignKeyName: "hu_tenant_id_fkey"
@@ -1736,6 +1833,132 @@ export type Database = {
           },
           {
             foreignKeyName: "hu_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hu_item: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_fabricacao: string
+          data_validade: string
+          hu_id: string
+          id: string
+          lote: string
+          numero_serie: string | null
+          produto_id: string
+          quantidade: number
+          tarefa_execucao_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_fabricacao?: string
+          data_validade?: string
+          hu_id: string
+          id?: string
+          lote?: string
+          numero_serie?: string | null
+          produto_id: string
+          quantidade: number
+          tarefa_execucao_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_fabricacao?: string
+          data_validade?: string
+          hu_id?: string
+          id?: string
+          lote?: string
+          numero_serie?: string | null
+          produto_id?: string
+          quantidade?: number
+          tarefa_execucao_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hu_item_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_item_hu_id_fkey"
+            columns: ["hu_id"]
+            isOneToOne: false
+            referencedRelation: "hu"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_item_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_item_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inventario_execucao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_item_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_lms_timeline_operador"
+            referencedColumns: ["execucao_id"]
+          },
+          {
+            foreignKeyName: "hu_item_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
+            foreignKeyName: "hu_item_tarefa_execucao_id_fkey"
+            columns: ["tarefa_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_execucao_id"]
+          },
+          {
+            foreignKeyName: "hu_item_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hu_item_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
@@ -2271,6 +2494,141 @@ export type Database = {
           },
           {
             foreignKeyName: "log_sessao_usuario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      log_sugestao_armazenagem: {
+        Row: {
+          aceita: boolean | null
+          armazem_id: string
+          created_at: string
+          empresa_id: string
+          endereco_escolhido_id: string | null
+          endereco_sugerido_id: string
+          id: string
+          lote: string | null
+          motivo_sugestao: string
+          produto_id: string
+          quantidade: number
+          score: number
+          tenant_id: string
+          tipo_sugestao: Database["public"]["Enums"]["enum_tipo_sugestao_armazenagem"]
+          usuario_id: string | null
+          validade: string | null
+        }
+        Insert: {
+          aceita?: boolean | null
+          armazem_id: string
+          created_at?: string
+          empresa_id: string
+          endereco_escolhido_id?: string | null
+          endereco_sugerido_id: string
+          id?: string
+          lote?: string | null
+          motivo_sugestao: string
+          produto_id: string
+          quantidade?: number
+          score?: number
+          tenant_id: string
+          tipo_sugestao: Database["public"]["Enums"]["enum_tipo_sugestao_armazenagem"]
+          usuario_id?: string | null
+          validade?: string | null
+        }
+        Update: {
+          aceita?: boolean | null
+          armazem_id?: string
+          created_at?: string
+          empresa_id?: string
+          endereco_escolhido_id?: string | null
+          endereco_sugerido_id?: string
+          id?: string
+          lote?: string | null
+          motivo_sugestao?: string
+          produto_id?: string
+          quantidade?: number
+          score?: number
+          tenant_id?: string
+          tipo_sugestao?: Database["public"]["Enums"]["enum_tipo_sugestao_armazenagem"]
+          usuario_id?: string | null
+          validade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "log_sugestao_armazenagem_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_endereco_escolhido_id_fkey"
+            columns: ["endereco_escolhido_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_endereco_escolhido_id_fkey"
+            columns: ["endereco_escolhido_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_endereco_sugerido_id_fkey"
+            columns: ["endereco_sugerido_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_endereco_sugerido_id_fkey"
+            columns: ["endereco_sugerido_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "log_sugestao_armazenagem_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "usuario"
@@ -3858,6 +4216,7 @@ export type Database = {
           id: string
           produto_id: string
           tenant_id: string
+          tipo_alocacao: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tipo_picking: Database["public"]["Enums"]["enum_tipo_picking"]
         }
         Insert: {
@@ -3870,6 +4229,7 @@ export type Database = {
           id?: string
           produto_id: string
           tenant_id: string
+          tipo_alocacao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tipo_picking: Database["public"]["Enums"]["enum_tipo_picking"]
         }
         Update: {
@@ -3882,6 +4242,7 @@ export type Database = {
           id?: string
           produto_id?: string
           tenant_id?: string
+          tipo_alocacao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tipo_picking?: Database["public"]["Enums"]["enum_tipo_picking"]
         }
         Relationships: [
@@ -4195,6 +4556,106 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      regra_armazenagem: {
+        Row: {
+          armazem_id: string
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          id: string
+          permite_mistura_lote: boolean
+          permite_mistura_sku: boolean
+          permite_mistura_validade: boolean
+          priorizar_consolidacao: boolean
+          tenant_id: string
+          tipo_picking_padrao: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
+          tolerancia_validade_dias: number
+          updated_at: string
+          updated_by: string | null
+          usar_cruzamento_curvas: boolean
+        }
+        Insert: {
+          armazem_id: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id: string
+          id?: string
+          permite_mistura_lote?: boolean
+          permite_mistura_sku?: boolean
+          permite_mistura_validade?: boolean
+          priorizar_consolidacao?: boolean
+          tenant_id: string
+          tipo_picking_padrao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
+          tolerancia_validade_dias?: number
+          updated_at?: string
+          updated_by?: string | null
+          usar_cruzamento_curvas?: boolean
+        }
+        Update: {
+          armazem_id?: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          id?: string
+          permite_mistura_lote?: boolean
+          permite_mistura_sku?: boolean
+          permite_mistura_validade?: boolean
+          priorizar_consolidacao?: boolean
+          tenant_id?: string
+          tipo_picking_padrao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
+          tolerancia_validade_dias?: number
+          updated_at?: string
+          updated_by?: string | null
+          usar_cruzamento_curvas?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regra_armazenagem_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_armazenagem_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_armazenagem_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_armazenagem_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_armazenagem_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_armazenagem_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -7377,6 +7838,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      buscar_hu_por_codigo: {
+        Args: { p_codigo_hu: string; p_tenant_id: string }
+        Returns: Json
+      }
       buscar_itens_movimento_entrada: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
         Returns: {
@@ -7483,6 +7948,18 @@ export type Database = {
             }
             Returns: Json
           }
+      criar_hu_recebimento: {
+        Args: {
+          p_armazem_id: string
+          p_empresa_id: string
+          p_movimento_entrada_id?: string
+          p_tamanho?: string
+          p_tenant_id: string
+          p_tipo_hu?: string
+          p_usuario_id?: string
+        }
+        Returns: Json
+      }
       criar_movimento_saida_registro: {
         Args: {
           p_box_id?: string
@@ -7569,6 +8046,14 @@ export type Database = {
           tarefas: number
           unidades: number
         }[]
+      }
+      desvincular_item_hu: {
+        Args: {
+          p_hu_item_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
       }
       entrada_conferencia_buscar_tarefas: {
         Args: {
@@ -8698,6 +9183,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      listar_itens_hu: {
+        Args: { p_hu_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       listar_movimentos_entrada: {
         Args: {
           p_box_id?: string
@@ -9125,6 +9614,43 @@ export type Database = {
           usuario_nome: string
         }[]
       }
+      rpc_sugerir_endereco_picking: {
+        Args: {
+          p_armazem_id: string
+          p_limite?: number
+          p_lote?: string
+          p_produto_id: string
+          p_quantidade?: number
+          p_tenant_id: string
+          p_validade?: string
+        }
+        Returns: {
+          apto: number
+          capacidade_livre: number
+          curva_acesso: string
+          descricao: string
+          endereco_id: string
+          motivo: string
+          nivel: number
+          predio: number
+          rua: number
+          saldo_atual: number
+          score: number
+          tipo_sugestao: string
+        }[]
+      }
+      rpc_validar_endereco_picking: {
+        Args: {
+          p_armazem_id: string
+          p_endereco_id: string
+          p_lote?: string
+          p_produto_id: string
+          p_quantidade?: number
+          p_tenant_id: string
+          p_validade?: string
+        }
+        Returns: Json
+      }
       separacao_buscar_ondas: {
         Args: {
           p_empresa_id: string
@@ -9298,6 +9824,13 @@ export type Database = {
         | "CONCLUIDA"
         | "CANCELADA"
         | "COLETA_PENDENTE"
+      enum_status_hu:
+        | "ABERTA"
+        | "FECHADA"
+        | "EM_TRANSITO"
+        | "ARMAZENADA"
+        | "EXPEDIDA"
+        | "DESCARTADA"
       enum_status_inventario:
         | "CRIADO"
         | "GERANDO_TAREFAS"
@@ -9364,6 +9897,7 @@ export type Database = {
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_abastecimento: "PREVENTIVO" | "CORRETIVO"
+      enum_tipo_alocacao_picking: "FIXO" | "ROTATIVO"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
       enum_tipo_conferencia:
         | "Nenhuma"
@@ -9432,6 +9966,11 @@ export type Database = {
         | "RECEBIMENTO"
         | "QUARENTENA"
         | "EXPEDICAO"
+      enum_tipo_sugestao_armazenagem:
+        | "CONSOLIDACAO"
+        | "CURVA_MATCH"
+        | "ENDERECO_LIVRE"
+        | "FALLBACK"
       enum_tipo_usuario: "ADMINISTRADOR" | "GESTOR" | "OPERADOR"
       enum_tipo_veiculo:
         | "VUC"
@@ -9666,6 +10205,14 @@ export const Constants = {
         "CANCELADA",
         "COLETA_PENDENTE",
       ],
+      enum_status_hu: [
+        "ABERTA",
+        "FECHADA",
+        "EM_TRANSITO",
+        "ARMAZENADA",
+        "EXPEDIDA",
+        "DESCARTADA",
+      ],
       enum_status_inventario: [
         "CRIADO",
         "GERANDO_TAREFAS",
@@ -9739,6 +10286,7 @@ export const Constants = {
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],
       enum_tipo_abastecimento: ["PREVENTIVO", "CORRETIVO"],
+      enum_tipo_alocacao_picking: ["FIXO", "ROTATIVO"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],
       enum_tipo_conferencia: [
         "Nenhuma",
@@ -9814,6 +10362,12 @@ export const Constants = {
         "RECEBIMENTO",
         "QUARENTENA",
         "EXPEDICAO",
+      ],
+      enum_tipo_sugestao_armazenagem: [
+        "CONSOLIDACAO",
+        "CURVA_MATCH",
+        "ENDERECO_LIVRE",
+        "FALLBACK",
       ],
       enum_tipo_usuario: ["ADMINISTRADOR", "GESTOR", "OPERADOR"],
       enum_tipo_veiculo: [
