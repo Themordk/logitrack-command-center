@@ -1,61 +1,58 @@
+# HU (Unidade de Manuseio) no Recebimento
 
-# Correções V4 — Módulo de Etiquetas
+Backend já pronto (tabelas `hu`/`hu_item` estendidas, RPCs `criar_hu_recebimento`, `buscar_hu_por_codigo`, `listar_itens_hu`, `desvincular_item_hu`). Apenas frontend.
 
-Três correções independentes no módulo de etiquetas.
+## 1. Novo: `src/components/coletor/HUSelectorModal.tsx`
 
-## 1. Alinhamento da última etiqueta em 2 colunas
+Bottom-sheet reutilizável com 2 abas (Scan / Criar).
 
-**Arquivo:** `src/components/etiqueta/thermalEngine.ts` (função `getPrintCSSFromConfig`, bloco `duasColunas`).
+- Props: `open`, `onClose`, `onSelect(huId, codigoHU, tipoHU, tamanho)`, `initialMode?: "scan" | "create"`, `movimentoEntradaId?: string | null`.
+- Lê `core_tenant_id`, `core_empresa_id`, `core_armazem_id` de `localStorage` (padrão do coletor).
+- Aba **Scan**: `ScanField` → RPC `buscar_hu_por_codigo` → card de confirmação (encontrada+disponível) ou erros (não encontrada / inativa) → `ActionButton success` "USAR ESTA HU".
+- Aba **Criar**: selects Tipo (`PALLET/CAIXA/VOLUME/OUTRO`, default PALLET) e Tamanho (`P/M/G/GG/EG`, default M) → RPC `criar_hu_recebimento` → toast + `onSelect`.
+- Dark theme HSL conforme prompt; ícones `lucide-react`; `(supabase as any).rpc(...)`.
 
-- Adicionar `justify-content: flex-start` em `.etiqueta-row` para que a última etiqueta ímpar fique alinhada à esquerda (facilita corte da bobina).
-- Adicionar `flex-shrink: 0` em `.etiqueta-row .etiqueta-thermal` para evitar encolhimento.
-- Aplicar em ambos os CSS (print e não-print) se houver.
+## 2. Novo: `src/components/coletor/HUActiveBar.tsx`
 
-## 2. Múltiplos templates por tipo — `EtiquetaTemplatesPage.tsx`
+Barra opcional acima do ScanField com 3 estados.
 
-O banco já suporta múltiplos (índice único apenas em `padrao=true`). Existe RPC `listar_etiqueta_templates(p_tipo, p_empresa_id)` retornando todos os templates ativos do tipo.
+- Prop: `onHUChange(huId: string | null, codigoHU: string | null)`.
+- Estado inicial lê `sessionStorage` (`coletor_hu_id`, `coletor_hu_codigo`).
+- **Sem HU**: ícone `Archive` + texto + botões `Vincular HU` (abre modal em `scan`) e `Nova HU` (modal em `create`).
+- **Com HU**: fundo verde translúcido, código mono + badge tipo/tamanho + `Trocar` + `✕` (desvincula).
+- **Loading**: `Loader2` central.
+- Ao selecionar/criar: grava sessionStorage e chama `onHUChange`.
 
-Alterações na tela `/armazem/etiquetas`:
+## 3. Alterar: `src/pages/coletor/RecebimentoExecucaoPage.tsx`
 
-- **Carregar lista completa** via RPC ao selecionar um tipo (ENDERECO/HU/PRODUTO/VOLUME), armazenando em `templates[]` e um `selectedTemplateId`.
-- **Pré-seleção**: template com `padrao=true` (fallback: primeiro da lista).
-- **Coluna esquerda**: renderizar lista de cards clicáveis abaixo dos botões de tipo, mostrando nome, dimensões e badge "PADRÃO" quando aplicável. Contador "Templates (N)" no cabeçalho.
-- **Botão "Novo template"**: insere linha em `etiqueta_template` com defaults (100×40mm, horizontal, `padrao=false`), copia `campos` do primeiro template existente do tipo, recarrega lista e seleciona o novo.
-- **Botão "Excluir template"**: visível apenas quando `draft.padrao === false`; usa `DeleteConfirmDialog`. Soft delete via `ativo=false` (padrão do projeto).
-- **Switch "Marcar como padrão"**: ao ativar, primeiro faz `UPDATE padrao=false` em todos os templates do mesmo tenant/tipo/empresa, depois marca este como padrão. Recarrega.
-- **Popular draft** ao trocar `selectedTemplateId` via `useEffect`.
-- Erros via `parseError` + `toast.error`.
+Mudança cirúrgica:
+- Importar `HUActiveBar`.
+- State `huAtiva` inicializado do sessionStorage.
+- Handler `handleHUChange` sincroniza state + sessionStorage.
+- Renderizar `<HUActiveBar onHUChange={handleHUChange} />` dentro do `ColetorLayout`, imediatamente antes do `ScanField`.
+- **Não** alterar `doConfirm` (já lê `coletor_hu_id` do sessionStorage).
 
-## 3. Seletor de template nos 4 modais de impressão
+## 4. Alterar: `src/pages/coletor/RecebimentoConferenciaPage.tsx`
 
-Arquivos:
-- `src/components/etiqueta/PrintEtiquetaEnderecoModal.tsx` (tipo `ENDERECO`)
-- `src/components/etiqueta/PrintEtiquetaHUModal.tsx` (tipo `HU`)
-- `src/components/etiqueta/PrintEtiquetaProdutoModal.tsx` (tipo `PRODUTO`)
-- `src/components/etiqueta/PrintEtiquetaVolumeModal.tsx` (tipo `VOLUME`)
+Agrupar visualmente itens conferidos por HU:
+- `reduce` em `items` por `codigo_hu || "__SEM_HU__"`.
+- Renderizar cada grupo com header `Archive` + código (ou "Sem HU" cinza) + contagem, **apenas quando houver mais de um grupo** — caso contrário layout idêntico ao atual.
+- Preservar o render existente de cada item.
 
-Em cada um:
+## 5. Alterar: `src/pages/HUsPage.tsx`
 
-- **Carregar templates** via `listar_etiqueta_templates` ao abrir (`open === true`), filtrado por `empresaId` do `useTenant()`.
-- **Substituir** o `<SelectField label="📐 Tamanho">` (presets fixos 100x40 / 50x20 / 80x20) por um `<select>` de templates listando `{nome} — {largura}×{altura}mm (Padrão)`.
-- **Remover** o select separado de Orientação — passa a vir de `selectedConfig.orientacao`.
-- **Pré-selecionar** o template `padrao=true` (fallback: primeiro).
-- **Linha informativa** abaixo do seletor com dimensões em mm, "Paisagem/Retrato" e equivalente em px (×8).
-- **Renderização**: `getTemplateFromConfig(selectedConfig)` quando existir; fallback para `getTemplateFromSelection("100x40","horizontal")` caso nenhum template esteja cadastrado (retrocompatibilidade).
-- **Preview**: repassar `config={selectedConfig ?? undefined}` além de `tamanho`/`orientacao` derivados.
-- **PrintEtiquetaEnderecoModal (específico)**: manter os controles locais adicionados na V3 (Seta Direcional, 2 Colunas, Intervalo). Adicionar `useEffect` que reinicializa esses controles a partir de `selectedConfig` ao trocar de template — usuário ainda pode sobrescrever manualmente por impressão.
+- Adicionar colunas no grid: `status` (com map colorido ABERTA/FECHADA/EM_TRANSITO/ARMAZENADA/EXPEDIDA/DESCARTADA), `disponibilidade` (via `StatusBadge`), `peso_bruto`, `created_at` (data BR).
+- Modal: campo `<select>` Status antes de Disponibilidade; incluir `status` nos defaults do novo, no load do edit, e no `baseData` do `handleSave` (default `ABERTA`).
 
-## Regras gerais
+## Regras
 
-- Não instalar dependências novas.
-- Não editar `src/components/ui/`.
-- Design system: `bg-card`, `text-foreground`, `border-border`, `bg-secondary`.
-- `parseError` + `toast.error` para erros.
-- RPC via `(supabase.rpc as any)("listar_etiqueta_templates", { p_tipo, p_empresa_id })`.
-- Retrocompatibilidade: fallback para presets se lista vier vazia.
+- Sem novas dependências. Sem edits em `components/ui/`. Sem `react-router-dom`.
+- HU é 100% opcional — fluxo sem HU permanece funcional.
+- `parseError` + `toast` (sonner) para erros; `(supabase as any).rpc(...)` nos RPCs novos.
 
-## Verificação (pós-build)
+## Verificação
 
-- Abrir `/armazem/etiquetas`: criar 2 templates de ENDERECO, alternar padrão, excluir o não-padrão.
-- Abrir modal de impressão em Endereços/HU/Produtos/Volumes: template padrão vem pré-selecionado, orientação some do form, dimensões refletem template.
-- Imprimir 3 etiquetas em 2 colunas: a 3ª fica alinhada à esquerda.
+- Abrir recebimento sem tocar na HU: fluxo funciona igual.
+- Criar HU via barra → confirmar item → item aparece com `HU: HU-000000XXX` na lista.
+- Trocar HU e continuar conferindo → `RecebimentoConferenciaPage` agrupa por HU.
+- `/armazem/hus` mostra Status/Disponibilidade/Peso/Data e modal salva status.
