@@ -40,6 +40,62 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
     setLoading(true);
     try {
+      // Se código for HU, resolver produto via HU e depois buscar tarefa por EAN
+      if (code.startsWith("HU-") || code.startsWith("hu-")) {
+        const { data: huResult, error: huErr } = await (supabase as any).rpc("buscar_hu_por_codigo", {
+          p_tenant_id: tenantId,
+          p_codigo_hu: code,
+        });
+        if (huErr) throw huErr;
+        const hu = typeof huResult === "string" ? JSON.parse(huResult) : huResult;
+        if (!hu?.encontrada) {
+          setOverlay("error");
+          setOverlayMsg("HU não encontrada: " + code);
+          return;
+        }
+        const { data: huItens, error: huItensErr } = await (supabase as any).rpc("listar_itens_hu", {
+          p_tenant_id: tenantId,
+          p_hu_id: hu.hu_id,
+        });
+        if (huItensErr) throw huItensErr;
+        const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
+        if (!itensResult?.itens || itensResult.itens.length === 0) {
+          setOverlay("error");
+          setOverlayMsg("HU " + code + " está vazia.");
+          return;
+        }
+        const firstItem = itensResult.itens[0];
+        const { data: eanData } = await (supabase as any)
+          .from("produto_embalagem")
+          .select("ean")
+          .eq("produto_id", firstItem.produto_id)
+          .limit(1);
+        if (!eanData || eanData.length === 0) {
+          setOverlay("error");
+          setOverlayMsg("Produto da HU sem EAN cadastrado.");
+          return;
+        }
+        sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
+        sessionStorage.setItem("coletor_armazenagem_hu_codigo", hu.codigo_hu);
+
+        const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
+          p_tenant_id: tenantId,
+          p_empresa_ids: [empresaId],
+          p_ean: eanData[0].ean,
+        });
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          setOverlay("error");
+          setOverlayMsg("Nenhuma tarefa de armazenagem para o produto da HU");
+          return;
+        }
+        const row = data[0] as TarefaResult;
+        setTarefa(row);
+        setOverlay("success");
+        setOverlayMsg(`HU ${code} → ${row.descricao}`);
+        return;
+      }
+
       const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
         p_tenant_id: tenantId,
         p_empresa_ids: [empresaId],
