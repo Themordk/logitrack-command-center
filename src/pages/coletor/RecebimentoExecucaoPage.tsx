@@ -5,6 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { InfoCard } from "@/components/coletor/InfoCard";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
+import { HUActiveBar } from "@/components/coletor/HUActiveBar";
 import { toast } from "sonner";
 import { Loader2, Trash2, AlertTriangle } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
@@ -306,6 +307,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Conferência" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/iniciar">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+
+      {/* HU opcional */}
+      <HUActiveBar onHUChange={() => {}} movimentoEntradaId={movimentoId || null} />
 
       {/* Scanner */}
       <ScanField label="Escanear EAN do produto" lastScanned={lastScanned} onScan={handleScan} />
