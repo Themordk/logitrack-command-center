@@ -62,6 +62,11 @@ export function TransferenciaDetalhePage({ onNavigate }: Props) {
               <p className="text-xs text-white">{lote}</p>
             </div>
           )}
+          {huCodigo && (
+            <div className="bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 rounded-lg p-2 col-span-2 flex items-center gap-1.5">
+              <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">HU: {huCodigo}</span>
+            </div>
+          )}
         </div>
 
         {/* Quantity input */}
