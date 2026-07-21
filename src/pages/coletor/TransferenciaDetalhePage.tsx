@@ -11,6 +11,7 @@ export function TransferenciaDetalhePage({ onNavigate }: Props) {
   const desc = sessionStorage.getItem("transf_produto_desc") || "";
   const saldo = Number(sessionStorage.getItem("transf_saldo_disponivel") || "0");
   const lote = sessionStorage.getItem("transf_lote") || "";
+  const huCodigo = sessionStorage.getItem("transf_hu_codigo") || "";
 
   const [quantidade, setQuantidade] = useState("");
   const [error, setError] = useState("");
