@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { fetchOptions } from "@/hooks/useCrud";
 import { toast } from "sonner";
-import { Loader2, Settings2, ShieldCheck, ArrowDownToLine, BarChart3, Info } from "lucide-react";
+import { Loader2, Settings2, ShieldCheck, ArrowDownToLine, BarChart3, Info, Warehouse } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";

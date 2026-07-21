@@ -1,28 +1,33 @@
-## Diagnóstico (confirmado)
+## Objetivo
+Adicionar um seletor de **Armazém** no topo do formulário de `RegraArmazenagemPage.tsx`, permitindo ao usuário escolher qual armazém está sendo configurado — em vez de depender exclusivamente do `armazemId` do `TenantContext`.
 
-O item "Regras de Armazenagem" está registrado no menu (`TopNav.tsx`) e a rota está em `App.tsx`, mas o `TopNav` filtra os itens pelo RBAC usando `getModuleForChildRoute("/armazem/regras-armazenagem")`, que retorna:
+## Alterações em `src/pages/RegraArmazenagemPage.tsx`
 
-- **Frontend espera:** `web.armazem.regras-armazenagem` (com hífen — derivado do path)
-- **Banco tem cadastrado:** `web.armazem.regras_armazenagem` (com underscore — registrado no turno anterior)
+1. **Estado local `selectedArmazemId`**
+   - Inicializar com o `armazemId` do `useTenant()` (armazém atual do contexto) para manter compatibilidade.
+   - Adicionar estado `armazemOptions` carregado via `fetchOptions("armazem", tenantId, "descricao")` (mesmo padrão de `ArmazensPage`).
 
-Como nenhum perfil tem permissão para o código com hífen, o `can("web.armazem.regras-armazenagem","READ")` retorna `false` e o item é removido do menu para qualquer usuário com RBAC efetivo (perfis não-admin com permissões atribuídas). O mesmo mismatch afeta a proteção da rota.
+2. **Novo Card "Armazém" no topo do formulário**
+   - Posicionado antes do card "Regras de mistura".
+   - Contém um `Select` (shadcn) com a lista de armazéns da empresa/tenant.
+   - Label: "Armazém" + `HelpTip` explicando que cada armazém pode ter regras próprias.
+   - Texto auxiliar mostrando o armazém selecionado.
 
-## Correção
+3. **Refatorar o `useEffect` de carregamento**
+   - Passar a depender de `selectedArmazemId` (em vez de `armazemId` do contexto).
+   - Ao trocar o armazém no seletor: recarrega a regra correspondente (SELECT em `regra_armazenagem` filtrando pelo novo `armazem_id`).
+   - Se não existir regra para o armazém escolhido, monta o estado com `DEFAULTS` (mesmo comportamento atual).
+   - Resetar `hasChanges` ao trocar de armazém; se houver alterações não salvas, exibir `confirm()` antes de trocar.
 
-Padronizar o frontend para o código já cadastrado no banco (`regras_armazenagem`), evitando nova migration.
+4. **Ajustar `handleSave`**
+   - Usar `selectedArmazemId` no payload em vez de `armazemId` do contexto.
+   - Manter validação: se nenhum armazém selecionado, desabilita o botão Salvar.
 
-### `src/hooks/useRoutePermission.ts`
+5. **Estado de loading/empty**
+   - Enquanto `selectedArmazemId` for `null`, exibir mensagem "Selecione um armazém para configurar as regras" no lugar dos cards de regras.
+   - Loader do carregamento da regra continua funcionando ao trocar de armazém.
 
-Adicionar mapeamento explícito no `routeToModuleMap` (antes do fallback genérico):
-
-```ts
-"/armazem/regras-armazenagem": "web.armazem.regras_armazenagem",
-```
-
-Isso faz `getModuleForChildRoute` retornar o código com underscore, batendo com o banco. Como a função consulta o map antes do fallback, funciona tanto para o filtro do menu quanto para a proteção da rota.
-
-Nenhuma outra alteração é necessária — o `INSERT` de módulo/permissões já executado no banco continua válido.
-
-## Verificação
-
-Após a mudança, com um usuário cujo perfil tenha `READ` em `web.armazem.regras_armazenagem`, o item deve aparecer em Armazém → Regras de Armazenagem. Usuários admin (sem entradas em `permissions`) já viam por causa do fallback "sem permissões = acesso total" no `PermissionsContext`; o cenário quebrado era o de usuários com RBAC ativo.
+## Fora de escopo
+- Nenhuma alteração de banco de dados, RPC ou RLS.
+- Sem mudança em `TopNav`, `App.tsx` ou outras páginas.
+- Sem alteração no fluxo do coletor (`ColetorSugestaoPickingPage`).
