@@ -499,6 +499,8 @@ export function RegraArmazenagemPage() {
           )}
         </Button>
       </div>
+      </>
+      )}
     </div>
   );
 }
