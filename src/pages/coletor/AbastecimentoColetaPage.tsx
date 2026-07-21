@@ -24,6 +24,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const enderecoOrigemIdEsperado = sessionStorage.getItem("abast_endereco_origem_id") || "";
   const enderecoOrigemDesc = sessionStorage.getItem("abast_endereco_origem_desc") || "";
   const saldoOrigem = Number(sessionStorage.getItem("abast_saldo_origem") || "0");
+  const huCodigo = sessionStorage.getItem("abast_hu_codigo") || "";
 
   const [enderecoConfirmado, setEnderecoConfirmado] = useState(false);
   const [enderecoScannedDesc, setEnderecoScannedDesc] = useState("");
