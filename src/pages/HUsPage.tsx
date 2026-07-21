@@ -7,7 +7,7 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Printer, Save, Loader2, AlertCircle } from "lucide-react";
 import { PrintEtiquetaHUModal } from "@/components/etiqueta/PrintEtiquetaHUModal";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
