@@ -275,7 +275,7 @@ function ProdutoDetailModal({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{isEdit ? `Editar Produto – ${produto?.sku}` : "Novo Produto"}</SheetTitle>
         </SheetHeader>
@@ -541,7 +541,7 @@ function ProdutoDetailModal({
 
       {/* Embalagem sub-modal */}
       <Sheet open={embModalOpen} onOpenChange={(v) => !v && setEmbModalOpen(false)}>
-        <SheetContent className="max-w-lg">
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader><SheetTitle>{editEmb ? "Editar Embalagem" : "Nova Embalagem"}</SheetTitle></SheetHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div><label className={labelClass}>EAN *</label><input value={embForm.ean || ""} onChange={(e) => setEmbForm({ ...embForm, ean: e.target.value })} className={inputClass} /></div>
@@ -569,7 +569,7 @@ function ProdutoDetailModal({
 
       {/* Picking sub-modal */}
       <Sheet open={pickModalOpen} onOpenChange={(v) => !v && setPickModalOpen(false)}>
-        <SheetContent className="max-w-lg">
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader><SheetTitle>{editPick ? "Editar Picking" : "Novo Picking"}</SheetTitle></SheetHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="col-span-2">
