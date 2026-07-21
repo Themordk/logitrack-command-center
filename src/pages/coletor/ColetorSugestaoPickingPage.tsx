@@ -540,11 +540,13 @@ export function ColetorSugestaoPickingPage({
         {enderecoSelecionado && !loading && (
           <div className="pt-2">
             <ActionButton
-              label={saving ? "Confirmando..." : "Confirmar endereço"}
               onClick={handleConfirmar}
               variant="success"
               disabled={saving || validating}
-            />
+              loading={saving}
+            >
+              Confirmar endereço
+            </ActionButton>
           </div>
         )}
       </div>
