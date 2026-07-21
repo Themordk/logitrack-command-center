@@ -4,7 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Archive } from "lucide-react";
 import { parseError } from "@/lib/errorMapper";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -127,41 +127,74 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Item list */}
         <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
-          {itens.map((item, idx) => (
-            <div key={item.sku || idx} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 shrink-0">
-              <div className="flex justify-between items-start mb-1 gap-2">
-                <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
-                {item.divergente && (
-                  <span title="Item divergente" className="shrink-0">
-                    <AlertTriangle size={16} className="text-[#F59E0B]" />
-                  </span>
-                )}
+          {(() => {
+            const grupos = itens.reduce((acc, item) => {
+              const key = item.codigo_hu || "__SEM_HU__";
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(item);
+              return acc;
+            }, {} as Record<string, ItemResumo[]>);
+            const groupKeys = Object.keys(grupos);
+            const showHeaders = groupKeys.length > 1;
+
+            const renderItem = (item: ItemResumo, idx: number) => (
+              <div key={item.tarefa_execucao_id || item.sku || idx} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 shrink-0">
+                <div className="flex justify-between items-start mb-1 gap-2">
+                  <span className="text-sm font-bold text-white truncate flex-1">{item.descricao}</span>
+                  {item.divergente && (
+                    <span title="Item divergente" className="shrink-0">
+                      <AlertTriangle size={16} className="text-[#F59E0B]" />
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    sessionStorage.setItem("coletor_consulta_produto_sku", item.sku);
+                    sessionStorage.setItem("coletor_consulta_produto_back", "/coletor/recebimento/conferencia");
+                    (supabase as any).from("produto").select("id").eq("sku", item.sku).limit(1).then(({ data }: any) => {
+                      if (data && data.length > 0) {
+                        sessionStorage.setItem("coletor_consulta_produto_id", data[0].id);
+                        onNavigate("/coletor/consulta/produto/detalhe");
+                      }
+                    });
+                  }}
+                  className="text-xs text-[hsl(217,91%,60%)] mb-1 underline cursor-pointer"
+                >
+                  SKU: {item.sku}
+                </button>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+                  <span className="text-[#22C55E]">Qtd: <strong>{item.quantidade_executada}</strong></span>
+                  {item.operador && <span className="text-[hsl(213,31%,55%)]">Op: {item.operador}</span>}
+                  {item.codigo_hu && <span className="text-[hsl(213,31%,55%)]">HU: {item.codigo_hu}</span>}
+                  {item.lote && <span className="text-[hsl(213,31%,55%)]">Lote: {item.lote}</span>}
+                </div>
               </div>
-              <button
-                onClick={() => {
-                  // Navigate to product detail, storing return path
-                  sessionStorage.setItem("coletor_consulta_produto_sku", item.sku);
-                  sessionStorage.setItem("coletor_consulta_produto_back", "/coletor/recebimento/conferencia");
-                  // Lookup product id by sku
-                  (supabase as any).from("produto").select("id").eq("sku", item.sku).limit(1).then(({ data }: any) => {
-                    if (data && data.length > 0) {
-                      sessionStorage.setItem("coletor_consulta_produto_id", data[0].id);
-                      onNavigate("/coletor/consulta/produto/detalhe");
-                    }
-                  });
-                }}
-                className="text-xs text-[hsl(217,91%,60%)] mb-1 underline cursor-pointer"
-              >
-                SKU: {item.sku}
-              </button>
-              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
-                <span className="text-[#22C55E]">Qtd: <strong>{item.quantidade_executada}</strong></span>
-                {item.operador && <span className="text-[hsl(213,31%,55%)]">Op: {item.operador}</span>}
-                {item.codigo_hu && <span className="text-[hsl(213,31%,55%)]">HU: {item.codigo_hu}</span>}
-                {item.lote && <span className="text-[hsl(213,31%,55%)]">Lote: {item.lote}</span>}
-              </div>
-            </div>
-          ))}
+            );
+
+            return groupKeys.map((huCode) => {
+              const groupItems = grupos[huCode];
+              const isSemHU = huCode === "__SEM_HU__";
+              return (
+                <div key={huCode} className="space-y-2">
+                  {showHeaders && (
+                    <div className="flex items-center gap-2 px-1 pt-2">
+                      <Archive size={14} className={isSemHU ? "text-[hsl(213,31%,45%)]" : "text-[hsl(142,71%,45%)]"} />
+                      <span
+                        className="text-xs font-bold uppercase tracking-wide"
+                        style={{ color: isSemHU ? "hsl(213,31%,55%)" : "hsl(142,71%,45%)" }}
+                      >
+                        {isSemHU ? "Sem HU" : huCode}
+                      </span>
+                      <span className="text-[10px] text-[hsl(213,31%,45%)]">
+                        ({groupItems.length} {groupItems.length === 1 ? "item" : "itens"})
+                      </span>
+                    </div>
+                  )}
+                  {groupItems.map((it, i) => renderItem(it, i))}
+                </div>
+              );
+            });
+          })()}
         </div>
 
         <div className="shrink-0 space-y-2">
