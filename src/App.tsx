@@ -35,6 +35,8 @@ import { VolumesPage } from "./pages/VolumesPage";
 import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
 import { EtiquetaTemplatesPage } from "./pages/EtiquetaTemplatesPage";
+import { RegraArmazenagemPage } from "./pages/RegraArmazenagemPage";
+import { ColetorSugestaoPickingPage } from "./pages/coletor/ColetorSugestaoPickingPage";
 
 import { EntradasPage } from "./pages/EntradasPage";
 import { MovimentoEntradaPage } from "./pages/MovimentoEntradaPage";
@@ -150,6 +152,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/armazem/veiculos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Veículos" }],
   "/armazem/zonas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Zonas de Atividade" }],
   "/armazem/etiquetas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Templates de Etiqueta" }],
+  "/armazem/regras-armazenagem": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Regras de Armazenagem" }],
   "/armazem/box": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Box" }],
   "/armazem/turnos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Turnos" }],
   "/armazem/motivos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Motivos de Ocorrência" }],
@@ -271,6 +274,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/veiculos": return <VeiculosPage />;
     case "/armazem/zonas": return <ZonasAtividadePage />;
     case "/armazem/etiquetas": return <EtiquetaTemplatesPage onNavigate={onNavigate} />;
+    case "/armazem/regras-armazenagem": return <RegraArmazenagemPage />;
     case "/armazem/box": return <BoxPage />;
     case "/armazem/turnos": return <TurnosPage />;
     case "/armazem/motivos": return <MotivosOcorrenciaPage />;
@@ -420,6 +424,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/endereco/detalhe": return <ConsultaEnderecoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/consulta/hu": return <ConsultaHUPage onNavigate={onNavigate} />;
     case "/coletor/consulta/mapear-picking": return <MapearPickingPage onNavigate={onNavigate} />;
+    case "/coletor/sugestao-picking": return <ColetorSugestaoPickingPage onNavigate={onNavigate} />;
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;

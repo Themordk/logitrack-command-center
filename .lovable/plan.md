@@ -1,47 +1,56 @@
-# HU nas telas de Armazenagem, Consulta, Transferência e Abastecimento (Fase 2)
 
-Extensão do suporte a HU (Unidade de Manuseio) do coletor. Backend e componentes (`HUSelectorModal`, `HUActiveBar`) da Fase 1 já existem. HU permanece 100% opcional — quando ausente, o fluxo é idêntico ao atual.
+# Integração do Motor de Armazenagem
 
-## 1. Armazenagem
+Integração dos dois arquivos enviados (`RegraArmazenagemPage.tsx` e `ColetorSugestaoPickingPage.tsx`) ao app, seguindo o `GUIA_INTEGRACAO.md`. Backend (RPCs, tabelas `regra_armazenagem` e `log_sugestao_armazenagem`) é premissa já pronta.
 
-**`ArmazenagemItensPage.tsx`** — após carregar itens, buscar em `tarefa_execucao` (join com `hu`) as HUs vinculadas às tarefas listadas (filtrando HU nula/zero UUID). Guardar em `huMap[tarefa_id]`. Renderizar badge `Archive` + código HU + tipo/tamanho abaixo do SKU. No `handleSelectItem`, gravar `coletor_armazenagem_hu` / `_hu_codigo` no sessionStorage (ou limpar).
+## 1. Arquivos a copiar
 
-**`ArmazenagemExecucaoPage.tsx`** — ler HU do sessionStorage e exibir badge "HU: XXX" dentro do card do produto. `handleConfirm` já envia `p_hu` para a RPC, sem alteração de lógica.
+- `user-uploads://RegraArmazenagemPage.tsx` → `src/pages/RegraArmazenagemPage.tsx`
+- `user-uploads://ColetorSugestaoPickingPage.tsx` → `src/pages/coletor/ColetorSugestaoPickingPage.tsx`
 
-**`ArmazenagemIniciarPage.tsx`** — no `handleScan`, se código começa com `HU-`/`hu-`: chamar `buscar_hu_por_codigo` → `listar_itens_hu` → obter EAN do primeiro produto via `produto_embalagem` → chamar `fn_buscar_dados_armazenagem` com esse EAN e gravar HU no sessionStorage. Fluxo EAN puro inalterado. No `handleConfirm`, limpar `coletor_armazenagem_hu_codigo` se `coletor_armazenagem_hu` não estiver setada.
+Copiar sem alterações (usam `supabase`, `useTenant`, `ColetorLayout`, `useFeedback`, `sonner`, todos já disponíveis).
 
-## 2. Consulta HU
+## 2. Roteamento web — `src/App.tsx`
 
-**`ConsultaHUPage.tsx`** — incluir `status` no select do `hu`. Adicionar campo Status no card de detalhes. Após query de estoque, chamar RPC `listar_itens_hu` e guardar `huItensInfo`. Renderizar nova seção "Itens Agrupados (Conferência)" com SKU, descrição, quantidade, lote e validade (usando `formatDate`) — somente se houver itens.
+- Import estático de `RegraArmazenagemPage` (padrão do projeto — imports lazy não são usados no App atual).
+- Novo case em `renderPage`:
+  ```ts
+  case "/armazem/regras-armazenagem": return <RegraArmazenagemPage />;
+  ```
+- Novo breadcrumb no Record:
+  ```ts
+  "/armazem/regras-armazenagem": [
+    { label: "CORE LogiTrack" }, { label: "Armazém" },
+    { label: "Regras de Armazenagem" },
+  ],
+  ```
 
-## 3. Transferência
+## 3. Menu — `src/components/TopNav.tsx`
 
-**`TransferenciaProdutoPage.tsx`** — `handleScan`: se código começa com `HU-`/`hu-`, buscar HU, validar disponível, consultar `estoque_geral` por `hu_id` + `endereco_id` (origem) com saldo > 0. Somar quantidades, pegar primeiro produto, gravar `transf_produto_*`, `transf_saldo_disponivel`, `transf_lote/validade/fabricacao`, `transf_hu_id`, `transf_hu_codigo`, navegar para `/detalhe`. Atualizar label do `ScanField` para "Escanear EAN do Produto ou HU".
+Adicionar item ao grupo "Armazém" (após "Templates de Etiqueta"):
+```ts
+{ label: "Regras de Armazenagem", path: "/armazem/regras-armazenagem" },
+```
 
-**`TransferenciaDetalhePage.tsx`** — ler `transf_hu_codigo` e mostrar linha "HU: XXX" no card do produto quando presente.
+## 4. Roteamento coletor — `src/App.tsx` (`renderColetorPage`)
 
-**`TransferenciaDestinoPage.tsx`** — ler `transf_hu_id`/`transf_hu_codigo`, incluir `hu: huId || null` no insert de `tarefa_execucao`, exibir HU no resumo dos passos, e limpar as chaves do sessionStorage antes de navegar para concluído.
+Adicionar case:
+```ts
+case "/coletor/sugestao-picking":
+  return <ColetorSugestaoPickingPage onNavigate={onNavigate} />;
+```
+A página lê os dados do produto do `localStorage` (fallback já suportado — `core_sugestao_produto_id`, `_sku`, `_desc`, `_lote`, `_validade`, `_quantidade`). Não vamos alterar telas de recebimento agora; o gatilho pode ser adicionado num passo posterior quando o fluxo desejado for definido.
 
-## 4. Abastecimento
+## 5. Fora de escopo (não faremos nesta entrega)
 
-**`AbastecimentoListPage.tsx`** — após carregar tarefas, consultar `estoque_geral` filtrando por `produto_id ∈ tarefas`, `endereco_id ∈ origens`, `hu_id != zero UUID`, saldo > 0. Montar `huMap[produto_id:endereco_origem_id]`. Renderizar badge com código HU na aba "coleta" após o saldo disponível. `handleSelectItem` grava `abast_hu_codigo` no sessionStorage (ou limpa).
+- Integração automática a partir da conferência de recebimento (o guia menciona como opcional; requer decisão de UX sobre em qual momento redirecionar).
+- Item de menu no coletor Home — a tela é destino de fluxo, não navegação direta.
+- Registro em `useCrud` — não há uso de CRUD genérico para `regra_armazenagem`.
+- Regeneração de `types.ts` — projeto usa `as any` para RPCs novas (padrão vigente).
 
-**`AbastecimentoColetaPage.tsx`** — ler `abast_hu_codigo` e mostrar badge `Archive` + "HU: XXX" no card informativo.
+## 6. Verificação
 
-## Regras técnicas
-
-- Sem alterações de backend / RPCs.
-- Sem `react-router-dom`; navegação por `onNavigate`.
-- Coletor usa `localStorage` para tenant/empresa/armazém.
-- `(supabase as any)` em RPCs e joins com relações novas.
-- Ícones de `lucide-react` (`Archive`), toast via `sonner`.
-- HU é opcional em todas as telas — ausência não altera comportamento existente.
-
-## Verificação
-
-- Item sem HU: telas continuam idênticas à versão atual.
-- Bipar HU em Armazenagem/Iniciar carrega tarefa correspondente ao produto.
-- Bipar HU em Transferência/Produto pré-carrega saldo agregado da HU no endereço origem.
-- Transferência concluída grava `tarefa_execucao.hu` (trigger de estoque migra HU no destino).
-- Consulta HU mostra Status e Itens Agrupados quando `hu_item` tem dados.
-- Abastecimento exibe HU do estoque origem na lista e na coleta.
+- Rota `#/armazem/regras-armazenagem` abre, carrega/salva regras do armazém do contexto.
+- Menu Armazém → "Regras de Armazenagem" navega corretamente.
+- Rota `#/coletor/sugestao-picking` renderiza a tela quando dados no localStorage.
+- Sem erros TypeScript.
