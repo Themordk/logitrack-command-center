@@ -4,7 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin, AlertTriangle } from "lucide-react";
+import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin, AlertTriangle, Star } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 
@@ -35,11 +35,14 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [enderecoScan, setEnderecoScan] = useState("");
   const [enderecoId, setEnderecoId] = useState<string | null>(null);
   const [enderecoDesc, setEnderecoDesc] = useState("");
+  const [enderecoTipo, setEnderecoTipo] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
   const [showCapModal, setShowCapModal] = useState(false);
   const [capInfo, setCapInfo] = useState<{ maximo: number; saldoAtual: number; cabeMais: number } | null>(null);
+  const [sugestoes, setSugestoes] = useState<any[]>([]);
+  const [loadingSugestao, setLoadingSugestao] = useState(false);
 
   const parseCapacidadeMsg = (msg: string): { maximo: number; saldoAtual: number; cabeMais: number } | null => {
     try {
@@ -129,16 +132,54 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
   // Picking address comes from sessionStorage (returned by fn_buscar_dados_armazenagem)
 
+  // Buscar sugestões do motor de armazenagem
+  useEffect(() => {
+    const armazemId = localStorage.getItem("core_armazem_id");
+    if (!tenantId || !armazemId || !produtoId) return;
+    (async () => {
+      setLoadingSugestao(true);
+      try {
+        const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
+        const lote = sessionStorage.getItem("coletor_armazenagem_lote") || null;
+        const { data, error } = await (supabase as any).rpc("rpc_sugerir_endereco_picking", {
+          p_tenant_id: tenantId,
+          p_armazem_id: armazemId,
+          p_produto_id: produtoId,
+          p_lote: lote,
+          p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
+          p_quantidade: qtdRestante || 1,
+          p_limite: 3,
+        });
+        if (error) throw error;
+        setSugestoes(data || []);
+      } catch (err) {
+        console.error("Erro ao buscar sugestão:", err);
+      } finally {
+        setLoadingSugestao(false);
+      }
+    })();
+  }, [tenantId, produtoId, qtdRestante]);
+
+  const handleSelecionarSugestao = (sug: any) => {
+    setEnderecoId(sug.endereco_id);
+    setEnderecoDesc(sug.descricao);
+    setEnderecoScan(sug.descricao);
+    setEnderecoTipo("PICKING");
+    setOverlay("success");
+    setOverlayMsg(`Endereço selecionado: ${sug.descricao}`);
+  };
+
   const handleScanEndereco = async (code: string) => {
     setEnderecoScan(code);
     setEnderecoId(null);
     setEnderecoDesc("");
+    setEnderecoTipo("");
     // LMS: mark task as started on first address scan
     markTarefaIniciadaByTarefa(tarefaId, usuarioId);
     try {
       const { data, error } = await (supabase as any)
         .from("endereco")
-        .select("id, descricao, situacao")
+        .select("id, descricao, situacao, tipo_endereco")
         .eq("codigo_endereco", Number(code))
         .eq("tenant_id", tenantId)
         .limit(1);
@@ -155,6 +196,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       }
       setEnderecoId(data[0].id);
       setEnderecoDesc(data[0].descricao);
+      setEnderecoTipo(data[0].tipo_endereco || "");
       setOverlay("success");
       setOverlayMsg(`Endereço: ${data[0].descricao}`);
     } catch (err: any) {
@@ -171,6 +213,27 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
       const fabricacaoRaw = sessionStorage.getItem("coletor_armazenagem_fabricacao");
       const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
+      const armazemId = localStorage.getItem("core_armazem_id");
+
+      // Validar endereço com as regras de armazenagem (somente PICKING)
+      if (enderecoTipo === "PICKING") {
+        const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
+          p_tenant_id: tenantId,
+          p_armazem_id: armazemId,
+          p_produto_id: produtoId,
+          p_endereco_id: enderecoId,
+          p_lote: lote || null,
+          p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
+          p_quantidade: Number(quantidade),
+        });
+        if (valErr) throw valErr;
+        if (validacao && !validacao.valido) {
+          setSaving(false);
+          setOverlay("error");
+          setOverlayMsg(validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem");
+          return;
+        }
+      }
 
       // Multiply quantity by embalagem fator
       const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
@@ -190,6 +253,29 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         p_hu: huId,
       });
       if (error) throw error;
+
+      // Log da sugestão (não crítico)
+      try {
+        const empresaIdLog = localStorage.getItem("core_empresa_id");
+        const sugestaoTop = sugestoes.length > 0 ? sugestoes[0] : null;
+        await (supabase as any).from("log_sugestao_armazenagem").insert({
+          tenant_id: tenantId,
+          empresa_id: empresaIdLog,
+          armazem_id: armazemId,
+          produto_id: produtoId,
+          endereco_sugerido_id: sugestaoTop?.endereco_id || enderecoId,
+          endereco_escolhido_id: enderecoId,
+          score: sugestaoTop?.score || 0,
+          tipo_sugestao: sugestaoTop?.tipo_sugestao || "FALLBACK",
+          motivo_sugestao: sugestaoTop?.motivo || "Escaneado manualmente",
+          aceita: sugestaoTop ? enderecoId === sugestaoTop.endereco_id : null,
+          lote: lote || null,
+          quantidade: Number(quantidade),
+          usuario_id: usuarioId,
+        });
+      } catch (logErr) {
+        console.error("Log de sugestão falhou (não crítico):", logErr);
+      }
 
       setOverlay("success");
       setOverlayMsg("Armazenagem registrada com sucesso!");
@@ -263,6 +349,42 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 mt-1">
             <Archive size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
             <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">HU: {huCodigo}</span>
+          </div>
+        )}
+
+        {/* Sugestões do motor de armazenagem */}
+        {loadingSugestao ? (
+          <div className="flex items-center gap-2 pt-2 border-t border-[hsl(222,35%,22%)] mt-1">
+            <Loader2 size={12} className="animate-spin text-[hsl(217,91%,60%)]" />
+            <span className="text-[11px] text-[hsl(213,31%,55%)]">Buscando endereço ideal...</span>
+          </div>
+        ) : sugestoes.length > 0 && (
+          <div className="pt-2 border-t border-[hsl(222,35%,22%)] mt-1 space-y-1">
+            <span className="text-[10px] uppercase text-[hsl(213,31%,55%)] font-semibold">Sugestões do sistema</span>
+            {sugestoes.map((sug, idx) => (
+              <button
+                key={sug.endereco_id}
+                onClick={() => handleSelecionarSugestao(sug)}
+                className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 border transition-colors ${
+                  enderecoId === sug.endereco_id
+                    ? "border-green-500/50 bg-green-500/10"
+                    : "border-[hsl(222,35%,22%)] bg-[hsl(222,35%,16%)] hover:border-green-500/30"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {idx === 0 && <Star size={11} className="text-yellow-400 shrink-0" />}
+                  <span className="text-xs font-mono font-bold text-white">{sug.descricao}</span>
+                  {sug.curva_acesso && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400">
+                      {sug.curva_acesso}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-[hsl(213,31%,55%)]">
+                  {sug.tipo_sugestao === "CONSOLIDACAO" ? "Consolidar" : sug.tipo_sugestao === "CURVA_MATCH" ? "Curva OK" : "Livre"}
+                </span>
+              </button>
+            ))}
           </div>
         )}
       </div>
