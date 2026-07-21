@@ -115,6 +115,12 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
     sessionStorage.setItem("abast_endereco_destino_id", item.endereco_destino_id);
     sessionStorage.setItem("abast_endereco_destino_desc", item.endereco_destino_desc);
     sessionStorage.setItem("abast_saldo_origem", String(item.saldo_origem));
+    const huCod = huMap[`${item.produto_id}__${item.endereco_origem_id}`];
+    if (huCod) {
+      sessionStorage.setItem("abast_hu_codigo", huCod);
+    } else {
+      sessionStorage.removeItem("abast_hu_codigo");
+    }
 
     if (fase === "coleta") {
       onNavigate("/coletor/movimentos/abastecimento/coleta");
