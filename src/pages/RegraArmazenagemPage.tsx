@@ -180,16 +180,6 @@ export function RegraArmazenagemPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center p-12">
-        <Loader2 className="animate-spin text-primary" size={32} />
-      </div>
-    );
-  }
-
-  if (!regra) return null;
-
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* Header */}
@@ -200,11 +190,11 @@ export function RegraArmazenagemPage() {
             Regras de armazenagem
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure as regras do motor de estratégia de armazenagem para este armazém
+            Configure as regras do motor de estratégia de armazenagem por armazém
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {regra.id && (
+          {regra?.id && (
             <Badge
               variant="outline"
               className={
@@ -216,13 +206,70 @@ export function RegraArmazenagemPage() {
               {regra.ativo ? "Ativo" : "Inativo"}
             </Badge>
           )}
-          {!regra.id && (
+          {regra && !regra.id && (
             <Badge variant="outline" className="bg-yellow-500/15 text-yellow-400 border-yellow-500/30">
               Não configurado
             </Badge>
           )}
         </div>
       </div>
+
+      {/* Seletor de Armazém */}
+      <Card className="border-border bg-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Warehouse className="h-4 w-4 text-primary" />
+            Armazém
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Cada armazém possui seu próprio conjunto de regras de armazenagem
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-0.5 flex-1">
+              <Label className="text-sm font-medium flex items-center">
+                Armazém a configurar
+                <HelpTip text="Selecione o armazém cujas regras deseja visualizar ou editar. As regras são armazenadas de forma independente por armazém." />
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {selectedArmazemId
+                  ? "Editando regras do armazém selecionado"
+                  : "Selecione um armazém para começar"}
+              </p>
+            </div>
+            <Select value={selectedArmazemId ?? ""} onValueChange={handleArmazemChange}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Selecionar armazém..." />
+              </SelectTrigger>
+              <SelectContent>
+                {armazemOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {!selectedArmazemId && (
+        <Card className="border-border bg-card">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Selecione um armazém acima para configurar as regras.
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedArmazemId && loading && (
+        <div className="flex justify-center items-center p-12">
+          <Loader2 className="animate-spin text-primary" size={32} />
+        </div>
+      )}
+
+      {selectedArmazemId && !loading && regra && (
+      <>
 
       {/* Seção 1: Regras de Mistura */}
       <Card className="border-border bg-card">
