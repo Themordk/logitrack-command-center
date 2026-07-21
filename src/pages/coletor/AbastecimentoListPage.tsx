@@ -43,6 +43,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
   const empresaId = localStorage.getItem("core_empresa_id") || "";
   const [loading, setLoading] = useState(true);
   const [tarefas, setTarefas] = useState<TarefaAbastecimento[]>([]);
+  const [huMap, setHuMap] = useState<Record<string, string>>({});
   const [fase, setFase] = useState<"coleta" | "entrega">("coleta");
 
   const loadTarefas = useCallback(async () => {
@@ -54,7 +55,29 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
         p_empresa_id: empresaId,
       });
       if (error) throw error;
-      setTarefas((data as TarefaAbastecimento[]) || []);
+      const rows = (data as TarefaAbastecimento[]) || [];
+      setTarefas(rows);
+
+      const chaves = Array.from(new Set(rows.map(r => `${r.produto_id}__${r.endereco_origem_id}`)));
+      if (chaves.length > 0) {
+        const produtoIds = Array.from(new Set(rows.map(r => r.produto_id)));
+        const origemIds = Array.from(new Set(rows.map(r => r.endereco_origem_id)));
+        const { data: est } = await (supabase as any)
+          .from("estoque_geral")
+          .select("produto_id, endereco_id, hu_id, hu:hu_id(codigo_hu)")
+          .in("produto_id", produtoIds)
+          .in("endereco_id", origemIds)
+          .not("hu_id", "is", null)
+          .gt("quantidade_disponivel", 0);
+        const map: Record<string, string> = {};
+        (est || []).forEach((e: any) => {
+          const k = `${e.produto_id}__${e.endereco_id}`;
+          if (e.hu?.codigo_hu && !map[k]) map[k] = e.hu.codigo_hu;
+        });
+        setHuMap(map);
+      } else {
+        setHuMap({});
+      }
     } catch (e: any) {
       const parsed = parseError(e, "abastecimento-lista");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
@@ -92,6 +115,12 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
     sessionStorage.setItem("abast_endereco_destino_id", item.endereco_destino_id);
     sessionStorage.setItem("abast_endereco_destino_desc", item.endereco_destino_desc);
     sessionStorage.setItem("abast_saldo_origem", String(item.saldo_origem));
+    const huCod = huMap[`${item.produto_id}__${item.endereco_origem_id}`];
+    if (huCod) {
+      sessionStorage.setItem("abast_hu_codigo", huCod);
+    } else {
+      sessionStorage.removeItem("abast_hu_codigo");
+    }
 
     if (fase === "coleta") {
       onNavigate("/coletor/movimentos/abastecimento/coleta");
@@ -175,6 +204,14 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
                   <div className="text-[11px] text-[hsl(213,31%,55%)]">
                     Saldo disponível: <b className="text-white">{item.saldo_origem}</b>
                   </div>
+                  {huMap[`${item.produto_id}__${item.endereco_origem_id}`] && (
+                    <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 -mt-1">
+                      <Archive size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
+                      <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">
+                        HU: {huMap[`${item.produto_id}__${item.endereco_origem_id}`]}
+                      </span>
+                    </div>
+                  )}
                   <div className="border-t border-[hsl(222,35%,22%)]" />
                   <div className="flex gap-3">
                     <span className="text-xs font-mono text-[hsl(217,91%,60%)]">{item.sku}</span>

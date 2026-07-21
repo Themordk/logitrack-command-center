@@ -16,6 +16,7 @@ export function ConsultaHUPage({ onNavigate }: Props) {
   const [huInfo, setHuInfo] = useState<any>(null);
   const [estoqueInfo, setEstoqueInfo] = useState<any[]>([]);
   const [execInfo, setExecInfo] = useState<any[]>([]);
+  const [huItensInfo, setHuItensInfo] = useState<any[]>([]);
 
   const handleScan = async (code: string) => {
     setScanned(code);
@@ -23,11 +24,12 @@ export function ConsultaHUPage({ onNavigate }: Props) {
     setHuInfo(null);
     setEstoqueInfo([]);
     setExecInfo([]);
+    setHuItensInfo([]);
     setLoading(true);
     try {
       const { data: hus } = await (supabase as any)
         .from("hu")
-        .select("id, codigo_hu, tipo_hu, tamanho, disponibilidade, peso_bruto")
+        .select("id, codigo_hu, tipo_hu, tamanho, disponibilidade, peso_bruto, status")
         .eq("codigo_hu", code)
         .limit(1);
 
@@ -40,7 +42,6 @@ export function ConsultaHUPage({ onNavigate }: Props) {
       const hu = hus[0];
       setHuInfo(hu);
 
-      // Fetch stock with product details, lote, validade, fabricacao and address
       let estoqueQuery = (supabase as any)
         .from("estoque_geral")
         .select("quantidade_disponivel, quantidade_total, lote, data_validade, data_fabricacao, endereco:endereco_id(descricao, tipo_endereco), produto:produto_id(sku, descricao)")
@@ -52,7 +53,13 @@ export function ConsultaHUPage({ onNavigate }: Props) {
       const { data: estoque } = await estoqueQuery;
       setEstoqueInfo(estoque || []);
 
-      // Last executions
+      const { data: huItens } = await (supabase as any).rpc("listar_itens_hu", {
+        p_tenant_id: tenantId,
+        p_hu_id: hu.id,
+      });
+      const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
+      setHuItensInfo(itensResult?.itens || []);
+
       const { data: execs } = await (supabase as any)
         .from("tarefa_execucao")
         .select("id, status, concluido_em, endereco_destino_id, endereco_origem_id, quantidade_executada")
@@ -105,6 +112,10 @@ export function ConsultaHUPage({ onNavigate }: Props) {
               <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Tamanho</span><p className="text-xs text-white">{huInfo.tamanho || "—"}</p></div>
               <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Peso Bruto</span><p className="text-xs text-white">{huInfo.peso_bruto ?? "—"}</p></div>
               <div>
+                <span className="text-[10px] text-[hsl(213,31%,55%)]">Status</span>
+                <p className="text-xs font-bold text-white">{huInfo.status || "—"}</p>
+              </div>
+              <div className="col-span-2">
                 <span className="text-[10px] text-[hsl(213,31%,55%)]">Disponibilidade</span>
                 <p className={`text-xs font-bold ${dispColor[huInfo.disponibilidade] || "text-white"}`}>
                   {dispLabel[huInfo.disponibilidade] || huInfo.disponibilidade || "—"}
@@ -112,6 +123,24 @@ export function ConsultaHUPage({ onNavigate }: Props) {
               </div>
             </div>
           </div>
+
+          {huItensInfo.length > 0 && (
+            <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl overflow-hidden">
+              <div className="px-3 py-2 border-b border-[hsl(222,35%,22%)] flex items-center gap-2">
+                <Package size={16} className="text-[hsl(45,93%,47%)]" />
+                <span className="text-sm font-bold text-white">Itens Agrupados ({huItensInfo.length})</span>
+              </div>
+              {huItensInfo.map((it: any, i: number) => (
+                <div key={i} className="px-3 py-2 border-b border-[hsl(222,35%,18%)] last:border-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-mono text-[hsl(217,91%,60%)]">{it.sku || it.produto_sku}</span>
+                    <span className="text-xs font-bold text-white">{it.quantidade}</span>
+                  </div>
+                  <p className="text-[11px] text-[hsl(213,31%,80%)] truncate">{it.descricao || it.produto_descricao}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Products in HU */}
           {estoqueInfo.length > 0 && (

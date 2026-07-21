@@ -24,6 +24,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const enderecoOrigemIdEsperado = sessionStorage.getItem("abast_endereco_origem_id") || "";
   const enderecoOrigemDesc = sessionStorage.getItem("abast_endereco_origem_desc") || "";
   const saldoOrigem = Number(sessionStorage.getItem("abast_saldo_origem") || "0");
+  const huCodigo = sessionStorage.getItem("abast_hu_codigo") || "";
 
   const [enderecoConfirmado, setEnderecoConfirmado] = useState(false);
   const [enderecoScannedDesc, setEnderecoScannedDesc] = useState("");
@@ -129,6 +130,12 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
         <p className="text-xs text-[hsl(213,31%,55%)]">
           Qtd restante: <b className="text-[hsl(45,93%,47%)]">{qtdRestante}</b>
         </p>
+        {huCodigo && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 mt-1">
+            <Archive size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
+            <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">HU: {huCodigo}</span>
+          </div>
+        )}
       </div>
 
       {!enderecoConfirmado && (

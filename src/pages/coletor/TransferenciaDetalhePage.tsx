@@ -11,6 +11,7 @@ export function TransferenciaDetalhePage({ onNavigate }: Props) {
   const desc = sessionStorage.getItem("transf_produto_desc") || "";
   const saldo = Number(sessionStorage.getItem("transf_saldo_disponivel") || "0");
   const lote = sessionStorage.getItem("transf_lote") || "";
+  const huCodigo = sessionStorage.getItem("transf_hu_codigo") || "";
 
   const [quantidade, setQuantidade] = useState("");
   const [error, setError] = useState("");
@@ -59,6 +60,11 @@ export function TransferenciaDetalhePage({ onNavigate }: Props) {
             <div className="bg-[hsl(222,35%,16%)] rounded-lg p-2 col-span-2">
               <span className="text-[10px] text-[hsl(213,31%,55%)]">Lote</span>
               <p className="text-xs text-white">{lote}</p>
+            </div>
+          )}
+          {huCodigo && (
+            <div className="bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 rounded-lg p-2 col-span-2 flex items-center gap-1.5">
+              <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">HU: {huCodigo}</span>
             </div>
           )}
         </div>

@@ -21,6 +21,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const qtdRestante = Number(sessionStorage.getItem("coletor_armazenagem_qtd_restante") || "0");
   const pickingSugerido = sessionStorage.getItem("coletor_armazenagem_picking_sugerido") || "";
   const variosPickings = sessionStorage.getItem("coletor_armazenagem_varios_pickings") === "S";
+  const huCodigo = sessionStorage.getItem("coletor_armazenagem_hu_codigo") || "";
 
   const [estoquePulmao, setEstoquePulmao] = useState(0);
   const [estoquePicking, setEstoquePicking] = useState(0);
@@ -256,6 +257,12 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 mt-1">
             <AlertTriangle size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
             <span className="text-[11px] text-[hsl(45,93%,80%)]">Múltiplos endereços de picking</span>
+          </div>
+        )}
+        {huCodigo && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 mt-1">
+            <Archive size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
+            <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">HU: {huCodigo}</span>
           </div>
         )}
       </div>

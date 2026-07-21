@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { Loader2, MapPin, CheckCircle } from "lucide-react";
+import { Loader2, MapPin, CheckCircle, Archive } from "lucide-react";
+
+interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -40,6 +42,7 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
   const movimentoNumero = sessionStorage.getItem("coletor_armazenagem_movimento_numero") || "";
 
   const [itens, setItens] = useState<ItemArmazenagem[]>([]);
+  const [huMap, setHuMap] = useState<Record<string, HUInfo>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -52,10 +55,36 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
         p_movimento_entrada_id: movimentoId,
       });
       if (error) throw error;
-      setItens((data || []) as ItemArmazenagem[]);
+      const rows = (data || []) as ItemArmazenagem[];
+      setItens(rows);
+
+      const tarefaIds = rows.map(i => i.tarefa_id);
+      if (tarefaIds.length > 0) {
+        const { data: huData } = await (supabase as any)
+          .from("tarefa_execucao")
+          .select("tarefa_id, hu, hu_rel:hu(codigo_hu, tipo_hu, tamanho)")
+          .in("tarefa_id", tarefaIds)
+          .not("hu", "is", null)
+          .neq("hu", "00000000-0000-0000-0000-000000000000");
+        const map: Record<string, HUInfo> = {};
+        (huData || []).forEach((exec: any) => {
+          if (exec.hu && exec.hu_rel && !map[exec.tarefa_id]) {
+            map[exec.tarefa_id] = {
+              hu_id: exec.hu,
+              codigo_hu: exec.hu_rel.codigo_hu || "",
+              tipo_hu: exec.hu_rel.tipo_hu || "",
+              tamanho: exec.hu_rel.tamanho || "",
+            };
+          }
+        });
+        setHuMap(map);
+      } else {
+        setHuMap({});
+      }
     } catch (err) {
       console.error(err);
       setItens([]);
+      setHuMap({});
     } finally {
       setLoading(false);
     }
@@ -74,6 +103,14 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     sessionStorage.setItem("coletor_armazenagem_fabricacao", item.fabricacao || "");
     sessionStorage.setItem("coletor_armazenagem_picking_sugerido", item.picking_endereco_desc || "");
     sessionStorage.setItem("coletor_armazenagem_varios_pickings", item.varios_pickings ? "S" : "N");
+    const hu = huMap[item.tarefa_id];
+    if (hu) {
+      sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
+      sessionStorage.setItem("coletor_armazenagem_hu_codigo", hu.codigo_hu);
+    } else {
+      sessionStorage.removeItem("coletor_armazenagem_hu");
+      sessionStorage.removeItem("coletor_armazenagem_hu_codigo");
+    }
     onNavigate("/coletor/armazenagem/iniciar");
   };
 
@@ -146,6 +183,16 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
 
               {/* Descrição */}
               <p className="text-sm text-white font-medium leading-snug">{item.descricao}</p>
+
+              {huMap[item.tarefa_id] && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1">
+                  <Archive size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
+                  <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">{huMap[item.tarefa_id].codigo_hu}</span>
+                  <span className="text-[10px] text-[hsl(45,93%,70%)]">
+                    ({huMap[item.tarefa_id].tipo_hu} {huMap[item.tarefa_id].tamanho})
+                  </span>
+                </div>
+              )}
 
               {/* Quantidades */}
               <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-[hsl(222,35%,22%)]">
