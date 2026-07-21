@@ -22,6 +22,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
   const lote = sessionStorage.getItem("transf_lote") || "";
   const validade = sessionStorage.getItem("transf_validade") || "";
   const fabricacao = sessionStorage.getItem("transf_fabricacao") || "";
+  const huId = sessionStorage.getItem("transf_hu_id") || "";
 
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
