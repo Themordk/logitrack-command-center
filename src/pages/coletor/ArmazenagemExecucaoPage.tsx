@@ -351,6 +351,42 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
             <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">HU: {huCodigo}</span>
           </div>
         )}
+
+        {/* Sugestões do motor de armazenagem */}
+        {loadingSugestao ? (
+          <div className="flex items-center gap-2 pt-2 border-t border-[hsl(222,35%,22%)] mt-1">
+            <Loader2 size={12} className="animate-spin text-[hsl(217,91%,60%)]" />
+            <span className="text-[11px] text-[hsl(213,31%,55%)]">Buscando endereço ideal...</span>
+          </div>
+        ) : sugestoes.length > 0 && (
+          <div className="pt-2 border-t border-[hsl(222,35%,22%)] mt-1 space-y-1">
+            <span className="text-[10px] uppercase text-[hsl(213,31%,55%)] font-semibold">Sugestões do sistema</span>
+            {sugestoes.map((sug, idx) => (
+              <button
+                key={sug.endereco_id}
+                onClick={() => handleSelecionarSugestao(sug)}
+                className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 border transition-colors ${
+                  enderecoId === sug.endereco_id
+                    ? "border-green-500/50 bg-green-500/10"
+                    : "border-[hsl(222,35%,22%)] bg-[hsl(222,35%,16%)] hover:border-green-500/30"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {idx === 0 && <Star size={11} className="text-yellow-400 shrink-0" />}
+                  <span className="text-xs font-mono font-bold text-white">{sug.descricao}</span>
+                  {sug.curva_acesso && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400">
+                      {sug.curva_acesso}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-[hsl(213,31%,55%)]">
+                  {sug.tipo_sugestao === "CONSOLIDACAO" ? "Consolidar" : sug.tipo_sugestao === "CURVA_MATCH" ? "Curva OK" : "Livre"}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Quantity */}
