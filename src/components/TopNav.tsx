@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
       { label: "Veículos", path: "/armazem/veiculos" },
       { label: "Zonas de Atividade", path: "/armazem/zonas" },
       { label: "Templates de Etiqueta", path: "/armazem/etiquetas" },
+      { label: "Regras de Armazenagem", path: "/armazem/regras-armazenagem" },
     ],
   },
   {
