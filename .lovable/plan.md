@@ -1,58 +1,47 @@
-# HU (Unidade de Manuseio) no Recebimento
+# HU nas telas de Armazenagem, Consulta, Transferência e Abastecimento (Fase 2)
 
-Backend já pronto (tabelas `hu`/`hu_item` estendidas, RPCs `criar_hu_recebimento`, `buscar_hu_por_codigo`, `listar_itens_hu`, `desvincular_item_hu`). Apenas frontend.
+Extensão do suporte a HU (Unidade de Manuseio) do coletor. Backend e componentes (`HUSelectorModal`, `HUActiveBar`) da Fase 1 já existem. HU permanece 100% opcional — quando ausente, o fluxo é idêntico ao atual.
 
-## 1. Novo: `src/components/coletor/HUSelectorModal.tsx`
+## 1. Armazenagem
 
-Bottom-sheet reutilizável com 2 abas (Scan / Criar).
+**`ArmazenagemItensPage.tsx`** — após carregar itens, buscar em `tarefa_execucao` (join com `hu`) as HUs vinculadas às tarefas listadas (filtrando HU nula/zero UUID). Guardar em `huMap[tarefa_id]`. Renderizar badge `Archive` + código HU + tipo/tamanho abaixo do SKU. No `handleSelectItem`, gravar `coletor_armazenagem_hu` / `_hu_codigo` no sessionStorage (ou limpar).
 
-- Props: `open`, `onClose`, `onSelect(huId, codigoHU, tipoHU, tamanho)`, `initialMode?: "scan" | "create"`, `movimentoEntradaId?: string | null`.
-- Lê `core_tenant_id`, `core_empresa_id`, `core_armazem_id` de `localStorage` (padrão do coletor).
-- Aba **Scan**: `ScanField` → RPC `buscar_hu_por_codigo` → card de confirmação (encontrada+disponível) ou erros (não encontrada / inativa) → `ActionButton success` "USAR ESTA HU".
-- Aba **Criar**: selects Tipo (`PALLET/CAIXA/VOLUME/OUTRO`, default PALLET) e Tamanho (`P/M/G/GG/EG`, default M) → RPC `criar_hu_recebimento` → toast + `onSelect`.
-- Dark theme HSL conforme prompt; ícones `lucide-react`; `(supabase as any).rpc(...)`.
+**`ArmazenagemExecucaoPage.tsx`** — ler HU do sessionStorage e exibir badge "HU: XXX" dentro do card do produto. `handleConfirm` já envia `p_hu` para a RPC, sem alteração de lógica.
 
-## 2. Novo: `src/components/coletor/HUActiveBar.tsx`
+**`ArmazenagemIniciarPage.tsx`** — no `handleScan`, se código começa com `HU-`/`hu-`: chamar `buscar_hu_por_codigo` → `listar_itens_hu` → obter EAN do primeiro produto via `produto_embalagem` → chamar `fn_buscar_dados_armazenagem` com esse EAN e gravar HU no sessionStorage. Fluxo EAN puro inalterado. No `handleConfirm`, limpar `coletor_armazenagem_hu_codigo` se `coletor_armazenagem_hu` não estiver setada.
 
-Barra opcional acima do ScanField com 3 estados.
+## 2. Consulta HU
 
-- Prop: `onHUChange(huId: string | null, codigoHU: string | null)`.
-- Estado inicial lê `sessionStorage` (`coletor_hu_id`, `coletor_hu_codigo`).
-- **Sem HU**: ícone `Archive` + texto + botões `Vincular HU` (abre modal em `scan`) e `Nova HU` (modal em `create`).
-- **Com HU**: fundo verde translúcido, código mono + badge tipo/tamanho + `Trocar` + `✕` (desvincula).
-- **Loading**: `Loader2` central.
-- Ao selecionar/criar: grava sessionStorage e chama `onHUChange`.
+**`ConsultaHUPage.tsx`** — incluir `status` no select do `hu`. Adicionar campo Status no card de detalhes. Após query de estoque, chamar RPC `listar_itens_hu` e guardar `huItensInfo`. Renderizar nova seção "Itens Agrupados (Conferência)" com SKU, descrição, quantidade, lote e validade (usando `formatDate`) — somente se houver itens.
 
-## 3. Alterar: `src/pages/coletor/RecebimentoExecucaoPage.tsx`
+## 3. Transferência
 
-Mudança cirúrgica:
-- Importar `HUActiveBar`.
-- State `huAtiva` inicializado do sessionStorage.
-- Handler `handleHUChange` sincroniza state + sessionStorage.
-- Renderizar `<HUActiveBar onHUChange={handleHUChange} />` dentro do `ColetorLayout`, imediatamente antes do `ScanField`.
-- **Não** alterar `doConfirm` (já lê `coletor_hu_id` do sessionStorage).
+**`TransferenciaProdutoPage.tsx`** — `handleScan`: se código começa com `HU-`/`hu-`, buscar HU, validar disponível, consultar `estoque_geral` por `hu_id` + `endereco_id` (origem) com saldo > 0. Somar quantidades, pegar primeiro produto, gravar `transf_produto_*`, `transf_saldo_disponivel`, `transf_lote/validade/fabricacao`, `transf_hu_id`, `transf_hu_codigo`, navegar para `/detalhe`. Atualizar label do `ScanField` para "Escanear EAN do Produto ou HU".
 
-## 4. Alterar: `src/pages/coletor/RecebimentoConferenciaPage.tsx`
+**`TransferenciaDetalhePage.tsx`** — ler `transf_hu_codigo` e mostrar linha "HU: XXX" no card do produto quando presente.
 
-Agrupar visualmente itens conferidos por HU:
-- `reduce` em `items` por `codigo_hu || "__SEM_HU__"`.
-- Renderizar cada grupo com header `Archive` + código (ou "Sem HU" cinza) + contagem, **apenas quando houver mais de um grupo** — caso contrário layout idêntico ao atual.
-- Preservar o render existente de cada item.
+**`TransferenciaDestinoPage.tsx`** — ler `transf_hu_id`/`transf_hu_codigo`, incluir `hu: huId || null` no insert de `tarefa_execucao`, exibir HU no resumo dos passos, e limpar as chaves do sessionStorage antes de navegar para concluído.
 
-## 5. Alterar: `src/pages/HUsPage.tsx`
+## 4. Abastecimento
 
-- Adicionar colunas no grid: `status` (com map colorido ABERTA/FECHADA/EM_TRANSITO/ARMAZENADA/EXPEDIDA/DESCARTADA), `disponibilidade` (via `StatusBadge`), `peso_bruto`, `created_at` (data BR).
-- Modal: campo `<select>` Status antes de Disponibilidade; incluir `status` nos defaults do novo, no load do edit, e no `baseData` do `handleSave` (default `ABERTA`).
+**`AbastecimentoListPage.tsx`** — após carregar tarefas, consultar `estoque_geral` filtrando por `produto_id ∈ tarefas`, `endereco_id ∈ origens`, `hu_id != zero UUID`, saldo > 0. Montar `huMap[produto_id:endereco_origem_id]`. Renderizar badge com código HU na aba "coleta" após o saldo disponível. `handleSelectItem` grava `abast_hu_codigo` no sessionStorage (ou limpa).
 
-## Regras
+**`AbastecimentoColetaPage.tsx`** — ler `abast_hu_codigo` e mostrar badge `Archive` + "HU: XXX" no card informativo.
 
-- Sem novas dependências. Sem edits em `components/ui/`. Sem `react-router-dom`.
-- HU é 100% opcional — fluxo sem HU permanece funcional.
-- `parseError` + `toast` (sonner) para erros; `(supabase as any).rpc(...)` nos RPCs novos.
+## Regras técnicas
+
+- Sem alterações de backend / RPCs.
+- Sem `react-router-dom`; navegação por `onNavigate`.
+- Coletor usa `localStorage` para tenant/empresa/armazém.
+- `(supabase as any)` em RPCs e joins com relações novas.
+- Ícones de `lucide-react` (`Archive`), toast via `sonner`.
+- HU é opcional em todas as telas — ausência não altera comportamento existente.
 
 ## Verificação
 
-- Abrir recebimento sem tocar na HU: fluxo funciona igual.
-- Criar HU via barra → confirmar item → item aparece com `HU: HU-000000XXX` na lista.
-- Trocar HU e continuar conferindo → `RecebimentoConferenciaPage` agrupa por HU.
-- `/armazem/hus` mostra Status/Disponibilidade/Peso/Data e modal salva status.
+- Item sem HU: telas continuam idênticas à versão atual.
+- Bipar HU em Armazenagem/Iniciar carrega tarefa correspondente ao produto.
+- Bipar HU em Transferência/Produto pré-carrega saldo agregado da HU no endereço origem.
+- Transferência concluída grava `tarefa_execucao.hu` (trigger de estoque migra HU no destino).
+- Consulta HU mostra Status e Itens Agrupados quando `hu_item` tem dados.
+- Abastecimento exibe HU do estoque origem na lista e na coleta.
