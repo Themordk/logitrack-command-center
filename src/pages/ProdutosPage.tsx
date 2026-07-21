@@ -8,7 +8,7 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Save, Loader2, AlertCircle, Plus, Edit2, Trash2, Package, Printer, AlertTriangle } from "lucide-react";
 import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaProdutoModal";
@@ -274,11 +274,11 @@ function ProdutoDetailModal({
   const labelClass = "block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide";
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? `Editar Produto – ${produto?.sku}` : "Novo Produto"}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{isEdit ? `Editar Produto – ${produto?.sku}` : "Novo Produto"}</SheetTitle>
+        </SheetHeader>
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="w-full">
@@ -529,20 +529,20 @@ function ProdutoDetailModal({
         </Tabs>
 
         {tab === "cadastro" && (
-          <DialogFooter>
+          <SheetFooter>
             <button onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">Cancelar</button>
             <button onClick={handleSaveProduto} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {saving ? "Salvando..." : "Salvar"}
             </button>
-          </DialogFooter>
+          </SheetFooter>
         )}
-      </DialogContent>
+      </SheetContent>
 
       {/* Embalagem sub-modal */}
-      <Dialog open={embModalOpen} onOpenChange={(v) => !v && setEmbModalOpen(false)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editEmb ? "Editar Embalagem" : "Nova Embalagem"}</DialogTitle></DialogHeader>
+      <Sheet open={embModalOpen} onOpenChange={(v) => !v && setEmbModalOpen(false)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader><SheetTitle>{editEmb ? "Editar Embalagem" : "Nova Embalagem"}</SheetTitle></SheetHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div><label className={labelClass}>EAN *</label><input value={embForm.ean || ""} onChange={(e) => setEmbForm({ ...embForm, ean: e.target.value })} className={inputClass} /></div>
             <div><label className={labelClass}>Embalagem *</label><input value={embForm.embalagem || ""} onChange={(e) => setEmbForm({ ...embForm, embalagem: e.target.value })} className={inputClass} placeholder="CX, UN, PCT..." /></div>
@@ -558,19 +558,19 @@ function ProdutoDetailModal({
               <label className="text-sm text-foreground">Ativo</label>
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter>
             <button onClick={() => setEmbModalOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
             <button onClick={saveEmb} disabled={embSaving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
               {embSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar
             </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Picking sub-modal */}
-      <Dialog open={pickModalOpen} onOpenChange={(v) => !v && setPickModalOpen(false)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editPick ? "Editar Picking" : "Novo Picking"}</DialogTitle></DialogHeader>
+      <Sheet open={pickModalOpen} onOpenChange={(v) => !v && setPickModalOpen(false)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader><SheetTitle>{editPick ? "Editar Picking" : "Novo Picking"}</SheetTitle></SheetHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="col-span-2">
               <label className={labelClass}>Armazém *</label>
@@ -604,17 +604,17 @@ function ProdutoDetailModal({
               <label className="text-sm text-foreground">Ativo</label>
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter>
             <button onClick={() => setPickModalOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
             <button onClick={savePick} disabled={pickSaving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
               {pickSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar
             </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <PrintEtiquetaProdutoModal open={embPrintOpen} onClose={() => setEmbPrintOpen(false)} items={embPrintItems} />
-    </Dialog>
+    </Sheet>
   );
 }
 

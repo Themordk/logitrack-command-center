@@ -3,7 +3,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Save, Loader2 } from "lucide-react";
 
@@ -86,13 +86,14 @@ export function TiposEntradaPage() {
         newLabel="Novo Tipo de Entrada"
       />
 
-      <Dialog open={modalOpen} onOpenChange={(v) => !v && setModalOpen(false)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editItem ? "Editar Tipo de Entrada" : "Novo Tipo de Entrada"}</DialogTitle>
-          </DialogHeader>
+      <Sheet open={modalOpen} onOpenChange={(v) => !v && setModalOpen(false)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl !p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+            <SheetTitle>{editItem ? "Editar Tipo de Entrada" : "Novo Tipo de Entrada"}</SheetTitle>
+          </SheetHeader>
 
-          <div className="space-y-5 py-2">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="space-y-5">
             {/* ── Dados gerais ── */}
             <div className={sectionClass}>
               <p className={sectionTitleClass}>Dados gerais</p>
@@ -152,9 +153,10 @@ export function TiposEntradaPage() {
               <Switch checked={form.ativo !== false} onCheckedChange={(v) => set("ativo", v)} />
               <label className="text-sm text-foreground font-medium">Ativo</label>
             </div>
+            </div>
           </div>
 
-          <DialogFooter>
+          <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex-row justify-end gap-2">
             <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               Cancelar
             </button>
@@ -162,9 +164,10 @@ export function TiposEntradaPage() {
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {saving ? "Salvando..." : "Salvar"}
             </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
 
       <DeleteConfirmDialog
         open={!!deleteItem}

@@ -7,7 +7,7 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Printer, Save, Loader2, AlertCircle } from "lucide-react";
 import { PrintEtiquetaHUModal } from "@/components/etiqueta/PrintEtiquetaHUModal";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -229,14 +229,15 @@ export function HUsPage() {
         )}
       />
 
-      {/* Custom Modal */}
-      <Dialog open={modalOpen} onOpenChange={(v) => !v && setModalOpen(false)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editItem ? "Editar HU" : "Gerar HU"}</DialogTitle>
-          </DialogHeader>
+      {/* Custom Sheet */}
+      <Sheet open={modalOpen} onOpenChange={(v) => !v && setModalOpen(false)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl !p-0 flex flex-col gap-0">
+          <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+            <SheetTitle>{editItem ? "Editar HU" : "Gerar HU"}</SheetTitle>
+          </SheetHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Tipo HU */}
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
@@ -314,9 +315,10 @@ export function HUsPage() {
                 <p className="text-xs text-muted-foreground mt-1">Códigos HU serão gerados automaticamente pelo sistema.</p>
               </div>
             )}
+            </div>
           </div>
 
-          <DialogFooter>
+          <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex-row justify-end gap-2">
             <button onClick={() => setModalOpen(false)}
               className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
               Cancelar
@@ -326,9 +328,10 @@ export function HUsPage() {
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {saving ? "Salvando..." : editItem ? "Salvar" : "Gerar"}
             </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
 
       <DeleteConfirmDialog
         open={!!deleteItem}
