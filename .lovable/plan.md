@@ -1,35 +1,28 @@
+## Diagnóstico (confirmado)
 
-## Situação atual (verificada)
+O item "Regras de Armazenagem" está registrado no menu (`TopNav.tsx`) e a rota está em `App.tsx`, mas o `TopNav` filtra os itens pelo RBAC usando `getModuleForChildRoute("/armazem/regras-armazenagem")`, que retorna:
 
-Os itens já entregues em turnos anteriores estão presentes e alinhados ao prompt:
+- **Frontend espera:** `web.armazem.regras-armazenagem` (com hífen — derivado do path)
+- **Banco tem cadastrado:** `web.armazem.regras_armazenagem` (com underscore — registrado no turno anterior)
 
-- `src/pages/RegraArmazenagemPage.tsx` — formulário de registro único, 3 cards (Mistura / Motor de sugestão / Status), header com badge dinâmico (Ativo / Inativo / Não configurado), tolerância condicional, botão "Salvar regras" desabilitado sem mudanças. ✔
-- `src/pages/coletor/ColetorSugestaoPickingPage.tsx` — 555 linhas, usa `rpc_sugerir_endereco_picking` / `rpc_validar_endereco_picking`, `ColetorLayout`, `ScanField`, `ActionButton`, `useFeedback`, grava `log_sugestao_armazenagem`. ✔
-- Rotas `#/armazem/regras-armazenagem` e `#/coletor/sugestao-picking` registradas em `src/App.tsx` (incluindo breadcrumb). ✔
-- Item "Regras de Armazenagem" já presente no menu Armazém em `TopNav.tsx`. ✔
+Como nenhum perfil tem permissão para o código com hífen, o `can("web.armazem.regras-armazenagem","READ")` retorna `false` e o item é removido do menu para qualquer usuário com RBAC efetivo (perfis não-admin com permissões atribuídas). O mesmo mismatch afeta a proteção da rota.
 
-Faltam apenas as Tarefas 3 e 4.
+## Correção
 
-## Tarefa 3 — `tipo_alocacao` em picking_produto (dentro de ProdutosPage)
+Padronizar o frontend para o código já cadastrado no banco (`regras_armazenagem`), evitando nova migration.
 
-O CRUD de picking do produto não é um `CrudTable/CrudModal` genérico — é uma sub-tela nested com `<table>` própria e formulário manual (`pickForm`) na aba "Picking" de `src/pages/ProdutosPage.tsx`.
+### `src/hooks/useRoutePermission.ts`
 
-Alterações:
+Adicionar mapeamento explícito no `routeToModuleMap` (antes do fallback genérico):
 
-1. Estado default `pickForm` (linha 231): incluir `tipo_alocacao: "FIXO"`.
-2. Grid de pickings (por volta da linha 511): adicionar `<th>Alocação</th>` e célula com badge exibindo `p.tipo_alocacao ?? "FIXO"`.
-3. Formulário de picking (por volta da linha 595, após o select de `tipo_picking`): adicionar `<select>` para `tipo_alocacao` com opções `FIXO` / `ROTATIVO`, ligado a `pickForm.tipo_alocacao`.
-4. Save (linhas 243 / 260): incluir `tipo_alocacao` no payload de INSERT/UPDATE — usando `as any` já existente.
+```ts
+"/armazem/regras-armazenagem": "web.armazem.regras_armazenagem",
+```
 
-## Tarefa 4 — `capacidade_unidades` em Endereços
+Isso faz `getModuleForChildRoute` retornar o código com underscore, batendo com o banco. Como a função consulta o map antes do fallback, funciona tanto para o filtro do menu quanto para a proteção da rota.
 
-Em `src/pages/EnderecosPage.tsx`:
+Nenhuma outra alteração é necessária — o `INSERT` de módulo/permissões já executado no banco continua válido.
 
-1. `columns` (linha 93): adicionar `{ key: "capacidade_unidades", label: "Cap. Unid." }` após a coluna de capacidade existente.
-2. `fields` (linha 106): adicionar `{ name: "capacidade_unidades", label: "Capacidade (unidades)", type: "number", required: false }` próximo aos demais campos de capacidade (M³, peso etc.).
+## Verificação
 
-Nenhuma migration, RPC, dependência ou componente novo.
-
-## Fora de escopo (Tarefa 7)
-
-Nada é criado no banco, nomes/parâmetros de RPC intactos, sem react-router, sem novos componentes em `components/ui/`, sem instalar dependências.
+Após a mudança, com um usuário cujo perfil tenha `READ` em `web.armazem.regras_armazenagem`, o item deve aparecer em Armazém → Regras de Armazenagem. Usuários admin (sem entradas em `permissions`) já viam por causa do fallback "sem permissões = acesso total" no `PermissionsContext`; o cenário quebrado era o de usuários com RBAC ativo.

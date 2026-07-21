@@ -14,6 +14,7 @@ const routeToModuleMap: Record<string, string> = {
   "/armazem/veiculos": "web.armazem.veiculos",
   "/armazem/zonas": "web.armazem.zonas",
   "/armazem/roteiro-separacao": "web.armazem.roteiro-separacao",
+  "/armazem/regras-armazenagem": "web.armazem.regras_armazenagem",
   "/armazem/etiquetas": "web.armazem.etiquetas",
   "/dados-mestres/produtos": "web.dados-mestres.produtos",
   "/dados-mestres/grupos": "web.dados-mestres.grupos",
