@@ -1,33 +1,41 @@
+
 ## Objetivo
-Adicionar um seletor de **Armazém** no topo do formulário de `RegraArmazenagemPage.tsx`, permitindo ao usuário escolher qual armazém está sendo configurado — em vez de depender exclusivamente do `armazemId` do `TenantContext`.
 
-## Alterações em `src/pages/RegraArmazenagemPage.tsx`
+Integrar as RPCs `rpc_sugerir_endereco_picking` e `rpc_validar_endereco_picking` na tela existente `ArmazenagemExecucaoPage`, oferecendo até 3 sugestões clicáveis de endereço e validação das regras de armazenagem antes de finalizar. Remover a tela órfã de sugestão de picking.
 
-1. **Estado local `selectedArmazemId`**
-   - Inicializar com o `armazemId` do `useTenant()` (armazém atual do contexto) para manter compatibilidade.
-   - Adicionar estado `armazemOptions` carregado via `fetchOptions("armazem", tenantId, "descricao")` (mesmo padrão de `ArmazensPage`).
+## Passos
 
-2. **Novo Card "Armazém" no topo do formulário**
-   - Posicionado antes do card "Regras de mistura".
-   - Contém um `Select` (shadcn) com a lista de armazéns da empresa/tenant.
-   - Label: "Armazém" + `HelpTip` explicando que cada armazém pode ter regras próprias.
-   - Texto auxiliar mostrando o armazém selecionado.
+### 1. Remover tela órfã
+- Deletar `src/pages/coletor/ColetorSugestaoPickingPage.tsx`.
+- Em `src/App.tsx`: remover import e case `/coletor/sugestao-picking`.
 
-3. **Refatorar o `useEffect` de carregamento**
-   - Passar a depender de `selectedArmazemId` (em vez de `armazemId` do contexto).
-   - Ao trocar o armazém no seletor: recarrega a regra correspondente (SELECT em `regra_armazenagem` filtrando pelo novo `armazem_id`).
-   - Se não existir regra para o armazém escolhido, monta o estado com `DEFAULTS` (mesmo comportamento atual).
-   - Resetar `hasChanges` ao trocar de armazém; se houver alterações não salvas, exibir `confirm()` antes de trocar.
+### 2. Editar `src/pages/coletor/ArmazenagemExecucaoPage.tsx`
 
-4. **Ajustar `handleSave`**
-   - Usar `selectedArmazemId` no payload em vez de `armazemId` do contexto.
-   - Manter validação: se nenhum armazém selecionado, desabilita o botão Salvar.
+**Imports**: adicionar `Star` do `lucide-react`.
 
-5. **Estado de loading/empty**
-   - Enquanto `selectedArmazemId` for `null`, exibir mensagem "Selecione um armazém para configurar as regras" no lugar dos cards de regras.
-   - Loader do carregamento da regra continua funcionando ao trocar de armazém.
+**Novos estados**:
+- `sugestoes: any[]` e `loadingSugestao: boolean`
+- `enderecoTipo: string` (para distinguir PICKING de PULMÃO)
 
-## Fora de escopo
-- Nenhuma alteração de banco de dados, RPC ou RLS.
-- Sem mudança em `TopNav`, `App.tsx` ou outras páginas.
-- Sem alteração no fluxo do coletor (`ColetorSugestaoPickingPage`).
+**Fetch de sugestões (novo `useEffect`)**: dispara ao montar, chamando `rpc_sugerir_endereco_picking` com tenant/armazém/produto/lote/validade (ignora validade `1900-01-01`) e `p_limite: 3`.
+
+**UI (dentro do card de produto, abaixo do bloco "Picking sugerido")**:
+- Loader "Buscando endereço ideal…" enquanto carrega.
+- Lista de até 3 sugestões como botões: estrela na primeira, descrição do endereço, badge de curva quando existir, e label do `tipo_sugestao` (Consolidar / Curva OK / Livre). Sugestão selecionada ganha borda verde.
+
+**`handleSelecionarSugestao(sug)`**: preenche `enderecoId`, `enderecoDesc`, `enderecoScan`, define `enderecoTipo = "PICKING"` e mostra overlay de sucesso.
+
+**`handleScanEndereco`**: incluir `tipo_endereco` no `select` e salvar em `enderecoTipo`.
+
+**`handleConfirm`**: antes de chamar `finalizar_armazenagem`, se `enderecoTipo === "PICKING"`, chamar `rpc_validar_endereco_picking`. Se `valido === false`, exibir erros concatenados em overlay e abortar. Endereços de pulmão seguem direto (não quebrar fluxo).
+
+**Log (não crítico)**: após sucesso da finalização e antes do `setTimeout` de navegação, inserir em `log_sugestao_armazenagem` com sugestão top vs endereço escolhido, `aceita`, `motivo`, `score`, `tipo_sugestao`, lote, quantidade, usuário. Envolto em try/catch silencioso.
+
+### Detalhes técnicos
+- Usar `as any` nas RPCs novas e no insert de log (não estão nos types gerados).
+- Manter design system atual (mesmas cores hsl, ScanField, ActionButton, StatusOverlay).
+- Não alterar `finalizar_armazenagem`, modal de capacidade, nem fluxo de pulmão.
+- Modal de capacidade excedida e ocorrências permanecem intactos.
+
+## Resultado esperado
+Operador vê até 3 sugestões clicáveis do motor no card do produto (melhor com estrela). Pode tocar numa sugestão OU escanear manualmente. Ao confirmar em endereço de picking, as regras são validadas; em pulmão, segue direto. Log de decisão registrado quando possível.
