@@ -184,6 +184,16 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
               {/* Descrição */}
               <p className="text-sm text-white font-medium leading-snug">{item.descricao}</p>
 
+              {huMap[item.tarefa_id] && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1">
+                  <Archive size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
+                  <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">{huMap[item.tarefa_id].codigo_hu}</span>
+                  <span className="text-[10px] text-[hsl(45,93%,70%)]">
+                    ({huMap[item.tarefa_id].tipo_hu} {huMap[item.tarefa_id].tamanho})
+                  </span>
+                </div>
+              )}
+
               {/* Quantidades */}
               <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-[hsl(222,35%,22%)]">
                 <div>
