@@ -16,6 +16,7 @@ export function ConsultaHUPage({ onNavigate }: Props) {
   const [huInfo, setHuInfo] = useState<any>(null);
   const [estoqueInfo, setEstoqueInfo] = useState<any[]>([]);
   const [execInfo, setExecInfo] = useState<any[]>([]);
+  const [huItensInfo, setHuItensInfo] = useState<any[]>([]);
 
   const handleScan = async (code: string) => {
     setScanned(code);
