@@ -132,16 +132,54 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
   // Picking address comes from sessionStorage (returned by fn_buscar_dados_armazenagem)
 
+  // Buscar sugestões do motor de armazenagem
+  useEffect(() => {
+    const armazemId = localStorage.getItem("core_armazem_id");
+    if (!tenantId || !armazemId || !produtoId) return;
+    (async () => {
+      setLoadingSugestao(true);
+      try {
+        const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
+        const lote = sessionStorage.getItem("coletor_armazenagem_lote") || null;
+        const { data, error } = await (supabase as any).rpc("rpc_sugerir_endereco_picking", {
+          p_tenant_id: tenantId,
+          p_armazem_id: armazemId,
+          p_produto_id: produtoId,
+          p_lote: lote,
+          p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
+          p_quantidade: qtdRestante || 1,
+          p_limite: 3,
+        });
+        if (error) throw error;
+        setSugestoes(data || []);
+      } catch (err) {
+        console.error("Erro ao buscar sugestão:", err);
+      } finally {
+        setLoadingSugestao(false);
+      }
+    })();
+  }, [tenantId, produtoId, qtdRestante]);
+
+  const handleSelecionarSugestao = (sug: any) => {
+    setEnderecoId(sug.endereco_id);
+    setEnderecoDesc(sug.descricao);
+    setEnderecoScan(sug.descricao);
+    setEnderecoTipo("PICKING");
+    setOverlay("success");
+    setOverlayMsg(`Endereço selecionado: ${sug.descricao}`);
+  };
+
   const handleScanEndereco = async (code: string) => {
     setEnderecoScan(code);
     setEnderecoId(null);
     setEnderecoDesc("");
+    setEnderecoTipo("");
     // LMS: mark task as started on first address scan
     markTarefaIniciadaByTarefa(tarefaId, usuarioId);
     try {
       const { data, error } = await (supabase as any)
         .from("endereco")
-        .select("id, descricao, situacao")
+        .select("id, descricao, situacao, tipo_endereco")
         .eq("codigo_endereco", Number(code))
         .eq("tenant_id", tenantId)
         .limit(1);
@@ -158,6 +196,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       }
       setEnderecoId(data[0].id);
       setEnderecoDesc(data[0].descricao);
+      setEnderecoTipo(data[0].tipo_endereco || "");
       setOverlay("success");
       setOverlayMsg(`Endereço: ${data[0].descricao}`);
     } catch (err: any) {
