@@ -424,7 +424,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/endereco/detalhe": return <ConsultaEnderecoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/consulta/hu": return <ConsultaHUPage onNavigate={onNavigate} />;
     case "/coletor/consulta/mapear-picking": return <MapearPickingPage onNavigate={onNavigate} />;
-    case "/coletor/sugestao-picking": return <ColetorSugestaoPickingPage onNavigate={onNavigate} />;
+    
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
