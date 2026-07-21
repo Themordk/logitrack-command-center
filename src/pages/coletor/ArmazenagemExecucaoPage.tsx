@@ -35,11 +35,14 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [enderecoScan, setEnderecoScan] = useState("");
   const [enderecoId, setEnderecoId] = useState<string | null>(null);
   const [enderecoDesc, setEnderecoDesc] = useState("");
+  const [enderecoTipo, setEnderecoTipo] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
   const [showCapModal, setShowCapModal] = useState(false);
   const [capInfo, setCapInfo] = useState<{ maximo: number; saldoAtual: number; cabeMais: number } | null>(null);
+  const [sugestoes, setSugestoes] = useState<any[]>([]);
+  const [loadingSugestao, setLoadingSugestao] = useState(false);
 
   const parseCapacidadeMsg = (msg: string): { maximo: number; saldoAtual: number; cabeMais: number } | null => {
     try {
