@@ -100,6 +100,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
           lote: lote || null,
           validade: validade && validade !== "1900-01-01" ? validade : null,
           fabricacao: fabricacao && fabricacao !== "1900-01-01" ? fabricacao : null,
+          hu: huId || null,
           iniciado_em: now,
           concluido_em: now,
         });
