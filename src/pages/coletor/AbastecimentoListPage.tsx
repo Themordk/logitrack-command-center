@@ -43,6 +43,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
   const empresaId = localStorage.getItem("core_empresa_id") || "";
   const [loading, setLoading] = useState(true);
   const [tarefas, setTarefas] = useState<TarefaAbastecimento[]>([]);
+  const [huMap, setHuMap] = useState<Record<string, string>>({});
   const [fase, setFase] = useState<"coleta" | "entrega">("coleta");
 
   const loadTarefas = useCallback(async () => {
@@ -54,7 +55,29 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
         p_empresa_id: empresaId,
       });
       if (error) throw error;
-      setTarefas((data as TarefaAbastecimento[]) || []);
+      const rows = (data as TarefaAbastecimento[]) || [];
+      setTarefas(rows);
+
+      const chaves = Array.from(new Set(rows.map(r => `${r.produto_id}__${r.endereco_origem_id}`)));
+      if (chaves.length > 0) {
+        const produtoIds = Array.from(new Set(rows.map(r => r.produto_id)));
+        const origemIds = Array.from(new Set(rows.map(r => r.endereco_origem_id)));
+        const { data: est } = await (supabase as any)
+          .from("estoque_geral")
+          .select("produto_id, endereco_id, hu_id, hu:hu_id(codigo_hu)")
+          .in("produto_id", produtoIds)
+          .in("endereco_id", origemIds)
+          .not("hu_id", "is", null)
+          .gt("quantidade_disponivel", 0);
+        const map: Record<string, string> = {};
+        (est || []).forEach((e: any) => {
+          const k = `${e.produto_id}__${e.endereco_id}`;
+          if (e.hu?.codigo_hu && !map[k]) map[k] = e.hu.codigo_hu;
+        });
+        setHuMap(map);
+      } else {
+        setHuMap({});
+      }
     } catch (e: any) {
       const parsed = parseError(e, "abastecimento-lista");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
