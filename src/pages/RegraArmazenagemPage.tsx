@@ -62,14 +62,25 @@ function HelpTip({ text }: { text: string }) {
 
 export function RegraArmazenagemPage() {
   const { tenantId, empresaId, armazemId } = useTenant();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [regra, setRegra] = useState<RegraArmazenagem | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedArmazemId, setSelectedArmazemId] = useState<string | null>(armazemId || null);
 
-  // Carregar regra existente do armazém
+  // Carregar lista de armazéns
   useEffect(() => {
-    if (!tenantId || !armazemId) return;
+    if (!tenantId) return;
+    fetchOptions("armazem", tenantId, "descricao").then(setArmazemOptions);
+  }, [tenantId]);
+
+  // Carregar regra existente do armazém selecionado
+  useEffect(() => {
+    if (!tenantId || !selectedArmazemId) {
+      setRegra(null);
+      return;
+    }
 
     const load = async () => {
       setLoading(true);
@@ -78,7 +89,7 @@ export function RegraArmazenagemPage() {
           .from("regra_armazenagem" as any)
           .select("*")
           .eq("tenant_id", tenantId)
-          .eq("armazem_id", armazemId)
+          .eq("armazem_id", selectedArmazemId)
           .maybeSingle();
 
         if (error) throw error;
@@ -86,14 +97,14 @@ export function RegraArmazenagemPage() {
         if (data) {
           setRegra(data as unknown as RegraArmazenagem);
         } else {
-          // Não existe regra ainda — montar com defaults
           setRegra({
             ...DEFAULTS,
             tenant_id: tenantId,
             empresa_id: empresaId || "",
-            armazem_id: armazemId,
+            armazem_id: selectedArmazemId,
           });
         }
+        setHasChanges(false);
       } catch (err: any) {
         toast.error("Erro ao carregar regras: " + err.message);
       } finally {
@@ -102,7 +113,15 @@ export function RegraArmazenagemPage() {
     };
 
     load();
-  }, [tenantId, empresaId, armazemId]);
+  }, [tenantId, empresaId, selectedArmazemId]);
+
+  const handleArmazemChange = (novoId: string) => {
+    if (hasChanges) {
+      const ok = window.confirm("Existem alterações não salvas. Deseja descartar e trocar de armazém?");
+      if (!ok) return;
+    }
+    setSelectedArmazemId(novoId);
+  };
 
   const updateField = <K extends keyof RegraArmazenagem>(
     field: K,
