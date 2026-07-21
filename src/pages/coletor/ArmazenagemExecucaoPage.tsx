@@ -213,6 +213,27 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
       const fabricacaoRaw = sessionStorage.getItem("coletor_armazenagem_fabricacao");
       const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
+      const armazemId = localStorage.getItem("core_armazem_id");
+
+      // Validar endereço com as regras de armazenagem (somente PICKING)
+      if (enderecoTipo === "PICKING") {
+        const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
+          p_tenant_id: tenantId,
+          p_armazem_id: armazemId,
+          p_produto_id: produtoId,
+          p_endereco_id: enderecoId,
+          p_lote: lote || null,
+          p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
+          p_quantidade: Number(quantidade),
+        });
+        if (valErr) throw valErr;
+        if (validacao && !validacao.valido) {
+          setSaving(false);
+          setOverlay("error");
+          setOverlayMsg(validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem");
+          return;
+        }
+      }
 
       // Multiply quantity by embalagem fator
       const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
@@ -232,6 +253,29 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         p_hu: huId,
       });
       if (error) throw error;
+
+      // Log da sugestão (não crítico)
+      try {
+        const empresaIdLog = localStorage.getItem("core_empresa_id");
+        const sugestaoTop = sugestoes.length > 0 ? sugestoes[0] : null;
+        await (supabase as any).from("log_sugestao_armazenagem").insert({
+          tenant_id: tenantId,
+          empresa_id: empresaIdLog,
+          armazem_id: armazemId,
+          produto_id: produtoId,
+          endereco_sugerido_id: sugestaoTop?.endereco_id || enderecoId,
+          endereco_escolhido_id: enderecoId,
+          score: sugestaoTop?.score || 0,
+          tipo_sugestao: sugestaoTop?.tipo_sugestao || "FALLBACK",
+          motivo_sugestao: sugestaoTop?.motivo || "Escaneado manualmente",
+          aceita: sugestaoTop ? enderecoId === sugestaoTop.endereco_id : null,
+          lote: lote || null,
+          quantidade: Number(quantidade),
+          usuario_id: usuarioId,
+        });
+      } catch (logErr) {
+        console.error("Log de sugestão falhou (não crítico):", logErr);
+      }
 
       setOverlay("success");
       setOverlayMsg("Armazenagem registrada com sucesso!");
