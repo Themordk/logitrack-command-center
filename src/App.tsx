@@ -36,7 +36,7 @@ import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
 import { EtiquetaTemplatesPage } from "./pages/EtiquetaTemplatesPage";
 import { RegraArmazenagemPage } from "./pages/RegraArmazenagemPage";
-import { ColetorSugestaoPickingPage } from "./pages/coletor/ColetorSugestaoPickingPage";
+
 
 import { EntradasPage } from "./pages/EntradasPage";
 import { MovimentoEntradaPage } from "./pages/MovimentoEntradaPage";
