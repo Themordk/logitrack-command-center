@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
+import { fetchOptions } from "@/hooks/useCrud";
 import { toast } from "sonner";
-import { Loader2, Settings2, ShieldCheck, ArrowDownToLine, BarChart3, Info } from "lucide-react";
+import { Loader2, Settings2, ShieldCheck, ArrowDownToLine, BarChart3, Info, Warehouse } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -61,14 +62,25 @@ function HelpTip({ text }: { text: string }) {
 
 export function RegraArmazenagemPage() {
   const { tenantId, empresaId, armazemId } = useTenant();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [regra, setRegra] = useState<RegraArmazenagem | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedArmazemId, setSelectedArmazemId] = useState<string | null>(armazemId || null);
 
-  // Carregar regra existente do armazém
+  // Carregar lista de armazéns
   useEffect(() => {
-    if (!tenantId || !armazemId) return;
+    if (!tenantId) return;
+    fetchOptions("armazem", tenantId, "descricao").then(setArmazemOptions);
+  }, [tenantId]);
+
+  // Carregar regra existente do armazém selecionado
+  useEffect(() => {
+    if (!tenantId || !selectedArmazemId) {
+      setRegra(null);
+      return;
+    }
 
     const load = async () => {
       setLoading(true);
@@ -77,7 +89,7 @@ export function RegraArmazenagemPage() {
           .from("regra_armazenagem" as any)
           .select("*")
           .eq("tenant_id", tenantId)
-          .eq("armazem_id", armazemId)
+          .eq("armazem_id", selectedArmazemId)
           .maybeSingle();
 
         if (error) throw error;
@@ -85,14 +97,14 @@ export function RegraArmazenagemPage() {
         if (data) {
           setRegra(data as unknown as RegraArmazenagem);
         } else {
-          // Não existe regra ainda — montar com defaults
           setRegra({
             ...DEFAULTS,
             tenant_id: tenantId,
             empresa_id: empresaId || "",
-            armazem_id: armazemId,
+            armazem_id: selectedArmazemId,
           });
         }
+        setHasChanges(false);
       } catch (err: any) {
         toast.error("Erro ao carregar regras: " + err.message);
       } finally {
@@ -101,7 +113,15 @@ export function RegraArmazenagemPage() {
     };
 
     load();
-  }, [tenantId, empresaId, armazemId]);
+  }, [tenantId, empresaId, selectedArmazemId]);
+
+  const handleArmazemChange = (novoId: string) => {
+    if (hasChanges) {
+      const ok = window.confirm("Existem alterações não salvas. Deseja descartar e trocar de armazém?");
+      if (!ok) return;
+    }
+    setSelectedArmazemId(novoId);
+  };
 
   const updateField = <K extends keyof RegraArmazenagem>(
     field: K,
@@ -113,14 +133,14 @@ export function RegraArmazenagemPage() {
   };
 
   const handleSave = async () => {
-    if (!regra || !tenantId || !armazemId) return;
+    if (!regra || !tenantId || !selectedArmazemId) return;
 
     setSaving(true);
     try {
       const payload = {
         tenant_id: tenantId,
         empresa_id: empresaId || regra.empresa_id,
-        armazem_id: armazemId,
+        armazem_id: selectedArmazemId,
         permite_mistura_sku: regra.permite_mistura_sku,
         permite_mistura_lote: regra.permite_mistura_lote,
         permite_mistura_validade: regra.permite_mistura_validade,
@@ -160,16 +180,6 @@ export function RegraArmazenagemPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center p-12">
-        <Loader2 className="animate-spin text-primary" size={32} />
-      </div>
-    );
-  }
-
-  if (!regra) return null;
-
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* Header */}
@@ -180,11 +190,11 @@ export function RegraArmazenagemPage() {
             Regras de armazenagem
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure as regras do motor de estratégia de armazenagem para este armazém
+            Configure as regras do motor de estratégia de armazenagem por armazém
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {regra.id && (
+          {regra?.id && (
             <Badge
               variant="outline"
               className={
@@ -196,13 +206,70 @@ export function RegraArmazenagemPage() {
               {regra.ativo ? "Ativo" : "Inativo"}
             </Badge>
           )}
-          {!regra.id && (
+          {regra && !regra.id && (
             <Badge variant="outline" className="bg-yellow-500/15 text-yellow-400 border-yellow-500/30">
               Não configurado
             </Badge>
           )}
         </div>
       </div>
+
+      {/* Seletor de Armazém */}
+      <Card className="border-border bg-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Warehouse className="h-4 w-4 text-primary" />
+            Armazém
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Cada armazém possui seu próprio conjunto de regras de armazenagem
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-0.5 flex-1">
+              <Label className="text-sm font-medium flex items-center">
+                Armazém a configurar
+                <HelpTip text="Selecione o armazém cujas regras deseja visualizar ou editar. As regras são armazenadas de forma independente por armazém." />
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {selectedArmazemId
+                  ? "Editando regras do armazém selecionado"
+                  : "Selecione um armazém para começar"}
+              </p>
+            </div>
+            <Select value={selectedArmazemId ?? ""} onValueChange={handleArmazemChange}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Selecionar armazém..." />
+              </SelectTrigger>
+              <SelectContent>
+                {armazemOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {!selectedArmazemId && (
+        <Card className="border-border bg-card">
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Selecione um armazém acima para configurar as regras.
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedArmazemId && loading && (
+        <div className="flex justify-center items-center p-12">
+          <Loader2 className="animate-spin text-primary" size={32} />
+        </div>
+      )}
+
+      {selectedArmazemId && !loading && regra && (
+      <>
 
       {/* Seção 1: Regras de Mistura */}
       <Card className="border-border bg-card">
@@ -432,6 +499,8 @@ export function RegraArmazenagemPage() {
           )}
         </Button>
       </div>
+      </>
+      )}
     </div>
   );
 }
