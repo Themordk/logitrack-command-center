@@ -24,11 +24,12 @@ export function ConsultaHUPage({ onNavigate }: Props) {
     setHuInfo(null);
     setEstoqueInfo([]);
     setExecInfo([]);
+    setHuItensInfo([]);
     setLoading(true);
     try {
       const { data: hus } = await (supabase as any)
         .from("hu")
-        .select("id, codigo_hu, tipo_hu, tamanho, disponibilidade, peso_bruto")
+        .select("id, codigo_hu, tipo_hu, tamanho, disponibilidade, peso_bruto, status")
         .eq("codigo_hu", code)
         .limit(1);
 
@@ -41,7 +42,6 @@ export function ConsultaHUPage({ onNavigate }: Props) {
       const hu = hus[0];
       setHuInfo(hu);
 
-      // Fetch stock with product details, lote, validade, fabricacao and address
       let estoqueQuery = (supabase as any)
         .from("estoque_geral")
         .select("quantidade_disponivel, quantidade_total, lote, data_validade, data_fabricacao, endereco:endereco_id(descricao, tipo_endereco), produto:produto_id(sku, descricao)")
@@ -53,7 +53,13 @@ export function ConsultaHUPage({ onNavigate }: Props) {
       const { data: estoque } = await estoqueQuery;
       setEstoqueInfo(estoque || []);
 
-      // Last executions
+      const { data: huItens } = await (supabase as any).rpc("listar_itens_hu", {
+        p_tenant_id: tenantId,
+        p_hu_id: hu.id,
+      });
+      const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
+      setHuItensInfo(itensResult?.itens || []);
+
       const { data: execs } = await (supabase as any)
         .from("tarefa_execucao")
         .select("id, status, concluido_em, endereco_destino_id, endereco_origem_id, quantidade_executada")
