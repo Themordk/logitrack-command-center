@@ -133,14 +133,14 @@ export function RegraArmazenagemPage() {
   };
 
   const handleSave = async () => {
-    if (!regra || !tenantId || !armazemId) return;
+    if (!regra || !tenantId || !selectedArmazemId) return;
 
     setSaving(true);
     try {
       const payload = {
         tenant_id: tenantId,
         empresa_id: empresaId || regra.empresa_id,
-        armazem_id: armazemId,
+        armazem_id: selectedArmazemId,
         permite_mistura_sku: regra.permite_mistura_sku,
         permite_mistura_lote: regra.permite_mistura_lote,
         permite_mistura_validade: regra.permite_mistura_validade,
