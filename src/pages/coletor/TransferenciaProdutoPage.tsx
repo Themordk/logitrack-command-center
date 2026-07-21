@@ -17,10 +17,52 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
 
+  const tenantId = localStorage.getItem("core_tenant_id") || "";
+
   const handleScan = async (code: string) => {
     setScanned(code);
     setLoading(true);
     try {
+      // Se código for HU, buscar itens da HU e usar o primeiro produto
+      if (code.startsWith("HU-") || code.startsWith("hu-")) {
+        const { data: huResult } = await (supabase as any).rpc("buscar_hu_por_codigo", {
+          p_tenant_id: tenantId,
+          p_codigo_hu: code,
+        });
+        const hu = typeof huResult === "string" ? JSON.parse(huResult) : huResult;
+        if (!hu?.encontrada) {
+          setOverlay("error");
+          setOverlayMsg("HU não encontrada.");
+          return;
+        }
+
+        const { data: estoque } = await (supabase as any)
+          .from("estoque_geral")
+          .select("produto_id, quantidade_disponivel, lote, data_validade, data_fabricacao, produto:produto_id(sku, descricao)")
+          .eq("hu_id", hu.hu_id)
+          .eq("endereco_id", origemId)
+          .gt("quantidade_disponivel", 0)
+          .limit(1);
+
+        if (!estoque || estoque.length === 0) {
+          setOverlay("error");
+          setOverlayMsg("HU sem saldo neste endereço.");
+          return;
+        }
+
+        sessionStorage.setItem("transf_hu_id", hu.hu_id);
+        sessionStorage.setItem("transf_hu_codigo", hu.codigo_hu);
+        sessionStorage.setItem("transf_produto_id", estoque[0].produto_id);
+        sessionStorage.setItem("transf_produto_sku", estoque[0].produto?.sku || "");
+        sessionStorage.setItem("transf_produto_desc", estoque[0].produto?.descricao || "");
+        sessionStorage.setItem("transf_saldo_disponivel", String(estoque[0].quantidade_disponivel));
+        sessionStorage.setItem("transf_lote", estoque[0].lote || "");
+        sessionStorage.setItem("transf_validade", estoque[0].data_validade || "");
+        sessionStorage.setItem("transf_fabricacao", estoque[0].data_fabricacao || "");
+        onNavigate("/coletor/movimentos/transferencia/detalhe");
+        return;
+      }
+
       // Find product by EAN
       const { data: emb } = await (supabase as any)
         .from("produto_embalagem")
@@ -51,6 +93,8 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
         return;
       }
 
+      sessionStorage.removeItem("transf_hu_id");
+      sessionStorage.removeItem("transf_hu_codigo");
       sessionStorage.setItem("transf_produto_id", prodId);
       sessionStorage.setItem("transf_produto_sku", emb[0].produto?.sku || "");
       sessionStorage.setItem("transf_produto_desc", emb[0].produto?.descricao || "");
