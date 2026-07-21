@@ -111,95 +111,97 @@ export function CrudModal({ open, onClose, title, fields, initialData, onSave, o
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl !p-0 flex flex-col gap-0">
+        <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+          <SheetTitle>{title}</SheetTitle>
+        </SheetHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-          {fields.filter(f => !f.hidden && (!f.visibleWhen || f.visibleWhen(form))).map((f) => (
-            <div key={f.name} className={f.type === "switch" ? "flex items-center gap-3 md:col-span-2" : ""}>
-              {f.type !== "switch" && (
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-                  {f.label}{f.required && <span className="text-destructive ml-0.5">*</span>}
-                </label>
-              )}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {fields.filter(f => !f.hidden && (!f.visibleWhen || f.visibleWhen(form))).map((f) => (
+              <div key={f.name} className={f.type === "switch" ? "flex items-center gap-3 md:col-span-2" : ""}>
+                {f.type !== "switch" && (
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                    {f.label}{f.required && <span className="text-destructive ml-0.5">*</span>}
+                  </label>
+                )}
 
-              {f.type === "text" && (
-                <input
-                  value={form[f.name] || ""}
-                  onChange={(e) => set(f.name, e.target.value)}
-                  placeholder={f.placeholder}
-                  className={cn(
-                    "w-full h-10 px-3 rounded-lg border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors",
-                    errors[f.name] ? "border-destructive" : "border-border",
-                    "focus:border-primary focus:ring-1 focus:ring-primary/30"
-                  )}
-                />
-              )}
+                {f.type === "text" && (
+                  <input
+                    value={form[f.name] || ""}
+                    onChange={(e) => set(f.name, e.target.value)}
+                    placeholder={f.placeholder}
+                    className={cn(
+                      "w-full h-10 px-3 rounded-lg border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors",
+                      errors[f.name] ? "border-destructive" : "border-border",
+                      "focus:border-primary focus:ring-1 focus:ring-primary/30"
+                    )}
+                  />
+                )}
 
-              {f.type === "number" && (
-                <input
-                  type="number"
-                  step={f.step || "any"}
-                  value={form[f.name] ?? ""}
-                  onChange={(e) => set(f.name, e.target.value)}
-                  placeholder={f.placeholder}
-                  className={cn(
-                    "w-full h-10 px-3 rounded-lg border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors",
-                    errors[f.name] ? "border-destructive" : "border-border",
-                    "focus:border-primary focus:ring-1 focus:ring-primary/30"
-                  )}
-                />
-              )}
+                {f.type === "number" && (
+                  <input
+                    type="number"
+                    step={f.step || "any"}
+                    value={form[f.name] ?? ""}
+                    onChange={(e) => set(f.name, e.target.value)}
+                    placeholder={f.placeholder}
+                    className={cn(
+                      "w-full h-10 px-3 rounded-lg border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors",
+                      errors[f.name] ? "border-destructive" : "border-border",
+                      "focus:border-primary focus:ring-1 focus:ring-primary/30"
+                    )}
+                  />
+                )}
 
-              {(f.type === "select" || f.type === "enum") && (
-                <select
-                  value={form[f.name] || ""}
-                  onChange={(e) => set(f.name, e.target.value)}
-                  className={cn(
-                    "w-full h-10 px-3 rounded-lg border bg-secondary/40 text-sm text-foreground outline-none transition-colors cursor-pointer",
-                    errors[f.name] ? "border-destructive" : "border-border",
-                    "focus:border-primary focus:ring-1 focus:ring-primary/30",
-                    !form[f.name] && "text-muted-foreground"
-                  )}
-                >
-                  <option value="">{f.placeholder || "Selecionar..."}</option>
-                  {f.type === "enum" && f.enumValues?.map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                  {f.type === "select" && f.options?.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              )}
+                {(f.type === "select" || f.type === "enum") && (
+                  <select
+                    value={form[f.name] || ""}
+                    onChange={(e) => set(f.name, e.target.value)}
+                    className={cn(
+                      "w-full h-10 px-3 rounded-lg border bg-secondary/40 text-sm text-foreground outline-none transition-colors cursor-pointer",
+                      errors[f.name] ? "border-destructive" : "border-border",
+                      "focus:border-primary focus:ring-1 focus:ring-primary/30",
+                      !form[f.name] && "text-muted-foreground"
+                    )}
+                  >
+                    <option value="">{f.placeholder || "Selecionar..."}</option>
+                    {f.type === "enum" && f.enumValues?.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                    {f.type === "select" && f.options?.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                )}
 
-              {f.type === "switch" && (() => {
-                const isDisabled = f.disabledWhen ? f.disabledWhen(form) : false;
-                return (
-                  <>
-                    <Switch
-                      checked={!!form[f.name]}
-                      onCheckedChange={(v) => set(f.name, v)}
-                      disabled={isDisabled}
-                      className={isDisabled ? "opacity-50" : ""}
-                    />
-                    <label className={cn("text-sm text-foreground", isDisabled && "opacity-50")}>{f.label}</label>
-                  </>
-                );
-              })()}
+                {f.type === "switch" && (() => {
+                  const isDisabled = f.disabledWhen ? f.disabledWhen(form) : false;
+                  return (
+                    <>
+                      <Switch
+                        checked={!!form[f.name]}
+                        onCheckedChange={(v) => set(f.name, v)}
+                        disabled={isDisabled}
+                        className={isDisabled ? "opacity-50" : ""}
+                      />
+                      <label className={cn("text-sm text-foreground", isDisabled && "opacity-50")}>{f.label}</label>
+                    </>
+                  );
+                })()}
 
-              {errors[f.name] && f.type !== "switch" && (
-                <p className="flex items-center gap-1 mt-1 text-xs text-destructive">
-                  <AlertCircle size={11} /> {errors[f.name]}
-                </p>
-              )}
-            </div>
-          ))}
+                {errors[f.name] && f.type !== "switch" && (
+                  <p className="flex items-center gap-1 mt-1 text-xs text-destructive">
+                    <AlertCircle size={11} /> {errors[f.name]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <DialogFooter>
+        <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex-row justify-end gap-2">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -214,8 +216,8 @@ export function CrudModal({ open, onClose, title, fields, initialData, onSave, o
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             {saving ? "Salvando..." : "Salvar"}
           </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
