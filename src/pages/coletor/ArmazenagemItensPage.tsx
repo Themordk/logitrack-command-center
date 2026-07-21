@@ -103,6 +103,14 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     sessionStorage.setItem("coletor_armazenagem_fabricacao", item.fabricacao || "");
     sessionStorage.setItem("coletor_armazenagem_picking_sugerido", item.picking_endereco_desc || "");
     sessionStorage.setItem("coletor_armazenagem_varios_pickings", item.varios_pickings ? "S" : "N");
+    const hu = huMap[item.tarefa_id];
+    if (hu) {
+      sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
+      sessionStorage.setItem("coletor_armazenagem_hu_codigo", hu.codigo_hu);
+    } else {
+      sessionStorage.removeItem("coletor_armazenagem_hu");
+      sessionStorage.removeItem("coletor_armazenagem_hu_codigo");
+    }
     onNavigate("/coletor/armazenagem/iniciar");
   };
 
