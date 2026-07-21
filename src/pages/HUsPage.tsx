@@ -46,16 +46,31 @@ export function HUsPage() {
     setPrintOpen(true);
   };
 
+  const statusMap: Record<string, { color: string; label: string }> = {
+    ABERTA: { color: "text-blue-400", label: "Aberta" },
+    FECHADA: { color: "text-yellow-400", label: "Fechada" },
+    EM_TRANSITO: { color: "text-purple-400", label: "Em Trânsito" },
+    ARMAZENADA: { color: "text-green-400", label: "Armazenada" },
+    EXPEDIDA: { color: "text-gray-400", label: "Expedida" },
+    DESCARTADA: { color: "text-red-400", label: "Descartada" },
+  };
+
   const columns: ColumnSpec[] = [
     { key: "codigo_hu", label: "Código HU", type: "mono" },
     { key: "tipo_hu", label: "Tipo" },
     { key: "tamanho", label: "Tamanho" },
-    { key: "peso_bruto", label: "Peso Bruto", type: "number" },
-    { key: "m3", label: "M³", type: "number" },
-    { key: "altura", label: "Altura", type: "number" },
+    { key: "status", label: "Status", render: (row) => {
+      const s = statusMap[row.status] || { color: "text-gray-400", label: row.status || "—" };
+      return <span className={`text-xs font-bold ${s.color}`}>{s.label}</span>;
+    }},
     { key: "disponibilidade", label: "Disponibilidade", render: (row) => {
       const map: Record<string, number> = { DISPONIVEL: 0, RESERVADA: 1, BLOQUEADA: 2, EM_MOVIMENTO: 3, DESCARTADA: 4 };
       return <StatusBadge status={map[row.disponibilidade] ?? 0} type="hu-disponibilidade" />;
+    }},
+    { key: "peso_bruto", label: "Peso Bruto", type: "number" },
+    { key: "created_at", label: "Criada em", render: (row) => {
+      if (!row.created_at) return "—";
+      return new Date(row.created_at).toLocaleDateString("pt-BR");
     }},
   ];
 
