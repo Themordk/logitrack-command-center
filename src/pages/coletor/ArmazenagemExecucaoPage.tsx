@@ -21,6 +21,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const qtdRestante = Number(sessionStorage.getItem("coletor_armazenagem_qtd_restante") || "0");
   const pickingSugerido = sessionStorage.getItem("coletor_armazenagem_picking_sugerido") || "";
   const variosPickings = sessionStorage.getItem("coletor_armazenagem_varios_pickings") === "S";
+  const huCodigo = sessionStorage.getItem("coletor_armazenagem_hu_codigo") || "";
 
   const [estoquePulmao, setEstoquePulmao] = useState(0);
   const [estoquePicking, setEstoquePicking] = useState(0);
