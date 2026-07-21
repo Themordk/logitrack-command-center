@@ -228,7 +228,7 @@ function ProdutoDetailModal({
   // ── Picking CRUD ──
   const openPickModal = (pick?: any) => {
     setEditPick(pick || null);
-    setPickForm(pick ? { ...pick } : { armazem_id: armazemId || "", endereco_id: "", tipo_picking: "", est_minimo: 0, est_maximo: 0, ativo: true });
+    setPickForm(pick ? { tipo_alocacao: "FIXO", ...pick } : { armazem_id: armazemId || "", endereco_id: "", tipo_picking: "", tipo_alocacao: "FIXO", est_minimo: 0, est_maximo: 0, ativo: true });
     setPickModalOpen(true);
   };
   const savePick = async () => {
@@ -502,6 +502,7 @@ function ProdutoDetailModal({
                   <tr className="border-b border-border bg-secondary/30">
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereço</th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Tipo</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Alocação</th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Mínimo</th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Máximo</th>
                     <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Ações</th>
@@ -512,6 +513,11 @@ function ProdutoDetailModal({
                     <tr key={p.id} className="border-b border-border/50 table-row-hover">
                       <td className="px-3 py-2 font-mono text-xs">{p.endereco?.codigo_endereco ?? p.endereco?.descricao ?? "—"}</td>
                       <td className="px-3 py-2 text-center text-xs">{formatTipoPicking(p.tipo_picking)}</td>
+                      <td className="px-3 py-2 text-center text-xs">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${(p.tipo_alocacao ?? "FIXO") === "FIXO" ? "bg-blue-500/15 text-blue-400" : "bg-amber-500/15 text-amber-400"}`}>
+                          {p.tipo_alocacao ?? "FIXO"}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_minimo}</td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_maximo}</td>
                       <td className="px-3 py-2 text-right">
@@ -595,6 +601,13 @@ function ProdutoDetailModal({
               <select value={pickForm.tipo_picking || ""} onChange={(e) => setPickForm({ ...pickForm, tipo_picking: e.target.value })} className={inputClass}>
                 <option value="">Selecionar...</option>
                 {TIPO_PICKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Tipo Alocação</label>
+              <select value={pickForm.tipo_alocacao || "FIXO"} onChange={(e) => setPickForm({ ...pickForm, tipo_alocacao: e.target.value })} className={inputClass}>
+                <option value="FIXO">FIXO</option>
+                <option value="ROTATIVO">ROTATIVO</option>
               </select>
             </div>
             <div><label className={labelClass}>Est. Mínimo</label><input type="number" value={pickForm.est_minimo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} /></div>

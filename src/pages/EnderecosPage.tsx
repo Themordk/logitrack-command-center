@@ -100,6 +100,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     { key: "setor_descricao", label: "Setor" },
     { key: "curva_acesso", label: "Curva" },
     { key: "lado", label: "Lado" },
+    { key: "capacidade_unidades", label: "Cap. Unid." },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -122,6 +123,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     { name: "comprimento", label: "Comprimento (cm)", type: "number" },
     { name: "m3", label: "M³", type: "number" },
     { name: "peso_total", label: "Peso Máx (kg)", type: "number" },
+    { name: "capacidade_unidades", label: "Capacidade (unidades)", type: "number", required: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
