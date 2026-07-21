@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { Loader2, MapPin, CheckCircle } from "lucide-react";
+import { Loader2, MapPin, CheckCircle, Archive } from "lucide-react";
+
+interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
 interface Props { onNavigate: (path: string) => void; }
 
