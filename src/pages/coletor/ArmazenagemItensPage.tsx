@@ -42,6 +42,7 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
   const movimentoNumero = sessionStorage.getItem("coletor_armazenagem_movimento_numero") || "";
 
   const [itens, setItens] = useState<ItemArmazenagem[]>([]);
+  const [huMap, setHuMap] = useState<Record<string, HUInfo>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -54,10 +55,36 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
         p_movimento_entrada_id: movimentoId,
       });
       if (error) throw error;
-      setItens((data || []) as ItemArmazenagem[]);
+      const rows = (data || []) as ItemArmazenagem[];
+      setItens(rows);
+
+      const tarefaIds = rows.map(i => i.tarefa_id);
+      if (tarefaIds.length > 0) {
+        const { data: huData } = await (supabase as any)
+          .from("tarefa_execucao")
+          .select("tarefa_id, hu, hu_rel:hu(codigo_hu, tipo_hu, tamanho)")
+          .in("tarefa_id", tarefaIds)
+          .not("hu", "is", null)
+          .neq("hu", "00000000-0000-0000-0000-000000000000");
+        const map: Record<string, HUInfo> = {};
+        (huData || []).forEach((exec: any) => {
+          if (exec.hu && exec.hu_rel && !map[exec.tarefa_id]) {
+            map[exec.tarefa_id] = {
+              hu_id: exec.hu,
+              codigo_hu: exec.hu_rel.codigo_hu || "",
+              tipo_hu: exec.hu_rel.tipo_hu || "",
+              tamanho: exec.hu_rel.tamanho || "",
+            };
+          }
+        });
+        setHuMap(map);
+      } else {
+        setHuMap({});
+      }
     } catch (err) {
       console.error(err);
       setItens([]);
+      setHuMap({});
     } finally {
       setLoading(false);
     }
