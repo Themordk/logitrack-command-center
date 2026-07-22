@@ -41,7 +41,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
     try {
       const { data: enderecos } = await (supabase as any)
         .from("endereco")
-        .select("id, descricao, situacao")
+        .select("id, descricao, situacao, tipo_endereco")
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
 
@@ -57,10 +57,33 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
       }
       const destinoId = enderecos[0].id;
       const destinoDesc = enderecos[0].descricao;
+      const destinoTipo = enderecos[0].tipo_endereco;
       if (destinoId === origemId) {
         setOverlay("error");
         setOverlayMsg("Endereço destino igual ao origem.");
         return;
+      }
+
+      // Validar TODOS os itens antes de gravar
+      if (destinoTipo === "PICKING") {
+        const armazemId = localStorage.getItem("core_armazem_id");
+        for (const it of itens) {
+          const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
+            p_tenant_id: tenantId,
+            p_armazem_id: armazemId,
+            p_produto_id: it.produto_id,
+            p_endereco_id: destinoId,
+            p_lote: it.lote || null,
+            p_validade: it.data_validade && it.data_validade !== "1900-01-01" ? it.data_validade : null,
+            p_quantidade: it.quantidade_disponivel,
+          });
+          if (valErr) throw valErr;
+          if (validacao && !validacao.valido) {
+            setOverlay("error");
+            setOverlayMsg(`SKU ${it.sku}: ${validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem."}`);
+            return;
+          }
+        }
       }
 
       // Processa cada item em loop; trigger de banco atualiza estoque_geral
