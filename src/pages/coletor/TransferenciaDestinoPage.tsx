@@ -36,7 +36,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
       // Find destination address
       const { data: enderecos } = await (supabase as any)
         .from("endereco")
-        .select("id, descricao, situacao")
+        .select("id, descricao, situacao, tipo_endereco")
         .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
         .limit(1);
 
@@ -56,12 +56,34 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
 
       const destinoId = enderecos[0].id;
       const destinoDesc = enderecos[0].descricao;
+      const destinoTipo = enderecos[0].tipo_endereco;
 
       if (destinoId === origemId) {
         setOverlay("error");
         setOverlayMsg("Endereço destino igual ao origem.");
         setLoading(false);
         return;
+      }
+
+      // Validar regras de armazenagem quando destino for PICKING
+      if (destinoTipo === "PICKING") {
+        const armazemId = localStorage.getItem("core_armazem_id");
+        const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
+          p_tenant_id: tenantId,
+          p_armazem_id: armazemId,
+          p_produto_id: produtoId,
+          p_endereco_id: destinoId,
+          p_lote: lote || null,
+          p_validade: validade && validade !== "1900-01-01" ? validade : null,
+          p_quantidade: quantidade,
+        });
+        if (valErr) throw valErr;
+        if (validacao && !validacao.valido) {
+          setOverlay("error");
+          setOverlayMsg(validacao.erros?.join(" • ") || "Endereço destino não permitido pelas regras de armazenagem.");
+          setLoading(false);
+          return;
+        }
       }
 
       const now = new Date().toISOString();
