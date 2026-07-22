@@ -1,41 +1,39 @@
-
 ## Objetivo
 
-Integrar as RPCs `rpc_sugerir_endereco_picking` e `rpc_validar_endereco_picking` na tela existente `ArmazenagemExecucaoPage`, oferecendo até 3 sugestões clicáveis de endereço e validação das regras de armazenagem antes de finalizar. Remover a tela órfã de sugestão de picking.
+Fazer com que as movimentações do coletor (Transferência, Mudança de Picking e Abastecimento) respeitem rigorosamente as regras de armazenagem configuradas em `#/armazem/regras-armazenagem`, bloqueando destinos inválidos antes de gravar qualquer registro.
 
-## Passos
+Hoje só a **Armazenagem Dirigida** (`ArmazenagemExecucaoPage`) consome `rpc_validar_endereco_picking`. As demais rotinas gravam direto em `tarefa`/`tarefa_execucao` sem checar mistura de SKU, lote, validade, tolerância, capacidade ou tipo de alocação (FIXO/ROTATIVO).
 
-### 1. Remover tela órfã
-- Deletar `src/pages/coletor/ColetorSugestaoPickingPage.tsx`.
-- Em `src/App.tsx`: remover import e case `/coletor/sugestao-picking`.
+## Regras aplicadas
 
-### 2. Editar `src/pages/coletor/ArmazenagemExecucaoPage.tsx`
+Reutilizar a RPC já existente `rpc_validar_endereco_picking(p_tenant_id, p_armazem_id, p_produto_id, p_endereco_id, p_lote, p_validade, p_quantidade)`, que devolve `{ valido, erros[] }`. A validação só é obrigatória quando o endereço destino tiver `tipo_endereco = 'PICKING'` (mesmo critério já usado na armazenagem). Endereços de PULMÃO/OUTROS seguem o fluxo atual, mantendo apenas a checagem de `situacao ∈ (LIVRE, OCUPADO)`.
 
-**Imports**: adicionar `Star` do `lucide-react`.
+Se a RPC retornar `valido=false`, exibir `StatusOverlay` de erro com `erros.join(" • ")` e abortar antes de qualquer INSERT. Em caso de sucesso, gravar o log opcional em `log_sugestao_armazenagem` com `tipo_sugestao='MANUAL'` (não crítico, mesmo padrão da `ArmazenagemExecucaoPage`).
 
-**Novos estados**:
-- `sugestoes: any[]` e `loadingSugestao: boolean`
-- `enderecoTipo: string` (para distinguir PICKING de PULMÃO)
+## Alterações por tela
 
-**Fetch de sugestões (novo `useEffect`)**: dispara ao montar, chamando `rpc_sugerir_endereco_picking` com tenant/armazém/produto/lote/validade (ignora validade `1900-01-01`) e `p_limite: 3`.
+### 1. `src/pages/coletor/TransferenciaDestinoPage.tsx`
+- Ao ler o endereço destino, além de `id, descricao, situacao`, buscar também `tipo_endereco`.
+- Antes do INSERT em `tarefa`, se `tipo_endereco === 'PICKING'`, chamar `rpc_validar_endereco_picking` com `produtoId`, `lote`, `validade` e `quantidade` já disponíveis em `sessionStorage`.
+- Bloquear com overlay de erro quando inválido.
 
-**UI (dentro do card de produto, abaixo do bloco "Picking sugerido")**:
-- Loader "Buscando endereço ideal…" enquanto carrega.
-- Lista de até 3 sugestões como botões: estrela na primeira, descrição do endereço, badge de curva quando existir, e label do `tipo_sugestao` (Consolidar / Curva OK / Livre). Sugestão selecionada ganha borda verde.
+### 2. `src/pages/coletor/MudancaPickingDestinoPage.tsx`
+- Buscar `tipo_endereco` do destino.
+- Se PICKING, executar a validação **item a item** dentro do loop `for (const it of itens)`, usando `it.produto_id`, `it.lote`, `it.data_validade`, `it.quantidade_disponivel`. Ao primeiro item inválido, interromper e mostrar mensagem indicando o SKU e os motivos retornados; nenhum registro deve ter sido gravado (validar todos antes de iniciar os INSERTs — pré-loop de validação, depois loop de gravação).
 
-**`handleSelecionarSugestao(sug)`**: preenche `enderecoId`, `enderecoDesc`, `enderecoScan`, define `enderecoTipo = "PICKING"` e mostra overlay de sucesso.
+### 3. `src/pages/coletor/AbastecimentoDestinoPage.tsx`
+- Buscar `tipo_endereco` do endereço destino informado.
+- Antes de `handleConfirmarEntrega` gravar, se PICKING, validar via RPC usando o produto/lote/quantidade do abastecimento. Bloquear em caso de inválido.
 
-**`handleScanEndereco`**: incluir `tipo_endereco` no `select` e salvar em `enderecoTipo`.
+## Notas técnicas
 
-**`handleConfirm`**: antes de chamar `finalizar_armazenagem`, se `enderecoTipo === "PICKING"`, chamar `rpc_validar_endereco_picking`. Se `valido === false`, exibir erros concatenados em overlay e abortar. Endereços de pulmão seguem direto (não quebrar fluxo).
+- Manter tipagem via `(supabase as any).rpc(...)` como já é convenção no coletor.
+- Reaproveitar `StatusOverlay` existente em cada página — nenhum componente novo.
+- Não alterar RPCs nem schema.
+- O log em `log_sugestao_armazenagem` é opcional (best-effort try/catch) e só grava quando a validação passa e o INSERT/RPC principal foi bem-sucedido, para manter consistência com o padrão de auditoria já em uso na armazenagem.
 
-**Log (não crítico)**: após sucesso da finalização e antes do `setTimeout` de navegação, inserir em `log_sugestao_armazenagem` com sugestão top vs endereço escolhido, `aceita`, `motivo`, `score`, `tipo_sugestao`, lote, quantidade, usuário. Envolto em try/catch silencioso.
+## Fora de escopo
 
-### Detalhes técnicos
-- Usar `as any` nas RPCs novas e no insert de log (não estão nos types gerados).
-- Manter design system atual (mesmas cores hsl, ScanField, ActionButton, StatusOverlay).
-- Não alterar `finalizar_armazenagem`, modal de capacidade, nem fluxo de pulmão.
-- Modal de capacidade excedida e ocorrências permanecem intactos.
-
-## Resultado esperado
-Operador vê até 3 sugestões clicáveis do motor no card do produto (melhor com estrela). Pode tocar numa sugestão OU escanear manualmente. Ao confirmar em endereço de picking, as regras são validadas; em pulmão, segue direto. Log de decisão registrado quando possível.
+- Separação (usa saldo de picking já cadastrado, não cria vínculo novo).
+- Recebimento / Armazenagem (já cobertos).
+- Alterações visuais nas telas de origem/lista.
