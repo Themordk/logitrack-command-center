@@ -33,10 +33,12 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
 
+  const [destinoTipo, setDestinoTipo] = useState<string | null>(null);
+
   const handleScanEndereco = async (code: string) => {
     const { data } = await (supabase as any)
       .from("endereco")
-      .select("id, descricao, situacao")
+      .select("id, descricao, situacao, tipo_endereco")
       .eq("codigo_endereco", Number(code))
       .eq("tenant_id", tenantId)
       .limit(1);
@@ -53,6 +55,7 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
 
     setEnderecoConfirmado(true);
     setEnderecoScannedDesc(data[0].descricao);
+    setDestinoTipo(data[0].tipo_endereco);
     setOverlay("success"); setOverlayMsg(`Endereço: ${data[0].descricao}`);
   };
 
