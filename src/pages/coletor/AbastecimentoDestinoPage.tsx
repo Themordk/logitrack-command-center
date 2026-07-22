@@ -33,10 +33,12 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
 
+  const [destinoTipo, setDestinoTipo] = useState<string | null>(null);
+
   const handleScanEndereco = async (code: string) => {
     const { data } = await (supabase as any)
       .from("endereco")
-      .select("id, descricao, situacao")
+      .select("id, descricao, situacao, tipo_endereco")
       .eq("codigo_endereco", Number(code))
       .eq("tenant_id", tenantId)
       .limit(1);
@@ -53,6 +55,7 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
 
     setEnderecoConfirmado(true);
     setEnderecoScannedDesc(data[0].descricao);
+    setDestinoTipo(data[0].tipo_endereco);
     setOverlay("success"); setOverlayMsg(`Endereço: ${data[0].descricao}`);
   };
 
@@ -93,6 +96,27 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   const handleConfirmarEntrega = async () => {
     setSaving(true);
     try {
+      // Validar regras de armazenagem se destino for PICKING
+      if (destinoTipo === "PICKING") {
+        const armazemId = localStorage.getItem("core_armazem_id");
+        const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
+          p_tenant_id: tenantId,
+          p_armazem_id: armazemId,
+          p_produto_id: produtoId,
+          p_endereco_id: enderecoDestinoIdEsperado,
+          p_lote: null,
+          p_validade: null,
+          p_quantidade: Number(quantidade),
+        });
+        if (valErr) throw valErr;
+        if (validacao && !validacao.valido) {
+          setOverlay("error");
+          setOverlayMsg(validacao.erros?.join(" • ") || "Endereço destino não permitido pelas regras de armazenagem.");
+          setSaving(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.rpc("rpc_coletor_abastecimento_confirmar_entrega" as any, {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
