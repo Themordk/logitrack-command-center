@@ -93,7 +93,8 @@ export function useCrud<T extends Record<string, any>>({
   const wTable = writeTable || table;
   const requiresBoth = TABLES_WITH_EMPRESA_AND_ARMAZEM.has(wTable);
   const requiresArmazem = TABLES_WITH_ARMAZEM.has(wTable) || requiresBoth;
-  const requiresEmpresa = TABLES_WITH_EMPRESA.has(wTable) || requiresBoth;
+  const requiresEmpresa = TABLES_WITH_EMPRESA.has(wTable) || VIEWS_WITH_EMPRESA.has(table) || requiresBoth;
+
 
 
   const fetchData = useCallback(async () => {
