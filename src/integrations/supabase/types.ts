@@ -6507,6 +6507,7 @@ export type Database = {
           codigo_endereco: number | null
           curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string | null
+          empresa_id: string | null
           id: string | null
           lado: Database["public"]["Enums"]["enum_lado"] | null
           nivel: number | null
@@ -6526,6 +6527,13 @@ export type Database = {
             | null
         }
         Relationships: [
+          {
+            foreignKeyName: "armazem_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "endereco_armazem_id_fkey"
             columns: ["armazem_id"]

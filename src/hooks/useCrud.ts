@@ -50,6 +50,13 @@ const TABLES_WITH_ARMAZEM = new Set([
   "picking_produto",
 ]);
 
+// Views de leitura que expõem empresa_id (o writeTable pode não ter a coluna).
+// Usadas para filtrar automaticamente por empresa ativa sem tocar na tabela de escrita.
+const VIEWS_WITH_EMPRESA = new Set([
+  "vw_endereco_listagem",
+]);
+
+
 interface UseCrudOptions {
   table: string;
   /** Tabela alvo para INSERT/UPDATE/DELETE quando `table` for uma view. Default: `table`. */
