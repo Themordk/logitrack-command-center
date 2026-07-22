@@ -96,6 +96,27 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   const handleConfirmarEntrega = async () => {
     setSaving(true);
     try {
+      // Validar regras de armazenagem se destino for PICKING
+      if (destinoTipo === "PICKING") {
+        const armazemId = localStorage.getItem("core_armazem_id");
+        const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
+          p_tenant_id: tenantId,
+          p_armazem_id: armazemId,
+          p_produto_id: produtoId,
+          p_endereco_id: enderecoDestinoIdEsperado,
+          p_lote: null,
+          p_validade: null,
+          p_quantidade: Number(quantidade),
+        });
+        if (valErr) throw valErr;
+        if (validacao && !validacao.valido) {
+          setOverlay("error");
+          setOverlayMsg(validacao.erros?.join(" • ") || "Endereço destino não permitido pelas regras de armazenagem.");
+          setSaving(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.rpc("rpc_coletor_abastecimento_confirmar_entrega" as any, {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
