@@ -30,12 +30,13 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
     setError("");
     setSaldos([]);
     setProdutoNome("");
+    setProdutoImg(null);
     setLoading(true);
     try {
       // Find produto by EAN
       const { data: emb } = await (supabase as any)
         .from("produto_embalagem")
-        .select("produto_id, produto:produto_id(descricao, sku)")
+        .select("produto_id, produto:produto_id(descricao, sku, url_imagem)")
         .eq("ean", code)
         .limit(1);
 
@@ -48,6 +49,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       const prodId = emb[0].produto_id;
       (window as any).__lastProdutoEmb = prodId;
       setProdutoNome(`${emb[0].produto?.sku} - ${emb[0].produto?.descricao}`);
+      setProdutoImg(emb[0].produto?.url_imagem ?? null);
 
       // Fetch stock grouped by address
       const { data: estoque } = await (supabase as any)
