@@ -4349,6 +4349,7 @@ export type Database = {
           marca: string | null
           parceiro_id: string
           peso_bruto: number | null
+          peso_liquido: number | null
           peso_variavel: boolean
           preco_custo: number | null
           referencia: string
@@ -4360,6 +4361,7 @@ export type Database = {
           tipo_controle: Database["public"]["Enums"]["enum_tipo_controle"]
           tipo_separacao: Database["public"]["Enums"]["enum_tipo_separacao"]
           tolerancia: number | null
+          url_imagem: string | null
           usa_picking: boolean
           varios_pickings: boolean
         }
@@ -4380,6 +4382,7 @@ export type Database = {
           marca?: string | null
           parceiro_id: string
           peso_bruto?: number | null
+          peso_liquido?: number | null
           peso_variavel?: boolean
           preco_custo?: number | null
           referencia: string
@@ -4391,6 +4394,7 @@ export type Database = {
           tipo_controle: Database["public"]["Enums"]["enum_tipo_controle"]
           tipo_separacao: Database["public"]["Enums"]["enum_tipo_separacao"]
           tolerancia?: number | null
+          url_imagem?: string | null
           usa_picking?: boolean
           varios_pickings?: boolean
         }
@@ -4411,6 +4415,7 @@ export type Database = {
           marca?: string | null
           parceiro_id?: string
           peso_bruto?: number | null
+          peso_liquido?: number | null
           peso_variavel?: boolean
           preco_custo?: number | null
           referencia?: string
@@ -4422,6 +4427,7 @@ export type Database = {
           tipo_controle?: Database["public"]["Enums"]["enum_tipo_controle"]
           tipo_separacao?: Database["public"]["Enums"]["enum_tipo_separacao"]
           tolerancia?: number | null
+          url_imagem?: string | null
           usa_picking?: boolean
           varios_pickings?: boolean
         }
@@ -7981,6 +7987,7 @@ export type Database = {
         }
         Returns: string
       }
+      cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: { Args: never; Returns: Json }
       dashboard_kpis: {
