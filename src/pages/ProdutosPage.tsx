@@ -15,6 +15,7 @@ import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaPr
 import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoPreview";
 import { EnderecoSearchInput } from "@/components/armazem/EnderecoSearchInput";
 import { parseError } from "@/lib/errorMapper";
+import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 
 const TIPO_PICKING_OPTIONS = [
   { value: "MASTER", label: "Master" },
