@@ -308,6 +308,23 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
       {/* INFO TAB */}
       {tab === "info" && (
         <div className="flex flex-col gap-3">
+          {produto.url_imagem && (
+            <div className={cardClass}>
+              <div className="flex items-center gap-3">
+                <ProdutoImagemThumb
+                  url={produto.url_imagem}
+                  alt={produto.sku}
+                  caption={`${produto.sku} — ${produto.descricao}`}
+                  size={72}
+                  variant="coletor"
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className={labelClass}>Imagem</span>
+                  <p className="text-xs text-[hsl(213,31%,70%)]">Toque para ampliar</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className={cardClass}>
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -323,6 +340,8 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
                 ["Lastro", String(produto.lastro ?? "—")],
                 ["Camada", String(produto.camada ?? "—")],
                 ["Fator Caixa", String(produto.fator_caixa ?? "—")],
+                ["Peso Bruto (kg)", String(produto.peso_bruto ?? "—")],
+                ["Peso Líquido (kg)", String(produto.peso_liquido ?? "—")],
               ].map(([label, value]) => (
                 <div key={label}>
                   <span className={labelClass}>{label}</span>
