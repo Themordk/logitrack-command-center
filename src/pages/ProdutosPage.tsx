@@ -336,6 +336,25 @@ function ProdutoDetailModal({
                 </div>
                 <div><label className={labelClass}>Preço de Custo</label><input type="number" step="0.01" value={form.preco_custo ?? ""} onChange={(e) => set("preco_custo", e.target.value)} className={inputClass} /></div>
                 <div><label className={labelClass}>Peso Bruto (kg)</label><input type="number" step="0.001" value={form.peso_bruto ?? ""} onChange={(e) => set("peso_bruto", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Peso Líquido (kg)</label><input type="number" step="0.001" value={form.peso_liquido ?? ""} onChange={(e) => set("peso_liquido", e.target.value)} className={inputClass} /></div>
+                <div className="md:col-span-3">
+                  <label className={labelClass}>URL da Imagem</label>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="url"
+                      value={form.url_imagem ?? ""}
+                      onChange={(e) => set("url_imagem", e.target.value)}
+                      className={inputClass}
+                      placeholder="https://..."
+                    />
+                    <ProdutoImagemThumb
+                      url={form.url_imagem}
+                      alt={form.sku || "Produto"}
+                      caption={form.sku ? `${form.sku} — ${form.descricao || ""}` : undefined}
+                      size={80}
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 md:col-span-3">
                   <Switch checked={!!form.ativo} onCheckedChange={(v) => set("ativo", v)} />
                   <label className="text-sm text-foreground">Ativo</label>
