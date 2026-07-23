@@ -87,20 +87,28 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
 
       {produtoNome && !loading && (
-        <button
-          onClick={() => {
-            // Find produto_id from last scan embalagem lookup
-            const emb = (window as any).__lastProdutoEmb;
-            if (emb) {
-              sessionStorage.setItem("coletor_consulta_produto_id", emb);
-              onNavigate("/coletor/consulta/produto/detalhe");
-            }
-          }}
-          className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 w-full text-left active:bg-[hsl(222,35%,16%)] transition-all"
-        >
-          <span className="text-xs text-[hsl(213,31%,55%)]">Produto <span className="text-[hsl(217,91%,60%)] ml-1">→ Ver detalhes</span></span>
-          <p className="text-sm font-bold text-white">{produtoNome}</p>
-        </button>
+        <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 w-full flex items-center gap-3">
+          <ProdutoImagemThumb
+            url={produtoImg}
+            alt={produtoNome}
+            caption={produtoNome}
+            size={56}
+            variant="coletor"
+          />
+          <button
+            onClick={() => {
+              const emb = (window as any).__lastProdutoEmb;
+              if (emb) {
+                sessionStorage.setItem("coletor_consulta_produto_id", emb);
+                onNavigate("/coletor/consulta/produto/detalhe");
+              }
+            }}
+            className="flex-1 text-left active:opacity-80 transition-all"
+          >
+            <span className="text-xs text-[hsl(213,31%,55%)]">Produto <span className="text-[hsl(217,91%,60%)] ml-1">→ Ver detalhes</span></span>
+            <p className="text-sm font-bold text-white">{produtoNome}</p>
+          </button>
+        </div>
       )}
 
       {saldos.length > 0 && !loading && (
