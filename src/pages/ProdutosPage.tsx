@@ -15,6 +15,7 @@ import { PrintEtiquetaProdutoModal } from "@/components/etiqueta/PrintEtiquetaPr
 import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoPreview";
 import { EnderecoSearchInput } from "@/components/armazem/EnderecoSearchInput";
 import { parseError } from "@/lib/errorMapper";
+import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 
 const TIPO_PICKING_OPTIONS = [
   { value: "MASTER", label: "Master" },
@@ -95,7 +96,8 @@ function ProdutoDetailModal({
           sku: "", descricao: "", referencia: "", marca: "", parceiro_id: "",
           grupo_id: "", subgrupo_id: "", curva_venda: "", curva_acesso: "",
           preco_custo: "", ativo: true, tipo_controle: "", peso_variavel: false,
-          tolerancia: "", peso_bruto: "", dias_shelf: "", shelf_entrada: "", shelf_devolucao: "",
+          tolerancia: "", peso_bruto: "", peso_liquido: "", url_imagem: "",
+          dias_shelf: "", shelf_entrada: "", shelf_devolucao: "",
           lastro: "", camada: "", fator_caixa: "", usa_picking: true,
           tipo_separacao: "", varios_pickings: false, foto: "",
         });
@@ -165,10 +167,10 @@ function ProdutoDetailModal({
     // Ensure empresa_id
     cleanData.empresa_id = empresaId;
     // Number conversions
-    ["preco_custo", "tolerancia", "peso_bruto", "dias_shelf", "shelf_entrada", "shelf_devolucao", "lastro", "camada", "fator_caixa"]
+    ["preco_custo", "tolerancia", "peso_bruto", "peso_liquido", "dias_shelf", "shelf_entrada", "shelf_devolucao", "lastro", "camada", "fator_caixa"]
       .forEach((f) => { cleanData[f] = cleanData[f] ? Number(cleanData[f]) : null; });
-    // Null out empty selects
-    ["grupo_id", "subgrupo_id", "curva_venda", "curva_acesso"].forEach((f) => {
+    // Null out empty selects / texts
+    ["grupo_id", "subgrupo_id", "curva_venda", "curva_acesso", "url_imagem"].forEach((f) => {
       if (!cleanData[f]) cleanData[f] = null;
     });
 
@@ -334,6 +336,25 @@ function ProdutoDetailModal({
                 </div>
                 <div><label className={labelClass}>Preço de Custo</label><input type="number" step="0.01" value={form.preco_custo ?? ""} onChange={(e) => set("preco_custo", e.target.value)} className={inputClass} /></div>
                 <div><label className={labelClass}>Peso Bruto (kg)</label><input type="number" step="0.001" value={form.peso_bruto ?? ""} onChange={(e) => set("peso_bruto", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Peso Líquido (kg)</label><input type="number" step="0.001" value={form.peso_liquido ?? ""} onChange={(e) => set("peso_liquido", e.target.value)} className={inputClass} /></div>
+                <div className="md:col-span-3">
+                  <label className={labelClass}>URL da Imagem</label>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="url"
+                      value={form.url_imagem ?? ""}
+                      onChange={(e) => set("url_imagem", e.target.value)}
+                      className={inputClass}
+                      placeholder="https://..."
+                    />
+                    <ProdutoImagemThumb
+                      url={form.url_imagem}
+                      alt={form.sku || "Produto"}
+                      caption={form.sku ? `${form.sku} — ${form.descricao || ""}` : undefined}
+                      size={80}
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 md:col-span-3">
                   <Switch checked={!!form.ativo} onCheckedChange={(v) => set("ativo", v)} />
                   <label className="text-sm text-foreground">Ativo</label>
@@ -724,6 +745,18 @@ export function ProdutosPage() {
           <AlertTriangle size={14} />
         </span>
       ) : null,
+    },
+    {
+      key: "url_imagem", label: "",
+      className: "w-10",
+      render: (r) => (
+        <ProdutoImagemThumb
+          url={r.url_imagem}
+          alt={r.sku}
+          caption={`${r.sku} — ${r.descricao}`}
+          size={36}
+        />
+      ),
     },
     { key: "sku", label: "SKU", type: "mono" },
     { key: "descricao", label: "Descrição" },

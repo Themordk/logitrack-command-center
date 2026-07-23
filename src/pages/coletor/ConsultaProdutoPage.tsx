@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2 } from "lucide-react";
+import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -20,6 +21,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
   const [produtoNome, setProdutoNome] = useState("");
+  const [produtoImg, setProdutoImg] = useState<string | null>(null);
   const [saldos, setSaldos] = useState<SaldoRow[]>([]);
   const [error, setError] = useState("");
 
@@ -28,12 +30,13 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
     setError("");
     setSaldos([]);
     setProdutoNome("");
+    setProdutoImg(null);
     setLoading(true);
     try {
       // Find produto by EAN
       const { data: emb } = await (supabase as any)
         .from("produto_embalagem")
-        .select("produto_id, produto:produto_id(descricao, sku)")
+        .select("produto_id, produto:produto_id(descricao, sku, url_imagem)")
         .eq("ean", code)
         .limit(1);
 
@@ -46,6 +49,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       const prodId = emb[0].produto_id;
       (window as any).__lastProdutoEmb = prodId;
       setProdutoNome(`${emb[0].produto?.sku} - ${emb[0].produto?.descricao}`);
+      setProdutoImg(emb[0].produto?.url_imagem ?? null);
 
       // Fetch stock grouped by address
       const { data: estoque } = await (supabase as any)
@@ -83,20 +87,28 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
 
       {produtoNome && !loading && (
-        <button
-          onClick={() => {
-            // Find produto_id from last scan embalagem lookup
-            const emb = (window as any).__lastProdutoEmb;
-            if (emb) {
-              sessionStorage.setItem("coletor_consulta_produto_id", emb);
-              onNavigate("/coletor/consulta/produto/detalhe");
-            }
-          }}
-          className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 w-full text-left active:bg-[hsl(222,35%,16%)] transition-all"
-        >
-          <span className="text-xs text-[hsl(213,31%,55%)]">Produto <span className="text-[hsl(217,91%,60%)] ml-1">→ Ver detalhes</span></span>
-          <p className="text-sm font-bold text-white">{produtoNome}</p>
-        </button>
+        <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 w-full flex items-center gap-3">
+          <ProdutoImagemThumb
+            url={produtoImg}
+            alt={produtoNome}
+            caption={produtoNome}
+            size={56}
+            variant="coletor"
+          />
+          <button
+            onClick={() => {
+              const emb = (window as any).__lastProdutoEmb;
+              if (emb) {
+                sessionStorage.setItem("coletor_consulta_produto_id", emb);
+                onNavigate("/coletor/consulta/produto/detalhe");
+              }
+            }}
+            className="flex-1 text-left active:opacity-80 transition-all"
+          >
+            <span className="text-xs text-[hsl(213,31%,55%)]">Produto <span className="text-[hsl(217,91%,60%)] ml-1">→ Ver detalhes</span></span>
+            <p className="text-sm font-bold text-white">{produtoNome}</p>
+          </button>
+        </div>
       )}
 
       {saldos.length > 0 && !loading && (

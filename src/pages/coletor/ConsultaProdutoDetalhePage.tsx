@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2, Plus, Trash2, Edit2, MapPin } from "lucide-react";
+import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 
 
 interface Props {
@@ -26,6 +27,9 @@ interface ProdutoInfo {
   lastro: number | null;
   camada: number | null;
   fator_caixa: number | null;
+  peso_bruto: number | null;
+  peso_liquido: number | null;
+  url_imagem: string | null;
 }
 
 interface Embalagem {
@@ -84,7 +88,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
     try {
       const { data } = await (supabase as any)
         .from("produto")
-        .select("id, sku, referencia, descricao, marca, curva_venda, curva_acesso, tipo_controle, lastro, camada, fator_caixa, parceiro_id, grupo_id, subgrupo_id")
+        .select("id, sku, referencia, descricao, marca, curva_venda, curva_acesso, tipo_controle, lastro, camada, fator_caixa, peso_bruto, peso_liquido, url_imagem, parceiro_id, grupo_id, subgrupo_id")
         .eq("id", produtoId)
         .single();
       if (!data) return;
@@ -304,6 +308,23 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
       {/* INFO TAB */}
       {tab === "info" && (
         <div className="flex flex-col gap-3">
+          {produto.url_imagem && (
+            <div className={cardClass}>
+              <div className="flex items-center gap-3">
+                <ProdutoImagemThumb
+                  url={produto.url_imagem}
+                  alt={produto.sku}
+                  caption={`${produto.sku} — ${produto.descricao}`}
+                  size={72}
+                  variant="coletor"
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className={labelClass}>Imagem</span>
+                  <p className="text-xs text-[hsl(213,31%,70%)]">Toque para ampliar</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className={cardClass}>
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -319,6 +340,8 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
                 ["Lastro", String(produto.lastro ?? "—")],
                 ["Camada", String(produto.camada ?? "—")],
                 ["Fator Caixa", String(produto.fator_caixa ?? "—")],
+                ["Peso Bruto (kg)", String(produto.peso_bruto ?? "—")],
+                ["Peso Líquido (kg)", String(produto.peso_liquido ?? "—")],
               ].map(([label, value]) => (
                 <div key={label}>
                   <span className={labelClass}>{label}</span>
