@@ -746,6 +746,18 @@ export function ProdutosPage() {
         </span>
       ) : null,
     },
+    {
+      key: "url_imagem", label: "",
+      className: "w-10",
+      render: (r) => (
+        <ProdutoImagemThumb
+          url={r.url_imagem}
+          alt={r.sku}
+          caption={`${r.sku} — ${r.descricao}`}
+          size={36}
+        />
+      ),
+    },
     { key: "sku", label: "SKU", type: "mono" },
     { key: "descricao", label: "Descrição" },
     { key: "referencia", label: "Referência" },
