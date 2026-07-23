@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2, Plus, Trash2, Edit2, MapPin } from "lucide-react";
+import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 
 
 interface Props {
@@ -26,6 +27,9 @@ interface ProdutoInfo {
   lastro: number | null;
   camada: number | null;
   fator_caixa: number | null;
+  peso_bruto: number | null;
+  peso_liquido: number | null;
+  url_imagem: string | null;
 }
 
 interface Embalagem {
