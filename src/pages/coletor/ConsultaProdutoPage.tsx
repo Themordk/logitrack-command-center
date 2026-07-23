@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2 } from "lucide-react";
+import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 
 interface Props { onNavigate: (path: string) => void; }
 
