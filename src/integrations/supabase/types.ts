@@ -7560,6 +7560,7 @@ export type Database = {
           marca: string | null
           parceiro_id: string | null
           peso_bruto: number | null
+          peso_liquido: number | null
           peso_variavel: boolean | null
           preco_custo: number | null
           referencia: string | null
@@ -7576,6 +7577,7 @@ export type Database = {
             | Database["public"]["Enums"]["enum_tipo_separacao"]
             | null
           tolerancia: number | null
+          url_imagem: string | null
           usa_picking: boolean | null
           varios_pickings: boolean | null
         }
@@ -7596,6 +7598,7 @@ export type Database = {
           marca?: string | null
           parceiro_id?: string | null
           peso_bruto?: number | null
+          peso_liquido?: number | null
           peso_variavel?: boolean | null
           preco_custo?: number | null
           referencia?: string | null
@@ -7612,6 +7615,7 @@ export type Database = {
             | Database["public"]["Enums"]["enum_tipo_separacao"]
             | null
           tolerancia?: number | null
+          url_imagem?: string | null
           usa_picking?: boolean | null
           varios_pickings?: boolean | null
         }
@@ -7632,6 +7636,7 @@ export type Database = {
           marca?: string | null
           parceiro_id?: string | null
           peso_bruto?: number | null
+          peso_liquido?: number | null
           peso_variavel?: boolean | null
           preco_custo?: number | null
           referencia?: string | null
@@ -7648,6 +7653,7 @@ export type Database = {
             | Database["public"]["Enums"]["enum_tipo_separacao"]
             | null
           tolerancia?: number | null
+          url_imagem?: string | null
           usa_picking?: boolean | null
           varios_pickings?: boolean | null
         }
