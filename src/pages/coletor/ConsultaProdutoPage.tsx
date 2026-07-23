@@ -21,6 +21,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
   const [produtoNome, setProdutoNome] = useState("");
+  const [produtoImg, setProdutoImg] = useState<string | null>(null);
   const [saldos, setSaldos] = useState<SaldoRow[]>([]);
   const [error, setError] = useState("");
 
