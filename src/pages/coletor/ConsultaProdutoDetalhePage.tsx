@@ -88,7 +88,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
     try {
       const { data } = await (supabase as any)
         .from("produto")
-        .select("id, sku, referencia, descricao, marca, curva_venda, curva_acesso, tipo_controle, lastro, camada, fator_caixa, parceiro_id, grupo_id, subgrupo_id")
+        .select("id, sku, referencia, descricao, marca, curva_venda, curva_acesso, tipo_controle, lastro, camada, fator_caixa, peso_bruto, peso_liquido, url_imagem, parceiro_id, grupo_id, subgrupo_id")
         .eq("id", produtoId)
         .single();
       if (!data) return;
