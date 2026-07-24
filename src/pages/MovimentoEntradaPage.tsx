@@ -186,6 +186,7 @@ export function MovimentoEntradaPage() {
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterErp, setFilterErp] = useState<"" | "EXPORTADO" | "AGUARDANDO" | "SEM">("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterDocumento, setFilterDocumento] = useState("");
   const [filterTipoEntradaId, setFilterTipoEntradaId] = useState("");
