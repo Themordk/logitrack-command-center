@@ -14,6 +14,8 @@ import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuid
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
+import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
+import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 
 interface OndaCarregamentoListItem {
   id: string;
@@ -94,6 +96,7 @@ interface MovSaida {
   total_separado?: number;
   total_conferido?: number;
   total_cortado?: number;
+  updated_at?: string | null;
 }
 
 const truncate = (s: string | null | undefined, n = 35) =>
@@ -146,6 +149,7 @@ export function MovimentoSaidaPage() {
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterErp, setFilterErp] = useState<"" | "EXPORTADO" | "AGUARDANDO" | "SEM">("");
   const [filterNumeroDocumento, setFilterNumeroDocumento] = useState("");
   const [filterTipoSaidaId, setFilterTipoSaidaId] = useState("");
   const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
@@ -330,6 +334,17 @@ export function MovimentoSaidaPage() {
       total_cortado: Number(r.total_cortado || 0),
     }));
   }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, empresaId]);
+
+  const hasErp = useTenantHasErp(tenantId);
+
+  const filteredMovimentos = useMemo(() => {
+    if (!filterErp) return movimentos;
+    return movimentos.filter((m) => {
+      if (filterErp === "EXPORTADO") return m.status === "EXPORTADA_ERP";
+      if (filterErp === "AGUARDANDO") return m.status === "CONCLUIDA";
+      return !erpBadgeApplies(m.status, "saida");
+    });
+  }, [movimentos, filterErp]);
 
   const fetchMovimentos = useCallback(() => {
     listQuery.refetch();
@@ -723,6 +738,17 @@ export function MovimentoSaidaPage() {
             ))}
           </select>
         </div>
+        {hasErp && (
+          <div>
+            <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status ERP</label>
+            <select value={filterErp} onChange={(e) => setFilterErp(e.target.value as any)} className={cn(inputClass, "w-36")}>
+              <option value="">Todos</option>
+              <option value="EXPORTADO">Exportado ERP</option>
+              <option value="AGUARDANDO">Aguardando ERP</option>
+              <option value="SEM">Sem indicador</option>
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
           <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
@@ -759,10 +785,10 @@ export function MovimentoSaidaPage() {
           <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
-            ) : movimentos.length === 0 ? (
+            ) : filteredMovimentos.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">Nenhuma onda encontrada.</p>
             ) : (
-              movimentos.map((mov) => {
+              filteredMovimentos.map((mov) => {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
                 return (
                   <div
@@ -773,6 +799,7 @@ export function MovimentoSaidaPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-semibold text-foreground">Onda #{mov.numero_onda}</span>
                       <div className="flex items-center gap-1">
+                        {hasErp && <ErpStatusBadge status={mov.status} tipo="saida" compact />}
                         <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                         <div className="relative">
                           <button
@@ -1037,7 +1064,19 @@ export function MovimentoSaidaPage() {
                 {selectedMov && (
                   <>
                     <div>
-                      <h3 className="text-xs font-semibold text-foreground uppercase mb-2">Dados do Movimento</h3>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xs font-semibold text-foreground uppercase">Dados do Movimento</h3>
+                        {hasErp && erpBadgeApplies(selectedMov.status, "saida") && (
+                          <div className="flex items-center gap-2">
+                            <ErpStatusBadge status={selectedMov.status} tipo="saida" />
+                            {selectedMov.status === "EXPORTADA_ERP" && selectedMov.updated_at && (
+                              <span className="text-[10px] text-muted-foreground">
+                                em {formatDate(selectedMov.updated_at)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <div className="grid grid-cols-3 gap-3">
                         {[
                           ["Nº Onda", `#${selectedMov.numero_onda}`],

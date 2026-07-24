@@ -16,6 +16,8 @@ import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
 import { LiberarErroTransporteModal } from "@/components/movimento-entrada/LiberarErroTransporteModal";
 import { parseError } from "@/lib/errorMapper";
+import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
+import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 
 interface MovimentoEntradaListItem {
   id: string;
@@ -130,6 +132,7 @@ interface MovimentoInfo {
   numero_movimento: number | null;
   status: string | null;
   created_at: string | null;
+  updated_at: string | null;
   tipo_entrada_descricao: string | null;
   confirma_volume: boolean;
   total_volume: number | null;
@@ -183,6 +186,7 @@ export function MovimentoEntradaPage() {
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterErp, setFilterErp] = useState<"" | "EXPORTADO" | "AGUARDANDO" | "SEM">("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterDocumento, setFilterDocumento] = useState("");
   const [filterTipoEntradaId, setFilterTipoEntradaId] = useState("");
@@ -305,6 +309,17 @@ export function MovimentoEntradaPage() {
     }));
   }, [listRows, opsQuery.data]);
 
+  const hasErp = useTenantHasErp(tenantId);
+
+  const filteredMovements = useMemo(() => {
+    if (!filterErp) return movements;
+    return movements.filter((m) => {
+      if (filterErp === "EXPORTADO") return m.status === "EXPORTADO";
+      if (filterErp === "AGUARDANDO") return m.status === "ARMAZENADO";
+      return !erpBadgeApplies(m.status, "entrada");
+    });
+  }, [movements, filterErp]);
+
   const fetchMovements = useCallback(() => {
     listQuery.refetch();
     opsQuery.refetch();
@@ -392,6 +407,7 @@ export function MovimentoEntradaPage() {
           numero_movimento: infoData.numero_movimento ?? null,
           status: infoData.status ?? null,
           created_at: infoData.created_at ?? null,
+          updated_at: infoData.updated_at ?? null,
           tipo_entrada_descricao: infoData.tipo_entrada_descricao ?? null,
           confirma_volume: infoData.confirma_volume,
           total_volume: infoData.total_volume,
@@ -601,6 +617,17 @@ export function MovimentoEntradaPage() {
             ))}
           </select>
         </div>
+        {hasErp && (
+          <div>
+            <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status ERP</label>
+            <select value={filterErp} onChange={(e) => setFilterErp(e.target.value as any)} className={cn(inputClass, "w-36")}>
+              <option value="">Todos</option>
+              <option value="EXPORTADO">Exportado ERP</option>
+              <option value="AGUARDANDO">Aguardando ERP</option>
+              <option value="SEM">Sem indicador</option>
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Tipo Entrada</label>
           <select value={filterTipoEntradaId} onChange={(e) => setFilterTipoEntradaId(e.target.value)} className={cn(inputClass, "w-40")}>
@@ -645,19 +672,22 @@ export function MovimentoEntradaPage() {
           <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
-            ) : movements.length === 0 ? (
+            ) : filteredMovements.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">Nenhum movimento encontrado.</p>
             ) : (
-              movements.map((mov) => {
+              filteredMovements.map((mov) => {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
                 return (
                   <div key={mov.id} className={cn("w-full text-left px-3 py-3 border-b border-border/50 hover:bg-secondary/50 transition-colors flex items-start gap-2", selectedMov === mov.id && "bg-secondary/70")}>
                     <button onClick={() => loadDetails(mov.id, mov.status)} className="flex-1 text-left">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-1">
                         <span className="text-xs font-mono font-bold text-foreground">
                           MOV-{mov.numero_movimento ?? "—"}
                         </span>
-                        <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
+                        <div className="flex items-center gap-1">
+                          {hasErp && <ErpStatusBadge status={mov.status} tipo="entrada" compact />}
+                          <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>
                         {(mov.parceiro_nome || "").length > 35 ? `${(mov.parceiro_nome || "").slice(0, 35)}…` : mov.parceiro_nome}
@@ -897,6 +927,19 @@ export function MovimentoEntradaPage() {
                           <p className="text-xs text-muted-foreground">Tipo de Entrada</p>
                           <p className="text-sm font-medium text-foreground">{movimentoInfo.tipo_entrada_descricao || "—"}</p>
                         </div>
+                        {hasErp && erpBadgeApplies(movimentoInfo.status, "entrada") && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Status ERP</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <ErpStatusBadge status={movimentoInfo.status} tipo="entrada" />
+                              {movimentoInfo.status === "EXPORTADO" && movimentoInfo.updated_at && (
+                                <span className="text-[11px] text-muted-foreground">
+                                  em {fmtDateTime(movimentoInfo.updated_at)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
