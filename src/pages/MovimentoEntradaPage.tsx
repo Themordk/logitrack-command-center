@@ -927,6 +927,19 @@ export function MovimentoEntradaPage() {
                           <p className="text-xs text-muted-foreground">Tipo de Entrada</p>
                           <p className="text-sm font-medium text-foreground">{movimentoInfo.tipo_entrada_descricao || "—"}</p>
                         </div>
+                        {hasErp && erpBadgeApplies(movimentoInfo.status, "entrada") && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Status ERP</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <ErpStatusBadge status={movimentoInfo.status} tipo="entrada" />
+                              {movimentoInfo.status === "EXPORTADO" && movimentoInfo.updated_at && (
+                                <span className="text-[11px] text-muted-foreground">
+                                  em {fmtDateTime(movimentoInfo.updated_at)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
