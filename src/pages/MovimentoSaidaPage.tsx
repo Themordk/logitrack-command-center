@@ -1064,7 +1064,19 @@ export function MovimentoSaidaPage() {
                 {selectedMov && (
                   <>
                     <div>
-                      <h3 className="text-xs font-semibold text-foreground uppercase mb-2">Dados do Movimento</h3>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xs font-semibold text-foreground uppercase">Dados do Movimento</h3>
+                        {hasErp && erpBadgeApplies(selectedMov.status, "saida") && (
+                          <div className="flex items-center gap-2">
+                            <ErpStatusBadge status={selectedMov.status} tipo="saida" />
+                            {selectedMov.status === "EXPORTADA_ERP" && selectedMov.updated_at && (
+                              <span className="text-[10px] text-muted-foreground">
+                                em {formatDate(selectedMov.updated_at)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <div className="grid grid-cols-3 gap-3">
                         {[
                           ["Nº Onda", `#${selectedMov.numero_onda}`],
