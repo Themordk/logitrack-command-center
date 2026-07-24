@@ -738,6 +738,17 @@ export function MovimentoSaidaPage() {
             ))}
           </select>
         </div>
+        {hasErp && (
+          <div>
+            <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status ERP</label>
+            <select value={filterErp} onChange={(e) => setFilterErp(e.target.value as any)} className={cn(inputClass, "w-36")}>
+              <option value="">Todos</option>
+              <option value="EXPORTADO">Exportado ERP</option>
+              <option value="AGUARDANDO">Aguardando ERP</option>
+              <option value="SEM">Sem indicador</option>
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
           <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
