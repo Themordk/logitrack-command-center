@@ -16,6 +16,8 @@ import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
 import { LiberarErroTransporteModal } from "@/components/movimento-entrada/LiberarErroTransporteModal";
 import { parseError } from "@/lib/errorMapper";
+import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
+import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 
 interface MovimentoEntradaListItem {
   id: string;
