@@ -3991,48 +3991,69 @@ export type Database = {
         Row: {
           ativo: boolean
           bairro: string
+          cep: string | null
           cidade: string
           cnpj: string
           codigo_erp: string | null
+          codigo_erp_omie: string | null
+          contato: string | null
           dias_shelf: number | null
+          email: string | null
           empresa_id: string
           endereco: string
           estado: string
           id: string
+          inscricao_estadual: string | null
+          nome_fantasia: string | null
           razaosocial: string
           rota_id: string | null
+          telefone: string | null
           tenant_id: string
           tipo_parceiro: Database["public"]["Enums"]["enum_tipo_parceiro"]
         }
         Insert: {
           ativo?: boolean
           bairro: string
+          cep?: string | null
           cidade: string
           cnpj: string
           codigo_erp?: string | null
+          codigo_erp_omie?: string | null
+          contato?: string | null
           dias_shelf?: number | null
+          email?: string | null
           empresa_id: string
           endereco: string
           estado: string
           id?: string
+          inscricao_estadual?: string | null
+          nome_fantasia?: string | null
           razaosocial: string
           rota_id?: string | null
+          telefone?: string | null
           tenant_id: string
           tipo_parceiro: Database["public"]["Enums"]["enum_tipo_parceiro"]
         }
         Update: {
           ativo?: boolean
           bairro?: string
+          cep?: string | null
           cidade?: string
           cnpj?: string
           codigo_erp?: string | null
+          codigo_erp_omie?: string | null
+          contato?: string | null
           dias_shelf?: number | null
+          email?: string | null
           empresa_id?: string
           endereco?: string
           estado?: string
           id?: string
+          inscricao_estadual?: string | null
+          nome_fantasia?: string | null
           razaosocial?: string
           rota_id?: string | null
+          telefone?: string | null
           tenant_id?: string
           tipo_parceiro?: Database["public"]["Enums"]["enum_tipo_parceiro"]
         }
@@ -8854,6 +8875,10 @@ export type Database = {
         }
         Returns: string
       }
+      integracao_marcar_exportado: {
+        Args: { p_documento_id: string; p_entidade: string }
+        Returns: undefined
+      }
       integracao_resetar_cursor: {
         Args: { p_empresa_id: string; p_entidade: string; p_tenant_id: string }
         Returns: undefined
@@ -9028,53 +9053,108 @@ export type Database = {
         }
         Returns: undefined
       }
-      integracao_upsert_parceiro: {
-        Args: {
-          p_ativo: boolean
-          p_bairro: string
-          p_cep: string
-          p_cidade: string
-          p_cnpj: string
-          p_codigo_erp: string
-          p_complemento: string
-          p_email: string
-          p_empresa_id: string
-          p_endereco: string
-          p_estado: string
-          p_nome_fantasia: string
-          p_numero: string
-          p_razao_social: string
-          p_rota_id?: string
-          p_telefone: string
-          p_tenant_id: string
-          p_tipo_parceiro: string
-        }
-        Returns: string
-      }
-      integracao_upsert_produto: {
-        Args: {
-          p_ativo: boolean
-          p_codigo_erp: string
-          p_descricao: string
-          p_empresa_id: string
-          p_grupo_id?: string
-          p_marca: string
-          p_parceiro_id: string
-          p_peso_variavel: boolean
-          p_preco_custo: number
-          p_referencia: string
-          p_sku: string
-          p_tenant_id: string
-          p_tipo_controle: string
-          p_tipo_separacao: string
-          p_usa_picking: boolean
-          p_varios_pickings: boolean
-        }
-        Returns: {
-          inserido: boolean
-          produto_id: string
-        }[]
-      }
+      integracao_upsert_parceiro:
+        | {
+            Args: {
+              p_ativo: boolean
+              p_bairro: string
+              p_cep: string
+              p_cidade: string
+              p_cnpj: string
+              p_codigo_erp: string
+              p_complemento: string
+              p_email: string
+              p_empresa_id: string
+              p_endereco: string
+              p_estado: string
+              p_nome_fantasia: string
+              p_numero: string
+              p_razao_social: string
+              p_rota_id?: string
+              p_telefone: string
+              p_tenant_id: string
+              p_tipo_parceiro: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_ativo: boolean
+              p_bairro: string
+              p_cep: string
+              p_cidade: string
+              p_cnpj: string
+              p_codigo_erp: string
+              p_codigo_erp_omie?: string
+              p_complemento: string
+              p_contato?: string
+              p_email: string
+              p_empresa_id: string
+              p_endereco: string
+              p_estado: string
+              p_inscricao_estadual?: string
+              p_nome_fantasia: string
+              p_numero: string
+              p_razao_social: string
+              p_rota_id?: string
+              p_telefone: string
+              p_tenant_id: string
+              p_tipo_parceiro: string
+            }
+            Returns: string
+          }
+      integracao_upsert_produto:
+        | {
+            Args: {
+              p_ativo: boolean
+              p_codigo_erp: string
+              p_descricao: string
+              p_empresa_id: string
+              p_grupo_id?: string
+              p_marca: string
+              p_parceiro_id: string
+              p_peso_variavel: boolean
+              p_preco_custo: number
+              p_referencia: string
+              p_sku: string
+              p_tenant_id: string
+              p_tipo_controle: string
+              p_tipo_separacao: string
+              p_usa_picking: boolean
+              p_varios_pickings: boolean
+            }
+            Returns: {
+              inserido: boolean
+              produto_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_ativo: boolean
+              p_codigo_erp: string
+              p_descricao: string
+              p_empresa_id: string
+              p_grupo_id?: string
+              p_marca: string
+              p_parceiro_id: string
+              p_peso_bruto?: number
+              p_peso_liquido?: number
+              p_peso_variavel: boolean
+              p_preco_custo: number
+              p_referencia: string
+              p_sku: string
+              p_tenant_id: string
+              p_tipo_controle: string
+              p_tipo_separacao: string
+              p_url_imagem?: string
+              p_usa_picking: boolean
+              p_varios_pickings: boolean
+            }
+            Returns: {
+              inserido: boolean
+              produto_id: string
+            }[]
+          }
       integracao_upsert_rota: {
         Args: {
           p_armazem_id: string
