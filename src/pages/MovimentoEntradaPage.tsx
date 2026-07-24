@@ -672,19 +672,22 @@ export function MovimentoEntradaPage() {
           <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
-            ) : movements.length === 0 ? (
+            ) : filteredMovements.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">Nenhum movimento encontrado.</p>
             ) : (
-              movements.map((mov) => {
+              filteredMovements.map((mov) => {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
                 return (
                   <div key={mov.id} className={cn("w-full text-left px-3 py-3 border-b border-border/50 hover:bg-secondary/50 transition-colors flex items-start gap-2", selectedMov === mov.id && "bg-secondary/70")}>
                     <button onClick={() => loadDetails(mov.id, mov.status)} className="flex-1 text-left">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-1">
                         <span className="text-xs font-mono font-bold text-foreground">
                           MOV-{mov.numero_movimento ?? "—"}
                         </span>
-                        <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
+                        <div className="flex items-center gap-1">
+                          {hasErp && <ErpStatusBadge status={mov.status} tipo="entrada" compact />}
+                          <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>
                         {(mov.parceiro_nome || "").length > 35 ? `${(mov.parceiro_nome || "").slice(0, 35)}…` : mov.parceiro_nome}
