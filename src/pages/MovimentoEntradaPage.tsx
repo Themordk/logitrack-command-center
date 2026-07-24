@@ -132,6 +132,7 @@ interface MovimentoInfo {
   numero_movimento: number | null;
   status: string | null;
   created_at: string | null;
+  updated_at: string | null;
   tipo_entrada_descricao: string | null;
   confirma_volume: boolean;
   total_volume: number | null;
