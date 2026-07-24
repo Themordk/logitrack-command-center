@@ -309,6 +309,17 @@ export function MovimentoEntradaPage() {
     }));
   }, [listRows, opsQuery.data]);
 
+  const hasErp = useTenantHasErp(tenantId);
+
+  const filteredMovements = useMemo(() => {
+    if (!filterErp) return movements;
+    return movements.filter((m) => {
+      if (filterErp === "EXPORTADO") return m.status === "EXPORTADO";
+      if (filterErp === "AGUARDANDO") return m.status === "ARMAZENADO";
+      return !erpBadgeApplies(m.status, "entrada");
+    });
+  }, [movements, filterErp]);
+
   const fetchMovements = useCallback(() => {
     listQuery.refetch();
     opsQuery.refetch();
