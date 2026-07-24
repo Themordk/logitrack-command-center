@@ -785,10 +785,10 @@ export function MovimentoSaidaPage() {
           <div className="flex-1 overflow-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
-            ) : movimentos.length === 0 ? (
+            ) : filteredMovimentos.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">Nenhuma onda encontrada.</p>
             ) : (
-              movimentos.map((mov) => {
+              filteredMovimentos.map((mov) => {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
                 return (
                   <div
@@ -799,6 +799,7 @@ export function MovimentoSaidaPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-semibold text-foreground">Onda #{mov.numero_onda}</span>
                       <div className="flex items-center gap-1">
+                        {hasErp && <ErpStatusBadge status={mov.status} tipo="saida" compact />}
                         <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                         <div className="relative">
                           <button
