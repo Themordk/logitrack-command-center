@@ -149,6 +149,7 @@ export function MovimentoSaidaPage() {
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterErp, setFilterErp] = useState<"" | "EXPORTADO" | "AGUARDANDO" | "SEM">("");
   const [filterNumeroDocumento, setFilterNumeroDocumento] = useState("");
   const [filterTipoSaidaId, setFilterTipoSaidaId] = useState("");
   const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
