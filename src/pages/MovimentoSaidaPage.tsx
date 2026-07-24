@@ -335,6 +335,17 @@ export function MovimentoSaidaPage() {
     }));
   }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, empresaId]);
 
+  const hasErp = useTenantHasErp(tenantId);
+
+  const filteredMovimentos = useMemo(() => {
+    if (!filterErp) return movimentos;
+    return movimentos.filter((m) => {
+      if (filterErp === "EXPORTADO") return m.status === "EXPORTADA_ERP";
+      if (filterErp === "AGUARDANDO") return m.status === "CONCLUIDA";
+      return !erpBadgeApplies(m.status, "saida");
+    });
+  }, [movimentos, filterErp]);
+
   const fetchMovimentos = useCallback(() => {
     listQuery.refetch();
     opsQuery.refetch();
