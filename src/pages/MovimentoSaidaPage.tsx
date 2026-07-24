@@ -14,6 +14,8 @@ import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuid
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
+import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
+import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 
 interface OndaCarregamentoListItem {
   id: string;
