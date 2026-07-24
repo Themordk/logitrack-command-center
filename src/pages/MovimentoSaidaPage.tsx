@@ -94,6 +94,7 @@ interface MovSaida {
   total_separado?: number;
   total_conferido?: number;
   total_cortado?: number;
+  updated_at?: string | null;
 }
 
 const truncate = (s: string | null | undefined, n = 35) =>
