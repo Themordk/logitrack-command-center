@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { Boxes, LogOut, ChevronRight, Building2, MessageSquare, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
+import logoUrl from "@/assets/corelogitrack-logo.png";
 
 interface Props {
   currentPath: string;
@@ -33,7 +33,7 @@ export function SupportTopNav({ currentPath, onNavigate }: Props) {
     <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-[hsl(var(--topbar-border))] bg-[hsl(var(--topbar-bg))]">
       <div className="flex h-full items-center px-4 gap-0">
         <div className="flex items-center gap-2.5 pr-6 border-r border-border">
-          <img src={logoAsset.url} alt="CORE LogiTrack" className="w-7 h-7 object-contain" />
+          <img src={logoUrl} alt="CORE LogiTrack" className="w-7 h-7 object-contain" />
           <div>
             <span className="font-bold text-sm text-foreground tracking-tight">CORE</span>
             <span className="font-bold text-sm text-primary tracking-tight"> LogiTrack</span>
