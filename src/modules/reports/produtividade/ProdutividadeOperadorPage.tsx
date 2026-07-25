@@ -218,6 +218,15 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
               </div>
               <span className="text-2xl font-bold text-foreground">{produtividadeHora} itens/h</span>
             </div>
+            {aderenciaMedia != null && (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-1" style={{ color: aderenciaMedia >= 100 ? "hsl(142, 71%, 45%)" : aderenciaMedia >= 80 ? "hsl(45, 93%, 47%)" : "hsl(0, 84%, 60%)" }}>
+                  <TrendingUp size={16} />
+                  <span className="text-xs text-muted-foreground">Aderência à Meta</span>
+                </div>
+                <span className="text-2xl font-bold text-foreground">{aderenciaMedia}%</span>
+              </div>
+            )}
           </div>
 
           {/* Gantt Timeline */}
