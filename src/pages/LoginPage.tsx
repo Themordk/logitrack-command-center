@@ -6,6 +6,7 @@ import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal"
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { parseError } from "@/lib/errorMapper";
+import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
 
 interface LoginPageProps {
   onLogin: () => void;
