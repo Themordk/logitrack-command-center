@@ -51,6 +51,15 @@ export function MotivosOcorrenciaPage() {
     { key: "acao_automatica", label: "Ação automática", render: (row) => (
       <span className="text-xs text-muted-foreground">{row.acao_automatica || "—"}</span>
     )},
+    {
+      key: "sla_horas",
+      label: "SLA (h)",
+      render: (row) => (
+        <span className="text-sm text-muted-foreground">
+          {row.sla_horas ? `${row.sla_horas}h` : "—"}
+        </span>
+      ),
+    },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -61,6 +70,8 @@ export function MotivosOcorrenciaPage() {
     { name: "categoria_padrao", label: "Categoria padrão", type: "enum", required: true, defaultValue: "CORRETIVA", enumValues: ["PREVENTIVA", "CORRETIVA"] },
     { name: "prioridade_padrao", label: "Prioridade padrão", type: "enum", required: true, defaultValue: "NORMAL", enumValues: ["BAIXA", "NORMAL", "ALTA", "CRITICA"] },
     { name: "acao_automatica", label: "Ação automática", type: "enum", defaultValue: "NENHUMA", enumValues: ["NENHUMA", "BLOQUEIO_ESTOQUE", "NOTIFICACAO_SUPERVISOR", "AJUSTE_ESTOQUE"] },
+    { name: "sla_horas", label: "SLA (horas)", type: "number", placeholder: "Ex: 24" },
+    { name: "sla_notificar_percentual", label: "Alerta em (% do SLA)", type: "number", placeholder: "Ex: 80", defaultValue: 80 },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 

@@ -2693,6 +2693,8 @@ export type Database = {
           prioridade_padrao:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
+          sla_horas: number | null
+          sla_notificar_percentual: number | null
           tenant_id: string
           tipo_ocorrencia_padrao:
             | Database["public"]["Enums"]["enum_tipo_ocorrencia"]
@@ -2712,6 +2714,8 @@ export type Database = {
           prioridade_padrao?:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
+          sla_horas?: number | null
+          sla_notificar_percentual?: number | null
           tenant_id: string
           tipo_ocorrencia_padrao?:
             | Database["public"]["Enums"]["enum_tipo_ocorrencia"]
@@ -2731,6 +2735,8 @@ export type Database = {
           prioridade_padrao?:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
+          sla_horas?: number | null
+          sla_notificar_percentual?: number | null
           tenant_id?: string
           tipo_ocorrencia_padrao?:
             | Database["public"]["Enums"]["enum_tipo_ocorrencia"]
@@ -5786,42 +5792,80 @@ export type Database = {
       }
       tipo_tarefa: {
         Row: {
+          ativo: boolean
           bloqueia_estoque: boolean | null
+          categoria: Database["public"]["Enums"]["enum_etapa_ocorrencia"] | null
           codigo: string
+          cor_interface: string | null
           descricao: string
+          empresa_id: string | null
           exige_conferencia: boolean | null
           gera_movimento_estoque: boolean | null
           id: string
+          meta_tarefas_hora: number | null
+          meta_unidades_hora: number | null
+          peso_produtividade: number
           prioridade_padrao: number | null
           tempo_estimado_segundos: number | null
           tenant_id: string
           tipo_movimento: number | null
+          unidade_medida: string | null
+          updated_at: string
         }
         Insert: {
+          ativo?: boolean
           bloqueia_estoque?: boolean | null
+          categoria?:
+            | Database["public"]["Enums"]["enum_etapa_ocorrencia"]
+            | null
           codigo: string
+          cor_interface?: string | null
           descricao: string
+          empresa_id?: string | null
           exige_conferencia?: boolean | null
           gera_movimento_estoque?: boolean | null
           id?: string
+          meta_tarefas_hora?: number | null
+          meta_unidades_hora?: number | null
+          peso_produtividade?: number
           prioridade_padrao?: number | null
           tempo_estimado_segundos?: number | null
           tenant_id: string
           tipo_movimento?: number | null
+          unidade_medida?: string | null
+          updated_at?: string
         }
         Update: {
+          ativo?: boolean
           bloqueia_estoque?: boolean | null
+          categoria?:
+            | Database["public"]["Enums"]["enum_etapa_ocorrencia"]
+            | null
           codigo?: string
+          cor_interface?: string | null
           descricao?: string
+          empresa_id?: string | null
           exige_conferencia?: boolean | null
           gera_movimento_estoque?: boolean | null
           id?: string
+          meta_tarefas_hora?: number | null
+          meta_unidades_hora?: number | null
+          peso_produtividade?: number
           prioridade_padrao?: number | null
           tempo_estimado_segundos?: number | null
           tenant_id?: string
           tipo_movimento?: number | null
+          unidade_medida?: string | null
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tipo_tarefa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tipo_tarefa_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -9897,6 +9941,8 @@ export type Database = {
         | "EXPEDICAO"
         | "INVENTARIO"
         | "AUDITORIA"
+        | "CONFERENCIA"
+        | "OUTROS"
       enum_execucao_inventario: "AUDITORIA" | "ATUALIZACAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
@@ -10273,6 +10319,8 @@ export const Constants = {
         "EXPEDICAO",
         "INVENTARIO",
         "AUDITORIA",
+        "CONFERENCIA",
+        "OUTROS",
       ],
       enum_execucao_inventario: ["AUDITORIA", "ATUALIZACAO"],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],

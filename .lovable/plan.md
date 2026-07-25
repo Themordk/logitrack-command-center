@@ -1,30 +1,49 @@
-## Auditoria de módulos RBAC — tenant CORE LogiTrack
 
-Comparei as rotas registradas em `src/App.tsx` (bloco WEB) com os módulos existentes na tabela `modulo` do tenant `CORE LogiTrack` (`f89963dc-9afc-49be-8b70-3559c9fd80bd`). Todos os 7 módulos do ambiente COLETOR e a maior parte dos módulos WEB já estão cadastrados corretamente com suas permissões.
+# Revisão Tipos de Tarefa + LMS + Reorganização de Configurações
 
-### Módulos faltantes identificados
+Migration já aplicada no banco (novos campos em `tipo_tarefa` e `motivo_ocorrencia`). Aplicar apenas mudanças de frontend conforme prompt.
 
-| Rota (App.tsx) | Módulo esperado | Página | Ações |
-|---|---|---|---|
-| `/atividades/operadores-ativos` | `web.atividades.operadores-ativos` | `OperadoresAtivosPage` | READ |
-| `/atividades/tarefas-ativas` | `web.atividades.tarefas-ativas` | `TarefasAtivasPage` | READ |
-| `/relatorios/picking-nao-cadastrado` | `web.relatorios.picking-nao-cadastrado` | `PickingNaoCadastradoReportPage` | READ |
-| `/config/ocorrencia-sla` | `web.config.ocorrencia-sla` | `OcorrenciaSlaConfigPage` | CREATE, READ, UPDATE, DELETE |
+## 1. `src/pages/TiposTarefaPage.tsx` — Refatoração completa
 
-Sem esses registros, `ProtectedRoute` bloqueia o acesso a essas telas mesmo para perfis não-administradores, e a tela "Perfis de Acesso" não permite conceder acesso.
+**Interface `TipoTarefa`**: substituir por: `id, codigo, descricao, ativo, categoria, tipo_movimento, tempo_estimado_segundos, meta_unidades_hora, meta_tarefas_hora, unidade_medida, peso_produtividade, cor_interface, empresa_id`. Remover `prioridade_padrao`, `gera_movimento_estoque`, `bloqueia_estoque`, `exige_conferencia`.
 
-### O que a migration fará
+**Colunas do grid** (ordem):
+- `codigo` (mono), `descricao`
+- `categoria` — badge colorido por valor (10 cores mapeadas: RECEBIMENTO=azul, ARMAZENAGEM=roxo, SEPARACAO=âmbar, CONFERENCIA=teal, EXPEDICAO=verde, ABASTECIMENTO=laranja, INVENTARIO=ciano, MOVIMENTACAO=índigo, AUDITORIA/OUTROS=cinza)
+- `tipo_movimento` (mantém Entrada/Saída/Transferência)
+- `tempo_estimado_segundos` → label "SET (s)"
+- `meta_unidades_hora` → `{valor} {unidade_medida}/h` ou "—"
+- `peso_produtividade` → número 1 casa decimal
+- `ativo` → StatusBadge Sim/Não
 
-Somente para o tenant `f89963dc-9afc-49be-8b70-3559c9fd80bd`:
+**Modal `TipoTarefaEditModal`** — reorganizado em 2 seções separadas por `border-t border-border`:
 
-1. `INSERT` idempotente em `public.modulo` (com `ON CONFLICT` no par `tenant_id, codigo`) para os 4 códigos acima, ambiente `WEB`.
-2. `INSERT` idempotente em `public.permissao` das ações correspondentes:
-   - `READ` para os 3 módulos de monitoramento/relatório.
-   - `CREATE`, `READ`, `UPDATE`, `DELETE` para `web.config.ocorrencia-sla` (tela de cadastro).
-3. Vincular todas as novas permissões ao perfil `ADMINISTRADOR` do tenant em `public.perfil_permissao` (mantém o comportamento atual em que o admin já enxerga tudo — sem quebrar perfis existentes).
+- **Seção 1 — "Configuração operacional"**: `codigo` (disabled), `descricao` (disabled), `categoria` (select 10 valores), `tipo_movimento` (select existente), `ativo` (switch)
+- **Seção 2 — "Parâmetros de produtividade (LMS)"**: `tempo_estimado_segundos`, `meta_unidades_hora`, `meta_tarefas_hora`, `unidade_medida` (text), `peso_produtividade` (number step 0.1), `cor_interface` (`<input type="color">` com swatch 24x24 ao lado; default `#6366f1`)
 
-Nenhuma alteração de estrutura de tabelas, RLS ou grants. Nenhum outro tenant é afetado.
+Grid `grid-cols-1 md:grid-cols-2 gap-4`; input de cor ocupa 1 coluna própria. Payload atualizado sem os 4 campos removidos.
 
-### Nota fora do escopo
+## 2. `src/pages/MotivosOcorrenciaPage.tsx` — Campos SLA
 
-O mapa `src/hooks/useRoutePermission.ts` também não lista essas rotas, mas o próprio `getModuleForRoute` retorna `null` para elas hoje e a UI segue funcionando (as páginas são acessadas via botão). Se quiser que passem a exigir permissão explícita, posso incluir a atualização do mapa em um passo separado — me avise.
+- Adicionar em `fields` (antes de `ativo`): `sla_horas` (number, "SLA (horas)") e `sla_notificar_percentual` (number, "Alerta em (% do SLA)", default 80).
+- Adicionar em `columns` (antes de `ativo`): `sla_horas` renderizado como `{n}h` ou "—".
+
+## 3. Reorganização de menu
+
+**`src/components/TopNav.tsx`**:
+- Remover `SLA de Ocorrências` de Configurações.
+- Remover `Motivos de Ocorrência` do menu Armazém.
+- Menu Configurações fica: Empresas, Usuários, Perfis de Acesso, Tipos de Tarefa, **Motivos de Ocorrência**, Integração ERP, Roteiro de Separação.
+
+**`src/App.tsx`**:
+- Remover import e `case "/config/ocorrencia-sla"` + entrada do breadcrumbMap.
+- Renomear `case "/armazem/motivos"` para `case "/config/motivos-ocorrencia"` mantendo o antigo como alias (compatibilidade).
+- Adicionar breadcrumb: `"/config/motivos-ocorrencia": [CORE LogiTrack, Configurações, Motivos de Ocorrência]`.
+
+Arquivo `OcorrenciaSlaConfigPage.tsx` permanece no repo (sem rota).
+
+## 4. Notas técnicas
+
+- Sem alterações em `src/pages/coletor/*`, `src/modules/reports/*`, ou schema.
+- Types do Supabase são regenerados automaticamente pela Lovable; código usa cast `(supabase as any)` já presente, então não bloqueia.
+- Nenhum novo componente — reutiliza CrudTable, StatusBadge, Switch, Dialog.
