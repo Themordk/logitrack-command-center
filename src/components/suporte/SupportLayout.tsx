@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { Boxes, LogOut, ChevronRight, Building2, MessageSquare, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
 
 interface Props {
   currentPath: string;
