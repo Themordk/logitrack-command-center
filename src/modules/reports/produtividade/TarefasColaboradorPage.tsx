@@ -343,6 +343,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
                     <Th k="atribuido_em" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Atribuição</Th>
                     <Th k="concluido_em" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Execução</Th>
                     <Th k="tipo_tarefa_descricao" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Tipo Tarefa</Th>
+                    <Th k="tipo_tarefa_categoria" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Categoria</Th>
                     <Th k="tarefa_id" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>ID</Th>
                     <Th k="produto_sku" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>SKU</Th>
                     <Th k="produto_descricao" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Produto</Th>
