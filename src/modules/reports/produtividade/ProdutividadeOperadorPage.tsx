@@ -354,7 +354,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                   ))}
                   {timeline.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
                         Nenhuma execução encontrada para este período.
                       </td>
                     </tr>
