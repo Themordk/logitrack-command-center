@@ -71,7 +71,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 type SortKey =
-  | "atribuido_em" | "concluido_em" | "tipo_tarefa_descricao" | "tarefa_id"
+  | "atribuido_em" | "concluido_em" | "tipo_tarefa_descricao" | "tipo_tarefa_categoria" | "tarefa_id"
   | "produto_sku" | "produto_descricao" | "quantidade_requerida"
   | "quantidade_executada" | "quantidade_cortada" | "duracao_segundos"
   | "espera_segundos" | "endereco_origem" | "endereco_destino"
