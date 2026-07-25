@@ -172,15 +172,11 @@ export function ColetorLoginPage({ onNavigate }: Props) {
                 borderRightColor: "transparent",
               }}
             />
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
-              style={{
-                background: "linear-gradient(135deg, hsl(217 91% 55%), hsl(217 91% 40%))",
-                boxShadow: "0 10px 30px -10px rgba(59,130,246,0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
-              }}
-            >
-              <img src={logoUrl} alt="CORE LogiTrack" style={{ width: 28, height: 28, objectFit: "contain" }} />
-            </div>
+            <img
+              src={logoUrl}
+              alt="CORE LogiTrack"
+              style={{ width: 48, height: 48, objectFit: "contain", filter: "drop-shadow(0 6px 16px rgba(59,130,246,0.35))" }}
+            />
           </div>
 
           <h1 className="text-2xl font-bold text-white tracking-tight">
