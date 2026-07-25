@@ -283,7 +283,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                   />
                   <Bar dataKey="tempoMedio" name="Tempo Médio (s)" radius={[4, 4, 0, 0]}>
                     {porTipoData.map((entry, i) => (
-                      <Cell key={i} fill={getTaskColor(entry.codigo)} />
+                      <Cell key={i} fill={getTaskColor(entry.corInterface, entry.codigo)} />
                     ))}
                   </Bar>
                 </BarChart>
