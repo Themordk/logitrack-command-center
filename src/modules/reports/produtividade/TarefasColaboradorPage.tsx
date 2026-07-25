@@ -367,7 +367,13 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
                       <tr key={r.execucao_id} className="border-b border-border hover:bg-muted/30 transition-colors">
                         <td className="px-3 py-2 text-foreground whitespace-nowrap">{formatDateTimeNaive(r.atribuido_em)}</td>
                         <td className="px-3 py-2 text-foreground whitespace-nowrap">{r.concluido_em ? formatDateTimeNaive(r.concluido_em) : "—"}</td>
-                        <td className="px-3 py-2 text-foreground">{r.tipo_tarefa_descricao || r.tipo_tarefa_codigo || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            {r.cor_interface && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.cor_interface }} />}
+                            <span className="text-foreground">{r.tipo_tarefa_descricao || r.tipo_tarefa_codigo || "—"}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">{r.tipo_tarefa_categoria || "—"}</td>
                         <td className="px-3 py-2 font-mono text-muted-foreground">{(r.tarefa_id || "").slice(0, 8)}</td>
                         <td className="px-3 py-2 font-mono text-foreground">{r.produto_sku || "—"}</td>
                         <td className="px-3 py-2 text-foreground" title={r.produto_descricao || undefined}>{truncar(r.produto_descricao, 40)}</td>
