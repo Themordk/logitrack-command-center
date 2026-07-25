@@ -332,6 +332,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                           <span className="text-foreground">{t.tipo_tarefa_descricao}</span>
                         </div>
                       </td>
+                      <td className="p-3 text-xs text-muted-foreground">{t.tipo_tarefa_categoria || "—"}</td>
                       <td className="p-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           t.status === "CONCLUIDA" ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"
