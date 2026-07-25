@@ -313,7 +313,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                     <tr key={t.execucao_id} className="border-b border-border/50 hover:bg-muted/20">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getTaskColor(t.tipo_tarefa_codigo) }} />
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo) }} />
                           <span className="text-foreground">{t.tipo_tarefa_descricao}</span>
                         </div>
                       </td>
