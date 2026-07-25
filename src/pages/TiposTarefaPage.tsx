@@ -3,7 +3,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Save, Loader2 } from "lucide-react";
