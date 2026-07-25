@@ -396,7 +396,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
                 </tbody>
                 <tfoot>
                   <tr className="bg-muted/40 font-semibold text-foreground">
-                    <td className="px-3 py-2" colSpan={6}>Totais ({fmtNumberBR(filtered.length)} registros)</td>
+                    <td className="px-3 py-2" colSpan={7}>Totais ({fmtNumberBR(filtered.length)} registros)</td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNumberBR(Math.round(totais.qtdReq))}</td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNumberBR(Math.round(totais.qtdExec))}</td>
                     <td className={`px-3 py-2 text-right font-mono ${totais.qtdCort > 0 ? "text-red-400" : ""}`}>{fmtNumberBR(Math.round(totais.qtdCort))}</td>
