@@ -1,49 +1,34 @@
 
-# Revisão Tipos de Tarefa + LMS + Reorganização de Configurações
+# Fase 2 — Refletir campos LMS nos painéis de produtividade
 
-Migration já aplicada no banco (novos campos em `tipo_tarefa` e `motivo_ocorrencia`). Aplicar apenas mudanças de frontend conforme prompt.
+Aplicar campos LMS (`cor_interface`, `tipo_tarefa_categoria`, `aderencia_meta_pct`) já disponibilizados pelo `produtividade.service.ts` em duas páginas. Todas as adições são **opcionais**: se os campos vierem `null`, comportamento atual permanece intacto.
 
-## 1. `src/pages/TiposTarefaPage.tsx` — Refatoração completa
+## Arquivos alterados (apenas 2)
 
-**Interface `TipoTarefa`**: substituir por: `id, codigo, descricao, ativo, categoria, tipo_movimento, tempo_estimado_segundos, meta_unidades_hora, meta_tarefas_hora, unidade_medida, peso_produtividade, cor_interface, empresa_id`. Remover `prioridade_padrao`, `gera_movimento_estoque`, `bloqueia_estoque`, `exige_conferencia`.
+### 1. `src/modules/reports/produtividade/ProdutividadeOperadorPage.tsx`
 
-**Colunas do grid** (ordem):
-- `codigo` (mono), `descricao`
-- `categoria` — badge colorido por valor (10 cores mapeadas: RECEBIMENTO=azul, ARMAZENAGEM=roxo, SEPARACAO=âmbar, CONFERENCIA=teal, EXPEDICAO=verde, ABASTECIMENTO=laranja, INVENTARIO=ciano, MOVIMENTACAO=índigo, AUDITORIA/OUTROS=cinza)
-- `tipo_movimento` (mantém Entrada/Saída/Transferência)
-- `tempo_estimado_segundos` → label "SET (s)"
-- `meta_unidades_hora` → `{valor} {unidade_medida}/h` ou "—"
-- `peso_produtividade` → número 1 casa decimal
-- `ativo` → StatusBadge Sim/Não
+- **Cor configurável**: remover `TASK_COLORS` e o `getTaskColor(codigo)` atuais. Adicionar `DEFAULT_TASK_COLORS` + nova assinatura `getTaskColor(corInterface, codigo)` com fallback para o default e depois para azul base.
+- Atualizar todas as chamadas para passar `cor_interface`:
+  - `ganttData` map → `color: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo)`
+  - Mapa `porTipo` passa a armazenar `corInterface` (da primeira entrada do grupo); `<Cell fill={getTaskColor(entry.corInterface, entry.codigo)} />`
+  - Tabela "Execuções Detalhadas" → mesma troca
+  - Legenda do Gantt: usar `Map(ganttData.map(g => [codigo, g]))` para preservar amostra e passar `sample.cor_interface`
+- **KPI Aderência à Meta (condicional)**: calcular `aderenciaMedia` sobre `concluidas.filter(t => t.aderencia_meta_pct != null)`. Se `null`, não renderiza. Grid dos KPIs passa a `grid-cols-2 md:grid-cols-4 lg:grid-cols-5`. Cor semântica: verde ≥100, âmbar ≥80, vermelho <80.
+- **Coluna "Categoria"** na tabela de execuções detalhadas, antes de "Status": exibe `t.tipo_tarefa_categoria || "—"`.
 
-**Modal `TipoTarefaEditModal`** — reorganizado em 2 seções separadas por `border-t border-border`:
+### 2. `src/modules/reports/produtividade/TarefasColaboradorPage.tsx`
 
-- **Seção 1 — "Configuração operacional"**: `codigo` (disabled), `descricao` (disabled), `categoria` (select 10 valores), `tipo_movimento` (select existente), `ativo` (switch)
-- **Seção 2 — "Parâmetros de produtividade (LMS)"**: `tempo_estimado_segundos`, `meta_unidades_hora`, `meta_tarefas_hora`, `unidade_medida` (text), `peso_produtividade` (number step 0.1), `cor_interface` (`<input type="color">` com swatch 24x24 ao lado; default `#6366f1`)
+- Adicionar `"tipo_tarefa_categoria"` ao union `SortKey`.
+- Nova coluna sortável "Categoria" no `<thead>` após "Tipo Tarefa"; célula no `<tbody>` com `r.tipo_tarefa_categoria || "—"`.
+- Célula "Tipo Tarefa" ganha bolinha colorida (`w-2 h-2 rounded-full`) usando `r.cor_interface`, exibida apenas se cor existir.
+- `exportColumns`: adicionar item `{ key: "tipo_tarefa_categoria", label: "Categoria", ... }` após `tipo_tarefa_descricao`.
 
-Grid `grid-cols-1 md:grid-cols-2 gap-4`; input de cor ocupa 1 coluna própria. Payload atualizado sem os 4 campos removidos.
+## Fora de escopo (explícito)
 
-## 2. `src/pages/MotivosOcorrenciaPage.tsx` — Campos SLA
+- `produtividade.service.ts` — não alterar (já atualizado)
+- `ProdutividadeDashboardPage.tsx` — fase 3 (depende de `fn_consolidar_lms_diario`)
+- Nenhum outro arquivo do projeto
 
-- Adicionar em `fields` (antes de `ativo`): `sla_horas` (number, "SLA (horas)") e `sla_notificar_percentual` (number, "Alerta em (% do SLA)", default 80).
-- Adicionar em `columns` (antes de `ativo`): `sla_horas` renderizado como `{n}h` ou "—".
+## Verificação
 
-## 3. Reorganização de menu
-
-**`src/components/TopNav.tsx`**:
-- Remover `SLA de Ocorrências` de Configurações.
-- Remover `Motivos de Ocorrência` do menu Armazém.
-- Menu Configurações fica: Empresas, Usuários, Perfis de Acesso, Tipos de Tarefa, **Motivos de Ocorrência**, Integração ERP, Roteiro de Separação.
-
-**`src/App.tsx`**:
-- Remover import e `case "/config/ocorrencia-sla"` + entrada do breadcrumbMap.
-- Renomear `case "/armazem/motivos"` para `case "/config/motivos-ocorrencia"` mantendo o antigo como alias (compatibilidade).
-- Adicionar breadcrumb: `"/config/motivos-ocorrencia": [CORE LogiTrack, Configurações, Motivos de Ocorrência]`.
-
-Arquivo `OcorrenciaSlaConfigPage.tsx` permanece no repo (sem rota).
-
-## 4. Notas técnicas
-
-- Sem alterações em `src/pages/coletor/*`, `src/modules/reports/*`, ou schema.
-- Types do Supabase são regenerados automaticamente pela Lovable; código usa cast `(supabase as any)` já presente, então não bloqueia.
-- Nenhum novo componente — reutiliza CrudTable, StatusBadge, Switch, Dialog.
+Rodar `tsgo` após as edições para confirmar tipagem dos novos campos e do `SortKey`.
