@@ -9,7 +9,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 import { useTenant } from "@/contexts/TenantContext";
 import { useTenantBoot } from "@/contexts/TenantBootContext";
-import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
+import logoUrl from "@/assets/corelogitrack-logo.png";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -179,7 +179,7 @@ export function ColetorLoginPage({ onNavigate }: Props) {
                 boxShadow: "0 10px 30px -10px rgba(59,130,246,0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
               }}
             >
-              <img src={logoAsset.url} alt="CORE LogiTrack" style={{ width: 28, height: 28, objectFit: "contain" }} />
+              <img src={logoUrl} alt="CORE LogiTrack" style={{ width: 28, height: 28, objectFit: "contain" }} />
             </div>
           </div>
 
