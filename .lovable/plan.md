@@ -1,57 +1,40 @@
-Plano de correção cirúrgica em `src/modules/reports/produtividade/produtividade.service.ts`
+# Substituição da Logo do Produto CORE LogiTrack
 
-Objetivo: Restaurar dois trechos que foram revertidos acidentalmente para a versão antiga, adicionando os campos LMS à interface `DetalheTipoTarefaRow` e ao select de `fetchDetalheTipoTarefa`, sem tocar em nenhum outro arquivo ou trecho.
+## Contexto
 
-Escopo: 2 substituições de texto no mesmo arquivo.
+Hoje a "logo do produto" é representada pelo ícone `Boxes` (lucide-react) dentro de um quadrado com `bg-primary`, acompanhado do texto "CORE LogiTrack". Isso aparece em 5 pontos do sistema, além dos ícones do PWA/favicon. O arquivo enviado (`pasted-...txt`) contém a nova logo em base64 (PNG).
 
----
+As logos configuráveis por tenant em etiquetas (`EtiquetaHUPreview`, `EtiquetaEnderecoPreview`, `EtiquetaVolumePreview`) **não** serão alteradas — são logos do cliente, não do produto.
 
-Alterações
+## Passos
 
-1. Atualizar a interface `DetalheTipoTarefaRow`
-   - Local: por volta da linha 49, dentro da propriedade `tipo_tarefa`.
-   - Substituir:
-     ```ts
-       tipo_tarefa?: { codigo: string; descricao: string; tempo_estimado_segundos: number | null } | null;
-     ```
-   - Por:
-     ```ts
-       tipo_tarefa?: {
-         codigo: string;
-         descricao: string;
-         tempo_estimado_segundos: number | null;
-         categoria: string | null;
-         meta_unidades_hora: number | null;
-         meta_tarefas_hora: number | null;
-         peso_produtividade: number | null;
-         cor_interface: string | null;
-         unidade_medida: string | null;
-       } | null;
-     ```
+### 1. Preparar o arquivo da logo
+- Decodificar o base64 do `user-uploads://pasted-2026-07-25T16-03-37-278Z.txt` para um PNG local em `/tmp/corelogitrack-logo.png`.
+- Fazer upload via `lovable-assets create` para `src/assets/corelogitrack-logo.png.asset.json` (CDN).
+- Gerar variações do favicon/PWA a partir do mesmo PNG (192x192, 512x512, favicon.ico) usando ImageMagick/PIL e substituir em `public/`.
 
-2. Atualizar o select de `fetchDetalheTipoTarefa`
-   - Local: por volta da linha 85, dentro da função `fetchDetalheTipoTarefa`.
-   - Substituir:
-     ```ts
-           tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos )
-     ```
-   - Por:
-     ```ts
-           tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos, categoria, meta_unidades_hora, meta_tarefas_hora, peso_produtividade, cor_interface, unidade_medida )
-     ```
+### 2. Substituir a logo nos 5 pontos de UI
+Em cada local, trocar o bloco `<div className="... bg-primary"><Boxes/></div>` por um `<img src={logoAsset.url} alt="CORE LogiTrack" />` com **exatamente** as mesmas dimensões atuais (sem redimensionar o layout):
 
----
+| Arquivo | Local atual | Tamanho preservado |
+|---|---|---|
+| `src/components/TopNav.tsx` (L177-180) | Header administrativo | 28×28px (`w-7 h-7`) |
+| `src/pages/LoginPage.tsx` (L235-245) | Tela de login (dentro do orbital) | 46×46px (inset 8 de 62) |
+| `src/components/tenant/TenantBootScreens.tsx` (L13, L104) | Splash screens de boot | 56×56px |
+| `src/components/suporte/SupportLayout.tsx` (L36) | Header módulo suporte | 28×28px |
+| `src/pages/coletor/ColetorLoginPage.tsx` (L181) | Login do Coletor | 40×40px |
 
-O que não será alterado
+O container arredondado com `bg-primary` será mantido apenas onde faz sentido visual (fundo do ícone); a imagem será encaixada dentro com `object-contain` para não distorcer.
 
-- Nenhum outro arquivo do projeto.
-- Nenhum outro trecho dentro de `produtividade.service.ts`.
-- Interfaces `TimelineEntry` e `TarefaColaboradorRow` (já corretas).
-- Funções `fetchTimelineOperador`, `fetchTarefasColaborador`, `fetchProdutividadeDiaria`, `fetchOperadores` e `fetchTurnos`.
-- Imports, formatação, nome de variáveis ou estrutura geral do arquivo.
+### 3. Favicon e PWA
+- Substituir `public/favicon.ico`, `public/pwa-192x192.png`, `public/pwa-512x512.png` pelas versões geradas a partir da nova logo.
+- Nenhuma alteração necessária em `vite.config.ts` ou `index.html` — os caminhos permanecem.
 
----
+## Fora de escopo
+- Etiquetas térmicas (logos configuráveis por template do cliente).
+- Textos "CORE LogiTrack" e cores da marca — permanecem inalterados.
+- Tela de splash / WarehouseCanvas do login (animação 3D lateral) — não usa a logo.
 
-Validação
-
-- Após a edição, executar verificação de tipos (`tsgo` ou `bunx tsc --noEmit`) para garantir que a interface expandida continua compatível com os demais módulos.
+## Verificação
+- `bun run build` para confirmar que os imports/`.asset.json` resolvem.
+- Inspeção visual dos 5 pontos após o restart.
