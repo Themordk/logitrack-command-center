@@ -242,7 +242,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
                 boxShadow: "0 8px 24px rgba(29,78,216,0.45)",
               }}
             >
-              <Boxes size={24} className="text-white" />
+              <img src={logoAsset.url} alt="CORE LogiTrack" style={{ width: 32, height: 32, objectFit: "contain" }} />
             </div>
           </div>
 
