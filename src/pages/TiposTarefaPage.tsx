@@ -206,13 +206,14 @@ function TipoTarefaEditModal({
   const corAtual = form.cor_interface || "#6366f1";
 
   return (
-    <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Editar Tipo de Tarefa</DialogTitle>
-        </DialogHeader>
+    <Sheet open={!!item} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl !p-0 flex flex-col gap-0">
+        <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+          <SheetTitle>Editar Tipo de Tarefa</SheetTitle>
+        </SheetHeader>
 
-        <div className="py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+
           {/* Seção 1 — Configuração operacional */}
           <h3 className={sectionTitle}>Configuração operacional</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
