@@ -315,6 +315,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                 <thead className="sticky top-0 bg-card z-10">
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-3 font-medium text-muted-foreground">Tipo</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Categoria</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Qtd Exec.</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Duração</th>
