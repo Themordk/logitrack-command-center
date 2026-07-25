@@ -3,7 +3,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Save, Loader2 } from "lucide-react";
@@ -206,13 +206,14 @@ function TipoTarefaEditModal({
   const corAtual = form.cor_interface || "#6366f1";
 
   return (
-    <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Editar Tipo de Tarefa</DialogTitle>
-        </DialogHeader>
+    <Sheet open={!!item} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl !p-0 flex flex-col gap-0">
+        <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+          <SheetTitle>Editar Tipo de Tarefa</SheetTitle>
+        </SheetHeader>
 
-        <div className="py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+
           {/* Seção 1 — Configuração operacional */}
           <h3 className={sectionTitle}>Configuração operacional</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -332,7 +333,7 @@ function TipoTarefaEditModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex-row justify-end gap-2">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -347,8 +348,8 @@ function TipoTarefaEditModal({
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             {saving ? "Salvando..." : "Salvar"}
           </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
