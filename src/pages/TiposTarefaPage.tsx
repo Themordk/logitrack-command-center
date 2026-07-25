@@ -333,7 +333,7 @@ function TipoTarefaEditModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex-row justify-end gap-2">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -348,8 +348,8 @@ function TipoTarefaEditModal({
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             {saving ? "Salvando..." : "Salvar"}
           </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
