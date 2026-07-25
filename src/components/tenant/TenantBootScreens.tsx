@@ -2,7 +2,7 @@ import { Boxes, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import { buildAppUrl, buildTenantUrl, getRootDomain } from "@/lib/tenantSubdomain";
 import { useState } from "react";
-import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
+import logoUrl from "@/assets/corelogitrack-logo.png";
 
 const SLUG_RE = /^[a-z0-9-]{2,40}$/;
 
