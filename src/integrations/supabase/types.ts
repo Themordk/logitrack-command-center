@@ -6888,9 +6888,11 @@ export type Database = {
       }
       vw_lms_timeline_operador: {
         Row: {
+          aderencia_meta_pct: number | null
           armazem_id: string | null
           atribuido_em: string | null
           concluido_em: string | null
+          cor_interface: string | null
           criado_em: string | null
           duracao_segundos: number | null
           empresa_id: string | null
@@ -6900,7 +6902,10 @@ export type Database = {
           habilidade: Database["public"]["Enums"]["enum_habilidade"] | null
           id_documento_origem: string | null
           iniciado_em: string | null
+          meta_tarefas_hora: number | null
+          meta_unidades_hora: number | null
           performance_pct: number | null
+          peso_produtividade: number | null
           quantidade_cortada: number | null
           quantidade_executada: number | null
           quantidade_requerida: number | null
@@ -6914,12 +6919,16 @@ export type Database = {
           tipo_operacao:
             | Database["public"]["Enums"]["enum_tipo_operacao"]
             | null
+          tipo_tarefa_categoria:
+            | Database["public"]["Enums"]["enum_etapa_ocorrencia"]
+            | null
           tipo_tarefa_codigo: string | null
           tipo_tarefa_descricao: string | null
           turno_descricao: string | null
           turno_fim: string | null
           turno_id: string | null
           turno_inicio: string | null
+          unidade_medida: string | null
           usuario_id: string | null
           usuario_nome: string | null
         }
@@ -9735,6 +9744,7 @@ export type Database = {
           armazem_id: string
           atribuido_em: string
           concluido_em: string
+          cor_interface: string
           documento_origem_id: string
           documento_origem_tipo: string
           duracao_segundos: number
@@ -9745,6 +9755,9 @@ export type Database = {
           execucao_id: string
           iniciado_em: string
           lote: string
+          meta_tarefas_hora: number
+          meta_unidades_hora: number
+          peso_produtividade: number
           produto_descricao: string
           produto_sku: string
           quantidade_cortada: number
@@ -9753,8 +9766,10 @@ export type Database = {
           status_execucao: string
           tarefa_id: string
           tempo_estimado_seg: number
+          tipo_tarefa_categoria: string
           tipo_tarefa_codigo: string
           tipo_tarefa_descricao: string
+          unidade_medida: string
           usuario_id: string
           usuario_nome: string
         }[]
