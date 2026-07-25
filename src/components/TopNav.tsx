@@ -5,6 +5,7 @@ import { usePermissions } from "@/contexts/PermissionsContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
+import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
 
 import {
   Building2,
@@ -175,9 +176,11 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
       <div className="flex h-full items-center px-4 gap-0">
         {/* Logo */}
         <div className="flex items-center gap-2.5 pr-6 border-r border-border">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary">
-            <Boxes size={14} className="text-primary-foreground" />
-          </div>
+          <img
+            src={logoAsset.url}
+            alt="CORE LogiTrack"
+            className="w-7 h-7 object-contain"
+          />
           <div>
             <span className="font-bold text-sm text-foreground tracking-tight">CORE</span>
             <span className="font-bold text-sm text-primary tracking-tight"> LogiTrack</span>

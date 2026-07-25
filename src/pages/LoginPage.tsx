@@ -6,6 +6,7 @@ import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal"
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { parseError } from "@/lib/errorMapper";
+import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -241,7 +242,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
                 boxShadow: "0 8px 24px rgba(29,78,216,0.45)",
               }}
             >
-              <Boxes size={24} className="text-white" />
+              <img src={logoAsset.url} alt="CORE LogiTrack" style={{ width: 32, height: 32, objectFit: "contain" }} />
             </div>
           </div>
 
