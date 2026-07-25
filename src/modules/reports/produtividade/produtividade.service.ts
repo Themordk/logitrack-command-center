@@ -231,6 +231,13 @@ export interface TarefaColaboradorRow {
   documento_origem_id: string | null;
   empresa_id: string;
   armazem_id: string | null;
+  tipo_tarefa_categoria?: string | null;
+  cor_interface?: string | null;
+  unidade_medida?: string | null;
+  meta_unidades_hora?: number | null;
+  meta_tarefas_hora?: number | null;
+  peso_produtividade?: number | null;
+  aderencia_meta_pct?: number | null;
 }
 
 export async function fetchTarefasColaborador(params: {
