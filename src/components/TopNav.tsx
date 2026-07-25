@@ -5,6 +5,7 @@ import { usePermissions } from "@/contexts/PermissionsContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
+import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
 
 import {
   Building2,
