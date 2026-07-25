@@ -46,7 +46,7 @@ const navItems: NavItem[] = [
       { label: "Localizações / Endereços", path: "/armazem/enderecos" },
       { label: "Box", path: "/armazem/box" },
       { label: "Turnos", path: "/armazem/turnos" },
-      { label: "Motivos de Ocorrência", path: "/armazem/motivos" },
+      
       { label: "Veículos", path: "/armazem/veiculos" },
       { label: "Zonas de Atividade", path: "/armazem/zonas" },
       { label: "Templates de Etiqueta", path: "/armazem/etiquetas" },
@@ -107,13 +107,11 @@ const navItems: NavItem[] = [
     children: [
       { label: "Empresas", path: "/config/empresas" },
       { label: "Usuários", path: "/config/usuarios" },
-      { label: "Integração ERP", path: "/config/integracao" },
       { label: "Perfis de Acesso", path: "/config/perfis" },
       { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
-      { label: "SLA de Ocorrências", path: "/config/ocorrencia-sla" },
+      { label: "Motivos de Ocorrência", path: "/config/motivos-ocorrencia" },
+      { label: "Integração ERP", path: "/config/integracao" },
       { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
-
-
     ],
   },
 ];
