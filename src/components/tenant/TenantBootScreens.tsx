@@ -10,8 +10,8 @@ export function TenantBootSplash() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center">
-          <Boxes size={28} className="text-primary-foreground" />
+        <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center p-2">
+          <img src={logoAsset.url} alt="CORE LogiTrack" className="w-full h-full object-contain" />
         </div>
         <Loader2 className="text-primary animate-spin" size={24} />
         <div className="text-sm text-muted-foreground">Identificando seu ambiente…</div>
