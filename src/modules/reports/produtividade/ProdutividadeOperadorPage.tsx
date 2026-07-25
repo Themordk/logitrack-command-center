@@ -189,7 +189,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
       ) : (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <CheckCircle size={16} />
