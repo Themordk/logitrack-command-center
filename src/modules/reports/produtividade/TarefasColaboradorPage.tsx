@@ -204,6 +204,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
     { key: "atribuido_em", label: "Atribuição", format: (r) => fmtDateTimeBR(r.atribuido_em) },
     { key: "concluido_em", label: "Execução", format: (r) => (r.concluido_em ? fmtDateTimeBR(r.concluido_em) : "") },
     { key: "tipo_tarefa_descricao", label: "Tipo Tarefa" },
+    { key: "tipo_tarefa_categoria", label: "Categoria", format: (r) => r.tipo_tarefa_categoria || "" },
     { key: "tarefa_id", label: "ID Tarefa", format: (r) => (r.tarefa_id || "").slice(0, 8) },
     { key: "produto_sku", label: "SKU", format: (r) => r.produto_sku || "" },
     { key: "produto_descricao", label: "Produto", format: (r) => r.produto_descricao || "" },
