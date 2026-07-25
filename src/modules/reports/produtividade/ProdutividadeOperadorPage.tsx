@@ -96,6 +96,11 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   const horasProdutivas = tempoProdutivo / 3600;
   const produtividadeHora = horasProdutivas > 0 ? Math.round(qtdTotal / horasProdutivas) : 0;
 
+  const comMeta = concluidas.filter((t) => t.aderencia_meta_pct != null);
+  const aderenciaMedia = comMeta.length > 0
+    ? Math.round(comMeta.reduce((s, t) => s + (t.aderencia_meta_pct || 0), 0) / comMeta.length)
+    : null;
+
   // Gantt data - group by tipo_tarefa for bar chart
   const porTipo = new Map<string, { codigo: string; desc: string; corInterface: string | null; tempo: number; count: number; qtd: number }>();
   for (const t of concluidas) {
