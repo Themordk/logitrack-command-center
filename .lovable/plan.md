@@ -1,34 +1,57 @@
+Plano de correção cirúrgica em `src/modules/reports/produtividade/produtividade.service.ts`
 
-# Fase 2 — Refletir campos LMS nos painéis de produtividade
+Objetivo: Restaurar dois trechos que foram revertidos acidentalmente para a versão antiga, adicionando os campos LMS à interface `DetalheTipoTarefaRow` e ao select de `fetchDetalheTipoTarefa`, sem tocar em nenhum outro arquivo ou trecho.
 
-Aplicar campos LMS (`cor_interface`, `tipo_tarefa_categoria`, `aderencia_meta_pct`) já disponibilizados pelo `produtividade.service.ts` em duas páginas. Todas as adições são **opcionais**: se os campos vierem `null`, comportamento atual permanece intacto.
+Escopo: 2 substituições de texto no mesmo arquivo.
 
-## Arquivos alterados (apenas 2)
+---
 
-### 1. `src/modules/reports/produtividade/ProdutividadeOperadorPage.tsx`
+Alterações
 
-- **Cor configurável**: remover `TASK_COLORS` e o `getTaskColor(codigo)` atuais. Adicionar `DEFAULT_TASK_COLORS` + nova assinatura `getTaskColor(corInterface, codigo)` com fallback para o default e depois para azul base.
-- Atualizar todas as chamadas para passar `cor_interface`:
-  - `ganttData` map → `color: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo)`
-  - Mapa `porTipo` passa a armazenar `corInterface` (da primeira entrada do grupo); `<Cell fill={getTaskColor(entry.corInterface, entry.codigo)} />`
-  - Tabela "Execuções Detalhadas" → mesma troca
-  - Legenda do Gantt: usar `Map(ganttData.map(g => [codigo, g]))` para preservar amostra e passar `sample.cor_interface`
-- **KPI Aderência à Meta (condicional)**: calcular `aderenciaMedia` sobre `concluidas.filter(t => t.aderencia_meta_pct != null)`. Se `null`, não renderiza. Grid dos KPIs passa a `grid-cols-2 md:grid-cols-4 lg:grid-cols-5`. Cor semântica: verde ≥100, âmbar ≥80, vermelho <80.
-- **Coluna "Categoria"** na tabela de execuções detalhadas, antes de "Status": exibe `t.tipo_tarefa_categoria || "—"`.
+1. Atualizar a interface `DetalheTipoTarefaRow`
+   - Local: por volta da linha 49, dentro da propriedade `tipo_tarefa`.
+   - Substituir:
+     ```ts
+       tipo_tarefa?: { codigo: string; descricao: string; tempo_estimado_segundos: number | null } | null;
+     ```
+   - Por:
+     ```ts
+       tipo_tarefa?: {
+         codigo: string;
+         descricao: string;
+         tempo_estimado_segundos: number | null;
+         categoria: string | null;
+         meta_unidades_hora: number | null;
+         meta_tarefas_hora: number | null;
+         peso_produtividade: number | null;
+         cor_interface: string | null;
+         unidade_medida: string | null;
+       } | null;
+     ```
 
-### 2. `src/modules/reports/produtividade/TarefasColaboradorPage.tsx`
+2. Atualizar o select de `fetchDetalheTipoTarefa`
+   - Local: por volta da linha 85, dentro da função `fetchDetalheTipoTarefa`.
+   - Substituir:
+     ```ts
+           tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos )
+     ```
+   - Por:
+     ```ts
+           tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos, categoria, meta_unidades_hora, meta_tarefas_hora, peso_produtividade, cor_interface, unidade_medida )
+     ```
 
-- Adicionar `"tipo_tarefa_categoria"` ao union `SortKey`.
-- Nova coluna sortável "Categoria" no `<thead>` após "Tipo Tarefa"; célula no `<tbody>` com `r.tipo_tarefa_categoria || "—"`.
-- Célula "Tipo Tarefa" ganha bolinha colorida (`w-2 h-2 rounded-full`) usando `r.cor_interface`, exibida apenas se cor existir.
-- `exportColumns`: adicionar item `{ key: "tipo_tarefa_categoria", label: "Categoria", ... }` após `tipo_tarefa_descricao`.
+---
 
-## Fora de escopo (explícito)
+O que não será alterado
 
-- `produtividade.service.ts` — não alterar (já atualizado)
-- `ProdutividadeDashboardPage.tsx` — fase 3 (depende de `fn_consolidar_lms_diario`)
-- Nenhum outro arquivo do projeto
+- Nenhum outro arquivo do projeto.
+- Nenhum outro trecho dentro de `produtividade.service.ts`.
+- Interfaces `TimelineEntry` e `TarefaColaboradorRow` (já corretas).
+- Funções `fetchTimelineOperador`, `fetchTarefasColaborador`, `fetchProdutividadeDiaria`, `fetchOperadores` e `fetchTurnos`.
+- Imports, formatação, nome de variáveis ou estrutura geral do arquivo.
 
-## Verificação
+---
 
-Rodar `tsgo` após as edições para confirmar tipagem dos novos campos e do `SortKey`.
+Validação
+
+- Após a edição, executar verificação de tipos (`tsgo` ou `bunx tsc --noEmit`) para garantir que a interface expandida continua compatível com os demais módulos.
