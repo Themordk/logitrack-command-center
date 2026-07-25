@@ -1,40 +1,55 @@
-# Substituição da Logo do Produto CORE LogiTrack
+## Objetivo
 
-## Contexto
+Resolver 2 problemas visuais/técnicos com a nova logo do CORE LogiTrack:
 
-Hoje a "logo do produto" é representada pelo ícone `Boxes` (lucide-react) dentro de um quadrado com `bg-primary`, acompanhado do texto "CORE LogiTrack". Isso aparece em 5 pontos do sistema, além dos ícones do PWA/favicon. O arquivo enviado (`pasted-...txt`) contém a nova logo em base64 (PNG).
+1. **Container azul atrás da logo** prejudica a leitura da marca (a logo já tem identidade visual própria com fundo/emblema — colocá-la dentro de um quadrado `bg-primary` cria um "duplo fundo azul" desagradável — visível na tela Portal de Acesso / identificação de tenant e também no Login / Coletor / Splash).
+2. **Ícone quebrado da logo** em algumas telas (ex.: TopNav) apesar da URL do asset ser a mesma usada em outras telas — indica falha de resolução do path `/__l5e/assets-v1/...` em determinados contextos (provavelmente subdomínio de tenant / service worker cache).
 
-As logos configuráveis por tenant em etiquetas (`EtiquetaHUPreview`, `EtiquetaEnderecoPreview`, `EtiquetaVolumePreview`) **não** serão alteradas — são logos do cliente, não do produto.
+## Mudanças
 
-## Passos
+### 1. Remover fundo azul atrás da logo (5 pontos)
 
-### 1. Preparar o arquivo da logo
-- Decodificar o base64 do `user-uploads://pasted-2026-07-25T16-03-37-278Z.txt` para um PNG local em `/tmp/corelogitrack-logo.png`.
-- Fazer upload via `lovable-assets create` para `src/assets/corelogitrack-logo.png.asset.json` (CDN).
-- Gerar variações do favicon/PWA a partir do mesmo PNG (192x192, 512x512, favicon.ico) usando ImageMagick/PIL e substituir em `public/`.
+Em todos os lugares, trocar o wrapper `bg-primary rounded-* p-*` por um container transparente, deixando a logo se apresentar sozinha (ela já contém o "badge" azul característico da marca). Aumentar levemente o tamanho para compensar a perda do fundo.
 
-### 2. Substituir a logo nos 5 pontos de UI
-Em cada local, trocar o bloco `<div className="... bg-primary"><Boxes/></div>` por um `<img src={logoAsset.url} alt="CORE LogiTrack" />` com **exatamente** as mesmas dimensões atuais (sem redimensionar o layout):
+- **`src/components/tenant/TenantBootScreens.tsx`** (Portal de Acesso — screenshot enviado):
+  - `TenantBootPortal`: remover o quadrado `w-14 h-14 bg-primary` e usar somente `<img className="w-16 h-16 object-contain" />`.
+  - `TenantBootSplash`: mesmo tratamento.
+- **`src/pages/LoginPage.tsx`**: remover o gradiente azul `linear-gradient(#1d4ed8,#3b82f6)` do orbital central e exibir a logo direta (mantendo o anel animado externo intacto).
+- **`src/pages/coletor/ColetorLoginPage.tsx`**: remover o quadrado com gradiente azul; exibir a logo direta com sombra sutil.
+- **`src/components/suporte/SupportLayout.tsx`**: já está sem fundo (revisar apenas o tamanho para 28×28).
+- **`src/components/TopNav.tsx`**: já está sem fundo (só validar).
 
-| Arquivo | Local atual | Tamanho preservado |
-|---|---|---|
-| `src/components/TopNav.tsx` (L177-180) | Header administrativo | 28×28px (`w-7 h-7`) |
-| `src/pages/LoginPage.tsx` (L235-245) | Tela de login (dentro do orbital) | 46×46px (inset 8 de 62) |
-| `src/components/tenant/TenantBootScreens.tsx` (L13, L104) | Splash screens de boot | 56×56px |
-| `src/components/suporte/SupportLayout.tsx` (L36) | Header módulo suporte | 28×28px |
-| `src/pages/coletor/ColetorLoginPage.tsx` (L181) | Login do Coletor | 40×40px |
+### 2. Corrigir logo quebrada em outras telas
 
-O container arredondado com `bg-primary` será mantido apenas onde faz sentido visual (fundo do ícone); a imagem será encaixada dentro com `object-contain` para não distorcer.
+Diagnóstico: o `.asset.json` aponta para `/__l5e/assets-v1/…`, que depende do proxy do Lovable. Em contextos onde a página é servida (subdomínio de tenant, cache de service worker antigo, ou preview iframe) esse path pode ser interceptado e devolver HTML em vez do PNG (`Content-Type: text/html` confirmado no dev-server local).
 
-### 3. Favicon e PWA
-- Substituir `public/favicon.ico`, `public/pwa-192x192.png`, `public/pwa-512x512.png` pelas versões geradas a partir da nova logo.
-- Nenhuma alteração necessária em `vite.config.ts` ou `index.html` — os caminhos permanecem.
+Correção: converter a logo para um **asset local do Vite** (importado como módulo, servido pelo bundler com hash e URL relativa da própria origem), eliminando a dependência do caminho `/__l5e/`:
 
-## Fora de escopo
-- Etiquetas térmicas (logos configuráveis por template do cliente).
-- Textos "CORE LogiTrack" e cores da marca — permanecem inalterados.
-- Tela de splash / WarehouseCanvas do login (animação 3D lateral) — não usa a logo.
+1. Baixar o binário atual da CDN de volta para `src/assets/corelogitrack-logo.png` (via `curl` no CDN público, usando o `asset_id` do `.asset.json`).
+2. Trocar em todos os 5 arquivos:
+   ```ts
+   // antes
+   import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
+   <img src={logoAsset.url} ... />
+   // depois
+   import logoUrl from "@/assets/corelogitrack-logo.png";
+   <img src={logoUrl} ... />
+   ```
+3. Remover o `.asset.json` (não é mais usado). Manter os PNGs de `public/` (favicon, pwa-192, pwa-512) como estão.
+
+Isso garante que a logo carregue em qualquer subdomínio, preview ou tela, sem depender de rota externa.
+
+## Arquivos alterados
+
+- `src/components/tenant/TenantBootScreens.tsx`
+- `src/pages/LoginPage.tsx`
+- `src/pages/coletor/ColetorLoginPage.tsx`
+- `src/components/suporte/SupportLayout.tsx`
+- `src/components/TopNav.tsx`
+- `src/assets/corelogitrack-logo.png` (recriado a partir da CDN)
+- `src/assets/corelogitrack-logo.png.asset.json` (removido)
 
 ## Verificação
-- `bun run build` para confirmar que os imports/`.asset.json` resolvem.
-- Inspeção visual dos 5 pontos após o restart.
+
+- `bun run build` deve passar (o Vite hash-inclui a nova imagem).
+- Verificar visualmente no preview: Portal de Acesso, Login Portal, Login Coletor, TopNav, Splash — logo aparece sem quadrado azul atrás e sem ícone quebrado.
