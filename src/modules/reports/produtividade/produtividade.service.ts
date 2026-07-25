@@ -46,7 +46,17 @@ export interface DetalheTipoTarefaRow {
   tarefas_concluidas: number;
   quantidade_total: number;
   usuario?: { id: string; nome: string } | null;
-  tipo_tarefa?: { codigo: string; descricao: string; tempo_estimado_segundos: number | null } | null;
+  tipo_tarefa?: {
+    codigo: string;
+    descricao: string;
+    tempo_estimado_segundos: number | null;
+    categoria: string | null;
+    meta_unidades_hora: number | null;
+    meta_tarefas_hora: number | null;
+    peso_produtividade: number | null;
+    cor_interface: string | null;
+    unidade_medida: string | null;
+  } | null;
 }
 
 export async function fetchProdutividadeDiaria(
@@ -82,7 +92,7 @@ export async function fetchDetalheTipoTarefa(
     .select(`
       *,
       usuario:usuario_id ( id, nome ),
-      tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos )
+      tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos, categoria, meta_unidades_hora, meta_tarefas_hora, peso_produtividade, cor_interface, unidade_medida )
     `)
     .eq("tenant_id", filters.tenantId)
     .gte("data_referencia", filters.dataInicio)
