@@ -101,8 +101,8 @@ export function TenantPickerPage({ onNavigateSupport }: TenantPickerPageProps) {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="card-surface p-8 max-w-sm w-full">
         <div className="flex flex-col items-center gap-3 mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center">
-            <Boxes size={28} className="text-primary-foreground" />
+          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center p-2">
+            <img src={logoAsset.url} alt="CORE LogiTrack" className="w-full h-full object-contain" />
           </div>
           <div className="text-center">
             <h1 className="text-xl font-bold text-foreground">
