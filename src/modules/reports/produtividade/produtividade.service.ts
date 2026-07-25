@@ -139,6 +139,13 @@ export interface TimelineEntry {
   duracao_segundos: number | null;
   espera_segundos: number | null;
   tempo_estimado_segundos: number | null;
+  tipo_tarefa_categoria: string | null;
+  meta_unidades_hora: number | null;
+  meta_tarefas_hora: number | null;
+  peso_produtividade: number | null;
+  cor_interface: string | null;
+  unidade_medida: string | null;
+  aderencia_meta_pct: number | null;
 }
 
 export async function fetchTimelineOperador(
@@ -171,6 +178,13 @@ export async function fetchTimelineOperador(
     duracao_segundos: d.duracao_segundos ? Number(d.duracao_segundos) : null,
     espera_segundos: d.espera_segundos ? Number(d.espera_segundos) : null,
     tempo_estimado_segundos: d.tempo_estimado_segundos ? Number(d.tempo_estimado_segundos) : null,
+    tipo_tarefa_categoria: d.tipo_tarefa_categoria ?? null,
+    meta_unidades_hora: d.meta_unidades_hora != null ? Number(d.meta_unidades_hora) : null,
+    meta_tarefas_hora: d.meta_tarefas_hora != null ? Number(d.meta_tarefas_hora) : null,
+    peso_produtividade: d.peso_produtividade != null ? Number(d.peso_produtividade) : null,
+    cor_interface: d.cor_interface ?? null,
+    unidade_medida: d.unidade_medida ?? null,
+    aderencia_meta_pct: d.aderencia_meta_pct != null ? Number(d.aderencia_meta_pct) : null,
   }));
 }
 
@@ -217,6 +231,13 @@ export interface TarefaColaboradorRow {
   documento_origem_id: string | null;
   empresa_id: string;
   armazem_id: string | null;
+  tipo_tarefa_categoria?: string | null;
+  cor_interface?: string | null;
+  unidade_medida?: string | null;
+  meta_unidades_hora?: number | null;
+  meta_tarefas_hora?: number | null;
+  peso_produtividade?: number | null;
+  aderencia_meta_pct?: number | null;
 }
 
 export async function fetchTarefasColaborador(params: {

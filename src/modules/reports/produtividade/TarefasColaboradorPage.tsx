@@ -71,7 +71,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 type SortKey =
-  | "atribuido_em" | "concluido_em" | "tipo_tarefa_descricao" | "tarefa_id"
+  | "atribuido_em" | "concluido_em" | "tipo_tarefa_descricao" | "tipo_tarefa_categoria" | "tarefa_id"
   | "produto_sku" | "produto_descricao" | "quantidade_requerida"
   | "quantidade_executada" | "quantidade_cortada" | "duracao_segundos"
   | "espera_segundos" | "endereco_origem" | "endereco_destino"
@@ -204,6 +204,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
     { key: "atribuido_em", label: "Atribuição", format: (r) => fmtDateTimeBR(r.atribuido_em) },
     { key: "concluido_em", label: "Execução", format: (r) => (r.concluido_em ? fmtDateTimeBR(r.concluido_em) : "") },
     { key: "tipo_tarefa_descricao", label: "Tipo Tarefa" },
+    { key: "tipo_tarefa_categoria", label: "Categoria", format: (r) => r.tipo_tarefa_categoria || "" },
     { key: "tarefa_id", label: "ID Tarefa", format: (r) => (r.tarefa_id || "").slice(0, 8) },
     { key: "produto_sku", label: "SKU", format: (r) => r.produto_sku || "" },
     { key: "produto_descricao", label: "Produto", format: (r) => r.produto_descricao || "" },
@@ -342,6 +343,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
                     <Th k="atribuido_em" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Atribuição</Th>
                     <Th k="concluido_em" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Execução</Th>
                     <Th k="tipo_tarefa_descricao" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Tipo Tarefa</Th>
+                    <Th k="tipo_tarefa_categoria" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Categoria</Th>
                     <Th k="tarefa_id" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>ID</Th>
                     <Th k="produto_sku" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>SKU</Th>
                     <Th k="produto_descricao" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort}>Produto</Th>
@@ -365,7 +367,13 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
                       <tr key={r.execucao_id} className="border-b border-border hover:bg-muted/30 transition-colors">
                         <td className="px-3 py-2 text-foreground whitespace-nowrap">{formatDateTimeNaive(r.atribuido_em)}</td>
                         <td className="px-3 py-2 text-foreground whitespace-nowrap">{r.concluido_em ? formatDateTimeNaive(r.concluido_em) : "—"}</td>
-                        <td className="px-3 py-2 text-foreground">{r.tipo_tarefa_descricao || r.tipo_tarefa_codigo || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            {r.cor_interface && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.cor_interface }} />}
+                            <span className="text-foreground">{r.tipo_tarefa_descricao || r.tipo_tarefa_codigo || "—"}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">{r.tipo_tarefa_categoria || "—"}</td>
                         <td className="px-3 py-2 font-mono text-muted-foreground">{(r.tarefa_id || "").slice(0, 8)}</td>
                         <td className="px-3 py-2 font-mono text-foreground">{r.produto_sku || "—"}</td>
                         <td className="px-3 py-2 text-foreground" title={r.produto_descricao || undefined}>{truncar(r.produto_descricao, 40)}</td>
@@ -388,7 +396,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
                 </tbody>
                 <tfoot>
                   <tr className="bg-muted/40 font-semibold text-foreground">
-                    <td className="px-3 py-2" colSpan={6}>Totais ({fmtNumberBR(filtered.length)} registros)</td>
+                    <td className="px-3 py-2" colSpan={7}>Totais ({fmtNumberBR(filtered.length)} registros)</td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNumberBR(Math.round(totais.qtdReq))}</td>
                     <td className="px-3 py-2 text-right font-mono">{fmtNumberBR(Math.round(totais.qtdExec))}</td>
                     <td className={`px-3 py-2 text-right font-mono ${totais.qtdCort > 0 ? "text-red-400" : ""}`}>{fmtNumberBR(Math.round(totais.qtdCort))}</td>

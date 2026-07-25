@@ -23,17 +23,22 @@ interface Props {
   dataFim?: string;
 }
 
-const TASK_COLORS: Record<string, string> = {
-  CONFERENCIA: "hsl(217, 91%, 60%)",
-  ARMAZENAGEM: "hsl(142, 71%, 45%)",
-  SEPARACAO: "hsl(45, 93%, 47%)",
-  TRANSFERENCIA: "hsl(280, 70%, 55%)",
-  INVENTARIO: "hsl(190, 80%, 50%)",
-  CONFERENCIA_SAIDA: "hsl(0, 84%, 60%)",
+const DEFAULT_TASK_COLORS: Record<string, string> = {
+  "ENTR-CONF": "hsl(217, 91%, 60%)",
+  "ENTR-ARMZ": "hsl(142, 71%, 45%)",
+  SEP: "hsl(45, 93%, 47%)",
+  "SEP-AUT": "hsl(40, 90%, 50%)",
+  "SEP-CONF": "hsl(0, 84%, 60%)",
+  ABAST: "hsl(280, 70%, 55%)",
+  TRANF: "hsl(190, 80%, 50%)",
+  "INV-ATU": "hsl(160, 60%, 45%)",
+  "INV-AUDIT": "hsl(170, 55%, 50%)",
+  "PED-CAN": "hsl(0, 0%, 50%)",
 };
 
-function getTaskColor(codigo: string): string {
-  return TASK_COLORS[codigo?.toUpperCase()] || "hsl(217, 91%, 60%)";
+function getTaskColor(corInterface: string | null | undefined, codigo: string): string {
+  if (corInterface) return corInterface;
+  return DEFAULT_TASK_COLORS[(codigo || "").toUpperCase()] || "hsl(217, 91%, 60%)";
 }
 
 export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, dataFim }: Props) {
@@ -91,11 +96,16 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   const horasProdutivas = tempoProdutivo / 3600;
   const produtividadeHora = horasProdutivas > 0 ? Math.round(qtdTotal / horasProdutivas) : 0;
 
+  const comMeta = concluidas.filter((t) => t.aderencia_meta_pct != null);
+  const aderenciaMedia = comMeta.length > 0
+    ? Math.round(comMeta.reduce((s, t) => s + (t.aderencia_meta_pct || 0), 0) / comMeta.length)
+    : null;
+
   // Gantt data - group by tipo_tarefa for bar chart
-  const porTipo = new Map<string, { codigo: string; desc: string; tempo: number; count: number; qtd: number }>();
+  const porTipo = new Map<string, { codigo: string; desc: string; corInterface: string | null; tempo: number; count: number; qtd: number }>();
   for (const t of concluidas) {
     const key = t.tipo_tarefa_codigo;
-    if (!porTipo.has(key)) porTipo.set(key, { codigo: key, desc: t.tipo_tarefa_descricao, tempo: 0, count: 0, qtd: 0 });
+    if (!porTipo.has(key)) porTipo.set(key, { codigo: key, desc: t.tipo_tarefa_descricao, corInterface: t.cor_interface ?? null, tempo: 0, count: 0, qtd: 0 });
     const entry = porTipo.get(key)!;
     entry.tempo += t.duracao_segundos || 0;
     entry.count++;
@@ -117,7 +127,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         startMinutes: start.getHours() * 60 + start.getMinutes(),
         endMinutes: end.getHours() * 60 + end.getMinutes(),
         durationMinutes: (t.duracao_segundos || 0) / 60,
-        color: getTaskColor(t.tipo_tarefa_codigo),
+        color: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo),
         label: `${t.tipo_tarefa_descricao} (${Math.round((t.duracao_segundos || 0) / 60)}min)`,
       };
     });
@@ -179,7 +189,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
       ) : (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-primary mb-1">
                 <CheckCircle size={16} />
@@ -208,6 +218,15 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
               </div>
               <span className="text-2xl font-bold text-foreground">{produtividadeHora} itens/h</span>
             </div>
+            {aderenciaMedia != null && (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 mb-1" style={{ color: aderenciaMedia >= 100 ? "hsl(142, 71%, 45%)" : aderenciaMedia >= 80 ? "hsl(45, 93%, 47%)" : "hsl(0, 84%, 60%)" }}>
+                  <TrendingUp size={16} />
+                  <span className="text-xs text-muted-foreground">Aderência à Meta</span>
+                </div>
+                <span className="text-2xl font-bold text-foreground">{aderenciaMedia}%</span>
+              </div>
+            )}
           </div>
 
           {/* Gantt Timeline */}
@@ -250,9 +269,9 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
               </div>
               {/* Legend */}
               <div className="flex flex-wrap gap-3 mt-3">
-                {Array.from(new Set(ganttData.map((g) => g.tipo_tarefa_codigo))).map((code) => (
+                {Array.from(new Map(ganttData.map((g) => [g.tipo_tarefa_codigo, g])).entries()).map(([code, sample]) => (
                   <div key={code} className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getTaskColor(code) }} />
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getTaskColor(sample.cor_interface, code) }} />
                     <span className="text-xs text-muted-foreground">{code}</span>
                   </div>
                 ))}
@@ -278,7 +297,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                   />
                   <Bar dataKey="tempoMedio" name="Tempo Médio (s)" radius={[4, 4, 0, 0]}>
                     {porTipoData.map((entry, i) => (
-                      <Cell key={i} fill={getTaskColor(entry.codigo)} />
+                      <Cell key={i} fill={getTaskColor(entry.corInterface, entry.codigo)} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -296,6 +315,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                 <thead className="sticky top-0 bg-card z-10">
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-3 font-medium text-muted-foreground">Tipo</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Categoria</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Qtd Exec.</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Duração</th>
@@ -308,10 +328,11 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                     <tr key={t.execucao_id} className="border-b border-border/50 hover:bg-muted/20">
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getTaskColor(t.tipo_tarefa_codigo) }} />
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo) }} />
                           <span className="text-foreground">{t.tipo_tarefa_descricao}</span>
                         </div>
                       </td>
+                      <td className="p-3 text-xs text-muted-foreground">{t.tipo_tarefa_categoria || "—"}</td>
                       <td className="p-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           t.status === "CONCLUIDA" ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"
@@ -333,7 +354,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                   ))}
                   {timeline.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
                         Nenhuma execução encontrada para este período.
                       </td>
                     </tr>
