@@ -235,14 +235,9 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
             />
             <div
               className="absolute flex items-center justify-center"
-              style={{
-                inset: 8,
-                borderRadius: 12,
-                background: "linear-gradient(135deg,#1d4ed8,#3b82f6)",
-                boxShadow: "0 8px 24px rgba(29,78,216,0.45)",
-              }}
+              style={{ inset: 4 }}
             >
-              <img src={logoUrl} alt="CORE LogiTrack" style={{ width: 32, height: 32, objectFit: "contain" }} />
+              <img src={logoUrl} alt="CORE LogiTrack" style={{ width: 54, height: 54, objectFit: "contain" }} />
             </div>
           </div>
 
