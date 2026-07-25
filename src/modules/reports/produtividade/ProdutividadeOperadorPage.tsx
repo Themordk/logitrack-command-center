@@ -97,10 +97,10 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   const produtividadeHora = horasProdutivas > 0 ? Math.round(qtdTotal / horasProdutivas) : 0;
 
   // Gantt data - group by tipo_tarefa for bar chart
-  const porTipo = new Map<string, { codigo: string; desc: string; tempo: number; count: number; qtd: number }>();
+  const porTipo = new Map<string, { codigo: string; desc: string; corInterface: string | null; tempo: number; count: number; qtd: number }>();
   for (const t of concluidas) {
     const key = t.tipo_tarefa_codigo;
-    if (!porTipo.has(key)) porTipo.set(key, { codigo: key, desc: t.tipo_tarefa_descricao, tempo: 0, count: 0, qtd: 0 });
+    if (!porTipo.has(key)) porTipo.set(key, { codigo: key, desc: t.tipo_tarefa_descricao, corInterface: t.cor_interface ?? null, tempo: 0, count: 0, qtd: 0 });
     const entry = porTipo.get(key)!;
     entry.tempo += t.duracao_segundos || 0;
     entry.count++;
@@ -122,7 +122,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         startMinutes: start.getHours() * 60 + start.getMinutes(),
         endMinutes: end.getHours() * 60 + end.getMinutes(),
         durationMinutes: (t.duracao_segundos || 0) / 60,
-        color: getTaskColor(t.tipo_tarefa_codigo),
+        color: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo),
         label: `${t.tipo_tarefa_descricao} (${Math.round((t.duracao_segundos || 0) / 60)}min)`,
       };
     });
