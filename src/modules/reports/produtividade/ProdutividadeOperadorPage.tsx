@@ -255,9 +255,9 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
               </div>
               {/* Legend */}
               <div className="flex flex-wrap gap-3 mt-3">
-                {Array.from(new Set(ganttData.map((g) => g.tipo_tarefa_codigo))).map((code) => (
+                {Array.from(new Map(ganttData.map((g) => [g.tipo_tarefa_codigo, g])).entries()).map(([code, sample]) => (
                   <div key={code} className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getTaskColor(code) }} />
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getTaskColor(sample.cor_interface, code) }} />
                     <span className="text-xs text-muted-foreground">{code}</span>
                   </div>
                 ))}
