@@ -304,7 +304,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/config/integracao": return <IntegracaoPage onNavigate={onNavigate} />;
     case "/config/perfis": return <PerfisAcessoPage />;
     case "/config/tipos-tarefa": return <TiposTarefaPage />;
-    case "/config/ocorrencia-sla": return <OcorrenciaSlaConfigPage />;
+    
 
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
