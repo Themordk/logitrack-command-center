@@ -23,17 +23,22 @@ interface Props {
   dataFim?: string;
 }
 
-const TASK_COLORS: Record<string, string> = {
-  CONFERENCIA: "hsl(217, 91%, 60%)",
-  ARMAZENAGEM: "hsl(142, 71%, 45%)",
-  SEPARACAO: "hsl(45, 93%, 47%)",
-  TRANSFERENCIA: "hsl(280, 70%, 55%)",
-  INVENTARIO: "hsl(190, 80%, 50%)",
-  CONFERENCIA_SAIDA: "hsl(0, 84%, 60%)",
+const DEFAULT_TASK_COLORS: Record<string, string> = {
+  "ENTR-CONF": "hsl(217, 91%, 60%)",
+  "ENTR-ARMZ": "hsl(142, 71%, 45%)",
+  SEP: "hsl(45, 93%, 47%)",
+  "SEP-AUT": "hsl(40, 90%, 50%)",
+  "SEP-CONF": "hsl(0, 84%, 60%)",
+  ABAST: "hsl(280, 70%, 55%)",
+  TRANF: "hsl(190, 80%, 50%)",
+  "INV-ATU": "hsl(160, 60%, 45%)",
+  "INV-AUDIT": "hsl(170, 55%, 50%)",
+  "PED-CAN": "hsl(0, 0%, 50%)",
 };
 
-function getTaskColor(codigo: string): string {
-  return TASK_COLORS[codigo?.toUpperCase()] || "hsl(217, 91%, 60%)";
+function getTaskColor(corInterface: string | null | undefined, codigo: string): string {
+  if (corInterface) return corInterface;
+  return DEFAULT_TASK_COLORS[(codigo || "").toUpperCase()] || "hsl(217, 91%, 60%)";
 }
 
 export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, dataFim }: Props) {
