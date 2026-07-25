@@ -9,6 +9,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
 import { useTenant } from "@/contexts/TenantContext";
 import { useTenantBoot } from "@/contexts/TenantBootContext";
+import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
 
 interface Props { onNavigate: (path: string) => void; }
 
