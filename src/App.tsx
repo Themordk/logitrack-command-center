@@ -615,6 +615,19 @@ function AppContent() {
 }
 
 export default function App() {
+  const initialHash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
+  const isTvRoute = initialHash.startsWith("/tv/");
+
+  if (isTvRoute) {
+    return (
+      <ErrorBoundary showDetails>
+        <QueryClientProvider client={queryClient}>
+          <TvRouter />
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary showDetails>
       <QueryClientProvider client={queryClient}>
@@ -630,3 +643,4 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
