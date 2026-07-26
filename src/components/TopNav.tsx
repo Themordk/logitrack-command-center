@@ -50,8 +50,6 @@ const navItems: NavItem[] = [
       
       { label: "Veículos", path: "/armazem/veiculos" },
       { label: "Zonas de Atividade", path: "/armazem/zonas" },
-      { label: "Templates de Etiqueta", path: "/armazem/etiquetas" },
-      { label: "Regras de Armazenagem", path: "/armazem/regras-armazenagem" },
     ],
   },
   {
@@ -111,6 +109,7 @@ const navItems: NavItem[] = [
       { label: "Perfis de Acesso", path: "/config/perfis" },
       { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
       { label: "Motivos de Ocorrência", path: "/config/motivos-ocorrencia" },
+      { label: "Templates de Etiqueta", path: "/config/etiquetas" },
       { label: "Integração ERP", path: "/config/integracao" },
       { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
     ],

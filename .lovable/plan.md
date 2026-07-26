@@ -1,55 +1,36 @@
-## Objetivo
+## 1) Mover "Templates de Etiqueta" para Configurações
 
-Resolver 2 problemas visuais/técnicos com a nova logo do CORE LogiTrack:
+- **TopNav** (`src/components/TopNav.tsx`): remover item "Templates de Etiqueta" do submenu Armazém e adicioná-lo em Configurações.
+- **App** (`src/App.tsx`): mover a rota `/config/etiquetas` (novo caminho) mantendo o componente `EtiquetaTemplatesPage`. Atualizar breadcrumb para "Configurações › Templates de Etiqueta". Manter um alias temporário `/armazem/etiquetas` redirecionando para o novo path para não quebrar bookmarks.
+- **Migration** — atualizar registro do módulo `web.armazem.etiquetas` → renomear para `web.config.etiquetas` (update em `modulo`) para refletir agrupamento correto na tela de Perfis de Acesso. Permissões atuais permanecem intactas (apenas o código muda).
 
-1. **Container azul atrás da logo** prejudica a leitura da marca (a logo já tem identidade visual própria com fundo/emblema — colocá-la dentro de um quadrado `bg-primary` cria um "duplo fundo azul" desagradável — visível na tela Portal de Acesso / identificação de tenant e também no Login / Coletor / Splash).
-2. **Ícone quebrado da logo** em algumas telas (ex.: TopNav) apesar da URL do asset ser a mesma usada em outras telas — indica falha de resolução do path `/__l5e/assets-v1/...` em determinados contextos (provavelmente subdomínio de tenant / service worker cache).
+## 2) Unificar "Regras de Armazenagem" com o modal de configurações do Armazém
 
-## Mudanças
+- **Remover do menu**: retirar "Regras de Armazenagem" do submenu Armazém no `TopNav.tsx` e a rota `/armazem/regras-armazenagem` do `App.tsx` (breadcrumb + case do router).
+- **Refatorar `ArmazemConfigModal.tsx`** (acionado pelo ícone de engrenagem em `ArmazensPage.tsx`):
+  - Manter as 4 seleções de endereço já existentes (Cancelamento, Avaria, Quarentena, Armazenagem Automática).
+  - Adicionar as demais configurações que hoje vivem em `RegraArmazenagemPage.tsx` (parâmetros de motor de armazenagem, tolerâncias, flags de comportamento, etc.), organizadas em seções colapsáveis/tabs para manter o modal legível.
+  - Migrar de `<Dialog>` para `<Sheet>` lateral (padrão do sistema para telas de edição), com largura consistente às demais Sheets (ex.: `sm:max-w-2xl`), header fixo, corpo com scroll e footer com Salvar/Cancelar/Remover.
+- **Deletar** `src/pages/RegraArmazenagemPage.tsx` após migrar seu conteúdo. Ajustar imports órfãos no `App.tsx`.
+- **Migration**: atualizar `modulo.codigo` `web.armazem.regras_armazenagem` para apontar ao mesmo módulo de Cadastro de Armazém (ou inativar), removendo a entrada duplicada em Perfis de Acesso.
 
-### 1. Remover fundo azul atrás da logo (5 pontos)
+## 3) Cadastro de Documento de Entrada / Saída
 
-Em todos os lugares, trocar o wrapper `bg-primary rounded-* p-*` por um container transparente, deixando a logo se apresentar sozinha (ela já contém o "badge" azul característico da marca). Aumentar levemente o tamanho para compensar a perda do fundo.
+**3.1 — Valor total da nota calculado**
+- `src/pages/CadastroDocEntradaPage.tsx`:
+  - Remover o input manual "Valor Total Nota" (linhas ~227-228) e o estado `valorTotalNota`.
+  - Ao gravar, usar `valor_total_nota = valorTotalProdutos` (soma dos itens).
+  - Exibir o total calculado como texto readonly no rodapé do formulário para transparência ao usuário.
 
-- **`src/components/tenant/TenantBootScreens.tsx`** (Portal de Acesso — screenshot enviado):
-  - `TenantBootPortal`: remover o quadrado `w-14 h-14 bg-primary` e usar somente `<img className="w-16 h-16 object-contain" />`.
-  - `TenantBootSplash`: mesmo tratamento.
-- **`src/pages/LoginPage.tsx`**: remover o gradiente azul `linear-gradient(#1d4ed8,#3b82f6)` do orbital central e exibir a logo direta (mantendo o anel animado externo intacto).
-- **`src/pages/coletor/ColetorLoginPage.tsx`**: remover o quadrado com gradiente azul; exibir a logo direta com sombra sutil.
-- **`src/components/suporte/SupportLayout.tsx`**: já está sem fundo (revisar apenas o tamanho para 28×28).
-- **`src/components/TopNav.tsx`**: já está sem fundo (só validar).
+**3.2 — Parceiro com busca (Entrada e Saída)**
+- Criar componente reutilizável `src/components/parceiro/ParceiroSearchInput.tsx` seguindo o padrão de `ProdutoSearchInput.tsx`/`EnderecoSearchInput.tsx`:
+  - Input com debounce (250-300ms) filtrando `parceiro` por `razaosocial`, `nome_fantasia`, `cnpj_cpf` e `codigo_erp` (ILIKE, escopo por tenant/empresa e `ativo=true`).
+  - Chip do parceiro selecionado com botão de limpar; dropdown com lista compacta mostrando razão social + CNPJ + código ERP.
+- Substituir o `<select>` de parceiro em `CadastroDocEntradaPage.tsx` (linhas ~197-206) e `CadastroDocSaidaPage.tsx` (linhas ~197-200) pelo novo componente.
+- Remover o preload da lista completa de parceiros (`parceiros` state) — passa a ser sob demanda pelo componente.
 
-### 2. Corrigir logo quebrada em outras telas
+## Detalhes técnicos
 
-Diagnóstico: o `.asset.json` aponta para `/__l5e/assets-v1/…`, que depende do proxy do Lovable. Em contextos onde a página é servida (subdomínio de tenant, cache de service worker antigo, ou preview iframe) esse path pode ser interceptado e devolver HTML em vez do PNG (`Content-Type: text/html` confirmado no dev-server local).
-
-Correção: converter a logo para um **asset local do Vite** (importado como módulo, servido pelo bundler com hash e URL relativa da própria origem), eliminando a dependência do caminho `/__l5e/`:
-
-1. Baixar o binário atual da CDN de volta para `src/assets/corelogitrack-logo.png` (via `curl` no CDN público, usando o `asset_id` do `.asset.json`).
-2. Trocar em todos os 5 arquivos:
-   ```ts
-   // antes
-   import logoAsset from "@/assets/corelogitrack-logo.png.asset.json";
-   <img src={logoAsset.url} ... />
-   // depois
-   import logoUrl from "@/assets/corelogitrack-logo.png";
-   <img src={logoUrl} ... />
-   ```
-3. Remover o `.asset.json` (não é mais usado). Manter os PNGs de `public/` (favicon, pwa-192, pwa-512) como estão.
-
-Isso garante que a logo carregue em qualquer subdomínio, preview ou tela, sem depender de rota externa.
-
-## Arquivos alterados
-
-- `src/components/tenant/TenantBootScreens.tsx`
-- `src/pages/LoginPage.tsx`
-- `src/pages/coletor/ColetorLoginPage.tsx`
-- `src/components/suporte/SupportLayout.tsx`
-- `src/components/TopNav.tsx`
-- `src/assets/corelogitrack-logo.png` (recriado a partir da CDN)
-- `src/assets/corelogitrack-logo.png.asset.json` (removido)
-
-## Verificação
-
-- `bun run build` deve passar (o Vite hash-inclui a nova imagem).
-- Verificar visualmente no preview: Portal de Acesso, Login Portal, Login Coletor, TopNav, Splash — logo aparece sem quadrado azul atrás e sem ícone quebrado.
+- Nenhum schema novo é necessário; apenas atualização de `modulo.codigo` para reposicionamento nas Perfis de Acesso.
+- Cache de permissões (`sessionStorage core_rbac_permissions`) será invalidado automaticamente após 5 min; opcional: bump manual documentado para o admin fazer logout/refresh.
+- Manter compatibilidade: se preferir, no lugar de renomear `modulo.codigo` podemos manter os códigos atuais — decisão de execução na migration.

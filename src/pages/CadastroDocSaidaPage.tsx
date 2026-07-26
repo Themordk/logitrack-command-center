@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ProdutoSearchInput, ProdutoSearchResult } from "@/components/produto/ProdutoSearchInput";
+import { ParceiroSearchInput } from "@/components/parceiro/ParceiroSearchInput";
 import { parseError } from "@/lib/errorMapper";
 
 
@@ -31,7 +32,6 @@ export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
   const [transportador, setTransportador] = useState("");
   const [observacao, setObservacao] = useState("");
 
-  const [parceiros, setParceiros] = useState<{ id: string; razaosocial: string }[]>([]);
   const [tiposSaida, setTiposSaida] = useState<{ id: string; descricao: string }[]>([]);
   const [rotas, setRotas] = useState<{ id: string; descricao: string }[]>([]);
 
@@ -44,17 +44,15 @@ export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
 
   useEffect(() => {
     if (!tenantId || !empresaId) {
-      setParceiros([]); setTiposSaida([]); setRotas([]);
+      setTiposSaida([]); setRotas([]);
       return;
     }
     // Reset seleções ao trocar empresa
     setParceiroId(""); setTipoPedidoId(""); setRotaId(""); setItems([]);
     Promise.all([
-      (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("razaosocial"),
       (supabase as any).from("tipo_saida").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
       (supabase as any).from("rotas").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
-    ]).then(([pRes, tRes, rRes]) => {
-      setParceiros(pRes.data || []);
+    ]).then(([tRes, rRes]) => {
       setTiposSaida(tRes.data || []);
       setRotas(rRes.data || []);
     });
@@ -192,12 +190,14 @@ export function CadastroDocSaidaPage({ onBack }: { onBack?: () => void }) {
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Data Emissão *</label>
             <input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className={inputClass} />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Parceiro *</label>
-            <select value={parceiroId} onChange={(e) => setParceiroId(e.target.value)} className={inputClass}>
-              <option value="">Selecione...</option>
-              {parceiros.map((p) => <option key={p.id} value={p.id}>{p.razaosocial}</option>)}
-            </select>
+            <ParceiroSearchInput
+              value={parceiroId || null}
+              onChange={(id) => setParceiroId(id ?? "")}
+              tenantId={tenantId}
+              empresaId={empresaId}
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Tipo de Saída *</label>
