@@ -76,6 +76,7 @@ export function TiposSaidaPage() {
     if (!payload.realiza_conferencia) {
       payload.conferencia_checkout = false;
       payload.conferencia_cega = false;
+      payload.reserva_conferencia_movimento = true;
     }
     const ok = editItem
       ? await crud.update(editItem.id, payload)
