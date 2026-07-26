@@ -215,6 +215,7 @@ export type Database = {
           empresa_id: string
           id: string
           tenant_id: string
+          tv_token: string
           uf: string | null
         }
         Insert: {
@@ -226,6 +227,7 @@ export type Database = {
           empresa_id: string
           id?: string
           tenant_id: string
+          tv_token?: string
           uf?: string | null
         }
         Update: {
@@ -237,6 +239,7 @@ export type Database = {
           empresa_id?: string
           id?: string
           tenant_id?: string
+          tv_token?: string
           uf?: string | null
         }
         Relationships: [
@@ -943,6 +946,7 @@ export type Database = {
           id: string
           razaosocial: string
           tenant_id: string
+          url_logo: string | null
         }
         Insert: {
           ativo?: boolean
@@ -951,6 +955,7 @@ export type Database = {
           id?: string
           razaosocial: string
           tenant_id: string
+          url_logo?: string | null
         }
         Update: {
           ativo?: boolean
@@ -959,6 +964,7 @@ export type Database = {
           id?: string
           razaosocial?: string
           tenant_id?: string
+          url_logo?: string | null
         }
         Relationships: [
           {
@@ -8798,6 +8804,7 @@ export type Database = {
         }
         Returns: Json
       }
+      gerar_tv_token: { Args: never; Returns: string }
       gerar_volumes_expedicao: {
         Args: {
           p_empresa_id: string
@@ -9678,6 +9685,8 @@ export type Database = {
           usuario_nome: string
         }[]
       }
+      rpc_painel_tv_operacional: { Args: { p_tv_token: string }; Returns: Json }
+      rpc_painel_tv_vendas: { Args: { p_tv_token: string }; Returns: Json }
       rpc_relatorio_ciclo_pedido: {
         Args: {
           p_armazem_id?: string
