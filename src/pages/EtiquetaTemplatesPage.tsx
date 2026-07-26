@@ -746,7 +746,10 @@ function RenderPreview({ tipo, config }: { tipo: TipoEtiquetaConfig; config: any
           validade_proxima: "15/12/2026",
           total_itens: 3,
           total_quantidade: 150,
-        }]}
+          itens: [
+            { sku: "1301009", descricao: "DESINFETANTE YPE 500ML LAVANDA CX 12.0", quantidade: 150, lote: "L2026-A", data_validade: "15/12/2026" }
+          ],
+        } as any]}
         config={config}
       />
     );
