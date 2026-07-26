@@ -63,125 +63,195 @@ function hasValue(v: any): boolean {
   return true;
 }
 
+const BORDER = "1px solid #000000";
+const BORDER_THICK = "2px solid #000000";
+
+const cellBase: React.CSSProperties = {
+  padding: "4px 10px",
+  background: "#FFFFFF",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  minWidth: 0,
+  overflow: "hidden",
+};
+
+const labelText = (size: number): React.CSSProperties => ({
+  fontSize: `${size}px`,
+  fontWeight: 700,
+  color: "#555555",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+  lineHeight: 1,
+  whiteSpace: "nowrap",
+});
+
+const valueText = (size: number): React.CSSProperties => ({
+  fontSize: `${size}px`,
+  fontWeight: 900,
+  color: "#000000",
+  lineHeight: 1.2,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+});
+
 function EtiquetaHUSingle({ hu, isPrint, config }: { hu: HULike; isPrint: boolean; config?: EtiquetaTemplateOverride }) {
   const label = hu.codigo_hu || "";
   const spec = config ? getTemplateFromConfig(config) : null;
   const WPX = spec?.widthPx ?? DEFAULT_W;
   const HPX = spec?.heightPx ?? DEFAULT_H;
-  const showHeader = config ? config.com_cabecalho !== false : true;
-  const showLogo = config ? config.com_logo && !!config.logo_url : false;
   const scale = config?.escala_fonte ?? 1;
-  const fs = (n: number) => Math.max(7, n * scale);
+  const fs = (n: number) => Math.max(7, Math.round(n * scale));
 
   const isCompact = HPX <= 400;
 
-  // Build a set of active field keys from template (if any)
   const activeKeys = config
     ? new Set((config.campos || []).filter((c) => c.ativo).map((c) => c.chave))
     : null;
-  const isFieldActive = (key: string) => (activeKeys ? activeKeys.has(key) : true);
+  const isActive = (key: string) => (activeKeys ? activeKeys.has(key) : true);
 
-  const showParceiro = !isCompact && isFieldActive("parceiro_nome") && hasValue(hu.parceiro_nome);
-  const showMov = !isCompact && isFieldActive("numero_movimento") && hasValue(hu.numero_movimento);
-  const showNF = !isCompact && isFieldActive("numero_nota") && hasValue(hu.numero_nota);
-  const showData = !isCompact && isFieldActive("data_entrada") && hasValue(hu.data_entrada);
-  const hasContextZone = showParceiro || showMov || showNF || showData;
+  const showParceiro = !isCompact && isActive("parceiro_nome") && hasValue(hu.parceiro_nome);
+  const showMov = !isCompact && isActive("numero_movimento") && hasValue(hu.numero_movimento);
+  const showNF = !isCompact && isActive("numero_nota") && hasValue(hu.numero_nota);
+  const showData = !isCompact && isActive("data_entrada") && hasValue(hu.data_entrada);
+  const showLote = !isCompact && isActive("lote_principal") && hasValue(hu.lote_principal);
+  const showValidade = !isCompact && isActive("validade_proxima") && hasValue(hu.validade_proxima);
+  const showQtd = !isCompact && (isActive("total_quantidade") || isActive("total_itens")) && hasValue(hu.total_quantidade);
+  const showPeso = !isCompact && isActive("peso_bruto") && hasValue(hu.peso_bruto);
+  const showTipo = isActive("tipo_hu") && (hasValue(hu.tipo_hu) || hasValue(hu.tamanho));
 
-  const showTipo = isFieldActive("tipo_hu") && (hasValue(hu.tipo_hu) || hasValue(hu.tamanho));
-  const showLote = !isCompact && isFieldActive("lote_principal") && hasValue(hu.lote_principal);
-  const showValidade = !isCompact && isFieldActive("validade_proxima") && hasValue(hu.validade_proxima);
-  const showQtd = !isCompact && (isFieldActive("total_quantidade") || isFieldActive("total_itens")) && hasValue(hu.total_quantidade);
-  const showPeso = !isCompact && isFieldActive("peso_bruto") && hasValue(hu.peso_bruto);
+  const hasRow3 = showValidade || showQtd;
+  const hasRow4 = showParceiro || showMov || showData;
+  const hasRow5 = showLote || showNF;
 
-  const barcodeHeight = hasContextZone ? 70 : (isCompact ? 90 : 120);
+  const barcodeH = isCompact ? 90 : (hasRow3 || hasRow4 || hasRow5 ? 70 : 110);
 
-  const cellStyle: React.CSSProperties = {
-    display: "flex", flexDirection: "column", alignItems: "flex-start",
-    padding: "0 8px", flex: 1, minWidth: 0,
-  };
-  const labelStyle: React.CSSProperties = {
-    fontSize: `${fs(8)}px`, fontWeight: 700, color: "#555555",
-    letterSpacing: "1px", textTransform: "uppercase", lineHeight: 1.1,
-  };
-  const valueStyle: React.CSSProperties = {
-    fontSize: `${fs(11)}px`, fontWeight: 800, color: "#000000",
-    lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%",
-  };
+  const itens = (hu as any).itens;
+  const firstItem = Array.isArray(itens) && itens.length > 0 ? itens[0] : null;
+  const produtoDesc = firstItem?.descricao || "";
+  const produtoSku = firstItem?.sku || "";
+  const showProduto = !isCompact && hasValue(produtoDesc);
 
   return (
     <div className="etiqueta-thermal" style={{
       width: `${WPX}px`, height: `${HPX}px`, background: "#FFFFFF",
-      overflow: "hidden", pageBreakInside: "avoid", breakInside: "avoid", boxSizing: "border-box",
+      overflow: "hidden", pageBreakInside: "avoid", breakInside: "avoid",
+      boxSizing: "border-box", border: BORDER_THICK,
+      fontFamily: "'Arial', 'Helvetica', sans-serif",
+      display: "flex", flexDirection: "column",
       boxShadow: isPrint ? "none" : "0 2px 12px rgba(0,0,0,0.18)",
-      fontFamily: "'Arial', 'Helvetica', sans-serif", display: "flex", flexDirection: "column",
     }}>
-      {/* Zona 1 — Cabeçalho */}
-      {showHeader && (
-        <div style={{
-          height: isCompact ? "40px" : "48px", background: "#FFFFFF",
-          borderBottom: "3px solid #000000", display: "flex", alignItems: "center",
-          justifyContent: "space-between", padding: "0 14px", flexShrink: 0,
-        }}>
-          {showLogo && config?.logo_url ? (
-            <img src={config.logo_url} alt="Logo" style={{ maxHeight: 34, maxWidth: 140, objectFit: "contain" }} />
-          ) : (
-            <span style={{ color: "#000000", fontSize: `${fs(13)}px`, fontWeight: 900, letterSpacing: "2px", textTransform: "uppercase" }}>
-              {config ? "" : "CORE LOGITRACK"}
-            </span>
-          )}
-          <span style={{ color: "#000000", fontSize: `${fs(12)}px`, fontWeight: 900, letterSpacing: "1px" }}>HU</span>
+
+      {/* LINHA 1: Nº MOV + PALETE barcode */}
+      <div style={{ display: "flex", borderBottom: BORDER, flexShrink: 0 }}>
+        {showMov && (
+          <div style={{ ...cellBase, borderRight: BORDER, width: "90px", flexShrink: 0 }}>
+            <span style={labelText(fs(8))}>Nº MOV:</span>
+            <span style={{ ...valueText(fs(22)), letterSpacing: "1px" }}>{hu.numero_movimento}</span>
+          </div>
+        )}
+        <div style={{ ...cellBase, flex: 1, alignItems: "center", flexDirection: "row", gap: "8px", justifyContent: "flex-start" }}>
+          <div style={{ flexShrink: 0 }}>
+            <span style={labelText(fs(8))}>PALETE:</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+            <BarcodeHU value={label} barHeight={isCompact ? 36 : 42} />
+          </div>
+        </div>
+      </div>
+
+      {/* LINHA 2: PRODUTO */}
+      {showProduto && (
+        <div style={{ ...cellBase, borderBottom: BORDER, flexShrink: 0, minHeight: "44px" }}>
+          <span style={labelText(fs(8))}>PRODUTO: {produtoSku}</span>
+          <span style={{
+            ...valueText(fs(16)),
+            whiteSpace: "normal",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical" as any,
+            overflow: "hidden",
+            lineHeight: 1.15,
+            marginTop: "2px",
+          }}>{produtoDesc}</span>
         </div>
       )}
 
-      {/* Zona 2 — Contexto (fornecedor + refs) */}
-      {hasContextZone && (
-        <div style={{
-          padding: "6px 14px", borderBottom: "1px dashed #999999",
-          background: "#FFFFFF", flexShrink: 0,
-        }}>
+      {/* LINHA 3: VALIDADE + QUANTIDADE */}
+      {hasRow3 && (
+        <div style={{ display: "flex", borderBottom: BORDER, flexShrink: 0 }}>
+          {showValidade && (
+            <div style={{ ...cellBase, flex: 1, borderRight: showQtd ? BORDER : "none", padding: "5px 10px" }}>
+              <span style={labelText(fs(8))}>DATA DE VALIDADE:</span>
+              <span style={valueText(fs(18))}>{hu.validade_proxima}</span>
+            </div>
+          )}
+          {showQtd && (
+            <div style={{ ...cellBase, flex: 1, padding: "5px 10px" }}>
+              <span style={labelText(fs(8))}>QUANTIDADE:</span>
+              <span style={valueText(fs(18))}>
+                {hu.total_quantidade}{hu.total_itens ? ` (${hu.total_itens} SKU)` : ""}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LINHA 4: FORNECEDOR + CARGA + RECEBIMENTO */}
+      {hasRow4 && (
+        <div style={{ display: "flex", borderBottom: BORDER, flexShrink: 0 }}>
           {showParceiro && (
-            <div style={{ marginBottom: showMov || showNF || showData ? 4 : 0 }}>
-              <div style={labelStyle}>Fornecedor</div>
-              <div style={{ ...valueStyle, fontSize: `${fs(13)}px` }}>{hu.parceiro_nome}</div>
+            <div style={{ ...cellBase, flex: 2, borderRight: (showMov || showData) ? BORDER : "none", padding: "5px 10px" }}>
+              <span style={labelText(fs(8))}>FORNECEDOR:</span>
+              <span style={{ ...valueText(fs(11)), whiteSpace: "nowrap" }}>{hu.parceiro_nome}</span>
             </div>
           )}
-          {(showMov || showNF || showData) && (
-            <div style={{ display: "flex", gap: 6, marginLeft: -8 }}>
-              {showMov && (
-                <div style={cellStyle}>
-                  <div style={labelStyle}>Mov</div>
-                  <div style={valueStyle}>{hu.numero_movimento}</div>
-                </div>
-              )}
-              {showNF && (
-                <div style={cellStyle}>
-                  <div style={labelStyle}>NF</div>
-                  <div style={valueStyle}>{hu.numero_nota}</div>
-                </div>
-              )}
-              {showData && (
-                <div style={cellStyle}>
-                  <div style={labelStyle}>Entrada</div>
-                  <div style={valueStyle}>{hu.data_entrada}</div>
-                </div>
-              )}
+          {showMov && (
+            <div style={{ ...cellBase, flex: 1, borderRight: showData ? BORDER : "none", padding: "5px 10px" }}>
+              <span style={labelText(fs(8))}>CARGA:</span>
+              <span style={valueText(fs(13))}>{hu.numero_movimento}</span>
+            </div>
+          )}
+          {showData && (
+            <div style={{ ...cellBase, flex: 1, padding: "5px 10px" }}>
+              <span style={labelText(fs(8))}>RECEBIMENTO:</span>
+              <span style={valueText(fs(13))}>{hu.data_entrada}</span>
             </div>
           )}
         </div>
       )}
 
-      {/* Zona 3 — Barcode + código legível (SEMPRE) */}
+      {/* LINHA 5: LOTE + NF */}
+      {hasRow5 && (
+        <div style={{ display: "flex", borderBottom: BORDER, flexShrink: 0 }}>
+          {showLote && (
+            <div style={{ ...cellBase, flex: 1, borderRight: showNF ? BORDER : "none", padding: "5px 10px" }}>
+              <span style={labelText(fs(8))}>Nº LOTE:</span>
+              <span style={valueText(fs(13))}>{hu.lote_principal}</span>
+            </div>
+          )}
+          {showNF && (
+            <div style={{ ...cellBase, flex: 1, padding: "5px 10px" }}>
+              <span style={labelText(fs(8))}>Nº NOTA FISCAL:</span>
+              <span style={valueText(fs(13))}>{hu.numero_nota}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LINHA 6: BARCODE PRINCIPAL */}
       <div style={{
         flex: 1, display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        padding: "6px 12px", background: "#FFFFFF", minHeight: 0,
+        padding: "4px 16px", background: "#FFFFFF",
+        borderBottom: (showTipo || showPeso) ? BORDER : "none", minHeight: 0,
       }}>
         {label ? (
           <>
-            <BarcodeHU value={label} barHeight={barcodeHeight} />
+            <BarcodeHU value={label} barHeight={barcodeH} />
             <div style={{
-              marginTop: 4, fontSize: `${fs(18)}px`, fontWeight: 900,
-              letterSpacing: "2px", color: "#000000", textTransform: "uppercase",
+              marginTop: 2, fontSize: `${fs(14)}px`, fontWeight: 900,
+              letterSpacing: "2px", color: "#000000",
               textAlign: "center",
             }}>
               {label}
@@ -192,47 +262,25 @@ function EtiquetaHUSingle({ hu, isPrint, config }: { hu: HULike; isPrint: boolea
         )}
       </div>
 
-      {/* Zona 4 — Rodapé */}
-      <div style={{
-        borderTop: "1px solid #000000", background: "#FFFFFF",
-        padding: "4px 8px", flexShrink: 0,
-        display: "flex", flexWrap: "wrap", rowGap: 2,
-      }}>
-        {showTipo && (
-          <div style={cellStyle}>
-            <div style={labelStyle}>Tipo</div>
-            <div style={valueStyle}>
-              {[hu.tipo_hu, hu.tamanho].filter(Boolean).join(" ")}
+      {/* LINHA 7: TIPO + PESO */}
+      {(showTipo || showPeso) && (
+        <div style={{ display: "flex", flexShrink: 0, background: "#FFFFFF", minHeight: "26px" }}>
+          {showTipo && (
+            <div style={{ ...cellBase, flex: 1, borderRight: showPeso ? BORDER : "none", padding: "3px 10px", flexDirection: "row", gap: "6px", alignItems: "center" }}>
+              <span style={labelText(fs(8))}>TIPO:</span>
+              <span style={valueText(fs(11))}>
+                {[hu.tipo_hu, hu.tamanho].filter(Boolean).join(" ")}
+              </span>
             </div>
-          </div>
-        )}
-        {showLote && (
-          <div style={cellStyle}>
-            <div style={labelStyle}>Lote</div>
-            <div style={valueStyle}>{hu.lote_principal}</div>
-          </div>
-        )}
-        {showValidade && (
-          <div style={cellStyle}>
-            <div style={labelStyle}>Validade</div>
-            <div style={valueStyle}>{hu.validade_proxima}</div>
-          </div>
-        )}
-        {showQtd && (
-          <div style={cellStyle}>
-            <div style={labelStyle}>Qtd</div>
-            <div style={valueStyle}>
-              {hu.total_itens ? `${hu.total_itens} SKU · ` : ""}{hu.total_quantidade} un
+          )}
+          {showPeso && (
+            <div style={{ ...cellBase, flex: 1, padding: "3px 10px", flexDirection: "row", gap: "6px", alignItems: "center" }}>
+              <span style={labelText(fs(8))}>PESO:</span>
+              <span style={valueText(fs(11))}>{hu.peso_bruto} kg</span>
             </div>
-          </div>
-        )}
-        {showPeso && (
-          <div style={cellStyle}>
-            <div style={labelStyle}>Peso</div>
-            <div style={valueStyle}>{hu.peso_bruto} kg</div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
