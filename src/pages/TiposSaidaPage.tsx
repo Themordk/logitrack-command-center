@@ -48,6 +48,8 @@ export function TiposSaidaPage() {
     ) },
     { key: "gera_abastecimento_automatico", label: "Abast. Automático", type: "custom", render: (row) => boolBadge(row.gera_abastecimento_automatico) },
     { key: "prioridade", label: "Prioridade", type: "custom", render: (row) => prioridadeBadge(row.prioridade) },
+    { key: "reserva_separacao_movimento", label: "Reserva Sep. Movimento", type: "custom", render: (row) => boolBadge(row.reserva_separacao_movimento) },
+    { key: "reserva_conferencia_movimento", label: "Reserva Conf. Movimento", type: "custom", render: (row) => boolBadge(row.reserva_conferencia_movimento) },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
