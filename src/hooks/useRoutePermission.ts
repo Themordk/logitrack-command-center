@@ -14,8 +14,8 @@ const routeToModuleMap: Record<string, string> = {
   "/armazem/veiculos": "web.armazem.veiculos",
   "/armazem/zonas": "web.armazem.zonas",
   "/armazem/roteiro-separacao": "web.armazem.roteiro-separacao",
-  "/armazem/regras-armazenagem": "web.armazem.regras_armazenagem",
-  "/armazem/etiquetas": "web.armazem.etiquetas",
+  "/config/etiquetas": "web.config.etiquetas",
+  "/armazem/etiquetas": "web.config.etiquetas",
   "/dados-mestres/produtos": "web.dados-mestres.produtos",
   "/dados-mestres/grupos": "web.dados-mestres.grupos",
   "/dados-mestres/subgrupos": "web.dados-mestres.subgrupos",
@@ -50,6 +50,8 @@ const routeToModuleMap: Record<string, string> = {
   "/config/usuarios": "web.config.usuarios",
   "/config/integracao": "web.config.integracao",
   "/config/perfis": "web.config.perfis",
+  "/config/motivos-ocorrencia": "web.armazem.motivos",
+  "/config/tipos-tarefa": "web.config.tipos-tarefa",
 };
 
 const coletorModuleMap: Record<string, string> = {
