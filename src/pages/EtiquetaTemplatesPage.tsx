@@ -732,7 +732,21 @@ function RenderPreview({ tipo, config }: { tipo: TipoEtiquetaConfig; config: any
   if (tipo === "HU") {
     return (
       <EtiquetaHUPreview
-        hus={[{ id: "mock", codigo_hu: "HU-000000001", tipo_hu: "PALLET", tamanho: "PBR" }]}
+        hus={[{
+          id: "mock",
+          codigo_hu: "HU-000000001",
+          tipo_hu: "PALLET",
+          tamanho: "M",
+          peso_bruto: 45.5,
+          numero_movimento: "131",
+          data_entrada: "21/07/2026",
+          parceiro_nome: "FORNECEDOR EXEMPLO LTDA",
+          numero_nota: "250",
+          lote_principal: "L2026-A",
+          validade_proxima: "15/12/2026",
+          total_itens: 3,
+          total_quantidade: 150,
+        }]}
         config={config}
       />
     );
