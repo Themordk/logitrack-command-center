@@ -204,15 +204,16 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     if (!tenantId) return;
     try {
       const baseCampos = templates[0]?.campos || DEFAULT_CAMPOS_BY_TIPO[tipo];
+      const isHU = tipo === "HU";
       const payload = {
         tenant_id: tenantId,
         empresa_id: empresaSel || null,
         tipo,
         nome: `Novo Template ${tipo}`,
-        tamanho: "100x40",
+        tamanho: isHU ? "100x70" : "100x40",
         orientacao: "horizontal",
         largura_mm: 100,
-        altura_mm: 40,
+        altura_mm: isHU ? 70 : 40,
         com_cabecalho: true,
         com_logo: false,
         logo_url: null,
@@ -731,7 +732,21 @@ function RenderPreview({ tipo, config }: { tipo: TipoEtiquetaConfig; config: any
   if (tipo === "HU") {
     return (
       <EtiquetaHUPreview
-        hus={[{ id: "mock", codigo_hu: "HU-000000001", tipo_hu: "PALLET", tamanho: "PBR" }]}
+        hus={[{
+          id: "mock",
+          codigo_hu: "HU-000000001",
+          tipo_hu: "PALLET",
+          tamanho: "M",
+          peso_bruto: 45.5,
+          numero_movimento: "131",
+          data_entrada: "21/07/2026",
+          parceiro_nome: "FORNECEDOR EXEMPLO LTDA",
+          numero_nota: "250",
+          lote_principal: "L2026-A",
+          validade_proxima: "15/12/2026",
+          total_itens: 3,
+          total_quantidade: 150,
+        }]}
         config={config}
       />
     );
