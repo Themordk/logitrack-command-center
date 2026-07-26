@@ -1,37 +1,56 @@
+# Etiqueta HU Enriquecida com Dados Operacionais
 
 ## Escopo
 
-Backend já expõe 3 novos campos. Este plano ajusta apenas o frontend para refleti-los:
-- `tipo_saida.reserva_separacao_movimento` (bool, default true)
-- `tipo_saida.reserva_conferencia_movimento` (bool, default true)
-- `usuario.zona_atividade_separacao` (uuid nullable → `zona_atividade.id`)
+Enriquecer a etiqueta de HU (100×70mm padrão) com dados do recebimento (fornecedor, NF, movimento, lote, validade, totais, peso) via RPC `dados_etiqueta_hu` já disponível no backend. Layout GS1-like em 4 zonas, com degradação para templates compactos (≤100×40mm). Sem migrations.
 
-## 1) `src/pages/TiposSaidaPage.tsx`
+## 1) `src/components/etiqueta/EtiquetaHUPreview.tsx`
 
-- Grid: adicionar 2 colunas (`Reserva Sep. Movimento`, `Reserva Conf. Movimento`) usando o `boolBadge` já existente, imediatamente antes da coluna `ativo`.
-- Sheet de edição/criação: nova seção "Reserva de tarefas" entre "Separação e volume" e "Automação", com 2 `Switch`:
-  - `reserva_separacao_movimento` — descrição dinâmica ("Apenas 1 operador…" vs "Múltiplos operadores…").
-  - `reserva_conferencia_movimento` — mesmo padrão, **desabilitado** e visualmente esmaecido quando `realiza_conferencia = false`.
-- Defaults em novo registro: ambos `true` (compatível com registros existentes).
-- `handleSave`: quando `realiza_conferencia = false`, forçar `reserva_conferencia_movimento = true` (reset ao default) além dos resets já existentes de `conferencia_checkout` e `conferencia_cega`.
+- **Expandir e exportar** interface `HULike` com campos opcionais: `peso_bruto`, `numero_movimento`, `data_entrada`, `parceiro_nome`, `numero_nota`, `lote_principal`, `validade_proxima`, `total_itens`, `total_quantidade`.
+- **Aumentar default de altura**: `DEFAULT_H` de 320 → 560 (70mm × 8px/mm). Largura mantida.
+- **`BarcodeHU`**: aceitar prop `barHeight`; altura dinâmica (70 quando houver dados de contexto, 120 quando não).
+- **`EtiquetaHUSingle`**: novo layout em 4 zonas verticais com CSS inline (sem Tailwind):
+  1. **Cabeçalho** (condicional `showHeader`) — logo/nome + label "HU" (mantém atual).
+  2. **Contexto** (fornecedor + refs MOV/NF/ENTRADA) — só renderiza campos ativos no template E com valor; oculta zona inteira se nada visível.
+  3. **Barcode + código legível** (SEMPRE presente).
+  4. **Rodapé** — tipo/tamanho + lote + validade + qtd (SKUs·un) + peso, cada bloco só se ativo e com valor.
+- **Modo compacto** (`isCompact = HPX <= 400`): esconder zona 2 (contexto) e reduzir rodapé para tipo+tamanho apenas, preservando compatibilidade com templates 100×40 existentes.
+- **Filtragem por template**: usar `campos` do config já filtrados por `ativo` + `ordem` para decidir o que renderizar; fallback (sem config) mostra layout mínimo atual.
+- Manter `escala_fonte` via `fs(n)` em todos os tamanhos. Mínimo 7px labels / 10px valores.
 
-## 2) `src/pages/UsuariosPage.tsx`
+## 2) `src/components/etiqueta/PrintEtiquetaHUModal.tsx`
 
-- Novo state `zonaOptions` carregado no `useEffect` existente: consulta `zona_atividade` filtrando `tenant_id`, `tipo_grupo = 'PICKING'`, `Ativo = true`, ordenando por `descricao`; se houver `armazemId` ativo, filtrar também por `armazem_id`.
-- Grid: nova coluna "Zona Separação" antes de `ativo`, exibindo badge ciano com a descrição da zona ou "—" quando nulo.
-- Sheet de edição/criação: novo `select` "Zona de Atividade (Separação)" antes de `permite_checkout`, com primeira opção `""` rotulada "Todas as zonas (sem restrição)".
-- Como `fields` hoje é `const` estática, converter para `useMemo` com dependências `[empresaOptions, armazemOptions, turnoOptions, perfilOptions, zonaOptions]` para reagir ao carregamento assíncrono das zonas.
-- `onSave`: normalizar `zona_atividade_separacao` para `null` quando vazio/undefined, tanto no update quanto no body da edge function `create-usuario`.
+- Novo estado `husEnriquecidas: HULike[]` e `loadingDados: boolean`.
+- Novo `useEffect` (dep `[open, hus]`): busca `tenant_id` do usuário logado e chama `(supabase as any).rpc("dados_etiqueta_hu", { p_tenant_id, p_hu_ids })`. Tratar unwrap de array aninhado (jsonb). Em erro, fallback para os dados básicos originais.
+- Renderizar `<EtiquetaHUPreview hus={husEnriquecidas.length ? husEnriquecidas : hus} ...>` nos dois usos (print hidden div e preview visível).
+- Bloco de loading atual passa a exibir "Carregando dados da HU..." quando `loadingDados`.
+- Botão gerar/imprimir: `disabled={loading || loadingDados || !selectedConfig}`.
 
-## 3) `src/integrations/supabase/types.ts`
+## 3) `src/pages/EtiquetaTemplatesPage.tsx`
 
-Adicionar os novos campos nos blocos `Row`/`Insert`/`Update`:
-- `tipo_saida`: `reserva_separacao_movimento: boolean` e `reserva_conferencia_movimento: boolean` (opcionais em Insert/Update).
-- `usuario`: `zona_atividade_separacao: string | null` (opcional em Insert/Update).
+Ampliar `DEFAULT_CAMPOS_BY_TIPO.HU` (linhas 50-53) com os novos campos disponíveis (ordem/ativo conforme prompt):
 
-## Detalhes técnicos
+```
+codigo_hu (on), tipo_hu (on), tamanho (on),
+parceiro_nome (on), numero_movimento (on), numero_nota (on), data_entrada (on),
+lote_principal (on), validade_proxima (on),
+total_quantidade (off), total_itens (off), peso_bruto (off)
+```
 
-- Nenhum arquivo novo, nenhuma migration (backend já pronto).
-- Comportamento retrocompatível: registros sem zona veem todas as ondas; `tipo_saida` existentes ficam com reservas `true` (comportamento atual).
-- Sem alterações no coletor — filtro por zona já é aplicado no backend.
-- RBAC/rotas inalteradas.
+Não altera templates já persistidos — só afeta novos templates HU criados a partir daqui.
+
+## Regras respeitadas
+
+- CSS inline nas etiquetas (funciona em `window.open`).
+- Sem migrations; RPC `dados_etiqueta_hu` já pronta.
+- Sem alterar `etiqueta_template` no banco.
+- Templates 100×40 existentes continuam renderizando (modo compacto).
+- Campos vazios/0/null são ocultados (nunca "—").
+- Barcode nunca é sacrificado.
+- Cast `(supabase as any)` nas RPCs.
+
+## Fora de escopo
+
+- Alterações em outras etiquetas (Endereço, Produto, Volume).
+- Migração automática de templates existentes para novo tamanho.
+- Alterações no backend / RPCs.
