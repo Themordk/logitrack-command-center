@@ -24,11 +24,56 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const plural = hus.length > 1;
-  const { empresaId } = useTenant();
+  const { tenantId, empresaId } = useTenant();
 
   const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
   const [loading, setLoading] = useState(false);
+  const [husEnriquecidas, setHusEnriquecidas] = useState<HULike[]>([]);
+  const [loadingDados, setLoadingDados] = useState(false);
+
+  useEffect(() => {
+    if (!open || hus.length === 0) return;
+    let cancelled = false;
+    async function loadDados() {
+      setLoadingDados(true);
+      try {
+        let tid = tenantId;
+        if (!tid) {
+          const { data: tenantRow } = await supabase
+            .from("usuario").select("tenant_id").limit(1).single();
+          tid = (tenantRow as any)?.tenant_id ?? null;
+        }
+        if (!tid) { setHusEnriquecidas([]); return; }
+        const huIds = hus.map((h) => h.id);
+        const { data, error } = await (supabase as any).rpc("dados_etiqueta_hu", {
+          p_tenant_id: tid, p_hu_ids: huIds,
+        });
+        if (cancelled) return;
+        if (error) throw error;
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        const flat = Array.isArray(parsed) && Array.isArray(parsed[0]) ? parsed[0] : parsed;
+        const rows: HULike[] = (flat || []).map((r: any) => ({
+          id: r.hu_id, ...r,
+          peso_bruto: r.peso_bruto != null ? Number(r.peso_bruto) : undefined,
+          total_itens: r.total_itens != null ? Number(r.total_itens) : undefined,
+          total_quantidade: r.total_quantidade != null ? Number(r.total_quantidade) : undefined,
+        }));
+        setHusEnriquecidas(rows);
+      } catch (err: any) {
+        console.error("Erro ao carregar dados HU:", err);
+        if (!cancelled) {
+          setHusEnriquecidas(hus.map((h) => ({
+            id: h.id, codigo_hu: h.codigo_hu, tipo_hu: h.tipo_hu, tamanho: h.tamanho,
+          })));
+        }
+      } finally {
+        if (!cancelled) setLoadingDados(false);
+      }
+    }
+    loadDados();
+    return () => { cancelled = true; };
+  }, [open, hus, tenantId]);
 
   useEffect(() => {
     if (!open) return;
