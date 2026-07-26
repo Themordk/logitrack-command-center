@@ -156,9 +156,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
             </span>
           </div>
 
-          {loading && (
+          {(loading || loadingDados) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 size={12} className="animate-spin" /> Carregando templates...
+              <Loader2 size={12} className="animate-spin" />
+              {loadingDados ? "Carregando dados da HU..." : "Carregando templates..."}
             </div>
           )}
 
