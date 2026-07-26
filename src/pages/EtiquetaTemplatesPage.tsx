@@ -49,7 +49,17 @@ const DEFAULT_CAMPOS_BY_TIPO: Record<TipoEtiquetaConfig, CampoEtiqueta[]> = {
   ],
   HU: [
     { chave: "codigo_hu", label: "Código HU", ativo: true, ordem: 1 },
-    { chave: "tipo_hu", label: "Tipo", ativo: true, ordem: 2 },
+    { chave: "tipo_hu", label: "Tipo de HU", ativo: true, ordem: 2 },
+    { chave: "tamanho", label: "Tamanho", ativo: true, ordem: 3 },
+    { chave: "parceiro_nome", label: "Fornecedor", ativo: true, ordem: 4 },
+    { chave: "numero_movimento", label: "Nº Movimento", ativo: true, ordem: 5 },
+    { chave: "numero_nota", label: "Nº Nota Fiscal", ativo: true, ordem: 6 },
+    { chave: "data_entrada", label: "Data Entrada", ativo: true, ordem: 7 },
+    { chave: "lote_principal", label: "Lote", ativo: true, ordem: 8 },
+    { chave: "validade_proxima", label: "Validade", ativo: true, ordem: 9 },
+    { chave: "total_quantidade", label: "Qtd Total", ativo: false, ordem: 10 },
+    { chave: "total_itens", label: "Qtd SKUs", ativo: false, ordem: 11 },
+    { chave: "peso_bruto", label: "Peso Bruto (kg)", ativo: false, ordem: 12 },
   ],
   PRODUTO: [
     { chave: "sku", label: "SKU", ativo: true, ordem: 1 },
