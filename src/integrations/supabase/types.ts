@@ -8086,6 +8086,10 @@ export type Database = {
       cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: { Args: never; Returns: Json }
+      dados_etiqueta_hu: {
+        Args: { p_hu_ids: string[]; p_tenant_id: string }
+        Returns: Json
+      }
       dashboard_kpis: {
         Args: {
           p_armazem_id?: string
