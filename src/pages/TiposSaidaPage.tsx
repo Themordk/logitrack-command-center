@@ -184,6 +184,48 @@ export function TiposSaidaPage() {
               </div>
             </div>
 
+            {/* ── Reserva de tarefas ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Reserva de tarefas</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Define se a onda inteira é reservada para 1 operador ou se múltiplos operadores podem trabalhar simultaneamente.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.reserva_separacao_movimento}
+                    onCheckedChange={(v) => set("reserva_separacao_movimento", v)}
+                  />
+                  <div>
+                    <label className="text-sm text-foreground">Reserva todo o movimento na separação</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.reserva_separacao_movimento
+                        ? "Apenas 1 operador pode separar a onda"
+                        : "Múltiplos operadores podem separar a mesma onda"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.reserva_conferencia_movimento}
+                    onCheckedChange={(v) => set("reserva_conferencia_movimento", v)}
+                    disabled={!form.realiza_conferencia}
+                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Reserva todo o movimento na conferência
+                    </label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.reserva_conferencia_movimento
+                        ? "Apenas 1 operador pode conferir a onda"
+                        : "Múltiplos operadores podem conferir a mesma onda"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* ── Automação ── */}
             <div className={sectionClass}>
               <p className={sectionTitleClass}>Automação</p>
