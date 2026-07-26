@@ -5729,6 +5729,8 @@ export type Database = {
           libera_mov_automatico: boolean
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
+          reserva_conferencia_movimento: boolean
+          reserva_separacao_movimento: boolean
           separa_pulmao: boolean
           tenant_id: string
         }
@@ -5746,6 +5748,8 @@ export type Database = {
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          reserva_conferencia_movimento?: boolean
+          reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
           tenant_id: string
         }
@@ -5763,6 +5767,8 @@ export type Database = {
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          reserva_conferencia_movimento?: boolean
+          reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
           tenant_id?: string
         }
@@ -5956,6 +5962,7 @@ export type Database = {
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario: Database["public"]["Enums"]["enum_tipo_usuario"] | null
           turno_id: string | null
+          zona_atividade_separacao: string | null
         }
         Insert: {
           armazem_id?: string | null
@@ -5975,6 +5982,7 @@ export type Database = {
           tipo_operacao: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
           turno_id?: string | null
+          zona_atividade_separacao?: string | null
         }
         Update: {
           armazem_id?: string | null
@@ -5994,6 +6002,7 @@ export type Database = {
           tipo_operacao?: Database["public"]["Enums"]["enum_tipo_operacao"]
           tipo_usuario?: Database["public"]["Enums"]["enum_tipo_usuario"] | null
           turno_id?: string | null
+          zona_atividade_separacao?: string | null
         }
         Relationships: [
           {
@@ -6029,6 +6038,13 @@ export type Database = {
             columns: ["turno_id"]
             isOneToOne: false
             referencedRelation: "turnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_zona_atividade_separacao_fkey"
+            columns: ["zona_atividade_separacao"]
+            isOneToOne: false
+            referencedRelation: "zona_atividade"
             referencedColumns: ["id"]
           },
         ]
