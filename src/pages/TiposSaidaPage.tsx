@@ -48,6 +48,8 @@ export function TiposSaidaPage() {
     ) },
     { key: "gera_abastecimento_automatico", label: "Abast. Automático", type: "custom", render: (row) => boolBadge(row.gera_abastecimento_automatico) },
     { key: "prioridade", label: "Prioridade", type: "custom", render: (row) => prioridadeBadge(row.prioridade) },
+    { key: "reserva_separacao_movimento", label: "Reserva Sep. Movimento", type: "custom", render: (row) => boolBadge(row.reserva_separacao_movimento) },
+    { key: "reserva_conferencia_movimento", label: "Reserva Conf. Movimento", type: "custom", render: (row) => boolBadge(row.reserva_conferencia_movimento) },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -58,7 +60,9 @@ export function TiposSaidaPage() {
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
       separa_pulmao: false, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
-      gera_abastecimento_automatico: false, ativo: true,
+      gera_abastecimento_automatico: false,
+      reserva_separacao_movimento: true, reserva_conferencia_movimento: true,
+      ativo: true,
     });
     setModalOpen(true);
   };
@@ -72,6 +76,7 @@ export function TiposSaidaPage() {
     if (!payload.realiza_conferencia) {
       payload.conferencia_checkout = false;
       payload.conferencia_cega = false;
+      payload.reserva_conferencia_movimento = true;
     }
     const ok = editItem
       ? await crud.update(editItem.id, payload)
@@ -175,6 +180,48 @@ export function TiposSaidaPage() {
                   <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
                     {["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"].map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Reserva de tarefas ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Reserva de tarefas</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Define se a onda inteira é reservada para 1 operador ou se múltiplos operadores podem trabalhar simultaneamente.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.reserva_separacao_movimento}
+                    onCheckedChange={(v) => set("reserva_separacao_movimento", v)}
+                  />
+                  <div>
+                    <label className="text-sm text-foreground">Reserva todo o movimento na separação</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.reserva_separacao_movimento
+                        ? "Apenas 1 operador pode separar a onda"
+                        : "Múltiplos operadores podem separar a mesma onda"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.reserva_conferencia_movimento}
+                    onCheckedChange={(v) => set("reserva_conferencia_movimento", v)}
+                    disabled={!form.realiza_conferencia}
+                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Reserva todo o movimento na conferência
+                    </label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.reserva_conferencia_movimento
+                        ? "Apenas 1 operador pode conferir a onda"
+                        : "Múltiplos operadores podem conferir a mesma onda"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

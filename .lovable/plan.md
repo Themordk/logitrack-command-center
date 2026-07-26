@@ -1,36 +1,37 @@
-## 1) Mover "Templates de Etiqueta" para Configurações
 
-- **TopNav** (`src/components/TopNav.tsx`): remover item "Templates de Etiqueta" do submenu Armazém e adicioná-lo em Configurações.
-- **App** (`src/App.tsx`): mover a rota `/config/etiquetas` (novo caminho) mantendo o componente `EtiquetaTemplatesPage`. Atualizar breadcrumb para "Configurações › Templates de Etiqueta". Manter um alias temporário `/armazem/etiquetas` redirecionando para o novo path para não quebrar bookmarks.
-- **Migration** — atualizar registro do módulo `web.armazem.etiquetas` → renomear para `web.config.etiquetas` (update em `modulo`) para refletir agrupamento correto na tela de Perfis de Acesso. Permissões atuais permanecem intactas (apenas o código muda).
+## Escopo
 
-## 2) Unificar "Regras de Armazenagem" com o modal de configurações do Armazém
+Backend já expõe 3 novos campos. Este plano ajusta apenas o frontend para refleti-los:
+- `tipo_saida.reserva_separacao_movimento` (bool, default true)
+- `tipo_saida.reserva_conferencia_movimento` (bool, default true)
+- `usuario.zona_atividade_separacao` (uuid nullable → `zona_atividade.id`)
 
-- **Remover do menu**: retirar "Regras de Armazenagem" do submenu Armazém no `TopNav.tsx` e a rota `/armazem/regras-armazenagem` do `App.tsx` (breadcrumb + case do router).
-- **Refatorar `ArmazemConfigModal.tsx`** (acionado pelo ícone de engrenagem em `ArmazensPage.tsx`):
-  - Manter as 4 seleções de endereço já existentes (Cancelamento, Avaria, Quarentena, Armazenagem Automática).
-  - Adicionar as demais configurações que hoje vivem em `RegraArmazenagemPage.tsx` (parâmetros de motor de armazenagem, tolerâncias, flags de comportamento, etc.), organizadas em seções colapsáveis/tabs para manter o modal legível.
-  - Migrar de `<Dialog>` para `<Sheet>` lateral (padrão do sistema para telas de edição), com largura consistente às demais Sheets (ex.: `sm:max-w-2xl`), header fixo, corpo com scroll e footer com Salvar/Cancelar/Remover.
-- **Deletar** `src/pages/RegraArmazenagemPage.tsx` após migrar seu conteúdo. Ajustar imports órfãos no `App.tsx`.
-- **Migration**: atualizar `modulo.codigo` `web.armazem.regras_armazenagem` para apontar ao mesmo módulo de Cadastro de Armazém (ou inativar), removendo a entrada duplicada em Perfis de Acesso.
+## 1) `src/pages/TiposSaidaPage.tsx`
 
-## 3) Cadastro de Documento de Entrada / Saída
+- Grid: adicionar 2 colunas (`Reserva Sep. Movimento`, `Reserva Conf. Movimento`) usando o `boolBadge` já existente, imediatamente antes da coluna `ativo`.
+- Sheet de edição/criação: nova seção "Reserva de tarefas" entre "Separação e volume" e "Automação", com 2 `Switch`:
+  - `reserva_separacao_movimento` — descrição dinâmica ("Apenas 1 operador…" vs "Múltiplos operadores…").
+  - `reserva_conferencia_movimento` — mesmo padrão, **desabilitado** e visualmente esmaecido quando `realiza_conferencia = false`.
+- Defaults em novo registro: ambos `true` (compatível com registros existentes).
+- `handleSave`: quando `realiza_conferencia = false`, forçar `reserva_conferencia_movimento = true` (reset ao default) além dos resets já existentes de `conferencia_checkout` e `conferencia_cega`.
 
-**3.1 — Valor total da nota calculado**
-- `src/pages/CadastroDocEntradaPage.tsx`:
-  - Remover o input manual "Valor Total Nota" (linhas ~227-228) e o estado `valorTotalNota`.
-  - Ao gravar, usar `valor_total_nota = valorTotalProdutos` (soma dos itens).
-  - Exibir o total calculado como texto readonly no rodapé do formulário para transparência ao usuário.
+## 2) `src/pages/UsuariosPage.tsx`
 
-**3.2 — Parceiro com busca (Entrada e Saída)**
-- Criar componente reutilizável `src/components/parceiro/ParceiroSearchInput.tsx` seguindo o padrão de `ProdutoSearchInput.tsx`/`EnderecoSearchInput.tsx`:
-  - Input com debounce (250-300ms) filtrando `parceiro` por `razaosocial`, `nome_fantasia`, `cnpj_cpf` e `codigo_erp` (ILIKE, escopo por tenant/empresa e `ativo=true`).
-  - Chip do parceiro selecionado com botão de limpar; dropdown com lista compacta mostrando razão social + CNPJ + código ERP.
-- Substituir o `<select>` de parceiro em `CadastroDocEntradaPage.tsx` (linhas ~197-206) e `CadastroDocSaidaPage.tsx` (linhas ~197-200) pelo novo componente.
-- Remover o preload da lista completa de parceiros (`parceiros` state) — passa a ser sob demanda pelo componente.
+- Novo state `zonaOptions` carregado no `useEffect` existente: consulta `zona_atividade` filtrando `tenant_id`, `tipo_grupo = 'PICKING'`, `Ativo = true`, ordenando por `descricao`; se houver `armazemId` ativo, filtrar também por `armazem_id`.
+- Grid: nova coluna "Zona Separação" antes de `ativo`, exibindo badge ciano com a descrição da zona ou "—" quando nulo.
+- Sheet de edição/criação: novo `select` "Zona de Atividade (Separação)" antes de `permite_checkout`, com primeira opção `""` rotulada "Todas as zonas (sem restrição)".
+- Como `fields` hoje é `const` estática, converter para `useMemo` com dependências `[empresaOptions, armazemOptions, turnoOptions, perfilOptions, zonaOptions]` para reagir ao carregamento assíncrono das zonas.
+- `onSave`: normalizar `zona_atividade_separacao` para `null` quando vazio/undefined, tanto no update quanto no body da edge function `create-usuario`.
+
+## 3) `src/integrations/supabase/types.ts`
+
+Adicionar os novos campos nos blocos `Row`/`Insert`/`Update`:
+- `tipo_saida`: `reserva_separacao_movimento: boolean` e `reserva_conferencia_movimento: boolean` (opcionais em Insert/Update).
+- `usuario`: `zona_atividade_separacao: string | null` (opcional em Insert/Update).
 
 ## Detalhes técnicos
 
-- Nenhum schema novo é necessário; apenas atualização de `modulo.codigo` para reposicionamento nas Perfis de Acesso.
-- Cache de permissões (`sessionStorage core_rbac_permissions`) será invalidado automaticamente após 5 min; opcional: bump manual documentado para o admin fazer logout/refresh.
-- Manter compatibilidade: se preferir, no lugar de renomear `modulo.codigo` podemos manter os códigos atuais — decisão de execução na migration.
+- Nenhum arquivo novo, nenhuma migration (backend já pronto).
+- Comportamento retrocompatível: registros sem zona veem todas as ondas; `tipo_saida` existentes ficam com reservas `true` (comportamento atual).
+- Sem alterações no coletor — filtro por zona já é aplicado no backend.
+- RBAC/rotas inalteradas.
