@@ -265,9 +265,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaHUPreview hus={hus} isPrint={true} config={configOverride} />
+              <EtiquetaHUPreview hus={husEnriquecidas.length > 0 ? husEnriquecidas : hus} isPrint={true} config={configOverride} />
             </div>
-            <EtiquetaHUPreview hus={hus} isPrint={false} config={configOverride} />
+            <EtiquetaHUPreview hus={husEnriquecidas.length > 0 ? husEnriquecidas : hus} isPrint={false} config={configOverride} />
+
           </div>
         </div>
       )}
