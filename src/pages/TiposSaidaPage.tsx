@@ -60,7 +60,9 @@ export function TiposSaidaPage() {
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
       separa_pulmao: false, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
-      gera_abastecimento_automatico: false, ativo: true,
+      gera_abastecimento_automatico: false,
+      reserva_separacao_movimento: true, reserva_conferencia_movimento: true,
+      ativo: true,
     });
     setModalOpen(true);
   };
