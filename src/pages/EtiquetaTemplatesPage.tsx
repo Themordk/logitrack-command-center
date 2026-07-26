@@ -204,15 +204,16 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     if (!tenantId) return;
     try {
       const baseCampos = templates[0]?.campos || DEFAULT_CAMPOS_BY_TIPO[tipo];
+      const isHU = tipo === "HU";
       const payload = {
         tenant_id: tenantId,
         empresa_id: empresaSel || null,
         tipo,
         nome: `Novo Template ${tipo}`,
-        tamanho: "100x40",
+        tamanho: isHU ? "100x70" : "100x40",
         orientacao: "horizontal",
         largura_mm: 100,
-        altura_mm: 40,
+        altura_mm: isHU ? 70 : 40,
         com_cabecalho: true,
         com_logo: false,
         logo_url: null,
