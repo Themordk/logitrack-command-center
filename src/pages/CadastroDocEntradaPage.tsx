@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ProdutoSearchInput, ProdutoSearchResult } from "@/components/produto/ProdutoSearchInput";
+import { ParceiroSearchInput } from "@/components/parceiro/ParceiroSearchInput";
 import { parseError } from "@/lib/errorMapper";
 
 interface DocItem {
@@ -29,10 +30,8 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
   const [tipoEntradaId, setTipoEntradaId] = useState("");
   const [armazemId, setArmazemId] = useState("");
   const [qtdVolume, setQtdVolume] = useState<number | "">("");
-  const [valorTotalNota, setValorTotalNota] = useState<number>(0);
 
   // Options
-  const [parceiros, setParceiros] = useState<{ id: string; razaosocial: string }[]>([]);
   const [tiposEntrada, setTiposEntrada] = useState<{ id: string; descricao: string }[]>([]);
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
 
@@ -46,17 +45,15 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
 
   useEffect(() => {
     if (!tenantId || !empresaId) {
-      setParceiros([]); setTiposEntrada([]); setArmazens([]);
+      setTiposEntrada([]); setArmazens([]);
       return;
     }
     // Reset seleções dependentes ao trocar empresa
     setParceiroId(""); setTipoEntradaId(""); setArmazemId(""); setItems([]);
     Promise.all([
-      (supabase as any).from("parceiro").select("id, razaosocial").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("razaosocial"),
       (supabase as any).from("tipo_entrada").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
       (supabase as any).from("armazem").select("id, descricao").eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao"),
-    ]).then(([pRes, tRes, aRes]) => {
-      setParceiros(pRes.data || []);
+    ]).then(([tRes, aRes]) => {
       setTiposEntrada(tRes.data || []);
       setArmazens(aRes.data || []);
     });
@@ -117,7 +114,7 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
           tipo_entrada_id: tipoEntradaId,
           armazem_id: armazemId,
           qtd_volume: qtdVolume || null,
-          valor_total_nota: valorTotalNota || valorTotalProdutos,
+          valor_total_nota: valorTotalProdutos,
           valor_total_produtos: valorTotalProdutos,
           status: 0,
         })
@@ -145,7 +142,6 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
         setTipoEntradaId("");
         setArmazemId("");
         setQtdVolume("");
-        setValorTotalNota(0);
         setItems([]);
       }
     } catch (err: any) {
@@ -198,12 +194,14 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Data Entrada *</label>
             <input type="date" value={dataEntrada} onChange={(e) => setDataEntrada(e.target.value)} className={inputClass} />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Parceiro *</label>
-            <select value={parceiroId} onChange={(e) => setParceiroId(e.target.value)} className={inputClass}>
-              <option value="">Selecione...</option>
-              {parceiros.map((p) => <option key={p.id} value={p.id}>{p.razaosocial}</option>)}
-            </select>
+            <ParceiroSearchInput
+              value={parceiroId || null}
+              onChange={(id) => setParceiroId(id ?? "")}
+              tenantId={tenantId}
+              empresaId={empresaId}
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Tipo de Entrada *</label>
@@ -225,7 +223,12 @@ export function CadastroDocEntradaPage({ onBack }: { onBack?: () => void }) {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Valor Total Nota</label>
-            <input type="number" step="0.01" value={valorTotalNota || ""} onChange={(e) => setValorTotalNota(Number(e.target.value))} className={inputClass} placeholder="0,00" />
+            <input
+              readOnly
+              value={valorTotalProdutos.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              className={inputClass + " opacity-70 cursor-not-allowed font-mono"}
+              title="Calculado automaticamente a partir dos itens"
+            />
           </div>
         </div>
       </div>
