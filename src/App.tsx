@@ -140,6 +140,25 @@ import { SupportTenantsPage } from "./pages/suporte/SupportTenantsPage";
 import { SupportTenantDetailPage } from "./pages/suporte/SupportTenantDetailPage";
 import { SupportChamadosPage } from "./pages/suporte/SupportChamadosPage";
 
+// TV panels (Gestão à Vista) — rotas públicas sem tenant/auth
+import { PainelTvOperacional } from "./pages/tv/PainelTvOperacional";
+import { PainelTvVendas } from "./pages/tv/PainelTvVendas";
+
+function TvRouter() {
+  const [path, setPath] = useState(() => {
+    const h = window.location.hash.replace(/^#/, "");
+    return h.split("?")[0];
+  });
+  useEffect(() => {
+    const onHash = () => setPath(window.location.hash.replace(/^#/, "").split("?")[0]);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  if (path === "/tv/vendas") return <PainelTvVendas />;
+  return <PainelTvOperacional />;
+}
+
+
 const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/": [{ label: "CORE LogiTrack" }, { label: "Dashboard" }],
   
@@ -596,6 +615,19 @@ function AppContent() {
 }
 
 export default function App() {
+  const initialHash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
+  const isTvRoute = initialHash.startsWith("/tv/");
+
+  if (isTvRoute) {
+    return (
+      <ErrorBoundary showDetails>
+        <QueryClientProvider client={queryClient}>
+          <TvRouter />
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary showDetails>
       <QueryClientProvider client={queryClient}>
@@ -611,3 +643,4 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
