@@ -50,8 +50,6 @@ const routeToModuleMap: Record<string, string> = {
   "/config/usuarios": "web.config.usuarios",
   "/config/integracao": "web.config.integracao",
   "/config/perfis": "web.config.perfis",
-  "/config/motivos-ocorrencia": "web.armazem.motivos",
-  "/config/tipos-tarefa": "web.config.tipos-tarefa",
 };
 
 const coletorModuleMap: Record<string, string> = {
