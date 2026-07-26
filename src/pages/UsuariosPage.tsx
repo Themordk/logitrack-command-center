@@ -24,6 +24,7 @@ export function UsuariosPage() {
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
   const [turnoOptions, setTurnoOptions] = useState<{ value: string; label: string }[]>([]);
   const [perfilOptions, setPerfilOptions] = useState<{ value: string; label: string }[]>([]);
+  const [zonaOptions, setZonaOptions] = useState<{ value: string; label: string }[]>([]);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
   const [resetting, setResetting] = useState(false);
 
@@ -43,6 +44,18 @@ export function UsuariosPage() {
       } else {
         setTurnoOptions([]);
       }
+      // Zonas de atividade (PICKING) do armazém ativo para separação
+      (async () => {
+        const base = (supabase as any)
+          .from("zona_atividade")
+          .select("id, descricao")
+          .eq("tenant_id", tenantId)
+          .eq("tipo_grupo", "PICKING")
+          .eq("Ativo", true)
+          .order("descricao");
+        const { data } = armazemId ? await base.eq("armazem_id", armazemId) : await base;
+        setZonaOptions((data || []).map((z: any) => ({ value: z.id, label: z.descricao })));
+      })();
     }
     setModalOpen(false);
     setEditItem(null);
@@ -64,6 +77,19 @@ export function UsuariosPage() {
     },
     { key: "habilidade", label: "Habilidade" },
     { key: "tipo_operacao", label: "Operação" },
+    {
+      key: "zona_atividade_separacao",
+      label: "Zona Separação",
+      render: (row: any) => {
+        if (!row.zona_atividade_separacao) return <span className="text-xs text-muted-foreground">—</span>;
+        const zona = zonaOptions.find((z) => z.value === row.zona_atividade_separacao);
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+            {zona?.label || "..."}
+          </span>
+        );
+      },
+    },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -76,7 +102,7 @@ export function UsuariosPage() {
     return { ...item, perfil_id: perfilId };
   };
 
-  const fields: FieldSpec[] = [
+  const fields: FieldSpec[] = useMemo(() => [
     { name: "empresa_id", label: "Empresa", type: "select", required: true, options: empresaOptions },
     { name: "armazem_id", label: "Armazém", type: "select", required: false, options: armazemOptions },
     { name: "turno_id", label: "Turno", type: "select", required: false, options: turnoOptions },
@@ -87,9 +113,17 @@ export function UsuariosPage() {
     { name: "habilidade", label: "Habilidade", type: "enum", enumValues: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"] },
     { name: "tipo_operacao", label: "Tipo de Operação", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "MOVIMENTOS", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "AUDITORIA"] },
     { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Opcional" },
+    {
+      name: "zona_atividade_separacao",
+      label: "Zona de Atividade (Separação)",
+      type: "select",
+      required: false,
+      options: [{ value: "", label: "Todas as zonas (sem restrição)" }, ...zonaOptions],
+      placeholder: "Selecione a zona...",
+    },
     { name: "permite_checkout", label: "Permite Checkout", type: "switch", defaultValue: false },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
-  ];
+  ], [empresaOptions, armazemOptions, turnoOptions, perfilOptions, zonaOptions]);
 
   const handleResetPassword = async () => {
     if (!resetConfirm) return;
@@ -154,6 +188,9 @@ export function UsuariosPage() {
         initialData={editItem ? getEditInitialData(editItem) : (empresaId ? { empresa_id: empresaId, armazem_id: armazemId || undefined } : null)}
         onSave={async (data) => {
           const { perfil_id, senha, ...rest } = data;
+          if (rest.zona_atividade_separacao === "" || rest.zona_atividade_separacao === undefined) {
+            rest.zona_atividade_separacao = null;
+          }
 
           if (editItem) {
             const ok = await crud.update(editItem.id, rest);
@@ -177,6 +214,7 @@ export function UsuariosPage() {
               perfil_id,
               senha: senha || undefined,
               tenant_id: tenantId,
+              zona_atividade_separacao: rest.zona_atividade_separacao || null,
             },
           });
           if (error || !result?.success) {
