@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Printer, X, Eye, Settings2, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { EtiquetaHUPreview } from "./EtiquetaHUPreview";
+import { EtiquetaHUPreview, type HULike } from "./EtiquetaHUPreview";
 import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,11 +24,56 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const plural = hus.length > 1;
-  const { empresaId } = useTenant();
+  const { tenantId, empresaId } = useTenant();
 
   const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
   const [loading, setLoading] = useState(false);
+  const [husEnriquecidas, setHusEnriquecidas] = useState<HULike[]>([]);
+  const [loadingDados, setLoadingDados] = useState(false);
+
+  useEffect(() => {
+    if (!open || hus.length === 0) return;
+    let cancelled = false;
+    async function loadDados() {
+      setLoadingDados(true);
+      try {
+        let tid = tenantId;
+        if (!tid) {
+          const { data: tenantRow } = await supabase
+            .from("usuario").select("tenant_id").limit(1).single();
+          tid = (tenantRow as any)?.tenant_id ?? null;
+        }
+        if (!tid) { setHusEnriquecidas([]); return; }
+        const huIds = hus.map((h) => h.id);
+        const { data, error } = await (supabase as any).rpc("dados_etiqueta_hu", {
+          p_tenant_id: tid, p_hu_ids: huIds,
+        });
+        if (cancelled) return;
+        if (error) throw error;
+        const parsed = typeof data === "string" ? JSON.parse(data) : data;
+        const flat = Array.isArray(parsed) && Array.isArray(parsed[0]) ? parsed[0] : parsed;
+        const rows: HULike[] = (flat || []).map((r: any) => ({
+          id: r.hu_id, ...r,
+          peso_bruto: r.peso_bruto != null ? Number(r.peso_bruto) : undefined,
+          total_itens: r.total_itens != null ? Number(r.total_itens) : undefined,
+          total_quantidade: r.total_quantidade != null ? Number(r.total_quantidade) : undefined,
+        }));
+        setHusEnriquecidas(rows);
+      } catch (err: any) {
+        console.error("Erro ao carregar dados HU:", err);
+        if (!cancelled) {
+          setHusEnriquecidas(hus.map((h) => ({
+            id: h.id, codigo_hu: h.codigo_hu, tipo_hu: h.tipo_hu, tamanho: h.tamanho,
+          })));
+        }
+      } finally {
+        if (!cancelled) setLoadingDados(false);
+      }
+    }
+    loadDados();
+    return () => { cancelled = true; };
+  }, [open, hus, tenantId]);
 
   useEffect(() => {
     if (!open) return;
@@ -111,9 +156,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
             </span>
           </div>
 
-          {loading && (
+          {(loading || loadingDados) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 size={12} className="animate-spin" /> Carregando templates...
+              <Loader2 size={12} className="animate-spin" />
+              {loadingDados ? "Carregando dados da HU..." : "Carregando templates..."}
             </div>
           )}
 
@@ -192,7 +238,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
 
           <div className="flex items-center justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">Cancelar</button>
-            <button onClick={handleGerar} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <button onClick={handleGerar} disabled={loading || loadingDados || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
               {saida === "preview" ? <><Eye size={15} />Gerar Preview</> : <><Printer size={15} />Imprimir Agora</>}
             </button>
           </div>
@@ -219,9 +265,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
           </div>
           <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6">
             <div ref={printRef} style={{ display: "none" }}>
-              <EtiquetaHUPreview hus={hus} isPrint={true} config={configOverride} />
+              <EtiquetaHUPreview hus={husEnriquecidas.length > 0 ? husEnriquecidas : hus} isPrint={true} config={configOverride} />
             </div>
-            <EtiquetaHUPreview hus={hus} isPrint={false} config={configOverride} />
+            <EtiquetaHUPreview hus={husEnriquecidas.length > 0 ? husEnriquecidas : hus} isPrint={false} config={configOverride} />
+
           </div>
         </div>
       )}
