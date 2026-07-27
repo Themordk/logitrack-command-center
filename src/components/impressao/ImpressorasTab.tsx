@@ -104,7 +104,7 @@ export function ImpressorasTab() {
     { name: "nome", label: "Nome da Impressora", type: "text", required: true, placeholder: "Zebra ZD420 - Recebimento" },
     { name: "codigo", label: "Código", type: "text", required: true, placeholder: "IMP-REC-01" },
     { name: "setor_uso", label: "Setor de Uso", type: "enum", required: true, enumValues: ["RECEBIMENTO", "EXPEDICAO", "GERAL", "INVENTARIO"], defaultValue: "GERAL" },
-    { name: "agent_id", label: "Agent Responsável", type: "select", options: agentOptions },
+    { name: "agent_id", label: "Agent Responsável", type: "select", options: agentOptions, placeholder: hasAgents ? "Selecionar..." : "Nenhum agent cadastrado para este armazém" },
 
     { name: "tipo_conexao", label: "Tipo de Conexão", type: "enum", required: true, enumValues: ["USB", "REDE", "BLUETOOTH"], defaultValue: "USB" },
     {
