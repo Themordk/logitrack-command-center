@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2, Plus, Trash2, Edit2, MapPin } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit2, MapPin, Printer } from "lucide-react";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
+import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 
 
 interface Props {
