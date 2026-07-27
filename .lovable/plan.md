@@ -1,64 +1,67 @@
-## Painéis TV — Operacional e Vendas (Gestão à Vista)
+## Configurações → Impressão (Agents, Impressoras, Fila) + RBAC
 
-Duas páginas fullscreen para TVs no armazém, acessadas por `tv_token` (sem autenticação de usuário). Backend (RPCs `rpc_painel_tv_operacional` e `rpc_painel_tv_vendas` + campo `armazem.tv_token`) já existe. Escopo: apenas frontend.
+Página `/config/impressao` sob o grupo Configurações no `TopNav`, com 3 abas (`Tabs` do shadcn). Tabelas `print_agent`, `impressora`, `fila_impressao`, enums e RPCs `reimprimir_etiqueta` / `cancelar_job_impressao` já existem no banco — nenhuma alteração de schema.
 
-### Rotas
+### Arquivos a criar
 
-- `#/tv/operacional` — refresh 15s
-- `#/tv/vendas` — refresh 30s
-- Suporte a `?token=XXXXXXXX` na URL para abrir direto o painel; sem token, exibe tela de input de código (8 chars, alfanumérico, letter‑spacing amplo).
-- Não aparecem no `TopNav`; não passam por `Layout`, `TenantProvider` nem `PermissionsProvider`.
+1. **`src/pages/ImpressaoConfigPage.tsx`** — casca com título, ícone `Printer`, subtítulo e `Tabs`. Recebe `onNavigate`.
+2. **`src/components/impressao/AgentsTab.tsx`**
+3. **`src/components/impressao/ImpressorasTab.tsx`**
+4. **`src/components/impressao/FilaImpressaoTab.tsx`**
 
-### Arquivos novos
+### Aba 1 — Agents (CRUD padrão)
 
-1. **`src/pages/tv/TvTokenGate.tsx`** — componente compartilhado:
-   - Lê `?token=` do hash na montagem; se ausente, renderiza card centralizado com input grande de 8 caracteres (uppercase automático, `letter-spacing: 0.4em`, `font: JetBrains Mono`) e botão "Conectar".
-   - Ao conectar, faz a 1ª chamada RPC para validar; erro amigável se `tv_token` inválido.
-   - Persiste último token válido em `localStorage` (`core_tv_token`) para recuperar sozinho se a TV rebootar.
-   - Expõe `token` via render‑prop para o painel filho.
+- `useCrud({ table: "print_agent", tenantId, orderBy: "nome", select: "*, armazem:armazem_id(descricao)" })`.
+- Colunas: Nome, Armazém (`row.armazem?.descricao`), Hostname (mono), Versão (mono), IP Local (mono), Status (badge ONLINE verde / OFFLINE vermelho), Último Heartbeat (helper "há Xs / há Xmin / data / Nunca"), Chave API (8 chars + `…` + botão `Copy`), Ativo.
+- Ação extra por linha: botão `Copy` → `navigator.clipboard.writeText(row.chave_api)` + `toast.success`.
+- Busca client-side: `nome`, `hostname`.
+- Modal (`CrudModal`) via `Sheet` lateral: `nome*`, `armazem_id*` (dropdown armazéns ativos do tenant/empresa), `intervalo_polling_ms*` (default 2000, min 500, max 10000), `ativo` (switch, default true). `tenant_id`/`chave_api` cuidados pelo banco.
 
-2. **`src/pages/tv/TvShell.tsx`** — cabeçalho + rodapé comuns:
-   - Header: logo do cliente (`empresa_logo`) à esquerda, título + `empresa` + `armazem` no centro, relógio + countdown de refresh + logo `CORE LogiTrack` (`/src/assets/corelogitrack-logo.png`, versão branca ou o asset local já existente) à direita.
-   - Fallback textual "CORE LogiTrack" se o asset falhar.
-   - Fundo global `#060b18`, tipografia Inter + JetBrains Mono.
+### Aba 2 — Impressoras (CRUD com seções + condicionais)
 
-3. **`src/pages/tv/PainelTvOperacional.tsx`**:
-   - `useQuery` (chave `["tv-op", token]`, `refetchInterval: 15_000`) chamando `supabase.rpc("rpc_painel_tv_operacional", { p_tv_token })`.
-   - Grid 3×2 com 6 cards (label uppercase pequeno cinza; número 56–64px JetBrains Mono):
-     1. Aguardando separação (amarelo `#f59e0b` se `> 10`)
-     2. Em separação (azul `#3b82f6`)
-     3. Aguardando conferência (`separado + em_conferencia`, roxo `#a855f7`)
-     4. Pronto para embarque (`conferido`, verde `#22c55e`)
-     5. Expedidos hoje (ciano `#06b6d4`)
-     6. Total em operação (soma 1–4, branco)
-   - Rodapé com 3 indicadores: Falhas de operação (vermelho se `> 0`), Tempo médio separação `HH:MM:SS`, Tempo médio conferência `HH:MM:SS` (helper local para formatar segundos).
-   - Cards `background:#0d1420; border:1px solid #1a2540; border-radius:16px`.
+- `useCrud({ table: "impressora", tenantId, orderBy: "nome", select: "*, print_agent:agent_id(nome), armazem:armazem_id(descricao)" })`.
+- Colunas: Nome, Código (mono), Setor (badge por `setor_uso`), Conexão, Endereço (`ip:porta` se REDE, senão `nome_sistema` ou "—"), Linguagem (badge), Agent, Status (badge com `Wifi`/`WifiOff`), Ativo.
+- Busca: `nome`, `codigo`, `endereco_ip`.
+- Modal seccionado (Identificação / Conexão / Configuração Técnica):
+  - Identificação: `nome*`, `codigo*`, `setor_uso*`, `agent_id` (agents ativos).
+  - Conexão: `tipo_conexao*` (USB default). Se REDE → `endereco_ip*` + `porta` (default 9100). Se USB/BLUETOOTH → `nome_sistema`. Campos escondidos condicionalmente.
+  - Técnica: `linguagem*` (ZPL), `largura_mm*` (100), `altura_mm*` (40), `dpi*` (203|300, default 203).
+- `empresa_id` e `armazem_id` preenchidos automaticamente a partir do `useTenant()` no submit.
 
-4. **`src/pages/tv/PainelTvVendas.tsx`**:
-   - `useQuery` (`["tv-vd", token]`, `refetchInterval: 30_000`).
-   - Duas colunas iguais:
-     - Esquerda "Em processamento" (borda superior `#3b82f6`) — lista `em_processamento`.
-     - Direita "Prontos" (borda superior `#22c55e`) — lista `prontos`.
-   - Cada linha: nº pedido (JetBrains Mono grande), cliente, badge de prioridade se `URGENTE`/`ALTA`, badge de status com cores mapeadas do prompt.
-   - Header de coluna com contador total.
-   - Auto‑paginação: se `list.length > 8`, dividir em páginas de 8 e ciclar a cada 5s; dots indicando página atual.
+### Aba 3 — Fila de Impressão (monitor)
 
-### Integração no roteador (`src/App.tsx`)
+- `useState`/`useEffect` com `supabase.from("fila_impressao").select("*, impressora:impressora_id(nome, codigo), etiqueta_template:template_id(nome, tipo)").eq("tenant_id", tenantId).eq("armazem_id", armazemId).order("criado_em", { ascending: false }).limit(100)` + filtros condicionais.
+- 4 stats cards: Pendentes (amarelo, `Clock`), Processando (azul, `Loader2` spinner), Impressos hoje (verde, `CheckCircle2`), Erros hoje (vermelho, `AlertCircle`).
+- Filtros: Select Status, Select Impressora, Select Origem, botão `RefreshCw`; texto "Atualização automática a cada 10s".
+- Tabela conforme spec: data `DD/MM HH:mm:ss` via `formatDateTime` (`@/utils/dateTime.ts`), badges por origem/status, tentativas `x/y`, erro truncado com tooltip, `impresso_em` quando aplicável.
+- Ações por linha:
+  - Reimprimir (`RotateCcw`) → `supabase.rpc("reimprimir_etiqueta", { p_job_original_id: row.id })`.
+  - Cancelar (`Ban`, só PENDENTE/ERRO/REIMPRESSAO) → confirm + `supabase.rpc("cancelar_job_impressao", { p_job_id: row.id })`.
+  - Toasts via `parseError`.
+- `setInterval(fetch, 10000)` + cleanup. Realtime opcional em `supabase.channel` filtrando `armazem_id=eq.${armazemId}` (subscribe dentro do `useEffect`, `removeChannel` no cleanup).
 
-- Adicionar bypass no topo de `App()` (antes de `TenantBootProvider`/`TenantProvider`):
-  ```tsx
-  const initial = window.location.hash.replace("#", "");
-  if (initial.startsWith("/tv/")) return <TvRouter />;
-  ```
-  onde `TvRouter` também escuta `hashchange` e roteia entre `/tv/operacional` e `/tv/vendas`, envolvidos no `QueryClientProvider` já existente (mover o provider para ficar acima do split ou criar um local dedicado à área TV — preferido: manter o `QueryClientProvider` no topo, mover o gate de `/tv/` para dentro dele mas antes de `TenantBootProvider`).
-- Confirmar que nenhum item de menu (`TopNav.tsx`) referencia `/tv/*`.
+### Integração de rotas e menu
 
-### Client Supabase e segurança
+- **`src/App.tsx`**: import `ImpressaoConfigPage`; `case "/config/impressao": return <ImpressaoConfigPage onNavigate={onNavigate} />;`; breadcrumb `[CORE LogiTrack, Configurações, Impressão]`.
+- **`src/components/TopNav.tsx`**: novo item `{ label: "Impressão", icon: Printer, route: "/config/impressao" }` no grupo Configurações, abaixo de "Templates de Etiqueta".
 
-- Usar `supabase` já exportado por `@/integrations/supabase/client` (anon key). As RPCs listadas devem estar marcadas como `SECURITY DEFINER` e aceitar chamada anônima usando apenas o `p_tv_token` — assumir que já está assim (backend pronto). Se a chamada retornar erro de RLS/permissão, exibir mensagem "Token inválido ou armazém indisponível" e voltar ao gate.
+### Migration final — RBAC
+
+Após o frontend, uma única migration (via `supabase--migration`) para registrar o módulo no tenant CORE LogiTrack:
+
+- `INSERT INTO public.modulo` (`nome="Impressão"`, `rota="/config/impressao"`, `ambiente=WEB`, `ativo=true`, `tenant_id` do CORE LogiTrack) — `ON CONFLICT DO NOTHING` pela rota+tenant.
+- `INSERT INTO public.permissao` com ações padrão (`READ`, `CREATE`, `UPDATE`, `DELETE`, `EXECUTE`) para o novo módulo.
+- Vincular todas as permissões ao perfil `ADMINISTRADOR` do tenant via `INSERT INTO public.perfil_permissao`.
+- Idempotente (todos os `INSERT` com `ON CONFLICT DO NOTHING`) para permitir re-execução segura.
+
+### Detalhes técnicos
+
+- Datas via `formatDateTime` (regra Core do projeto).
+- Erros via `parseError` + `toast` (padrão unificado).
+- Casts `as any` para campos que possam ainda não estar em `types.ts` (regenera após migration).
+- Sem novas dependências.
 
 ### Fora de escopo
 
-- Nenhuma alteração de backend, RPC, RLS, permissões RBAC ou tabela `armazem`.
-- Sem novas dependências npm.
-- Sem alterações em `Layout`, `TopNav`, contextos de tenant.
+- Nenhuma alteração em enums, RPCs, RLS ou schema das tabelas de impressão.
+- Sem página no Coletor e sem execução real de impressão — a aba Fila apenas monitora.

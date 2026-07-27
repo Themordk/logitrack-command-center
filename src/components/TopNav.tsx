@@ -110,6 +110,7 @@ const navItems: NavItem[] = [
       { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
       { label: "Motivos de Ocorrência", path: "/config/motivos-ocorrencia" },
       { label: "Templates de Etiqueta", path: "/config/etiquetas" },
+      { label: "Impressão", path: "/config/impressao" },
       { label: "Integração ERP", path: "/config/integracao" },
       { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
     ],
