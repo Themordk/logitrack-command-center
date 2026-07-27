@@ -35,6 +35,7 @@ import { VolumesPage } from "./pages/VolumesPage";
 import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
 import { EtiquetaTemplatesPage } from "./pages/EtiquetaTemplatesPage";
+import { ImpressaoConfigPage } from "./pages/ImpressaoConfigPage";
 
 
 import { EntradasPage } from "./pages/EntradasPage";
@@ -170,6 +171,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/armazem/veiculos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Veículos" }],
   "/armazem/zonas": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Zonas de Atividade" }],
   "/config/etiquetas": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Templates de Etiqueta" }],
+  "/config/impressao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Impressão" }],
   "/armazem/box": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Box" }],
   "/armazem/turnos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Turnos" }],
   "/armazem/motivos": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Motivos de Ocorrência" }],
@@ -292,6 +294,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/zonas": return <ZonasAtividadePage />;
     case "/armazem/etiquetas":
     case "/config/etiquetas": return <EtiquetaTemplatesPage onNavigate={onNavigate} />;
+    case "/config/impressao": return <ImpressaoConfigPage onNavigate={onNavigate} />;
     case "/armazem/box": return <BoxPage />;
     case "/armazem/turnos": return <TurnosPage />;
     case "/armazem/motivos":
