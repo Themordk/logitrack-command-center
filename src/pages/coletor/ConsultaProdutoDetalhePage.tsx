@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2, Plus, Trash2, Edit2, MapPin } from "lucide-react";
+import { Loader2, Plus, Trash2, Edit2, MapPin, Printer } from "lucide-react";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
+import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 
 
 interface Props {
@@ -65,6 +66,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const backPath = customBackPath;
   const [tab, setTab] = useState<Tab>("info");
   const [loading, setLoading] = useState(true);
+  const { solicitar } = useSolicitarImpressao();
   const [produto, setProduto] = useState<ProdutoInfo | null>(null);
 
   // Embalagens
@@ -372,6 +374,26 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => openEmbForm(emb)} className="p-1.5 rounded-lg bg-[hsl(222,35%,18%)]"><Edit2 size={14} className="text-[hsl(217,91%,60%)]" /></button>
+                  <button
+                    onClick={() => solicitar({
+                      tipoEtiqueta: "PRODUTO",
+                      dados: {
+                        sku: produto?.sku || "",
+                        descricao: produto?.descricao || "",
+                        ean: emb.ean || "",
+                        referencia: (produto as any)?.referencia || "",
+                        embalagem: emb.embalagem || "",
+                        marca: (produto as any)?.marca || "",
+                      },
+                      origem: "CONSULTA_PRODUTO",
+                      documentoOrigemId: emb.id,
+                      tipoDocumentoOrigem: "produto_embalagem",
+                    })}
+                    className="p-1.5 rounded-lg bg-[hsl(217,91%,50%)]/10 border border-[hsl(217,91%,50%)]/30"
+                    title="Imprimir etiqueta"
+                  >
+                    <Printer size={14} className="text-[hsl(217,91%,60%)]" />
+                  </button>
                   <button onClick={() => deleteEmbalagem(emb.id)} className="p-1.5 rounded-lg bg-[hsl(222,35%,18%)]"><Trash2 size={14} className="text-red-400" /></button>
                 </div>
               </div>

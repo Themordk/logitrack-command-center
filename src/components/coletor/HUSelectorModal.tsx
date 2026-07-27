@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
 import { ActionButton } from "./ActionButton";
 import { ScanField } from "./ScanField";
+import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 
 interface HUSelectorModalProps {
   open: boolean;
@@ -43,6 +44,7 @@ export function HUSelectorModal({
   const [tipoHu, setTipoHu] = useState<string>("PALLET");
   const [tamanho, setTamanho] = useState<string>("M");
   const [creating, setCreating] = useState(false);
+  const { solicitar } = useSolicitarImpressao();
 
   useEffect(() => {
     if (open) {
@@ -125,6 +127,19 @@ export function HUSelectorModal({
         return;
       }
       toast.success(`HU ${r.codigo_hu} criada!`);
+      // Fire-and-forget: impressão automática da etiqueta HU
+      solicitar({
+        tipoEtiqueta: "HU",
+        dados: {
+          codigo_hu: r.codigo_hu,
+          tipo_hu: r.tipo_hu || "",
+          tamanho: r.tamanho || "",
+        },
+        origem: "RECEBIMENTO_CRIAR_HU",
+        documentoOrigemId: r.hu_id,
+        tipoDocumentoOrigem: "hu",
+        prioridade: 3,
+      });
       onSelect(r.hu_id, r.codigo_hu, r.tipo_hu, r.tamanho);
       onClose();
     } catch (err: any) {

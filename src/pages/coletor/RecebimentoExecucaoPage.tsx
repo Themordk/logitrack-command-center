@@ -7,10 +7,11 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { HUActiveBar } from "@/components/coletor/HUActiveBar";
 import { toast } from "sonner";
-import { Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Trash2, AlertTriangle, Printer } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDateTimeShort } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
+import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -69,6 +70,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
   });
   const [loading, setLoading] = useState(true);
+  const { solicitar } = useSolicitarImpressao();
   const [lastScanned, setLastScanned] = useState("");
   const [currentProduct, setCurrentProduct] = useState<ProdutoInfo | null>(null);
   const [quantidade, setQuantidade] = useState("");
@@ -316,19 +318,42 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       {/* Current product info */}
       {currentProduct && (
-        <InfoCard
-          sku={currentProduct.sku}
-          descricao={currentProduct.descricao}
-          lastro={currentProduct.lastro ?? undefined}
-          camada={currentProduct.camada ?? undefined}
-          fatorCaixa={currentProduct.fator}
-        >
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(213,31%,55%)]">
-            <span>Ref: <b className="text-[hsl(213,31%,80%)]">{currentProduct.referencia}</b></span>
-            <span>EAN: <b className="text-[hsl(213,31%,80%)]">{currentProduct.ean}</b></span>
-            <span>Controle: <b className="text-[hsl(213,31%,80%)]">{currentProduct.tipo_controle}</b></span>
-          </div>
-        </InfoCard>
+        <div className="relative">
+          <InfoCard
+            sku={currentProduct.sku}
+            descricao={currentProduct.descricao}
+            lastro={currentProduct.lastro ?? undefined}
+            camada={currentProduct.camada ?? undefined}
+            fatorCaixa={currentProduct.fator}
+          >
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(213,31%,55%)]">
+              <span>Ref: <b className="text-[hsl(213,31%,80%)]">{currentProduct.referencia}</b></span>
+              <span>EAN: <b className="text-[hsl(213,31%,80%)]">{currentProduct.ean}</b></span>
+              <span>Controle: <b className="text-[hsl(213,31%,80%)]">{currentProduct.tipo_controle}</b></span>
+            </div>
+          </InfoCard>
+          <button
+            onClick={() => {
+              solicitar({
+                tipoEtiqueta: "PRODUTO",
+                dados: {
+                  sku: currentProduct.sku,
+                  descricao: currentProduct.descricao,
+                  ean: currentProduct.ean || "",
+                  referencia: currentProduct.referencia || "",
+                },
+                origem: "CONFERENCIA_ENTRADA",
+                documentoOrigemId: movimentoId || undefined,
+                tipoDocumentoOrigem: "movimento_entrada",
+                prioridade: 3,
+              });
+            }}
+            className="absolute top-2 right-2 w-9 h-9 rounded-lg bg-[hsl(217,91%,50%)]/10 border border-[hsl(217,91%,50%)]/30 flex items-center justify-center"
+            title="Imprimir etiqueta"
+          >
+            <Printer size={16} className="text-[hsl(217,91%,60%)]" />
+          </button>
+        </div>
       )}
 
       {/* Quantity input */}
