@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,20 +49,24 @@ export function ImpressorasTab() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [agentOptions, setAgentOptions] = useState<{ value: string; label: string }[]>([]);
 
-  useEffect(() => {
-    if (!tenantId) return;
-    (async () => {
-      const { data } = await (supabase as any)
+  const { data: agentOptions = [] } = useQuery({
+    queryKey: ["print-agents-options", tenantId, empresaId, armazemId],
+    enabled: !!tenantId,
+    queryFn: async () => {
+      let q = (supabase as any)
         .from("print_agent")
         .select("id, nome")
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
         .order("nome");
-      setAgentOptions((data || []).map((r: any) => ({ value: r.id, label: r.nome })));
-    })();
-  }, [tenantId]);
+      if (armazemId) q = q.eq("armazem_id", armazemId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []).map((r: any) => ({ value: r.id, label: r.nome }));
+    },
+  });
+  const hasAgents = agentOptions.length > 0;
 
   const columns: ColumnSpec[] = [
     { key: "nome", label: "Nome" },
