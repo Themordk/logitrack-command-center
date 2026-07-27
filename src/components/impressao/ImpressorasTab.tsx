@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,20 +49,24 @@ export function ImpressorasTab() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
-  const [agentOptions, setAgentOptions] = useState<{ value: string; label: string }[]>([]);
 
-  useEffect(() => {
-    if (!tenantId) return;
-    (async () => {
-      const { data } = await (supabase as any)
+  const { data: agentOptions = [] } = useQuery({
+    queryKey: ["print-agents-options", tenantId, empresaId, armazemId],
+    enabled: !!tenantId,
+    queryFn: async () => {
+      let q = (supabase as any)
         .from("print_agent")
         .select("id, nome")
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
         .order("nome");
-      setAgentOptions((data || []).map((r: any) => ({ value: r.id, label: r.nome })));
-    })();
-  }, [tenantId]);
+      if (armazemId) q = q.eq("armazem_id", armazemId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data || []).map((r: any) => ({ value: r.id, label: r.nome }));
+    },
+  });
+  const hasAgents = agentOptions.length > 0;
 
   const columns: ColumnSpec[] = [
     { key: "nome", label: "Nome" },
@@ -99,7 +104,7 @@ export function ImpressorasTab() {
     { name: "nome", label: "Nome da Impressora", type: "text", required: true, placeholder: "Zebra ZD420 - Recebimento" },
     { name: "codigo", label: "Código", type: "text", required: true, placeholder: "IMP-REC-01" },
     { name: "setor_uso", label: "Setor de Uso", type: "enum", required: true, enumValues: ["RECEBIMENTO", "EXPEDICAO", "GERAL", "INVENTARIO"], defaultValue: "GERAL" },
-    { name: "agent_id", label: "Agent Responsável", type: "select", options: agentOptions },
+    { name: "agent_id", label: "Agent Responsável", type: "select", options: agentOptions, placeholder: hasAgents ? "Selecionar..." : "Nenhum agent cadastrado para este armazém" },
 
     { name: "tipo_conexao", label: "Tipo de Conexão", type: "enum", required: true, enumValues: ["USB", "REDE", "BLUETOOTH"], defaultValue: "USB" },
     {
@@ -123,7 +128,7 @@ export function ImpressorasTab() {
     { name: "dpi", label: "Resolução (DPI)", type: "select", required: true, options: [{ value: "203", label: "203" }, { value: "300", label: "300" }], defaultValue: "203" },
 
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
-  ], [agentOptions]);
+  ], [agentOptions, hasAgents]);
 
   const filtered = crud.search
     ? crud.data.filter((r) => {
