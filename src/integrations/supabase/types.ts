@@ -1540,6 +1540,8 @@ export type Database = {
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
+          corpo_tspl: string | null
+          corpo_zpl: string | null
           created_at: string
           created_by: string | null
           direcao_seta: string
@@ -1549,6 +1551,7 @@ export type Database = {
           id: string
           intervalo_colunas_mm: number
           largura_mm: number
+          linguagem_padrao: string
           logo_url: string | null
           nome: string
           orientacao: string
@@ -1566,6 +1569,8 @@ export type Database = {
           campos?: Json
           com_cabecalho?: boolean
           com_logo?: boolean
+          corpo_tspl?: string | null
+          corpo_zpl?: string | null
           created_at?: string
           created_by?: string | null
           direcao_seta?: string
@@ -1575,6 +1580,7 @@ export type Database = {
           id?: string
           intervalo_colunas_mm?: number
           largura_mm?: number
+          linguagem_padrao?: string
           logo_url?: string | null
           nome: string
           orientacao?: string
@@ -1592,6 +1598,8 @@ export type Database = {
           campos?: Json
           com_cabecalho?: boolean
           com_logo?: boolean
+          corpo_tspl?: string | null
+          corpo_zpl?: string | null
           created_at?: string
           created_by?: string | null
           direcao_seta?: string
@@ -1601,6 +1609,7 @@ export type Database = {
           id?: string
           intervalo_colunas_mm?: number
           largura_mm?: number
+          linguagem_padrao?: string
           logo_url?: string | null
           nome?: string
           orientacao?: string
@@ -1629,6 +1638,141 @@ export type Database = {
           },
           {
             foreignKeyName: "etiqueta_template_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fila_impressao: {
+        Row: {
+          armazem_id: string
+          cancelado_em: string | null
+          cancelado_por: string | null
+          comando_gerado: string | null
+          criado_em: string
+          dados: Json
+          documento_origem_id: string | null
+          empresa_id: string
+          erro_mensagem: string | null
+          id: string
+          impresso_em: string | null
+          impressora_id: string
+          max_tentativas: number
+          origem: string
+          prioridade: number
+          processado_em: string | null
+          quantidade_copias: number
+          solicitado_por: string | null
+          status: Database["public"]["Enums"]["enum_status_impressao"]
+          template_id: string
+          tenant_id: string
+          tentativas: number
+          tipo_documento_origem: string | null
+        }
+        Insert: {
+          armazem_id: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          comando_gerado?: string | null
+          criado_em?: string
+          dados: Json
+          documento_origem_id?: string | null
+          empresa_id: string
+          erro_mensagem?: string | null
+          id?: string
+          impresso_em?: string | null
+          impressora_id: string
+          max_tentativas?: number
+          origem: string
+          prioridade?: number
+          processado_em?: string | null
+          quantidade_copias?: number
+          solicitado_por?: string | null
+          status?: Database["public"]["Enums"]["enum_status_impressao"]
+          template_id: string
+          tenant_id: string
+          tentativas?: number
+          tipo_documento_origem?: string | null
+        }
+        Update: {
+          armazem_id?: string
+          cancelado_em?: string | null
+          cancelado_por?: string | null
+          comando_gerado?: string | null
+          criado_em?: string
+          dados?: Json
+          documento_origem_id?: string | null
+          empresa_id?: string
+          erro_mensagem?: string | null
+          id?: string
+          impresso_em?: string | null
+          impressora_id?: string
+          max_tentativas?: number
+          origem?: string
+          prioridade?: number
+          processado_em?: string | null
+          quantidade_copias?: number
+          solicitado_por?: string | null
+          status?: Database["public"]["Enums"]["enum_status_impressao"]
+          template_id?: string
+          tenant_id?: string
+          tentativas?: number
+          tipo_documento_origem?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fila_impressao_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_cancelado_por_fkey"
+            columns: ["cancelado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_impressora_id_fkey"
+            columns: ["impressora_id"]
+            isOneToOne: false
+            referencedRelation: "impressora"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "etiqueta_template"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
@@ -1965,6 +2109,124 @@ export type Database = {
           },
           {
             foreignKeyName: "hu_item_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      impressora: {
+        Row: {
+          agent_id: string | null
+          altura_mm: number
+          armazem_id: string
+          ativo: boolean
+          codigo: string
+          created_at: string
+          created_by: string | null
+          dpi: number
+          empresa_id: string
+          endereco_ip: string | null
+          id: string
+          largura_mm: number
+          linguagem: string
+          nome: string
+          nome_sistema: string | null
+          porta: number | null
+          setor_uso: Database["public"]["Enums"]["enum_setor_uso_impressora"]
+          status_conexao: Database["public"]["Enums"]["enum_status_conexao_impressora"]
+          tenant_id: string
+          tipo_conexao: Database["public"]["Enums"]["enum_tipo_conexao_impressora"]
+          ultimo_heartbeat: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          altura_mm?: number
+          armazem_id: string
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          dpi?: number
+          empresa_id: string
+          endereco_ip?: string | null
+          id?: string
+          largura_mm?: number
+          linguagem?: string
+          nome: string
+          nome_sistema?: string | null
+          porta?: number | null
+          setor_uso?: Database["public"]["Enums"]["enum_setor_uso_impressora"]
+          status_conexao?: Database["public"]["Enums"]["enum_status_conexao_impressora"]
+          tenant_id: string
+          tipo_conexao?: Database["public"]["Enums"]["enum_tipo_conexao_impressora"]
+          ultimo_heartbeat?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          altura_mm?: number
+          armazem_id?: string
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          dpi?: number
+          empresa_id?: string
+          endereco_ip?: string | null
+          id?: string
+          largura_mm?: number
+          linguagem?: string
+          nome?: string
+          nome_sistema?: string | null
+          porta?: number | null
+          setor_uso?: Database["public"]["Enums"]["enum_setor_uso_impressora"]
+          status_conexao?: Database["public"]["Enums"]["enum_status_conexao_impressora"]
+          tenant_id?: string
+          tipo_conexao?: Database["public"]["Enums"]["enum_tipo_conexao_impressora"]
+          ultimo_heartbeat?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "impressora_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "print_agent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "impressora_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "impressora_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "impressora_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "impressora_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "impressora_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
@@ -4363,6 +4625,95 @@ export type Database = {
           nome?: string
         }
         Relationships: []
+      }
+      print_agent: {
+        Row: {
+          armazem_id: string
+          ativo: boolean
+          auth_user_id: string | null
+          chave_api: string
+          created_at: string
+          created_by: string | null
+          hostname: string | null
+          id: string
+          intervalo_polling_ms: number
+          ip_local: string | null
+          nome: string
+          sistema_operacional: string | null
+          status: string
+          tenant_id: string
+          ultimo_heartbeat: string | null
+          updated_at: string
+          versao: string | null
+        }
+        Insert: {
+          armazem_id: string
+          ativo?: boolean
+          auth_user_id?: string | null
+          chave_api?: string
+          created_at?: string
+          created_by?: string | null
+          hostname?: string | null
+          id?: string
+          intervalo_polling_ms?: number
+          ip_local?: string | null
+          nome: string
+          sistema_operacional?: string | null
+          status?: string
+          tenant_id: string
+          ultimo_heartbeat?: string | null
+          updated_at?: string
+          versao?: string | null
+        }
+        Update: {
+          armazem_id?: string
+          ativo?: boolean
+          auth_user_id?: string | null
+          chave_api?: string
+          created_at?: string
+          created_by?: string | null
+          hostname?: string | null
+          id?: string
+          intervalo_polling_ms?: number
+          ip_local?: string | null
+          nome?: string
+          sistema_operacional?: string | null
+          status?: string
+          tenant_id?: string
+          ultimo_heartbeat?: string | null
+          updated_at?: string
+          versao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_agent_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_agent_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_agent_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_agent_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       produto: {
         Row: {
@@ -7954,6 +8305,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      atualizar_status_job: {
+        Args: {
+          p_comando_gerado?: string
+          p_erro_mensagem?: string
+          p_job_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      atualizar_status_jobs_batch: {
+        Args: { p_resultados: Json }
+        Returns: Json
+      }
       buscar_hu_por_codigo: {
         Args: { p_codigo_hu: string; p_tenant_id: string }
         Returns: Json
@@ -7989,6 +8353,11 @@ export type Database = {
           status: string
         }[]
       }
+      buscar_jobs_pendentes: {
+        Args: { p_agent_id: string; p_limite?: number }
+        Returns: Json
+      }
+      cancelar_job_impressao: { Args: { p_job_id: string }; Returns: Json }
       conferencia_buscar_ondas: {
         Args: {
           p_empresa_id: string
@@ -9337,6 +9706,8 @@ export type Database = {
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
+          corpo_tspl: string | null
+          corpo_zpl: string | null
           created_at: string
           created_by: string | null
           direcao_seta: string
@@ -9346,6 +9717,7 @@ export type Database = {
           id: string
           intervalo_colunas_mm: number
           largura_mm: number
+          linguagem_padrao: string
           logo_url: string | null
           nome: string
           orientacao: string
@@ -9437,6 +9809,12 @@ export type Database = {
           veiculo_placa: string
         }[]
       }
+      marcar_agents_offline: { Args: never; Returns: undefined }
+      obter_config_impressao: { Args: { p_agent_id: string }; Returns: Json }
+      obter_template_renderizado: {
+        Args: { p_dados: Json; p_linguagem?: string; p_template_id: string }
+        Returns: Json
+      }
       preparar_dados_agrupamento: {
         Args: {
           p_documentos: string[]
@@ -9448,6 +9826,17 @@ export type Database = {
       processar_movimento_estoque: {
         Args: { p_tarefa_execucao_id: string }
         Returns: undefined
+      }
+      registrar_heartbeat_agent: {
+        Args: {
+          p_agent_id: string
+          p_hostname?: string
+          p_impressoras_status?: Json
+          p_ip_local?: string
+          p_sistema_operacional?: string
+          p_versao?: string
+        }
+        Returns: Json
       }
       registrar_ocorrencia_operacional: {
         Args: {
@@ -9475,6 +9864,14 @@ export type Database = {
         }
         Returns: Json
       }
+      reimprimir_etiqueta: {
+        Args: {
+          p_impressora_id?: string
+          p_job_original_id: string
+          p_quantidade_copias?: number
+        }
+        Returns: Json
+      }
       resolver_etiqueta_template: {
         Args: { p_empresa_id?: string; p_tipo: string }
         Returns: {
@@ -9483,6 +9880,8 @@ export type Database = {
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
+          corpo_tspl: string | null
+          corpo_zpl: string | null
           created_at: string
           created_by: string | null
           direcao_seta: string
@@ -9492,6 +9891,7 @@ export type Database = {
           id: string
           intervalo_colunas_mm: number
           largura_mm: number
+          linguagem_padrao: string
           logo_url: string | null
           nome: string
           orientacao: string
@@ -9930,6 +10330,21 @@ export type Database = {
         }
         Returns: undefined
       }
+      solicitar_impressao: {
+        Args: {
+          p_armazem_id: string
+          p_dados: Json
+          p_documento_origem_id?: string
+          p_impressora_id?: string
+          p_origem: string
+          p_prioridade?: number
+          p_quantidade_copias?: number
+          p_setor_uso?: string
+          p_tipo_documento_origem?: string
+          p_tipo_etiqueta: string
+        }
+        Returns: Json
+      }
       user_has_empresa_access: {
         Args: { _empresa: string; _tenant: string }
         Returns: boolean
@@ -9998,6 +10413,11 @@ export type Database = {
       enum_origem_inventario: "MANUAL" | "AUTOMATICO" | "ROTATIVO_SISTEMA"
       enum_prioridade_ocorrencia: "BAIXA" | "NORMAL" | "ALTA" | "CRITICA"
       enum_prioridade_onda: "URGENTE" | "ALTA" | "NORMAL" | "BAIXA"
+      enum_setor_uso_impressora:
+        | "RECEBIMENTO"
+        | "EXPEDICAO"
+        | "GERAL"
+        | "INVENTARIO"
       enum_situacao_endereco:
         | "LIVRE"
         | "OCUPADO"
@@ -10008,6 +10428,11 @@ export type Database = {
         | "EM_EXECUCAO"
         | "FINALIZADO"
         | "CANCELADO"
+      enum_status_conexao_impressora:
+        | "ONLINE"
+        | "OFFLINE"
+        | "ERRO"
+        | "DESCONHECIDO"
       enum_status_execucao_tarefa:
         | "ATRIBUIDA"
         | "EM_ANDAMENTO"
@@ -10022,6 +10447,13 @@ export type Database = {
         | "ARMAZENADA"
         | "EXPEDIDA"
         | "DESCARTADA"
+      enum_status_impressao:
+        | "PENDENTE"
+        | "PROCESSANDO"
+        | "IMPRESSO"
+        | "ERRO"
+        | "CANCELADO"
+        | "REIMPRESSAO"
       enum_status_inventario:
         | "CRIADO"
         | "GERANDO_TAREFAS"
@@ -10090,6 +10522,7 @@ export type Database = {
       enum_tipo_abastecimento: "PREVENTIVO" | "CORRETIVO"
       enum_tipo_alocacao_picking: "FIXO" | "ROTATIVO"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
+      enum_tipo_conexao_impressora: "USB" | "REDE" | "BLUETOOTH"
       enum_tipo_conferencia:
         | "Nenhuma"
         | "Por item"
@@ -10378,6 +10811,12 @@ export const Constants = {
       enum_origem_inventario: ["MANUAL", "AUTOMATICO", "ROTATIVO_SISTEMA"],
       enum_prioridade_ocorrencia: ["BAIXA", "NORMAL", "ALTA", "CRITICA"],
       enum_prioridade_onda: ["URGENTE", "ALTA", "NORMAL", "BAIXA"],
+      enum_setor_uso_impressora: [
+        "RECEBIMENTO",
+        "EXPEDICAO",
+        "GERAL",
+        "INVENTARIO",
+      ],
       enum_situacao_endereco: [
         "LIVRE",
         "OCUPADO",
@@ -10389,6 +10828,12 @@ export const Constants = {
         "EM_EXECUCAO",
         "FINALIZADO",
         "CANCELADO",
+      ],
+      enum_status_conexao_impressora: [
+        "ONLINE",
+        "OFFLINE",
+        "ERRO",
+        "DESCONHECIDO",
       ],
       enum_status_execucao_tarefa: [
         "ATRIBUIDA",
@@ -10405,6 +10850,14 @@ export const Constants = {
         "ARMAZENADA",
         "EXPEDIDA",
         "DESCARTADA",
+      ],
+      enum_status_impressao: [
+        "PENDENTE",
+        "PROCESSANDO",
+        "IMPRESSO",
+        "ERRO",
+        "CANCELADO",
+        "REIMPRESSAO",
       ],
       enum_status_inventario: [
         "CRIADO",
@@ -10481,6 +10934,7 @@ export const Constants = {
       enum_tipo_abastecimento: ["PREVENTIVO", "CORRETIVO"],
       enum_tipo_alocacao_picking: ["FIXO", "ROTATIVO"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],
+      enum_tipo_conexao_impressora: ["USB", "REDE", "BLUETOOTH"],
       enum_tipo_conferencia: [
         "Nenhuma",
         "Por item",
