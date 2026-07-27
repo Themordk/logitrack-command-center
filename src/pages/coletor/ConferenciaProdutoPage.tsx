@@ -39,6 +39,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [showVolumeDialog, setShowVolumeDialog] = useState(false);
   const [volumeQtd, setVolumeQtd] = useState("");
   const [volumeSaving, setVolumeSaving] = useState(false);
+  const { solicitar } = useSolicitarImpressao();
   const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
   const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
   const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
@@ -379,6 +380,33 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         return;
       }
       toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      // Fire-and-forget: impressão automática das etiquetas de volume
+      if (result?.volumes && Array.isArray(result.volumes)) {
+        for (const vol of result.volumes) {
+          solicitar({
+            tipoEtiqueta: "VOLUME",
+            dados: {
+              codigo_volume: vol.codigo_volume || "",
+              numero_volume: String(vol.numero_volume || ""),
+              total_volumes: String(qtd),
+            },
+            origem: "CONFERENCIA_SAIDA",
+            documentoOrigemId: vol.id || undefined,
+            tipoDocumentoOrigem: "volume_expedicao",
+            prioridade: 5,
+          });
+        }
+      } else {
+        solicitar({
+          tipoEtiqueta: "VOLUME",
+          dados: { total_volumes: String(qtd) },
+          origem: "CONFERENCIA_SAIDA",
+          documentoOrigemId: movimentoId || undefined,
+          tipoDocumentoOrigem: "movimento_saida",
+          prioridade: 5,
+          quantidadeCopias: qtd,
+        });
+      }
       setShowVolumeDialog(false);
       onNavigate("/coletor/conferencia/iniciar");
     } catch (err: any) {
