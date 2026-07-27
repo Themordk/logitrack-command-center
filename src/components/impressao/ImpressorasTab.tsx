@@ -128,7 +128,7 @@ export function ImpressorasTab() {
     { name: "dpi", label: "Resolução (DPI)", type: "select", required: true, options: [{ value: "203", label: "203" }, { value: "300", label: "300" }], defaultValue: "203" },
 
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
-  ], [agentOptions]);
+  ], [agentOptions, hasAgents]);
 
   const filtered = crud.search
     ? crud.data.filter((r) => {
