@@ -11,6 +11,7 @@ import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/Regist
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
+import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 
 interface Props { onNavigate: (path: string) => void; }
 

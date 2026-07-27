@@ -10,6 +10,7 @@ import { formatDate } from "@/utils/dateTime";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
+import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 
 
 
@@ -46,6 +47,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
   const [volumeQtd, setVolumeQtd] = useState("");
   const [volumeSaving, setVolumeSaving] = useState(false);
+  const { solicitar } = useSolicitarImpressao();
   const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
@@ -383,6 +385,34 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         return;
       }
       toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      // Fire-and-forget: impressão automática das etiquetas de volume
+      const movIdImpr = sessionStorage.getItem("coletor_separacao_movimento_id") || undefined;
+      if (result?.volumes && Array.isArray(result.volumes)) {
+        for (const vol of result.volumes) {
+          solicitar({
+            tipoEtiqueta: "VOLUME",
+            dados: {
+              codigo_volume: vol.codigo_volume || "",
+              numero_volume: String(vol.numero_volume || ""),
+              total_volumes: String(qtd),
+            },
+            origem: "SEPARACAO",
+            documentoOrigemId: vol.id || undefined,
+            tipoDocumentoOrigem: "volume_expedicao",
+            prioridade: 5,
+          });
+        }
+      } else {
+        solicitar({
+          tipoEtiqueta: "VOLUME",
+          dados: { total_volumes: String(qtd) },
+          origem: "SEPARACAO",
+          documentoOrigemId: movIdImpr,
+          tipoDocumentoOrigem: "movimento_saida",
+          prioridade: 5,
+          quantidadeCopias: qtd,
+        });
+      }
       setShowVolumeDialog(false);
       onNavigate("/coletor/separacao/iniciar");
     } catch (err: any) {
