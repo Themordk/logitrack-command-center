@@ -66,6 +66,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const backPath = customBackPath;
   const [tab, setTab] = useState<Tab>("info");
   const [loading, setLoading] = useState(true);
+  const { solicitar } = useSolicitarImpressao();
   const [produto, setProduto] = useState<ProdutoInfo | null>(null);
 
   // Embalagens
