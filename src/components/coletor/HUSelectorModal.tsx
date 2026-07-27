@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
 import { ActionButton } from "./ActionButton";
 import { ScanField } from "./ScanField";
+import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 
 interface HUSelectorModalProps {
   open: boolean;
