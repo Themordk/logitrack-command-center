@@ -24,7 +24,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
   const plural = hus.length > 1;
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, armazemId } = useTenant();
 
   const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
