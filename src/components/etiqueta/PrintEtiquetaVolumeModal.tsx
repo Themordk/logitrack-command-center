@@ -209,10 +209,14 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <X size={14} className="inline mr-1" /> Fechar
           </button>
+          <button onClick={enviarParaImpressora} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg border border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50">
+            <Printer size={15} /> 🖨️ Enviar para Impressora Térmica
+          </button>
           <button onClick={triggerPrint} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
             <Printer size={15} /> Imprimir {volumes.length} etiqueta{plural ? "s" : ""}
           </button>
         </div>
+
       </DialogContent>
     </Dialog>
   );
