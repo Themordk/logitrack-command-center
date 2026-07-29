@@ -198,15 +198,7 @@ function gerarZplProduto(config: EtiquetaConfig): string {
 }
 
 // ─── ENDERECO ───
-function setaChar(dir?: string): string {
-  switch (dir) {
-    case "CIMA": return "^";
-    case "BAIXO": return "v";
-    case "ESQUERDA": return "<";
-    case "DIREITA": return ">";
-    default: return "";
-  }
-}
+
 
 function gerarZplEndereco(config: EtiquetaConfig): string {
   const { largDots, altDots, fs, M, areaUtil } = dims(config);
@@ -228,17 +220,15 @@ function gerarZplEndereco(config: EtiquetaConfig): string {
   zpl += drawDivider(M, y, areaUtil);
   y += 6;
 
-  // Descrição grande + seta direcional
-  const seta = setaChar(config.direcao_seta);
-  const setaW = seta ? 80 : 0;
+  // Descrição grande + espaço reservado para seta (preenchida pelo agente)
+  const setaW = 80;
   const descW = areaUtil - setaW;
   zpl += `^CF0,${fs(26)}\n`;
   zpl += `^FO${M},${y}^FB${descW},1,0,L,0^FD{{descricao}}^FS\n`;
-  if (seta) {
-    zpl += `^CF0,${fs(48)}\n`;
-    zpl += `^FO${M + descW},${y - 6}^FB${setaW},1,0,C,0^FD${seta}^FS\n`;
-  }
+  zpl += `^CF0,${fs(48)}\n`;
+  zpl += `^FO${M + descW},${y - 6}^FB${setaW},1,0,C,0^FD{{seta_simbolo}}^FS\n`;
   y += fs(26) + 8;
+
 
   // Campos extras (curva, tipo, etc.)
   zpl += `^CF0,${fs(14)}\n`;

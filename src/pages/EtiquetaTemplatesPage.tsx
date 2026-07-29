@@ -252,16 +252,16 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       setDraft(structuredClone(selected));
       if (selected.corpo_zpl) {
         setZplCode(selected.corpo_zpl);
-        setZplEditado(true);
-      } else {
-        setZplEditado(false);
       }
+      // Sempre false ao carregar: alterações nos campos regeneram o ZPL.
+      setZplEditado(false);
     } else {
       setDraft(null);
       setZplCode("");
       setZplEditado(false);
     }
   }, [selectedTemplateId, templates]);
+
 
   // Auto-gera ZPL a partir do draft (se não foi editado manualmente)
   useEffect(() => {
