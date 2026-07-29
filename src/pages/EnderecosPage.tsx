@@ -5,8 +5,10 @@ import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Printer, Layers } from "lucide-react";
+import { Printer, Layers, Loader2 } from "lucide-react";
 import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
