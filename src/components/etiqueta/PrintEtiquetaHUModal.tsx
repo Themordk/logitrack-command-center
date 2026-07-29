@@ -118,10 +118,57 @@ export function PrintEtiquetaHUModal({ open, onClose, hus }: PrintEtiquetaHUModa
     return { ...selectedConfig, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
   }, [selectedConfig, duasColunas, intervaloColunasMm]);
 
-  const handleGerar = () => {
+  const handleGerar = async () => {
     if (saida === "preview") setShowPreview(true);
-    else triggerPrint();
+    else await enviarParaImpressora();
   };
+
+  const enviarParaImpressora = async () => {
+    if (!armazemId) {
+      toast.error("Selecione um armazém antes de imprimir");
+      return;
+    }
+    const lista = husEnriquecidas.length > 0 ? husEnriquecidas : hus;
+    let successCount = 0;
+    let errorCount = 0;
+    for (const hu of lista as any[]) {
+      try {
+        const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
+          p_armazem_id: armazemId,
+          p_tipo_etiqueta: "HU",
+          p_dados: {
+            codigo_hu: hu.codigo_hu || "",
+            tipo_hu: hu.tipo_hu || "",
+            tamanho: hu.tamanho || "",
+            parceiro_nome: hu.parceiro_nome || "",
+            numero_movimento: hu.numero_movimento || "",
+            numero_nota: hu.numero_nota || "",
+            data_entrada: hu.data_entrada || "",
+            lote_principal: hu.lote_principal || "",
+            validade_proxima: hu.validade_proxima || "",
+            total_quantidade: hu.total_quantidade != null ? String(hu.total_quantidade) : "",
+            total_itens: hu.total_itens != null ? String(hu.total_itens) : "",
+            peso_bruto: hu.peso_bruto != null ? String(hu.peso_bruto) : "",
+          },
+          p_origem: "PAINEL_ADMINISTRATIVO",
+          p_documento_origem_id: String(hu.id),
+          p_tipo_documento_origem: "hu",
+          p_prioridade: 5,
+        });
+        if (error) throw error;
+        const result = typeof data === "string" ? JSON.parse(data) : data;
+        if (result?.success) successCount++;
+        else errorCount++;
+      } catch (err) {
+        console.warn("[Impressão HU]", err);
+        errorCount++;
+      }
+    }
+    if (successCount > 0) toast.success(`${successCount} etiqueta(s) enviada(s) para impressão`);
+    if (errorCount > 0) toast.error(`${errorCount} etiqueta(s) falharam. Verifique se há impressora configurada no armazém.`);
+    if (successCount > 0) onClose();
+  };
+
 
   const triggerPrint = () => {
     const printContent = printRef.current;
