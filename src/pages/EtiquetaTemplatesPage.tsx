@@ -9,6 +9,8 @@ import { EtiquetaEnderecoPreview } from "@/components/etiqueta/EtiquetaEnderecoP
 import { EtiquetaHUPreview } from "@/components/etiqueta/EtiquetaHUPreview";
 import { EtiquetaProdutoPreview } from "@/components/etiqueta/EtiquetaProdutoPreview";
 import { EtiquetaVolumePreview } from "@/components/etiqueta/EtiquetaVolumePreview";
+import { gerarZplTemplate } from "@/lib/zplGenerator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
   Package,
@@ -23,6 +25,11 @@ import {
   Plus,
   Trash2,
   Star,
+  Code,
+  Eye,
+  Printer,
+  Copy,
+  RefreshCw,
 } from "lucide-react";
 
 interface Props {
