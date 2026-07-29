@@ -36,6 +36,7 @@ interface CrudTableProps {
   onSelectChange?: (ids: Set<string>) => void;
   headerActions?: React.ReactNode;
   extraRowActions?: (row: any) => React.ReactNode;
+  selectionBanner?: React.ReactNode;
   // Permission control
   canCreate?: boolean;
   canEdit?: boolean;
@@ -48,7 +49,7 @@ export function CrudTable({
   onPageChange, onNew, onEdit, onDelete,
   newLabel = "Novo", searchPlaceholder = "Buscar...",
   extraFilters,
-  selectable, selectedIds, onSelectChange, headerActions, extraRowActions,
+  selectable, selectedIds, onSelectChange, headerActions, extraRowActions, selectionBanner,
   canCreate = true, canEdit = true, canDelete = true,
 }: CrudTableProps) {
   const allSelected = selectable && data.length > 0 && data.every((r) => selectedIds?.has(r.id));
@@ -120,6 +121,8 @@ export function CrudTable({
         </div>
         {extraFilters}
       </div>
+
+      {selectionBanner}
 
       <div className="card-surface overflow-hidden flex flex-col flex-1 min-h-0">
         {loading ? (

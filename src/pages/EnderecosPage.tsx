@@ -5,8 +5,10 @@ import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Printer, Layers } from "lucide-react";
+import { Printer, Layers, Loader2 } from "lucide-react";
 import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
@@ -42,12 +44,55 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [preparingPrint, setPreparingPrint] = useState(false);
 
-  const handlePrintSelected = () => {
-    const selected = crud.data.filter((r) => selectedIds.has(r.id));
-    if (selected.length === 0) return;
-    setPrintEnderecos(selected);
-    setPrintOpen(true);
+  const fetchEnderecosByIds = async (ids: string[]): Promise<any[]> => {
+    if (!tenantId || ids.length === 0) return [];
+    const chunkSize = 300;
+    const results: any[] = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const { data, error } = await (supabase as any)
+        .from("vw_endereco_listagem")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("id", chunk);
+      if (error) throw error;
+      if (data) results.push(...data);
+    }
+    return results;
+  };
+
+  const handlePrintSelected = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArr = Array.from(selectedIds);
+    const cached = crud.data.filter((r) => selectedIds.has(r.id));
+    if (cached.length === idsArr.length) {
+      setPrintEnderecos(cached);
+      setPrintOpen(true);
+      return;
+    }
+    setPreparingPrint(true);
+    try {
+      const rows = await fetchEnderecosByIds(idsArr);
+      setPrintEnderecos(rows);
+      setPrintOpen(true);
+    } catch (err: any) {
+      toast.error("Falha ao carregar endereços selecionados");
+    } finally {
+      setPreparingPrint(false);
+    }
+  };
+
+  const handleSelectAllPages = async () => {
+    setSelectingAll(true);
+    try {
+      const ids = await crud.fetchAllIds();
+      setSelectedIds(new Set(ids));
+    } finally {
+      setSelectingAll(false);
+    }
   };
 
   const handlePrintSingle = (row: any) => {
@@ -84,6 +129,12 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
       setFilterSetorOptions([]);
     }
   }, [tenantId, filterArmazem]);
+
+  // Limpa seleção sempre que filtros ou busca mudarem — evita IDs órfãos do conjunto anterior.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filterTipo, filterSituacao, filterLado, filterCurva, filterAtivo, filterArmazem, filterSetor, filterTipoEstoque, filterTipoEstrutura, crud.search]);
+
 
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
@@ -160,6 +211,39 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         selectable
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
+        selectionBanner={
+          selectedIds.size > 0 ? (
+            <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border border-primary/30 bg-primary/5">
+              <span className="text-sm text-foreground">
+                <span className="font-semibold text-primary">{selectedIds.size}</span>{" "}
+                {selectedIds.size === 1 ? "endereço selecionado" : "endereços selecionados"}
+                {selectedIds.size >= crud.total && crud.total > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground">(todos os registros do filtro atual)</span>
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                {selectedIds.size < crud.total && (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllPages}
+                    disabled={selectingAll}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
+                  >
+                    {selectingAll && <Loader2 size={12} className="animate-spin" />}
+                    Selecionar todos os {crud.total} endereços
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  Limpar seleção
+                </button>
+              </div>
+            </div>
+          ) : null
+        }
         extraFilters={
           <>
             <select
@@ -282,9 +366,10 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
             {selectedIds.size > 0 && (
               <button
                 onClick={handlePrintSelected}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+                disabled={preparingPrint}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition-colors disabled:opacity-60"
               >
-                <Printer size={15} />
+                {preparingPrint ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
                 Imprimir Selecionados ({selectedIds.size})
               </button>
             )}

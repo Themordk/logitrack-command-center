@@ -1,41 +1,45 @@
 ## Objetivo
 
-Duas melhorias na UI de etiquetas:
-1. Nova aba **"Preview Térmica"** em `EtiquetaTemplatesPage` que renderiza o ZPL real via API Labelary.
-2. Trocar `window.print()` da opção **"Imprimir Diretamente"** dos 4 modais de impressão pela RPC `solicitar_impressao` (fila de impressão).
+Na tela **Armazém → Localizações / Endereços**, permitir selecionar **todos os endereços de todas as páginas** (respeitando busca e filtros ativos) para viabilizar impressão de etiquetas em lote sem navegar página por página.
 
-## Arquivos
+## Comportamento atual
 
-### 1. `src/pages/EtiquetaTemplatesPage.tsx`
-- Novos estados: `zplPreviewUrl`, `zplPreviewLoading`, `zplPreviewError`.
-- Nova função `gerarPreviewTermica()`: substitui placeholders `{{campo}}` por dados mock (VOLUME/HU/PRODUTO/ENDERECO), monta URL `https://api.labelary.com/v1/printers/8dpmm/labels/{L}x{A}/0/` (polegadas com 2 casas), POST com o ZPL, converte blob → objectURL. Fallback: se HTTPS bloqueado, tenta `http://`. `URL.revokeObjectURL` no anterior e no unmount.
-- `TabsList grid-cols-3`: adicionar `TabsTrigger value="termica"` (ícone Printer).
-- `TabsContent value="termica"`: botão "Gerar Preview" (não auto-gera), estados de loading/erro/vazio, `<img>` com `image-rendering: pixelated`, rodapé explicando a origem Labelary.
-- Import adicional: `Loader2`, `RefreshCw` já presente.
+O checkbox do cabeçalho em `CrudTable` marca apenas as linhas atualmente renderizadas (`data`), que correspondem só à página visível (server-side pagination, `pageSize = 15`).
 
-### 2–5. Modais de impressão (`src/components/etiqueta/`)
-`PrintEtiquetaHUModal.tsx`, `PrintEtiquetaProdutoModal.tsx`, `PrintEtiquetaVolumeModal.tsx`, `PrintEtiquetaEnderecoModal.tsx`.
+## Solução proposta (mínima e cirúrgica, escopo apenas em Endereços)
 
-Para cada modal:
-- Import `useTenant` de `@/contexts/TenantContext` e obter `armazemId`.
-- Nova função `enviarParaImpressora()`:
-  - Guarda: se `!armazemId` → `toast.error("Selecione um armazém antes de imprimir")`.
-  - Loop pelos itens (`husEnriquecidas` / `items` / `volumes` / `enderecos`), chamando `supabase.rpc("solicitar_impressao", {...})` com `p_tipo_etiqueta` correspondente (HU/PRODUTO/VOLUME/ENDERECO), `p_dados` conforme o schema do prompt, `p_origem: "PAINEL_ADMINISTRATIVO"`, `p_documento_origem_id`, `p_tipo_documento_origem`, `p_prioridade: 5`.
-  - Contadores `successCount`/`errorCount`, toasts de resultado, `onClose()` se houve sucesso.
-- Alterar `handleGerar`: se `saida === "imprimir"` → `await enviarParaImpressora()` (em vez de `triggerPrint()`).
-- **Manter** `triggerPrint()` intacta — continua acionada pelo botão "Imprimir" dentro do preview HTML.
-- Em `PrintEtiquetaVolumeModal`: se ainda não houver o select "Visualizar / Imprimir Diretamente", adicionar seguindo o padrão dos demais.
-- Opcional: atualizar label da opção para "🖨️ Enviar para Impressora Térmica".
+Manter o comportamento padrão de "selecionar página" e adicionar uma **faixa de ação contextual** acima da tabela quando houver seleção parcial, no estilo Gmail/Notion:
 
-## Regras
+```
+[✓ 15 selecionados nesta página]   Selecionar todos os N endereços deste filtro   |   Limpar seleção
+```
 
-- Sem novas dependências, sem migrações (RPC `solicitar_impressao` e `fila_impressao` já existem).
-- Não remover a opção "Visualizar" nem `triggerPrint()`.
-- Labelary chamado **apenas via clique**, nunca a cada keystroke.
-- Placeholders não substituídos viram `---` para não quebrar o ZPL.
+Quando o usuário clicar em "Selecionar todos os N…":
+1. Uma função dispara uma consulta à `vw_endereco_listagem` reaproveitando exatamente os mesmos filtros (tenant, empresa, `filterArmazem`, `filterSetor`, `filterTipoEstoque`, `filterTipoEstrutura`, `filterTipo`, `filterSituacao`, `filterLado`, `filterCurva`, `filterAtivo`, `search`) porém trazendo apenas a coluna `id` sem paginação.
+2. O resultado alimenta `selectedIds` com todos os IDs correspondentes.
+3. O botão "Imprimir Selecionados (N)" já existente passa a operar sobre a lista completa.
+
+Para impressão, `handlePrintSelected` hoje faz `crud.data.filter(...)` — só enxerga a página atual. Vamos alterá-lo para buscar os registros completos por IDs selecionados (query direta em `vw_endereco_listagem` com `.in("id", [...selectedIds])`) antes de abrir `PrintEtiquetaEnderecoModal`.
+
+## Arquivos a alterar
+
+1. **`src/pages/EnderecosPage.tsx`**
+   - Adicionar estado `selectingAll` (loading) e helper `selectAllAcrossPages()` que replica os filtros aplicados e busca todos os `id` da view.
+   - Renderizar uma faixa (banner) logo acima do `CrudTable` (via nova prop `topBanner` no `CrudTable` OU envolvendo a página com um `<div>` acima) que aparece somente quando `selectedIds.size > 0` e `selectedIds.size < crud.total`. Preferência: adicionar prop opcional `selectionBanner` no `CrudTable` para manter alinhamento visual dentro do card.
+   - Ajustar `handlePrintSelected` para buscar via Supabase todos os endereços correspondentes aos `selectedIds` (não apenas os presentes em `crud.data`).
+   - Limpar `selectedIds` ao trocar de filtros/empresa (já existe reset no `useEffect` de contexto — estender para reset ao mudar filtros).
+
+2. **`src/components/crud/CrudTable.tsx`** (mudança mínima)
+   - Adicionar prop opcional `selectionBanner?: React.ReactNode` renderizada entre o header de filtros e a tabela, apenas quando fornecida.
 
 ## Detalhes técnicos
 
-- Labelary: `https://api.labelary.com/v1/printers/8dpmm/labels/{largMm/25.4}x{altMm/25.4}/0/`, `Content-Type: application/x-www-form-urlencoded`, body = ZPL puro, response `image/png`.
-- Mock data cobre todos os campos usados pelos 4 tipos (ver prompt lines 61–101).
-- `solicitar_impressao` retorno pode vir como string JSON ou objeto — normalizar com `typeof data === "string" ? JSON.parse(data) : data`.
+- A query de "selecionar tudo" deve usar o mesmo builder de filtros do `useCrud` (replicado localmente no `EnderecosPage`), incluindo `tenant_id`, `empresa_id` e o `or(...)` de busca textual. Como duplicaríamos lógica, a alternativa mais limpa é expor uma função `fetchAllIds()` no `useCrud` que executa a mesma query sem `.range()` e retornando `select("id")`. Adotaremos essa via — retorno é `string[]`.
+- `useCrud` passa a expor `fetchAllIds: () => Promise<string[]>`. Nenhum outro consumidor precisa alterar.
+- A faixa exibe: "N selecionado(s) nesta página." + botão "Selecionar todos os {total} endereços" quando `selectedIds.size < total`; quando `selectedIds.size === total` mostra "Todos os {total} endereços estão selecionados." + botão "Limpar seleção".
+- `handlePrintSelected`: se `selectedIds.size <= crud.data.length` e todos estão em `crud.data`, mantém caminho atual. Caso contrário, faz `.from("vw_endereco_listagem").select("*").eq("tenant_id", ...).in("id", Array.from(selectedIds))` (em chunks de 500 IDs para evitar URL longa) e concatena os resultados.
+
+## Fora de escopo
+
+- Não alterar outras telas com seleção múltipla (VolumesPage etc.). Se necessário no futuro, aplica-se o mesmo padrão via `useCrud.fetchAllIds`.
+- Sem mudanças de schema/RPC.
