@@ -211,6 +211,39 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         selectable
         selectedIds={selectedIds}
         onSelectChange={setSelectedIds}
+        selectionBanner={
+          selectedIds.size > 0 ? (
+            <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg border border-primary/30 bg-primary/5">
+              <span className="text-sm text-foreground">
+                <span className="font-semibold text-primary">{selectedIds.size}</span>{" "}
+                {selectedIds.size === 1 ? "endereço selecionado" : "endereços selecionados"}
+                {selectedIds.size >= crud.total && crud.total > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground">(todos os registros do filtro atual)</span>
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                {selectedIds.size < crud.total && (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllPages}
+                    disabled={selectingAll}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
+                  >
+                    {selectingAll && <Loader2 size={12} className="animate-spin" />}
+                    Selecionar todos os {crud.total} endereços
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  Limpar seleção
+                </button>
+              </div>
+            </div>
+          ) : null
+        }
         extraFilters={
           <>
             <select
