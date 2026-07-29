@@ -49,7 +49,7 @@ export function CrudTable({
   onPageChange, onNew, onEdit, onDelete,
   newLabel = "Novo", searchPlaceholder = "Buscar...",
   extraFilters,
-  selectable, selectedIds, onSelectChange, headerActions, extraRowActions,
+  selectable, selectedIds, onSelectChange, headerActions, extraRowActions, selectionBanner,
   canCreate = true, canEdit = true, canDelete = true,
 }: CrudTableProps) {
   const allSelected = selectable && data.length > 0 && data.every((r) => selectedIds?.has(r.id));
