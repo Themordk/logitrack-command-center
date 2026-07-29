@@ -30,7 +30,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items }: Props) {
   const [duasColunas, setDuasColunas] = useState(false);
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
-  const { empresaId } = useTenant();
+  const { empresaId, armazemId } = useTenant();
 
   const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
