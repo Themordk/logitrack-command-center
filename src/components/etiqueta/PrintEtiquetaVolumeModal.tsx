@@ -18,7 +18,7 @@ interface PrintEtiquetaVolumeModalProps {
 
 export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtiquetaVolumeModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  const { usuarioNome, empresaId } = useTenant();
+  const { usuarioNome, empresaId, armazemId } = useTenant();
   const dataHora = useMemo(() => formatDateTime(new Date()), [open]);
   const [duasColunas, setDuasColunas] = useState(false);
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
