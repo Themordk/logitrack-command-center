@@ -9,6 +9,8 @@ import { EtiquetaEnderecoPreview } from "@/components/etiqueta/EtiquetaEnderecoP
 import { EtiquetaHUPreview } from "@/components/etiqueta/EtiquetaHUPreview";
 import { EtiquetaProdutoPreview } from "@/components/etiqueta/EtiquetaProdutoPreview";
 import { EtiquetaVolumePreview } from "@/components/etiqueta/EtiquetaVolumePreview";
+import { gerarZplTemplate } from "@/lib/zplGenerator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
   Package,
@@ -23,6 +25,11 @@ import {
   Plus,
   Trash2,
   Star,
+  Code,
+  Eye,
+  Printer,
+  Copy,
+  RefreshCw,
 } from "lucide-react";
 
 interface Props {
@@ -93,6 +100,8 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [draft, setDraft] = useState<EtiquetaConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [zplCode, setZplCode] = useState<string>("");
+  const [zplEditado, setZplEditado] = useState(false);
 
   // Carrega empresas do tenant
   useEffect(() => {
@@ -143,9 +152,33 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   // Sincroniza draft ao trocar seleção
   useEffect(() => {
     const selected = templates.find((t) => t.id === selectedTemplateId);
-    if (selected) setDraft(structuredClone(selected));
-    else setDraft(null);
+    if (selected) {
+      setDraft(structuredClone(selected));
+      if (selected.corpo_zpl) {
+        setZplCode(selected.corpo_zpl);
+        setZplEditado(true);
+      } else {
+        setZplEditado(false);
+      }
+    } else {
+      setDraft(null);
+      setZplCode("");
+      setZplEditado(false);
+    }
   }, [selectedTemplateId, templates]);
+
+  // Auto-gera ZPL a partir do draft (se não foi editado manualmente)
+  useEffect(() => {
+    if (!draft || zplEditado) return;
+    try {
+      const zpl = gerarZplTemplate(tipo, draft);
+      setZplCode(zpl);
+    } catch (err) {
+      console.warn("[ZPL Generator]", err);
+      setZplCode("// Erro ao gerar ZPL");
+    }
+  }, [draft, tipo, zplEditado]);
+
 
   const handleFieldToggle = (chave: string) => {
     if (!draft) return;
@@ -183,6 +216,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         intervalo_colunas_mm: draft.intervalo_colunas_mm,
         direcao_seta: draft.direcao_seta,
         escala_fonte: draft.escala_fonte,
+        corpo_zpl: zplCode || null,
         updated_at: new Date().toISOString(),
       };
       const { error } = await (supabase as any)
@@ -690,12 +724,87 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
           )}
         </div>
 
-        {/* Preview */}
+        {/* Área com abas: Preview visual + Código ZPL */}
         <div className="bg-card border border-border rounded-lg p-4 flex flex-col">
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Preview ao vivo</div>
-          <div className="flex-1 overflow-auto flex items-start justify-center bg-black/30 rounded-md p-4">
-            {draft && previewConfig && <RenderPreview tipo={tipo} config={previewConfig} />}
-          </div>
+          <Tabs defaultValue="preview" className="flex flex-col flex-1">
+            <TabsList className="grid w-full grid-cols-2 mb-3">
+              <TabsTrigger value="preview" className="text-xs flex items-center gap-1.5">
+                <Eye size={12} /> Preview
+              </TabsTrigger>
+              <TabsTrigger value="zpl" className="text-xs flex items-center gap-1.5">
+                <Code size={12} /> Código ZPL
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="preview" className="flex-1 overflow-auto mt-0">
+              <div className="flex items-start justify-center bg-black/30 rounded-md p-4 min-h-[300px]">
+                {draft && previewConfig && <RenderPreview tipo={tipo} config={previewConfig} />}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="zpl" className="flex-1 flex flex-col mt-0">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Printer size={11} />
+                  Código ZPL para impressora térmica
+                  {zplEditado && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold ml-1">
+                      EDITADO
+                    </span>
+                  )}
+                </span>
+                <div className="flex gap-3">
+                  {zplEditado && (
+                    <button
+                      onClick={() => setZplEditado(false)}
+                      className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
+                      title="Regenerar ZPL automaticamente a partir da configuração"
+                    >
+                      <RefreshCw size={10} /> Regenerar
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(zplCode);
+                      toast.success("Código ZPL copiado!");
+                    }}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Copy size={10} /> Copiar
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                value={zplCode}
+                onChange={(e) => {
+                  setZplCode(e.target.value);
+                  setZplEditado(true);
+                }}
+                className="flex-1 min-h-[400px] font-mono text-[11px] leading-relaxed bg-[hsl(222,47%,6%)] text-green-400 border border-border rounded-lg p-3 resize-none outline-none focus:ring-1 focus:ring-primary/50"
+                spellCheck={false}
+                placeholder="^XA&#10;^CI28&#10;...comandos ZPL...&#10;^XZ"
+              />
+
+              {draft?.campos && draft.campos.filter((c) => c.ativo).length > 0 && (
+                <div className="mt-2 p-2 bg-secondary/40 rounded-md">
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    <strong>Placeholders disponíveis</strong> (substituídos pelo agente):{" "}
+                    {draft.campos
+                      .filter((c) => c.ativo)
+                      .map((c) => (
+                        <code
+                          key={c.chave}
+                          className="bg-black/30 px-1 py-0.5 rounded text-green-400 mx-0.5"
+                        >
+                          {"{{" + c.chave + "}}"}
+                        </code>
+                      ))}
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 

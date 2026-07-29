@@ -1,28 +1,43 @@
 ## Objetivo
-Integrar impressão automática de etiquetas nos fluxos do coletor via RPC `solicitar_impressao` (fire-and-forget, nunca bloqueando o operador).
 
-## Arquivos a modificar
+Gerar código **ZPL** (Zebra Programming Language) automaticamente no frontend a partir da configuração visual dos templates de etiqueta, persistir em `etiqueta_template.corpo_zpl` (já existente no banco) e adicionar uma aba "Código ZPL" ao lado do Preview atual — editável, com badge "EDITADO" e botão "Regenerar".
 
-### NOVO
-- **`src/hooks/useSolicitarImpressao.ts`** — Hook utilitário que encapsula a chamada RPC, lê `armazem_id` do localStorage, mostra toast de sucesso curto (2s) e loga silenciosamente falhas (sem impressora/template ou erro de rede).
+O agente local passa a receber o ZPL pronto (com placeholders `{{campo}}`) e apenas substitui pelos dados reais no momento da impressão.
 
-### 1. `src/components/coletor/HUSelectorModal.tsx`
-Após criação bem-sucedida da HU em `handleCreate`, disparar impressão tipo `HU` com `codigo_hu`, `tipo_hu`, `tamanho` retornados por `criar_hu_recebimento`. Origem `RECEBIMENTO_CRIAR_HU`, prioridade 3. Fire-and-forget antes de `onSelect`/`onClose`.
+## Arquivos
 
-### 2. `src/pages/coletor/RecebimentoExecucaoPage.tsx`
-Adicionar botão `Printer` (16px, azul primário) ao lado do nome do produto identificado. Ao clicar, dispara impressão tipo `PRODUTO` com `sku`, `descricao`, `ean`, `referencia`, `embalagem`. Origem `CONFERENCIA_ENTRADA`. Expandir `ProdutoInfo` com `embalagem` se necessário.
+### NOVO — `src/lib/zplGenerator.ts`
+Módulo TypeScript puro (sem React). Exporta:
 
-### 3. `src/pages/coletor/ConsultaProdutoDetalhePage.tsx`
-Na aba Embalagens, adicionar botão `Printer` (14px) em cada embalagem, antes do botão excluir. Dispara impressão tipo `PRODUTO` com dados do produto + `embalagem` e `ean` da linha. Origem `CONSULTA_PRODUTO`.
+- `gerarZplTemplate(tipo, config): string` — dispatcher por tipo.
+- `gerarZplVolume(config)` — cabeçalho preto opcional + barcode `{{codigo_volume}}` + grid 2 colunas dos campos ativos (excluindo `codigo_volume`), com linhas divisórias.
+- `gerarZplHU(config)` — cabeçalho + barcode `{{codigo_hu}}` + grid 2 colunas dos demais campos ativos.
+- `gerarZplProduto(config)` — header simples (CORE LOGITRACK / `{{sku}}`) + `{{descricao}}` + campos extras + barcode `{{ean}}`.
+- `gerarZplEndereco(config)` — barcode `{{codigo_endereco}}` no topo + descrição + seta direcional (↑↓←→) conforme `direcao_seta` + campos ativos.
 
-### 4. `src/pages/coletor/SeparacaoProdutoPage.tsx`
-Em `handleSalvarVolumes`, após sucesso e apenas se `geraVolumeEtapa === "SEPARAÇÃO"`: se `result.volumes[]` existir, imprimir uma etiqueta `VOLUME` por item (com `codigo_volume`, `numero_volume`, `total_volumes`); caso contrário, uma chamada genérica com `quantidadeCopias = qtd`. Origem `SEPARACAO`.
+Constantes: `DOTS_PER_MM = 8` (203 DPI). Helper de escala `fs(n) = round(n * escala_fonte)`. Comandos usados: `^XA/^XZ`, `^CI28`, `^PW/^LL`, `^CF0`, `^FO`, `^FD/^FS`, `^FB`, `^GB`, `^FR`, `^BY`, `^BCN`. Determinístico — sem timestamps, sem dados reais, apenas `{{placeholders}}`.
 
-### 5. `src/pages/coletor/ConferenciaProdutoPage.tsx`
-Mesma lógica da #4 dentro de `handleSalvarVolumes`, condicionada a `geraVolumeEtapa === "CONFERÊNCIA"`. Origem `CONFERENCIA_SAIDA`, movimentoId de `sessionStorage.coletor_conferencia_movimento_id`.
+### 1. `src/hooks/useEtiquetaTemplate.ts`
+Adicionar ao interface `EtiquetaConfig` (mantendo os campos atuais):
+```ts
+corpo_zpl?: string | null;
+corpo_tspl?: string | null;
+linguagem_padrao?: string;
+```
+
+### 2. `src/pages/EtiquetaTemplatesPage.tsx`
+- Novos imports: `gerarZplTemplate`, `Tabs/TabsContent/TabsList/TabsTrigger`, ícones `Code, Eye, Printer, Copy, RefreshCw`.
+- Novos estados: `zplCode: string`, `zplEditado: boolean`.
+- `useEffect` que regenera ZPL a partir de `draft`/`tipo` quando `!zplEditado`.
+- Ao trocar o template selecionado: se `selected.corpo_zpl` → carrega e marca `zplEditado=true`; senão deixa auto-gerar.
+- `handleSave` (linha 168): incluir `corpo_zpl: zplCode || null` no payload.
+- Substituir o bloco de Preview (linha 695–697) por `<Tabs>` com duas abas:
+  - **Preview**: mantém `RenderPreview` existente intacto.
+  - **Código ZPL**: `<textarea>` monoespaçada verde/preta editável; badge "EDITADO"; botões "Regenerar" (só quando editado) e "Copiar"; rodapé listando os placeholders `{{chave}}` dos campos ativos.
 
 ## Regras
-- Sempre fire-and-forget; nunca `await` bloqueia navegação/onClose.
-- Falha de impressão apenas loga no console (sem toast de erro).
-- Sem novas dependências, sem alterações no banco/RPC.
-- Estilo consistente: `bg-[hsl(217,91%,50%)]/10` + border/ícone azuis.
+
+- Sem novas dependências, sem migração de banco (campo `corpo_zpl` já existe).
+- Não remover código existente; não alterar componentes de Preview (`EtiquetaVolumePreview`, `EtiquetaHUPreview`, etc.).
+- Não alterar `handleCreateNew` — novos templates nascem com `corpo_zpl = null` e o auto-gerador preenche.
+- Placeholders usam a chave exata dos campos ativos do template.
