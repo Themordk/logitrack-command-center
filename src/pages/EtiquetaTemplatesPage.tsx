@@ -26,7 +26,7 @@ import {
   Trash2,
   Star,
   Code,
-  Eye,
+  
   Printer,
   Copy,
   RefreshCw,
@@ -252,16 +252,16 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       setDraft(structuredClone(selected));
       if (selected.corpo_zpl) {
         setZplCode(selected.corpo_zpl);
-        setZplEditado(true);
-      } else {
-        setZplEditado(false);
       }
+      // Sempre false ao carregar: alterações nos campos regeneram o ZPL.
+      setZplEditado(false);
     } else {
       setDraft(null);
       setZplCode("");
       setZplEditado(false);
     }
   }, [selectedTemplateId, templates]);
+
 
   // Auto-gera ZPL a partir do draft (se não foi editado manualmente)
   useEffect(() => {
@@ -676,49 +676,8 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </div>
               </div>
 
-              {/* Duas colunas */}
-              <div className="grid grid-cols-2 gap-2 items-end">
-                <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!draft.duas_colunas}
-                    onChange={(e) => setDraft({ ...draft, duas_colunas: e.target.checked })}
-                    className="accent-primary"
-                  />
-                  Impressão em 2 colunas
-                </label>
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Intervalo (mm)</label>
-                  <input
-                    type="number" min={0} max={20} step={1}
-                    value={draft.intervalo_colunas_mm ?? 3}
-                    disabled={!draft.duas_colunas}
-                    onChange={(e) => setDraft({ ...draft, intervalo_colunas_mm: Number(e.target.value) || 0 })}
-                    className="w-full bg-secondary text-foreground text-sm rounded-md px-2 py-2 border border-border outline-none disabled:opacity-50"
-                  />
-                </div>
-              </div>
 
-              {tipo === "ENDERECO" && (
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Direção da Seta</label>
-                  <select
-                    value={draft.direcao_seta ?? "NENHUMA"}
-                    onChange={(e) => setDraft({ ...draft, direcao_seta: e.target.value as any })}
-                    className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none"
-                  >
-                    <option value="NENHUMA">Nenhuma</option>
-                    <option value="CIMA">↑ Cima</option>
-                    <option value="BAIXO">↓ Baixo</option>
-                    <option value="ESQUERDA">← Esquerda</option>
-                    <option value="DIREITA">→ Direita</option>
-                  </select>
-                </div>
-              )}
 
-              <p className="text-[10px] text-muted-foreground italic">
-                Seta direcional, impressão em 2 colunas e intervalo são valores padrão de impressão. O operador pode alterá-los no momento de imprimir.
-              </p>
 
               <div className="flex items-center gap-4 py-1">
                 <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
@@ -820,27 +779,19 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
           )}
         </div>
 
-        {/* Área com abas: Preview visual + Código ZPL */}
+        {/* Área com abas: Preview térmica + Código ZPL */}
         <div className="bg-card border border-border rounded-lg p-4 flex flex-col">
-          <Tabs defaultValue="preview" className="flex flex-col flex-1">
-            <TabsList className="grid w-full grid-cols-3 mb-3">
-              <TabsTrigger value="preview" className="text-xs flex items-center gap-1.5">
-                <Eye size={12} /> Preview Visual
+          <Tabs defaultValue="termica" className="flex flex-col flex-1">
+            <TabsList className="grid w-full grid-cols-2 mb-3">
+              <TabsTrigger value="termica" className="text-xs flex items-center gap-1.5">
+                <Printer size={12} /> Preview Térmica
               </TabsTrigger>
               <TabsTrigger value="zpl" className="text-xs flex items-center gap-1.5">
                 <Code size={12} /> Código ZPL
               </TabsTrigger>
-              <TabsTrigger value="termica" className="text-xs flex items-center gap-1.5">
-                <Printer size={12} /> Preview Térmica
-              </TabsTrigger>
             </TabsList>
 
 
-            <TabsContent value="preview" className="flex-1 overflow-auto mt-0">
-              <div className="flex items-start justify-center bg-black/30 rounded-md p-4 min-h-[300px]">
-                {draft && previewConfig && <RenderPreview tipo={tipo} config={previewConfig} />}
-              </div>
-            </TabsContent>
 
             <TabsContent value="zpl" className="flex-1 flex flex-col mt-0">
               <div className="flex items-center justify-between mb-2">

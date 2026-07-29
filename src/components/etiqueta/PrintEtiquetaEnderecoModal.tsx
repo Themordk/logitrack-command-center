@@ -139,7 +139,9 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
             descricao: end.descricao || "",
             tipo_endereco: end.tipo_endereco || "",
             curva_acesso: end.curva_acesso || "",
+            direcao_seta: direcaoSeta || "NENHUMA",
           },
+
           p_origem: "PAINEL_ADMINISTRATIVO",
           p_documento_origem_id: String(end.id),
           p_tipo_documento_origem: "endereco",
