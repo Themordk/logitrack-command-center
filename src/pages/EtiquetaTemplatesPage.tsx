@@ -102,6 +102,102 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [zplCode, setZplCode] = useState<string>("");
   const [zplEditado, setZplEditado] = useState(false);
+  const [zplPreviewUrl, setZplPreviewUrl] = useState<string | null>(null);
+  const [zplPreviewLoading, setZplPreviewLoading] = useState(false);
+  const [zplPreviewError, setZplPreviewError] = useState<string | null>(null);
+
+  // Limpa objectURL ao desmontar / trocar
+  useEffect(() => {
+    return () => {
+      if (zplPreviewUrl) URL.revokeObjectURL(zplPreviewUrl);
+    };
+  }, [zplPreviewUrl]);
+
+  const gerarPreviewTermica = useCallback(async () => {
+    if (!zplCode || !draft) return;
+    setZplPreviewLoading(true);
+    setZplPreviewError(null);
+    try {
+      const dadosMock: Record<string, string> = {
+        codigo_volume: "VOL-000000001",
+        parceiro_nome: "CLIENTE EXEMPLO LTDA",
+        destino_carga: "SAO PAULO / SP",
+        numero_onda: "42",
+        numero_volume: "01",
+        total_volumes: "05",
+        data_hora: "20/07/2026 10:00",
+        usuario: "OPERADOR",
+        peso: "12.5",
+        nota_fiscal: "123456",
+        pedido: "PED-000123",
+        transportadora: "TRANSPORTE X",
+        observacao: "Manuseio cuidadoso",
+        codigo_hu: "HU-000000001",
+        tipo_hu: "PALLET",
+        tamanho: "M",
+        numero_movimento: "131",
+        numero_nota: "250",
+        data_entrada: "21/07/2026",
+        lote_principal: "L2026-A",
+        validade_proxima: "15/12/2026",
+        total_quantidade: "150",
+        total_itens: "3",
+        peso_bruto: "45.5",
+        sku: "SKU-001",
+        descricao: "PRODUTO EXEMPLO 500ML",
+        ean: "7891234567890",
+        embalagem: "CAIXA",
+        marca: "MARCA X",
+        referencia: "REF-001",
+        codigo_endereco: "12345",
+        tipo_endereco: "PICKING",
+        curva_acesso: "A",
+      };
+      let zplComDados = zplCode;
+      for (const [chave, valor] of Object.entries(dadosMock)) {
+        zplComDados = zplComDados.split(`{{${chave}}}`).join(valor);
+      }
+      zplComDados = zplComDados.replace(/\{\{[^}]+\}\}/g, "---");
+
+      const largPol = ((draft.largura_mm || 100) / 25.4).toFixed(2);
+      const altPol = ((draft.altura_mm || 40) / 25.4).toFixed(2);
+      const path = `v1/printers/8dpmm/labels/${largPol}x${altPol}/0/`;
+
+      let response: Response;
+      try {
+        response = await fetch(`https://api.labelary.com/${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: zplComDados,
+        });
+      } catch {
+        response = await fetch(`http://api.labelary.com/${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: zplComDados,
+        });
+      }
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        throw new Error(errText || `Labelary retornou ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setZplPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (err: any) {
+      setZplPreviewError(err?.message || "Erro ao gerar preview");
+      setZplPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    } finally {
+      setZplPreviewLoading(false);
+    }
+  }, [zplCode, draft]);
+
 
   // Carrega empresas do tenant
   useEffect(() => {
