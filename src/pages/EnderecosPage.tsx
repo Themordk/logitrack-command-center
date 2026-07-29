@@ -366,9 +366,10 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
             {selectedIds.size > 0 && (
               <button
                 onClick={handlePrintSelected}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+                disabled={preparingPrint}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/50 text-primary text-sm font-medium hover:bg-primary/10 transition-colors disabled:opacity-60"
               >
-                <Printer size={15} />
+                {preparingPrint ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
                 Imprimir Selecionados ({selectedIds.size})
               </button>
             )}
