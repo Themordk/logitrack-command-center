@@ -152,9 +152,33 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   // Sincroniza draft ao trocar seleção
   useEffect(() => {
     const selected = templates.find((t) => t.id === selectedTemplateId);
-    if (selected) setDraft(structuredClone(selected));
-    else setDraft(null);
+    if (selected) {
+      setDraft(structuredClone(selected));
+      if (selected.corpo_zpl) {
+        setZplCode(selected.corpo_zpl);
+        setZplEditado(true);
+      } else {
+        setZplEditado(false);
+      }
+    } else {
+      setDraft(null);
+      setZplCode("");
+      setZplEditado(false);
+    }
   }, [selectedTemplateId, templates]);
+
+  // Auto-gera ZPL a partir do draft (se não foi editado manualmente)
+  useEffect(() => {
+    if (!draft || zplEditado) return;
+    try {
+      const zpl = gerarZplTemplate(tipo, draft);
+      setZplCode(zpl);
+    } catch (err) {
+      console.warn("[ZPL Generator]", err);
+      setZplCode("// Erro ao gerar ZPL");
+    }
+  }, [draft, tipo, zplEditado]);
+
 
   const handleFieldToggle = (chave: string) => {
     if (!draft) return;
