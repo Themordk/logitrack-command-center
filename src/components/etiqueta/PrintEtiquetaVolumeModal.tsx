@@ -18,7 +18,7 @@ interface PrintEtiquetaVolumeModalProps {
 
 export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtiquetaVolumeModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
-  const { usuarioNome, empresaId } = useTenant();
+  const { usuarioNome, empresaId, armazemId } = useTenant();
   const dataHora = useMemo(() => formatDateTime(new Date()), [open]);
   const [duasColunas, setDuasColunas] = useState(false);
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
@@ -84,6 +84,51 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 500);
   };
+
+  const enviarParaImpressora = async () => {
+    if (!armazemId) {
+      toast.error("Selecione um armazém antes de imprimir");
+      return;
+    }
+    let successCount = 0;
+    let errorCount = 0;
+    for (const vol of volumes as any[]) {
+      try {
+        const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
+          p_armazem_id: armazemId,
+          p_tipo_etiqueta: "VOLUME",
+          p_dados: {
+            codigo_volume: vol.codigo_volume || "",
+            parceiro_nome: vol.parceiro_nome || "",
+            destino_carga: vol.destino_carga || "",
+            numero_onda: vol.numero_onda != null ? String(vol.numero_onda) : "",
+            numero_volume: vol.numero_volume != null ? String(vol.numero_volume) : "",
+            total_volumes: vol.total_volumes_movimento != null ? String(vol.total_volumes_movimento) : "",
+            peso: vol.peso != null ? String(vol.peso) : "",
+            nota_fiscal: vol.nota_fiscal || "",
+            pedido: vol.pedido || "",
+            transportadora: vol.transportadora || "",
+            observacao: vol.observacao || "",
+          },
+          p_origem: "PAINEL_ADMINISTRATIVO",
+          p_documento_origem_id: String(vol.id),
+          p_tipo_documento_origem: "volume_expedicao",
+          p_prioridade: 5,
+        });
+        if (error) throw error;
+        const result = typeof data === "string" ? JSON.parse(data) : data;
+        if (result?.success) successCount++;
+        else errorCount++;
+      } catch (err) {
+        console.warn("[Impressão Volume]", err);
+        errorCount++;
+      }
+    }
+    if (successCount > 0) toast.success(`${successCount} etiqueta(s) enviada(s) para impressão`);
+    if (errorCount > 0) toast.error(`${errorCount} etiqueta(s) falharam. Verifique se há impressora configurada.`);
+    if (successCount > 0) onClose();
+  };
+
 
   const plural = volumes.length > 1;
 
@@ -164,10 +209,14 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
             <X size={14} className="inline mr-1" /> Fechar
           </button>
+          <button onClick={enviarParaImpressora} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg border border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50">
+            <Printer size={15} /> 🖨️ Enviar para Impressora Térmica
+          </button>
           <button onClick={triggerPrint} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
             <Printer size={15} /> Imprimir {volumes.length} etiqueta{plural ? "s" : ""}
           </button>
         </div>
+
       </DialogContent>
     </Dialog>
   );

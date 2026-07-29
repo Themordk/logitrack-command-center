@@ -102,6 +102,102 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [zplCode, setZplCode] = useState<string>("");
   const [zplEditado, setZplEditado] = useState(false);
+  const [zplPreviewUrl, setZplPreviewUrl] = useState<string | null>(null);
+  const [zplPreviewLoading, setZplPreviewLoading] = useState(false);
+  const [zplPreviewError, setZplPreviewError] = useState<string | null>(null);
+
+  // Limpa objectURL ao desmontar / trocar
+  useEffect(() => {
+    return () => {
+      if (zplPreviewUrl) URL.revokeObjectURL(zplPreviewUrl);
+    };
+  }, [zplPreviewUrl]);
+
+  const gerarPreviewTermica = useCallback(async () => {
+    if (!zplCode || !draft) return;
+    setZplPreviewLoading(true);
+    setZplPreviewError(null);
+    try {
+      const dadosMock: Record<string, string> = {
+        codigo_volume: "VOL-000000001",
+        parceiro_nome: "CLIENTE EXEMPLO LTDA",
+        destino_carga: "SAO PAULO / SP",
+        numero_onda: "42",
+        numero_volume: "01",
+        total_volumes: "05",
+        data_hora: "20/07/2026 10:00",
+        usuario: "OPERADOR",
+        peso: "12.5",
+        nota_fiscal: "123456",
+        pedido: "PED-000123",
+        transportadora: "TRANSPORTE X",
+        observacao: "Manuseio cuidadoso",
+        codigo_hu: "HU-000000001",
+        tipo_hu: "PALLET",
+        tamanho: "M",
+        numero_movimento: "131",
+        numero_nota: "250",
+        data_entrada: "21/07/2026",
+        lote_principal: "L2026-A",
+        validade_proxima: "15/12/2026",
+        total_quantidade: "150",
+        total_itens: "3",
+        peso_bruto: "45.5",
+        sku: "SKU-001",
+        descricao: "PRODUTO EXEMPLO 500ML",
+        ean: "7891234567890",
+        embalagem: "CAIXA",
+        marca: "MARCA X",
+        referencia: "REF-001",
+        codigo_endereco: "12345",
+        tipo_endereco: "PICKING",
+        curva_acesso: "A",
+      };
+      let zplComDados = zplCode;
+      for (const [chave, valor] of Object.entries(dadosMock)) {
+        zplComDados = zplComDados.split(`{{${chave}}}`).join(valor);
+      }
+      zplComDados = zplComDados.replace(/\{\{[^}]+\}\}/g, "---");
+
+      const largPol = ((draft.largura_mm || 100) / 25.4).toFixed(2);
+      const altPol = ((draft.altura_mm || 40) / 25.4).toFixed(2);
+      const path = `v1/printers/8dpmm/labels/${largPol}x${altPol}/0/`;
+
+      let response: Response;
+      try {
+        response = await fetch(`https://api.labelary.com/${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: zplComDados,
+        });
+      } catch {
+        response = await fetch(`http://api.labelary.com/${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: zplComDados,
+        });
+      }
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        throw new Error(errText || `Labelary retornou ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setZplPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (err: any) {
+      setZplPreviewError(err?.message || "Erro ao gerar preview");
+      setZplPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    } finally {
+      setZplPreviewLoading(false);
+    }
+  }, [zplCode, draft]);
+
 
   // Carrega empresas do tenant
   useEffect(() => {
@@ -727,14 +823,18 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         {/* Área com abas: Preview visual + Código ZPL */}
         <div className="bg-card border border-border rounded-lg p-4 flex flex-col">
           <Tabs defaultValue="preview" className="flex flex-col flex-1">
-            <TabsList className="grid w-full grid-cols-2 mb-3">
+            <TabsList className="grid w-full grid-cols-3 mb-3">
               <TabsTrigger value="preview" className="text-xs flex items-center gap-1.5">
-                <Eye size={12} /> Preview
+                <Eye size={12} /> Preview Visual
               </TabsTrigger>
               <TabsTrigger value="zpl" className="text-xs flex items-center gap-1.5">
                 <Code size={12} /> Código ZPL
               </TabsTrigger>
+              <TabsTrigger value="termica" className="text-xs flex items-center gap-1.5">
+                <Printer size={12} /> Preview Térmica
+              </TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="preview" className="flex-1 overflow-auto mt-0">
               <div className="flex items-start justify-center bg-black/30 rounded-md p-4 min-h-[300px]">
@@ -804,7 +904,58 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="termica" className="flex-1 flex flex-col mt-0">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Preview da impressão térmica (via Labelary)
+                </span>
+                <button
+                  onClick={gerarPreviewTermica}
+                  disabled={zplPreviewLoading || !zplCode}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {zplPreviewLoading ? (
+                    <><Loader2 size={12} className="animate-spin" /> Gerando...</>
+                  ) : (
+                    <><RefreshCw size={12} /> Gerar Preview</>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex-1 flex items-center justify-center bg-white rounded-lg border border-border min-h-[300px] p-4">
+                {zplPreviewLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <Loader2 size={16} className="animate-spin" /> Renderizando ZPL via Labelary...
+                  </div>
+                ) : zplPreviewError ? (
+                  <div className="text-center">
+                    <p className="text-sm text-destructive mb-2">Erro ao renderizar: {zplPreviewError}</p>
+                    <p className="text-xs text-muted-foreground">Verifique se o código ZPL é válido (deve começar com ^XA e terminar com ^XZ).</p>
+                  </div>
+                ) : zplPreviewUrl ? (
+                  <img
+                    src={zplPreviewUrl}
+                    alt="Preview térmica da etiqueta"
+                    className="max-w-full max-h-[500px] object-contain"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    <Printer size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Clique em "Gerar Preview" para visualizar</p>
+                    <p className="text-xs mt-1">A imagem mostra exatamente como a etiqueta sairá na impressora térmica</p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[10px] text-muted-foreground mt-2 italic">
+                Preview gerada pelo serviço Labelary (labelary.com). Os placeholders são substituídos por dados de exemplo.
+                A impressão real usará os dados reais do sistema.
+              </p>
+            </TabsContent>
           </Tabs>
+
         </div>
       </div>
 
