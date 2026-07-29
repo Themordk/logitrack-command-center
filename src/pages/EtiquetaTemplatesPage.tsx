@@ -101,7 +101,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [zplCode, setZplCode] = useState<string>("");
-  const [zplEditado, setZplEditado] = useState(false);
+  const [modoManualZpl, setModoManualZpl] = useState(false);
   const [zplPreviewUrl, setZplPreviewUrl] = useState<string | null>(null);
   const [zplPreviewLoading, setZplPreviewLoading] = useState(false);
   const [zplPreviewError, setZplPreviewError] = useState<string | null>(null);
@@ -250,30 +250,26 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     const selected = templates.find((t) => t.id === selectedTemplateId);
     if (selected) {
       setDraft(structuredClone(selected));
-      if (selected.corpo_zpl) {
-        setZplCode(selected.corpo_zpl);
-      }
-      // Sempre false ao carregar: alterações nos campos regeneram o ZPL.
-      setZplEditado(false);
+      setZplCode(selected.corpo_zpl || "");
+      setModoManualZpl(false);
     } else {
       setDraft(null);
       setZplCode("");
-      setZplEditado(false);
+      setModoManualZpl(false);
     }
   }, [selectedTemplateId, templates]);
 
 
-  // Auto-gera ZPL a partir do draft (se não foi editado manualmente)
+  // Auto-gera ZPL a partir do draft (exceto em modo de edição manual)
   useEffect(() => {
-    if (!draft || zplEditado) return;
+    if (!draft || modoManualZpl) return;
     try {
       const zpl = gerarZplTemplate(tipo, draft);
       setZplCode(zpl);
     } catch (err) {
       console.warn("[ZPL Generator]", err);
-      setZplCode("// Erro ao gerar ZPL");
     }
-  }, [draft, tipo, zplEditado]);
+  }, [draft, tipo, modoManualZpl]);
 
 
   const handleFieldToggle = (chave: string) => {
@@ -312,7 +308,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         intervalo_colunas_mm: draft.intervalo_colunas_mm,
         direcao_seta: draft.direcao_seta,
         escala_fonte: draft.escala_fonte,
-        corpo_zpl: zplCode || null,
+        corpo_zpl: zplCode,
         updated_at: new Date().toISOString(),
       };
       const { error } = await (supabase as any)
@@ -335,6 +331,28 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     try {
       const baseCampos = templates[0]?.campos || DEFAULT_CAMPOS_BY_TIPO[tipo];
       const isHU = tipo === "HU";
+
+      const tempConfig = {
+        tipo,
+        nome: `Novo Template ${tipo}`,
+        tamanho: isHU ? "100x70" : "100x40",
+        orientacao: "horizontal",
+        largura_mm: 100,
+        altura_mm: isHU ? 70 : 40,
+        com_cabecalho: true,
+        com_logo: false,
+        campos: baseCampos,
+        escala_fonte: 1.0,
+        duas_colunas: false,
+      } as unknown as EtiquetaConfig;
+
+      let zplInicial: string;
+      try {
+        zplInicial = gerarZplTemplate(tipo, tempConfig);
+      } catch {
+        zplInicial = "^XA^CI28^PW800^LL320^CF0,20^FO16,10^FDNovo template^FS^XZ";
+      }
+
       const payload = {
         tenant_id: tenantId,
         empresa_id: empresaSel || null,
@@ -354,6 +372,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         intervalo_colunas_mm: 3,
         direcao_seta: "NENHUMA",
         escala_fonte: 1.0,
+        corpo_zpl: zplInicial,
       };
       const { data, error } = await (supabase as any)
         .from("etiqueta_template")
@@ -798,22 +817,27 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Printer size={11} />
                   Código ZPL para impressora térmica
-                  {zplEditado && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold ml-1">
-                      EDITADO
-                    </span>
-                  )}
                 </span>
-                <div className="flex gap-3">
-                  {zplEditado && (
-                    <button
-                      onClick={() => setZplEditado(false)}
-                      className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
-                      title="Regenerar ZPL automaticamente a partir da configuração"
-                    >
-                      <RefreshCw size={10} /> Regenerar
-                    </button>
-                  )}
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={modoManualZpl}
+                      onChange={(e) => {
+                        const manual = e.target.checked;
+                        setModoManualZpl(manual);
+                        if (!manual && draft) {
+                          try {
+                            setZplCode(gerarZplTemplate(tipo, draft));
+                          } catch (err) {
+                            console.warn("[ZPL Generator]", err);
+                          }
+                        }
+                      }}
+                      className="accent-primary"
+                    />
+                    Edição manual
+                  </label>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(zplCode);
@@ -828,16 +852,25 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
 
               <textarea
                 value={zplCode}
-                onChange={(e) => {
-                  setZplCode(e.target.value);
-                  setZplEditado(true);
-                }}
-                className="flex-1 min-h-[400px] font-mono text-[11px] leading-relaxed bg-[hsl(222,47%,6%)] text-green-400 border border-border rounded-lg p-3 resize-none outline-none focus:ring-1 focus:ring-primary/50"
+                onChange={(e) => setZplCode(e.target.value)}
+                readOnly={!modoManualZpl}
+                className={`flex-1 min-h-[400px] font-mono text-[11px] leading-relaxed border border-border rounded-lg p-3 resize-none outline-none focus:ring-1 focus:ring-primary/50 ${
+                  modoManualZpl
+                    ? "bg-[hsl(222,47%,6%)] text-green-400"
+                    : "bg-[hsl(222,47%,8%)] text-green-400/70 cursor-default"
+                }`}
                 spellCheck={false}
                 placeholder="^XA&#10;^CI28&#10;...comandos ZPL...&#10;^XZ"
               />
 
-              {draft?.campos && draft.campos.filter((c) => c.ativo).length > 0 && (
+              {!modoManualZpl && (
+                <p className="text-[10px] text-muted-foreground mt-2 italic">
+                  Modo automático: o código ZPL é gerado a partir das configurações acima.
+                  Ative "Edição manual" para editar livremente.
+                </p>
+              )}
+
+              {modoManualZpl && draft?.campos && draft.campos.filter((c) => c.ativo).length > 0 && (
                 <div className="mt-2 p-2 bg-secondary/40 rounded-md">
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
                     <strong>Placeholders disponíveis</strong> (substituídos pelo agente):{" "}
@@ -874,10 +907,16 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </button>
               </div>
 
-              <div className="flex-1 flex items-center justify-center bg-white rounded-lg border border-border min-h-[300px] p-4">
+              <div
+                className="flex items-center justify-center bg-neutral-100 rounded-lg border border-border p-3 mx-auto"
+                style={{
+                  width: `${Math.min((draft?.largura_mm || 100) * 4, 800)}px`,
+                  minHeight: `${Math.min((draft?.altura_mm || 40) * 4, 600)}px`,
+                }}
+              >
                 {zplPreviewLoading ? (
                   <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Loader2 size={16} className="animate-spin" /> Renderizando ZPL via Labelary...
+                    <Loader2 size={16} className="animate-spin" /> Renderizando...
                   </div>
                 ) : zplPreviewError ? (
                   <div className="text-center">
@@ -888,21 +927,20 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                   <img
                     src={zplPreviewUrl}
                     alt="Preview térmica da etiqueta"
-                    className="max-w-full max-h-[500px] object-contain"
+                    className="max-w-full max-h-full object-contain"
                     style={{ imageRendering: "pixelated" }}
                   />
                 ) : (
                   <div className="text-center text-muted-foreground">
                     <Printer size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Clique em "Gerar Preview" para visualizar</p>
-                    <p className="text-xs mt-1">A imagem mostra exatamente como a etiqueta sairá na impressora térmica</p>
+                    <p className="text-sm">Clique em "Gerar Preview"</p>
+                    <p className="text-xs mt-1">Mostra como a etiqueta sairá na impressora</p>
                   </div>
                 )}
               </div>
 
-              <p className="text-[10px] text-muted-foreground mt-2 italic">
-                Preview gerada pelo serviço Labelary (labelary.com). Os placeholders são substituídos por dados de exemplo.
-                A impressão real usará os dados reais do sistema.
+              <p className="text-[10px] text-muted-foreground mt-2 text-center italic">
+                {draft?.largura_mm || 100}mm × {draft?.altura_mm || 40}mm — Preview via Labelary
               </p>
             </TabsContent>
           </Tabs>

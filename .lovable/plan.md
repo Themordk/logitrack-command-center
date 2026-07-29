@@ -1,16 +1,41 @@
-## Problema
+## Objetivo
 
-Na tela **Templates de Etiqueta** (`src/pages/EtiquetaTemplatesPage.tsx`), as duas abas (`TabsContent value="zpl"` e `value="termica"`) usam a classe `flex-1 flex flex-col`. O Radix esconde a aba inativa aplicando o atributo `hidden` (que equivale a `display: none`), mas a classe utilitária `flex` tem a mesma especificidade e vem depois na folha de estilo — então `display: flex` vence e **a aba inativa continua ocupando espaço**. Resultado: o bloco de código ZPL (com `min-h-[400px]`) permanece renderizado como área vazia e empurra o preview térmico para baixo do contêiner.
+Tornar o campo `corpo_zpl` a fonte única de verdade na tela **Templates de Etiqueta** (`src/pages/EtiquetaTemplatesPage.tsx`), com modo automático (gerado das configurações) e modo de edição manual explícito.
 
-## Correção
+## Alterações (arquivo único: `src/pages/EtiquetaTemplatesPage.tsx`)
 
-Em `src/pages/EtiquetaTemplatesPage.tsx`, nos dois `TabsContent` (linhas ~796 e ~859):
+### 1. Estados
+- Remover `zplEditado`.
+- Adicionar `modoManualZpl` (boolean, default `false`).
+- Manter `zplCode`.
 
-- Trocar `className="flex-1 flex flex-col mt-0"` por `className="flex-1 mt-0 hidden data-[state=active]:flex data-[state=active]:flex-col"`.
+### 2. Carregamento do template
+No efeito que sincroniza a seleção: carregar `setZplCode(selected.corpo_zpl || "")` sempre (hoje só define quando há valor) e resetar `modoManualZpl` para `false`. Ao limpar a seleção, zerar os três estados.
 
-Assim a aba inativa fica realmente oculta (`hidden`) e a ativa volta a usar o layout flex em coluna, mantendo o preview térmico no lugar correto, logo abaixo da barra de abas.
+### 3. Auto-geração
+Efeito de geração passa a depender de `[draft, tipo, modoManualZpl]` e sai cedo quando `modoManualZpl` estiver ativo. O textarea nunca altera `draft` — apenas `zplCode` — evitando loop.
+
+### 4. Aba "Código ZPL"
+- Remover badge "EDITADO" e botão "Regenerar".
+- Adicionar checkbox "Edição manual": ao desmarcar, regenera imediatamente o ZPL a partir do `draft`.
+- Textarea `readOnly` quando em modo automático, com estilo atenuado; editável no modo manual.
+- Nota explicativa no modo automático; lista de placeholders exibida no modo manual.
+- Botão "Copiar" mantido.
+
+### 5. Aba "Preview Térmica"
+Substituir o container fixo `min-h-[300px] bg-white` por container centralizado (`mx-auto`, `bg-neutral-100`) com tamanho proporcional:
+- largura: `min(largura_mm * 4, 800)px`
+- altura mínima: `min(altura_mm * 4, 600)px`
+
+Rodapé passa a mostrar `{largura_mm}mm × {altura_mm}mm — Preview via Labelary`.
+
+### 6. `handleCreateNew`
+Montar uma config temporária com os mesmos valores do payload e gerar `corpo_zpl` via `gerarZplTemplate` antes do INSERT (com fallback de ZPL mínimo em caso de erro), já que a coluna é NOT NULL.
+
+### 7. `handleSave`
+`corpo_zpl: zplCode` (sem fallback `|| null`). Demais campos do payload inalterados.
 
 ## Notas técnicas
-
-- Nenhuma mudança de lógica, estado, dados ou banco.
-- Nenhuma dependência nova; apenas ajuste de classes utilitárias Tailwind.
+- Sem mudanças de banco, sem novas dependências, sem alteração em `zplGenerator.ts`.
+- Ordem das abas mantida: Preview Térmica primeiro, Código ZPL depois.
+- As classes de colapso das abas (`hidden data-[state=active]:flex`) já corrigidas permanecem.
