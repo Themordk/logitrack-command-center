@@ -308,7 +308,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         intervalo_colunas_mm: draft.intervalo_colunas_mm,
         direcao_seta: draft.direcao_seta,
         escala_fonte: draft.escala_fonte,
-        corpo_zpl: zplCode || null,
+        corpo_zpl: zplCode,
         updated_at: new Date().toISOString(),
       };
       const { error } = await (supabase as any)
@@ -331,6 +331,28 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     try {
       const baseCampos = templates[0]?.campos || DEFAULT_CAMPOS_BY_TIPO[tipo];
       const isHU = tipo === "HU";
+
+      const tempConfig = {
+        tipo,
+        nome: `Novo Template ${tipo}`,
+        tamanho: isHU ? "100x70" : "100x40",
+        orientacao: "horizontal",
+        largura_mm: 100,
+        altura_mm: isHU ? 70 : 40,
+        com_cabecalho: true,
+        com_logo: false,
+        campos: baseCampos,
+        escala_fonte: 1.0,
+        duas_colunas: false,
+      } as unknown as EtiquetaConfig;
+
+      let zplInicial: string;
+      try {
+        zplInicial = gerarZplTemplate(tipo, tempConfig);
+      } catch {
+        zplInicial = "^XA^CI28^PW800^LL320^CF0,20^FO16,10^FDNovo template^FS^XZ";
+      }
+
       const payload = {
         tenant_id: tenantId,
         empresa_id: empresaSel || null,
@@ -350,6 +372,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         intervalo_colunas_mm: 3,
         direcao_seta: "NENHUMA",
         escala_fonte: 1.0,
+        corpo_zpl: zplInicial,
       };
       const { data, error } = await (supabase as any)
         .from("etiqueta_template")
