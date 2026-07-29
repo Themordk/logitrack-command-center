@@ -44,12 +44,55 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printEnderecos, setPrintEnderecos] = useState<any[]>([]);
   const [printOpen, setPrintOpen] = useState(false);
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [preparingPrint, setPreparingPrint] = useState(false);
 
-  const handlePrintSelected = () => {
-    const selected = crud.data.filter((r) => selectedIds.has(r.id));
-    if (selected.length === 0) return;
-    setPrintEnderecos(selected);
-    setPrintOpen(true);
+  const fetchEnderecosByIds = async (ids: string[]): Promise<any[]> => {
+    if (!tenantId || ids.length === 0) return [];
+    const chunkSize = 300;
+    const results: any[] = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const { data, error } = await (supabase as any)
+        .from("vw_endereco_listagem")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("id", chunk);
+      if (error) throw error;
+      if (data) results.push(...data);
+    }
+    return results;
+  };
+
+  const handlePrintSelected = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArr = Array.from(selectedIds);
+    const cached = crud.data.filter((r) => selectedIds.has(r.id));
+    if (cached.length === idsArr.length) {
+      setPrintEnderecos(cached);
+      setPrintOpen(true);
+      return;
+    }
+    setPreparingPrint(true);
+    try {
+      const rows = await fetchEnderecosByIds(idsArr);
+      setPrintEnderecos(rows);
+      setPrintOpen(true);
+    } catch (err: any) {
+      toast.error("Falha ao carregar endereços selecionados");
+    } finally {
+      setPreparingPrint(false);
+    }
+  };
+
+  const handleSelectAllPages = async () => {
+    setSelectingAll(true);
+    try {
+      const ids = await crud.fetchAllIds();
+      setSelectedIds(new Set(ids));
+    } finally {
+      setSelectingAll(false);
+    }
   };
 
   const handlePrintSingle = (row: any) => {
