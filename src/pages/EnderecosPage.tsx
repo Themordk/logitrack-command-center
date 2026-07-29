@@ -130,6 +130,12 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
     }
   }, [tenantId, filterArmazem]);
 
+  // Limpa seleção sempre que filtros ou busca mudarem — evita IDs órfãos do conjunto anterior.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filterTipo, filterSituacao, filterLado, filterCurva, filterAtivo, filterArmazem, filterSetor, filterTipoEstoque, filterTipoEstrutura, crud.search]);
+
+
   const buildDescricao = (rua: string, predio: string, nivel: string, apto: string) => {
     const pad = (v: string) => String(v).padStart(2, "0");
     return `R${pad(rua)}-P${pad(predio)}-N${pad(nivel)}-A${pad(apto)}`;
