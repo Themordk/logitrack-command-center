@@ -246,16 +246,23 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const reload = useCallback(() => setReloadFlag((v) => v + 1), []);
 
   // Sincroniza draft ao trocar seleção
+  const loadedTemplateIdRef = useRef<string | null>(null);
   useEffect(() => {
     const selected = templates.find((t) => t.id === selectedTemplateId);
     if (selected) {
+      const isNovaSelecao = loadedTemplateIdRef.current !== selected.id;
       setDraft(structuredClone(selected));
-      setZplCode(selected.corpo_zpl || "");
-      setModoManualZpl(false);
+      // Em refetch do MESMO template (ex.: após salvar), preserva o ZPL e o modo manual
+      if (isNovaSelecao) {
+        setZplCode(selected.corpo_zpl || "");
+        setModoManualZpl(false);
+        loadedTemplateIdRef.current = selected.id;
+      }
     } else {
       setDraft(null);
       setZplCode("");
       setModoManualZpl(false);
+      loadedTemplateIdRef.current = null;
     }
   }, [selectedTemplateId, templates]);
 
@@ -265,11 +272,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     if (!draft || modoManualZpl) return;
     try {
       const zpl = gerarZplTemplate(tipo, draft);
-      setZplCode(zpl);
+      setZplCode((prev) => (prev === zpl ? prev : zpl));
     } catch (err) {
       console.warn("[ZPL Generator]", err);
     }
   }, [draft, tipo, modoManualZpl]);
+
 
 
   const handleFieldToggle = (chave: string) => {
