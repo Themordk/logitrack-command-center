@@ -254,8 +254,17 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       setDraft(structuredClone(selected));
       // Em refetch do MESMO template (ex.: após salvar), preserva o ZPL e o modo manual
       if (isNovaSelecao) {
+        const salvo = (selected.corpo_zpl || "").trim();
+        let gerado = "";
+        try {
+          gerado = gerarZplTemplate(tipo, selected).trim();
+        } catch {
+          gerado = "";
+        }
+        // ZPL customizado no banco: carrega como está e já ativa edição manual
+        const customizado = salvo.length > 0 && salvo !== gerado;
         setZplCode(selected.corpo_zpl || "");
-        setModoManualZpl(false);
+        setModoManualZpl(customizado);
         loadedTemplateIdRef.current = selected.id;
       }
     } else {
@@ -264,7 +273,8 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       setModoManualZpl(false);
       loadedTemplateIdRef.current = null;
     }
-  }, [selectedTemplateId, templates]);
+  }, [selectedTemplateId, templates, tipo]);
+
 
 
   // Auto-gera ZPL a partir do draft (exceto em modo de edição manual)

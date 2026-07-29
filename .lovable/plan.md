@@ -1,30 +1,30 @@
-## Diagnóstico
+## Diagnóstico (confirmado no código)
 
-O `handleSave` envia `corpo_zpl: zplCode` e as políticas RLS de `etiqueta_template` permitem UPDATE do próprio tenant — o gravar em si funciona. O problema está no ciclo de estado da tela `src/pages/EtiquetaTemplatesPage.tsx`:
+Em `src/pages/EtiquetaTemplatesPage.tsx`:
 
-1. Você marca "Edição manual", altera o textarea (`zplCode`) e clica em Salvar.
-2. `handleSave` grava e chama `reload()`.
-3. O recarregamento cria um novo array `templates`, disparando o efeito de sincronização (`[selectedTemplateId, templates]`), que faz `setModoManualZpl(false)` e `setDraft(clone)`.
-4. Com `modoManualZpl` de volta em `false`, o efeito de auto-geração roda e **sobrescreve** `zplCode` com o ZPL gerado das configurações.
+- Linhas 250-267: ao selecionar um template, `setZplCode(selected.corpo_zpl || "")` e `setModoManualZpl(false)`.
+- Linhas 271-279: um efeito de auto-geração roda sempre que `modoManualZpl === false` e faz `setZplCode(gerarZplTemplate(tipo, draft))`.
 
-Resultado: a tela volta a mostrar o ZPL automático (parece que não salvou) e, no próximo Salvar, o ZPL automático realmente sobrescreve a edição manual no banco.
+Como o modo manual sempre inicia em `false`, o ZPL vindo do banco é imediatamente sobrescrito pelo ZPL gerado a partir das configurações. Por isso a tela mostra o layout padrão (barcode + campos) em vez do `corpo_zpl` customizado gravado no registro `397bc010…`. Ao salvar nesse estado, o ZPL gerado ainda pode sobrescrever o customizado no banco.
 
 ## Correção
 
 Arquivo único: `src/pages/EtiquetaTemplatesPage.tsx`
 
-1. **Reset de modo apenas na troca real de template**
-   - Guardar o id carregado em um `useRef`. No efeito de sincronização, só executar `setModoManualZpl(false)` e `setZplCode(...)` quando o `selectedTemplateId` for diferente do id já carregado (ou quando a seleção for limpa).
-   - Em um refetch do mesmo template (após salvar), manter `modoManualZpl` e `zplCode` como estão.
+1. **Detectar ZPL customizado no carregamento**
+   - Ao selecionar um template, comparar `selected.corpo_zpl` (normalizado: trim) com `gerarZplTemplate(tipo, selected)`.
+   - Se houver `corpo_zpl` e ele for diferente do gerado, iniciar com `modoManualZpl = true` e `zplCode = selected.corpo_zpl`, preservando o conteúdo do banco.
+   - Se for igual (ou vazio), manter o comportamento atual (modo automático).
 
-2. **Guarda na auto-geração**
-   - Manter a saída antecipada com `modoManualZpl`, e evitar `setZplCode` quando o ZPL gerado for idêntico ao atual (evita renders desnecessários).
+2. **Proteger a auto-geração**
+   - Manter a saída antecipada quando `modoManualZpl` for verdadeiro, de modo que o efeito nunca substitua um ZPL customizado carregado do banco.
 
-3. **Confirmação visual do salvamento**
-   - Após salvar com sucesso, manter o modo manual ativo e o texto exatamente como enviado, garantindo que o que aparece na aba é o que está no banco.
+3. **Comportamento resultante**
+   - Abrir a tela mostra exatamente o ZPL registrado, com o toggle "Edição manual" já marcado.
+   - Desmarcar "Edição manual" continua regenerando o ZPL a partir das configurações (ação explícita do usuário).
+   - Salvar persiste o que está visível no textarea.
 
 ## Notas técnicas
 
 - Sem mudanças de banco, sem novas dependências, sem alteração em `src/lib/zplGenerator.ts`.
-- Comportamento do modo automático permanece: desmarcar "Edição manual" regenera o ZPL a partir das configurações.
-- Ordem das abas e demais campos do payload inalterados.
+- A comparação usa apenas trim/normalização de espaços nas pontas, para evitar falso positivo de "customizado" por quebra de linha final.
