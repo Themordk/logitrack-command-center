@@ -39,7 +39,7 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   const [duasColunas, setDuasColunas] = useState(false);
   const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
   const printRef = useRef<HTMLDivElement>(null);
-  const { usuarioNome, empresaId } = useTenant();
+  const { usuarioNome, empresaId, armazemId } = useTenant();
   const dataHora = useMemo(() => formatDateTime(new Date()), [open, showPreview]);
 
   // Lista de templates + selecionado
