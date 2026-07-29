@@ -1,41 +1,30 @@
-## Objetivo
+## Diagnóstico
 
-Tornar o campo `corpo_zpl` a fonte única de verdade na tela **Templates de Etiqueta** (`src/pages/EtiquetaTemplatesPage.tsx`), com modo automático (gerado das configurações) e modo de edição manual explícito.
+O `handleSave` envia `corpo_zpl: zplCode` e as políticas RLS de `etiqueta_template` permitem UPDATE do próprio tenant — o gravar em si funciona. O problema está no ciclo de estado da tela `src/pages/EtiquetaTemplatesPage.tsx`:
 
-## Alterações (arquivo único: `src/pages/EtiquetaTemplatesPage.tsx`)
+1. Você marca "Edição manual", altera o textarea (`zplCode`) e clica em Salvar.
+2. `handleSave` grava e chama `reload()`.
+3. O recarregamento cria um novo array `templates`, disparando o efeito de sincronização (`[selectedTemplateId, templates]`), que faz `setModoManualZpl(false)` e `setDraft(clone)`.
+4. Com `modoManualZpl` de volta em `false`, o efeito de auto-geração roda e **sobrescreve** `zplCode` com o ZPL gerado das configurações.
 
-### 1. Estados
-- Remover `zplEditado`.
-- Adicionar `modoManualZpl` (boolean, default `false`).
-- Manter `zplCode`.
+Resultado: a tela volta a mostrar o ZPL automático (parece que não salvou) e, no próximo Salvar, o ZPL automático realmente sobrescreve a edição manual no banco.
 
-### 2. Carregamento do template
-No efeito que sincroniza a seleção: carregar `setZplCode(selected.corpo_zpl || "")` sempre (hoje só define quando há valor) e resetar `modoManualZpl` para `false`. Ao limpar a seleção, zerar os três estados.
+## Correção
 
-### 3. Auto-geração
-Efeito de geração passa a depender de `[draft, tipo, modoManualZpl]` e sai cedo quando `modoManualZpl` estiver ativo. O textarea nunca altera `draft` — apenas `zplCode` — evitando loop.
+Arquivo único: `src/pages/EtiquetaTemplatesPage.tsx`
 
-### 4. Aba "Código ZPL"
-- Remover badge "EDITADO" e botão "Regenerar".
-- Adicionar checkbox "Edição manual": ao desmarcar, regenera imediatamente o ZPL a partir do `draft`.
-- Textarea `readOnly` quando em modo automático, com estilo atenuado; editável no modo manual.
-- Nota explicativa no modo automático; lista de placeholders exibida no modo manual.
-- Botão "Copiar" mantido.
+1. **Reset de modo apenas na troca real de template**
+   - Guardar o id carregado em um `useRef`. No efeito de sincronização, só executar `setModoManualZpl(false)` e `setZplCode(...)` quando o `selectedTemplateId` for diferente do id já carregado (ou quando a seleção for limpa).
+   - Em um refetch do mesmo template (após salvar), manter `modoManualZpl` e `zplCode` como estão.
 
-### 5. Aba "Preview Térmica"
-Substituir o container fixo `min-h-[300px] bg-white` por container centralizado (`mx-auto`, `bg-neutral-100`) com tamanho proporcional:
-- largura: `min(largura_mm * 4, 800)px`
-- altura mínima: `min(altura_mm * 4, 600)px`
+2. **Guarda na auto-geração**
+   - Manter a saída antecipada com `modoManualZpl`, e evitar `setZplCode` quando o ZPL gerado for idêntico ao atual (evita renders desnecessários).
 
-Rodapé passa a mostrar `{largura_mm}mm × {altura_mm}mm — Preview via Labelary`.
-
-### 6. `handleCreateNew`
-Montar uma config temporária com os mesmos valores do payload e gerar `corpo_zpl` via `gerarZplTemplate` antes do INSERT (com fallback de ZPL mínimo em caso de erro), já que a coluna é NOT NULL.
-
-### 7. `handleSave`
-`corpo_zpl: zplCode` (sem fallback `|| null`). Demais campos do payload inalterados.
+3. **Confirmação visual do salvamento**
+   - Após salvar com sucesso, manter o modo manual ativo e o texto exatamente como enviado, garantindo que o que aparece na aba é o que está no banco.
 
 ## Notas técnicas
-- Sem mudanças de banco, sem novas dependências, sem alteração em `zplGenerator.ts`.
-- Ordem das abas mantida: Preview Térmica primeiro, Código ZPL depois.
-- As classes de colapso das abas (`hidden data-[state=active]:flex`) já corrigidas permanecem.
+
+- Sem mudanças de banco, sem novas dependências, sem alteração em `src/lib/zplGenerator.ts`.
+- Comportamento do modo automático permanece: desmarcar "Edição manual" regenera o ZPL a partir das configurações.
+- Ordem das abas e demais campos do payload inalterados.
