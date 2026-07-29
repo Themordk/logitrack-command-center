@@ -100,6 +100,8 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [draft, setDraft] = useState<EtiquetaConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [zplCode, setZplCode] = useState<string>("");
+  const [zplEditado, setZplEditado] = useState(false);
 
   // Carrega empresas do tenant
   useEffect(() => {
