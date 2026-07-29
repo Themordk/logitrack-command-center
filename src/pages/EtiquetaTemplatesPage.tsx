@@ -779,27 +779,19 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
           )}
         </div>
 
-        {/* Área com abas: Preview visual + Código ZPL */}
+        {/* Área com abas: Preview térmica + Código ZPL */}
         <div className="bg-card border border-border rounded-lg p-4 flex flex-col">
-          <Tabs defaultValue="preview" className="flex flex-col flex-1">
-            <TabsList className="grid w-full grid-cols-3 mb-3">
-              <TabsTrigger value="preview" className="text-xs flex items-center gap-1.5">
-                <Eye size={12} /> Preview Visual
+          <Tabs defaultValue="termica" className="flex flex-col flex-1">
+            <TabsList className="grid w-full grid-cols-2 mb-3">
+              <TabsTrigger value="termica" className="text-xs flex items-center gap-1.5">
+                <Printer size={12} /> Preview Térmica
               </TabsTrigger>
               <TabsTrigger value="zpl" className="text-xs flex items-center gap-1.5">
                 <Code size={12} /> Código ZPL
               </TabsTrigger>
-              <TabsTrigger value="termica" className="text-xs flex items-center gap-1.5">
-                <Printer size={12} /> Preview Térmica
-              </TabsTrigger>
             </TabsList>
 
 
-            <TabsContent value="preview" className="flex-1 overflow-auto mt-0">
-              <div className="flex items-start justify-center bg-black/30 rounded-md p-4 min-h-[300px]">
-                {draft && previewConfig && <RenderPreview tipo={tipo} config={previewConfig} />}
-              </div>
-            </TabsContent>
 
             <TabsContent value="zpl" className="flex-1 flex flex-col mt-0">
               <div className="flex items-center justify-between mb-2">
