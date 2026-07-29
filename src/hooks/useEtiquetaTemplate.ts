@@ -31,6 +31,9 @@ export interface EtiquetaConfig {
   direcao_seta: "CIMA" | "BAIXO" | "ESQUERDA" | "DIREITA" | "NENHUMA";
   escala_fonte: number;
   padrao?: boolean;
+  corpo_zpl?: string | null;
+  corpo_tspl?: string | null;
+  linguagem_padrao?: string;
 }
 
 
