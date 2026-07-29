@@ -101,7 +101,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [zplCode, setZplCode] = useState<string>("");
-  const [zplEditado, setZplEditado] = useState(false);
+  const [modoManualZpl, setModoManualZpl] = useState(false);
   const [zplPreviewUrl, setZplPreviewUrl] = useState<string | null>(null);
   const [zplPreviewLoading, setZplPreviewLoading] = useState(false);
   const [zplPreviewError, setZplPreviewError] = useState<string | null>(null);
@@ -250,30 +250,26 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     const selected = templates.find((t) => t.id === selectedTemplateId);
     if (selected) {
       setDraft(structuredClone(selected));
-      if (selected.corpo_zpl) {
-        setZplCode(selected.corpo_zpl);
-      }
-      // Sempre false ao carregar: alterações nos campos regeneram o ZPL.
-      setZplEditado(false);
+      setZplCode(selected.corpo_zpl || "");
+      setModoManualZpl(false);
     } else {
       setDraft(null);
       setZplCode("");
-      setZplEditado(false);
+      setModoManualZpl(false);
     }
   }, [selectedTemplateId, templates]);
 
 
-  // Auto-gera ZPL a partir do draft (se não foi editado manualmente)
+  // Auto-gera ZPL a partir do draft (exceto em modo de edição manual)
   useEffect(() => {
-    if (!draft || zplEditado) return;
+    if (!draft || modoManualZpl) return;
     try {
       const zpl = gerarZplTemplate(tipo, draft);
       setZplCode(zpl);
     } catch (err) {
       console.warn("[ZPL Generator]", err);
-      setZplCode("// Erro ao gerar ZPL");
     }
-  }, [draft, tipo, zplEditado]);
+  }, [draft, tipo, modoManualZpl]);
 
 
   const handleFieldToggle = (chave: string) => {
