@@ -26,7 +26,7 @@ import {
   Trash2,
   Star,
   Code,
-  Eye,
+  
   Printer,
   Copy,
   RefreshCw,
