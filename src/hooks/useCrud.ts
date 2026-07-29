@@ -248,6 +248,56 @@ export function useCrud<T extends Record<string, any>>({
 
   const totalPages = Math.ceil(total / pageSize);
 
+  const fetchAllIds = useCallback(async (): Promise<string[]> => {
+    if (!safeTenantId) return [];
+    if (requiresArmazem && !armazemId) return [];
+    if (requiresEmpresa && !empresaId) return [];
+    try {
+      let query = (supabase as any).from(table).select("id");
+      query = query.eq("tenant_id", safeTenantId);
+      if (requiresEmpresa && empresaId) query = query.eq("empresa_id", empresaId);
+      if (requiresArmazem && armazemId) query = query.eq("armazem_id", armazemId);
+      Object.entries(filters).forEach(([key, val]) => {
+        if (isEmptyFilter(val)) return;
+        if (val && typeof val === "object" && !Array.isArray(val)) {
+          if ("gte" in (val as any) && (val as any).gte) query = query.gte(key, (val as any).gte);
+          if ("lte" in (val as any) && (val as any).lte) query = query.lte(key, (val as any).lte);
+          return;
+        }
+        query = query.eq(key, val);
+      });
+      if (search) {
+        const textFields = ["descricao"];
+        if (table === "hu") textFields.push("codigo_hu");
+        if (table === "volume_expedicao" || table === "vw_volume_expedicao_lista") textFields.push("codigo_volume");
+        if (table === "vw_volume_expedicao_lista") textFields.push("parceiro_nome", "destino_carga");
+        if (table === "produto" || table === "vw_produto_listagem") textFields.push("sku");
+        if (table === "tipo_entrada" || table === "tipo_saida") textFields.push("codigo_erp");
+        if (table === "veiculos") textFields.push("placa");
+        if (table === "vw_endereco_listagem") {
+          textFields.push("armazem_descricao", "setor_descricao", "tipo_estoque_descricao");
+        }
+        const orParts = textFields.map((f) => `${f}.ilike.%${search}%`);
+        if ((table === "endereco" || table === "vw_endereco_listagem") && /^\d+$/.test(search.trim())) {
+          orParts.push(`codigo_endereco.eq.${search.trim()}`);
+        }
+        if (table === "vw_volume_expedicao_lista" && /^\d+$/.test(search.trim())) {
+          orParts.push(`numero_onda.eq.${search.trim()}`);
+        }
+        query = query.or(orParts.join(","));
+      }
+      // Sem paginação — busca todos os IDs correspondentes aos filtros.
+      const { data: result, error } = await query.limit(100000);
+      if (error) throw error;
+      return ((result as any[]) || []).map((r) => r.id);
+    } catch (err: any) {
+      console.error(`Error fetching all ids for ${table}:`, err);
+      const parsed = parseError(err, `selecionar todos em ${table}`);
+      toast.error(parsed.title);
+      return [];
+    }
+  }, [table, safeTenantId, empresaId, armazemId, search, JSON.stringify(filters), requiresArmazem, requiresEmpresa]);
+
   return {
     data,
     loading,
@@ -262,6 +312,7 @@ export function useCrud<T extends Record<string, any>>({
     update,
     remove,
     refresh: fetchData,
+    fetchAllIds,
   };
 }
 
