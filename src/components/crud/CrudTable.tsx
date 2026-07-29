@@ -36,6 +36,7 @@ interface CrudTableProps {
   onSelectChange?: (ids: Set<string>) => void;
   headerActions?: React.ReactNode;
   extraRowActions?: (row: any) => React.ReactNode;
+  selectionBanner?: React.ReactNode;
   // Permission control
   canCreate?: boolean;
   canEdit?: boolean;
