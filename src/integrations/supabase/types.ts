@@ -1541,7 +1541,7 @@ export type Database = {
           com_cabecalho: boolean
           com_logo: boolean
           corpo_tspl: string | null
-          corpo_zpl: string | null
+          corpo_zpl: string
           created_at: string
           created_by: string | null
           direcao_seta: string
@@ -1570,7 +1570,7 @@ export type Database = {
           com_cabecalho?: boolean
           com_logo?: boolean
           corpo_tspl?: string | null
-          corpo_zpl?: string | null
+          corpo_zpl?: string
           created_at?: string
           created_by?: string | null
           direcao_seta?: string
@@ -1599,7 +1599,7 @@ export type Database = {
           com_cabecalho?: boolean
           com_logo?: boolean
           corpo_tspl?: string | null
-          corpo_zpl?: string | null
+          corpo_zpl?: string
           created_at?: string
           created_by?: string | null
           direcao_seta?: string
@@ -9706,7 +9706,7 @@ export type Database = {
           com_cabecalho: boolean
           com_logo: boolean
           corpo_tspl: string | null
-          corpo_zpl: string | null
+          corpo_zpl: string
           created_at: string
           created_by: string | null
           direcao_seta: string
@@ -9880,7 +9880,7 @@ export type Database = {
           com_cabecalho: boolean
           com_logo: boolean
           corpo_tspl: string | null
-          corpo_zpl: string | null
+          corpo_zpl: string
           created_at: string
           created_by: string | null
           direcao_seta: string
