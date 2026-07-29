@@ -9502,56 +9502,55 @@ export type Database = {
         }
         Returns: undefined
       }
-      integracao_upsert_parceiro:
-        | {
-            Args: {
-              p_ativo: boolean
-              p_bairro: string
-              p_cep: string
-              p_cidade: string
-              p_cnpj: string
-              p_codigo_erp: string
-              p_complemento: string
-              p_email: string
-              p_empresa_id: string
-              p_endereco: string
-              p_estado: string
-              p_nome_fantasia: string
-              p_numero: string
-              p_razao_social: string
-              p_rota_id?: string
-              p_telefone: string
-              p_tenant_id: string
-              p_tipo_parceiro: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_ativo: boolean
-              p_bairro: string
-              p_cep: string
-              p_cidade: string
-              p_cnpj: string
-              p_codigo_erp: string
-              p_codigo_erp_omie?: string
-              p_complemento: string
-              p_contato?: string
-              p_email: string
-              p_empresa_id: string
-              p_endereco: string
-              p_estado: string
-              p_inscricao_estadual?: string
-              p_nome_fantasia: string
-              p_numero: string
-              p_razao_social: string
-              p_rota_id?: string
-              p_telefone: string
-              p_tenant_id: string
-              p_tipo_parceiro: string
-            }
-            Returns: string
-          }
+      integracao_upsert_parceiro: {
+        Args: {
+          p_ativo: boolean
+          p_bairro: string
+          p_cep: string
+          p_cidade: string
+          p_cnpj: string
+          p_codigo_erp: string
+          p_codigo_erp_omie?: string
+          p_complemento: string
+          p_contato?: string
+          p_email: string
+          p_empresa_id: string
+          p_endereco: string
+          p_estado: string
+          p_inscricao_estadual?: string
+          p_nome_fantasia: string
+          p_numero: string
+          p_razao_social: string
+          p_rota_id?: string
+          p_telefone: string
+          p_tenant_id: string
+          p_tipo_parceiro: string
+        }
+        Returns: string
+      }
+      integracao_upsert_parceiro_: {
+        Args: {
+          p_ativo: boolean
+          p_bairro: string
+          p_cep: string
+          p_cidade: string
+          p_cnpj: string
+          p_codigo_erp: string
+          p_complemento: string
+          p_email: string
+          p_empresa_id: string
+          p_endereco: string
+          p_estado: string
+          p_nome_fantasia: string
+          p_numero: string
+          p_razao_social: string
+          p_rota_id?: string
+          p_telefone: string
+          p_tenant_id: string
+          p_tipo_parceiro: string
+        }
+        Returns: string
+      }
       integracao_upsert_produto:
         | {
             Args: {
