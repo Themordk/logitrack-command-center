@@ -116,11 +116,49 @@ export function PrintEtiquetaEnderecoModal({ open, onClose, enderecos }: PrintEt
   });
   const hasErrors = validationErrors.length > 0;
 
-  const handleGerar = () => {
+  const handleGerar = async () => {
     if (hasErrors) return;
     if (saida === "preview") setShowPreview(true);
-    else triggerPrint();
+    else await enviarParaImpressora();
   };
+
+  const enviarParaImpressora = async () => {
+    if (!armazemId) {
+      toast.error("Selecione um armazém antes de imprimir");
+      return;
+    }
+    let successCount = 0;
+    let errorCount = 0;
+    for (const end of enderecos) {
+      try {
+        const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
+          p_armazem_id: armazemId,
+          p_tipo_etiqueta: "ENDERECO",
+          p_dados: {
+            codigo_endereco: end.codigo_endereco != null ? String(end.codigo_endereco) : "",
+            descricao: end.descricao || "",
+            tipo_endereco: end.tipo_endereco || "",
+            curva_acesso: end.curva_acesso || "",
+          },
+          p_origem: "PAINEL_ADMINISTRATIVO",
+          p_documento_origem_id: String(end.id),
+          p_tipo_documento_origem: "endereco",
+          p_prioridade: 5,
+        });
+        if (error) throw error;
+        const result = typeof data === "string" ? JSON.parse(data) : data;
+        if (result?.success) successCount++;
+        else errorCount++;
+      } catch (err) {
+        console.warn("[Impressão Endereço]", err);
+        errorCount++;
+      }
+    }
+    if (successCount > 0) toast.success(`${successCount} etiqueta(s) enviada(s) para impressão`);
+    if (errorCount > 0) toast.error(`${errorCount} etiqueta(s) falharam. Verifique se há impressora configurada.`);
+    if (successCount > 0) onClose();
+  };
+
 
   const triggerPrint = () => {
     const printContent = printRef.current;
