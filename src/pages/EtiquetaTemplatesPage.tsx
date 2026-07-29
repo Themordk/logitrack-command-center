@@ -904,7 +904,58 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="termica" className="flex-1 flex flex-col mt-0">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Preview da impressão térmica (via Labelary)
+                </span>
+                <button
+                  onClick={gerarPreviewTermica}
+                  disabled={zplPreviewLoading || !zplCode}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {zplPreviewLoading ? (
+                    <><Loader2 size={12} className="animate-spin" /> Gerando...</>
+                  ) : (
+                    <><RefreshCw size={12} /> Gerar Preview</>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex-1 flex items-center justify-center bg-white rounded-lg border border-border min-h-[300px] p-4">
+                {zplPreviewLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <Loader2 size={16} className="animate-spin" /> Renderizando ZPL via Labelary...
+                  </div>
+                ) : zplPreviewError ? (
+                  <div className="text-center">
+                    <p className="text-sm text-destructive mb-2">Erro ao renderizar: {zplPreviewError}</p>
+                    <p className="text-xs text-muted-foreground">Verifique se o código ZPL é válido (deve começar com ^XA e terminar com ^XZ).</p>
+                  </div>
+                ) : zplPreviewUrl ? (
+                  <img
+                    src={zplPreviewUrl}
+                    alt="Preview térmica da etiqueta"
+                    className="max-w-full max-h-[500px] object-contain"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    <Printer size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Clique em "Gerar Preview" para visualizar</p>
+                    <p className="text-xs mt-1">A imagem mostra exatamente como a etiqueta sairá na impressora térmica</p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[10px] text-muted-foreground mt-2 italic">
+                Preview gerada pelo serviço Labelary (labelary.com). Os placeholders são substituídos por dados de exemplo.
+                A impressão real usará os dados reais do sistema.
+              </p>
+            </TabsContent>
           </Tabs>
+
         </div>
       </div>
 
