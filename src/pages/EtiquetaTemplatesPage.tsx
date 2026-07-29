@@ -793,7 +793,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
 
 
 
-            <TabsContent value="zpl" className="flex-1 flex flex-col mt-0">
+            <TabsContent value="zpl" className="flex-1 mt-0 hidden data-[state=active]:flex data-[state=active]:flex-col">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Printer size={11} />
@@ -856,7 +856,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
               )}
             </TabsContent>
 
-            <TabsContent value="termica" className="flex-1 flex flex-col mt-0">
+            <TabsContent value="termica" className="flex-1 mt-0 hidden data-[state=active]:flex data-[state=active]:flex-col">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Preview da impressão térmica (via Labelary)

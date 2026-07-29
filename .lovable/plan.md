@@ -1,20 +1,16 @@
-## Objetivo
-Ajustes finais na tela de Templates de Etiqueta, no gerador ZPL e no modal de impressão de endereço, conforme o documento enviado.
+## Problema
 
-## 1. `src/pages/EtiquetaTemplatesPage.tsx`
-- **Abas**: remover a aba "Preview Visual". `Tabs` passa a `defaultValue="termica"`, `TabsList` vira `grid-cols-2`, com ordem: **Preview Térmica** (1ª) e **Código ZPL** (2ª). Remover o `TabsContent value="preview"`, mantendo intactos os imports dos componentes de preview, a função `RenderPreview` e o `previewConfig` (usados/reservados em outros pontos).
-- **Sincronização ZPL**: no `useEffect` que carrega o template selecionado, sempre definir `zplEditado = false` (mesmo quando `corpo_zpl` existir). Assim, `zplEditado` passa a significar apenas "usuário digitou no textarea", e mudanças em cabeçalho, escala de fonte, campos ativos e ordenação voltam a regenerar o ZPL automaticamente. Botão "Regenerar" continua resetando para `false`.
-- **Campos removidos do formulário** (são opções de impressão, não do template): checkbox "Impressão em 2 colunas", input "Intervalo (mm)", select "Direção da Seta" (bloco de ENDERECO) e o parágrafo explicativo abaixo deles. Os campos `duas_colunas`, `intervalo_colunas_mm` e `direcao_seta` permanecem no tipo `EtiquetaConfig` e nos payloads de `handleSave` e `handleCreateNew` com seus valores padrão.
+Na tela **Templates de Etiqueta** (`src/pages/EtiquetaTemplatesPage.tsx`), as duas abas (`TabsContent value="zpl"` e `value="termica"`) usam a classe `flex-1 flex flex-col`. O Radix esconde a aba inativa aplicando o atributo `hidden` (que equivale a `display: none`), mas a classe utilitária `flex` tem a mesma especificidade e vem depois na folha de estilo — então `display: flex` vence e **a aba inativa continua ocupando espaço**. Resultado: o bloco de código ZPL (com `min-h-[400px]`) permanece renderizado como área vazia e empurra o preview térmico para baixo do contêiner.
 
-## 2. `src/lib/zplGenerator.ts`
-- Em `gerarZplEndereco`, remover a geração da seta fixa a partir de `config.direcao_seta` e reservar a área da seta com o placeholder `{{seta_simbolo}}` (largura ~80 dots ao lado da descrição), preenchido pelo agente de impressão no momento da renderização.
-- Remover a função auxiliar `setaChar` (usada só para essa seta).
-- Nenhuma outra alteração no gerador; `duas_colunas` continua suportado.
+## Correção
 
-## 3. `src/components/etiqueta/PrintEtiquetaEnderecoModal.tsx`
-- Incluir `direcao_seta: direcaoSeta || "NENHUMA"` no `p_dados` da RPC `solicitar_impressao`, para que o job carregue a seta escolhida pelo usuário.
+Em `src/pages/EtiquetaTemplatesPage.tsx`, nos dois `TabsContent` (linhas ~796 e ~859):
+
+- Trocar `className="flex-1 flex flex-col mt-0"` por `className="flex-1 mt-0 hidden data-[state=active]:flex data-[state=active]:flex-col"`.
+
+Assim a aba inativa fica realmente oculta (`hidden`) e a ativa volta a usar o layout flex em coluna, mantendo o preview térmico no lugar correto, logo abaixo da barra de abas.
 
 ## Notas técnicas
-- Sem novas dependências; sem migração de banco.
-- Padrões mantidos: hash routing, `useTenant()`, cliente Supabase existente, `sonner`, shadcn/ui.
-- A conversão de `direcao_seta` em `seta_simbolo` é responsabilidade do agente de impressão (fora deste repositório).
+
+- Nenhuma mudança de lógica, estado, dados ou banco.
+- Nenhuma dependência nova; apenas ajuste de classes utilitárias Tailwind.
