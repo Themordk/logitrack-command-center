@@ -1,30 +1,29 @@
-## Diagnóstico (confirmado no código)
+## Situação atual (verificada)
 
-Em `src/pages/EtiquetaTemplatesPage.tsx`:
+Existe um único ponto de configuração do PWA: `vite.config.ts` (plugin `VitePWA`). Não há `public/manifest.json` nem `manifest.webmanifest` no projeto. A linha 29 do `vite.config.ts` **já contém** `orientation: "portrait"`.
 
-- Linhas 250-267: ao selecionar um template, `setZplCode(selected.corpo_zpl || "")` e `setModoManualZpl(false)`.
-- Linhas 271-279: um efeito de auto-geração roda sempre que `modoManualZpl === false` e faz `setZplCode(gerarZplTemplate(tipo, draft))`.
+Ou seja, o manifesto já pede retrato — o Android só respeita esse campo quando o app é aberto pelo ícone instalado (modo standalone) e, mesmo assim, algumas versões/navegadores ignoram o campo. Por isso o app continua girando.
 
-Como o modo manual sempre inicia em `false`, o ZPL vindo do banco é imediatamente sobrescrito pelo ZPL gerado a partir das configurações. Por isso a tela mostra o layout padrão (barcode + campos) em vez do `corpo_zpl` customizado gravado no registro `397bc010…`. Ao salvar nesse estado, o ZPL gerado ainda pode sobrescrever o customizado no banco.
+## O que fazer
 
-## Correção
+1. **Manter/normalizar o manifesto**
+   - Confirmar `orientation: "portrait"` em `vite.config.ts` (já presente, sem alteração necessária).
 
-Arquivo único: `src/pages/EtiquetaTemplatesPage.tsx`
+2. **Adicionar trava de orientação em runtime** (correção efetiva)
+   - Criar um utilitário pequeno, ex. `src/lib/lockOrientation.ts`, que chama a Screen Orientation API:
+     - `screen.orientation.lock("portrait")` dentro de try/catch (a API não existe/é bloqueada em iOS e em abas normais do navegador — falha silenciosa é esperada).
+     - Reaplicar o lock quando o app volta a ficar visível (`visibilitychange`) e após entrar em fullscreen, pois o Android pode liberar o lock nesses momentos.
+   - Chamar esse utilitário no bootstrap do app (`src/main.tsx`), apenas quando fizer sentido.
 
-1. **Detectar ZPL customizado no carregamento**
-   - Ao selecionar um template, comparar `selected.corpo_zpl` (normalizado: trim) com `gerarZplTemplate(tipo, selected)`.
-   - Se houver `corpo_zpl` e ele for diferente do gerado, iniciar com `modoManualZpl = true` e `zplCode = selected.corpo_zpl`, preservando o conteúdo do banco.
-   - Se for igual (ou vazio), manter o comportamento atual (modo automático).
+3. **Reforço em CSS para o coletor** (opcional, decidir com a pergunta abaixo)
+   - Caso o lock não seja aceito pelo dispositivo, aplicar em `src/index.css` uma media query `@media (orientation: landscape) and (max-width: 900px)` mostrando um aviso "Gire o aparelho para o modo retrato" sobre as rotas do coletor, garantindo que a operação nunca fique em paisagem.
 
-2. **Proteger a auto-geração**
-   - Manter a saída antecipada quando `modoManualZpl` for verdadeiro, de modo que o efeito nunca substitua um ZPL customizado carregado do banco.
+## Escopo de aplicação
 
-3. **Comportamento resultante**
-   - Abrir a tela mostra exatamente o ZPL registrado, com o toggle "Edição manual" já marcado.
-   - Desmarcar "Edição manual" continua regenerando o ZPL a partir das configurações (ação explícita do usuário).
-   - Salvar persiste o que está visível no textarea.
+Ponto a definir: aplicar a trava em **todo o sistema** (inclusive o portal administrativo em desktop/tablet, onde paisagem é útil para grids e relatórios) ou **somente nas rotas `#/coletor/*`**. A recomendação é travar apenas o coletor, já que o `start_url` do PWA é `/#/coletor/login` e o portal se beneficia de paisagem em telas maiores.
 
-## Notas técnicas
+## Detalhes técnicos
 
-- Sem mudanças de banco, sem novas dependências, sem alteração em `src/lib/zplGenerator.ts`.
-- A comparação usa apenas trim/normalização de espaços nas pontas, para evitar falso positivo de "customizado" por quebra de linha final.
+- `screen.orientation.lock()` só funciona em contexto seguro (HTTPS) e, no Chrome Android, em geral apenas quando o app está em modo `standalone`/fullscreen; em aba comum retorna `NotSupportedError`/`SecurityError` — tratado no catch.
+- Nenhuma alteração de service worker, cache ou registro é necessária.
+- Mudanças no manifesto só têm efeito para quem reinstalar o app; a trava em runtime funciona imediatamente após o deploy.
