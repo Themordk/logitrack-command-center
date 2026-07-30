@@ -994,6 +994,7 @@ export type Database = {
           comprimento: number | null
           curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
+          empresa_id: string | null
           id: string
           lado: Database["public"]["Enums"]["enum_lado"]
           largura: number | null
@@ -1022,6 +1023,7 @@ export type Database = {
           comprimento?: number | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
+          empresa_id?: string | null
           id?: string
           lado: Database["public"]["Enums"]["enum_lado"]
           largura?: number | null
@@ -1050,6 +1052,7 @@ export type Database = {
           comprimento?: number | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           descricao?: string
+          empresa_id?: string | null
           id?: string
           lado?: Database["public"]["Enums"]["enum_lado"]
           largura?: number | null
@@ -1074,6 +1077,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "endereco_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
             referencedColumns: ["id"]
           },
           {
