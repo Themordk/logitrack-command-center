@@ -5,11 +5,8 @@ import { useTenant } from "@/contexts/TenantContext";
 import { type EtiquetaConfig, type CampoEtiqueta, type TipoEtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 import { parseError } from "@/lib/errorMapper";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
-import { EtiquetaEnderecoPreview } from "@/components/etiqueta/EtiquetaEnderecoPreview";
-import { EtiquetaHUPreview } from "@/components/etiqueta/EtiquetaHUPreview";
-import { EtiquetaProdutoPreview } from "@/components/etiqueta/EtiquetaProdutoPreview";
-import { EtiquetaVolumePreview } from "@/components/etiqueta/EtiquetaVolumePreview";
 import { gerarZplTemplate } from "@/lib/zplGenerator";
+import { ZplPreview } from "@/components/etiqueta/ZplPreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
@@ -29,7 +26,6 @@ import {
   
   Printer,
   Copy,
-  RefreshCw,
 } from "lucide-react";
 
 interface Props {
@@ -102,101 +98,49 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [zplCode, setZplCode] = useState<string>("");
   const [modoManualZpl, setModoManualZpl] = useState(false);
-  const [zplPreviewUrl, setZplPreviewUrl] = useState<string | null>(null);
-  const [zplPreviewLoading, setZplPreviewLoading] = useState(false);
-  const [zplPreviewError, setZplPreviewError] = useState<string | null>(null);
 
-  // Limpa objectURL ao desmontar / trocar
-  useEffect(() => {
-    return () => {
-      if (zplPreviewUrl) URL.revokeObjectURL(zplPreviewUrl);
-    };
-  }, [zplPreviewUrl]);
+  // Dados mock para preencher placeholders no preview térmico
+  const dadosMockPreview = useMemo<Record<string, string>>(
+    () => ({
+      codigo_volume: "VOL-000000001",
+      parceiro_nome: "CLIENTE EXEMPLO LTDA",
+      destino_carga: "SAO PAULO / SP",
+      numero_onda: "42",
+      numero_volume: "01",
+      total_volumes: "05",
+      data_hora: "20/07/2026 10:00",
+      usuario: "OPERADOR",
+      peso: "12.5",
+      nota_fiscal: "123456",
+      pedido: "PED-000123",
+      transportadora: "TRANSPORTE X",
+      observacao: "Manuseio cuidadoso",
+      codigo_hu: "HU-000000001",
+      tipo_hu: "PALLET",
+      tamanho: "M",
+      numero_movimento: "131",
+      numero_nota: "250",
+      data_entrada: "21/07/2026",
+      lote_principal: "L2026-A",
+      validade_proxima: "15/12/2026",
+      total_quantidade: "150",
+      total_itens: "3",
+      peso_bruto: "45.5",
+      sku: "SKU-001",
+      descricao: "PRODUTO EXEMPLO 500ML",
+      ean: "7891234567890",
+      embalagem: "CAIXA",
+      marca: "MARCA X",
+      referencia: "REF-001",
+      codigo_endereco: "12345",
+      tipo_endereco: "PICKING",
+      curva_acesso: "A",
+      seta_simbolo: "→",
+    }),
+    [],
+  );
 
-  const gerarPreviewTermica = useCallback(async () => {
-    if (!zplCode || !draft) return;
-    setZplPreviewLoading(true);
-    setZplPreviewError(null);
-    try {
-      const dadosMock: Record<string, string> = {
-        codigo_volume: "VOL-000000001",
-        parceiro_nome: "CLIENTE EXEMPLO LTDA",
-        destino_carga: "SAO PAULO / SP",
-        numero_onda: "42",
-        numero_volume: "01",
-        total_volumes: "05",
-        data_hora: "20/07/2026 10:00",
-        usuario: "OPERADOR",
-        peso: "12.5",
-        nota_fiscal: "123456",
-        pedido: "PED-000123",
-        transportadora: "TRANSPORTE X",
-        observacao: "Manuseio cuidadoso",
-        codigo_hu: "HU-000000001",
-        tipo_hu: "PALLET",
-        tamanho: "M",
-        numero_movimento: "131",
-        numero_nota: "250",
-        data_entrada: "21/07/2026",
-        lote_principal: "L2026-A",
-        validade_proxima: "15/12/2026",
-        total_quantidade: "150",
-        total_itens: "3",
-        peso_bruto: "45.5",
-        sku: "SKU-001",
-        descricao: "PRODUTO EXEMPLO 500ML",
-        ean: "7891234567890",
-        embalagem: "CAIXA",
-        marca: "MARCA X",
-        referencia: "REF-001",
-        codigo_endereco: "12345",
-        tipo_endereco: "PICKING",
-        curva_acesso: "A",
-      };
-      let zplComDados = zplCode;
-      for (const [chave, valor] of Object.entries(dadosMock)) {
-        zplComDados = zplComDados.split(`{{${chave}}}`).join(valor);
-      }
-      zplComDados = zplComDados.replace(/\{\{[^}]+\}\}/g, "---");
 
-      const largPol = ((draft.largura_mm || 100) / 25.4).toFixed(2);
-      const altPol = ((draft.altura_mm || 40) / 25.4).toFixed(2);
-      const path = `v1/printers/8dpmm/labels/${largPol}x${altPol}/0/`;
-
-      let response: Response;
-      try {
-        response = await fetch(`https://api.labelary.com/${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: zplComDados,
-        });
-      } catch {
-        response = await fetch(`http://api.labelary.com/${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: zplComDados,
-        });
-      }
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "");
-        throw new Error(errText || `Labelary retornou ${response.status}`);
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setZplPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
-    } catch (err: any) {
-      setZplPreviewError(err?.message || "Erro ao gerar preview");
-      setZplPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-    } finally {
-      setZplPreviewLoading(false);
-    }
-  }, [zplCode, draft]);
 
 
   // Carrega empresas do tenant
@@ -912,55 +856,16 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Preview da impressão térmica (via Labelary)
                 </span>
-                <button
-                  onClick={gerarPreviewTermica}
-                  disabled={zplPreviewLoading || !zplCode}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                >
-                  {zplPreviewLoading ? (
-                    <><Loader2 size={12} className="animate-spin" /> Gerando...</>
-                  ) : (
-                    <><RefreshCw size={12} /> Gerar Preview</>
-                  )}
-                </button>
               </div>
 
-              <div
-                className="flex items-center justify-center bg-neutral-100 rounded-lg border border-border p-3 mx-auto"
-                style={{
-                  width: `${Math.min((draft?.largura_mm || 100) * 4, 800)}px`,
-                  minHeight: `${Math.min((draft?.altura_mm || 40) * 4, 600)}px`,
-                }}
-              >
-                {zplPreviewLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Loader2 size={16} className="animate-spin" /> Renderizando...
-                  </div>
-                ) : zplPreviewError ? (
-                  <div className="text-center">
-                    <p className="text-sm text-destructive mb-2">Erro ao renderizar: {zplPreviewError}</p>
-                    <p className="text-xs text-muted-foreground">Verifique se o código ZPL é válido (deve começar com ^XA e terminar com ^XZ).</p>
-                  </div>
-                ) : zplPreviewUrl ? (
-                  <img
-                    src={zplPreviewUrl}
-                    alt="Preview térmica da etiqueta"
-                    className="max-w-full max-h-full object-contain"
-                    style={{ imageRendering: "pixelated" }}
-                  />
-                ) : (
-                  <div className="text-center text-muted-foreground">
-                    <Printer size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Clique em "Gerar Preview"</p>
-                    <p className="text-xs mt-1">Mostra como a etiqueta sairá na impressora</p>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-[10px] text-muted-foreground mt-2 text-center italic">
-                {draft?.largura_mm || 100}mm × {draft?.altura_mm || 40}mm — Preview via Labelary
-              </p>
+              <ZplPreview
+                zpl={zplCode}
+                larguraMm={draft?.largura_mm || 100}
+                alturaMm={draft?.altura_mm || 40}
+                dados={dadosMockPreview}
+              />
             </TabsContent>
+
           </Tabs>
 
         </div>
@@ -974,96 +879,5 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         description="Este template será desativado. Continuar?"
       />
     </div>
-  );
-}
-
-function RenderPreview({ tipo, config }: { tipo: TipoEtiquetaConfig; config: any }) {
-  if (tipo === "ENDERECO") {
-    return (
-      <EtiquetaEnderecoPreview
-        enderecos={[{
-          id: "mock",
-          codigo_endereco: 12345,
-          descricao: "R01-P02-N03-A04",
-          tipo_endereco: "PICKING",
-          curva_acesso: "A",
-          nivel: 3,
-          apto: 4,
-        }]}
-        tamanho={config.tamanho as any}
-        orientacao={config.orientacao}
-        config={config}
-      />
-    );
-  }
-  if (tipo === "HU") {
-    return (
-      <EtiquetaHUPreview
-        hus={[{
-          id: "mock",
-          codigo_hu: "HU-000000001",
-          tipo_hu: "PALLET",
-          tamanho: "M",
-          peso_bruto: 45.5,
-          numero_movimento: "131",
-          data_entrada: "21/07/2026",
-          parceiro_nome: "FORNECEDOR EXEMPLO LTDA",
-          numero_nota: "250",
-          lote_principal: "L2026-A",
-          validade_proxima: "15/12/2026",
-          total_itens: 3,
-          total_quantidade: 150,
-          itens: [
-            { sku: "1301009", descricao: "DESINFETANTE YPE 500ML LAVANDA CX 12.0", quantidade: 150, lote: "L2026-A", data_validade: "15/12/2026" }
-          ],
-        } as any]}
-        config={config}
-      />
-    );
-  }
-  if (tipo === "PRODUTO") {
-    return (
-      <EtiquetaProdutoPreview
-        items={[{
-          produto_id: "mock",
-          sku: "SKU-001",
-          descricao: "PRODUTO EXEMPLO 500ML",
-          marca: "MARCA X",
-          ean: "7891234567890",
-          embalagem: "CAIXA",
-          fator: 12,
-          altura: 10,
-          largura: 20,
-          comprimento: 30,
-          peso_bruto: 1.5,
-          peso_liquido: 1.2,
-          m3: 0.006,
-        }]}
-        tamanho={config.tamanho}
-        orientacao={config.orientacao}
-        config={config}
-      />
-    );
-  }
-  return (
-    <EtiquetaVolumePreview
-      volumes={[{
-        id: "mock",
-        codigo_volume: "VOL-000000001",
-        parceiro_nome: "CLIENTE EXEMPLO LTDA",
-        destino_carga: "SÃO PAULO / SP",
-        numero_onda: 42,
-        numero_volume: 1,
-        total_volumes_movimento: 5,
-        peso: 12.5,
-        nota_fiscal: "123456",
-        pedido: "PED-000123",
-        transportadora: "TRANSPORTE X",
-        observacao: "Manuseio cuidadoso",
-      }]}
-      usuario="OPERADOR"
-      dataHora="20/07/2026 10:00"
-      config={config}
-    />
   );
 }

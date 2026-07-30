@@ -1,29 +1,62 @@
-## Situação atual (verificada)
+## Objetivo
 
-Existe um único ponto de configuração do PWA: `vite.config.ts` (plugin `VitePWA`). Não há `public/manifest.json` nem `manifest.webmanifest` no projeto. A linha 29 do `vite.config.ts` **já contém** `orientation: "portrait"`.
+Unificar o fluxo de impressão da etiqueta de **Endereço** em torno do ZPL como fonte única de verdade: o preview passa a ser um PNG renderizado pelo Labelary a partir do `corpo_zpl` do template, e toda impressão vai para a fila (`solicitar_impressao`). O `window.print()` é abolido para etiquetas de endereço.
 
-Ou seja, o manifesto já pede retrato — o Android só respeita esse campo quando o app é aberto pelo ícone instalado (modo standalone) e, mesmo assim, algumas versões/navegadores ignoram o campo. Por isso o app continua girando.
+## Escopo
 
-## O que fazer
+Somente etiqueta de ENDEREÇO. HU, Produto, Volume, `thermalEngine.ts`, coletor, relatórios, `useSolicitarImpressao.ts`, `zplGenerator.ts` e o backend Supabase permanecem intocados.
 
-1. **Manter/normalizar o manifesto**
-   - Confirmar `orientation: "portrait"` em `vite.config.ts` (já presente, sem alteração necessária).
+## Arquivos
 
-2. **Adicionar trava de orientação em runtime** (correção efetiva)
-   - Criar um utilitário pequeno, ex. `src/lib/lockOrientation.ts`, que chama a Screen Orientation API:
-     - `screen.orientation.lock("portrait")` dentro de try/catch (a API não existe/é bloqueada em iOS e em abas normais do navegador — falha silenciosa é esperada).
-     - Reaplicar o lock quando o app volta a ficar visível (`visibilitychange`) e após entrar em fullscreen, pois o Android pode liberar o lock nesses momentos.
-   - Chamar esse utilitário no bootstrap do app (`src/main.tsx`), apenas quando fizer sentido.
+| Ação | Arquivo |
+|------|---------|
+| Criar | `src/hooks/useLabelaryPreview.ts` |
+| Criar | `src/components/etiqueta/ZplPreview.tsx` |
+| Reescrever | `src/components/etiqueta/PrintEtiquetaEnderecoModal.tsx` |
+| Ajustar | `src/pages/EtiquetaTemplatesPage.tsx` |
+| Marcar | `src/components/etiqueta/EtiquetaEnderecoPreview.tsx` (`@deprecated`, sem deletar) |
 
-3. **Reforço em CSS para o coletor** (opcional, decidir com a pergunta abaixo)
-   - Caso o lock não seja aceito pelo dispositivo, aplicar em `src/index.css` uma media query `@media (orientation: landscape) and (max-width: 900px)` mostrando um aviso "Gire o aparelho para o modo retrato" sobre as rotas do coletor, garantindo que a operação nunca fique em paisagem.
+## 1. Hook `useLabelaryPreview`
 
-## Escopo de aplicação
+- Params: `zpl`, `larguraMm`, `alturaMm`, `dados?`, `dpmm = 8`, `indice = 0`, `enabled = true`. Retorna `{ url, loading, error, refetch }`.
+- Substitui `{{chave}}` pelos valores de `dados` (null/undefined → string vazia); placeholders remanescentes viram `---`.
+- Endpoint: `https://api.labelary.com/v1/printers/{dpmm}dpmm/labels/{largPol}x{altPol}/{indice}/`, polegadas com 2 casas; fallback para `http://` se o HTTPS falhar.
+- Cache in-memory (`Map` no escopo do módulo) com chave por hash DJB2 inline do input completo; sem dependências novas, sem storage.
+- Debounce de 400 ms com `setTimeout`/`clearTimeout` e cancelamento por `AbortController`; sem revogar objectURLs no cleanup do consumidor (cache compartilhado), com função de limpeza exposta.
+- Erros: mensagem em texto plano do body em `error`, `url = null`, nunca lança.
+- Base: lógica hoje em `gerarPreviewTermica` (EtiquetaTemplatesPage, ~linhas 116-199), generalizada.
 
-Ponto a definir: aplicar a trava em **todo o sistema** (inclusive o portal administrativo em desktop/tablet, onde paisagem é útil para grids e relatórios) ou **somente nas rotas `#/coletor/*`**. A recomendação é travar apenas o coletor, já que o `start_url` do PWA é `/#/coletor/login` e o portal se beneficia de paisagem em telas maiores.
+## 2. Componente `ZplPreview`
 
-## Detalhes técnicos
+Apresentação pura sobre o hook: container centralizado `bg-neutral-100 dark:bg-neutral-800`, `border border-border`, `rounded-lg`, `p-3`, largura `larguraMm * escalaPx` limitada por `maxLarguraPx` (padrão 4 px/mm e 800 px). Imagem com `object-contain` e `image-rendering: pixelated`. Estados: loading (Loader2 + "Renderizando preview térmica..."), erro (AlertTriangle + mensagem + dica sobre `^XA`/`^XZ`), vazio (Printer opacidade 30 + "Aguardando ZPL...") e sucesso. Legenda opcional `{largura}mm × {altura}mm — Preview via Labelary`.
 
-- `screen.orientation.lock()` só funciona em contexto seguro (HTTPS) e, no Chrome Android, em geral apenas quando o app está em modo `standalone`/fullscreen; em aba comum retorna `NotSupportedError`/`SecurityError` — tratado no catch.
-- Nenhuma alteração de service worker, cache ou registro é necessária.
-- Mudanças no manifesto só têm efeito para quem reinstalar o app; a trava em runtime funciona imediatamente após o deploy.
+## 3. Modal de impressão de endereço (reescrita)
+
+Props inalteradas, mais `onNavigate?: (path: string) => void` opcional — `EnderecosPage.tsx` não muda.
+
+Removido: `EtiquetaEnderecoPreview`, `thermalEngine` (`getPrintCSS`, `getPrintCSSFromConfig`, `getTemplateFromSelection`, `validateLabel`), `triggerPrint`, `window.open`/`window.print`, overlay fullscreen, seletor de saída preview/imprimir, checkboxes de QR/Curva/Tipo, bloco de 2 colunas e intervalo, `printRef`.
+
+Mantido: carregamento de templates via RPC `listar_etiqueta_templates`, dropdown de template, seleção de seta direcional.
+
+Novo layout `sm:max-w-3xl`, grid `md:grid-cols-[280px_1fr]`:
+- Esquerda: badge de contagem (ícone `Layers`), dropdown de template + linha de dimensões, dropdown de seta, callout `Info` explicando que QR/Curva/Tipo/Colunas são configurados no template (link "Editar template" só quando `onNavigate` existir).
+- Direita: `ZplPreview` inline alimentado pelo `corpo_zpl` do template (fallback `gerarZplTemplate("ENDERECO", selectedConfig)`) e pelos dados do endereço atual; navegador `‹ X de Y ›` quando houver múltiplos endereços.
+- Rodapé: "Cancelar" + botão primário `Send` "Enviar N para Fila" (spinner "Enviando..." durante o envio).
+
+Estados tratados: carregando templates, nenhum template (alerta amarelo + botão desabilitado), template sem ZPL (callout destrutivo), erro de preview (não bloqueia envio), envio em andamento.
+
+Envio: laço sobre `enderecos` chamando `solicitar_impressao` com `p_dados` restrito a `codigo_endereco`, `descricao`, `tipo_endereco`, `curva_acesso`, `direcao_seta`, `seta_simbolo` (mapa `SETA_SIMBOLO` no topo do arquivo), `p_origem: "PAINEL_ADMINISTRATIVO"`, `p_tipo_documento_origem: "endereco"`, `p_prioridade: 5`, `p_setor_uso: "GERAL"`. Toasts: sucesso total (fecha), parcial (success + warning, fecha), falha total (error, mantém aberto), com detalhes em `console.warn`/`console.error`.
+
+## 4. Ajustes na tela de Templates
+
+- Substituir `gerarPreviewTermica` e os states `zplPreviewUrl/Loading/Error` (e o `useEffect` de revoke) pelo uso de `<ZplPreview>` com `zplCode` e as dimensões do `draft`; botão manual opcional chamando `refetch()`.
+- Remover a função morta `RenderPreview` (a partir da linha ~980) e os imports órfãos dos previews HTML resultantes, preservando o import de `gerarZplTemplate`.
+- Nada mais na tela muda (CRUD, campos, aba ZPL, modo manual).
+
+## 5. Depreciação
+
+Comentário `@deprecated` no topo de `EtiquetaEnderecoPreview.tsx`, sem outras alterações e sem deletar o arquivo nem `thermalEngine.ts`.
+
+## Notas técnicas
+
+TypeScript estrito (`as any` apenas no padrão `(supabase.rpc as any)`), shadcn `Dialog` existente, Sonner para toasts, ícones Lucide, cores exclusivamente por tokens do design system, sem novas dependências. Verificação final: `rg` para garantir ausência de `window.print`/`window.open`/`thermalEngine`/`EtiquetaEnderecoPreview` no modal, e typecheck limpo.

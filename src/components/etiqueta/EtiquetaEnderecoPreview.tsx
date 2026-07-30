@@ -3,6 +3,12 @@
  * Fixed pixel dimensions for Elgin L42PRO 203 DPI
  * No responsive scaling, no CSS transforms on barcodes
  */
+/**
+ * @deprecated Desde a Fase 1 da refatoração do fluxo de impressão (2026-07),
+ * este componente foi substituído por preview WYSIWYG baseado em ZPL via Labelary.
+ * Não usar em novo código. O arquivo é mantido apenas para consulta histórica
+ * e possível rollback. Será removido em fase futura junto com thermalEngine.ts.
+ */
 import React from "react";
 import { BarcodeRenderer } from "./BarcodeRenderer";
 import { QRCodeRenderer } from "./QRCodeRenderer";
