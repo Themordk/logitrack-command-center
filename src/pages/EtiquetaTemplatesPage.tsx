@@ -5,11 +5,8 @@ import { useTenant } from "@/contexts/TenantContext";
 import { type EtiquetaConfig, type CampoEtiqueta, type TipoEtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 import { parseError } from "@/lib/errorMapper";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
-import { EtiquetaEnderecoPreview } from "@/components/etiqueta/EtiquetaEnderecoPreview";
-import { EtiquetaHUPreview } from "@/components/etiqueta/EtiquetaHUPreview";
-import { EtiquetaProdutoPreview } from "@/components/etiqueta/EtiquetaProdutoPreview";
-import { EtiquetaVolumePreview } from "@/components/etiqueta/EtiquetaVolumePreview";
 import { gerarZplTemplate } from "@/lib/zplGenerator";
+import { ZplPreview } from "@/components/etiqueta/ZplPreview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
@@ -29,7 +26,6 @@ import {
   
   Printer,
   Copy,
-  RefreshCw,
 } from "lucide-react";
 
 interface Props {
@@ -883,96 +879,5 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         description="Este template será desativado. Continuar?"
       />
     </div>
-  );
-}
-
-function RenderPreview({ tipo, config }: { tipo: TipoEtiquetaConfig; config: any }) {
-  if (tipo === "ENDERECO") {
-    return (
-      <EtiquetaEnderecoPreview
-        enderecos={[{
-          id: "mock",
-          codigo_endereco: 12345,
-          descricao: "R01-P02-N03-A04",
-          tipo_endereco: "PICKING",
-          curva_acesso: "A",
-          nivel: 3,
-          apto: 4,
-        }]}
-        tamanho={config.tamanho as any}
-        orientacao={config.orientacao}
-        config={config}
-      />
-    );
-  }
-  if (tipo === "HU") {
-    return (
-      <EtiquetaHUPreview
-        hus={[{
-          id: "mock",
-          codigo_hu: "HU-000000001",
-          tipo_hu: "PALLET",
-          tamanho: "M",
-          peso_bruto: 45.5,
-          numero_movimento: "131",
-          data_entrada: "21/07/2026",
-          parceiro_nome: "FORNECEDOR EXEMPLO LTDA",
-          numero_nota: "250",
-          lote_principal: "L2026-A",
-          validade_proxima: "15/12/2026",
-          total_itens: 3,
-          total_quantidade: 150,
-          itens: [
-            { sku: "1301009", descricao: "DESINFETANTE YPE 500ML LAVANDA CX 12.0", quantidade: 150, lote: "L2026-A", data_validade: "15/12/2026" }
-          ],
-        } as any]}
-        config={config}
-      />
-    );
-  }
-  if (tipo === "PRODUTO") {
-    return (
-      <EtiquetaProdutoPreview
-        items={[{
-          produto_id: "mock",
-          sku: "SKU-001",
-          descricao: "PRODUTO EXEMPLO 500ML",
-          marca: "MARCA X",
-          ean: "7891234567890",
-          embalagem: "CAIXA",
-          fator: 12,
-          altura: 10,
-          largura: 20,
-          comprimento: 30,
-          peso_bruto: 1.5,
-          peso_liquido: 1.2,
-          m3: 0.006,
-        }]}
-        tamanho={config.tamanho}
-        orientacao={config.orientacao}
-        config={config}
-      />
-    );
-  }
-  return (
-    <EtiquetaVolumePreview
-      volumes={[{
-        id: "mock",
-        codigo_volume: "VOL-000000001",
-        parceiro_nome: "CLIENTE EXEMPLO LTDA",
-        destino_carga: "SÃO PAULO / SP",
-        numero_onda: 42,
-        numero_volume: 1,
-        total_volumes_movimento: 5,
-        peso: 12.5,
-        nota_fiscal: "123456",
-        pedido: "PED-000123",
-        transportadora: "TRANSPORTE X",
-        observacao: "Manuseio cuidadoso",
-      }]}
-      usuario="OPERADOR"
-      dataHora="20/07/2026 10:00"
-      config={config}
-    />
   );
 }
