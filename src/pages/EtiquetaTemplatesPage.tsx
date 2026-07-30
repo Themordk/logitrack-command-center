@@ -860,55 +860,16 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Preview da impressão térmica (via Labelary)
                 </span>
-                <button
-                  onClick={gerarPreviewTermica}
-                  disabled={zplPreviewLoading || !zplCode}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                >
-                  {zplPreviewLoading ? (
-                    <><Loader2 size={12} className="animate-spin" /> Gerando...</>
-                  ) : (
-                    <><RefreshCw size={12} /> Gerar Preview</>
-                  )}
-                </button>
               </div>
 
-              <div
-                className="flex items-center justify-center bg-neutral-100 rounded-lg border border-border p-3 mx-auto"
-                style={{
-                  width: `${Math.min((draft?.largura_mm || 100) * 4, 800)}px`,
-                  minHeight: `${Math.min((draft?.altura_mm || 40) * 4, 600)}px`,
-                }}
-              >
-                {zplPreviewLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                    <Loader2 size={16} className="animate-spin" /> Renderizando...
-                  </div>
-                ) : zplPreviewError ? (
-                  <div className="text-center">
-                    <p className="text-sm text-destructive mb-2">Erro ao renderizar: {zplPreviewError}</p>
-                    <p className="text-xs text-muted-foreground">Verifique se o código ZPL é válido (deve começar com ^XA e terminar com ^XZ).</p>
-                  </div>
-                ) : zplPreviewUrl ? (
-                  <img
-                    src={zplPreviewUrl}
-                    alt="Preview térmica da etiqueta"
-                    className="max-w-full max-h-full object-contain"
-                    style={{ imageRendering: "pixelated" }}
-                  />
-                ) : (
-                  <div className="text-center text-muted-foreground">
-                    <Printer size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Clique em "Gerar Preview"</p>
-                    <p className="text-xs mt-1">Mostra como a etiqueta sairá na impressora</p>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-[10px] text-muted-foreground mt-2 text-center italic">
-                {draft?.largura_mm || 100}mm × {draft?.altura_mm || 40}mm — Preview via Labelary
-              </p>
+              <ZplPreview
+                zpl={zplCode}
+                larguraMm={draft?.largura_mm || 100}
+                alturaMm={draft?.altura_mm || 40}
+                dados={dadosMockPreview}
+              />
             </TabsContent>
+
           </Tabs>
 
         </div>
