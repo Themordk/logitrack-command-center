@@ -70,6 +70,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [armazemId, setArmazemId] = useState<string | null>(null);
+  const [armazemNome, setArmazemNome] = useState<string | null>(null);
+  const [armazemLoading, setArmazemLoading] = useState(false);
+  const [armazemErro, setArmazemErro] = useState<string | null>(null);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [usuarioNome, setUsuarioNome] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,9 +85,25 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setTenantId(readSanitizedId("core_tenant_id"));
     setEmpresaId(readSanitizedId("core_empresa_id"));
     setArmazemId(readSanitizedId("core_armazem_id"));
+    setArmazemNome(readPlainString("core_armazem_nome"));
     setUsuarioId(readSanitizedId("core_usuario_id"));
     setUsuarioNome(readPlainString("core_usuario_nome"));
   };
+
+  const aplicarArmazem = (res: { id: string | null; descricao: string | null; erro: string | null }) => {
+    if (res.id) {
+      localStorage.setItem("core_armazem_id", res.id);
+      if (res.descricao) localStorage.setItem("core_armazem_nome", res.descricao);
+      else localStorage.removeItem("core_armazem_nome");
+    } else {
+      localStorage.removeItem("core_armazem_id");
+      localStorage.removeItem("core_armazem_nome");
+    }
+    setArmazemId(res.id);
+    setArmazemNome(res.descricao);
+    setArmazemErro(res.erro);
+  };
+
 
   // Verifica se o tenant gravado no localStorage bate com o tenant resolvido pelo subdomínio.
   // Se houver mismatch, derruba a sessão imediatamente (defesa contra adulteração de localStorage
