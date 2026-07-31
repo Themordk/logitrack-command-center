@@ -327,7 +327,13 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   const handleSave = async () => {
     if (!isValid) { toast.error("Preencha todos os campos obrigatórios."); return; }
-    if (!tenantId || !empresaId || !armazemId) { toast.error(ERROR_MAP.ARMAZEM_OBRIGATORIO); return; }
+    if (!tenantId || !empresaId || !armazemId) {
+      const msg = armazemErro || ERROR_MAP.ARMAZEM_OBRIGATORIO;
+      setSaveError(msg);
+      toast.error(msg);
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     setProgresso(null);
