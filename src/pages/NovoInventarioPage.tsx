@@ -103,8 +103,9 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     let cancel = false;
     (async () => {
       const { data } = await (supabase as any).from("empresa")
-        .select("razao_social, nome_fantasia").eq("id", empresaId).maybeSingle();
-      if (!cancel) setEmpresaNome(data?.nome_fantasia || data?.razao_social || null);
+        .select("razaosocial, codigo").eq("id", empresaId).maybeSingle();
+      if (!cancel) setEmpresaNome(data?.razaosocial || data?.codigo || null);
+
     })();
     return () => { cancel = true; };
   }, [empresaId]);
