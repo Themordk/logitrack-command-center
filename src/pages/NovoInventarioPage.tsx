@@ -354,6 +354,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     setSaving(true);
     setSaveError(null);
     setProgresso(null);
+    try {
       // Pré-checagem: tipo de execução precisa estar configurado para o tenant
       const { data: cfg } = await (supabase as any).from("inventario_tipo_tarefa")
         .select("tipo_tarefa_id")
