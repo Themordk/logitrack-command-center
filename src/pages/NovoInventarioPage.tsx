@@ -492,9 +492,13 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const execLabel = TIPOS_EXEC.find(t => t.value === tipoExecucao)?.label || "—";
 
   const buttonText = saving
-  const semEstoque = false;
     ? (progresso ? `Gerando tarefas... (${progresso.geradas})` : "Criando...")
     : "Criar Inventário";
+
+  // Escopo sem posições de estoque: nenhuma tarefa será gerada (GERAL é contagem livre)
+  const semEstoque =
+    tipo !== "" && tipo !== "GERAL" &&
+    resumo.calculado && !resumo.loading && !resumo.erro && resumo.enderecos === 0;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
