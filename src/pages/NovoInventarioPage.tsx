@@ -313,13 +313,15 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     setSaving(true);
     setSaveError(null);
     setProgresso(null);
+    let etapa = "configuração";
     try {
       // Pré-checagem: tipo de execução precisa estar configurado para o tenant
-      const { data: cfg } = await (supabase as any).from("inventario_tipo_tarefa")
+      const { data: cfg, error: cfgError } = await (supabase as any).from("inventario_tipo_tarefa")
         .select("tipo_tarefa_id")
         .eq("tenant_id", tenantId)
         .eq("tipo_execucao", tipoExecucao)
         .maybeSingle();
+      if (cfgError) throw cfgError;
       if (!cfg) throw new Error("TIPO_TAREFA_NAO_CONFIGURADO");
 
       const payload: any = {
@@ -345,6 +347,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         p_data_fim_analise: tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
           ? resolvePeriodo(periodoAnalise).fim : null,
       };
+      etapa = "criação";
       const { data, error } = await supabase.rpc("fn_criar_inventario_v2" as any, payload);
       if (error) throw error;
       const inv = unwrap(data);
@@ -359,6 +362,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         toast.success("Inventário geral criado! Pronto para contagem livre no coletor.");
         onNavigate("/atividades/inventario");
       } else {
+        etapa = "geração";
         // Demais tipos: loop de geração de tarefas (fluxo original)
         let acumulado = 0;
         let finalizado = false;
@@ -381,7 +385,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         onNavigate("/atividades/inventario");
       }
     } catch (err: any) {
-      const msg = mapError(err);
+      const msg = `${etapa}: ${mapError(err)}`;
       setSaveError(msg);
       toast.error(msg);
     } finally {
@@ -458,6 +462,9 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const semEstoque =
     tipo !== "" && tipo !== "GERAL" &&
     resumo.calculado && !resumo.loading && !resumo.erro && resumo.enderecos === 0;
+  const criacaoBloqueadaPeloResumo = tipo !== "GERAL" && (
+    resumo.loading || !resumo.calculado || !!resumo.erro || resumo.enderecos === 0
+  );
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
@@ -472,7 +479,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !isValid}
+            disabled={saving || !isValid || criacaoBloqueadaPeloResumo}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
@@ -694,13 +701,13 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                 ) : (
                   <>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                      <span className="text-xs text-muted-foreground">Total Endereços</span>
+                      <span className="text-xs text-muted-foreground">{tipo === "GERAL" ? "Endereços cadastrados" : "Endereços elegíveis"}</span>
                       <span className="text-sm font-bold text-primary flex items-center gap-1">
                         {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : !resumo.calculado ? <span className="text-muted-foreground font-normal text-xs">—</span> : <>{resumo.enderecos}{resumo.truncado && "+"}</>}
                       </span>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                      <span className="text-xs text-muted-foreground">Total SKUs</span>
+                      <span className="text-xs text-muted-foreground">{tipo === "GERAL" ? "SKUs cadastrados" : "SKUs elegíveis"}</span>
                       <span className="text-sm font-bold text-primary flex items-center gap-1">
                         {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : !resumo.calculado ? <span className="text-muted-foreground font-normal text-xs">—</span> : <>{resumo.skus}{resumo.truncado && "+"}</>}
                       </span>
@@ -712,6 +719,11 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                           Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa de inventário será gerada.
                         </p>
                       </div>
+                    )}
+                    {tipo !== "GERAL" && resumo.calculado && !resumo.erro && (
+                      <p className="px-1 text-[10px] leading-snug text-muted-foreground">
+                        Cadastrados no armazém/empresa: {resumo.enderecosCadastrados} endereços e {resumo.skusCadastrados} SKUs.
+                      </p>
                     )}
                   </>
                 )}
