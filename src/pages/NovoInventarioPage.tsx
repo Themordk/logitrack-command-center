@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, Info, BarChart3, Search, Check } from "lucide-react";
+import { Loader2, Info, BarChart3, Search, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseError } from "@/lib/errorMapper";
 
 const TIPO_OPTIONS = [
   { value: "GERAL", label: "Geral" },
