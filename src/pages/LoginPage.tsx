@@ -437,7 +437,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
         variant="admin"
         onSuccess={() => {
           setForceChange(false);
-          if (pendingUsuario) completeLogin(pendingUsuario);
+          if (pendingUsuario) void completeLogin(pendingUsuario);
         }}
       />
     </div>
