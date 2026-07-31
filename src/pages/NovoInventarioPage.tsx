@@ -517,6 +517,16 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         </div>
       </div>
 
+      {saveError && (
+        <div className="shrink-0 flex items-start gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
+          <AlertTriangle size={14} className="text-destructive mt-0.5 shrink-0" />
+          <div className="text-xs text-destructive-foreground/90">
+            <p className="font-semibold text-destructive">Não foi possível criar o inventário</p>
+            <p className="mt-0.5">{saveError}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-auto">
         <div className="flex gap-4 min-h-full">
           {/* Form */}
