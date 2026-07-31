@@ -94,7 +94,24 @@ interface Option { id: string; label: string; sublabel?: string; }
 interface Props { onNavigate: (path: string) => void; }
 
 export function NovoInventarioPage({ onNavigate }: Props) {
-  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, armazemNome, armazemLoading, armazemErro, usuarioId } = useTenant();
+
+  // Nome da empresa para exibir no card de contexto do resumo
+  const [empresaNome, setEmpresaNome] = useState<string | null>(null);
+  useEffect(() => {
+    if (!empresaId) { setEmpresaNome(null); return; }
+    let cancel = false;
+    (async () => {
+      const { data } = await (supabase as any).from("empresa")
+        .select("razao_social, nome_fantasia").eq("id", empresaId).maybeSingle();
+      if (!cancel) setEmpresaNome(data?.nome_fantasia || data?.razao_social || null);
+    })();
+    return () => { cancel = true; };
+  }, [empresaId]);
+
+  // Permite refazer a prévia após uma falha da RPC (botão "Tentar novamente")
+  const [previewNonce, setPreviewNonce] = useState(0);
+
 
   // --- Dados Gerais
   const [tipo, setTipo] = useState<Tipo>("");
