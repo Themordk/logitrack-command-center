@@ -130,7 +130,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
         setLoading(false);
         return;
       }
-      completeLogin(usuario);
+      await completeLogin(usuario);
     } catch (err: unknown) {
       const parsed = parseError(err, "login");
       // Preserva mensagens de negócio já bem escritas (throw new Error) quando o parser cai no fallback genérico
