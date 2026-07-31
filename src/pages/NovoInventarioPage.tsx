@@ -492,6 +492,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const execLabel = TIPOS_EXEC.find(t => t.value === tipoExecucao)?.label || "—";
 
   const buttonText = saving
+  const semEstoque = false;
     ? (progresso ? `Gerando tarefas... (${progresso.geradas})` : "Criando...")
     : "Criar Inventário";
 
