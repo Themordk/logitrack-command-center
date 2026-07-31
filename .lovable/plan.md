@@ -1,47 +1,52 @@
-# Correção da criação de inventário no tenant JRLUB
+# Correção do contexto de armazém e blindagem da tela Novo Inventário
 
-## Diagnóstico confirmado
+Escopo aprovado: Pontos 1, 2 e 4 agora (hotfix). Ponto 3 fica registrado como refactor separado.
 
-- A tela chama as RPCs corretas: `fn_preview_inventario`, `fn_criar_inventario_v2` e, para inventários dirigidos, `fn_gerar_tarefas_inventario`.
-- O tenant JRLUB possui a empresa **FJG DISTRIBUIDORA**, o armazém ativo **CD Principal**, **2 endereços ativos**, **403 produtos ativos**, os dois vínculos de tipo de tarefa (`AUDITORIA` e `ATUALIZACAO`) e nenhum inventário criado.
-- O usuário **admin** do JRLUB está ativo, mas possui `armazem_id = NULL`. O login remove `core_armazem_id` nesse caso e o `TenantContext` não resolve um armazém padrão. Sem `armazemId`, a prévia não é chamada e a criação não pode prosseguir. O usuário **MESSIAS** possui o CD Principal vinculado.
-- O armazém ainda não possui posições em `estoque_geral`. Portanto, o inventário **Geral** deve permitir contagem livre com 2 endereços/403 SKUs, enquanto os tipos dirigidos devem informar que não há saldo elegível.
-- Não houve chamada a `fn_criar_inventario_v2` nem a `fn_preview_inventario` nos logs/requisições disponíveis. O teste autenticado exato do usuário que relatou o erro permanece não confirmado neste ambiente externo.
+## 1. Resolução de armazém (TenantContext + Login)
 
-## Implementação
+Hoje o armazém só existe se `usuario.armazem_id` estiver preenchido (`LoginPage.tsx` linhas 150-153) — se for NULL, o `core_armazem_id` é removido e a tela de inventário para de funcionar em silêncio (`if (!armazemId) return`).
 
-### 1. Garantir um contexto operacional completo
+Mudanças:
 
-- Centralizar no `TenantContext` a resolução do armazém ativo da empresa quando o usuário autenticado não possuir `armazem_id`.
-- Persistir o armazém resolvido em `core_armazem_id` e atualizar o contexto antes de liberar as páginas protegidas.
-- Reaplicar a mesma regra no login e na troca de empresa, evitando que usuários administrativos entrem com empresa válida e armazém vazio.
-- Se não existir armazém ativo, manter o contexto bloqueado e mostrar uma mensagem explícita, em vez de deixar a tela silenciosamente incompleta.
+- Criar um resolvedor único `resolveArmazemAtivo(tenantId, empresaId)` reutilizado no login, no `changeEmpresa` e no boot do contexto.
+- Regra de resolução:
+  1. Se `usuario.armazem_id` estiver preenchido e o armazém estiver ativo na empresa atual, usa esse.
+  2. Senão, busca o primeiro armazém ativo do par tenant/empresa.
+  3. Se não houver nenhum, o contexto entra em estado `semArmazem` com mensagem clara: "Sua empresa não possui armazém ativo. Contate o administrador." — em vez de simplesmente ficar nulo e silencioso.
+- Ordem determinística: `ORDER BY codigo_erp ASC NULLS LAST, created_at ASC, id ASC` (substitui o `order("descricao")` atual do `changeEmpresa`, que pode variar quando descrições se repetem).
+- Expor no contexto: `armazemId`, `armazemNome`, `armazemLoading`, `armazemErro`, para que as telas distingam "carregando" de "não existe".
+- Backlog registrado (não implementado agora): seletor de armazém no TopNav quando houver 2+ armazéns ativos.
 
-### 2. Blindar a tela Novo Inventário
+## 2. Blindagem da tela Novo Inventário
 
-- Exibir empresa e armazém usados na criação, tornando o contexto enviado às RPCs verificável pelo usuário.
-- Mostrar um estado de carregamento enquanto tenant, empresa, usuário e armazém são resolvidos; não tratar contexto incompleto como resumo zerado.
-- Exibir erro persistente quando a prévia não puder ser chamada ou retornar falha, com ação para tentar novamente.
-- Manter o inventário Geral habilitado quando a prévia confirmar os cadastros, mesmo sem `estoque_geral`; bloquear somente os tipos dirigidos sem posições elegíveis.
-- Validar `usuarioId` antes da chamada e preservar as mensagens por etapa: contexto, prévia, configuração, criação e geração.
+`NovoInventarioPage.tsx` mistura três estados no mesmo "—". Ajustes:
 
-### 3. Alinhar e endurecer as RPCs
+- Card de contexto no topo do resumo mostrando **Empresa** e **Armazém** que serão enviados ao backend.
+- Enquanto o contexto resolve: skeleton/"Carregando contexto…" em vez de "—".
+- Se a RPC `fn_preview_inventario` falhar: mensagem de erro persistente com botão "Tentar novamente" (reexecuta o preview sem recarregar a página).
+- Prévia zerada legítima: texto explícito ("Nenhum endereço com saldo para este escopo"), diferente de erro.
+- Botão **Criar Inventário**:
+  - Tipo `GERAL`: habilitado mesmo com estoque zero (contagem livre é válida).
+  - Tipos dirigidos: bloqueado com tooltip explicando o motivo.
+  - Sem armazém resolvido: bloqueado com a mensagem do contexto, nunca em silêncio.
+- Todo `return` silencioso por falta de contexto passa a produzir feedback visível.
 
-- Revisar `fn_preview_inventario` e `fn_criar_inventario_v2` para que validem os mesmos tenant, empresa e armazém.
-- Fazer a RPC de criação resolver e validar o usuário operacional por `auth.uid()`, reduzindo dependência de um ID mantido no navegador e evitando falha por contexto local desatualizado.
-- Preservar a regra atual: Geral cria diretamente em `EM_CONTAGEM`; os demais criam tarefas somente quando houver saldo elegível.
-- Não ampliar acesso anônimo; manter execução restrita a usuários autenticados e `service_role`.
+## 3. Ponto 3 (usuario_id via auth.uid()) — adiado
 
-### 4. Verificação
+Não entra neste hotfix. Fica como ticket de refactor no backend, cobrindo em conjunto `fn_criar_inventario_v2` e `fn_gerar_tarefas_inventario`, com `p_usuario_id` tornando-se opcional (resolvido por `auth.uid()` quando ausente) para preservar compatibilidade do contrato atual.
 
-- Testar o login do usuário JRLUB sem armazém vinculado e confirmar que o CD Principal é resolvido automaticamente.
-- Confirmar que a prévia Geral retorna **2 endereços** e **403 SKUs** e que a criação persiste um inventário `EM_CONTAGEM`.
-- Confirmar que os tipos dirigidos retornam **0 elegíveis**, explicam a ausência de estoque e não criam registros vazios.
-- Testar também com o usuário que já possui armazém vinculado, para evitar regressão.
-- Conferir no banco tenant, empresa, armazém, criador e status do registro; executar testes do frontend e o linter do Supabase.
+## 4. Verificações
 
-## Arquivos e banco
+- JRLUB: criar inventário GERAL (2 endereços / 403 SKUs) e confirmar persistência + geração de tarefas.
+- JRLUB: tipo dirigido sem saldo → botão bloqueado com motivo visível, sem falha silenciosa.
+- Usuário de teste com `armazem_id = NULL` → contexto resolve o armazém ativo da empresa automaticamente.
+- Empresa sem armazém ativo → mensagem de bloqueio clara.
+- Troca de empresa no TopNav → armazém recalculado de forma determinística e resumo refeito.
+- Regressão multi-tenant: dois tenants com `inventario_tipo_tarefa` AUDITORIA simultâneo, sem conflito de PK.
 
-- `src/contexts/TenantContext.tsx` e `src/pages/LoginPage.tsx`: resolução consistente do armazém ativo.
-- `src/pages/NovoInventarioPage.tsx`: contexto visível, estados de carregamento e erros acionáveis.
-- Migration Supabase: ajuste seguro das RPCs de prévia/criação, caso a revisão final confirme a necessidade de derivar o usuário por `auth.uid()`.
+## Detalhes técnicos
+
+- `src/contexts/TenantContext.tsx`: novo resolvedor compartilhado, novos campos no provider, ordem determinística na consulta a `armazem`.
+- `src/pages/LoginPage.tsx`: passa a usar o resolvedor em vez de gravar apenas `usuario.armazem_id`.
+- `src/pages/NovoInventarioPage.tsx`: card de contexto, estados de loading/erro/vazio separados, retry do preview, regra de habilitação do botão por tipo.
+- Sem migrations nesta fase.
