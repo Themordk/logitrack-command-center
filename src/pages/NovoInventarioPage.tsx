@@ -734,6 +734,25 @@ export function NovoInventarioPage({ onNavigate }: Props) {
             <div className="card-surface p-5 sticky top-0">
               <h2 className="text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-widest">Resumo</h2>
               <div className="flex flex-col gap-3">
+                {/* Contexto que será enviado ao backend */}
+                <div className="p-3 rounded-lg bg-secondary/30 border border-border flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">Empresa</span>
+                    <span className="text-[11px] font-semibold text-foreground truncate max-w-[9.5rem] text-right">
+                      {empresaNome || (empresaId ? "…" : "Não identificada")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">Armazém</span>
+                    <span className="text-[11px] font-semibold text-foreground truncate max-w-[9.5rem] text-right flex items-center gap-1 justify-end">
+                      {contextoCarregando
+                        ? <><Loader2 size={11} className="animate-spin" /> Carregando contexto…</>
+                        : armazemId
+                          ? (armazemNome || "Armazém ativo")
+                          : <span className="text-destructive">Indisponível</span>}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                   <span className="text-xs text-muted-foreground">Tipo</span>
                   <span className="text-xs font-semibold text-foreground">{tipoLabel}</span>
@@ -742,15 +761,29 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <span className="text-xs text-muted-foreground">Execução</span>
                   <span className="text-xs font-semibold text-foreground">{execLabel}</span>
                 </div>
-                {resumo.erro ? (
-                  <div className="flex items-start gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
-                    <AlertTriangle size={13} className="text-destructive mt-0.5 shrink-0" />
-                    <div className="text-[11px] leading-snug">
-                      <p className="font-semibold text-destructive">Erro ao calcular o resumo</p>
-                      <p className="text-muted-foreground mt-0.5">{resumo.erro}</p>
+                {contextoCarregando ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border text-[11px] text-muted-foreground">
+                    <Loader2 size={12} className="animate-spin" /> Resolvendo empresa e armazém…
+                  </div>
+                ) : resumo.erro ? (
+                  <div className="flex flex-col gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={13} className="text-destructive mt-0.5 shrink-0" />
+                      <div className="text-[11px] leading-snug">
+                        <p className="font-semibold text-destructive">Erro ao calcular o resumo</p>
+                        <p className="text-muted-foreground mt-0.5">{resumo.erro}</p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewNonce((n) => n + 1)}
+                      className="self-start px-2.5 py-1 rounded-md border border-destructive/50 text-[11px] font-medium text-destructive hover:bg-destructive/15 transition-colors"
+                    >
+                      Tentar novamente
+                    </button>
                   </div>
                 ) : (
+
                   <>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                       <span className="text-xs text-muted-foreground">{tipo === "GERAL" ? "Endereços cadastrados" : "Endereços elegíveis"}</span>
