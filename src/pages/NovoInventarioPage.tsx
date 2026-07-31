@@ -422,7 +422,9 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         onNavigate("/atividades/inventario");
       }
     } catch (err: any) {
-      toast.error(mapError(err));
+      const msg = mapError(err);
+      setSaveError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
