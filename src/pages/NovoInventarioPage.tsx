@@ -300,7 +300,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       }
     }, 250);
     return () => { cancelled.v = true; clearTimeout(previewRef.current); };
-  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise]);
+  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise, previewNonce]);
 
 
 
