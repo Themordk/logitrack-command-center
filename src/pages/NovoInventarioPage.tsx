@@ -482,13 +482,28 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     ? (progresso ? `Gerando tarefas... (${progresso.geradas})` : "Criando...")
     : "Criar Inventário";
 
+  // Contexto operacional (tenant/empresa/armazém) — distingue "carregando" de "inexistente"
+  const contextoCarregando = armazemLoading || (!!empresaId && !armazemId && !armazemErro);
+  const contextoPronto = !!tenantId && !!empresaId && !!armazemId;
+
   // Escopo sem posições de estoque: nenhuma tarefa será gerada (GERAL é contagem livre)
   const semEstoque =
     tipo !== "" && tipo !== "GERAL" &&
     resumo.calculado && !resumo.loading && !resumo.erro && resumo.enderecos === 0;
+  // GERAL é contagem livre: nunca bloqueado por estoque zerado.
   const criacaoBloqueadaPeloResumo = tipo !== "GERAL" && (
     resumo.loading || !resumo.calculado || !!resumo.erro || resumo.enderecos === 0
   );
+  const motivoBloqueio = !contextoPronto
+    ? (armazemErro || (contextoCarregando ? "Resolvendo o contexto de empresa/armazém…" : "Empresa ou armazém não identificados."))
+    : criacaoBloqueadaPeloResumo
+      ? (resumo.erro
+        ? "A prévia falhou. Tente novamente antes de criar."
+        : resumo.loading || !resumo.calculado
+          ? "Aguardando o cálculo da prévia."
+          : "Nenhum endereço elegível para este escopo.")
+      : undefined;
+
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
