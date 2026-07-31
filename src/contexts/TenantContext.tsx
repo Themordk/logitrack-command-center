@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef } fro
 import { supabase } from "@/integrations/supabase/client";
 import { getSubdomainTenantSlug } from "@/lib/tenantSubdomain";
 import { sanitizeId } from "@/lib/uuid";
+import { resolveArmazemAtivo } from "@/lib/armazemResolver";
+
 
 /**
  * Lê uma chave do localStorage, sanitizando contra strings inválidas como
