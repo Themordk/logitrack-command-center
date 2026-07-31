@@ -76,6 +76,10 @@ const ERROR_MAP: Record<string, string> = {
   INVENTARIO_STATUS_INVALIDO: "Inventário em status inválido para gerar tarefas.",
   LOOP_SEM_PROGRESSO: "Geração de tarefas não avançou. Verifique os filtros e tente novamente.",
   PERIODO_OBRIGATORIO: "Selecione o período de análise.",
+  CONTEXTO_TENANT_INVALIDO: "Sua sessão não pertence ao tenant selecionado. Entre novamente pelo endereço correto.",
+  EMPRESA_INVALIDA: "A empresa selecionada não pertence ao contexto atual ou está inativa.",
+  ARMAZEM_INVALIDO: "O armazém selecionado não pertence à empresa atual ou está inativo.",
+  USUARIO_INVALIDO: "O usuário da sessão não está vinculado à empresa selecionada.",
   ERRO_DESCONHECIDO: "Ocorreu um erro inesperado.",
 };
 
@@ -133,8 +137,8 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const [progresso, setProgresso] = useState<{ geradas: number; finalizado: boolean } | null>(null);
 
   // --- Resumo (prévia)
-  const [resumo, setResumo] = useState<{ enderecos: number; skus: number; loading: boolean; truncado: boolean; erro: string | null; calculado: boolean }>({
-    enderecos: 0, skus: 0, loading: false, truncado: false, erro: null, calculado: false,
+  const [resumo, setResumo] = useState<{ enderecos: number; skus: number; enderecosCadastrados: number; skusCadastrados: number; codigo: string | null; loading: boolean; truncado: boolean; erro: string | null; calculado: boolean }>({
+    enderecos: 0, skus: 0, enderecosCadastrados: 0, skusCadastrados: 0, codigo: null, loading: false, truncado: false, erro: null, calculado: false,
   });
 
   const debounceRef = useRef<any>(null);
@@ -226,7 +230,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   // Prévia: Total Endereços / SKUs por escopo (consulta estoque_geral)
   useEffect(() => {
-    const RESET = { enderecos: 0, skus: 0, loading: false, truncado: false, erro: null as string | null, calculado: false };
+    const RESET = { enderecos: 0, skus: 0, enderecosCadastrados: 0, skusCadastrados: 0, codigo: null as string | null, loading: false, truncado: false, erro: null as string | null, calculado: false };
     if (!tenantId || !empresaId || !armazemId || !tipo) {
       setResumo(RESET);
       return;
@@ -251,71 +255,26 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     previewRef.current = setTimeout(async () => {
       setResumo((r) => ({ ...r, loading: true, erro: null }));
       try {
-        const LIMIT = 2000;
-        // Pré-filtros: produtos por grupo / curva quando aplicável
-        let produtoIdsFilter: string[] | null = null;
-        if (tipo === "GRUPO_PRODUTO") {
-          let pq = (supabase as any).from("produto")
-            .select("id").eq("tenant_id", tenantId).eq("grupo_id", grupoId).eq("ativo", true).limit(5000);
-          if (empresaId) pq = pq.eq("empresa_id", empresaId);
-          const { data: ps, error: pErr } = await pq;
-          if (pErr) throw pErr;
-          produtoIdsFilter = (ps || []).map((p: any) => p.id);
-          if (produtoIdsFilter.length === 0) { done({}); return; }
-        }
-        if (tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO")) {
-          const col = criterio === "CURVA_VENDAS" ? "curva_venda" : "curva_acesso";
-          let pq = (supabase as any).from("produto")
-            .select("id").eq("tenant_id", tenantId).eq(col, curva).eq("ativo", true).limit(5000);
-          if (empresaId) pq = pq.eq("empresa_id", empresaId);
-          const { data: ps, error: pErr } = await pq;
-          if (pErr) throw pErr;
-          produtoIdsFilter = (ps || []).map((p: any) => p.id);
-          if (produtoIdsFilter.length === 0) { done({}); return; }
-        }
-
-        // Atalhos por tipo de escopo único
-        if (tipo === "ENDERECO") {
-          const { data, error } = await (supabase as any).from("estoque_geral")
-            .select("produto_id")
-            .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("endereco_id", enderecoId)
-            .gt("quantidade_total", 0)
-            .limit(LIMIT);
-          if (error) throw error;
-          const skus = new Set((data || []).map((r: any) => r.produto_id));
-          done({ enderecos: skus.size > 0 ? 1 : 0, skus: skus.size });
-          return;
-        }
-
-        // Query genérica via embed em endereco (filtra armazem + situação)
-        let q = (supabase as any).from("estoque_geral")
-          .select("endereco_id, produto_id, endereco!inner(armazem_id)")
-          .eq("tenant_id", tenantId)
-          .eq("empresa_id", empresaId)
-          .eq("endereco.armazem_id", armazemId)
-          .gt("quantidade_total", 0)
-          .limit(LIMIT);
-
-        if (tipo === "PRODUTO") q = q.eq("produto_id", produtoId);
-        if (tipo === "ZONA") {
-          const { data: ez, error: ezErr } = await (supabase as any).from("endereco_zona_atividade")
-            .select("endereco_id").eq("tenant_id", tenantId).eq("zona_atividade_id", zonaId).limit(5000);
-          if (ezErr) throw ezErr;
-          const ids = (ez || []).map((r: any) => r.endereco_id);
-          if (ids.length === 0) { done({}); return; }
-          q = q.in("endereco_id", ids);
-        }
-        if (produtoIdsFilter) q = q.in("produto_id", produtoIdsFilter);
-
-        const { data, error } = await q;
+        const periodo = tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+          ? resolvePeriodo(periodoAnalise) : null;
+        const { data, error } = await (supabase as any).rpc("fn_preview_inventario", {
+          p_tenant_id: tenantId, p_empresa_id: empresaId, p_armazem_id: armazemId,
+          p_tipo_inventario: tipo, p_zona_atividade_id: tipo === "ZONA" ? zonaId : null,
+          p_endereco_id: tipo === "ENDERECO" ? enderecoId : null,
+          p_produto_id: tipo === "PRODUTO" ? produtoId : null,
+          p_grupo_produto_id: tipo === "GRUPO_PRODUTO" ? grupoId : null,
+          p_criterio_selecao: tipo === "ROTATIVO" ? criterio : null,
+          p_curva: tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") ? curva : null,
+          p_data_inicio_analise: periodo?.inicio ?? null, p_data_fim_analise: periodo?.fim ?? null,
+        });
         if (error) throw error;
-        const rows = data || [];
-        const setE = new Set<string>(); const setP = new Set<string>();
-        for (const r of rows) { setE.add(r.endereco_id); setP.add(r.produto_id); }
+        const result = unwrap(data);
         done({
-          enderecos: setE.size,
-          skus: tipo === "PRODUTO" ? (setE.size > 0 ? 1 : 0) : setP.size,
-          truncado: rows.length >= LIMIT,
+          enderecos: Number(result?.enderecos_elegiveis || 0),
+          skus: Number(result?.skus_elegiveis || 0),
+          enderecosCadastrados: Number(result?.enderecos_cadastrados || 0),
+          skusCadastrados: Number(result?.skus_cadastrados || 0),
+          codigo: result?.codigo || null,
         });
       } catch (err: unknown) {
         const parsed = parseError(err, "inventario-preview");
@@ -323,7 +282,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       }
     }, 250);
     return () => { cancelled.v = true; clearTimeout(previewRef.current); };
-  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva]);
+  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise]);
 
 
 
