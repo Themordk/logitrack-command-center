@@ -769,11 +769,21 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       </div>
 
       {/* Mobile summary banner */}
-      <div className="lg:hidden shrink-0 card-surface p-3 flex items-center justify-around text-xs">
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">Tipo</span><span className="font-semibold text-foreground">{tipoLabel}</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">Execução</span><span className="font-semibold text-foreground">{execLabel}</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">{resumo.loading ? "…" : `${resumo.enderecos}${resumo.truncado ? "+" : ""}`}</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">{resumo.loading ? "…" : `${resumo.skus}${resumo.truncado ? "+" : ""}`}</span></div>
+      <div className="lg:hidden shrink-0 flex flex-col gap-2">
+        <div className="card-surface p-3 flex items-center justify-around text-xs">
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">Tipo</span><span className="font-semibold text-foreground">{tipoLabel}</span></div>
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">Execução</span><span className="font-semibold text-foreground">{execLabel}</span></div>
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">{resumo.loading ? "…" : !resumo.calculado || resumo.erro ? "—" : `${resumo.enderecos}${resumo.truncado ? "+" : ""}`}</span></div>
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">{resumo.loading ? "…" : !resumo.calculado || resumo.erro ? "—" : `${resumo.skus}${resumo.truncado ? "+" : ""}`}</span></div>
+        </div>
+        {semEstoque && (
+          <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10">
+            <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-[11px] leading-snug text-amber-200/90">
+              Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa será gerada.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
