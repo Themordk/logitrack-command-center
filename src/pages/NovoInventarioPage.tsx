@@ -131,8 +131,8 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const [progresso, setProgresso] = useState<{ geradas: number; finalizado: boolean } | null>(null);
 
   // --- Resumo (prévia)
-  const [resumo, setResumo] = useState<{ enderecos: number; skus: number; loading: boolean; truncado: boolean }>({
-    enderecos: 0, skus: 0, loading: false, truncado: false,
+  const [resumo, setResumo] = useState<{ enderecos: number; skus: number; loading: boolean; truncado: boolean; erro: string | null; calculado: boolean }>({
+    enderecos: 0, skus: 0, loading: false, truncado: false, erro: null, calculado: false,
   });
 
   const debounceRef = useRef<any>(null);
