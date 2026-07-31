@@ -352,8 +352,8 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     if (!isValid) { toast.error("Preencha todos os campos obrigatórios."); return; }
     if (!tenantId || !empresaId || !armazemId) { toast.error(ERROR_MAP.ARMAZEM_OBRIGATORIO); return; }
     setSaving(true);
+    setSaveError(null);
     setProgresso(null);
-    try {
       // Pré-checagem: tipo de execução precisa estar configurado para o tenant
       const { data: cfg } = await (supabase as any).from("inventario_tipo_tarefa")
         .select("tipo_tarefa_id")
