@@ -6,6 +6,8 @@ import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal"
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { parseError } from "@/lib/errorMapper";
+import { resolveArmazemAtivo } from "@/lib/armazemResolver";
+
 import logoUrl from "@/assets/corelogitrack-logo.png";
 
 interface LoginPageProps {
