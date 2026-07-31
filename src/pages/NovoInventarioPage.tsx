@@ -94,7 +94,25 @@ interface Option { id: string; label: string; sublabel?: string; }
 interface Props { onNavigate: (path: string) => void; }
 
 export function NovoInventarioPage({ onNavigate }: Props) {
-  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, armazemNome, armazemLoading, armazemErro, usuarioId } = useTenant();
+
+  // Nome da empresa para exibir no card de contexto do resumo
+  const [empresaNome, setEmpresaNome] = useState<string | null>(null);
+  useEffect(() => {
+    if (!empresaId) { setEmpresaNome(null); return; }
+    let cancel = false;
+    (async () => {
+      const { data } = await (supabase as any).from("empresa")
+        .select("razaosocial, codigo").eq("id", empresaId).maybeSingle();
+      if (!cancel) setEmpresaNome(data?.razaosocial || data?.codigo || null);
+
+    })();
+    return () => { cancel = true; };
+  }, [empresaId]);
+
+  // Permite refazer a prévia após uma falha da RPC (botão "Tentar novamente")
+  const [previewNonce, setPreviewNonce] = useState(0);
+
 
   // --- Dados Gerais
   const [tipo, setTipo] = useState<Tipo>("");
@@ -282,7 +300,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       }
     }, 250);
     return () => { cancelled.v = true; clearTimeout(previewRef.current); };
-  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise]);
+  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise, previewNonce]);
 
 
 
@@ -309,7 +327,13 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   const handleSave = async () => {
     if (!isValid) { toast.error("Preencha todos os campos obrigatórios."); return; }
-    if (!tenantId || !empresaId || !armazemId) { toast.error(ERROR_MAP.ARMAZEM_OBRIGATORIO); return; }
+    if (!tenantId || !empresaId || !armazemId) {
+      const msg = armazemErro || ERROR_MAP.ARMAZEM_OBRIGATORIO;
+      setSaveError(msg);
+      toast.error(msg);
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     setProgresso(null);
@@ -458,13 +482,28 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     ? (progresso ? `Gerando tarefas... (${progresso.geradas})` : "Criando...")
     : "Criar Inventário";
 
+  // Contexto operacional (tenant/empresa/armazém) — distingue "carregando" de "inexistente"
+  const contextoCarregando = armazemLoading || (!!empresaId && !armazemId && !armazemErro);
+  const contextoPronto = !!tenantId && !!empresaId && !!armazemId;
+
   // Escopo sem posições de estoque: nenhuma tarefa será gerada (GERAL é contagem livre)
   const semEstoque =
     tipo !== "" && tipo !== "GERAL" &&
     resumo.calculado && !resumo.loading && !resumo.erro && resumo.enderecos === 0;
+  // GERAL é contagem livre: nunca bloqueado por estoque zerado.
   const criacaoBloqueadaPeloResumo = tipo !== "GERAL" && (
     resumo.loading || !resumo.calculado || !!resumo.erro || resumo.enderecos === 0
   );
+  const motivoBloqueio = !contextoPronto
+    ? (armazemErro || (contextoCarregando ? "Resolvendo o contexto de empresa/armazém…" : "Empresa ou armazém não identificados."))
+    : criacaoBloqueadaPeloResumo
+      ? (resumo.erro
+        ? "A prévia falhou. Tente novamente antes de criar."
+        : resumo.loading || !resumo.calculado
+          ? "Aguardando o cálculo da prévia."
+          : "Nenhum endereço elegível para este escopo.")
+      : undefined;
+
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
@@ -479,12 +518,14 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !isValid || criacaoBloqueadaPeloResumo}
+            title={motivoBloqueio}
+            disabled={saving || !isValid || !contextoPronto || criacaoBloqueadaPeloResumo}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {buttonText}
           </button>
+
         </div>
       </div>
 
@@ -497,6 +538,17 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           </div>
         </div>
       )}
+
+      {armazemErro && (
+        <div className="shrink-0 flex items-start gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
+          <AlertTriangle size={14} className="text-destructive mt-0.5 shrink-0" />
+          <div className="text-xs text-destructive-foreground/90">
+            <p className="font-semibold text-destructive">Contexto de armazém indisponível</p>
+            <p className="mt-0.5">{armazemErro}</p>
+          </div>
+        </div>
+      )}
+
 
       <div className="flex-1 min-h-0 overflow-auto">
         <div className="flex gap-4 min-h-full">
@@ -682,6 +734,25 @@ export function NovoInventarioPage({ onNavigate }: Props) {
             <div className="card-surface p-5 sticky top-0">
               <h2 className="text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-widest">Resumo</h2>
               <div className="flex flex-col gap-3">
+                {/* Contexto que será enviado ao backend */}
+                <div className="p-3 rounded-lg bg-secondary/30 border border-border flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">Empresa</span>
+                    <span className="text-[11px] font-semibold text-foreground truncate max-w-[9.5rem] text-right">
+                      {empresaNome || (empresaId ? "…" : "Não identificada")}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">Armazém</span>
+                    <span className="text-[11px] font-semibold text-foreground truncate max-w-[9.5rem] text-right flex items-center gap-1 justify-end">
+                      {contextoCarregando
+                        ? <><Loader2 size={11} className="animate-spin" /> Carregando contexto…</>
+                        : armazemId
+                          ? (armazemNome || "Armazém ativo")
+                          : <span className="text-destructive">Indisponível</span>}
+                    </span>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                   <span className="text-xs text-muted-foreground">Tipo</span>
                   <span className="text-xs font-semibold text-foreground">{tipoLabel}</span>
@@ -690,15 +761,29 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <span className="text-xs text-muted-foreground">Execução</span>
                   <span className="text-xs font-semibold text-foreground">{execLabel}</span>
                 </div>
-                {resumo.erro ? (
-                  <div className="flex items-start gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
-                    <AlertTriangle size={13} className="text-destructive mt-0.5 shrink-0" />
-                    <div className="text-[11px] leading-snug">
-                      <p className="font-semibold text-destructive">Erro ao calcular o resumo</p>
-                      <p className="text-muted-foreground mt-0.5">{resumo.erro}</p>
+                {contextoCarregando ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border text-[11px] text-muted-foreground">
+                    <Loader2 size={12} className="animate-spin" /> Resolvendo empresa e armazém…
+                  </div>
+                ) : resumo.erro ? (
+                  <div className="flex flex-col gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={13} className="text-destructive mt-0.5 shrink-0" />
+                      <div className="text-[11px] leading-snug">
+                        <p className="font-semibold text-destructive">Erro ao calcular o resumo</p>
+                        <p className="text-muted-foreground mt-0.5">{resumo.erro}</p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewNonce((n) => n + 1)}
+                      className="self-start px-2.5 py-1 rounded-md border border-destructive/50 text-[11px] font-medium text-destructive hover:bg-destructive/15 transition-colors"
+                    >
+                      Tentar novamente
+                    </button>
                   </div>
                 ) : (
+
                   <>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
                       <span className="text-xs text-muted-foreground">{tipo === "GERAL" ? "Endereços cadastrados" : "Endereços elegíveis"}</span>

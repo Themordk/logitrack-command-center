@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef } fro
 import { supabase } from "@/integrations/supabase/client";
 import { getSubdomainTenantSlug } from "@/lib/tenantSubdomain";
 import { sanitizeId } from "@/lib/uuid";
+import { resolveArmazemAtivo } from "@/lib/armazemResolver";
+
 
 /**
  * Lê uma chave do localStorage, sanitizando contra strings inválidas como
@@ -33,6 +35,9 @@ interface TenantContextType {
   tenantId: string | null;
   empresaId: string | null;
   armazemId: string | null;
+  armazemNome: string | null;
+  armazemLoading: boolean;
+  armazemErro: string | null;
   usuarioId: string | null;
   usuarioNome: string | null;
   loading: boolean;
@@ -48,6 +53,9 @@ const TenantContext = createContext<TenantContextType>({
   tenantId: null,
   empresaId: null,
   armazemId: null,
+  armazemNome: null,
+  armazemLoading: false,
+  armazemErro: null,
   usuarioId: null,
   usuarioNome: null,
   loading: true,
@@ -59,10 +67,14 @@ const TenantContext = createContext<TenantContextType>({
   changeEmpresa: async () => {},
 });
 
+
 export function TenantProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [armazemId, setArmazemId] = useState<string | null>(null);
+  const [armazemNome, setArmazemNome] = useState<string | null>(null);
+  const [armazemLoading, setArmazemLoading] = useState(false);
+  const [armazemErro, setArmazemErro] = useState<string | null>(null);
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [usuarioNome, setUsuarioNome] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,9 +87,25 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setTenantId(readSanitizedId("core_tenant_id"));
     setEmpresaId(readSanitizedId("core_empresa_id"));
     setArmazemId(readSanitizedId("core_armazem_id"));
+    setArmazemNome(readPlainString("core_armazem_nome"));
     setUsuarioId(readSanitizedId("core_usuario_id"));
     setUsuarioNome(readPlainString("core_usuario_nome"));
   };
+
+  const aplicarArmazem = (res: { id: string | null; descricao: string | null; erro: string | null }) => {
+    if (res.id) {
+      localStorage.setItem("core_armazem_id", res.id);
+      if (res.descricao) localStorage.setItem("core_armazem_nome", res.descricao);
+      else localStorage.removeItem("core_armazem_nome");
+    } else {
+      localStorage.removeItem("core_armazem_id");
+      localStorage.removeItem("core_armazem_nome");
+    }
+    setArmazemId(res.id);
+    setArmazemNome(res.descricao);
+    setArmazemErro(res.erro);
+  };
+
 
   // Verifica se o tenant gravado no localStorage bate com o tenant resolvido pelo subdomínio.
   // Se houver mismatch, derruba a sessão imediatamente (defesa contra adulteração de localStorage
@@ -135,6 +163,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("core_tenant_id");
     localStorage.removeItem("core_empresa_id");
     localStorage.removeItem("core_armazem_id");
+    localStorage.removeItem("core_armazem_nome");
     localStorage.removeItem("core_usuario_id");
     localStorage.removeItem("core_usuario_nome");
     localStorage.removeItem("core_is_platform_support");
@@ -142,6 +171,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setTenantId(null);
     setEmpresaId(null);
     setArmazemId(null);
+    setArmazemNome(null);
+    setArmazemErro(null);
     setUsuarioId(null);
     setUsuarioNome(null);
   };
@@ -163,6 +194,25 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setAuthenticated(false);
   };
 
+  // Garante que o armazém do contexto sempre exista e esteja ativo na empresa atual.
+  // Cobre o caso de usuario.armazem_id NULL (antes o contexto ficava mudo e as telas
+  // travavam em silêncio) e o de armazém gravado que não pertence mais à empresa.
+  useEffect(() => {
+    if (!authenticated || !tenantId || !empresaId) return;
+    let cancelled = false;
+    (async () => {
+      setArmazemLoading(true);
+      const res = await resolveArmazemAtivo(tenantId, empresaId, armazemId);
+      if (cancelled) return;
+      if (res.id !== armazemId || res.erro !== armazemErro || res.descricao !== armazemNome) {
+        aplicarArmazem(res);
+      }
+      setArmazemLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated, tenantId, empresaId, empresaVersion]);
+
   const changeEmpresa = async (newEmpresaId: string) => {
     if (!newEmpresaId || newEmpresaId === empresaId) return;
 
@@ -173,31 +223,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("core_empresa_id", newEmpresaId);
     setEmpresaId(newEmpresaId);
 
-    // Recalcula armazém ativo coerente com a nova empresa
-    let novoArmazemId: string | null = null;
-    try {
-      if (tenantId) {
-        const { data } = await (supabase as any)
-          .from("armazem")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("empresa_id", newEmpresaId)
-          .eq("ativo", true)
-          .order("descricao")
-          .limit(1)
-          .maybeSingle();
-        novoArmazemId = data?.id ?? null;
-      }
-    } catch (e) {
-      console.warn("Falha ao buscar armazém ativo da nova empresa", e);
-    }
-
-    if (novoArmazemId) {
-      localStorage.setItem("core_armazem_id", novoArmazemId);
-    } else {
-      localStorage.removeItem("core_armazem_id");
-    }
-    setArmazemId(novoArmazemId);
+    // Recalcula armazém ativo coerente com a nova empresa (ordem determinística)
+    setArmazemLoading(true);
+    const res = await resolveArmazemAtivo(tenantId, newEmpresaId, null);
+    aplicarArmazem(res);
+    setArmazemLoading(false);
 
     // Invalida cache de permissões
     sessionStorage.removeItem("core_rbac_permissions");
@@ -214,8 +244,12 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         tenantId,
         empresaId,
         armazemId,
+        armazemNome,
+        armazemLoading,
+        armazemErro,
         usuarioId,
         usuarioNome,
+
         loading,
         authenticated,
         empresaVersion,

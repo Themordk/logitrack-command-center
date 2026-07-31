@@ -6,6 +6,8 @@ import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal"
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { parseError } from "@/lib/errorMapper";
+import { resolveArmazemAtivo } from "@/lib/armazemResolver";
+
 import logoUrl from "@/assets/corelogitrack-logo.png";
 
 interface LoginPageProps {
@@ -128,7 +130,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
         setLoading(false);
         return;
       }
-      completeLogin(usuario);
+      await completeLogin(usuario);
     } catch (err: unknown) {
       const parsed = parseError(err, "login");
       // Preserva mensagens de negócio já bem escritas (throw new Error) quando o parser cai no fallback genérico
@@ -140,24 +142,34 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
     }
   };
 
-  const completeLogin = (usuario: any) => {
+  const completeLogin = async (usuario: any) => {
     localStorage.setItem("core_tenant_id", usuario.tenant_id);
     if (usuario.empresa_id) {
       localStorage.setItem("core_empresa_id", usuario.empresa_id);
     } else {
       localStorage.removeItem("core_empresa_id");
     }
-    if (usuario.armazem_id) {
-      localStorage.setItem("core_armazem_id", usuario.armazem_id);
+
+    // Resolve o armazém operacional: usa o do usuário quando ativo, senão o primeiro
+    // armazém ativo da empresa (ordem determinística). Nunca deixa o contexto mudo.
+    const armazem = await resolveArmazemAtivo(usuario.tenant_id, usuario.empresa_id, usuario.armazem_id);
+    if (armazem.id) {
+      localStorage.setItem("core_armazem_id", armazem.id);
+      if (armazem.descricao) localStorage.setItem("core_armazem_nome", armazem.descricao);
+      else localStorage.removeItem("core_armazem_nome");
     } else {
       localStorage.removeItem("core_armazem_id");
+      localStorage.removeItem("core_armazem_nome");
     }
+
     localStorage.setItem("core_usuario_id", usuario.id);
     localStorage.setItem("core_usuario_nome", usuario.nome);
     localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");
+    if (armazem.erro) toast.warning(armazem.erro);
     toast.success(`Bem-vindo, ${usuario.nome}!`);
     onLogin();
   };
+
 
   if (redirectingSupport) {
     return (
@@ -425,7 +437,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
         variant="admin"
         onSuccess={() => {
           setForceChange(false);
-          if (pendingUsuario) completeLogin(pendingUsuario);
+          if (pendingUsuario) void completeLogin(pendingUsuario);
         }}
       />
     </div>
