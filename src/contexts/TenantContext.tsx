@@ -161,6 +161,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("core_tenant_id");
     localStorage.removeItem("core_empresa_id");
     localStorage.removeItem("core_armazem_id");
+    localStorage.removeItem("core_armazem_nome");
     localStorage.removeItem("core_usuario_id");
     localStorage.removeItem("core_usuario_nome");
     localStorage.removeItem("core_is_platform_support");
@@ -168,6 +169,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setTenantId(null);
     setEmpresaId(null);
     setArmazemId(null);
+    setArmazemNome(null);
+    setArmazemErro(null);
     setUsuarioId(null);
     setUsuarioNome(null);
   };
@@ -189,6 +192,25 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setAuthenticated(false);
   };
 
+  // Garante que o armazém do contexto sempre exista e esteja ativo na empresa atual.
+  // Cobre o caso de usuario.armazem_id NULL (antes o contexto ficava mudo e as telas
+  // travavam em silêncio) e o de armazém gravado que não pertence mais à empresa.
+  useEffect(() => {
+    if (!authenticated || !tenantId || !empresaId) return;
+    let cancelled = false;
+    (async () => {
+      setArmazemLoading(true);
+      const res = await resolveArmazemAtivo(tenantId, empresaId, armazemId);
+      if (cancelled) return;
+      if (res.id !== armazemId || res.erro !== armazemErro || res.descricao !== armazemNome) {
+        aplicarArmazem(res);
+      }
+      setArmazemLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated, tenantId, empresaId, empresaVersion]);
+
   const changeEmpresa = async (newEmpresaId: string) => {
     if (!newEmpresaId || newEmpresaId === empresaId) return;
 
@@ -199,31 +221,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("core_empresa_id", newEmpresaId);
     setEmpresaId(newEmpresaId);
 
-    // Recalcula armazém ativo coerente com a nova empresa
-    let novoArmazemId: string | null = null;
-    try {
-      if (tenantId) {
-        const { data } = await (supabase as any)
-          .from("armazem")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .eq("empresa_id", newEmpresaId)
-          .eq("ativo", true)
-          .order("descricao")
-          .limit(1)
-          .maybeSingle();
-        novoArmazemId = data?.id ?? null;
-      }
-    } catch (e) {
-      console.warn("Falha ao buscar armazém ativo da nova empresa", e);
-    }
-
-    if (novoArmazemId) {
-      localStorage.setItem("core_armazem_id", novoArmazemId);
-    } else {
-      localStorage.removeItem("core_armazem_id");
-    }
-    setArmazemId(novoArmazemId);
+    // Recalcula armazém ativo coerente com a nova empresa (ordem determinística)
+    setArmazemLoading(true);
+    const res = await resolveArmazemAtivo(tenantId, newEmpresaId, null);
+    aplicarArmazem(res);
+    setArmazemLoading(false);
 
     // Invalida cache de permissões
     sessionStorage.removeItem("core_rbac_permissions");
@@ -240,8 +242,12 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         tenantId,
         empresaId,
         armazemId,
+        armazemNome,
+        armazemLoading,
+        armazemErro,
         usuarioId,
         usuarioNome,
+
         loading,
         authenticated,
         empresaVersion,
