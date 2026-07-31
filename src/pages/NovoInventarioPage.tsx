@@ -719,18 +719,38 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <span className="text-xs text-muted-foreground">Execução</span>
                   <span className="text-xs font-semibold text-foreground">{execLabel}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                  <span className="text-xs text-muted-foreground">Total Endereços</span>
-                  <span className="text-sm font-bold text-primary flex items-center gap-1">
-                    {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : <>{resumo.enderecos}{resumo.truncado && "+"}</>}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                  <span className="text-xs text-muted-foreground">Total SKUs</span>
-                  <span className="text-sm font-bold text-primary flex items-center gap-1">
-                    {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : <>{resumo.skus}{resumo.truncado && "+"}</>}
-                  </span>
-                </div>
+                {resumo.erro ? (
+                  <div className="flex items-start gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
+                    <AlertTriangle size={13} className="text-destructive mt-0.5 shrink-0" />
+                    <div className="text-[11px] leading-snug">
+                      <p className="font-semibold text-destructive">Erro ao calcular o resumo</p>
+                      <p className="text-muted-foreground mt-0.5">{resumo.erro}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                      <span className="text-xs text-muted-foreground">Total Endereços</span>
+                      <span className="text-sm font-bold text-primary flex items-center gap-1">
+                        {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : !resumo.calculado ? <span className="text-muted-foreground font-normal text-xs">—</span> : <>{resumo.enderecos}{resumo.truncado && "+"}</>}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                      <span className="text-xs text-muted-foreground">Total SKUs</span>
+                      <span className="text-sm font-bold text-primary flex items-center gap-1">
+                        {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : !resumo.calculado ? <span className="text-muted-foreground font-normal text-xs">—</span> : <>{resumo.skus}{resumo.truncado && "+"}</>}
+                      </span>
+                    </div>
+                    {semEstoque && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10">
+                        <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
+                        <p className="text-[11px] leading-snug text-amber-200/90">
+                          Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa de inventário será gerada.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
                 {progresso && (
                   <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
                     <span className="text-xs text-muted-foreground">Tarefas geradas</span>
