@@ -518,12 +518,14 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !isValid || criacaoBloqueadaPeloResumo}
+            title={motivoBloqueio}
+            disabled={saving || !isValid || !contextoPronto || criacaoBloqueadaPeloResumo}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {buttonText}
           </button>
+
         </div>
       </div>
 
