@@ -9085,6 +9085,23 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_preview_inventario: {
+        Args: {
+          p_armazem_id: string
+          p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+          p_curva?: Database["public"]["Enums"]["enum_curva"]
+          p_data_fim_analise?: string
+          p_data_inicio_analise?: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_grupo_produto_id?: string
+          p_produto_id?: string
+          p_tenant_id: string
+          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          p_zona_atividade_id?: string
+        }
+        Returns: Json
+      }
       fn_resolve_tenant_by_slug: {
         Args: { p_slug: string }
         Returns: {
