@@ -129,6 +129,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   // --- Submissão
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [progresso, setProgresso] = useState<{ geradas: number; finalizado: boolean } | null>(null);
 
   // --- Resumo (prévia)
