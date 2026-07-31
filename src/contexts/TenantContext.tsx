@@ -33,6 +33,9 @@ interface TenantContextType {
   tenantId: string | null;
   empresaId: string | null;
   armazemId: string | null;
+  armazemNome: string | null;
+  armazemLoading: boolean;
+  armazemErro: string | null;
   usuarioId: string | null;
   usuarioNome: string | null;
   loading: boolean;
@@ -48,6 +51,9 @@ const TenantContext = createContext<TenantContextType>({
   tenantId: null,
   empresaId: null,
   armazemId: null,
+  armazemNome: null,
+  armazemLoading: false,
+  armazemErro: null,
   usuarioId: null,
   usuarioNome: null,
   loading: true,
@@ -58,6 +64,7 @@ const TenantContext = createContext<TenantContextType>({
   logout: () => {},
   changeEmpresa: async () => {},
 });
+
 
 export function TenantProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(null);
