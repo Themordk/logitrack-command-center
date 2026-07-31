@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, Info, BarChart3, Search, Check } from "lucide-react";
+import { Loader2, Info, BarChart3, Search, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseError } from "@/lib/errorMapper";
 
 const TIPO_OPTIONS = [
   { value: "GERAL", label: "Geral" },
@@ -128,11 +129,12 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   // --- Submissão
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [progresso, setProgresso] = useState<{ geradas: number; finalizado: boolean } | null>(null);
 
   // --- Resumo (prévia)
-  const [resumo, setResumo] = useState<{ enderecos: number; skus: number; loading: boolean; truncado: boolean }>({
-    enderecos: 0, skus: 0, loading: false, truncado: false,
+  const [resumo, setResumo] = useState<{ enderecos: number; skus: number; loading: boolean; truncado: boolean; erro: string | null; calculado: boolean }>({
+    enderecos: 0, skus: 0, loading: false, truncado: false, erro: null, calculado: false,
   });
 
   const debounceRef = useRef<any>(null);
@@ -224,56 +226,64 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   // Prévia: Total Endereços / SKUs por escopo (consulta estoque_geral)
   useEffect(() => {
+    const RESET = { enderecos: 0, skus: 0, loading: false, truncado: false, erro: null as string | null, calculado: false };
     if (!tenantId || !empresaId || !armazemId || !tipo) {
-      setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
+      setResumo(RESET);
       return;
     }
     // Tipos que exigem seleção antes de calcular
-    if (tipo === "ZONA" && !zonaId) return;
-    if (tipo === "ENDERECO" && !enderecoId) return;
-    if (tipo === "PRODUTO" && !produtoId) return;
-    if (tipo === "GRUPO_PRODUTO" && !grupoId) return;
-    if (tipo === "ROTATIVO") {
-      if (!criterio) return;
-      if ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva) return;
+    if (
+      (tipo === "ZONA" && !zonaId) ||
+      (tipo === "ENDERECO" && !enderecoId) ||
+      (tipo === "PRODUTO" && !produtoId) ||
+      (tipo === "GRUPO_PRODUTO" && !grupoId) ||
+      (tipo === "ROTATIVO" && (!criterio || ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva)))
+    ) {
+      setResumo(RESET);
+      return;
     }
 
     if (previewRef.current) clearTimeout(previewRef.current);
     const cancelled = { v: false };
+    const done = (patch: Partial<typeof RESET>) => {
+      if (!cancelled.v) setResumo({ ...RESET, calculado: true, ...patch });
+    };
     previewRef.current = setTimeout(async () => {
-      setResumo((r) => ({ ...r, loading: true }));
+      setResumo((r) => ({ ...r, loading: true, erro: null }));
       try {
         const LIMIT = 2000;
         // Pré-filtros: produtos por grupo / curva quando aplicável
         let produtoIdsFilter: string[] | null = null;
         if (tipo === "GRUPO_PRODUTO") {
-          const { data: ps } = await (supabase as any).from("produto")
+          let pq = (supabase as any).from("produto")
             .select("id").eq("tenant_id", tenantId).eq("grupo_id", grupoId).eq("ativo", true).limit(5000);
+          if (empresaId) pq = pq.eq("empresa_id", empresaId);
+          const { data: ps, error: pErr } = await pq;
+          if (pErr) throw pErr;
           produtoIdsFilter = (ps || []).map((p: any) => p.id);
-          if (produtoIdsFilter.length === 0) {
-            if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
-            return;
-          }
+          if (produtoIdsFilter.length === 0) { done({}); return; }
         }
         if (tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO")) {
           const col = criterio === "CURVA_VENDAS" ? "curva_venda" : "curva_acesso";
-          const { data: ps } = await (supabase as any).from("produto")
+          let pq = (supabase as any).from("produto")
             .select("id").eq("tenant_id", tenantId).eq(col, curva).eq("ativo", true).limit(5000);
+          if (empresaId) pq = pq.eq("empresa_id", empresaId);
+          const { data: ps, error: pErr } = await pq;
+          if (pErr) throw pErr;
           produtoIdsFilter = (ps || []).map((p: any) => p.id);
-          if (produtoIdsFilter.length === 0) {
-            if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
-            return;
-          }
+          if (produtoIdsFilter.length === 0) { done({}); return; }
         }
 
         // Atalhos por tipo de escopo único
         if (tipo === "ENDERECO") {
-          const { data } = await (supabase as any).from("estoque_geral")
+          const { data, error } = await (supabase as any).from("estoque_geral")
             .select("produto_id")
             .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("endereco_id", enderecoId)
+            .gt("quantidade_total", 0)
             .limit(LIMIT);
+          if (error) throw error;
           const skus = new Set((data || []).map((r: any) => r.produto_id));
-          if (!cancelled.v) setResumo({ enderecos: 1, skus: skus.size, loading: false, truncado: false });
+          done({ enderecos: skus.size > 0 ? 1 : 0, skus: skus.size });
           return;
         }
 
@@ -283,37 +293,38 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           .eq("tenant_id", tenantId)
           .eq("empresa_id", empresaId)
           .eq("endereco.armazem_id", armazemId)
+          .gt("quantidade_total", 0)
           .limit(LIMIT);
 
         if (tipo === "PRODUTO") q = q.eq("produto_id", produtoId);
         if (tipo === "ZONA") {
-          const { data: ez } = await (supabase as any).from("endereco_zona_atividade")
+          const { data: ez, error: ezErr } = await (supabase as any).from("endereco_zona_atividade")
             .select("endereco_id").eq("tenant_id", tenantId).eq("zona_atividade_id", zonaId).limit(5000);
+          if (ezErr) throw ezErr;
           const ids = (ez || []).map((r: any) => r.endereco_id);
-          if (ids.length === 0) {
-            if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
-            return;
-          }
+          if (ids.length === 0) { done({}); return; }
           q = q.in("endereco_id", ids);
         }
         if (produtoIdsFilter) q = q.in("produto_id", produtoIdsFilter);
 
-        const { data } = await q;
+        const { data, error } = await q;
+        if (error) throw error;
         const rows = data || [];
         const setE = new Set<string>(); const setP = new Set<string>();
         for (const r of rows) { setE.add(r.endereco_id); setP.add(r.produto_id); }
-        if (!cancelled.v) setResumo({
-          enderecos: tipo === "PRODUTO" ? setE.size : setE.size,
-          skus: tipo === "PRODUTO" ? 1 : setP.size,
-          loading: false,
+        done({
+          enderecos: setE.size,
+          skus: tipo === "PRODUTO" ? (setE.size > 0 ? 1 : 0) : setP.size,
           truncado: rows.length >= LIMIT,
         });
-      } catch {
-        if (!cancelled.v) setResumo({ enderecos: 0, skus: 0, loading: false, truncado: false });
+      } catch (err: unknown) {
+        const parsed = parseError(err, "inventario-preview");
+        done({ erro: parsed.title || "Erro ao calcular o resumo" });
       }
     }, 250);
     return () => { cancelled.v = true; clearTimeout(previewRef.current); };
   }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva]);
+
 
 
   // Validação
@@ -341,6 +352,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     if (!isValid) { toast.error("Preencha todos os campos obrigatórios."); return; }
     if (!tenantId || !empresaId || !armazemId) { toast.error(ERROR_MAP.ARMAZEM_OBRIGATORIO); return; }
     setSaving(true);
+    setSaveError(null);
     setProgresso(null);
     try {
       // Pré-checagem: tipo de execução precisa estar configurado para o tenant
@@ -410,7 +422,9 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         onNavigate("/atividades/inventario");
       }
     } catch (err: any) {
-      toast.error(mapError(err));
+      const msg = mapError(err);
+      setSaveError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -481,6 +495,11 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     ? (progresso ? `Gerando tarefas... (${progresso.geradas})` : "Criando...")
     : "Criar Inventário";
 
+  // Escopo sem posições de estoque: nenhuma tarefa será gerada (GERAL é contagem livre)
+  const semEstoque =
+    tipo !== "" && tipo !== "GERAL" &&
+    resumo.calculado && !resumo.loading && !resumo.erro && resumo.enderecos === 0;
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       {/* Header */}
@@ -502,6 +521,16 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           </button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="shrink-0 flex items-start gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
+          <AlertTriangle size={14} className="text-destructive mt-0.5 shrink-0" />
+          <div className="text-xs text-destructive-foreground/90">
+            <p className="font-semibold text-destructive">Não foi possível criar o inventário</p>
+            <p className="mt-0.5">{saveError}</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-auto">
         <div className="flex gap-4 min-h-full">
@@ -695,18 +724,38 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <span className="text-xs text-muted-foreground">Execução</span>
                   <span className="text-xs font-semibold text-foreground">{execLabel}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                  <span className="text-xs text-muted-foreground">Total Endereços</span>
-                  <span className="text-sm font-bold text-primary flex items-center gap-1">
-                    {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : <>{resumo.enderecos}{resumo.truncado && "+"}</>}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
-                  <span className="text-xs text-muted-foreground">Total SKUs</span>
-                  <span className="text-sm font-bold text-primary flex items-center gap-1">
-                    {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : <>{resumo.skus}{resumo.truncado && "+"}</>}
-                  </span>
-                </div>
+                {resumo.erro ? (
+                  <div className="flex items-start gap-2 p-3 rounded-lg border border-destructive/40 bg-destructive/10">
+                    <AlertTriangle size={13} className="text-destructive mt-0.5 shrink-0" />
+                    <div className="text-[11px] leading-snug">
+                      <p className="font-semibold text-destructive">Erro ao calcular o resumo</p>
+                      <p className="text-muted-foreground mt-0.5">{resumo.erro}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                      <span className="text-xs text-muted-foreground">Total Endereços</span>
+                      <span className="text-sm font-bold text-primary flex items-center gap-1">
+                        {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : !resumo.calculado ? <span className="text-muted-foreground font-normal text-xs">—</span> : <>{resumo.enderecos}{resumo.truncado && "+"}</>}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                      <span className="text-xs text-muted-foreground">Total SKUs</span>
+                      <span className="text-sm font-bold text-primary flex items-center gap-1">
+                        {resumo.loading ? <Loader2 size={12} className="animate-spin" /> : !resumo.calculado ? <span className="text-muted-foreground font-normal text-xs">—</span> : <>{resumo.skus}{resumo.truncado && "+"}</>}
+                      </span>
+                    </div>
+                    {semEstoque && (
+                      <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10">
+                        <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
+                        <p className="text-[11px] leading-snug text-amber-200/90">
+                          Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa de inventário será gerada.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
                 {progresso && (
                   <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/30">
                     <span className="text-xs text-muted-foreground">Tarefas geradas</span>
@@ -720,11 +769,21 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       </div>
 
       {/* Mobile summary banner */}
-      <div className="lg:hidden shrink-0 card-surface p-3 flex items-center justify-around text-xs">
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">Tipo</span><span className="font-semibold text-foreground">{tipoLabel}</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">Execução</span><span className="font-semibold text-foreground">{execLabel}</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">{resumo.loading ? "…" : `${resumo.enderecos}${resumo.truncado ? "+" : ""}`}</span></div>
-        <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">{resumo.loading ? "…" : `${resumo.skus}${resumo.truncado ? "+" : ""}`}</span></div>
+      <div className="lg:hidden shrink-0 flex flex-col gap-2">
+        <div className="card-surface p-3 flex items-center justify-around text-xs">
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">Tipo</span><span className="font-semibold text-foreground">{tipoLabel}</span></div>
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">Execução</span><span className="font-semibold text-foreground">{execLabel}</span></div>
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">{resumo.loading ? "…" : !resumo.calculado || resumo.erro ? "—" : `${resumo.enderecos}${resumo.truncado ? "+" : ""}`}</span></div>
+          <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">{resumo.loading ? "…" : !resumo.calculado || resumo.erro ? "—" : `${resumo.skus}${resumo.truncado ? "+" : ""}`}</span></div>
+        </div>
+        {semEstoque && (
+          <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10">
+            <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-[11px] leading-snug text-amber-200/90">
+              Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa será gerada.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
