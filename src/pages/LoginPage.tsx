@@ -140,24 +140,34 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
     }
   };
 
-  const completeLogin = (usuario: any) => {
+  const completeLogin = async (usuario: any) => {
     localStorage.setItem("core_tenant_id", usuario.tenant_id);
     if (usuario.empresa_id) {
       localStorage.setItem("core_empresa_id", usuario.empresa_id);
     } else {
       localStorage.removeItem("core_empresa_id");
     }
-    if (usuario.armazem_id) {
-      localStorage.setItem("core_armazem_id", usuario.armazem_id);
+
+    // Resolve o armazém operacional: usa o do usuário quando ativo, senão o primeiro
+    // armazém ativo da empresa (ordem determinística). Nunca deixa o contexto mudo.
+    const armazem = await resolveArmazemAtivo(usuario.tenant_id, usuario.empresa_id, usuario.armazem_id);
+    if (armazem.id) {
+      localStorage.setItem("core_armazem_id", armazem.id);
+      if (armazem.descricao) localStorage.setItem("core_armazem_nome", armazem.descricao);
+      else localStorage.removeItem("core_armazem_nome");
     } else {
       localStorage.removeItem("core_armazem_id");
+      localStorage.removeItem("core_armazem_nome");
     }
+
     localStorage.setItem("core_usuario_id", usuario.id);
     localStorage.setItem("core_usuario_nome", usuario.nome);
     localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");
+    if (armazem.erro) toast.warning(armazem.erro);
     toast.success(`Bem-vindo, ${usuario.nome}!`);
     onLogin();
   };
+
 
   if (redirectingSupport) {
     return (
