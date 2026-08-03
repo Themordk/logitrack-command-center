@@ -84,6 +84,34 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const [pickSubmitting, setPickSubmitting] = useState(false);
   const [scannedEnderecoInfo, setScannedEnderecoInfo] = useState<{ id: string; descricao: string; armazem: string; setor: string } | null>(null);
 
+  // Dados operacionais (edição inline)
+  const [editOper, setEditOper] = useState(false);
+  const [operForm, setOperForm] = useState({ lastro: "", camada: "", fator_caixa: "" });
+  const [operSubmitting, setOperSubmitting] = useState(false);
+
+  const saveDadosOperacionais = async () => {
+    if (!produtoId) return;
+    setOperSubmitting(true);
+    try {
+      const { error } = await (supabase as any).rpc("fn_produto_atualizar_dados_operacionais", {
+        p_produto_id: produtoId,
+        p_lastro: operForm.lastro === "" ? null : Number(operForm.lastro),
+        p_camada: operForm.camada === "" ? null : Number(operForm.camada),
+        p_fator_caixa: operForm.fator_caixa === "" ? null : Number(operForm.fator_caixa),
+        p_usuario_id: localStorage.getItem("core_usuario_id"),
+      });
+      if (error) throw error;
+      toast.success("Dados operacionais atualizados.");
+      setEditOper(false);
+      await loadProduto();
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar dados operacionais.");
+    } finally {
+      setOperSubmitting(false);
+    }
+  };
+
+
   const loadProduto = useCallback(async () => {
     if (!produtoId) return;
     setLoading(true);
@@ -310,54 +338,105 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
       {/* INFO TAB */}
       {tab === "info" && (
         <div className="flex flex-col gap-3">
-          {produto.url_imagem && (
-            <div className={cardClass}>
-              <div className="flex items-center gap-3">
-                <ProdutoImagemThumb
-                  url={produto.url_imagem}
-                  alt={produto.sku}
-                  caption={`${produto.sku} — ${produto.descricao}`}
-                  size={72}
-                  variant="coletor"
-                />
-                <div className="flex flex-col min-w-0">
-                  <span className={labelClass}>Imagem</span>
-                  <p className="text-xs text-[hsl(213,31%,70%)]">Toque para ampliar</p>
-                </div>
+          {/* BLOCO 1 — Identificação */}
+          <div className={cardClass}>
+            <div className="flex items-center gap-3 mb-3">
+              <ProdutoImagemThumb
+                url={produto.url_imagem}
+                alt={produto.sku}
+                caption={`${produto.sku} — ${produto.descricao}`}
+                size={64}
+                variant="coletor"
+              />
+              <div className="min-w-0">
+                <span className={labelClass}>Identificação</span>
+                <p className="text-sm font-bold text-white truncate">{produto.sku}</p>
+                <p className="text-xs text-[hsl(213,31%,70%)] leading-snug">{produto.descricao}</p>
               </div>
             </div>
-          )}
-          <div className={cardClass}>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                ["SKU", produto.sku],
-                ["Referência", produto.referencia],
-                ["Marca", produto.marca || "—"],
-                ["Parceiro", produto.parceiro_nome],
-                ["Grupo", produto.grupo_nome],
-                ["Subgrupo", produto.subgrupo_nome],
-                ["Curva Venda", produto.curva_venda || "—"],
-                ["Curva Acesso", produto.curva_acesso || "—"],
-                ["Tipo Controle", produto.tipo_controle],
-                ["Lastro", String(produto.lastro ?? "—")],
-                ["Camada", String(produto.camada ?? "—")],
-                ["Fator Caixa", String(produto.fator_caixa ?? "—")],
-                ["Peso Bruto (kg)", String(produto.peso_bruto ?? "—")],
-                ["Peso Líquido (kg)", String(produto.peso_liquido ?? "—")],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <span className={labelClass}>{label}</span>
-                  <p className={valClass}>{value}</p>
-                </div>
-              ))}
+              <div><span className={labelClass}>Referência</span><p className={valClass}>{produto.referencia || "—"}</p></div>
+              <div><span className={labelClass}>Marca</span><p className={valClass}>{produto.marca || "—"}</p></div>
             </div>
           </div>
+
+          {/* BLOCO 2 — Classificação */}
           <div className={cardClass}>
-            <span className={labelClass}>Descrição</span>
-            <p className={valClass}>{produto.descricao}</p>
+            <span className={`${labelClass} block mb-2`}>Classificação</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div><span className={labelClass}>Parceiro</span><p className={valClass}>{produto.parceiro_nome || "—"}</p></div>
+              <div><span className={labelClass}>Tipo Controle</span><p className={valClass}>{produto.tipo_controle}</p></div>
+              <div><span className={labelClass}>Grupo</span><p className={valClass}>{produto.grupo_nome || "—"}</p></div>
+              <div><span className={labelClass}>Subgrupo</span><p className={valClass}>{produto.subgrupo_nome || "—"}</p></div>
+              <div><span className={labelClass}>Curva Venda</span><p className={valClass}>{produto.curva_venda || "—"}</p></div>
+              <div><span className={labelClass}>Curva Acesso</span><p className={valClass}>{produto.curva_acesso || "—"}</p></div>
+            </div>
+          </div>
+
+          {/* BLOCO 3 — Dados operacionais (editáveis) */}
+          <div className={cardClass}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={labelClass}>Dados Operacionais</span>
+              {!editOper ? (
+                <button
+                  onClick={() => {
+                    setOperForm({
+                      lastro: String(produto.lastro ?? ""),
+                      camada: String(produto.camada ?? ""),
+                      fator_caixa: String(produto.fator_caixa ?? ""),
+                    });
+                    setEditOper(true);
+                  }}
+                  className="flex items-center gap-1 text-[11px] font-bold text-[hsl(217,91%,60%)]"
+                >
+                  <Edit2 size={12} /> Editar
+                </button>
+              ) : null}
+            </div>
+
+            {!editOper ? (
+              <div className="grid grid-cols-3 gap-3">
+                <div><span className={labelClass}>Lastro</span><p className={valClass}>{produto.lastro ?? "—"}</p></div>
+                <div><span className={labelClass}>Camada</span><p className={valClass}>{produto.camada ?? "—"}</p></div>
+                <div><span className={labelClass}>Fator Caixa</span><p className={valClass}>{produto.fator_caixa ?? "—"}</p></div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {([["Lastro", "lastro"], ["Camada", "camada"], ["Fator Cx", "fator_caixa"]] as const).map(([label, key]) => (
+                    <div key={key}>
+                      <label className={`${labelClass} block mb-1`}>{label}</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={(operForm as any)[key]}
+                        onChange={(e) => setOperForm({ ...operForm, [key]: e.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditOper(false)} className="flex-1 h-11 rounded-xl border border-[hsl(222,35%,22%)] text-[hsl(213,31%,55%)] font-bold text-sm">Cancelar</button>
+                  <button onClick={saveDadosOperacionais} disabled={operSubmitting} className={`flex-1 ${btnPrimary}`}>
+                    {operSubmitting && <Loader2 size={14} className="animate-spin" />} Salvar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* BLOCO 4 — Pesos */}
+          <div className={cardClass}>
+            <span className={`${labelClass} block mb-2`}>Pesos</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div><span className={labelClass}>Peso Bruto (kg)</span><p className={valClass}>{produto.peso_bruto ?? "—"}</p></div>
+              <div><span className={labelClass}>Peso Líquido (kg)</span><p className={valClass}>{produto.peso_liquido ?? "—"}</p></div>
+            </div>
           </div>
         </div>
       )}
+
 
       {/* EMBALAGENS TAB */}
       {tab === "embalagens" && !showEmbForm && (
