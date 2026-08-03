@@ -1,0 +1,16 @@
+export const EMBALAGENS_PADRAO = [
+  { value: "UN", label: "UN — Unidade" },
+  { value: "CX", label: "CX — Caixa" },
+  { value: "FD", label: "FD — Fardo" },
+  { value: "GL", label: "GL — Galão" },
+  { value: "PC", label: "PC — Peça" },
+  { value: "PT", label: "PT — Pacote" },
+  { value: "DZ", label: "DZ — Dúzia" },
+  { value: "MT", label: "MT — Metro" },
+  { value: "LT", label: "LT — Litro" },
+  { value: "KG", label: "KG — Quilograma" },
+  { value: "SC", label: "SC — Saco" },
+  { value: "PL", label: "PL — Pallet" },
+  { value: "BD", label: "BD — Bandeja" },
+  { value: "TB", label: "TB — Tambor" },
+] as const;

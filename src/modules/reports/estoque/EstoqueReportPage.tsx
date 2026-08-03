@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
@@ -21,6 +22,25 @@ import {
   type ExportColumn,
 } from "../utils/exporters";
 
+function fmtCaixa(qtd: number, fator: number | null | undefined) {
+  const n = Number(qtd) || 0;
+  if (!fator || fator <= 1) return `${n.toLocaleString("pt-BR")} UN`;
+  const cx = Math.floor(n / fator);
+  const resto = n % fator;
+  return resto > 0
+    ? `${cx.toLocaleString("pt-BR")} CX + ${resto.toLocaleString("pt-BR")} UN`
+    : `${cx.toLocaleString("pt-BR")} CX`;
+}
+
+function QtdComCaixa({ qtd, fator, modo, className }: { qtd: number; fator: number | null; modo: boolean; className?: string }) {
+  const n = Number(qtd) || 0;
+  if (!modo) return <span className={className}>{n.toLocaleString("pt-BR")}</span>;
+  if (!fator || fator <= 1) {
+    return <span className="text-muted-foreground">{n.toLocaleString("pt-BR")} UN</span>;
+  }
+  return <span className={className}>{fmtCaixa(n, fator)}</span>;
+}
+
 export function EstoqueReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<any[]>([]);
@@ -28,6 +48,7 @@ export function EstoqueReportPage() {
   const [generated, setGenerated] = useState(false);
   const [generatedAt, setGeneratedAt] = useState("");
   const [showFilters, setShowFilters] = useState(true);
+  const [visualizarCaixa, setVisualizarCaixa] = useState(false);
 
   // Filter states
   const [filterSku, setFilterSku] = useState("");
@@ -199,16 +220,16 @@ export function EstoqueReportPage() {
     { key: "endereco_descricao", label: "Endereço", width: "140px", render: (v) => v || "—" },
     { key: "tipo_endereco", label: "Tipo Endereço", width: "110px" },
     {
-      key: "quantidade_disponivel", label: "Disponível", align: "right", width: "90px",
-      render: (v) => <span className={cn(v === 0 && "text-muted-foreground")}>{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "quantidade_disponivel", label: "Disponível", align: "right", width: visualizarCaixa ? "130px" : "90px",
+      render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) === 0 && "text-muted-foreground")} />,
     },
     {
-      key: "quantidade_bloqueada", label: "Bloqueado", align: "right", width: "90px",
-      render: (v) => <span className={cn(Number(v) > 0 && "text-[hsl(var(--status-busy))] font-semibold")}>{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "quantidade_bloqueada", label: "Bloqueado", align: "right", width: visualizarCaixa ? "130px" : "90px",
+      render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) > 0 && "text-[hsl(var(--status-busy))] font-semibold")} />,
     },
     {
-      key: "quantidade_total", label: "Total", align: "right", width: "90px",
-      render: (v) => <span className={cn(v === 0 && "text-muted-foreground")}>{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "quantidade_total", label: "Total", align: "right", width: visualizarCaixa ? "130px" : "90px",
+      render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) === 0 && "text-muted-foreground")} />,
     },
     {
       key: "atualizado_em", label: "Última Atualização", width: "150px",
@@ -241,9 +262,12 @@ export function EstoqueReportPage() {
       format: (r) => (r.codigo_endereco == null ? "" : String(r.codigo_endereco)) },
     { key: "endereco_descricao", label: "Endereço" },
     { key: "tipo_endereco", label: "Tipo Endereço" },
-    { key: "quantidade_disponivel", label: "Disponível", align: "right", format: (r) => fmtNumberBR(r.quantidade_disponivel) },
-    { key: "quantidade_bloqueada", label: "Bloqueado", align: "right", format: (r) => fmtNumberBR(r.quantidade_bloqueada) },
-    { key: "quantidade_total", label: "Total", align: "right", format: (r) => fmtNumberBR(r.quantidade_total) },
+    { key: "quantidade_disponivel", label: "Disponível", align: "right",
+      format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_disponivel, r.fator_caixa) : fmtNumberBR(r.quantidade_disponivel)) },
+    { key: "quantidade_bloqueada", label: "Bloqueado", align: "right",
+      format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_bloqueada, r.fator_caixa) : fmtNumberBR(r.quantidade_bloqueada)) },
+    { key: "quantidade_total", label: "Total", align: "right",
+      format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_total, r.fator_caixa) : fmtNumberBR(r.quantidade_total)) },
     { key: "atualizado_em", label: "Última Atualização", format: (r) => fmtDateTimeBR(r.atualizado_em) },
   ];
 
@@ -388,6 +412,12 @@ export function EstoqueReportPage() {
                     onCheckedChange={(v) => setFilterApenasComSaldo(v === true)}
                   />
                   <span className="text-xs">Apenas posições com saldo</span>
+                </label>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 h-8 cursor-pointer select-none">
+                  <Switch checked={visualizarCaixa} onCheckedChange={setVisualizarCaixa} />
+                  <span className="text-xs">Visualizar em Caixa</span>
                 </label>
               </div>
             </div>

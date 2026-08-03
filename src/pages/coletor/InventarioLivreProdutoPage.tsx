@@ -130,6 +130,8 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
         p_usuario_id: usuarioId,
         p_endereco_codigo: Number(enderecoCodigo),
         p_ean: eanScanned,
+        // Enviar a quantidade na embalagem escaneada: a RPC já multiplica
+        // internamente pelo fator (v_qtd_final := p_quantidade * fator).
         p_quantidade: qtd,
         p_lote: lote || "",
         p_validade: validade || "1900-01-01",
@@ -221,29 +223,45 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
               <div className="text-xs text-[hsl(213,31%,55%)]">Descrição: <span className="font-bold text-[hsl(213,31%,91%)]">{produtoInfo?.descricao || "—"}</span></div>
             </div>
 
-            {/* Embalagem */}
-            {embalagemInfo && embalagemInfo.fator > 1 && (
+            {/* Embalagem — SEMPRE visível após scan confirmado */}
+            {embalagemInfo && (
               <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
                 <div className="flex items-center gap-2 mb-1">
                   <BoxIcon size={18} className="text-[hsl(217,91%,60%)]" />
-                  <span className="text-sm font-bold text-white">Embalagem</span>
+                  <span className="text-sm font-bold text-white">Embalagem escaneada</span>
+                  <span className={`ml-auto px-2 py-0.5 rounded-lg text-xs font-bold ${
+                    embalagemInfo.fator > 1
+                      ? "bg-[hsl(217,91%,50%)]/20 text-[hsl(217,91%,70%)] border border-[hsl(217,91%,50%)]/40"
+                      : "bg-[hsl(142,76%,36%)]/20 text-[hsl(142,76%,50%)] border border-[hsl(142,76%,36%)]/40"
+                  }`}>
+                    {embalagemInfo.embalagem}
+                  </span>
                 </div>
                 <div className="text-xs text-[hsl(213,31%,55%)]">EAN: <span className="font-bold text-[hsl(213,31%,91%)]">{embalagemInfo.ean}</span></div>
-                <div className="text-xs text-[hsl(213,31%,55%)]">Fator: <span className="font-bold text-[hsl(217,91%,60%)]">{embalagemInfo.fator}</span></div>
-                <div className="text-xs text-[hsl(213,31%,55%)]">Embalagem: <span className="font-bold text-[hsl(213,31%,91%)]">{embalagemInfo.embalagem}</span></div>
+                <div className="text-xs text-[hsl(213,31%,55%)]">
+                  Fator: <span className="font-bold text-[hsl(217,91%,60%)]">{embalagemInfo.fator}</span> UN por {embalagemInfo.embalagem}
+                </div>
               </div>
             )}
 
             {/* Quantidade */}
             <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4">
-              <label className="text-xs text-[hsl(213,31%,55%)] block mb-2">Informar Quantidade</label>
+              <label className="text-xs text-[hsl(213,31%,55%)] block mb-2">
+                Quantidade em {embalagemInfo?.embalagem || "UN"}
+              </label>
               <input
                 type="number"
+                inputMode="numeric"
                 value={quantidade}
                 onChange={(e) => setQuantidade(e.target.value)}
                 placeholder="0"
                 className="w-full h-12 rounded-xl bg-[hsl(222,35%,8%)] border border-[hsl(222,35%,22%)] text-center text-xl font-bold text-white outline-none focus:border-[hsl(217,91%,50%)]"
               />
+              {embalagemInfo && embalagemInfo.fator > 1 && quantidade !== "" && Number(quantidade) > 0 && (
+                <div className="mt-2 text-center text-xs font-bold text-[hsl(217,91%,60%)]">
+                  = {Number(quantidade) * embalagemInfo.fator} UN
+                </div>
+              )}
             </div>
 
             <ActionButton
