@@ -21,6 +21,18 @@ interface TarefaResult {
   lote: string | null;
   varios_pickings: string | null;
   enderecos_picking: string | null;
+  fator_caixa: number | null;
+}
+
+function ConvCaixa({ qtd, fator }: { qtd: number; fator: number }) {
+  if (!(fator > 1)) return null;
+  const cx = Math.floor(Number(qtd) / fator);
+  const resto = Number(qtd) % fator;
+  return (
+    <span className="block text-[10px] text-[hsl(217,91%,70%)] leading-tight">
+      = {cx} CX{resto > 0 ? ` + ${resto} UN` : ""}
+    </span>
+  );
 }
 
 export function ArmazenagemIniciarPage({ onNavigate }: Props) {
@@ -138,6 +150,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   };
 
   const variosPickings = tarefa?.varios_pickings === "S";
+  const fatorCaixa = Number(tarefa?.fator_caixa || 1);
 
   return (
     <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
@@ -169,16 +182,20 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">A armazenar</span>
                 <span className="text-xl font-bold text-white">{tarefa.qtd_conferida}</span>
+                <ConvCaixa qtd={tarefa.qtd_conferida} fator={fatorCaixa} />
               </div>
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Armazenado</span>
                 <span className="text-xl font-bold text-[#22C55E]">{tarefa.qtd_armazenada}</span>
+                <ConvCaixa qtd={tarefa.qtd_armazenada} fator={fatorCaixa} />
               </div>
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Restante</span>
                 <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{tarefa.qtd_a_armazenar}</span>
+                <ConvCaixa qtd={tarefa.qtd_a_armazenar} fator={fatorCaixa} />
               </div>
             </div>
+
 
             {tarefa.enderecos_picking && (
               <div className="flex items-center gap-1.5 border-t border-[hsl(222,35%,22%)] pt-2">
