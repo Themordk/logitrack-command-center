@@ -299,7 +299,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/turnos": return <TurnosPage />;
     case "/armazem/motivos":
     case "/config/motivos-ocorrencia": return <MotivosOcorrenciaPage />;
-    case "/atividades/hus": return <HUsPage />;
+    case "/atividades/hus": return <HUsPage onNavigate={onNavigate} />;
     case "/atividades/entradas": return <EntradasPage />;
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/saidas": return <SaidasPage />;
@@ -310,9 +310,9 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
-    case "/atividades/volumes": return <VolumesPage />;
+    case "/atividades/volumes": return <VolumesPage onNavigate={onNavigate} />;
     case "/atividades/abastecimento": return <AbastecimentoPage onNavigate={onNavigate} />;
-    case "/dados-mestres/produtos": return <ProdutosPage />;
+    case "/dados-mestres/produtos": return <ProdutosPage onNavigate={onNavigate} />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
     case "/dados-mestres/subgrupos": return <SubgruposPage />;
     case "/dados-mestres/parceiros": return <ParceirosPage />;

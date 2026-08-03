@@ -653,13 +653,13 @@ function ProdutoDetailModal({
         </SheetContent>
       </Sheet>
 
-      <PrintEtiquetaProdutoModal open={embPrintOpen} onClose={() => setEmbPrintOpen(false)} items={embPrintItems} />
+      <PrintEtiquetaProdutoModal open={embPrintOpen} onClose={() => setEmbPrintOpen(false)} items={embPrintItems} onNavigate={onNavigate} />
     </Sheet>
   );
 }
 
 // ─── Main Produtos Page ────────────────────────────────────────────
-export function ProdutosPage() {
+export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
   const { tenantId, empresaId, armazemId, empresaVersion, usuarioId } = useTenant();
   const [filterSemEan, setFilterSemEan] = useState(false);
   const [filterSku, setFilterSku] = useState("");
@@ -916,6 +916,7 @@ export function ProdutosPage() {
         open={listPrintOpen}
         onClose={() => setListPrintOpen(false)}
         items={listPrintItems}
+        onNavigate={onNavigate}
       />
     </>
   );
