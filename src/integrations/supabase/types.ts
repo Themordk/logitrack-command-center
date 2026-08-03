@@ -10100,6 +10100,7 @@ export type Database = {
         Returns: {
           descricao: string
           fabricacao: string
+          fator_caixa: number
           lote: string
           movimento_entrada_item_id: string
           picking_apto: number
