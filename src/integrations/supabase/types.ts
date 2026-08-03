@@ -8681,6 +8681,7 @@ export type Database = {
           descricao: string
           enderecos_picking: string
           fabricacao: string
+          fator_caixa: number
           lote: string
           produto_id: string
           qtd_a_armazenar: number
