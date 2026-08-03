@@ -883,6 +883,60 @@ export type Database = {
           },
         ]
       }
+      documento_saida_item_backup_20260801: {
+        Row: {
+          backup_criado_em: string | null
+          codigo_erp: string | null
+          codigo_erp_produto: string | null
+          documento_saida_id: string | null
+          id: string | null
+          motivo: string | null
+          produto_fator_caixa_snapshot: number | null
+          produto_id: string | null
+          quantidade: number | null
+          sistema_origem: string | null
+          status_mapeamento: string | null
+          tenant_id: string | null
+          tenant_id_alvo: string | null
+          valor_total: number | null
+          valor_unit: number | null
+        }
+        Insert: {
+          backup_criado_em?: string | null
+          codigo_erp?: string | null
+          codigo_erp_produto?: string | null
+          documento_saida_id?: string | null
+          id?: string | null
+          motivo?: string | null
+          produto_fator_caixa_snapshot?: number | null
+          produto_id?: string | null
+          quantidade?: number | null
+          sistema_origem?: string | null
+          status_mapeamento?: string | null
+          tenant_id?: string | null
+          tenant_id_alvo?: string | null
+          valor_total?: number | null
+          valor_unit?: number | null
+        }
+        Update: {
+          backup_criado_em?: string | null
+          codigo_erp?: string | null
+          codigo_erp_produto?: string | null
+          documento_saida_id?: string | null
+          id?: string | null
+          motivo?: string | null
+          produto_fator_caixa_snapshot?: number | null
+          produto_id?: string | null
+          quantidade?: number | null
+          sistema_origem?: string | null
+          status_mapeamento?: string | null
+          tenant_id?: string | null
+          tenant_id_alvo?: string | null
+          valor_total?: number | null
+          valor_unit?: number | null
+        }
+        Relationships: []
+      }
       documento_saida_item_lote: {
         Row: {
           documento_saida_item_id: string
@@ -4755,6 +4809,8 @@ export type Database = {
           tipo_controle: Database["public"]["Enums"]["enum_tipo_controle"]
           tipo_separacao: Database["public"]["Enums"]["enum_tipo_separacao"]
           tolerancia: number | null
+          updated_at: string
+          updated_by: string | null
           url_imagem: string | null
           usa_picking: boolean
           varios_pickings: boolean
@@ -4788,6 +4844,8 @@ export type Database = {
           tipo_controle: Database["public"]["Enums"]["enum_tipo_controle"]
           tipo_separacao: Database["public"]["Enums"]["enum_tipo_separacao"]
           tolerancia?: number | null
+          updated_at?: string
+          updated_by?: string | null
           url_imagem?: string | null
           usa_picking?: boolean
           varios_pickings?: boolean
@@ -4821,6 +4879,8 @@ export type Database = {
           tipo_controle?: Database["public"]["Enums"]["enum_tipo_controle"]
           tipo_separacao?: Database["public"]["Enums"]["enum_tipo_separacao"]
           tolerancia?: number | null
+          updated_at?: string
+          updated_by?: string | null
           url_imagem?: string | null
           usa_picking?: boolean
           varios_pickings?: boolean
@@ -4866,6 +4926,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -9084,6 +9151,16 @@ export type Database = {
           p_tenant_id: string
           p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
           p_zona_atividade_id?: string
+        }
+        Returns: Json
+      }
+      fn_produto_atualizar_dados_operacionais: {
+        Args: {
+          p_camada: number
+          p_fator_caixa: number
+          p_lastro: number
+          p_produto_id: string
+          p_usuario_id: string
         }
         Returns: Json
       }
