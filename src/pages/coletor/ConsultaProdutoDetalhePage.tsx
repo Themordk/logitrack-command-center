@@ -493,8 +493,20 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
       {tab === "embalagens" && showEmbForm && (
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold text-white">{editEmb ? "Editar Embalagem" : "Nova Embalagem"}</h3>
+          <div>
+            <label className={`${labelClass} block mb-1`}>Embalagem *</label>
+            <select
+              value={embForm.embalagem}
+              onChange={(e) => setEmbForm({ ...embForm, embalagem: e.target.value })}
+              className={inputClass}
+            >
+              <option value="">Selecione…</option>
+              {EMBALAGENS_PADRAO.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
           {[
-            ["Embalagem *", "embalagem", "text"],
             ["EAN *", "ean", "text"],
             ["Fator *", "fator", "number"],
             ["Peso Bruto", "peso_bruto", "number"],
