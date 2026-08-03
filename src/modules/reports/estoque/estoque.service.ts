@@ -117,6 +117,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
         sku,
         descricao,
         marca,
+        fator_caixa,
         grupo_id,
         subgrupo_id,
         parceiro_id
@@ -146,6 +147,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     sku: row.produto?.sku || "",
     descricao: row.produto?.descricao || "",
     marca: row.produto?.marca || "",
+    fator_caixa: row.produto?.fator_caixa ?? null,
     lote: row.lote || "",
     data_validade: row.data_validade,
     numero_serie: row.numero_serie || "",
