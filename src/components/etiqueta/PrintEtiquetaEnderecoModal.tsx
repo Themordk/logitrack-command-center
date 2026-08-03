@@ -5,10 +5,10 @@ import {
   Loader2,
   AlertTriangle,
   Info,
-  Layers,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  MapPin,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ZplPreview } from "./ZplPreview";
@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { parseError } from "@/lib/errorMapper";
 import { toast } from "sonner";
 import type { EtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
+import type { OverflowInfo } from "@/lib/detectarOverflowZpl";
 
 type DirecaoSeta = "NENHUMA" | "CIMA" | "BAIXO" | "ESQUERDA" | "DIREITA";
 
@@ -61,6 +62,8 @@ export function PrintEtiquetaEnderecoModal({
   const [direcaoSeta, setDirecaoSeta] = useState<DirecaoSeta>("NENHUMA");
   const [indicePreview, setIndicePreview] = useState(0);
   const [enviando, setEnviando] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<"fit" | 1.5 | 2>("fit");
+  const [overflowInfo, setOverflowInfo] = useState<OverflowInfo | null>(null);
 
   // Carrega templates de ENDERECO
   useEffect(() => {
@@ -95,7 +98,10 @@ export function PrintEtiquetaEnderecoModal({
 
   // Reinicia navegação/seta ao abrir ou trocar template
   useEffect(() => {
-    if (open) setIndicePreview(0);
+    if (open) {
+      setIndicePreview(0);
+      setZoomLevel("fit");
+    }
   }, [open, enderecos.length]);
 
   useEffect(() => {
@@ -204,26 +210,183 @@ export function PrintEtiquetaEnderecoModal({
     console.error("[Impressão Endereço] Todas falharam:", errosDetalhados);
   };
 
+  const handleReimprimirAtual = async () => {
+    if (!armazemId) {
+      toast.error("Selecione um armazém antes de imprimir");
+      return;
+    }
+    if (!selectedConfig || !enderecoAtual) return;
+
+    setEnviando(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
+        p_armazem_id: armazemId,
+        p_tipo_etiqueta: "ENDERECO",
+        p_dados: {
+          codigo_endereco:
+            enderecoAtual.codigo_endereco != null ? String(enderecoAtual.codigo_endereco) : "",
+          descricao: enderecoAtual.descricao ?? "",
+          tipo_endereco: enderecoAtual.tipo_endereco ?? "",
+          curva_acesso: enderecoAtual.curva_acesso ?? "",
+          direcao_seta: direcaoSeta,
+          seta_simbolo: SETA_SIMBOLO[direcaoSeta],
+        },
+        p_origem: "PAINEL_ADMINISTRATIVO",
+        p_documento_origem_id: String(enderecoAtual.id),
+        p_tipo_documento_origem: "endereco",
+        p_prioridade: 5,
+      });
+      if (error) throw error;
+      const result = typeof data === "string" ? JSON.parse(data) : data;
+      if (result?.success) {
+        toast.success(
+          `Etiqueta ${enderecoAtual.descricao ?? enderecoAtual.id} enviada para impressão`,
+        );
+      } else {
+        toast.error(result?.error ?? "Falha ao enfileirar");
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erro inesperado ao reimprimir");
+    } finally {
+      setEnviando(false);
+    }
+    // NÃO fecha o modal: usuário pode querer reimprimir outra em seguida.
+  };
+
+  const zoomBtn = (nivel: "fit" | 1.5 | 2, label: string, aria: string) => (
+    <button
+      type="button"
+      onClick={() => setZoomLevel(nivel)}
+      className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+        zoomLevel === nivel
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+      }`}
+      aria-label={aria}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-3xl bg-card border-border">
+      <DialogContent className="sm:max-w-4xl bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-foreground">
-            <Printer size={18} className="text-primary" />
-            Imprimir Etiquetas de Endereço
+          <DialogTitle asChild>
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <Printer size={17} className="text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-foreground leading-tight">
+                  Imprimir etiquetas de endereço
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {total} {plural ? "etiquetas selecionadas" : "etiqueta selecionada"}
+                  {selectedConfig && (
+                    <>
+                      <span className="mx-1.5">·</span>
+                      <span>Template: {selectedConfig.nome}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-5 md:grid-cols-[280px_1fr]">
-          {/* Coluna esquerda — controles */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
-              <Layers size={13} className="text-primary shrink-0" />
-              <span className="text-xs text-primary font-medium">
-                {total} {plural ? "etiquetas selecionadas" : "etiqueta selecionada"}
+        <div className="grid gap-5 md:grid-cols-[1fr_260px]">
+          {/* COLUNA ESQUERDA — PREVIEW (hero) */}
+          <div className="min-w-0">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Preview térmico
               </span>
+              <div className="flex items-center gap-0.5 bg-secondary/50 border border-border/50 rounded-md p-0.5">
+                {zoomBtn("fit", "Ajustar", "Ajustar preview ao container")}
+                {zoomBtn(1.5, "150%", "Zoom 150%")}
+                {zoomBtn(2, "200%", "Zoom 200%")}
+              </div>
             </div>
 
+            <ZplPreview
+              zpl={zplDoTemplate}
+              larguraMm={Number(selectedConfig?.largura_mm) || 100}
+              alturaMm={Number(selectedConfig?.altura_mm) || 40}
+              dados={dadosPreview}
+              escalaPx={4}
+              maxLarguraPx={560}
+              zoom={zoomLevel}
+              onOverflow={setOverflowInfo}
+            />
+
+            {total > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIndicePreview((i) => Math.max(0, i - 1))}
+                  disabled={indicePreview === 0}
+                  className="h-7 w-7 flex items-center justify-center rounded-md border border-border hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Etiqueta anterior"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs text-muted-foreground font-medium px-1">
+                  Etiqueta <span className="text-foreground">{indicePreview + 1}</span> de{" "}
+                  <span className="text-foreground">{total}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIndicePreview((i) => Math.min(total - 1, i + 1))}
+                  disabled={indicePreview >= total - 1}
+                  className="h-7 w-7 flex items-center justify-center rounded-md border border-border hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Próxima etiqueta"
+                >
+                  <ChevronRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReimprimirAtual}
+                  disabled={enviando || !selectedConfig}
+                  className="ml-2 flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Printer size={12} />
+                  Reimprimir esta
+                </button>
+              </div>
+            )}
+
+            {enderecoAtual && (
+              <div className="mt-3 flex items-center gap-3 bg-secondary/40 border border-border/60 rounded-lg px-3 py-2.5">
+                <MapPin size={15} className="text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-mono font-semibold text-foreground truncate">
+                    {enderecoAtual.descricao ?? enderecoAtual.codigo ?? String(enderecoAtual.id)}
+                  </div>
+                  {enderecoAtual.setor && (
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {enderecoAtual.setor}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {enderecoAtual.curva_acesso && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                      Curva {enderecoAtual.curva_acesso}
+                    </span>
+                  )}
+                  {enderecoAtual.tipo_endereco && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground border border-border">
+                      {enderecoAtual.tipo_endereco}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* COLUNA DIREITA — CONTROLES */}
+          <div className="space-y-4">
             {loadingConfig ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 size={12} className="animate-spin" /> Carregando templates...
@@ -303,6 +466,17 @@ export function PrintEtiquetaEnderecoModal({
                   </div>
                 )}
 
+                {overflowInfo?.overflow && (
+                  <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
+                    <AlertTriangle size={13} className="text-yellow-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-400 leading-relaxed">
+                      O ZPL deste template desenha em {overflowInfo.yMaxMm.toFixed(1)}mm, além da
+                      altura configurada de {overflowInfo.alturaMm}mm. O preview aparece cortado.
+                      Ajuste o template ou aumente a altura.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex items-start gap-2 bg-secondary/50 border border-border/50 rounded-lg px-3 py-2">
                   <Info size={13} className="text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
@@ -321,47 +495,9 @@ export function PrintEtiquetaEnderecoModal({
               </>
             )}
           </div>
-
-          {/* Coluna direita — preview */}
-          <div className="flex flex-col items-center justify-start">
-            <ZplPreview
-              zpl={zplDoTemplate}
-              larguraMm={Number(selectedConfig?.largura_mm) || 100}
-              alturaMm={Number(selectedConfig?.altura_mm) || 40}
-              dados={dadosPreview}
-              escalaPx={4}
-              maxLarguraPx={520}
-            />
-
-            {total > 1 && (
-              <div className="flex items-center justify-center gap-3 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setIndicePreview((i) => Math.max(0, i - 1))}
-                  disabled={indicePreview === 0}
-                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground disabled:opacity-30"
-                  aria-label="Etiqueta anterior"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <span className="text-xs text-muted-foreground font-medium">
-                  {indicePreview + 1} de {total}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIndicePreview((i) => Math.min(total - 1, i + 1))}
-                  disabled={indicePreview >= total - 1}
-                  className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground disabled:opacity-30"
-                  aria-label="Próxima etiqueta"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-secondary/30 px-6 py-4 -mx-6 -mb-6 mt-2">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -381,7 +517,7 @@ export function PrintEtiquetaEnderecoModal({
             ) : (
               <>
                 <Send size={15} />
-                Enviar {total} para Fila
+                Enviar {total} para fila
               </>
             )}
           </button>
