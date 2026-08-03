@@ -170,6 +170,7 @@ export function PrintEtiquetaEnderecoModal({
           p_documento_origem_id: String(end.id),
           p_tipo_documento_origem: "endereco",
           p_prioridade: 5,
+          p_template_id: selectedConfig?.id ?? undefined,
         });
 
         if (error) {
@@ -235,6 +236,7 @@ export function PrintEtiquetaEnderecoModal({
         p_documento_origem_id: String(enderecoAtual.id),
         p_tipo_documento_origem: "endereco",
         p_prioridade: 5,
+        p_template_id: selectedConfig?.id ?? undefined,
       });
       if (error) throw error;
       const result = typeof data === "string" ? JSON.parse(data) : data;
