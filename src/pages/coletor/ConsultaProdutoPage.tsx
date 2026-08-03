@@ -56,6 +56,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       setProdutoFatorCaixa(Number(emb[0].produto?.fator_caixa) || 1);
 
       // Fetch stock grouped by address
+      // Sem FK entre endereco e tipo_estoque: resolvemos a descrição em consulta separada.
       const { data: estoque } = await (supabase as any)
         .from("estoque_geral")
         .select(`
@@ -63,21 +64,34 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
           endereco:endereco_id(
             descricao,
             tipo_endereco,
-            tipo_estoque:tipo_estoque_id(descricao)
+            tipo_estoque_id
           )
         `)
         .eq("produto_id", prodId)
         .gt("quantidade_disponivel", 0);
 
+      const tipoIds = Array.from(
+        new Set((estoque || []).map((e: any) => e.endereco?.tipo_estoque_id).filter(Boolean)),
+      );
+      const tipoMap = new Map<string, string>();
+      if (tipoIds.length > 0) {
+        const { data: tipos } = await (supabase as any)
+          .from("tipo_estoque")
+          .select("id, descricao")
+          .in("id", tipoIds);
+        (tipos || []).forEach((t: any) => tipoMap.set(t.id, t.descricao));
+      }
+
       const rows: SaldoRow[] = (estoque || []).map((e: any) => ({
         endereco_desc: e.endereco?.descricao || "—",
         tipo_endereco: e.endereco?.tipo_endereco || "—",
-        tipo_estoque_desc: e.endereco?.tipo_estoque?.descricao || "—",
+        tipo_estoque_desc: tipoMap.get(e.endereco?.tipo_estoque_id) || "—",
         quantidade_disponivel: Number(e.quantidade_disponivel) || 0,
         lote: e.lote || "",
         data_validade: e.data_validade || "",
         data_fabricacao: e.data_fabricacao || "",
       }));
+
 
       setSaldos(rows);
     } catch {
