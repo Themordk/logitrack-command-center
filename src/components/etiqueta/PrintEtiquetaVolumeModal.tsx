@@ -1,42 +1,78 @@
-import { useRef, useMemo, useState, useEffect } from "react";
-import { Printer, X, Eye, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  Printer,
+  Send,
+  Loader2,
+  AlertTriangle,
+  Info,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Boxes,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { EtiquetaVolumePreview, type VolumeLike } from "./EtiquetaVolumePreview";
-import { getPrintCSS, getPrintCSSFromConfig, getTemplateFromConfig, TEMPLATES } from "./thermalEngine";
+import { ZplPreview } from "./ZplPreview";
+import { gerarZplTemplate } from "@/lib/zplGenerator";
 import { useTenant } from "@/contexts/TenantContext";
-import { formatDateTime } from "@/utils/dateTime";
 import { supabase } from "@/integrations/supabase/client";
 import { parseError } from "@/lib/errorMapper";
 import { toast } from "sonner";
 import type { EtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
+import type { OverflowInfo } from "@/lib/detectarOverflowZpl";
+import type { VolumeLike } from "./EtiquetaVolumePreview";
 
 interface PrintEtiquetaVolumeModalProps {
   open: boolean;
   onClose: () => void;
   volumes: VolumeLike[];
+  onNavigate?: (path: string) => void;
 }
 
-export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtiquetaVolumeModalProps) {
-  const printRef = useRef<HTMLDivElement>(null);
-  const { usuarioNome, empresaId, armazemId } = useTenant();
-  const dataHora = useMemo(() => formatDateTime(new Date()), [open]);
-  const [duasColunas, setDuasColunas] = useState(false);
-  const [intervaloColunasMm, setIntervaloColunasMm] = useState(3);
+function dadosDoVolume(vol: any) {
+  return {
+    codigo_volume: vol.codigo_volume || "",
+    parceiro_nome: vol.parceiro_nome || "",
+    destino_carga: vol.destino_carga || "",
+    numero_onda: vol.numero_onda != null ? String(vol.numero_onda) : "",
+    numero_volume: vol.numero_volume != null ? String(vol.numero_volume) : "",
+    total_volumes:
+      vol.total_volumes_movimento != null ? String(vol.total_volumes_movimento) : "",
+    peso: vol.peso != null ? String(vol.peso) : "",
+    nota_fiscal: vol.nota_fiscal || "",
+    pedido: vol.pedido || "",
+    transportadora: vol.transportadora || "",
+    observacao: vol.observacao || "",
+  };
+}
+
+const identificadorLegivel = (vol: any) => vol.codigo_volume ?? String(vol.id);
+
+export function PrintEtiquetaVolumeModal({
+  open,
+  onClose,
+  volumes,
+  onNavigate,
+}: PrintEtiquetaVolumeModalProps) {
+  const { empresaId, armazemId } = useTenant();
 
   const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<EtiquetaConfig | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [indicePreview, setIndicePreview] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState<"fit" | 1.5 | 2>("fit");
+  const [overflowInfo, setOverflowInfo] = useState<OverflowInfo | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     async function load() {
-      setLoading(true);
+      setLoadingConfig(true);
       try {
-        const { data, error } = await (supabase.rpc as any)(
-          "listar_etiqueta_templates",
-          { p_tipo: "VOLUME", p_empresa_id: empresaId || null }
-        );
+        const { data, error } = await (supabase.rpc as any)("listar_etiqueta_templates", {
+          p_tipo: "VOLUME",
+          p_empresa_id: empresaId || null,
+        });
         if (cancelled) return;
         if (error) throw error;
         const parsed: EtiquetaConfig[] = (data || []).map((row: any) => ({
@@ -44,179 +80,403 @@ export function PrintEtiquetaVolumeModal({ open, onClose, volumes }: PrintEtique
           campos: typeof row.campos === "string" ? JSON.parse(row.campos) : row.campos,
         }));
         setTemplates(parsed);
-        const padrao = parsed.find((t) => t.padrao) || parsed[0] || null;
-        setSelectedConfig(padrao);
+        setSelectedConfig(parsed.find((t) => t.padrao) || parsed[0] || null);
       } catch (err: any) {
         if (!cancelled) toast.error(parseError(err, "carregar templates").title);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadingConfig(false);
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [open, empresaId]);
 
   useEffect(() => {
-    if (selectedConfig) {
-      setDuasColunas(!!selectedConfig.duas_colunas);
-      setIntervaloColunasMm(selectedConfig.intervalo_colunas_mm ?? 3);
+    if (open) {
+      setIndicePreview(0);
+      setZoomLevel("fit");
+    }
+  }, [open, volumes.length]);
+
+  const total = volumes.length;
+  const plural = total > 1;
+  const volumeAtual = volumes[Math.min(indicePreview, Math.max(total - 1, 0))] as any;
+
+  const zplDoTemplate = useMemo(() => {
+    if (!selectedConfig) return "";
+    const corpo = selectedConfig.corpo_zpl?.trim();
+    if (corpo) return corpo;
+    try {
+      return gerarZplTemplate("VOLUME", selectedConfig);
+    } catch {
+      return "";
     }
   }, [selectedConfig]);
 
-  const template = selectedConfig ? getTemplateFromConfig(selectedConfig) : TEMPLATES.ARMAZEM_100x40_H;
+  const dadosPreview = useMemo(
+    () => (volumeAtual ? dadosDoVolume(volumeAtual) : {}),
+    [volumeAtual],
+  );
 
-  const configOverride = useMemo(() => {
-    if (!selectedConfig) return undefined;
-    return { ...selectedConfig, duas_colunas: duasColunas, intervalo_colunas_mm: intervaloColunasMm };
-  }, [selectedConfig, duasColunas, intervaloColunasMm]);
+  const semTemplates = !loadingConfig && templates.length === 0;
+  const semZpl = !!selectedConfig && !zplDoTemplate;
 
-  const triggerPrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
-    const css = selectedConfig
-      ? getPrintCSSFromConfig(template.widthMm, template.heightMm, duasColunas, intervaloColunasMm)
-      : getPrintCSS(template);
-    const win = window.open("", "_blank", "width=900,height=700");
-    if (!win) return;
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas Volume – CORE LogiTrack</title><style>${css}</style></head><body>${printContent.innerHTML}</body></html>`;
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => { win.focus(); win.print(); }, 500);
-  };
-
-  const enviarParaImpressora = async () => {
+  const handleEnviar = async () => {
     if (!armazemId) {
       toast.error("Selecione um armazém antes de imprimir");
       return;
     }
+    if (!selectedConfig) {
+      toast.error("Selecione um template antes de imprimir");
+      return;
+    }
+
+    setEnviando(true);
     let successCount = 0;
     let errorCount = 0;
+    const errosDetalhados: string[] = [];
+
     for (const vol of volumes as any[]) {
       try {
         const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
           p_armazem_id: armazemId,
           p_tipo_etiqueta: "VOLUME",
-          p_dados: {
-            codigo_volume: vol.codigo_volume || "",
-            parceiro_nome: vol.parceiro_nome || "",
-            destino_carga: vol.destino_carga || "",
-            numero_onda: vol.numero_onda != null ? String(vol.numero_onda) : "",
-            numero_volume: vol.numero_volume != null ? String(vol.numero_volume) : "",
-            total_volumes: vol.total_volumes_movimento != null ? String(vol.total_volumes_movimento) : "",
-            peso: vol.peso != null ? String(vol.peso) : "",
-            nota_fiscal: vol.nota_fiscal || "",
-            pedido: vol.pedido || "",
-            transportadora: vol.transportadora || "",
-            observacao: vol.observacao || "",
-          },
+          p_dados: dadosDoVolume(vol),
           p_origem: "PAINEL_ADMINISTRATIVO",
           p_documento_origem_id: String(vol.id),
           p_tipo_documento_origem: "volume_expedicao",
           p_prioridade: 5,
         });
-        if (error) throw error;
+
+        if (error) {
+          errorCount++;
+          errosDetalhados.push(`${identificadorLegivel(vol)}: ${error.message}`);
+          continue;
+        }
         const result = typeof data === "string" ? JSON.parse(data) : data;
-        if (result?.success) successCount++;
-        else errorCount++;
-      } catch (err) {
-        console.warn("[Impressão Volume]", err);
+        if (result?.success) {
+          successCount++;
+        } else {
+          errorCount++;
+          errosDetalhados.push(
+            `${identificadorLegivel(vol)}: ${result?.error ?? "erro desconhecido"}`,
+          );
+        }
+      } catch (err: any) {
         errorCount++;
+        errosDetalhados.push(`${identificadorLegivel(vol)}: ${err?.message ?? "erro inesperado"}`);
       }
     }
-    if (successCount > 0) toast.success(`${successCount} etiqueta(s) enviada(s) para impressão`);
-    if (errorCount > 0) toast.error(`${errorCount} etiqueta(s) falharam. Verifique se há impressora configurada.`);
-    if (successCount > 0) onClose();
+
+    setEnviando(false);
+
+    if (successCount > 0 && errorCount === 0) {
+      toast.success(`${successCount} etiqueta(s) enviada(s) para impressão`);
+      onClose();
+      return;
+    }
+    if (successCount > 0 && errorCount > 0) {
+      toast.success(`${successCount} etiqueta(s) enviada(s)`);
+      toast.warning(`${errorCount} falharam — verifique a Fila de Impressão`);
+      console.warn("[Impressão Volume] Falhas:", errosDetalhados);
+      onClose();
+      return;
+    }
+    toast.error(
+      "Nenhuma etiqueta foi enfileirada. Verifique se há impressora cadastrada no armazém e template configurado.",
+    );
+    console.error("[Impressão Volume] Todas falharam:", errosDetalhados);
   };
 
+  const handleReimprimirAtual = async () => {
+    if (!armazemId) {
+      toast.error("Selecione um armazém antes de imprimir");
+      return;
+    }
+    if (!selectedConfig || !volumeAtual) return;
 
-  const plural = volumes.length > 1;
+    setEnviando(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
+        p_armazem_id: armazemId,
+        p_tipo_etiqueta: "VOLUME",
+        p_dados: dadosDoVolume(volumeAtual),
+        p_origem: "PAINEL_ADMINISTRATIVO",
+        p_documento_origem_id: String(volumeAtual.id),
+        p_tipo_documento_origem: "volume_expedicao",
+        p_prioridade: 5,
+      });
+      if (error) throw error;
+      const result = typeof data === "string" ? JSON.parse(data) : data;
+      if (result?.success) {
+        toast.success(`Etiqueta ${identificadorLegivel(volumeAtual)} enviada para impressão`);
+      } else {
+        toast.error(result?.error ?? "Falha ao enfileirar");
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erro inesperado ao reimprimir");
+    } finally {
+      setEnviando(false);
+    }
+    // NÃO fecha o modal.
+  };
+
+  const zoomBtn = (nivel: "fit" | 1.5 | 2, label: string, aria: string) => (
+    <button
+      type="button"
+      onClick={() => setZoomLevel(nivel)}
+      className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+        zoomLevel === nivel
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+      }`}
+      aria-label={aria}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] bg-card border-border flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-foreground">
-            <Eye size={18} className="text-primary" />
-            Preview — {volumes.length} volume{plural ? "s" : ""} · {template.widthMm}×{template.heightMm}mm
+      <DialogContent className="sm:max-w-4xl bg-card border-border">
+        <DialogHeader>
+          <DialogTitle asChild>
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <Printer size={17} className="text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-foreground leading-tight">
+                  Imprimir etiquetas de volume
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {total} {plural ? "etiquetas selecionadas" : "etiqueta selecionada"}
+                  {selectedConfig && (
+                    <>
+                      <span className="mx-1.5">·</span>
+                      <span>Template: {selectedConfig.nome}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 py-3 border-b border-border shrink-0 flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">📐 Template:</span>
-            <select
-              value={selectedConfig?.id || ""}
-              onChange={(e) => {
-                const t = templates.find((t) => t.id === e.target.value);
-                if (t) setSelectedConfig(t);
-              }}
-              disabled={templates.length === 0}
-              className="h-8 px-2 rounded-md bg-secondary border border-border text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
-            >
-              {templates.length === 0 ? (
-                <option value="">Nenhum template</option>
-              ) : (
-                templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nome} — {t.largura_mm}×{t.altura_mm}mm{t.padrao ? " (Padrão)" : ""}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-          <div className="w-px h-5 bg-border" />
-          <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Opções:</span>
-          <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={duasColunas}
-              onChange={(e) => setDuasColunas(e.target.checked)}
-              className="w-3.5 h-3.5 accent-primary"
-            />
-            Impressão em 2 colunas
-          </label>
-          {duasColunas && (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Intervalo:</span>
-              <input
-                type="number" min={0} max={20} step={1}
-                value={intervaloColunasMm}
-                onChange={(e) => setIntervaloColunasMm(Number(e.target.value) || 0)}
-                className="w-16 h-7 px-2 text-xs rounded bg-secondary border border-border text-foreground outline-none"
-              />
-              <span className="text-[10px] text-muted-foreground">mm</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-auto p-8 flex flex-col items-center gap-6 bg-black/40">
-          {loading ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 size={16} className="animate-spin" /> Carregando template...
-            </div>
-          ) : (
-            <>
-              <div ref={printRef} style={{ display: "none" }}>
-                <EtiquetaVolumePreview volumes={volumes} isPrint usuario={usuarioNome ?? undefined} dataHora={dataHora} config={configOverride} />
+        <div className="grid gap-5 md:grid-cols-[1fr_260px]">
+          {/* COLUNA ESQUERDA — PREVIEW (hero) */}
+          <div className="min-w-0">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Preview térmico
+              </span>
+              <div className="flex items-center gap-0.5 bg-secondary/50 border border-border/50 rounded-md p-0.5">
+                {zoomBtn("fit", "Ajustar", "Ajustar preview ao container")}
+                {zoomBtn(1.5, "150%", "Zoom 150%")}
+                {zoomBtn(2, "200%", "Zoom 200%")}
               </div>
-              <EtiquetaVolumePreview volumes={volumes} isPrint={false} usuario={usuarioNome ?? undefined} dataHora={dataHora} config={configOverride} />
-            </>
-          )}
+            </div>
+
+            <ZplPreview
+              zpl={zplDoTemplate}
+              larguraMm={Number(selectedConfig?.largura_mm) || 100}
+              alturaMm={Number(selectedConfig?.altura_mm) || 40}
+              dados={dadosPreview}
+              escalaPx={4}
+              maxLarguraPx={560}
+              zoom={zoomLevel}
+              onOverflow={setOverflowInfo}
+            />
+
+            {total > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIndicePreview((i) => Math.max(0, i - 1))}
+                  disabled={indicePreview === 0}
+                  className="h-7 w-7 flex items-center justify-center rounded-md border border-border hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Etiqueta anterior"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-xs text-muted-foreground font-medium px-1">
+                  Etiqueta <span className="text-foreground">{indicePreview + 1}</span> de{" "}
+                  <span className="text-foreground">{total}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIndicePreview((i) => Math.min(total - 1, i + 1))}
+                  disabled={indicePreview >= total - 1}
+                  className="h-7 w-7 flex items-center justify-center rounded-md border border-border hover:bg-secondary text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Próxima etiqueta"
+                >
+                  <ChevronRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReimprimirAtual}
+                  disabled={enviando || !selectedConfig}
+                  className="ml-2 flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Printer size={12} />
+                  Reimprimir esta
+                </button>
+              </div>
+            )}
+
+            {volumeAtual && (
+              <div className="mt-3 flex items-center gap-3 bg-secondary/40 border border-border/60 rounded-lg px-3 py-2.5">
+                <Boxes size={15} className="text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-mono font-semibold text-foreground truncate">
+                    {volumeAtual.codigo_volume}
+                  </div>
+                  {volumeAtual.parceiro_nome && (
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {volumeAtual.parceiro_nome}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {volumeAtual.numero_volume != null &&
+                    volumeAtual.total_volumes_movimento != null && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                        Vol {volumeAtual.numero_volume}/{volumeAtual.total_volumes_movimento}
+                      </span>
+                    )}
+                  {volumeAtual.destino_carga && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground border border-border">
+                      {volumeAtual.destino_carga}
+                    </span>
+                  )}
+                  {volumeAtual.peso != null && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground border border-border">
+                      {Number(volumeAtual.peso).toFixed(1)}kg
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* COLUNA DIREITA — CONTROLES */}
+          <div className="space-y-4">
+            {loadingConfig ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 size={12} className="animate-spin" /> Carregando templates...
+              </div>
+            ) : semTemplates ? (
+              <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
+                <AlertTriangle size={13} className="text-yellow-400 shrink-0 mt-0.5" />
+                <span className="text-xs text-yellow-400 leading-relaxed">
+                  Nenhum template de volume cadastrado. Cadastre pelo menos um template antes de
+                  imprimir.
+                </span>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                    Template
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedConfig?.id || ""}
+                      onChange={(e) => {
+                        const t = templates.find((tpl) => tpl.id === e.target.value);
+                        if (t) setSelectedConfig(t);
+                      }}
+                      className="w-full h-10 px-3 pr-8 appearance-none rounded-lg bg-secondary border border-border text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
+                    >
+                      {templates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.nome} — {t.largura_mm}×{t.altura_mm}mm{t.padrao ? " (Padrão)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={14}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                    />
+                  </div>
+                  {selectedConfig && (
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      {selectedConfig.largura_mm}×{selectedConfig.altura_mm}mm ·{" "}
+                      {selectedConfig.orientacao === "horizontal" ? "Paisagem" : "Retrato"} ·{" "}
+                      {Math.round(Number(selectedConfig.largura_mm) * 8)}×
+                      {Math.round(Number(selectedConfig.altura_mm) * 8)}px
+                    </div>
+                  )}
+                </div>
+
+                {semZpl && (
+                  <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
+                    <AlertTriangle size={13} className="text-destructive shrink-0 mt-0.5" />
+                    <span className="text-xs text-destructive leading-relaxed">
+                      Template sem ZPL configurado. Abra a tela de templates e configure o ZPL antes
+                      de imprimir.
+                    </span>
+                  </div>
+                )}
+
+                {overflowInfo?.overflow && (
+                  <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
+                    <AlertTriangle size={13} className="text-yellow-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-400 leading-relaxed">
+                      O ZPL deste template desenha em {overflowInfo.yMaxMm.toFixed(1)}mm, além da
+                      altura configurada de {overflowInfo.alturaMm}mm. O preview aparece cortado.
+                      Ajuste o template ou aumente a altura.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-2 bg-secondary/50 border border-border/50 rounded-lg px-3 py-2">
+                  <Info size={13} className="text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Opções de layout (campos exibidos, colunas) são configuradas no template.{" "}
+                    {onNavigate && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("/config/etiqueta-templates")}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Editar template
+                      </button>
+                    )}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-border shrink-0">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <X size={14} className="inline mr-1" /> Fechar
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-secondary/30 px-6 py-4 -mx-6 -mb-6 mt-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            Cancelar
           </button>
-          <button onClick={enviarParaImpressora} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg border border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors disabled:opacity-50">
-            <Printer size={15} /> 🖨️ Enviar para Impressora Térmica
-          </button>
-          <button onClick={triggerPrint} disabled={loading || !selectedConfig} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
-            <Printer size={15} /> Imprimir {volumes.length} etiqueta{plural ? "s" : ""}
+          <button
+            onClick={handleEnviar}
+            disabled={enviando || loadingConfig || !selectedConfig || semTemplates}
+            className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {enviando ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              <>
+                <Send size={15} />
+                Enviar {total} para fila
+              </>
+            )}
           </button>
         </div>
-
       </DialogContent>
     </Dialog>
   );
