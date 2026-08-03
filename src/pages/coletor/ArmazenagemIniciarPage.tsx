@@ -150,6 +150,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   };
 
   const variosPickings = tarefa?.varios_pickings === "S";
+  const fatorCaixa = Number(tarefa?.fator_caixa || 1);
 
   return (
     <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
