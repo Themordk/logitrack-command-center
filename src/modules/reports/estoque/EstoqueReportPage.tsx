@@ -21,6 +21,25 @@ import {
   type ExportColumn,
 } from "../utils/exporters";
 
+function fmtCaixa(qtd: number, fator: number | null | undefined) {
+  const n = Number(qtd) || 0;
+  if (!fator || fator <= 1) return `${n.toLocaleString("pt-BR")} UN`;
+  const cx = Math.floor(n / fator);
+  const resto = n % fator;
+  return resto > 0
+    ? `${cx.toLocaleString("pt-BR")} CX + ${resto.toLocaleString("pt-BR")} UN`
+    : `${cx.toLocaleString("pt-BR")} CX`;
+}
+
+function QtdComCaixa({ qtd, fator, modo, className }: { qtd: number; fator: number | null; modo: boolean; className?: string }) {
+  const n = Number(qtd) || 0;
+  if (!modo) return <span className={className}>{n.toLocaleString("pt-BR")}</span>;
+  if (!fator || fator <= 1) {
+    return <span className="text-muted-foreground">{n.toLocaleString("pt-BR")} UN</span>;
+  }
+  return <span className={className}>{fmtCaixa(n, fator)}</span>;
+}
+
 export function EstoqueReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<any[]>([]);
@@ -28,6 +47,7 @@ export function EstoqueReportPage() {
   const [generated, setGenerated] = useState(false);
   const [generatedAt, setGeneratedAt] = useState("");
   const [showFilters, setShowFilters] = useState(true);
+  const [visualizarCaixa, setVisualizarCaixa] = useState(false);
 
   // Filter states
   const [filterSku, setFilterSku] = useState("");
