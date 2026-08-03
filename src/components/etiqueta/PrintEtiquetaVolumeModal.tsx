@@ -223,6 +223,11 @@ export function PrintEtiquetaVolumeModal({
     // NÃO fecha o modal.
   };
 
+  const irParaTemplates = () => {
+    if (onNavigate) onNavigate("/config/etiquetas");
+    else window.location.hash = "#/config/etiquetas";
+  };
+
   const zoomBtn = (nivel: "fit" | 1.5 | 2, label: string, aria: string) => (
     <button
       type="button"
@@ -436,15 +441,13 @@ export function PrintEtiquetaVolumeModal({
                   <Info size={13} className="text-muted-foreground shrink-0 mt-0.5" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Opções de layout (campos exibidos, colunas) são configuradas no template.{" "}
-                    {onNavigate && (
-                      <button
+                    <button
                         type="button"
-                        onClick={() => onNavigate("/config/etiqueta-templates")}
+                        onClick={irParaTemplates}
                         className="text-primary hover:underline font-medium"
                       >
                         Editar template
                       </button>
-                    )}
                   </p>
                 </div>
               </>
