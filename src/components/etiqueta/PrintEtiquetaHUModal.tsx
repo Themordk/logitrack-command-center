@@ -222,6 +222,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
           p_documento_origem_id: String(hu.id),
           p_tipo_documento_origem: "hu",
           p_prioridade: 5,
+          p_template_id: selectedConfig?.id ?? undefined,
         });
 
         if (error) {
@@ -281,6 +282,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
         p_documento_origem_id: String(huAtual.id),
         p_tipo_documento_origem: "hu",
         p_prioridade: 5,
+        p_template_id: selectedConfig?.id ?? undefined,
       });
       if (error) throw error;
       const result = typeof data === "string" ? JSON.parse(data) : data;

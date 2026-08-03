@@ -143,6 +143,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
           p_documento_origem_id: item.embalagem_id || item.produto_id || undefined,
           p_tipo_documento_origem: "produto_embalagem",
           p_prioridade: 5,
+          p_template_id: selectedConfig?.id ?? undefined,
         });
 
         if (error) {
@@ -202,6 +203,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
         p_documento_origem_id: itemAtual.embalagem_id || itemAtual.produto_id || undefined,
         p_tipo_documento_origem: "produto_embalagem",
         p_prioridade: 5,
+        p_template_id: selectedConfig?.id ?? undefined,
       });
       if (error) throw error;
       const result = typeof data === "string" ? JSON.parse(data) : data;
