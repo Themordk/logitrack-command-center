@@ -27,11 +27,12 @@ const formatTipoPicking = (v?: string) =>
 
 // ─── Produto Detail Modal with Tabs ────────────────────────────────
 function ProdutoDetailModal({
-  open, onClose, produto, tenantId, armazemId, empresaId, onSaved,
+  open, onClose, produto, tenantId, armazemId, empresaId, usuarioId, onSaved,
   grupoOptions, subgrupoOptions, parceiroOptions,
 }: {
   open: boolean; onClose: () => void; produto: any | null;
   tenantId: string; armazemId: string | null; empresaId: string | null;
+  usuarioId: string | null;
   onSaved: () => void;
   grupoOptions: { value: string; label: string }[];
   subgrupoOptions: { value: string; label: string }[];
@@ -176,11 +177,15 @@ function ProdutoDetailModal({
 
     try {
       if (isEdit) {
+        // Rastreabilidade: quem editou e quando
+        cleanData.updated_at = new Date().toISOString();
+        cleanData.updated_by = usuarioId;
         const { error } = await (supabase as any).from("produto").update(cleanData).eq("id", produto.id);
         if (error) throw error;
         toast.success("Produto atualizado!");
       } else {
         cleanData.tenant_id = tenantId;
+        cleanData.updated_by = usuarioId;
         const { error } = await (supabase as any).from("produto").insert(cleanData);
         if (error) throw error;
         toast.success("Produto criado!");
@@ -654,9 +659,21 @@ function ProdutoDetailModal({
 
 // ─── Main Produtos Page ────────────────────────────────────────────
 export function ProdutosPage() {
-  const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion, usuarioId } = useTenant();
   const [filterSemEan, setFilterSemEan] = useState(false);
-  const crudFilters = filterSemEan ? { tem_ean: false } : {};
+  const [filterSku, setFilterSku] = useState("");
+  const [filterDescricao, setFilterDescricao] = useState("");
+  const [filterReferencia, setFilterReferencia] = useState("");
+  const debSku = useDebounce(filterSku, 400);
+  const debDescricao = useDebounce(filterDescricao, 400);
+  const debReferencia = useDebounce(filterReferencia, 400);
+  const crudFilters = useMemo(() => {
+    const f: Record<string, any> = filterSemEan ? { tem_ean: false } : {};
+    if (debSku.trim()) f.sku = { ilike: debSku.trim() };
+    if (debDescricao.trim()) f.descricao = { ilike: debDescricao.trim() };
+    if (debReferencia.trim()) f.referencia = { ilike: debReferencia.trim() };
+    return f;
+  }, [filterSemEan, debSku, debDescricao, debReferencia]);
   const crud = useCrud({
     table: "vw_produto_listagem",
     writeTable: "produto",
@@ -787,23 +804,55 @@ export function ProdutosPage() {
         newLabel="Novo Produto"
         searchPlaceholder="Buscar por SKU ou descrição..."
         extraFilters={
-          totalSemEan !== null && totalSemEan > 0 ? (
-            <button
-              type="button"
-              onClick={() => { setFilterSemEan((v) => !v); crud.setPage(1); }}
-              title={filterSemEan ? "Mostrando apenas produtos sem código de barras — clique para limpar" : "Filtrar produtos sem código de barras"}
-              className={
-                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border " +
-                (filterSemEan
-                  ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
-                  : "bg-amber-500/5 border-amber-500/20 text-amber-500 hover:bg-amber-500/10")
-              }
-            >
-              <AlertTriangle size={14} />
-              {totalSemEan.toLocaleString("pt-BR")} sem código de barras
-              {filterSemEan && <span className="ml-1 opacity-70">(filtro ativo)</span>}
-            </button>
-          ) : null
+          <>
+            <input
+              type="text"
+              value={filterSku}
+              onChange={(e) => { setFilterSku(e.target.value); crud.setPage(1); }}
+              placeholder="SKU..."
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-32"
+            />
+            <input
+              type="text"
+              value={filterDescricao}
+              onChange={(e) => { setFilterDescricao(e.target.value); crud.setPage(1); }}
+              placeholder="Descrição..."
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-40"
+            />
+            <input
+              type="text"
+              value={filterReferencia}
+              onChange={(e) => { setFilterReferencia(e.target.value); crud.setPage(1); }}
+              placeholder="Referência..."
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-36"
+            />
+            {(filterSku || filterDescricao || filterReferencia) && (
+              <button
+                type="button"
+                onClick={() => { setFilterSku(""); setFilterDescricao(""); setFilterReferencia(""); crud.setPage(1); }}
+                className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                Limpar filtros
+              </button>
+            )}
+            {totalSemEan !== null && totalSemEan > 0 && (
+              <button
+                type="button"
+                onClick={() => { setFilterSemEan((v) => !v); crud.setPage(1); }}
+                title={filterSemEan ? "Mostrando apenas produtos sem código de barras — clique para limpar" : "Filtrar produtos sem código de barras"}
+                className={
+                  "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border " +
+                  (filterSemEan
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                    : "bg-amber-500/5 border-amber-500/20 text-amber-500 hover:bg-amber-500/10")
+                }
+              >
+                <AlertTriangle size={14} />
+                {totalSemEan.toLocaleString("pt-BR")} sem código de barras
+                {filterSemEan && <span className="ml-1 opacity-70">(filtro ativo)</span>}
+              </button>
+            )}
+          </>
         }
         headerActions={
           <div className="flex items-center gap-2">
@@ -850,6 +899,7 @@ export function ProdutosPage() {
           tenantId={tenantId}
           armazemId={armazemId}
           empresaId={empresaId}
+          usuarioId={usuarioId}
           onSaved={crud.refresh}
           grupoOptions={grupoOptions}
           subgrupoOptions={subgrupoOptions}
