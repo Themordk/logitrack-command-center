@@ -21,6 +21,18 @@ interface TarefaResult {
   lote: string | null;
   varios_pickings: string | null;
   enderecos_picking: string | null;
+  fator_caixa: number | null;
+}
+
+function ConvCaixa({ qtd, fator }: { qtd: number; fator: number }) {
+  if (!(fator > 1)) return null;
+  const cx = Math.floor(Number(qtd) / fator);
+  const resto = Number(qtd) % fator;
+  return (
+    <span className="block text-[10px] text-[hsl(217,91%,70%)] leading-tight">
+      = {cx} CX{resto > 0 ? ` + ${resto} UN` : ""}
+    </span>
+  );
 }
 
 export function ArmazenagemIniciarPage({ onNavigate }: Props) {
