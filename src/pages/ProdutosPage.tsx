@@ -29,7 +29,7 @@ const formatTipoPicking = (v?: string) =>
 // ─── Produto Detail Modal with Tabs ────────────────────────────────
 function ProdutoDetailModal({
   open, onClose, produto, tenantId, armazemId, empresaId, usuarioId, onSaved,
-  grupoOptions, subgrupoOptions, parceiroOptions,
+  grupoOptions, subgrupoOptions, parceiroOptions, onNavigate,
 }: {
   open: boolean; onClose: () => void; produto: any | null;
   tenantId: string; armazemId: string | null; empresaId: string | null;
@@ -38,6 +38,7 @@ function ProdutoDetailModal({
   grupoOptions: { value: string; label: string }[];
   subgrupoOptions: { value: string; label: string }[];
   parceiroOptions: { value: string; label: string }[];
+  onNavigate?: (path: string) => void;
 }) {
   const [tab, setTab] = useState("cadastro");
   const [form, setForm] = useState<Record<string, any>>({});
@@ -905,6 +906,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
           grupoOptions={grupoOptions}
           subgrupoOptions={subgrupoOptions}
           parceiroOptions={parceiroOptions}
+          onNavigate={onNavigate}
         />
       )}
       <DeleteConfirmDialog
