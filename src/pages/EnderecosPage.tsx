@@ -410,6 +410,7 @@ export function EnderecosPage({ onNavigate }: { onNavigate?: (path: string) => v
         open={printOpen}
         onClose={() => { setPrintOpen(false); setPrintEnderecos([]); }}
         enderecos={printEnderecos}
+        onNavigate={onNavigate}
       />
     </>
   );
