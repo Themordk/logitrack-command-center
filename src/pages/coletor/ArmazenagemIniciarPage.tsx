@@ -181,16 +181,20 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">A armazenar</span>
                 <span className="text-xl font-bold text-white">{tarefa.qtd_conferida}</span>
+                <ConvCaixa qtd={tarefa.qtd_conferida} fator={fatorCaixa} />
               </div>
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Armazenado</span>
                 <span className="text-xl font-bold text-[#22C55E]">{tarefa.qtd_armazenada}</span>
+                <ConvCaixa qtd={tarefa.qtd_armazenada} fator={fatorCaixa} />
               </div>
               <div className="text-center">
                 <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Restante</span>
                 <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{tarefa.qtd_a_armazenar}</span>
+                <ConvCaixa qtd={tarefa.qtd_a_armazenar} fator={fatorCaixa} />
               </div>
             </div>
+
 
             {tarefa.enderecos_picking && (
               <div className="flex items-center gap-1.5 border-t border-[hsl(222,35%,22%)] pt-2">
