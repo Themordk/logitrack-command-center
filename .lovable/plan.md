@@ -2,24 +2,29 @@
 
 ## Causa raiz (verificada)
 
-A RPC `fn_buscar_dados_armazenagem(p_tenant_id, p_empresa_ids, p_ean)` retorna apenas:
+A RPC `fn_buscar_dados_armazenagem(p_tenant_id, p_empresa_ids, p_ean)` retorna hoje apenas:
 `tarefa_id, produto_id, sku, descricao, lote, validade, fabricacao, qtd_conferida, qtd_armazenada, qtd_a_armazenar, varios_pickings, enderecos_picking`.
 
-Não há `fator_caixa` no retorno, e a `ArmazenagemIniciarPage.tsx` também não faz nenhuma consulta complementar. Por isso a tela mostra apenas números em UN, diferente de `ArmazenagemItensPage` e demais telas já padronizadas.
+Não há `fator_caixa` no retorno e a tela `ArmazenagemIniciarPage.tsx` não tem de onde tirar o fator — por isso os números aparecem só em UN, diferente das demais telas já padronizadas.
 
-## Correção (somente frontend, sem migration)
+## 1. Migration — alterar a RPC
 
-Em `src/pages/coletor/ArmazenagemIniciarPage.tsx`:
+`CREATE OR REPLACE FUNCTION public.fn_buscar_dados_armazenagem` mantendo toda a lógica atual e adicionando:
 
-1. Após obter a tarefa, buscar `fator_caixa` em `produto` pelo `produto_id` retornado, e guardar no estado.
-2. Quando o código escaneado for um EAN, buscar também `embalagem` e `fator` em `produto_embalagem` pelo EAN, para identificar a embalagem escaneada (no caminho por HU, usar UN / fator 1).
-3. Exibir no card, seguindo o padrão das outras telas:
-   - Bloco "Embalagem escaneada" (ícone `Box`, badge azul quando fator > 1, linha "Fator: N UN por EMB"), igual ao usado em Transferência Detalhe.
-   - Substituir os três números (A armazenar, Armazenado, Restante) pelo componente `QtdEmCaixa` (`size="sm"`, `align="center"`), preservando as cores atuais via wrapper — ou, se a cor for necessária por número, manter o número principal e adicionar a linha `= X CX + Y UN` abaixo, exatamente como em `ArmazenagemItensPage`.
-4. Continuar gravando em `sessionStorage` a quantidade restante **em UN** (`coletor_armazenagem_qtd_restante`), sem alteração no fluxo seguinte.
+- na CTE `dados_base`: `p.fator_caixa`;
+- na assinatura `RETURNS TABLE`: nova coluna `fator_caixa numeric` (ao final, para não quebrar posicionamento existente);
+- no `SELECT` final: `COALESCE(db.fator_caixa, 1) AS fator_caixa`.
+
+Nenhuma outra alteração de lógica, filtros ou ordenação. Sem nova tabela, sem GRANT novo (função já existente).
+
+## 2. Frontend — `src/pages/coletor/ArmazenagemIniciarPage.tsx`
+
+- Adicionar `fator_caixa: number | null` à interface `TarefaResult` (já vem no retorno da RPC — **nenhuma consulta extra**).
+- Nos três indicadores (A armazenar, Armazenado, Restante), manter o número em UN com as cores atuais e acrescentar abaixo a linha `= X CX + Y UN` quando `fator_caixa > 1`, exatamente no mesmo padrão de `ArmazenagemItensPage.tsx`.
+- `sessionStorage` continua gravando `coletor_armazenagem_qtd_restante` em UN, sem mudança no fluxo seguinte.
 
 ## Notas técnicas
 
-- Consultas simples via `supabase.from("produto").select("fator_caixa")` e `from("produto_embalagem").select("embalagem, fator").eq("ean", code)`, sem embeds aninhados (evita PGRST200).
 - Conversões com `Number(...)`, `Math.floor` e módulo.
+- Após a migration, os types do Supabase são regenerados; o ajuste do frontend vem depois.
 - Nenhum outro arquivo é alterado.
