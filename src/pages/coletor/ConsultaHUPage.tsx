@@ -5,6 +5,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2, Archive, Package } from "lucide-react";
 import { formatDateTime, formatDate as fmtDateUtil } from "@/utils/dateTime";
+import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -44,7 +45,7 @@ export function ConsultaHUPage({ onNavigate }: Props) {
 
       let estoqueQuery = (supabase as any)
         .from("estoque_geral")
-        .select("quantidade_disponivel, quantidade_total, lote, data_validade, data_fabricacao, endereco:endereco_id(descricao, tipo_endereco), produto:produto_id(sku, descricao)")
+        .select("quantidade_disponivel, quantidade_total, lote, data_validade, data_fabricacao, endereco:endereco_id(descricao, tipo_endereco), produto:produto_id(sku, descricao, fator_caixa)")
         .eq("hu_id", hu.id);
 
       if (tenantId) estoqueQuery = estoqueQuery.eq("tenant_id", tenantId);
@@ -134,7 +135,7 @@ export function ConsultaHUPage({ onNavigate }: Props) {
                 <div key={i} className="px-3 py-2 border-b border-[hsl(222,35%,18%)] last:border-0">
                   <div className="flex justify-between items-center">
                     <span className="text-[11px] font-mono text-[hsl(217,91%,60%)]">{it.sku || it.produto_sku}</span>
-                    <span className="text-xs font-bold text-white">{it.quantidade}</span>
+                    <QtdEmCaixa qtd={Number(it.quantidade)} fatorCaixa={it.fator_caixa ?? null} size="sm" />
                   </div>
                   <p className="text-[11px] text-[hsl(213,31%,80%)] truncate">{it.descricao || it.produto_descricao}</p>
                 </div>
@@ -155,7 +156,7 @@ export function ConsultaHUPage({ onNavigate }: Props) {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-white truncate">{e.produto?.sku} - {e.produto?.descricao}</p>
                     </div>
-                    <span className="text-sm font-bold text-[hsl(217,91%,60%)] ml-2 whitespace-nowrap">{e.quantidade_disponivel}</span>
+                    <div className="ml-2 shrink-0"><QtdEmCaixa qtd={Number(e.quantidade_disponivel)} fatorCaixa={e.produto?.fator_caixa ?? null} size="md" /></div>
                   </div>
                   <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-1">
                     <div>

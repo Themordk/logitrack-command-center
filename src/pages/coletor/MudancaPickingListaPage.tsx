@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { Loader2, Package } from "lucide-react";
+import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -13,6 +14,7 @@ interface ItemEstoque {
   sku: string;
   descricao: string;
   quantidade_disponivel: number;
+  fator_caixa: number | null;
   lote: string | null;
   data_validade: string | null;
   data_fabricacao: string | null;
@@ -32,7 +34,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
       try {
         const { data, error } = await (supabase as any)
           .from("estoque_geral")
-          .select("id, produto_id, quantidade_disponivel, lote, data_validade, data_fabricacao, produto:produto_id(sku, descricao)")
+          .select("id, produto_id, quantidade_disponivel, lote, data_validade, data_fabricacao, produto:produto_id(sku, descricao, fator_caixa)")
           .eq("endereco_id", origemId)
           .gt("quantidade_disponivel", 0);
         if (error) throw error;
@@ -42,6 +44,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
           sku: r.produto?.sku || "—",
           descricao: r.produto?.descricao || "",
           quantidade_disponivel: Number(r.quantidade_disponivel || 0),
+          fator_caixa: r.produto?.fator_caixa ?? null,
           lote: r.lote,
           data_validade: r.data_validade,
           data_fabricacao: r.data_fabricacao,
@@ -83,7 +86,23 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
         <>
           <div className="flex items-center justify-between px-1">
             <span className="text-[11px] text-[hsl(213,31%,55%)]">{itens.length} {itens.length === 1 ? "item" : "itens"}</span>
-            <span className="text-[11px] text-[hsl(213,31%,55%)]">Total: <span className="text-white font-bold">{qtdTotal}</span></span>
+            <span className="text-[11px] text-[hsl(213,31%,55%)]">
+              {(() => {
+                const primeiroFator = itens[0]?.fator_caixa;
+                const todosMesmoFator = itens.length > 0 && itens.every((i) => i.fator_caixa === primeiroFator);
+                const fc = Number(primeiroFator || 0);
+                if (todosMesmoFator && fc > 1) {
+                  const cx = Math.floor(qtdTotal / fc);
+                  const resto = qtdTotal % fc;
+                  return (
+                    <span>Total: <span className="text-white font-bold">{qtdTotal} UN</span>
+                      <span className="text-[hsl(217,91%,70%)] ml-1">(= {cx} CX{resto > 0 ? ` + ${resto} UN` : ""})</span>
+                    </span>
+                  );
+                }
+                return <span>Total: <span className="text-white font-bold">{qtdTotal} UN</span></span>;
+              })()}
+            </span>
           </div>
           <div className="flex flex-col gap-2 max-h-[calc(100vh-320px)] overflow-y-auto">
             {itens.map((it) => (
@@ -96,7 +115,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
                       <p className="text-xs text-white truncate">{it.descricao}</p>
                     </div>
                   </div>
-                  <span className="text-lg font-bold text-white shrink-0">{it.quantidade_disponivel}</span>
+                  <div className="shrink-0"><QtdEmCaixa qtd={it.quantidade_disponivel} fatorCaixa={it.fator_caixa} size="md" /></div>
                 </div>
                 {(it.lote || it.data_validade) && (
                   <div className="flex gap-2 mt-2 flex-wrap">
