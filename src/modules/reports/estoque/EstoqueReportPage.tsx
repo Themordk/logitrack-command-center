@@ -219,16 +219,16 @@ export function EstoqueReportPage() {
     { key: "endereco_descricao", label: "Endereço", width: "140px", render: (v) => v || "—" },
     { key: "tipo_endereco", label: "Tipo Endereço", width: "110px" },
     {
-      key: "quantidade_disponivel", label: "Disponível", align: "right", width: "90px",
-      render: (v) => <span className={cn(v === 0 && "text-muted-foreground")}>{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "quantidade_disponivel", label: "Disponível", align: "right", width: visualizarCaixa ? "130px" : "90px",
+      render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) === 0 && "text-muted-foreground")} />,
     },
     {
-      key: "quantidade_bloqueada", label: "Bloqueado", align: "right", width: "90px",
-      render: (v) => <span className={cn(Number(v) > 0 && "text-[hsl(var(--status-busy))] font-semibold")}>{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "quantidade_bloqueada", label: "Bloqueado", align: "right", width: visualizarCaixa ? "130px" : "90px",
+      render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) > 0 && "text-[hsl(var(--status-busy))] font-semibold")} />,
     },
     {
-      key: "quantidade_total", label: "Total", align: "right", width: "90px",
-      render: (v) => <span className={cn(v === 0 && "text-muted-foreground")}>{Number(v).toLocaleString("pt-BR")}</span>,
+      key: "quantidade_total", label: "Total", align: "right", width: visualizarCaixa ? "130px" : "90px",
+      render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) === 0 && "text-muted-foreground")} />,
     },
     {
       key: "atualizado_em", label: "Última Atualização", width: "150px",
@@ -261,9 +261,12 @@ export function EstoqueReportPage() {
       format: (r) => (r.codigo_endereco == null ? "" : String(r.codigo_endereco)) },
     { key: "endereco_descricao", label: "Endereço" },
     { key: "tipo_endereco", label: "Tipo Endereço" },
-    { key: "quantidade_disponivel", label: "Disponível", align: "right", format: (r) => fmtNumberBR(r.quantidade_disponivel) },
-    { key: "quantidade_bloqueada", label: "Bloqueado", align: "right", format: (r) => fmtNumberBR(r.quantidade_bloqueada) },
-    { key: "quantidade_total", label: "Total", align: "right", format: (r) => fmtNumberBR(r.quantidade_total) },
+    { key: "quantidade_disponivel", label: "Disponível", align: "right",
+      format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_disponivel, r.fator_caixa) : fmtNumberBR(r.quantidade_disponivel)) },
+    { key: "quantidade_bloqueada", label: "Bloqueado", align: "right",
+      format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_bloqueada, r.fator_caixa) : fmtNumberBR(r.quantidade_bloqueada)) },
+    { key: "quantidade_total", label: "Total", align: "right",
+      format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_total, r.fator_caixa) : fmtNumberBR(r.quantidade_total)) },
     { key: "atualizado_em", label: "Última Atualização", format: (r) => fmtDateTimeBR(r.atualizado_em) },
   ];
 
