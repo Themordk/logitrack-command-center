@@ -793,8 +793,6 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         columns={columns}
         data={crud.data}
         loading={crud.loading}
-        search={crud.search}
-        onSearchChange={crud.setSearch}
         page={crud.page}
         totalPages={crud.totalPages}
         total={crud.total}
@@ -804,7 +802,6 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
-        searchPlaceholder="Buscar por SKU ou descrição..."
         extraFilters={
           <>
             <input
