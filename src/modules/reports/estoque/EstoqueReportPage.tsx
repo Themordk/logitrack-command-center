@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
@@ -411,6 +412,12 @@ export function EstoqueReportPage() {
                     onCheckedChange={(v) => setFilterApenasComSaldo(v === true)}
                   />
                   <span className="text-xs">Apenas posições com saldo</span>
+                </label>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 h-8 cursor-pointer select-none">
+                  <Switch checked={visualizarCaixa} onCheckedChange={setVisualizarCaixa} />
+                  <span className="text-xs">Visualizar em Caixa</span>
                 </label>
               </div>
             </div>
