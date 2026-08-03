@@ -109,16 +109,18 @@ export function CrudTable({
       </div>
 
       <div className="shrink-0 card-surface p-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-secondary rounded-lg px-3 py-2">
-          <Search size={14} className="text-muted-foreground shrink-0" />
-          <input
-            type="text"
-            placeholder={searchPlaceholder}
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
-          />
-        </div>
+        {search !== undefined && onSearchChange && (
+          <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-secondary rounded-lg px-3 py-2">
+            <Search size={14} className="text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
+            />
+          </div>
+        )}
         {extraFilters}
       </div>
 
