@@ -136,6 +136,7 @@ export function useCrud<T extends Record<string, any>>({
         if (val && typeof val === "object" && !Array.isArray(val)) {
           if ("gte" in (val as any) && (val as any).gte) query = query.gte(key, (val as any).gte);
           if ("lte" in (val as any) && (val as any).lte) query = query.lte(key, (val as any).lte);
+          if ("ilike" in (val as any) && (val as any).ilike) query = query.ilike(key, `%${(val as any).ilike}%`);
           return;
         }
         query = query.eq(key, val);
@@ -262,6 +263,7 @@ export function useCrud<T extends Record<string, any>>({
         if (val && typeof val === "object" && !Array.isArray(val)) {
           if ("gte" in (val as any) && (val as any).gte) query = query.gte(key, (val as any).gte);
           if ("lte" in (val as any) && (val as any).lte) query = query.lte(key, (val as any).lte);
+          if ("ilike" in (val as any) && (val as any).ilike) query = query.ilike(key, `%${(val as any).ilike}%`);
           return;
         }
         query = query.eq(key, val);
