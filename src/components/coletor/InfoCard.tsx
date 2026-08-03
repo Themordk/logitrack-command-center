@@ -25,13 +25,29 @@ export function InfoCard({ sku, descricao, qtdEsperada, qtdConferida, lastro, ca
         </div>
       )}
       {descricao && <p className="text-sm text-[hsl(213,31%,70%)] leading-snug">{descricao}</p>}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[hsl(213,31%,55%)]">
-        {lastro != null && <span>Lastro: <b className="text-[hsl(213,31%,80%)]">{lastro}</b></span>}
-        {camada != null && <span>Camada: <b className="text-[hsl(213,31%,80%)]">{camada}</b></span>}
-        {fatorCaixa != null && <span>Fator Cx: <b className="text-[hsl(213,31%,80%)]">{fatorCaixa}</b></span>}
-        {lote && <span>Lote: <b className="text-[hsl(213,31%,80%)]">{lote}</b></span>}
-        {validade && <span>Val: <b className="text-[hsl(213,31%,80%)]">{validade}</b></span>}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        {lastro != null && (
+          <span className="text-[hsl(213,31%,65%)]">Lastro: <b className="text-white">{lastro}</b></span>
+        )}
+        {camada != null && (
+          <span className="text-[hsl(213,31%,65%)]">Camada: <b className="text-white">{camada}</b></span>
+        )}
+        {fatorCaixa != null && (
+          <span className={Number(fatorCaixa) > 1
+            ? "px-1.5 py-0.5 rounded bg-[hsl(217,91%,50%)]/15 border border-[hsl(217,91%,50%)]/40 text-[hsl(217,91%,70%)]"
+            : "text-[hsl(213,31%,65%)]"
+          }>
+            Fator Cx: <b className={Number(fatorCaixa) > 1 ? "text-[hsl(217,91%,80%)]" : "text-white"}>{fatorCaixa}</b>
+          </span>
+        )}
+        {lote && (
+          <span className="text-[hsl(213,31%,65%)]">Lote: <b className="text-white">{lote}</b></span>
+        )}
+        {validade && (
+          <span className="text-[hsl(213,31%,65%)]">Val: <b className="text-white">{validade}</b></span>
+        )}
       </div>
+
       {children}
     </div>
   );

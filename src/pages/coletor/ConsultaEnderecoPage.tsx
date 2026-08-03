@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2 } from "lucide-react";
+import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -10,6 +11,7 @@ interface EstoqueRow {
   sku: string;
   descricao: string;
   quantidade_disponivel: number;
+  fator_caixa: number | null;
   lote: string;
   data_validade: string;
   data_fabricacao: string;
@@ -50,7 +52,7 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
 
       const { data: estoque } = await (supabase as any)
         .from("estoque_geral")
-        .select("quantidade_disponivel, lote, data_validade, data_fabricacao, produto:produto_id(sku, descricao)")
+        .select("quantidade_disponivel, lote, data_validade, data_fabricacao, produto:produto_id(sku, descricao, fator_caixa)")
         .eq("endereco_id", endId)
         .gt("quantidade_disponivel", 0);
 
@@ -58,6 +60,7 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
         sku: e.produto?.sku || "—",
         descricao: e.produto?.descricao || "—",
         quantidade_disponivel: e.quantidade_disponivel,
+        fator_caixa: e.produto?.fator_caixa ?? null,
         lote: e.lote || "",
         data_validade: e.data_validade || "",
         data_fabricacao: e.data_fabricacao || "",
@@ -108,7 +111,7 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
                   <p className="text-xs font-mono text-[hsl(217,91%,60%)]">{item.sku}</p>
                   <p className="text-sm text-white truncate">{item.descricao}</p>
                 </div>
-                <span className="text-lg font-bold text-white ml-2">{item.quantidade_disponivel}</span>
+                <div className="ml-2 shrink-0"><QtdEmCaixa qtd={item.quantidade_disponivel} fatorCaixa={item.fator_caixa} size="md" /></div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-[hsl(222,35%,18%)]">
                 <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Lote</span><p className="text-xs text-white">{item.lote || "—"}</p></div>

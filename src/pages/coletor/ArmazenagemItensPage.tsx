@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { Loader2, MapPin, CheckCircle, Archive } from "lucide-react";
+import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 
 interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
@@ -33,6 +34,7 @@ interface ItemArmazenagem {
   picking_est_minimo: number;
   picking_est_maximo: number;
   picking_ok: boolean | null;
+  fator_caixa: number | null;
 }
 
 export function ArmazenagemItensPage({ onNavigate }: Props) {
@@ -164,10 +166,15 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
 
               {/* Linha 2: saldo do picking */}
               {item.picking_endereco_id && (
-                <div className="flex gap-3 text-[11px] text-[hsl(213,31%,55%)]">
-                  <span>Saldo: <b className="text-white">{item.saldo_picking}</b></span>
-                  <span>Min: <b className="text-[hsl(213,31%,80%)]">{item.picking_est_minimo}</b></span>
-                  <span>Max: <b className="text-[hsl(213,31%,80%)]">{item.picking_est_maximo}</b></span>
+                <div className="flex items-end justify-between gap-3 text-[11px] text-[hsl(213,31%,55%)]">
+                  <div className="flex gap-3">
+                    <span>Min: <b className="text-[hsl(213,31%,80%)]">{item.picking_est_minimo}</b></span>
+                    <span>Max: <b className="text-[hsl(213,31%,80%)]">{item.picking_est_maximo}</b></span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[10px] uppercase">Saldo picking</span>
+                    <QtdEmCaixa qtd={Number(item.saldo_picking || 0)} fatorCaixa={item.fator_caixa} size="sm" />
+                  </div>
                 </div>
               )}
 
@@ -198,15 +205,36 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
               <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-[hsl(222,35%,22%)]">
                 <div>
                   <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">A armazenar</span>
-                  <span className="text-base font-bold text-white">{item.quantidade_requerida}</span>
+                  <span className="text-base font-bold text-white">{item.quantidade_requerida} UN</span>
+                  {Number(item.fator_caixa) > 1 && (
+                    <span className="block text-[10px] text-[hsl(217,91%,70%)]">
+                      = {Math.floor(item.quantidade_requerida / Number(item.fator_caixa))} CX
+                      {(item.quantidade_requerida % Number(item.fator_caixa)) > 0
+                        ? ` + ${item.quantidade_requerida % Number(item.fator_caixa)} UN` : ""}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Armazenado</span>
-                  <span className="text-base font-bold text-[#22C55E]">{item.quantidade_executada}</span>
+                  <span className="text-base font-bold text-[#22C55E]">{item.quantidade_executada} UN</span>
+                  {Number(item.fator_caixa) > 1 && (
+                    <span className="block text-[10px] text-[hsl(217,91%,70%)]">
+                      = {Math.floor(item.quantidade_executada / Number(item.fator_caixa))} CX
+                      {(item.quantidade_executada % Number(item.fator_caixa)) > 0
+                        ? ` + ${item.quantidade_executada % Number(item.fator_caixa)} UN` : ""}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-[10px] text-[hsl(213,31%,55%)] uppercase block">Restante</span>
-                  <span className="text-base font-bold text-[hsl(45,93%,47%)]">{item.qtd_restante}</span>
+                  <span className="text-base font-bold text-[hsl(45,93%,47%)]">{item.qtd_restante} UN</span>
+                  {Number(item.fator_caixa) > 1 && (
+                    <span className="block text-[10px] text-[hsl(217,91%,70%)]">
+                      = {Math.floor(item.qtd_restante / Number(item.fator_caixa))} CX
+                      {(item.qtd_restante % Number(item.fator_caixa)) > 0
+                        ? ` + ${item.qtd_restante % Number(item.fator_caixa)} UN` : ""}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

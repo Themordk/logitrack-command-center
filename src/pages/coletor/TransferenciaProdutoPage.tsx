@@ -59,6 +59,8 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
         sessionStorage.setItem("transf_lote", estoque[0].lote || "");
         sessionStorage.setItem("transf_validade", estoque[0].data_validade || "");
         sessionStorage.setItem("transf_fabricacao", estoque[0].data_fabricacao || "");
+        sessionStorage.setItem("transf_fator", "1");
+        sessionStorage.setItem("transf_embalagem", "UN");
         onNavigate("/coletor/movimentos/transferencia/detalhe");
         return;
       }
@@ -66,7 +68,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
       // Find product by EAN
       const { data: emb } = await (supabase as any)
         .from("produto_embalagem")
-        .select("produto_id, produto:produto_id(sku, descricao)")
+        .select("produto_id, fator, embalagem, produto:produto_id(sku, descricao)")
         .eq("ean", code)
         .limit(1);
 
@@ -102,6 +104,8 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
       sessionStorage.setItem("transf_lote", estoque[0].lote || "");
       sessionStorage.setItem("transf_validade", estoque[0].data_validade || "");
       sessionStorage.setItem("transf_fabricacao", estoque[0].data_fabricacao || "");
+      sessionStorage.setItem("transf_fator", String(emb[0].fator || 1));
+      sessionStorage.setItem("transf_embalagem", emb[0].embalagem || "UN");
       onNavigate("/coletor/movimentos/transferencia/detalhe");
     } catch {
       setOverlay("error");
