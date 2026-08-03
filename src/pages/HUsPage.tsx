@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export function HUsPage() {
+export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
   const { tenantId, empresaId } = useTenant();
   const crud = useCrud({
     table: "hu",
@@ -342,6 +342,7 @@ export function HUsPage() {
         open={printOpen}
         onClose={() => { setPrintOpen(false); setPrintHUs([]); }}
         hus={printHUs}
+        onNavigate={onNavigate}
       />
     </>
   );

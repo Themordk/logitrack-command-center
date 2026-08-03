@@ -1,4 +1,9 @@
 /**
+ * @deprecated Preview HTML legado. O ZPL do template é a única fonte de verdade;
+ * use ZplPreview (Labelary) nos modais de impressão. Mantido apenas para
+ * compatibilidade temporária e será removido.
+ */
+/**
  * Etiqueta Produto Preview – Thermal Optimized
  * EAN13/Code128 product labels for Elgin L42PRO 203 DPI
  */

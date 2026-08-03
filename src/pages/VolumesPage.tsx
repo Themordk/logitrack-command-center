@@ -13,7 +13,7 @@ import { parseError } from "@/lib/errorMapper";
 
 const STATUS_MAP: Record<string, number> = { ABERTO: 0, FECHADO: 1, CONFERIDO: 2, EXPEDIDO: 3 };
 
-export function VolumesPage() {
+export function VolumesPage({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
   const { tenantId, usuarioId } = useTenant() as any;
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterOnda, setFilterOnda] = useState<string>("");
@@ -219,6 +219,7 @@ export function VolumesPage() {
         open={printOpen}
         onClose={() => { setPrintOpen(false); setPrintVolumes([]); }}
         volumes={printVolumes}
+        onNavigate={onNavigate}
       />
 
       {/* Delete dialog customizado */}

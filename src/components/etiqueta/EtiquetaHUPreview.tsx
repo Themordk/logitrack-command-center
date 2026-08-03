@@ -1,3 +1,8 @@
+/**
+ * @deprecated Preview HTML legado. O ZPL do template é a única fonte de verdade;
+ * use ZplPreview (Labelary) nos modais de impressão. Mantido apenas para
+ * compatibilidade temporária e será removido.
+ */
 import React, { useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import { getTemplateFromConfig } from "./thermalEngine";
