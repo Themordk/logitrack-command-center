@@ -17,8 +17,8 @@ interface CrudTableProps {
   columns: ColumnSpec[];
   data: any[];
   loading: boolean;
-  search: string;
-  onSearchChange: (s: string) => void;
+  search?: string;
+  onSearchChange?: (s: string) => void;
   page: number;
   totalPages: number;
   total: number;
