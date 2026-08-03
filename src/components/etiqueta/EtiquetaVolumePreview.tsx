@@ -1,4 +1,9 @@
 /**
+ * @deprecated Preview HTML legado. O ZPL do template é a única fonte de verdade;
+ * use ZplPreview (Labelary) nos modais de impressão. Mantido apenas para
+ * compatibilidade temporária e será removido.
+ */
+/**
  * Etiqueta Volume de Expedição – 100x40mm (800x320px @ 203 DPI)
  * Layout B/W, otimizado para impressão térmica (Elgin L42PRO)
  */
