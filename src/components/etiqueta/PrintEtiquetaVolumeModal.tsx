@@ -148,7 +148,10 @@ export function PrintEtiquetaVolumeModal({
           p_documento_origem_id: String(vol.id),
           p_tipo_documento_origem: "volume_expedicao",
           p_prioridade: 5,
-          p_template_id: selectedConfig?.id ?? undefined,
+          p_quantidade_copias: 1,
+          p_impressora_id: null,
+          p_setor_uso: null,
+          p_template_id: selectedConfig?.id ?? null,
         });
 
         if (error) {
@@ -208,7 +211,10 @@ export function PrintEtiquetaVolumeModal({
         p_documento_origem_id: String(volumeAtual.id),
         p_tipo_documento_origem: "volume_expedicao",
         p_prioridade: 5,
-        p_template_id: selectedConfig?.id ?? undefined,
+        p_quantidade_copias: 1,
+        p_impressora_id: null,
+        p_setor_uso: null,
+        p_template_id: selectedConfig?.id ?? null,
       });
       if (error) throw error;
       const result = typeof data === "string" ? JSON.parse(data) : data;
