@@ -10420,38 +10420,53 @@ export type Database = {
         }
         Returns: undefined
       }
-      solicitar_impressao:
-        | {
-            Args: {
-              p_armazem_id: string
-              p_dados: Json
-              p_documento_origem_id?: string
-              p_impressora_id?: string
-              p_origem: string
-              p_prioridade?: number
-              p_quantidade_copias?: number
-              p_setor_uso?: string
-              p_template_id?: string
-              p_tipo_documento_origem?: string
-              p_tipo_etiqueta: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_armazem_id: string
-              p_dados: Json
-              p_documento_origem_id?: string
-              p_impressora_id?: string
-              p_origem: string
-              p_prioridade?: number
-              p_quantidade_copias?: number
-              p_setor_uso?: string
-              p_tipo_documento_origem?: string
-              p_tipo_etiqueta: string
-            }
-            Returns: Json
-          }
+      solicitar_impressao: {
+        Args: {
+          p_armazem_id: string
+          p_dados: Json
+          p_documento_origem_id: string
+          p_impressora_id: string
+          p_origem: string
+          p_prioridade: number
+          p_quantidade_copias: number
+          p_setor_uso: string
+          p_template_id: string
+          p_tipo_documento_origem: string
+          p_tipo_etiqueta: string
+        }
+        Returns: Json
+      }
+      solicitar_impressao_: {
+        Args: {
+          p_armazem_id: string
+          p_dados: Json
+          p_documento_origem_id?: string
+          p_impressora_id?: string
+          p_origem: string
+          p_prioridade?: number
+          p_quantidade_copias?: number
+          p_setor_uso?: string
+          p_tipo_documento_origem?: string
+          p_tipo_etiqueta: string
+        }
+        Returns: Json
+      }
+      solicitar_impressao__: {
+        Args: {
+          p_armazem_id: string
+          p_dados: Json
+          p_documento_origem_id?: string
+          p_impressora_id?: string
+          p_origem: string
+          p_prioridade?: number
+          p_quantidade_copias?: number
+          p_setor_uso?: string
+          p_template_id?: string
+          p_tipo_documento_origem?: string
+          p_tipo_etiqueta: string
+        }
+        Returns: Json
+      }
       user_has_empresa_access: {
         Args: { _empresa: string; _tenant: string }
         Returns: boolean
