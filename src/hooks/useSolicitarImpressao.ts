@@ -37,6 +37,9 @@ export function useSolicitarImpressao() {
         p_tipo_documento_origem: params.tipoDocumentoOrigem || null,
         p_quantidade_copias: params.quantidadeCopias || 1,
         p_prioridade: params.prioridade || 5,
+        p_impressora_id: params.impressoraId ?? null,
+        p_setor_uso: params.setorUso ?? null,
+        p_template_id: params.templateId ?? null,
       });
 
       if (error) throw error;
