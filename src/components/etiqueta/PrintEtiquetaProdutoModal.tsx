@@ -140,10 +140,13 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
           p_tipo_etiqueta: "PRODUTO",
           p_dados: dadosDoProduto(item),
           p_origem: "PAINEL_ADMINISTRATIVO",
-          p_documento_origem_id: item.embalagem_id || item.produto_id || undefined,
+          p_documento_origem_id: item.embalagem_id || item.produto_id || null,
           p_tipo_documento_origem: "produto_embalagem",
           p_prioridade: 5,
-          p_template_id: selectedConfig?.id ?? undefined,
+          p_quantidade_copias: 1,
+          p_impressora_id: null,
+          p_setor_uso: null,
+          p_template_id: selectedConfig?.id ?? null,
         });
 
         if (error) {
@@ -200,10 +203,13 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
         p_tipo_etiqueta: "PRODUTO",
         p_dados: dadosDoProduto(itemAtual),
         p_origem: "PAINEL_ADMINISTRATIVO",
-        p_documento_origem_id: itemAtual.embalagem_id || itemAtual.produto_id || undefined,
+        p_documento_origem_id: itemAtual.embalagem_id || itemAtual.produto_id || null,
         p_tipo_documento_origem: "produto_embalagem",
         p_prioridade: 5,
-        p_template_id: selectedConfig?.id ?? undefined,
+        p_quantidade_copias: 1,
+        p_impressora_id: null,
+        p_setor_uso: null,
+        p_template_id: selectedConfig?.id ?? null,
       });
       if (error) throw error;
       const result = typeof data === "string" ? JSON.parse(data) : data;

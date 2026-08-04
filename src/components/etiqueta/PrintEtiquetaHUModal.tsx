@@ -222,7 +222,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
           p_documento_origem_id: String(hu.id),
           p_tipo_documento_origem: "hu",
           p_prioridade: 5,
-          p_template_id: selectedConfig?.id ?? undefined,
+          p_quantidade_copias: 1,
+          p_impressora_id: null,
+          p_setor_uso: null,
+          p_template_id: selectedConfig?.id ?? null,
         });
 
         if (error) {
@@ -282,7 +285,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
         p_documento_origem_id: String(huAtual.id),
         p_tipo_documento_origem: "hu",
         p_prioridade: 5,
-        p_template_id: selectedConfig?.id ?? undefined,
+        p_quantidade_copias: 1,
+        p_impressora_id: null,
+        p_setor_uso: null,
+        p_template_id: selectedConfig?.id ?? null,
       });
       if (error) throw error;
       const result = typeof data === "string" ? JSON.parse(data) : data;
