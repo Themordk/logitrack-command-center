@@ -10,6 +10,9 @@ interface SolicitarImpressaoParams {
   tipoDocumentoOrigem?: string;
   quantidadeCopias?: number;
   prioridade?: number;
+  templateId?: string | null;
+  impressoraId?: string | null;
+  setorUso?: string | null;
 }
 
 /**
