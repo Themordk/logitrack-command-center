@@ -9641,58 +9641,57 @@ export type Database = {
         }
         Returns: string
       }
-      integracao_upsert_produto:
-        | {
-            Args: {
-              p_ativo: boolean
-              p_codigo_erp: string
-              p_descricao: string
-              p_empresa_id: string
-              p_grupo_id?: string
-              p_marca: string
-              p_parceiro_id: string
-              p_peso_variavel: boolean
-              p_preco_custo: number
-              p_referencia: string
-              p_sku: string
-              p_tenant_id: string
-              p_tipo_controle: string
-              p_tipo_separacao: string
-              p_usa_picking: boolean
-              p_varios_pickings: boolean
-            }
-            Returns: {
-              inserido: boolean
-              produto_id: string
-            }[]
-          }
-        | {
-            Args: {
-              p_ativo: boolean
-              p_codigo_erp: string
-              p_descricao: string
-              p_empresa_id: string
-              p_grupo_id?: string
-              p_marca: string
-              p_parceiro_id: string
-              p_peso_bruto?: number
-              p_peso_liquido?: number
-              p_peso_variavel: boolean
-              p_preco_custo: number
-              p_referencia: string
-              p_sku: string
-              p_tenant_id: string
-              p_tipo_controle: string
-              p_tipo_separacao: string
-              p_url_imagem?: string
-              p_usa_picking: boolean
-              p_varios_pickings: boolean
-            }
-            Returns: {
-              inserido: boolean
-              produto_id: string
-            }[]
-          }
+      integracao_upsert_produto: {
+        Args: {
+          p_ativo: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_grupo_id?: string
+          p_marca: string
+          p_parceiro_id: string
+          p_peso_bruto?: number
+          p_peso_liquido?: number
+          p_peso_variavel: boolean
+          p_preco_custo: number
+          p_referencia: string
+          p_sku: string
+          p_tenant_id: string
+          p_tipo_controle: string
+          p_tipo_separacao: string
+          p_url_imagem?: string
+          p_usa_picking: boolean
+          p_varios_pickings: boolean
+        }
+        Returns: {
+          inserido: boolean
+          produto_id: string
+        }[]
+      }
+      integracao_upsert_produto_: {
+        Args: {
+          p_ativo: boolean
+          p_codigo_erp: string
+          p_descricao: string
+          p_empresa_id: string
+          p_grupo_id?: string
+          p_marca: string
+          p_parceiro_id: string
+          p_peso_variavel: boolean
+          p_preco_custo: number
+          p_referencia: string
+          p_sku: string
+          p_tenant_id: string
+          p_tipo_controle: string
+          p_tipo_separacao: string
+          p_usa_picking: boolean
+          p_varios_pickings: boolean
+        }
+        Returns: {
+          inserido: boolean
+          produto_id: string
+        }[]
+      }
       integracao_upsert_rota: {
         Args: {
           p_armazem_id: string
