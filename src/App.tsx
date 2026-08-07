@@ -489,6 +489,18 @@ function AppContent() {
   const boot = useTenantBoot();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
 
+  // Gate global de troca de senha obrigatória (painel administrativo).
+  // Precisa viver aqui porque a LoginPage é desmontada assim que a sessão existe.
+  const pathForGate = currentPath;
+  const gateEnabled =
+    authenticated &&
+    !loading &&
+    !pathForGate.startsWith("/coletor") &&
+    !pathForGate.startsWith("/suporte") &&
+    !(typeof window !== "undefined" && !!localStorage.getItem("core_is_platform_support"));
+  const forcePwd = useForcePasswordChange(gateEnabled);
+
+
 
   // Sync hash with state
   const navigate = (path: string) => {
