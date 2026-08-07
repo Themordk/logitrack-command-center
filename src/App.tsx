@@ -144,6 +144,9 @@ import { SupportChamadosPage } from "./pages/suporte/SupportChamadosPage";
 // TV panels (Gestão à Vista) — rotas públicas sem tenant/auth
 import { PainelTvOperacional } from "./pages/tv/PainelTvOperacional";
 import { PainelTvVendas } from "./pages/tv/PainelTvVendas";
+import { useForcePasswordChange } from "./hooks/useForcePasswordChange";
+import { ForcePasswordChangeModal } from "./components/ForcePasswordChangeModal";
+
 
 function TvRouter() {
   const [path, setPath] = useState(() => {
