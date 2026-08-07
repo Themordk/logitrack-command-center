@@ -144,6 +144,9 @@ import { SupportChamadosPage } from "./pages/suporte/SupportChamadosPage";
 // TV panels (Gestão à Vista) — rotas públicas sem tenant/auth
 import { PainelTvOperacional } from "./pages/tv/PainelTvOperacional";
 import { PainelTvVendas } from "./pages/tv/PainelTvVendas";
+import { useForcePasswordChange } from "./hooks/useForcePasswordChange";
+import { ForcePasswordChangeModal } from "./components/ForcePasswordChangeModal";
+
 
 function TvRouter() {
   const [path, setPath] = useState(() => {
@@ -489,6 +492,19 @@ function AppContent() {
   const boot = useTenantBoot();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
 
+  // Gate global de troca de senha obrigatória (painel administrativo).
+  // Precisa viver aqui porque a LoginPage é desmontada assim que a sessão existe.
+  const pathForGate = currentPath;
+  const gateEnabled =
+    authenticated &&
+    !loading &&
+    !pathForGate.startsWith("/coletor") &&
+    !pathForGate.startsWith("/suporte") &&
+    !(typeof window !== "undefined" && !!localStorage.getItem("core_is_platform_support"));
+  const forcePwd = useForcePasswordChange(gateEnabled);
+
+
+
   // Sync hash with state
   const navigate = (path: string) => {
     window.location.hash = path;
@@ -604,6 +620,20 @@ function AppContent() {
       />
     );
   }
+
+  // Bloqueia o app até a troca de senha obrigatória ser concluída
+  if (forcePwd.loading) return <TenantBootSplash />;
+  if (forcePwd.mustChange && forcePwd.usuarioId) {
+    return (
+      <ForcePasswordChangeModal
+        open
+        usuarioId={forcePwd.usuarioId}
+        variant="admin"
+        onSuccess={() => forcePwd.clear()}
+      />
+    );
+  }
+
 
   const bc = breadcrumbs[currentPath] ?? getDynamicBreadcrumb(currentPath) ?? [
     { label: "CORE LogiTrack" },
