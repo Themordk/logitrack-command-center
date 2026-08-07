@@ -621,6 +621,20 @@ function AppContent() {
     );
   }
 
+  // Bloqueia o app até a troca de senha obrigatória ser concluída
+  if (forcePwd.loading) return <TenantBootSplash />;
+  if (forcePwd.mustChange && forcePwd.usuarioId) {
+    return (
+      <ForcePasswordChangeModal
+        open
+        usuarioId={forcePwd.usuarioId}
+        variant="admin"
+        onSuccess={() => forcePwd.clear()}
+      />
+    );
+  }
+
+
   const bc = breadcrumbs[currentPath] ?? getDynamicBreadcrumb(currentPath) ?? [
     { label: "CORE LogiTrack" },
     { label: currentPath.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
