@@ -489,6 +489,7 @@ function AppContent() {
   const boot = useTenantBoot();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
 
+
   // Sync hash with state
   const navigate = (path: string) => {
     window.location.hash = path;
