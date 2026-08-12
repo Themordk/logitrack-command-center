@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { usePermissions } from "@/contexts/PermissionsContext";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2 } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2, Cloud } from "lucide-react";
+import { useOffline } from "@/contexts/OfflineContext";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
