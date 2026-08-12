@@ -206,12 +206,31 @@ export function ConfiguracoesPage({ onNavigate }: Props) {
           </form>
         </div>
 
+        {/* Offline */}
+        <div className="border-t border-border pt-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Cloud size={18} className="text-primary" />
+            <h2 className="text-lg font-bold text-foreground">Modo Offline</h2>
+          </div>
+          <button
+            onClick={() => onNavigate("/coletor/offline-status")}
+            className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-card text-left"
+          >
+            <Cloud size={28} className="text-muted-foreground" />
+            <div>
+              <div className="font-semibold text-foreground">Status Offline</div>
+              <div className="text-xs text-muted-foreground">Fila de sincronização, conexão e cache de dados.</div>
+            </div>
+          </button>
+        </div>
+
         <div className="pt-2 border-t border-border">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Settings size={16} />
             <span className="text-sm">Mais configurações em breve.</span>
           </div>
         </div>
+
       </div>
     </ColetorLayout>
   );
