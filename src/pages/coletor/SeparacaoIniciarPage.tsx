@@ -138,9 +138,17 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
     <ColetorLayout title="Separação" onNavigate={onNavigate} showBack backPath="/coletor/home">
       <div className="flex flex-col gap-3 flex-1 min-h-0">
         <div className="flex items-center justify-between gap-2 shrink-0">
-          <p className="text-xs text-[hsl(213,31%,55%)]">Selecione uma onda para iniciar a separação</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-xs text-[hsl(213,31%,55%)] truncate">Selecione uma onda para iniciar a separação</p>
+            {isFromCache && (
+              <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                <Database size={10} /> Cache
+              </span>
+            )}
+          </div>
           <RefreshListButton onRefresh={loadOndas} />
         </div>
+
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
