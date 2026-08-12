@@ -77,6 +77,9 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
         </div>
       </header>
 
+      <OfflineBanner onNavigate={onNavigate} />
+
+
       {/* Body */}
       <main className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto min-h-0">
         {children}
