@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
-import { Settings, Smartphone, ScanBarcode, Lock, Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Settings, Smartphone, ScanBarcode, Lock, Loader2, Eye, EyeOff, CheckCircle, Cloud } from "lucide-react";
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
 
