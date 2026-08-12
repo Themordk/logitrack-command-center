@@ -53,6 +53,8 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [loadingEnderecos, setLoadingEnderecos] = useState(false);
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
   const result = useResultDialog({ coletorMode: true });
+  const { isOnline } = useOffline();
+
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
 
   useEffect(() => {
