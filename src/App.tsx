@@ -455,6 +455,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
+    case "/coletor/offline-status": return <OfflineStatusPage onNavigate={onNavigate} />;
+
     case "/coletor/movimentos": return <MovimentosMenuPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/origem": return <TransferenciaOrigemPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/produto": return <TransferenciaProdutoPage onNavigate={onNavigate} />;
