@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOffline } from "@/contexts/OfflineContext";
+import { OfflineBanner } from "@/components/coletor/OfflineBanner";
 
 import { Wifi, WifiOff, LogOut } from "lucide-react";
+
 
 interface ColetorLayoutProps {
   children: React.ReactNode;
