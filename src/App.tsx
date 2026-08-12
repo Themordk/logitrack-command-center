@@ -607,8 +607,9 @@ function AppContent() {
 
   // Coletor routes handle their own auth
   if (isColetor) {
-    return renderColetorPage(currentPath, navigate);
+    return <OfflineProvider>{renderColetorPage(currentPath, navigate)}</OfflineProvider>;
   }
+
 
   if (!authenticated) {
     return (
