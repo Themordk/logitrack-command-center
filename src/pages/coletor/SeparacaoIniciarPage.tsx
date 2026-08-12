@@ -72,31 +72,45 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
     if (!onda) return;
 
     setStarting(true);
+    const cacheKey = `tarefas_separacao_${selectedId}`;
     try {
-      const { data, error } = await supabase.rpc("separacao_buscar_tarefas" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-        p_movimento_saida_id: selectedId,
-        p_usuario_id: usuarioId,
-      });
-      if (error) throw error;
+      let tarefas: any[] = [];
 
-      let rpcResult: any = data;
-      if (typeof data === "string") {
-        try { rpcResult = JSON.parse(data); } catch { /* keep as is */ }
+      if (!isOnline) {
+        const cached = await getCachedData<any[]>(cacheKey);
+        if (!cached || cached.length === 0) {
+          result.showWarning("Sem conexão e sem tarefas em cache para esta onda.");
+          return;
+        }
+        tarefas = cached;
+      } else {
+        const { data, error } = await supabase.rpc("separacao_buscar_tarefas" as any, {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+          p_movimento_saida_id: selectedId,
+          p_usuario_id: usuarioId,
+        });
+        if (error) throw error;
+
+        let rpcResult: any = data;
+        if (typeof data === "string") {
+          try { rpcResult = JSON.parse(data); } catch { /* keep as is */ }
+        }
+
+        if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+          result.showWarning(rpcResult.mensagem || "Erro ao buscar tarefas");
+          return;
+        }
+
+        tarefas = Array.isArray(rpcResult) ? rpcResult : [];
+        await cacheData(cacheKey, tarefas, 120).catch(() => {});
       }
-
-      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
-        result.showWarning(rpcResult.mensagem || "Erro ao buscar tarefas");
-        return;
-      }
-
-      const tarefas = Array.isArray(rpcResult) ? rpcResult : [];
 
       sessionStorage.setItem("coletor_separacao_movimento_id", selectedId);
       sessionStorage.setItem("coletor_separacao_numero_onda", String(onda.numero_onda));
       sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(tarefas));
       sessionStorage.setItem("coletor_separacao_tarefa_idx", "0");
+
 
       if (tarefas.length === 0) {
         result.showWarning("Nenhuma tarefa pendente para esta onda.");
