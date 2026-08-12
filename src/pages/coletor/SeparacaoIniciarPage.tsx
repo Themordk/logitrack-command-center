@@ -21,45 +21,47 @@ interface OndaResumo {
 }
 
 export function SeparacaoIniciarPage({ onNavigate }: Props) {
-  const [ondas, setOndas] = useState<OndaResumo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const result = useResultDialog({ coletorMode: true });
+  const { isOnline, cacheData, getCachedData } = useOffline();
 
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
-  useEffect(() => {
-    loadOndas();
-  }, []);
+  const prioridadeOrdem: Record<string, number> = { URGENTE: 0, ALTA: 1, NORMAL: 2, BAIXA: 3 };
 
-  const loadOndas = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.rpc("separacao_buscar_ondas" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-        p_usuario_id: usuarioId,
-      });
-      if (error) throw error;
-      const parsed = Array.isArray(data) ? data : typeof data === "string" ? JSON.parse(data) : [];
-      const prioridadeOrdem: Record<string, number> = { URGENTE: 0, ALTA: 1, NORMAL: 2, BAIXA: 3 };
-      parsed.sort((a: any, b: any) => {
-        const pa = prioridadeOrdem[(a.prioridade || "NORMAL").toUpperCase()] ?? 2;
-        const pb = prioridadeOrdem[(b.prioridade || "NORMAL").toUpperCase()] ?? 2;
-        if (pa !== pb) return pa - pb;
-        return (a.numero_onda || 0) - (b.numero_onda || 0);
-      });
-      setOndas(parsed);
-    } catch (err: unknown) {
-      const parsed = parseError(err, "separacao-ondas");
-      toast.error(parsed.title);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchOndas = useCallback(async (): Promise<OndaResumo[]> => {
+    const { data, error } = await supabase.rpc("separacao_buscar_ondas" as any, {
+      p_tenant_id: tenantId,
+      p_empresa_id: empresaId,
+      p_usuario_id: usuarioId,
+    });
+    if (error) throw error;
+    const parsed = Array.isArray(data) ? data : typeof data === "string" ? JSON.parse(data) : [];
+    parsed.sort((a: any, b: any) => {
+      const pa = prioridadeOrdem[(a.prioridade || "NORMAL").toUpperCase()] ?? 2;
+      const pb = prioridadeOrdem[(b.prioridade || "NORMAL").toUpperCase()] ?? 2;
+      if (pa !== pb) return pa - pb;
+      return (a.numero_onda || 0) - (b.numero_onda || 0);
+    });
+    return parsed as OndaResumo[];
+  }, [tenantId, empresaId, usuarioId]);
+
+  const { data, loading, isFromCache, error, refetch } = useOfflineCache<OndaResumo[]>(
+    `ondas_separacao_${empresaId}`,
+    fetchOndas,
+    30,
+  );
+  const ondas = data ?? [];
+
+  useEffect(() => {
+    if (error) toast.error("Não foi possível carregar as ondas.");
+  }, [error]);
+
+  const loadOndas = refetch;
+
 
   const handleIniciar = async () => {
     if (!selectedId) return;
