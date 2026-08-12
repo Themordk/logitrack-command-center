@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const HEALTH_URL = "https://dcpmykhxysvxnpgmlyli.supabase.co/rest/v1/";
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || "https://dcpmykhxysvxnpgmlyli.supabase.co";
+const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) || "";
+const HEALTH_URL = `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/?apikey=${encodeURIComponent(SUPABASE_KEY)}`;
 const PING_TIMEOUT_MS = 3000;
 const INTERVAL_ONLINE_MS = 15000;
 const INTERVAL_OFFLINE_MS = 5000;
@@ -12,10 +14,16 @@ async function pingNetwork(): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
   try {
+    // Qualquer resposta HTTP significa que a rede está acessível — o objetivo
+    // é medir alcance, não autorização.
     await fetch(HEALTH_URL, {
-      method: "HEAD",
-      mode: "no-cors",
+      method: "GET",
+      mode: "cors",
       cache: "no-store",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
       signal: controller.signal,
     });
     return true;
