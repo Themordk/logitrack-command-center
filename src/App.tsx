@@ -107,6 +107,9 @@ import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
 import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
+import { OfflineStatusPage } from "./pages/coletor/OfflineStatusPage";
+import { OfflineProvider } from "./contexts/OfflineContext";
+
 import { MovimentosMenuPage } from "./pages/coletor/MovimentosMenuPage";
 import { TransferenciaOrigemPage } from "./pages/coletor/TransferenciaOrigemPage";
 import { TransferenciaProdutoPage } from "./pages/coletor/TransferenciaProdutoPage";
@@ -452,6 +455,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
+    case "/coletor/offline-status": return <OfflineStatusPage onNavigate={onNavigate} />;
+
     case "/coletor/movimentos": return <MovimentosMenuPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/origem": return <TransferenciaOrigemPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/produto": return <TransferenciaProdutoPage onNavigate={onNavigate} />;
@@ -607,8 +612,9 @@ function AppContent() {
 
   // Coletor routes handle their own auth
   if (isColetor) {
-    return renderColetorPage(currentPath, navigate);
+    return <OfflineProvider>{renderColetorPage(currentPath, navigate)}</OfflineProvider>;
   }
+
 
   if (!authenticated) {
     return (

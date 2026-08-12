@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useOffline } from "@/contexts/OfflineContext";
+import { OfflineBanner } from "@/components/coletor/OfflineBanner";
 
 import { Wifi, WifiOff, LogOut } from "lucide-react";
+
 
 interface ColetorLayoutProps {
   children: React.ReactNode;
@@ -14,26 +17,22 @@ interface ColetorLayoutProps {
 }
 
 export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, onNavigate, showBack, backPath, showLogout }: ColetorLayoutProps) {
-  const [online, setOnline] = useState(navigator.onLine);
+  const { isOnline: online } = useOffline();
   const sessionIdRef = useRef<string | null>(localStorage.getItem("coletor_session_id"));
+  const onlineRef = useRef(online);
+  onlineRef.current = online;
 
-  useEffect(() => {
-    const onOn = () => setOnline(true);
-    const onOff = () => setOnline(false);
-    window.addEventListener("online", onOn);
-    window.addEventListener("offline", onOff);
-    return () => { window.removeEventListener("online", onOn); window.removeEventListener("offline", onOff); };
-  }, []);
-
-  // Heartbeat every 30s
+  // Heartbeat every 30s (pausa quando offline)
   useEffect(() => {
     const sid = sessionIdRef.current;
     if (!sid) return;
     const iv = setInterval(async () => {
+      if (!onlineRef.current) return;
       await (supabase as any).from("log_sessao_usuario").update({ ultimo_heartbeat: new Date().toISOString() }).eq("id", sid);
     }, 30000);
     return () => clearInterval(iv);
   }, []);
+
 
   const handleLogout = async () => {
     const sid = sessionIdRef.current;
@@ -77,6 +76,9 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
           )}
         </div>
       </header>
+
+      <OfflineBanner onNavigate={onNavigate} />
+
 
       {/* Body */}
       <main className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto min-h-0">

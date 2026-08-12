@@ -9,6 +9,8 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { formatDate } from "@/utils/dateTime";
+import { useOffline } from "@/contexts/OfflineContext";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -53,6 +55,8 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [loadingEnderecos, setLoadingEnderecos] = useState(false);
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
   const result = useResultDialog({ coletorMode: true });
+  const { isOnline } = useOffline();
+
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
 
   useEffect(() => {
@@ -116,6 +120,22 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     setLastScanned(code);
 
     try {
+      // Offline: valida localmente contra o endereço da tarefa em cache
+      if (!isOnline) {
+        const esperado = String(tarefa.endereco || "").trim().toUpperCase();
+        if (esperado && esperado !== code.trim().toUpperCase()) {
+          result.showWarning("Endereço incorreto! Escaneie o endereço informado.", { onClose: () => setLastScanned("") });
+          return;
+        }
+        sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(tarefas));
+        sessionStorage.setItem("coletor_separacao_tarefa_idx", String(currentIdx));
+        sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(tarefa));
+        sessionStorage.removeItem("coletor_separacao_lote_selecionado");
+        toast.info("Endereço confirmado offline.");
+        onNavigate(requerLote(tarefa.tipo_controle) ? "/coletor/separacao/lote" : "/coletor/separacao/produto");
+        return;
+      }
+
       // Pre-check: endereco situacao
       const { data: endCheck } = await (supabase as any)
         .from("endereco")
@@ -136,6 +156,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
         p_endereco_lido: code,
       });
       if (error) throw error;
+
 
       let rpcResult: any;
       if (typeof data === "string") {

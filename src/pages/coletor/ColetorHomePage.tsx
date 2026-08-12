@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { usePermissions } from "@/contexts/PermissionsContext";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2 } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2, Cloud } from "lucide-react";
+import { useOffline } from "@/contexts/OfflineContext";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -27,6 +29,8 @@ const modules: ModuleCard[] = [
 export function ColetorHomePage({ onNavigate }: Props) {
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
   const { can, loading: permLoading } = usePermissions();
+  const { pendingCount } = useOffline();
+
   const userName = localStorage.getItem("core_usuario_nome") || "Operador";
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
@@ -71,7 +75,19 @@ export function ColetorHomePage({ onNavigate }: Props) {
       <div className="shrink-0 mb-1">
         <span className="text-base text-[hsl(213,31%,55%)]">Olá, </span>
         <span className="text-base font-bold text-white">{userName}</span>
+        {pendingCount > 0 && (
+          <button
+            onClick={() => onNavigate("/coletor/offline-status")}
+            className="mt-1 flex items-center gap-1.5 text-yellow-400"
+          >
+            <Cloud size={14} />
+            <span className="text-xs font-semibold">
+              {pendingCount} {pendingCount === 1 ? "ação aguardando" : "ações aguardando"} sincronização
+            </span>
+          </button>
+        )}
       </div>
+
 
       {permLoading ? (
         <div className="flex-1 min-h-0 flex items-center justify-center">

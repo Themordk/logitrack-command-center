@@ -11,6 +11,8 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
+
 
 
 
@@ -42,6 +44,8 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const result = useResultDialog({ coletorMode: true });
+  const { execute: executeOffline } = useOfflineAction();
+
   const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
   const [showVolumeDialog, setShowVolumeDialog] = useState(false);
 
@@ -230,7 +234,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     try {
       const resolvedEnderecoId = enderecoId || tarefa.endereco_id || tarefa.endereco_alternativo_id;
 
-      const { data, error } = await supabase.rpc("separacao_executar_coleta" as any, {
+      const offlineResult = await executeOffline("separacao_executar_coleta", {
         p_tenant_id: tenantId,
         p_tarefa_id: tarefa.tarefa_id,
         p_quantidade: qtdFinal,
@@ -241,8 +245,20 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         p_lote: loteSel?.lote ?? null,
         p_hu: loteSel?.hu_id ?? null,
       });
-      if (error) throw error;
 
+      if (!offlineResult.success) throw offlineResult.data;
+
+      // Ação salva localmente: avança usando cálculo local, sem consultar o servidor
+      if (offlineResult.offline) {
+        const novaQtd = qtdSeparada + qtdFinal;
+        setQtdSeparada(novaQtd);
+        setQuantidade("");
+        toast.info("Confirmação salva. Será enviada quando a conexão retornar.");
+        if (novaQtd >= Number(tarefa.quantidade_requerida)) advanceToNext();
+        return;
+      }
+
+      const data = offlineResult.data;
       let rpcResult: any = data;
       if (typeof data === "string") {
         try { rpcResult = JSON.parse(data); } catch { /* keep */ }
@@ -252,6 +268,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         result.showWarning(rpcResult.mensagem || "Erro ao registrar coleta");
         return;
       }
+
 
       // Refresh task data from server to get accurate separado/restante
       try {
