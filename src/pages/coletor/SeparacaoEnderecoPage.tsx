@@ -9,6 +9,8 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { formatDate } from "@/utils/dateTime";
+import { useOffline } from "@/contexts/OfflineContext";
+
 
 interface Props { onNavigate: (path: string) => void; }
 
