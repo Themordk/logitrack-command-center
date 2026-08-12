@@ -71,7 +71,19 @@ export function ColetorHomePage({ onNavigate }: Props) {
       <div className="shrink-0 mb-1">
         <span className="text-base text-[hsl(213,31%,55%)]">Olá, </span>
         <span className="text-base font-bold text-white">{userName}</span>
+        {pendingCount > 0 && (
+          <button
+            onClick={() => onNavigate("/coletor/offline-status")}
+            className="mt-1 flex items-center gap-1.5 text-yellow-400"
+          >
+            <Cloud size={14} />
+            <span className="text-xs font-semibold">
+              {pendingCount} {pendingCount === 1 ? "ação aguardando" : "ações aguardando"} sincronização
+            </span>
+          </button>
+        )}
       </div>
+
 
       {permLoading ? (
         <div className="flex-1 min-h-0 flex items-center justify-center">
