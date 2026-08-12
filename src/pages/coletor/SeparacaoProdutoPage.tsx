@@ -11,6 +11,8 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
+
 
 
 
