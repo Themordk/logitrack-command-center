@@ -107,6 +107,9 @@ import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
 import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
+import { OfflineStatusPage } from "./pages/coletor/OfflineStatusPage";
+import { OfflineProvider } from "./contexts/OfflineContext";
+
 import { MovimentosMenuPage } from "./pages/coletor/MovimentosMenuPage";
 import { TransferenciaOrigemPage } from "./pages/coletor/TransferenciaOrigemPage";
 import { TransferenciaProdutoPage } from "./pages/coletor/TransferenciaProdutoPage";
