@@ -6,6 +6,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { parseError } from "@/lib/errorMapper";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -13,6 +14,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
   const [tarefas, setTarefas] = useState<any[]>([]);
   const [clearingId, setClearingId] = useState<string | null>(null);
   const { tenantId } = useTenant();
+  const { execute: executeOffline } = useOfflineAction();
   const numeroOnda = sessionStorage.getItem("coletor_conferencia_numero_onda") || "";
   const movimentoId = sessionStorage.getItem("coletor_conferencia_movimento_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
@@ -46,7 +48,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
     if (!window.confirm(`Limpar toda a conferência do produto ${t.sku || ""}?`)) return;
 
     setClearingId(t.tarefa_id || t.id);
-    const { error } = await (supabase as any).rpc("separacao_conferencia_limpar_item", {
+    const offlineResult = await executeOffline("separacao_conferencia_limpar_item", {
       p_tenant_id: tenantId,
       p_movimento_saida_id: movimentoId,
       p_produto_id: t.produto_id,
@@ -54,8 +56,8 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
     });
     setClearingId(null);
 
-    if (error) {
-      const parsed = parseError(error, "conferencia-itens");
+    if (!offlineResult.success) {
+      const parsed = parseError(offlineResult.data, "conferencia-itens");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
       toast.error(fallbackToRaw ? "Erro ao limpar conferência." : parsed.title);
       return;
@@ -68,7 +70,12 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
     );
     setTarefas(updated);
     sessionStorage.setItem("coletor_conferencia_tarefas", JSON.stringify(updated));
-    toast.success("Conferência do item limpa.");
+
+    if (offlineResult.offline) {
+      toast.info("Ação salva. Será enviada quando a conexão retornar.");
+    } else {
+      toast.success("Conferência do item limpa.");
+    }
   };
 
   return (
