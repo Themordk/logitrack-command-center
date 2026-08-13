@@ -36,6 +36,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [qtdConferida, setQtdConferida] = useState(0);
   const result = useResultDialog({ coletorMode: true });
+  const { isOnline } = useOffline();
   const [showOptions, setShowOptions] = useState(false);
   const [modoCheckout, setModoCheckout] = useState(false);
   const [modoCego, setModoCego] = useState(false);
