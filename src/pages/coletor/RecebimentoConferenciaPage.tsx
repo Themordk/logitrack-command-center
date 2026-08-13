@@ -6,6 +6,7 @@ import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, Archive } from "lucide-react";
 import { parseError } from "@/lib/errorMapper";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -31,6 +32,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   const [finalizing, setFinalizing] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const { execute: executeOffline } = useOfflineAction();
 
   useEffect(() => {
     loadResumo();
@@ -76,15 +78,22 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
     if (!movimentoId || !usuarioId) return;
     setFinalizing(true);
     try {
-      const { data, error } = await (supabase as any)
-        .rpc("finalizar_conferencia_entrada_movimento", {
-          p_tenant_id: tenantId,
-          p_movimento_entrada_id: movimentoId,
-          p_usuario: usuarioId,
-        });
-      if (error) throw error;
+      const offlineResult = await executeOffline("finalizar_conferencia_entrada_movimento", {
+        p_tenant_id: tenantId,
+        p_movimento_entrada_id: movimentoId,
+        p_usuario: usuarioId,
+      });
+      if (!offlineResult.success) throw offlineResult.data;
 
-      const resultado = data as string;
+      if (offlineResult.offline) {
+        toast.info("Ação salva. Será enviada quando a conexão retornar.");
+        setOverlay("success");
+        setOverlayMsg("Recebimento finalizado!");
+        setTimeout(() => onNavigate("/coletor/recebimento/concluido"), 1200);
+        return;
+      }
+
+      const resultado = offlineResult.data as string;
       if (resultado === "CONFERENCIA_FINALIZADA_COM_DIVERGENCIA") {
         setOverlay("warning");
         setOverlayMsg("Finalizado com divergências!");

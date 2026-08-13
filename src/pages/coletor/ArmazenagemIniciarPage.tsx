@@ -4,7 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { Loader2, AlertTriangle, MapPin } from "lucide-react";
+import { useOffline } from "@/contexts/OfflineContext";
+import { Loader2, AlertTriangle, MapPin, Database } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -38,91 +39,94 @@ function ConvCaixa({ qtd, fator }: { qtd: number; fator: number }) {
 export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
+  const { isOnline, cacheData, getCachedData } = useOffline();
 
   const [lastScanned, setLastScanned] = useState("");
   const [loading, setLoading] = useState(false);
   const [tarefa, setTarefa] = useState<TarefaResult | null>(null);
+  const [isFromCache, setIsFromCache] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
 
-  const handleScan = async (code: string) => {
-    setLastScanned(code);
-    setTarefa(null);
-    if (!tenantId || !empresaId) return;
+  const buscarTarefaOnline = async (code: string): Promise<TarefaResult> => {
+    if (!tenantId || !empresaId) throw new Error("Tenant/empresa não identificados");
 
-    setLoading(true);
-    try {
-      // Se código for HU, resolver produto via HU e depois buscar tarefa por EAN
-      if (code.startsWith("HU-") || code.startsWith("hu-")) {
-        const { data: huResult, error: huErr } = await (supabase as any).rpc("buscar_hu_por_codigo", {
-          p_tenant_id: tenantId,
-          p_codigo_hu: code,
-        });
-        if (huErr) throw huErr;
-        const hu = typeof huResult === "string" ? JSON.parse(huResult) : huResult;
-        if (!hu?.encontrada) {
-          setOverlay("error");
-          setOverlayMsg("HU não encontrada: " + code);
-          return;
-        }
-        const { data: huItens, error: huItensErr } = await (supabase as any).rpc("listar_itens_hu", {
-          p_tenant_id: tenantId,
-          p_hu_id: hu.hu_id,
-        });
-        if (huItensErr) throw huItensErr;
-        const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
-        if (!itensResult?.itens || itensResult.itens.length === 0) {
-          setOverlay("error");
-          setOverlayMsg("HU " + code + " está vazia.");
-          return;
-        }
-        const firstItem = itensResult.itens[0];
-        const { data: eanData } = await (supabase as any)
-          .from("produto_embalagem")
-          .select("ean")
-          .eq("produto_id", firstItem.produto_id)
-          .limit(1);
-        if (!eanData || eanData.length === 0) {
-          setOverlay("error");
-          setOverlayMsg("Produto da HU sem EAN cadastrado.");
-          return;
-        }
-        sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
-        sessionStorage.setItem("coletor_armazenagem_hu_codigo", hu.codigo_hu);
+    if (code.startsWith("HU-") || code.startsWith("hu-")) {
+      const { data: huResult, error: huErr } = await (supabase as any).rpc("buscar_hu_por_codigo", {
+        p_tenant_id: tenantId,
+        p_codigo_hu: code,
+      });
+      if (huErr) throw huErr;
+      const hu = typeof huResult === "string" ? JSON.parse(huResult) : huResult;
+      if (!hu?.encontrada) throw new Error("HU não encontrada: " + code);
 
-        const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
-          p_tenant_id: tenantId,
-          p_empresa_ids: [empresaId],
-          p_ean: eanData[0].ean,
-        });
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          setOverlay("error");
-          setOverlayMsg("Nenhuma tarefa de armazenagem para o produto da HU");
-          return;
-        }
-        const row = data[0] as TarefaResult;
-        setTarefa(row);
-        setOverlay("success");
-        setOverlayMsg(`HU ${code} → ${row.descricao}`);
-        return;
-      }
+      const { data: huItens, error: huItensErr } = await (supabase as any).rpc("listar_itens_hu", {
+        p_tenant_id: tenantId,
+        p_hu_id: hu.hu_id,
+      });
+      if (huItensErr) throw huItensErr;
+      const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
+      if (!itensResult?.itens || itensResult.itens.length === 0) throw new Error("HU " + code + " está vazia.");
+
+      const firstItem = itensResult.itens[0];
+      const { data: eanData } = await (supabase as any)
+        .from("produto_embalagem")
+        .select("ean")
+        .eq("produto_id", firstItem.produto_id)
+        .limit(1);
+      if (!eanData || eanData.length === 0) throw new Error("Produto da HU sem EAN cadastrado.");
+
+      sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
+      sessionStorage.setItem("coletor_armazenagem_hu_codigo", hu.codigo_hu);
 
       const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
         p_tenant_id: tenantId,
         p_empresa_ids: [empresaId],
-        p_ean: code,
+        p_ean: eanData[0].ean,
       });
       if (error) throw error;
-      if (!data || data.length === 0) {
-        setOverlay("error");
-        setOverlayMsg("Nenhuma tarefa encontrada para este código");
+      if (!data || data.length === 0) throw new Error("Nenhuma tarefa de armazenagem para o produto da HU");
+      return data[0] as TarefaResult;
+    }
+
+    const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
+      p_tenant_id: tenantId,
+      p_empresa_ids: [empresaId],
+      p_ean: code,
+    });
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error("Nenhuma tarefa encontrada para este código");
+    return data[0] as TarefaResult;
+  };
+
+  const handleScan = async (code: string) => {
+    setLastScanned(code);
+    setTarefa(null);
+    setIsFromCache(false);
+    if (!tenantId || !empresaId) return;
+
+    setLoading(true);
+    const cacheKey = `armazenagem_tarefa_${code}`;
+    try {
+      if (!isOnline) {
+        const cached = await getCachedData<TarefaResult>(cacheKey);
+        if (!cached) {
+          setOverlay("error");
+          setOverlayMsg("Sem conexão e sem dados em cache para este código.");
+          return;
+        }
+        setTarefa(cached);
+        setIsFromCache(true);
+        setOverlay("success");
+        setOverlayMsg(`Produto encontrado (cache): ${cached.descricao}`);
         return;
       }
-      const row = data[0] as TarefaResult;
+
+      const row = await buscarTarefaOnline(code);
       setTarefa(row);
+      await cacheData(cacheKey, row, 30).catch(() => {});
       setOverlay("success");
-      setOverlayMsg(`Produto encontrado: ${row.descricao}`);
+      setOverlayMsg(code.toUpperCase().startsWith("HU-") ? `HU ${code} → ${row.descricao}` : `Produto encontrado: ${row.descricao}`);
     } catch (err: any) {
       setOverlay("error");
       setOverlayMsg(err.message || "Erro ao buscar tarefa");
@@ -164,6 +168,13 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
       {tarefa && !loading && (
         <>
+          {isFromCache && (
+            <div className="flex justify-end">
+              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                <Database size={10} /> Cache
+              </span>
+            </div>
+          )}
           <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-4 space-y-3">
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-mono text-sm font-bold text-[hsl(213,31%,80%)]">{tarefa.sku}</span>

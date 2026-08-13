@@ -1,80 +1,94 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2, Archive, Package } from "lucide-react";
+import { Loader2, Archive, Package, Database } from "lucide-react";
 import { formatDateTime, formatDate as fmtDateUtil } from "@/utils/dateTime";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
+interface ConsultaHUData {
+  huInfo: any;
+  estoqueInfo: any[];
+  execInfo: any[];
+  huItensInfo: any[];
+}
+
 export function ConsultaHUPage({ onNavigate }: Props) {
   const { tenantId, empresaId } = useTenant();
-  const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
-  const [error, setError] = useState("");
-  const [huInfo, setHuInfo] = useState<any>(null);
-  const [estoqueInfo, setEstoqueInfo] = useState<any[]>([]);
-  const [execInfo, setExecInfo] = useState<any[]>([]);
-  const [huItensInfo, setHuItensInfo] = useState<any[]>([]);
+  const { isOnline } = useOffline();
 
-  const handleScan = async (code: string) => {
-    setScanned(code);
-    setError("");
-    setHuInfo(null);
-    setEstoqueInfo([]);
-    setExecInfo([]);
-    setHuItensInfo([]);
-    setLoading(true);
-    try {
-      const { data: hus } = await (supabase as any)
-        .from("hu")
-        .select("id, codigo_hu, tipo_hu, tamanho, disponibilidade, peso_bruto, status")
-        .eq("codigo_hu", code)
-        .limit(1);
+  const fetchConsulta = useCallback(async (): Promise<ConsultaHUData> => {
+    const { data: hus } = await (supabase as any)
+      .from("hu")
+      .select("id, codigo_hu, tipo_hu, tamanho, disponibilidade, peso_bruto, status")
+      .eq("codigo_hu", scanned)
+      .limit(1);
 
-      if (!hus || hus.length === 0) {
-        setError("HU não encontrada.");
-        setLoading(false);
-        return;
-      }
-
-      const hu = hus[0];
-      setHuInfo(hu);
-
-      let estoqueQuery = (supabase as any)
-        .from("estoque_geral")
-        .select("quantidade_disponivel, quantidade_total, lote, data_validade, data_fabricacao, endereco:endereco_id(descricao, tipo_endereco), produto:produto_id(sku, descricao, fator_caixa)")
-        .eq("hu_id", hu.id);
-
-      if (tenantId) estoqueQuery = estoqueQuery.eq("tenant_id", tenantId);
-      if (empresaId) estoqueQuery = estoqueQuery.eq("empresa_id", empresaId);
-
-      const { data: estoque } = await estoqueQuery;
-      setEstoqueInfo(estoque || []);
-
-      const { data: huItens } = await (supabase as any).rpc("listar_itens_hu", {
-        p_tenant_id: tenantId,
-        p_hu_id: hu.id,
-      });
-      const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
-      setHuItensInfo(itensResult?.itens || []);
-
-      const { data: execs } = await (supabase as any)
-        .from("tarefa_execucao")
-        .select("id, status, concluido_em, endereco_destino_id, endereco_origem_id, quantidade_executada")
-        .eq("hu", hu.id)
-        .order("concluido_em", { ascending: false })
-        .limit(3);
-
-      setExecInfo(execs || []);
-    } catch {
-      setError("Erro ao consultar.");
-    } finally {
-      setLoading(false);
+    if (!hus || hus.length === 0) {
+      throw new Error("HU_NAO_ENCONTRADA");
     }
+
+    const hu = hus[0];
+
+    let estoqueQuery = (supabase as any)
+      .from("estoque_geral")
+      .select("quantidade_disponivel, quantidade_total, lote, data_validade, data_fabricacao, endereco:endereco_id(descricao, tipo_endereco), produto:produto_id(sku, descricao, fator_caixa)")
+      .eq("hu_id", hu.id);
+
+    if (tenantId) estoqueQuery = estoqueQuery.eq("tenant_id", tenantId);
+    if (empresaId) estoqueQuery = estoqueQuery.eq("empresa_id", empresaId);
+
+    const { data: estoque } = await estoqueQuery;
+
+    const { data: huItens } = await (supabase as any).rpc("listar_itens_hu", {
+      p_tenant_id: tenantId,
+      p_hu_id: hu.id,
+    });
+    const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
+
+    const { data: execs } = await (supabase as any)
+      .from("tarefa_execucao")
+      .select("id, status, concluido_em, endereco_destino_id, endereco_origem_id, quantidade_executada")
+      .eq("hu", hu.id)
+      .order("concluido_em", { ascending: false })
+      .limit(3);
+
+    return {
+      huInfo: hu,
+      estoqueInfo: estoque || [],
+      execInfo: execs || [],
+      huItensInfo: itensResult?.itens || [],
+    };
+  }, [scanned, tenantId, empresaId]);
+
+  const { data, loading, isFromCache, error } = useOfflineCache<ConsultaHUData>(
+    `consulta_hu_${scanned}`,
+    fetchConsulta,
+    60,
+    !!scanned,
+  );
+
+  const huInfo = data?.huInfo ?? null;
+  const estoqueInfo = data?.estoqueInfo ?? [];
+  const execInfo = data?.execInfo ?? [];
+  const huItensInfo = data?.huItensInfo ?? [];
+
+  const handleScan = (code: string) => {
+    setScanned(code);
   };
+
+  const semConexaoESemCache = !!scanned && !loading && !data && !isOnline;
+  const errorMessage = error === "HU_NAO_ENCONTRADA"
+    ? "HU não encontrada."
+    : error
+      ? "Erro ao consultar."
+      : "";
 
   const dispLabel: Record<string, string> = {
     DISPONIVEL: "Disponível",
@@ -98,10 +112,24 @@ export function ConsultaHUPage({ onNavigate }: Props) {
       <ScanField label="Escanear Código HU" onScan={handleScan} lastScanned={scanned} />
 
       {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
-      {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
+
+      {!loading && semConexaoESemCache && (
+        <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">
+          Sem conexão e sem dados em cache para esta consulta.
+        </div>
+      )}
+
+      {!loading && !semConexaoESemCache && errorMessage && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{errorMessage}</div>
+      )}
 
       {huInfo && !loading && (
         <div className="flex flex-col gap-3">
+          {isFromCache && (
+            <span className="self-start flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+              <Database size={10} /> Cache
+            </span>
+          )}
           {/* HU Details */}
           <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3">
             <div className="flex items-center gap-3 mb-2">

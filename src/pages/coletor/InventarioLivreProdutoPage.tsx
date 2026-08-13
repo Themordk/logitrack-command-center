@@ -8,6 +8,7 @@ import { MapPin, Package, BoxIcon } from "lucide-react";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -39,6 +40,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
   const [fabricacao, setFabricacao] = useState("");
   const [validade, setValidade] = useState("");
   const result = useResultDialog({ coletorMode: true });
+  const { execute: executeOffline } = useOfflineAction();
 
 
 
@@ -124,7 +126,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
 
     setConfirming(true);
     try {
-      const { data, error } = await supabase.rpc("fn_inventario_contagem_livre" as any, {
+      const offlineResult = await executeOffline("fn_inventario_contagem_livre", {
         p_tenant_id: tenantId,
         p_inventario_id: inventarioId,
         p_usuario_id: usuarioId,
@@ -137,8 +139,16 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
         p_validade: validade || "1900-01-01",
         p_fabricacao: fabricacao || "1900-01-01",
       });
-      if (error) throw error;
 
+      if (!offlineResult.success) throw offlineResult.data;
+
+      if (offlineResult.offline) {
+        toast.info("Contagem salva. Será enviada quando a conexão retornar.");
+        resetForm();
+        return;
+      }
+
+      const data = offlineResult.data;
       let rpcResult: any = data;
       if (typeof data === "string") {
         try { rpcResult = JSON.parse(data); } catch { /* keep */ }

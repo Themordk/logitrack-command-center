@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOffline } from "@/contexts/OfflineContext";
 import { OfflineBanner } from "@/components/coletor/OfflineBanner";
 
-import { Wifi, WifiOff, LogOut } from "lucide-react";
+import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
 
 
 interface ColetorLayoutProps {
@@ -17,7 +17,7 @@ interface ColetorLayoutProps {
 }
 
 export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, onNavigate, showBack, backPath, showLogout }: ColetorLayoutProps) {
-  const { isOnline: online } = useOffline();
+  const { isOnline: online, isSyncing } = useOffline();
   const sessionIdRef = useRef<string | null>(localStorage.getItem("coletor_session_id"));
   const onlineRef = useRef(online);
   onlineRef.current = online;
@@ -64,10 +64,19 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
-            {online ? <Wifi size={18} className="text-green-300" /> : <WifiOff size={18} className="text-red-300" />}
-            <span className={`text-xs font-semibold ${online ? "text-green-300" : "text-red-300"}`}>
-              {online ? "ONLINE" : "OFFLINE"}
-            </span>
+            {isSyncing ? (
+              <>
+                <RefreshCw size={18} className="text-blue-200 animate-spin" />
+                <span className="text-xs font-semibold text-blue-200">SYNC</span>
+              </>
+            ) : (
+              <>
+                {online ? <Wifi size={18} className="text-green-300" /> : <WifiOff size={18} className="text-red-300" />}
+                <span className={`text-xs font-semibold ${online ? "text-green-300" : "text-red-300"}`}>
+                  {online ? "ONLINE" : "OFFLINE"}
+                </span>
+              </>
+            )}
           </div>
           {showLogout && (
             <button onClick={handleLogout} className="text-white/80 hover:text-white p-1">

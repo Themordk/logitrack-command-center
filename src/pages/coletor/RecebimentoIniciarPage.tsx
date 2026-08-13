@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { parseError } from "@/lib/errorMapper";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -21,43 +22,43 @@ interface MovimentoResumo {
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
-  const [movimentos, setMovimentos] = useState<MovimentoResumo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const tenantId = localStorage.getItem("core_tenant_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
-  useEffect(() => {
-    loadMovimentos();
+  const fetchMovimentos = useCallback(async (): Promise<MovimentoResumo[]> => {
+    const { data, error } = await (supabase as any)
+      .from("v_recebimento_iniciar")
+      .select("*");
+    if (error) throw error;
+
+    const enriched = await Promise.all(
+      (data || []).map(async (m: any) => {
+        const { data: movData } = await (supabase as any)
+          .from("movimento_entrada")
+          .select("confirma_volume, total_volume_conferido")
+          .eq("id", m.id)
+          .maybeSingle();
+        return { ...m, confirma_volume: movData?.confirma_volume ?? false, total_volume_conferido: movData?.total_volume_conferido ?? null };
+      })
+    );
+
+    return enriched;
   }, []);
 
-  const loadMovimentos = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from("v_recebimento_iniciar")
-        .select("*");
-      if (error) throw error;
+  const { data, loading, isFromCache, error, refetch } = useOfflineCache<MovimentoResumo[]>(
+    "recebimento_movimentos_iniciar",
+    fetchMovimentos,
+    30,
+  );
+  const movimentos = data ?? [];
 
-      const enriched = await Promise.all(
-        (data || []).map(async (m: any) => {
-          const { data: movData } = await (supabase as any)
-            .from("movimento_entrada")
-            .select("confirma_volume, total_volume_conferido")
-            .eq("id", m.id)
-            .maybeSingle();
-          return { ...m, confirma_volume: movData?.confirma_volume ?? false, total_volume_conferido: movData?.total_volume_conferido ?? null };
-        })
-      );
+  useEffect(() => {
+    if (error) toast.error("Erro ao carregar movimentos.");
+  }, [error]);
 
-      setMovimentos(enriched);
-    } catch {
-      toast.error("Erro ao carregar movimentos.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadMovimentos = refetch;
 
   const handleConfirmStart = async () => {
     if (!selectedId || !tenantId || !usuarioId) return;
@@ -129,7 +130,14 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     <ColetorLayout title="Selecionar Movimento" onNavigate={onNavigate} showBack backPath="/coletor/recebimento">
       <div className="flex flex-col flex-1 min-h-0 gap-3">
         <div className="flex items-center justify-between gap-2 shrink-0">
-          <p className="text-xs text-[hsl(213,31%,55%)]">Selecione um movimento para iniciar a conferência</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-xs text-[hsl(213,31%,55%)] truncate">Selecione um movimento para iniciar a conferência</p>
+            {isFromCache && (
+              <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                <Database size={10} /> Cache
+              </span>
+            )}
+          </div>
           <RefreshListButton onRefresh={loadMovimentos} />
         </div>
         {loading ? (

@@ -12,6 +12,8 @@ import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDateTimeShort } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
+import { useOffline } from "@/contexts/OfflineContext";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -71,6 +73,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   });
   const [loading, setLoading] = useState(true);
   const { solicitar } = useSolicitarImpressao();
+  const { isOnline, cacheData, getCachedData } = useOffline();
+  const { execute: executeOffline } = useOfflineAction();
+  const barcodeCacheKey = `recebimento_barcode_cache_${movimentoId}`;
   const [lastScanned, setLastScanned] = useState("");
   const [currentProduct, setCurrentProduct] = useState<ProdutoInfo | null>(null);
   const [quantidade, setQuantidade] = useState("");
@@ -151,6 +156,28 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     }
   }, [movimentoId, loadConferencia, refreshTarefas]);
 
+  const applyProdutoResult = (code: string, prod: any) => {
+    // LMS: mark task as started on first scan
+    if (prod.tarefa_id) {
+      markTarefaIniciadaByTarefa(prod.tarefa_id, usuarioId);
+    }
+
+    setCurrentProduct({
+      ean: code,
+      fator: prod.Fator_embalagem || prod.fator_embalagem || 1,
+      descricao: prod.descricao,
+      sku: prod.sku,
+      referencia: prod.referencia,
+      lastro: prod.lastro,
+      camada: prod.camada,
+      tipo_controle: prod.tipo_controle,
+      produto_id: prod.id,
+      tarefa_id: prod.tarefa_id,
+      peso_variavel: prod.peso_variavel,
+    });
+    showOverlayMsg("success", `Produto: ${prod.sku}`);
+  };
+
   const handleScan = async (code: string) => {
     setLastScanned(code);
     setCurrentProduct(null);
@@ -158,6 +185,17 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
     if (!movimentoId || !tenantId) {
       showOverlayMsg("error", "Movimento não identificado");
+      return;
+    }
+
+    if (!isOnline) {
+      const cached = (await getCachedData<Record<string, any>>(barcodeCacheKey)) || {};
+      const prod = cached[code];
+      if (!prod) {
+        showOverlayMsg("error", "Produto não encontrado no cache offline");
+        return;
+      }
+      applyProdutoResult(code, prod);
       return;
     }
 
@@ -179,25 +217,12 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       const prod = result.data;
 
-      // LMS: mark task as started on first scan
-      if (prod.tarefa_id) {
-        markTarefaIniciadaByTarefa(prod.tarefa_id, usuarioId);
-      }
+      // Guarda o item no cache offline do documento para permitir a busca sem rede
+      const cached = (await getCachedData<Record<string, any>>(barcodeCacheKey)) || {};
+      cached[code] = prod;
+      await cacheData(barcodeCacheKey, cached, 480).catch(() => {});
 
-      setCurrentProduct({
-        ean: code,
-        fator: prod.Fator_embalagem || prod.fator_embalagem || 1,
-        descricao: prod.descricao,
-        sku: prod.sku,
-        referencia: prod.referencia,
-        lastro: prod.lastro,
-        camada: prod.camada,
-        tipo_controle: prod.tipo_controle,
-        produto_id: prod.id,
-        tarefa_id: prod.tarefa_id,
-        peso_variavel: prod.peso_variavel,
-      });
-      showOverlayMsg("success", `Produto: ${prod.sku}`);
+      applyProdutoResult(code, prod);
     } catch (err: any) {
       console.error(err);
       showOverlayMsg("error", "Erro ao buscar produto");
@@ -230,7 +255,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       const huId = sessionStorage.getItem("coletor_hu_id") || null;
 
-      const { error } = await (supabase as any).rpc("finalizar_conferencia_entrada_item", {
+      const offlineResult = await executeOffline("finalizar_conferencia_entrada_item", {
         p_tarefa_id: currentProduct.tarefa_id,
         p_usuario: usuarioId,
         p_quantidade: qtdFinal,
@@ -240,9 +265,12 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         p_hu: huId,
       });
 
-      if (error) throw error;
+      if (!offlineResult.success) throw offlineResult.data;
 
       showOverlayMsg("success", `✔ ${quantidade} un. confirmadas`);
+
+      const produtoConfirmado = currentProduct;
+      const qtdConfirmada = quantidade;
 
       setCurrentProduct(null);
       setQuantidade("");
@@ -250,6 +278,39 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       setFabricacao("");
       setValidade("");
       setShowLoteModal(false);
+
+      if (offlineResult.offline) {
+        toast.info("Ação salva. Será enviada quando a conexão retornar.");
+
+        // Avança localmente sem consultar o servidor
+        setItems((prev) => [
+          {
+            tarefa_execucao_id: `offline-${Date.now()}`,
+            tarefa_id: produtoConfirmado.tarefa_id,
+            tarefa_status: "EM_ANDAMENTO",
+            sku: produtoConfirmado.sku,
+            descricao: produtoConfirmado.descricao,
+            operador: "",
+            codigo_hu: huId,
+            quantidade_executada: qtdFinal,
+            concluido_em: new Date().toISOString(),
+            lote: lote || "",
+            status: "PENDENTE",
+          },
+          ...prev,
+        ]);
+
+        setTarefas((prev) => {
+          const updated = prev.map((t) =>
+            t.id === produtoConfirmado.tarefa_id
+              ? { ...t, conferido: (t.conferido || 0) + qtdFinal }
+              : t
+          );
+          sessionStorage.setItem("coletor_recebimento_tarefas", JSON.stringify(updated));
+          return updated;
+        });
+        return;
+      }
 
       setTimeout(() => { loadConferencia(); refreshTarefas(); }, 800);
     } catch (err: any) {
@@ -274,15 +335,33 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     if (!cancelConfirm || !tenantId) return;
     setDeleting(cancelConfirm.tarefa_execucao_id);
     try {
-      const { error } = await (supabase as any).rpc("fn_limpar_conferencia_entrada", {
+      const offlineResult = await executeOffline("fn_limpar_conferencia_entrada", {
         p_tarefa_execucao_id: cancelConfirm.tarefa_execucao_id,
         p_tarefa_id: cancelConfirm.tarefa_id,
         p_quantidade: cancelConfirm.quantidade_executada,
         p_tenant_id: tenantId,
       });
-      if (error) throw error;
-      toast.success("Conferência cancelada.");
+      if (!offlineResult.success) throw offlineResult.data;
+
+      const cancelled = cancelConfirm;
       setCancelConfirm(null);
+
+      if (offlineResult.offline) {
+        toast.info("Ação salva. Será enviada quando a conexão retornar.");
+        setItems((prev) => prev.filter((it) => it.tarefa_execucao_id !== cancelled.tarefa_execucao_id));
+        setTarefas((prev) => {
+          const updated = prev.map((t) =>
+            t.id === cancelled.tarefa_id
+              ? { ...t, conferido: Math.max(0, (t.conferido || 0) - cancelled.quantidade_executada) }
+              : t
+          );
+          sessionStorage.setItem("coletor_recebimento_tarefas", JSON.stringify(updated));
+          return updated;
+        });
+        return;
+      }
+
+      toast.success("Conferência cancelada.");
       loadConferencia();
       refreshTarefas();
     } catch (err: any) {

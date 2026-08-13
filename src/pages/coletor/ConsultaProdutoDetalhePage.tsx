@@ -7,6 +7,9 @@ import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { EMBALAGENS_PADRAO } from "@/lib/embalagens";
 import { toast } from "sonner";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useOffline } from "@/contexts/OfflineContext";
+import { Database } from "lucide-react";
 
 
 interface Props {
@@ -67,9 +70,8 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const customBackPath = sessionStorage.getItem("coletor_consulta_produto_back") || "/coletor/consulta/produto";
   const backPath = customBackPath;
   const [tab, setTab] = useState<Tab>("info");
-  const [loading, setLoading] = useState(true);
   const { solicitar } = useSolicitarImpressao();
-  const [produto, setProduto] = useState<ProdutoInfo | null>(null);
+  const { isOnline } = useOffline();
 
   // Embalagens
   const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
@@ -114,33 +116,36 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   };
 
 
-  const loadProduto = useCallback(async () => {
-    if (!produtoId) return;
-    setLoading(true);
-    try {
-      const { data } = await (supabase as any)
-        .from("produto")
-        .select("id, sku, referencia, descricao, marca, curva_venda, curva_acesso, tipo_controle, lastro, camada, fator_caixa, peso_bruto, peso_liquido, url_imagem, parceiro_id, grupo_id, subgrupo_id")
-        .eq("id", produtoId)
-        .single();
-      if (!data) return;
+  const fetchProduto = useCallback(async (): Promise<ProdutoInfo> => {
+    const { data, error } = await (supabase as any)
+      .from("produto")
+      .select("id, sku, referencia, descricao, marca, curva_venda, curva_acesso, tipo_controle, lastro, camada, fator_caixa, peso_bruto, peso_liquido, url_imagem, parceiro_id, grupo_id, subgrupo_id")
+      .eq("id", produtoId)
+      .single();
+    if (error) throw error;
 
-      const [parcRes, grpRes, subRes] = await Promise.all([
-        (supabase as any).from("parceiro").select("razaosocial").eq("id", data.parceiro_id).single(),
-        data.grupo_id ? (supabase as any).from("grupo_produto").select("descricao").eq("id", data.grupo_id).single() : Promise.resolve({ data: null }),
-        data.subgrupo_id ? (supabase as any).from("subgrupo_produto").select("descricao").eq("id", data.subgrupo_id).single() : Promise.resolve({ data: null }),
-      ]);
+    const [parcRes, grpRes, subRes] = await Promise.all([
+      (supabase as any).from("parceiro").select("razaosocial").eq("id", data.parceiro_id).single(),
+      data.grupo_id ? (supabase as any).from("grupo_produto").select("descricao").eq("id", data.grupo_id).single() : Promise.resolve({ data: null }),
+      data.subgrupo_id ? (supabase as any).from("subgrupo_produto").select("descricao").eq("id", data.subgrupo_id).single() : Promise.resolve({ data: null }),
+    ]);
 
-      setProduto({
-        ...data,
-        parceiro_nome: parcRes.data?.razaosocial || "—",
-        grupo_nome: grpRes.data?.descricao || "—",
-        subgrupo_nome: subRes.data?.descricao || "—",
-      });
-    } catch { /* ignore */ } finally {
-      setLoading(false);
-    }
+    return {
+      ...data,
+      parceiro_nome: parcRes.data?.razaosocial || "—",
+      grupo_nome: grpRes.data?.descricao || "—",
+      subgrupo_nome: subRes.data?.descricao || "—",
+    };
   }, [produtoId]);
+
+  const { data: produto, loading, isFromCache, refetch } = useOfflineCache<ProdutoInfo>(
+    `consulta_produto_detalhe_${produtoId}`,
+    fetchProduto,
+    60,
+    !!produtoId,
+  );
+
+  const loadProduto = refetch;
 
   const loadEmbalagens = useCallback(async () => {
     if (!produtoId) return;
@@ -316,13 +321,20 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   if (!produto) {
     return (
       <ColetorLayout title="Detalhe Produto" onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
-        <p className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Produto não encontrado.</p>
+        <p className="text-center text-sm text-[hsl(213,31%,55%)] py-8">
+          {!isOnline ? "Sem conexão e sem dados em cache para esta consulta." : "Produto não encontrado."}
+        </p>
       </ColetorLayout>
     );
   }
 
   return (
     <ColetorLayout title={produto.sku} onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
+      {isFromCache && (
+        <span className="self-start flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+          <Database size={10} /> Cache
+        </span>
+      )}
       {/* Tab selector */}
       <div className="flex gap-1 p-1 rounded-xl bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)]">
         {(["info", "embalagens", "picking"] as Tab[]).map((t) => (

@@ -12,6 +12,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -40,6 +41,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [volumeQtd, setVolumeQtd] = useState("");
   const [volumeSaving, setVolumeSaving] = useState(false);
   const { solicitar } = useSolicitarImpressao();
+  const { execute: executeOffline } = useOfflineAction();
   const [geraVolumeEtapa, setGeraVolumeEtapa] = useState<string>("NENHUMA");
   const [overlay, setOverlay] = useState<{ type: OverlayType; message?: string; duration?: number } | null>(null);
   const pendingNextRef = useRef<{ idx: number; tarefas: any[] } | null>(null);
@@ -239,15 +241,72 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
     setConfirming(true);
     try {
-      const { data, error } = await supabase.rpc("conferencia_saida_confirmacao" as any, {
+      const offlineResult = await executeOffline("conferencia_saida_confirmacao", {
         p_tenant_id: tenantId,
         p_tarefa_id: tarefaId,
         p_quantidade: qtdFinal,
         p_usuario_id: usuarioId,
         p_modo_conferencia: modo,
       });
-      if (error) throw error;
 
+      if (!offlineResult.success) throw offlineResult.data;
+
+      if (offlineResult.offline) {
+        // Ação salva localmente: avança usando cálculo local, sem consultar o servidor
+        const prevConferido = Number(targetTarefa.conferido ?? targetTarefa.separado ?? 0);
+        const prevRequerida = Number(targetTarefa.quantidade_requerida || 0);
+        const newQtdConferida = prevConferido + qtdFinal;
+        const statusLocal = newQtdConferida >= prevRequerida ? "CONCLUIDA" : targetTarefa.status;
+
+        setQtdConferida(newQtdConferida);
+        const newTarefasOffline = [...tarefas];
+        if (targetIdx >= 0) {
+          newTarefasOffline[targetIdx] = {
+            ...newTarefasOffline[targetIdx],
+            conferido: newQtdConferida,
+            status: statusLocal,
+          };
+        }
+        setTarefas(newTarefasOffline);
+        sessionStorage.setItem("coletor_conferencia_tarefas", JSON.stringify(newTarefasOffline));
+
+        setQuantidade("");
+        setEanScanned("");
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        toast.info("Ação salva. Será enviada quando a conexão retornar.");
+
+        const showOverlayOffline = (payload: { type: OverlayType; message?: string; duration?: number }) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => setOverlay(payload)));
+        };
+
+        if (newQtdConferida >= prevRequerida) {
+          let nextIdxOffline = -1;
+          for (let i = 0; i < newTarefasOffline.length; i++) {
+            if (i === targetIdx) continue;
+            const t = newTarefasOffline[i];
+            if (Number(t.conferido || 0) < Number(t.quantidade_requerida || 0) && t.status !== "CONCLUIDA") {
+              nextIdxOffline = i;
+              break;
+            }
+          }
+          if (nextIdxOffline >= 0) {
+            pendingNextRef.current = { idx: nextIdxOffline, tarefas: newTarefasOffline };
+            showOverlayOffline({ type: "success", message: "Item conferido — próximo", duration: 600 });
+          } else {
+            showOverlayOffline({ type: "success", message: "Onda finalizada!", duration: 800 });
+          }
+        } else {
+          showOverlayOffline({
+            type: "success",
+            message: modo === "checkout" ? "Item conferido" : "Quantidade registrada",
+            duration: 500,
+          });
+        }
+        return;
+      }
+
+      const data = offlineResult.data;
       let rpcResult: any = data;
       if (typeof data === "string") {
         try { rpcResult = JSON.parse(data); } catch { /* keep */ }

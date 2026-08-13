@@ -6,6 +6,8 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay } from "@/components/coletor/StatusOverlay";
 import { Archive, CheckCircle2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { toast } from "sonner";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -33,6 +35,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const { execute: executeOffline } = useOfflineAction();
 
   const handleScanEndereco = async (code: string) => {
     const { data } = await (supabase as any)
@@ -94,7 +97,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const handleConfirmarColeta = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("rpc_coletor_abastecimento_confirmar_coleta" as any, {
+      const offlineResult = await executeOffline("rpc_coletor_abastecimento_confirmar_coleta", {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_tarefa_id: tarefaId,
@@ -102,11 +105,20 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
         p_quantidade: Number(quantidade),
         p_usuario_id: usuarioId,
       });
-      if (error) throw error;
+
+      if (!offlineResult.success) throw offlineResult.data;
+
+      if (offlineResult.offline) {
+        toast.info("Ação salva. Será enviada quando a conexão retornar.");
+        setOverlay("success"); setOverlayMsg("Coleta confirmada!");
+        setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+        return;
+      }
+
       setOverlay("success"); setOverlayMsg("Coleta confirmada!");
       setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
     } catch (err: any) {
-      setOverlay("error"); setOverlayMsg(err.message || "Erro ao confirmar coleta");
+      setOverlay("error"); setOverlayMsg(err?.message || "Erro ao confirmar coleta");
     } finally {
       setSaving(false);
     }

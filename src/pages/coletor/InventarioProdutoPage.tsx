@@ -10,6 +10,7 @@ import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/Regist
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -29,6 +30,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [showZeroConfirm, setShowZeroConfirm] = useState(false);
   const result = useResultDialog({ coletorMode: true });
+  const { execute: executeOffline } = useOfflineAction();
 
 
 
@@ -112,7 +114,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
     try {
       const contagem = Number(sessionStorage.getItem("coletor_inventario_contagem") || "1");
 
-      const { data, error } = await supabase.rpc("fn_inventario_registrar_contagem" as any, {
+      const offlineResult = await executeOffline("fn_inventario_registrar_contagem", {
         p_tenant_id: tenantId,
         p_tarefa_id: tarefa.tarefa_id || tarefa.id,
         p_usuario: usuarioId,
@@ -124,8 +126,16 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
         p_fabricacao: tarefa.fabricacao || null,
         p_hu: tarefa.hu_id || tarefa.id_hu || null,
       });
-      if (error) throw error;
 
+      if (!offlineResult.success) throw offlineResult.data;
+
+      if (offlineResult.offline) {
+        toast.info("Contagem salva. Será enviada quando a conexão retornar.");
+        advanceToNext();
+        return;
+      }
+
+      const data = offlineResult.data;
       let rpcResult: any = data;
       if (typeof data === "string") {
         try { rpcResult = JSON.parse(data); } catch { /* keep */ }

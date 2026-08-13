@@ -35,14 +35,19 @@ export function isNetworkError(err: any): boolean {
 /** Considera "já processado" no servidor — idempotência. */
 function isAlreadyProcessed(err: any): boolean {
   const code = String(err?.code ?? "");
+  const status = Number(err?.status ?? err?.statusCode ?? 0);
   const msg = String(err?.message ?? "").toLowerCase();
   return (
     code === "409" ||
+    status === 409 ||
     code === "23505" ||
     msg.includes("já foi") ||
     msg.includes("ja foi") ||
+    msg.includes("já processad") ||
     msg.includes("already processed") ||
-    msg.includes("duplicate key")
+    msg.includes("duplicate key") ||
+    msg.includes("unique constraint") ||
+    msg.includes("violates unique")
   );
 }
 

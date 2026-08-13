@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
 import { toast } from "sonner";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useOffline } from "@/contexts/OfflineContext";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
-import { parseError } from "@/lib/errorMapper";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -21,34 +23,37 @@ interface InventarioResumo {
 }
 
 export function InventarioListPage({ onNavigate }: Props) {
-  const [inventarios, setInventarios] = useState<InventarioResumo[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const result = useResultDialog({ coletorMode: true });
+  const { isOnline, cacheData, getCachedData } = useOffline();
+  const { execute: executeOffline } = useOfflineAction();
 
 
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
-  useEffect(() => { loadInventarios(); }, []);
+  const fetchInventarios = useCallback(async (): Promise<InventarioResumo[]> => {
+    const { data, error } = await (supabase as any)
+      .from("v_inventario_iniciar")
+      .select("*");
+    if (error) throw error;
+    return data || [];
+  }, []);
 
-  const loadInventarios = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from("v_inventario_iniciar")
-        .select("*");
-      if (error) throw error;
-      setInventarios(data || []);
-    } catch (err: unknown) {
-      const parsed = parseError(err, "inventario-lista");
-      toast.error(parsed.title);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, loading, isFromCache, error, refetch } = useOfflineCache<InventarioResumo[]>(
+    `inventarios_${empresaId}`,
+    fetchInventarios,
+    30,
+  );
+  const inventarios = data ?? [];
+
+  useEffect(() => {
+    if (error) toast.error("Não foi possível carregar os inventários.");
+  }, [error]);
+
+  const loadInventarios = refetch;
 
   const [showContagemPopup, setShowContagemPopup] = useState(false);
 
@@ -73,27 +78,41 @@ export function InventarioListPage({ onNavigate }: Props) {
     if (!inv) return;
 
     setStarting(true);
+    const cacheKey = `tarefas_inventario_${selectedId}_${contagem}`;
     try {
-      const { data, error } = await supabase.rpc("fn_inventario_buscar_tarefas" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-        p_usuario_id: usuarioId,
-        p_inventario_id: selectedId,
-        p_contagem_inventario: contagem,
-      });
-      if (error) throw error;
+      let tarefas: any[] = [];
 
-      let rpcResult: any = data;
-      if (typeof data === "string") {
-        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
+      if (!isOnline) {
+        const cached = await getCachedData<any[]>(cacheKey);
+        if (!cached || cached.length === 0) {
+          result.showWarning("Sem conexão e sem tarefas em cache para este inventário.");
+          return;
+        }
+        tarefas = cached;
+      } else {
+        const offlineResult = await executeOffline("fn_inventario_buscar_tarefas", {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+          p_usuario_id: usuarioId,
+          p_inventario_id: selectedId,
+          p_contagem_inventario: contagem,
+        });
+        if (!offlineResult.success) throw offlineResult.data;
+
+        const data = offlineResult.data;
+        let rpcResult: any = data;
+        if (typeof data === "string") {
+          try { rpcResult = JSON.parse(data); } catch { /* keep */ }
+        }
+
+        if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
+          result.showWarning(rpcResult.mensagem || "Erro ao buscar tarefas");
+          return;
+        }
+
+        tarefas = Array.isArray(rpcResult) ? rpcResult : [];
+        await cacheData(cacheKey, tarefas, 120).catch(() => {});
       }
-
-      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
-        result.showWarning(rpcResult.mensagem || "Erro ao buscar tarefas");
-        return;
-      }
-
-      const tarefas = Array.isArray(rpcResult) ? rpcResult : [];
 
       // Detectar modo contagem livre (inventário GERAL)
       const isContagemLivre = tarefas.length === 1 && tarefas[0]?.status === "CONTAGEM_LIVRE";
@@ -154,7 +173,14 @@ export function InventarioListPage({ onNavigate }: Props) {
     <ColetorLayout title="Inventário" onNavigate={onNavigate} showBack backPath="/coletor/home">
       <div className="flex flex-col gap-3 flex-1 min-h-0">
         <div className="flex items-center justify-between gap-2 shrink-0">
-          <p className="text-xs text-[hsl(213,31%,55%)]">Selecione um inventário para iniciar a contagem</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-xs text-[hsl(213,31%,55%)] truncate">Selecione um inventário para iniciar a contagem</p>
+            {isFromCache && (
+              <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                <Database size={10} /> Cache
+              </span>
+            )}
+          </div>
           <RefreshListButton onRefresh={loadInventarios} />
         </div>
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
+import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 
@@ -21,6 +22,7 @@ interface ItemEstoque {
 }
 
 export function MudancaPickingDestinoPage({ onNavigate }: Props) {
+  const offlineBlocked = useOnlineOnlyBlocked();
   const tenantId = localStorage.getItem("core_tenant_id") || "";
   const empresaId = localStorage.getItem("core_empresa_id") || "";
   const usuarioId = localStorage.getItem("core_usuario_id") || "";
@@ -140,6 +142,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Mudança de Picking - Destino" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/mudanca-picking/lista">
+      <OnlineOnlyNotice flow="Mudança de Picking" />
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
@@ -152,7 +155,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
         </div>
       </div>
 
-      <ScanField label="Escanear Endereço Destino" onScan={handleScan} lastScanned={scanned} disabled={loading} />
+      <ScanField label="Escanear Endereço Destino" onScan={handleScan} lastScanned={scanned} disabled={loading || offlineBlocked} />
       {loading && <div className="flex flex-col items-center py-4 gap-2"><Loader2 className="animate-spin text-[hsl(280,80%,60%)]" size={28} /><span className="text-xs text-[hsl(213,31%,55%)]">Transferindo itens...</span></div>}
     </ColetorLayout>
   );

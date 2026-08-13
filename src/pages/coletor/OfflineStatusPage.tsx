@@ -10,12 +10,26 @@ import { formatDateTime } from "@/utils/dateTime";
 interface Props { onNavigate: (path: string) => void; }
 
 const ACTION_LABELS: Record<string, string> = {
+  // Separação
   separacao_executar_coleta: "Confirmar coleta de separação",
   separacao_confirmar_endereco: "Confirmar endereço de separação",
+  gerar_volumes_expedicao: "Gerar volumes de expedição",
+  // Conferência
+  conferencia_saida_confirmacao: "Confirmar item de conferência",
+  separacao_conferencia_limpar_item: "Limpar item de conferência",
+  // Armazenagem
+  rpc_coletor_armazenagem_execucao: "Confirmar armazenagem",
+  finalizar_armazenagem: "Finalizar armazenagem",
+  // Inventário
   fn_inventario_registrar_contagem: "Registrar contagem de inventário",
-  armazenagem_executar: "Confirmar armazenagem",
-  recebimento_confirmar_item: "Confirmar item de recebimento",
-  conferencia_confirmar_item: "Confirmar item de conferência",
+  fn_inventario_contagem_livre: "Registrar contagem livre",
+  // Recebimento
+  finalizar_conferencia_entrada_item: "Confirmar item de recebimento",
+  finalizar_conferencia_entrada_movimento: "Finalizar conferência de entrada",
+  fn_limpar_conferencia_entrada: "Limpar conferência de entrada",
+  // Abastecimento
+  rpc_coletor_abastecimento_confirmar_coleta: "Confirmar coleta de abastecimento",
+  rpc_coletor_abastecimento_confirmar_entrega: "Confirmar entrega de abastecimento",
 };
 
 function labelFor(action: string) {
@@ -74,6 +88,13 @@ export function OfflineStatusPage({ onNavigate }: Props) {
   const handleRetry = async (id: string) => {
     await retryAction(id);
     await load();
+  };
+
+  const handleDiscard = async (id: string) => {
+    await OfflineStore.deleteAction(id);
+    await refreshCounts();
+    await load();
+    toast.success("Ação descartada.");
   };
 
   const handleClearCache = async () => {
@@ -143,13 +164,21 @@ export function OfflineStatusPage({ onNavigate }: Props) {
                         <AlertTriangle size={13} className="text-red-400 mt-0.5 shrink-0" />
                         <span className="text-[11px] text-red-300 break-words">{a.errorMessage}</span>
                       </div>
-                      <button
-                        onClick={() => handleRetry(a.id)}
-                        disabled={!isOnline}
-                        className="self-start min-h-[48px] px-3 text-xs font-bold text-[hsl(217,91%,70%)] disabled:opacity-40"
-                      >
-                        Tentar novamente
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRetry(a.id)}
+                          disabled={!isOnline}
+                          className="min-h-[48px] px-3 text-xs font-bold text-[hsl(217,91%,70%)] disabled:opacity-40"
+                        >
+                          Tentar novamente
+                        </button>
+                        <button
+                          onClick={() => handleDiscard(a.id)}
+                          className="min-h-[48px] px-3 text-xs font-bold text-red-300"
+                        >
+                          Descartar
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>

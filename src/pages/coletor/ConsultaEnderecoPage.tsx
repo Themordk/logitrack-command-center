@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -17,60 +19,70 @@ interface EstoqueRow {
   data_fabricacao: string;
 }
 
+interface ConsultaEnderecoData {
+  enderecoDesc: string;
+  enderecoId: string;
+  items: EstoqueRow[];
+}
+
 export function ConsultaEnderecoPage({ onNavigate }: Props) {
-  const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
-  const [enderecoDesc, setEnderecoDesc] = useState("");
-  const [enderecoId, setEnderecoId] = useState("");
-  const [items, setItems] = useState<EstoqueRow[]>([]);
-  const [error, setError] = useState("");
+  const { isOnline } = useOffline();
 
-  const handleScan = async (code: string) => {
-    setScanned(code);
-    setError("");
-    setItems([]);
-    setEnderecoDesc("");
-    setEnderecoId("");
-    setLoading(true);
-    try {
-      // Find endereco by descricao or codigo_endereco
-      const { data: enderecos } = await (supabase as any)
-        .from("endereco")
-        .select("id, descricao")
-        .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
-        .limit(1);
+  const fetchConsulta = useCallback(async (): Promise<ConsultaEnderecoData> => {
+    // Find endereco by descricao or codigo_endereco
+    const { data: enderecos } = await (supabase as any)
+      .from("endereco")
+      .select("id, descricao")
+      .or(`descricao.eq.${scanned},codigo_endereco.eq.${scanned}`)
+      .limit(1);
 
-      if (!enderecos || enderecos.length === 0) {
-        setError("Endereço não encontrado.");
-        setLoading(false);
-        return;
-      }
-
-      const endId = enderecos[0].id;
-      setEnderecoDesc(enderecos[0].descricao);
-      setEnderecoId(endId);
-
-      const { data: estoque } = await (supabase as any)
-        .from("estoque_geral")
-        .select("quantidade_disponivel, lote, data_validade, data_fabricacao, produto:produto_id(sku, descricao, fator_caixa)")
-        .eq("endereco_id", endId)
-        .gt("quantidade_disponivel", 0);
-
-      setItems((estoque || []).map((e: any) => ({
-        sku: e.produto?.sku || "—",
-        descricao: e.produto?.descricao || "—",
-        quantidade_disponivel: e.quantidade_disponivel,
-        fator_caixa: e.produto?.fator_caixa ?? null,
-        lote: e.lote || "",
-        data_validade: e.data_validade || "",
-        data_fabricacao: e.data_fabricacao || "",
-      })));
-    } catch {
-      setError("Erro ao consultar.");
-    } finally {
-      setLoading(false);
+    if (!enderecos || enderecos.length === 0) {
+      throw new Error("ENDERECO_NAO_ENCONTRADO");
     }
+
+    const endId = enderecos[0].id;
+
+    const { data: estoque } = await (supabase as any)
+      .from("estoque_geral")
+      .select("quantidade_disponivel, lote, data_validade, data_fabricacao, produto:produto_id(sku, descricao, fator_caixa)")
+      .eq("endereco_id", endId)
+      .gt("quantidade_disponivel", 0);
+
+    const items: EstoqueRow[] = (estoque || []).map((e: any) => ({
+      sku: e.produto?.sku || "—",
+      descricao: e.produto?.descricao || "—",
+      quantidade_disponivel: e.quantidade_disponivel,
+      fator_caixa: e.produto?.fator_caixa ?? null,
+      lote: e.lote || "",
+      data_validade: e.data_validade || "",
+      data_fabricacao: e.data_fabricacao || "",
+    }));
+
+    return { enderecoDesc: enderecos[0].descricao, enderecoId: endId, items };
+  }, [scanned]);
+
+  const { data, loading, isFromCache, error } = useOfflineCache<ConsultaEnderecoData>(
+    `consulta_endereco_${scanned}`,
+    fetchConsulta,
+    60,
+    !!scanned,
+  );
+
+  const enderecoDesc = data?.enderecoDesc ?? "";
+  const enderecoId = data?.enderecoId ?? "";
+  const items = data?.items ?? [];
+
+  const handleScan = (code: string) => {
+    setScanned(code);
   };
+
+  const semConexaoESemCache = !!scanned && !loading && !data && !isOnline;
+  const errorMessage = error === "ENDERECO_NAO_ENCONTRADO"
+    ? "Endereço não encontrado."
+    : error
+      ? "Erro ao consultar."
+      : "";
 
   const fmtDate = (d: string) => {
     if (!d || d === "1900-01-01") return "—";
@@ -90,7 +102,22 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
       <ScanField label="Escanear Endereço" onScan={handleScan} lastScanned={scanned} />
 
       {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
-      {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
+
+      {!loading && semConexaoESemCache && (
+        <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">
+          Sem conexão e sem dados em cache para esta consulta.
+        </div>
+      )}
+
+      {!loading && !semConexaoESemCache && errorMessage && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{errorMessage}</div>
+      )}
+
+      {isFromCache && enderecoDesc && !loading && (
+        <span className="self-start flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+          <Database size={10} /> Cache
+        </span>
+      )}
 
       {enderecoDesc && !loading && (
         <button
@@ -123,7 +150,7 @@ export function ConsultaEnderecoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {!loading && scanned && items.length === 0 && !error && (
+      {!loading && scanned && data && items.length === 0 && !error && (
         <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Nenhum saldo neste endereço.</div>
       )}
     </ColetorLayout>

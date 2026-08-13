@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 
@@ -107,7 +107,9 @@ import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
 import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
-import { OfflineStatusPage } from "./pages/coletor/OfflineStatusPage";
+const OfflineStatusPage = lazy(() =>
+  import("./pages/coletor/OfflineStatusPage").then((m) => ({ default: m.OfflineStatusPage })),
+);
 import { OfflineProvider } from "./contexts/OfflineContext";
 
 import { MovimentosMenuPage } from "./pages/coletor/MovimentosMenuPage";
@@ -455,7 +457,11 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
-    case "/coletor/offline-status": return <OfflineStatusPage onNavigate={onNavigate} />;
+    case "/coletor/offline-status": return (
+      <Suspense fallback={null}>
+        <OfflineStatusPage onNavigate={onNavigate} />
+      </Suspense>
+    );
 
     case "/coletor/movimentos": return <MovimentosMenuPage onNavigate={onNavigate} />;
     case "/coletor/movimentos/transferencia/origem": return <TransferenciaOrigemPage onNavigate={onNavigate} />;

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { Loader2, Package } from "lucide-react";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { Loader2, Package, Database } from "lucide-react";
 import { formatDate } from "@/utils/dateTime";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -29,28 +30,23 @@ const STATUS_LABEL: Record<string, { text: string; className: string }> = {
 export function ArmazenagemMovimentosPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
-  const [movimentos, setMovimentos] = useState<MovimentoArmazenagem[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_listar_movimentos" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-      });
-      if (error) throw error;
-      setMovimentos((data || []) as MovimentoArmazenagem[]);
-    } catch (err) {
-      console.error(err);
-      setMovimentos([]);
-    } finally {
-      setLoading(false);
-    }
+  const fetchMovimentos = useCallback(async (): Promise<MovimentoArmazenagem[]> => {
+    if (!tenantId || !empresaId) return [];
+    const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_listar_movimentos" as any, {
+      p_tenant_id: tenantId,
+      p_empresa_id: empresaId,
+    });
+    if (error) throw error;
+    return (data || []) as MovimentoArmazenagem[];
   }, [tenantId, empresaId]);
 
-  useEffect(() => { load(); }, [load]);
+  const { data, loading, isFromCache, refetch } = useOfflineCache<MovimentoArmazenagem[]>(
+    `armazenagem_movimentos_${empresaId}`,
+    fetchMovimentos,
+    15,
+  );
+  const movimentos = data ?? [];
 
   const handleSelectMovimento = (mov: MovimentoArmazenagem) => {
     sessionStorage.setItem("coletor_armazenagem_movimento_id", mov.movimento_entrada_id);
@@ -68,13 +64,20 @@ export function ArmazenagemMovimentosPage({ onNavigate }: Props) {
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <Package size={40} className="text-[hsl(213,31%,55%)]" />
           <p className="text-sm text-[hsl(213,31%,55%)]">Nenhum movimento pendente de armazenagem.</p>
-          <RefreshListButton onRefresh={load} />
+          <RefreshListButton onRefresh={refetch} />
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[hsl(213,31%,55%)]">{movimentos.length} movimento(s) pendente(s)</p>
-            <RefreshListButton onRefresh={load} />
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="text-xs text-[hsl(213,31%,55%)]">{movimentos.length} movimento(s) pendente(s)</p>
+              {isFromCache && (
+                <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                  <Database size={10} /> Cache
+                </span>
+              )}
+            </div>
+            <RefreshListButton onRefresh={refetch} />
           </div>
 
           {movimentos.map((mov) => {
