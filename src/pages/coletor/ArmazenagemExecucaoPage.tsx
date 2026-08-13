@@ -9,6 +9,7 @@ import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { toast } from "sonner";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { getEnderecoFromCache, saveEnderecoToCache } from "@/lib/offlineEnderecoCache";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -83,7 +84,11 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
   // Fetch movimento_entrada_id from tarefa
   useEffect(() => {
-    if (!tarefaId || !tenantId) return;
+    // Fallback offline: usa o movimento do sessionStorage
+    const movIdFromSession = sessionStorage.getItem("coletor_armazenagem_movimento_id");
+    if (movIdFromSession) setMovimentoEntradaId(movIdFromSession);
+
+    if (!tarefaId || !tenantId || !isOnline) return;
     (async () => {
       try {
         const { data, error } = await (supabase as any)
@@ -190,28 +195,48 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     // LMS: mark task as started on first address scan
     markTarefaIniciadaByTarefa(tarefaId, usuarioId);
     try {
-      const { data, error } = await (supabase as any)
-        .from("endereco")
-        .select("id, descricao, situacao, tipo_endereco")
-        .eq("codigo_endereco", Number(code))
-        .eq("tenant_id", tenantId)
-        .limit(1);
-      if (error) throw error;
-      if (!data || data.length === 0) {
+      let endData: { id: string; descricao: string; situacao: string; tipo_endereco: string } | null = null;
+
+      if (!isOnline) {
+        const cached = await getEnderecoFromCache(Number(code));
+        if (!cached) {
+          setOverlay("error");
+          setOverlayMsg("Endereço não encontrado no cache offline. Escaneie este endereço online primeiro.");
+          return;
+        }
+        endData = cached;
+      } else {
+        const { data, error } = await (supabase as any)
+          .from("endereco")
+          .select("id, descricao, situacao, tipo_endereco")
+          .eq("codigo_endereco", Number(code))
+          .eq("tenant_id", tenantId)
+          .limit(1);
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          setOverlay("error");
+          setOverlayMsg("Endereço não encontrado");
+          return;
+        }
+        endData = {
+          id: data[0].id,
+          descricao: data[0].descricao,
+          situacao: data[0].situacao,
+          tipo_endereco: data[0].tipo_endereco || "",
+        };
+        await saveEnderecoToCache({ ...endData, codigo_endereco: Number(code) }).catch(() => {});
+      }
+
+      if (!["LIVRE", "OCUPADO"].includes(endData.situacao)) {
         setOverlay("error");
-        setOverlayMsg("Endereço não encontrado");
+        setOverlayMsg(`Endereço ${endData.descricao} está ${endData.situacao}. Movimentações não são permitidas. Procure a supervisão.`);
         return;
       }
-      if (!["LIVRE", "OCUPADO"].includes(data[0].situacao)) {
-        setOverlay("error");
-        setOverlayMsg(`Endereço ${data[0].descricao} está ${data[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
-        return;
-      }
-      setEnderecoId(data[0].id);
-      setEnderecoDesc(data[0].descricao);
-      setEnderecoTipo(data[0].tipo_endereco || "");
+      setEnderecoId(endData.id);
+      setEnderecoDesc(endData.descricao);
+      setEnderecoTipo(endData.tipo_endereco || "");
       setOverlay("success");
-      setOverlayMsg(`Endereço: ${data[0].descricao}`);
+      setOverlayMsg(`Endereço: ${endData.descricao}`);
     } catch (err: any) {
       setOverlay("error");
       setOverlayMsg(err.message || "Erro ao buscar endereço");
