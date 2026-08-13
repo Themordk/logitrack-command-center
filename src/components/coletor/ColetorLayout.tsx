@@ -17,7 +17,7 @@ interface ColetorLayoutProps {
 }
 
 export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, onNavigate, showBack, backPath, showLogout }: ColetorLayoutProps) {
-  const { isOnline: online } = useOffline();
+  const { isOnline: online, isSyncing } = useOffline();
   const sessionIdRef = useRef<string | null>(localStorage.getItem("coletor_session_id"));
   const onlineRef = useRef(online);
   onlineRef.current = online;
