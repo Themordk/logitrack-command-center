@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || "https://dcpmykhxysvxnpgmlyli.supabase.co";
-const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) || "";
 const HEALTH_URL = `${SUPABASE_URL.replace(/\/$/, "")}/auth/v1/health`;
 const PING_TIMEOUT_MS = 3000;
 const INTERVAL_ONLINE_MS = 15000;
@@ -14,16 +13,15 @@ async function pingNetwork(): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
   try {
-    const response = await fetch(HEALTH_URL, {
-      method: "GET",
-      mode: "cors",
+    // HEAD + no-cors: não exige apikey nem CORS; resposta opaca já comprova
+    // que a rede alcançou o servidor.
+    const response = await fetch(`${HEALTH_URL}?t=${Date.now()}`, {
+      method: "HEAD",
+      mode: "no-cors",
       cache: "no-store",
-      headers: {
-        apikey: SUPABASE_KEY,
-      },
       signal: controller.signal,
     });
-    return response.ok;
+    return response.type === "opaque" || response.ok;
   } catch {
     return false;
   } finally {
