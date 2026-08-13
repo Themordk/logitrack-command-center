@@ -193,6 +193,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       <ScanField label={preloadedTarefa ? "Escanear para conferir (opcional)" : "Escanear EAN ou HU"} lastScanned={lastScanned} onScan={handleScan} />
 
