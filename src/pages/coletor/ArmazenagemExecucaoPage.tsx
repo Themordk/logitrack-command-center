@@ -7,6 +7,8 @@ import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin, AlertTriangle, Star } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { toast } from "sonner";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -22,6 +24,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const pickingSugerido = sessionStorage.getItem("coletor_armazenagem_picking_sugerido") || "";
   const variosPickings = sessionStorage.getItem("coletor_armazenagem_varios_pickings") === "S";
   const huCodigo = sessionStorage.getItem("coletor_armazenagem_hu_codigo") || "";
+  const { execute: executeOffline, isOnline } = useOfflineAction();
 
   const [estoquePulmao, setEstoquePulmao] = useState(0);
   const [estoquePicking, setEstoquePicking] = useState(0);
@@ -110,12 +113,17 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     (async () => {
       setLoadingStats(true);
       try {
-        const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_execucao" as any, {
+        const result = await executeOffline("rpc_coletor_armazenagem_execucao", {
           p_tenant_id: tenantId,
           p_empresa_id: empresaId,
           p_produto_id: produtoId,
         });
-        if (error) throw error;
+        if (!result.success) throw result.data;
+        if (result.offline) {
+          // Offline: mantém os valores locais/últimos conhecidos, sem bloquear o operador.
+          return;
+        }
+        const data = result.data;
         if (data && data.length > 0) {
           setEstoquePulmao(Number(data[0].estoque_pulmao) || 0);
           setEstoquePicking(Number(data[0].estoque_picking) || 0);
@@ -136,6 +144,11 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   useEffect(() => {
     const armazemId = localStorage.getItem("core_armazem_id");
     if (!tenantId || !armazemId || !produtoId) return;
+    if (!isOnline) {
+      // Offline: pula sugestão do motor de armazenagem, será feita na sincronização.
+      setSugestoes([]);
+      return;
+    }
     (async () => {
       setLoadingSugestao(true);
       try {
@@ -215,8 +228,8 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
       const armazemId = localStorage.getItem("core_armazem_id");
 
-      // Validar endereço com as regras de armazenagem (somente PICKING)
-      if (enderecoTipo === "PICKING") {
+      // Validar endereço com as regras de armazenagem (somente PICKING) — pula quando offline
+      if (enderecoTipo === "PICKING" && isOnline) {
         const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
           p_tenant_id: tenantId,
           p_armazem_id: armazemId,
@@ -233,6 +246,8 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           setOverlayMsg(validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem");
           return;
         }
+      } else if (enderecoTipo === "PICKING" && !isOnline) {
+        toast.info("Sem conexão: a validação do endereço de picking será feita na sincronização.");
       }
 
       // Multiply quantity by embalagem fator
@@ -240,7 +255,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const fator = fatorRaw ? Number(fatorRaw) : 1;
       const qtdFinal = Number(quantidade) * fator;
 
-      const { data, error } = await supabase.rpc("finalizar_armazenagem" as any, {
+      const offlineResult = await executeOffline("finalizar_armazenagem", {
         p_tenant_id: tenantId,
         p_tarefa_id: tarefaId,
         p_movimento_entrada_id: movimentoEntradaId,
@@ -252,7 +267,15 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         p_fabricacao: fabricacaoRaw || "1900-01-01",
         p_hu: huId,
       });
-      if (error) throw error;
+      if (!offlineResult.success) throw offlineResult.data;
+
+      if (offlineResult.offline) {
+        toast.info("Ação salva. Será enviada quando a conexão retornar.");
+        setOverlay("success");
+        setOverlayMsg("Armazenagem registrada localmente. Será sincronizada em breve.");
+        setTimeout(() => onNavigate("/coletor/armazenagem/concluido"), 1200);
+        return;
+      }
 
       // Log da sugestão (não crítico)
       try {
