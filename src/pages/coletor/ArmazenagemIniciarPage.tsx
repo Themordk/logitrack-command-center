@@ -41,9 +41,31 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const empresaId = localStorage.getItem("core_empresa_id");
   const { isOnline, cacheData, getCachedData } = useOffline();
 
+  const preloadedTarefa = (() => {
+    const tid = sessionStorage.getItem("coletor_armazenagem_tarefa_id");
+    const pid = sessionStorage.getItem("coletor_armazenagem_produto_id");
+    const desc = sessionStorage.getItem("coletor_armazenagem_produto_desc");
+    if (!tid || !pid || !desc) return null;
+    return {
+      tarefa_id: tid,
+      produto_id: pid,
+      sku: sessionStorage.getItem("coletor_armazenagem_produto_sku") || "",
+      descricao: desc,
+      qtd_conferida: 0,
+      qtd_armazenada: 0,
+      qtd_a_armazenar: Number(sessionStorage.getItem("coletor_armazenagem_qtd_restante") || "0"),
+      validade: sessionStorage.getItem("coletor_armazenagem_validade") || null,
+      fabricacao: sessionStorage.getItem("coletor_armazenagem_fabricacao") || null,
+      lote: sessionStorage.getItem("coletor_armazenagem_lote") || null,
+      varios_pickings: sessionStorage.getItem("coletor_armazenagem_varios_pickings") || null,
+      enderecos_picking: sessionStorage.getItem("coletor_armazenagem_picking_sugerido") || null,
+      fator_caixa: Number(sessionStorage.getItem("coletor_armazenagem_fator") || "1"),
+    } as TarefaResult;
+  })();
+
   const [lastScanned, setLastScanned] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tarefa, setTarefa] = useState<TarefaResult | null>(null);
+  const [tarefa, setTarefa] = useState<TarefaResult | null>(preloadedTarefa);
   const [isFromCache, setIsFromCache] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
@@ -101,6 +123,14 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
   const handleScan = async (code: string) => {
     setLastScanned(code);
+
+    // Se já tem tarefa pré-carregada do sessionStorage, o scan é conferência
+    if (tarefa && preloadedTarefa) {
+      setOverlay("success");
+      setOverlayMsg(`Produto confirmado: ${tarefa.descricao}`);
+      return;
+    }
+
     setTarefa(null);
     setIsFromCache(false);
     if (!tenantId || !empresaId) return;
@@ -160,7 +190,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
-      <ScanField label="Escanear EAN ou HU" lastScanned={lastScanned} onScan={handleScan} />
+      <ScanField label={preloadedTarefa ? "Escanear para conferir (opcional)" : "Escanear EAN ou HU"} lastScanned={lastScanned} onScan={handleScan} />
 
       {loading && (
         <div className="flex justify-center py-6"><Loader2 size={28} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
