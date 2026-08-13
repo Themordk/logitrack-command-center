@@ -93,6 +93,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
   const refreshTarefas = useCallback(async () => {
     if (!movimentoId || !tenantId || !empresaId || !usuarioId) return;
+    if (!isOnline) return; // Offline: usa tarefas do sessionStorage
     try {
       const { data, error } = await (supabase as any).rpc(
         "entrada_conferencia_buscar_tarefas",
