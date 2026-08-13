@@ -129,20 +129,43 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     setEanScanned(ean);
 
     // 1) Lookup EAN once (ean + fator + embalagem + produto_id)
-    const { data: emb } = await (supabase as any)
-      .from("produto_embalagem")
-      .select("ean, fator, embalagem, produto_id")
-      .eq("ean", ean)
-      .maybeSingle();
+    let emb: EanCacheEntry | null = null;
 
-    if (!emb) {
-      result.showWarning("EAN não cadastrado no sistema.", {
-        instruction: "Verifique o EAN e escaneie novamente.",
-        onClose: () => setEanScanned(""),
-      });
-      setEmbalagemInfo(null);
-      setEanConfirmado(false);
-      return;
+    if (!isOnline) {
+      emb = await getEanFromCache(ean);
+      if (!emb) {
+        result.showWarning("EAN não encontrado no cache offline.", {
+          instruction: "Este EAN precisa ser escaneado online pelo menos uma vez.",
+          onClose: () => setEanScanned(""),
+        });
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        return;
+      }
+    } else {
+      const { data: embData } = await (supabase as any)
+        .from("produto_embalagem")
+        .select("ean, fator, embalagem, produto_id")
+        .eq("ean", ean)
+        .maybeSingle();
+
+      if (!embData) {
+        result.showWarning("EAN não cadastrado no sistema.", {
+          instruction: "Verifique o EAN e escaneie novamente.",
+          onClose: () => setEanScanned(""),
+        });
+        setEmbalagemInfo(null);
+        setEanConfirmado(false);
+        return;
+      }
+
+      emb = {
+        ean: embData.ean,
+        fator: embData.fator,
+        embalagem: embData.embalagem,
+        produto_id: embData.produto_id,
+      };
+      await saveEanToCache(emb).catch(() => {});
     }
 
     // 2) Locate a pending task in this wave for the scanned product
