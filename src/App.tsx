@@ -107,7 +107,9 @@ import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
 import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
-import { OfflineStatusPage } from "./pages/coletor/OfflineStatusPage";
+const OfflineStatusPage = lazy(() =>
+  import("./pages/coletor/OfflineStatusPage").then((m) => ({ default: m.OfflineStatusPage })),
+);
 import { OfflineProvider } from "./contexts/OfflineContext";
 
 import { MovimentosMenuPage } from "./pages/coletor/MovimentosMenuPage";
