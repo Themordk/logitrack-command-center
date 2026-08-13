@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Layers, Loader2, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -29,6 +30,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [lotes, setLotes] = useState<LoteDisponivel[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const { isOnline } = useOffline();
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -46,6 +48,26 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
 
   const loadLotes = async (t: any) => {
     setLoading(true);
+
+    // Offline: usar os dados de lote que já vieram na tarefa
+    if (!isOnline) {
+      const fallbackLotes: LoteDisponivel[] = [];
+      if (t.lote || t.validade) {
+        fallbackLotes.push({
+          lote: t.lote || "",
+          validade: t.validade || null,
+          fabricacao: t.fabricacao || null,
+          hu_id: null,
+          saldo_disponivel: Number(t.saldo_endereco || t.quantidade_requerida || 0),
+        });
+      }
+      setLotes(fallbackLotes);
+      if (fallbackLotes.length > 0) setSelectedIdx(0);
+      setLoading(false);
+      if (fallbackLotes.length === 0) toast.info("Sem conexão: informações de lote indisponíveis.");
+      return;
+    }
+
     try {
       // Resolve produto_id
       let produtoId = t.produto_id;

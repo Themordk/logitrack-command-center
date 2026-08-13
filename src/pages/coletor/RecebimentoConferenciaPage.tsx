@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, AlertTriangle, Archive } from "lucide-react";
 import { parseError } from "@/lib/errorMapper";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -33,6 +34,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
   const { execute: executeOffline } = useOfflineAction();
+  const { isOnline } = useOffline();
 
   useEffect(() => {
     loadResumo();
@@ -41,6 +43,35 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   const loadResumo = async () => {
     if (!movimentoId) { setLoading(false); return; }
     setLoading(true);
+
+    // Offline: montar resumo a partir das tarefas em sessionStorage
+    if (!isOnline) {
+      try {
+        const tarefasRaw = sessionStorage.getItem("coletor_recebimento_tarefas");
+        const tarefas = tarefasRaw ? JSON.parse(tarefasRaw) : [];
+        const resumo: ItemResumo[] = (tarefas as any[])
+          .filter((t) => Number(t.conferido || 0) > 0)
+          .map((t) => ({
+            movimento_id: movimentoId,
+            tarefa_execucao_id: t.id || t.tarefa_id || "",
+            sku: t.sku || "",
+            descricao: t.descricao || "",
+            operador: "",
+            codigo_hu: null,
+            quantidade_executada: Number(t.conferido || 0),
+            concluido_em: null,
+            lote: "",
+            divergente: false,
+          }));
+        setItens(resumo);
+      } catch {
+        toast.error("Erro ao montar resumo offline.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       const { data, error } = await (supabase as any)
         .from("vw_movimento_entrada_conferencia_detalhe")

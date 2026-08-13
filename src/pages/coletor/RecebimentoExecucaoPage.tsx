@@ -93,6 +93,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
   const refreshTarefas = useCallback(async () => {
     if (!movimentoId || !tenantId || !empresaId || !usuarioId) return;
+    if (!isOnline) return; // Offline: usa tarefas do sessionStorage
     try {
       const { data, error } = await (supabase as any).rpc(
         "entrada_conferencia_buscar_tarefas",
@@ -114,10 +115,15 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     } catch (err) {
       console.error("Erro ao atualizar tarefas:", err);
     }
-  }, [movimentoId, tenantId, empresaId, usuarioId]);
+  }, [movimentoId, tenantId, empresaId, usuarioId, isOnline]);
 
   const loadConferencia = useCallback(async () => {
     if (!movimentoId) return;
+    if (!isOnline) {
+      // Offline: mantém itens locais, sem chamada ao servidor
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await (supabase as any)
@@ -147,7 +153,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [movimentoId]);
+  }, [movimentoId, isOnline]);
 
   useEffect(() => {
     if (movimentoId) {

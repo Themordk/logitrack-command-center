@@ -12,6 +12,8 @@ import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { useOffline } from "@/contexts/OfflineContext";
+import { getEanFromCache, saveEanToCache, type EanCacheEntry } from "@/lib/offlineEanCache";
 
 
 
@@ -45,6 +47,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const result = useResultDialog({ coletorMode: true });
   const { execute: executeOffline } = useOfflineAction();
+  const { isOnline } = useOffline();
 
   const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
   const [showVolumeDialog, setShowVolumeDialog] = useState(false);
@@ -162,22 +165,40 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     markTarefaIniciadaByTarefa(tarefa.tarefa_id, usuarioId);
 
     try {
-      const { data, error } = await (supabase as any)
-        .from("produto_embalagem")
-        .select("fator, produto_id, embalagem, ean")
-        .eq("ean", code)
-        .limit(1);
-      if (error) throw error;
+      let emb: EanCacheEntry | null = null;
 
-      if (!data || data.length === 0) {
-        result.showWarning("EAN não cadastrado no sistema.", {
-          instruction: "Escaneie o EAN correto do produto.",
-        });
-        setEanScanned(code);
-        return;
+      if (!isOnline) {
+        emb = await getEanFromCache(code);
+        if (!emb) {
+          result.showWarning("EAN não encontrado no cache offline.", {
+            instruction: "Este EAN precisa ser escaneado online pelo menos uma vez.",
+          });
+          return;
+        }
+      } else {
+        const { data, error } = await (supabase as any)
+          .from("produto_embalagem")
+          .select("fator, produto_id, embalagem, ean")
+          .eq("ean", code)
+          .limit(1);
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          result.showWarning("EAN não cadastrado no sistema.", {
+            instruction: "Escaneie o EAN correto do produto.",
+          });
+          setEanScanned(code);
+          return;
+        }
+
+        emb = {
+          ean: data[0].ean,
+          fator: data[0].fator,
+          embalagem: data[0].embalagem,
+          produto_id: data[0].produto_id,
+        };
+        await saveEanToCache(emb).catch(() => {});
       }
-
-      const emb = data[0];
 
       // Compare with resolved produto_id
       const currentProdutoId = produtoId || tarefa.produto_id;
