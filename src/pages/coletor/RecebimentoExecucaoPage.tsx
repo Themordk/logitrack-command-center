@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Loader2, Trash2, AlertTriangle, Printer } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDateTimeShort } from "@/utils/dateTime";
-import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOffline } from "@/contexts/OfflineContext";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
