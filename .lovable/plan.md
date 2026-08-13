@@ -25,18 +25,17 @@ Padrão aplicado: telas de listagem/consulta passam a usar `useOfflineCache` (co
 
 Telas puramente visuais (`ArmazenagemConcluidoPage`, `TransferenciaConcluidoPage`, `TransferenciaDetalhePage`, `MudancaPickingConcluidoPage`, `RecebimentoConcluidoPage`) não mudam.
 
-## Ponto que exige decisão: escritas diretas em tabela
+## Fora de escopo nesta fase: Transferência e Mudança de Picking
 
-A fila offline hoje só sabe reexecutar **RPCs** (`supabase.rpc`). Porém `TransferenciaDestinoPage` e `MudancaPickingDestinoPage` gravam direto nas tabelas `tarefa` e `tarefa_execucao` (não usam RPC de execução). Duas saídas:
+Esses dois fluxos permanecem **online-only**. Motivo: `TransferenciaDestinoPage` e `MudancaPickingDestinoPage` gravam direto nas tabelas `tarefa`/`tarefa_execucao`, e a fila offline só reexecuta RPCs — não haverá extensão da fila para escritas em tabela nesta fase.
 
-- **(preferida) Estender a fila** com um tipo de ação `table` (insert/update em tabela) no `offlineStore`/`useOfflineSync`, mantendo o mesmo mecanismo de retry e idempotência. Não exige backend novo.
-- Alternativa: manter essas duas telas **online-only** nesta fase e criar RPCs dedicadas depois.
+Comportamento nas telas de Transferência (`TransferenciaOrigemPage`, `TransferenciaProdutoPage`, `TransferenciaDestinoPage`) e Mudança de Picking (`MudancaPickingListaPage`, `MudancaPickingOrigemPage`, `MudancaPickingDestinoPage`): quando offline, exibir aviso "Este fluxo exige conexão" e desabilitar a confirmação, sem enfileirar nada. Nenhum cache offline é adicionado a elas.
 
-O plano assume a primeira opção, salvo indicação em contrário.
+Etapa futura: criar RPCs dedicadas para esses destinos e então habilitá-los offline.
 
 ## Parte C — ACTION_LABELS
 
-O mapa da `OfflineStatusPage` será preenchido com os nomes reais das RPCs enfileiradas: `separacao_executar_coleta`, `separacao_confirmar_endereco`, `conferencia_saida_confirmacao`, `separacao_conferencia_limpar_item`, `gerar_volumes_expedicao`, `rpc_coletor_armazenagem_execucao`, `finalizar_armazenagem`, `fn_inventario_registrar_contagem`, `fn_inventario_contagem_livre`, `finalizar_conferencia_entrada_item`, `finalizar_conferencia_entrada_movimento`, `fn_limpar_conferencia_entrada`, `rpc_coletor_abastecimento_confirmar_coleta`, `rpc_coletor_abastecimento_confirmar_entrega`, além das ações de tabela (transferência e mudança de picking) com rótulos amigáveis.
+O mapa da `OfflineStatusPage` será preenchido com os nomes reais das RPCs enfileiradas: `separacao_executar_coleta`, `separacao_confirmar_endereco`, `conferencia_saida_confirmacao`, `separacao_conferencia_limpar_item`, `gerar_volumes_expedicao`, `rpc_coletor_armazenagem_execucao`, `finalizar_armazenagem`, `fn_inventario_registrar_contagem`, `fn_inventario_contagem_livre`, `finalizar_conferencia_entrada_item`, `finalizar_conferencia_entrada_movimento`, `fn_limpar_conferencia_entrada`, `rpc_coletor_abastecimento_confirmar_coleta`, `rpc_coletor_abastecimento_confirmar_entrega`.
 
 ## Restrições respeitadas
 
