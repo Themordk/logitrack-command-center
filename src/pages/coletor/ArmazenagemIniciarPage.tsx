@@ -163,8 +163,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       setOverlay("success");
       setOverlayMsg(code.toUpperCase().startsWith("HU-") ? `HU ${code} → ${row.descricao}` : `Produto encontrado: ${row.descricao}`);
     } catch (err: any) {
-      setOverlay("error");
-      setOverlayMsg(err.message || "Erro ao buscar tarefa");
+      result.showError(err, { context: "armazenagem-iniciar" });
     } finally {
       setLoading(false);
     }
