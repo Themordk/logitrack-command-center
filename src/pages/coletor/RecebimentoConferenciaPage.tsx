@@ -34,6 +34,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
   const { execute: executeOffline } = useOfflineAction();
+  const { isOnline } = useOffline();
 
   useEffect(() => {
     loadResumo();
