@@ -118,7 +118,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
         result.showSuccess("Recebimento finalizado!", {
-          instruction: "Os dados serão sincronizados quando a conexão retornar.",
+          details: "Os dados serão sincronizados quando a conexão retornar.",
           onClose: () => onNavigate("/coletor/recebimento/concluido"),
         });
         return;

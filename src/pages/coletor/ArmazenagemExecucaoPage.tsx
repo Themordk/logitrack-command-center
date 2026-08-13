@@ -302,7 +302,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
         result.showSuccess("Armazenagem registrada", {
-          instruction: "Os dados serão sincronizados quando a conexão retornar.",
+          details: "Os dados serão sincronizados quando a conexão retornar.",
           onClose: () => onNavigate("/coletor/armazenagem/concluido"),
         });
         return;
