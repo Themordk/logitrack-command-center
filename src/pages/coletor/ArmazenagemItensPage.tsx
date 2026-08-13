@@ -104,6 +104,7 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     sessionStorage.setItem("coletor_armazenagem_fabricacao", item.fabricacao || "");
     sessionStorage.setItem("coletor_armazenagem_picking_sugerido", item.picking_endereco_desc || "");
     sessionStorage.setItem("coletor_armazenagem_varios_pickings", item.varios_pickings ? "S" : "N");
+    sessionStorage.setItem("coletor_armazenagem_fator", String(item.fator_caixa || 1));
     const hu = huMap[item.tarefa_id];
     if (hu) {
       sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
@@ -114,6 +115,28 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     }
     onNavigate("/coletor/armazenagem/iniciar");
   };
+
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+    for (const item of data) {
+      const cacheEntry = {
+        tarefa_id: item.tarefa_id,
+        produto_id: item.produto_id,
+        sku: item.sku,
+        descricao: item.descricao,
+        qtd_conferida: item.quantidade_requerida || 0,
+        qtd_armazenada: item.quantidade_executada || 0,
+        qtd_a_armazenar: item.qtd_restante || 0,
+        validade: item.validade || null,
+        fabricacao: item.fabricacao || null,
+        lote: item.lote || null,
+        varios_pickings: item.varios_pickings ? "S" : null,
+        enderecos_picking: item.picking_endereco_desc || null,
+        fator_caixa: item.fator_caixa,
+      };
+      OfflineStore.cacheData(`armazenagem_tarefa_${item.sku}`, cacheEntry, 120).catch(() => {});
+    }
+  }, [data]);
 
   const title = `Movimento #${movimentoNumero}`;
 
