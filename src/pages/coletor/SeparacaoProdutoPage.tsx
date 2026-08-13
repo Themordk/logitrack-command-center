@@ -12,6 +12,8 @@ import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { useOffline } from "@/contexts/OfflineContext";
+import { getEanFromCache, saveEanToCache, type EanCacheEntry } from "@/lib/offlineEanCache";
 
 
 
