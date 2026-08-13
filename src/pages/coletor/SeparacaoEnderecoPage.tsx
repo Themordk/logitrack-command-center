@@ -75,6 +75,9 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   }, []);
 
   const enrichTarefas = async (tarefas: Tarefa[]): Promise<Tarefa[]> => {
+    // Offline: não enriquece — usa os dados que já vieram da RPC
+    if (!isOnline) return tarefas;
+
     // Collect SKUs missing produto_id OR tipo_controle
     const skusToLookup = tarefas
       .filter((t) => (!t.produto_id || !t.tipo_controle) && t.sku)
