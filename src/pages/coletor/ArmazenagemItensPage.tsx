@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
@@ -6,6 +6,7 @@ import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { Loader2, MapPin, CheckCircle, Archive, Database } from "lucide-react";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
+import * as OfflineStore from "@/lib/offlineStore";
 
 interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
