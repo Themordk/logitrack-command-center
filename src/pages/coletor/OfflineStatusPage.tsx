@@ -10,12 +10,26 @@ import { formatDateTime } from "@/utils/dateTime";
 interface Props { onNavigate: (path: string) => void; }
 
 const ACTION_LABELS: Record<string, string> = {
+  // Separação
   separacao_executar_coleta: "Confirmar coleta de separação",
   separacao_confirmar_endereco: "Confirmar endereço de separação",
+  gerar_volumes_expedicao: "Gerar volumes de expedição",
+  // Conferência
+  conferencia_saida_confirmacao: "Confirmar item de conferência",
+  separacao_conferencia_limpar_item: "Limpar item de conferência",
+  // Armazenagem
+  rpc_coletor_armazenagem_execucao: "Confirmar armazenagem",
+  finalizar_armazenagem: "Finalizar armazenagem",
+  // Inventário
   fn_inventario_registrar_contagem: "Registrar contagem de inventário",
-  armazenagem_executar: "Confirmar armazenagem",
-  recebimento_confirmar_item: "Confirmar item de recebimento",
-  conferencia_confirmar_item: "Confirmar item de conferência",
+  fn_inventario_contagem_livre: "Registrar contagem livre",
+  // Recebimento
+  finalizar_conferencia_entrada_item: "Confirmar item de recebimento",
+  finalizar_conferencia_entrada_movimento: "Finalizar conferência de entrada",
+  fn_limpar_conferencia_entrada: "Limpar conferência de entrada",
+  // Abastecimento
+  rpc_coletor_abastecimento_confirmar_coleta: "Confirmar coleta de abastecimento",
+  rpc_coletor_abastecimento_confirmar_entrega: "Confirmar entrega de abastecimento",
 };
 
 function labelFor(action: string) {
