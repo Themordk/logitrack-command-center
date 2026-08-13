@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
+import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { Loader2, Package } from "lucide-react";
@@ -21,6 +22,7 @@ interface ItemEstoque {
 }
 
 export function MudancaPickingListaPage({ onNavigate }: Props) {
+  const offlineBlocked = useOnlineOnlyBlocked();
   const origemId = sessionStorage.getItem("mudpick_origem_id") || "";
   const origemDesc = sessionStorage.getItem("mudpick_origem_desc") || "";
 
@@ -68,6 +70,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Mudança de Picking - Itens" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/mudanca-picking/origem">
+      <OnlineOnlyNotice flow="Mudança de Picking" />
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
@@ -134,7 +137,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
               </div>
             ))}
           </div>
-          <ActionButton onClick={handleConfirm} disabled={itens.length === 0}>Confirmar Mudança</ActionButton>
+          <ActionButton onClick={handleConfirm} disabled={itens.length === 0 || offlineBlocked}>Confirmar Mudança</ActionButton>
         </>
       )}
     </ColetorLayout>

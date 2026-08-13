@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
+import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 
@@ -11,6 +12,7 @@ interface Props { onNavigate: (path: string) => void; }
 const TIPO_TAREFA_TRANF = "6942b989-816c-45c5-8af5-50cd22589cc6";
 
 export function TransferenciaDestinoPage({ onNavigate }: Props) {
+  const offlineBlocked = useOnlineOnlyBlocked();
   const tenantId = localStorage.getItem("core_tenant_id") || "";
   const empresaId = localStorage.getItem("core_empresa_id") || "";
   const usuarioId = localStorage.getItem("core_usuario_id") || "";
@@ -142,6 +144,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Transferência - Destino" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/transferencia/detalhe">
+      <OnlineOnlyNotice flow="Transferência" />
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
@@ -154,7 +157,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
         </div>
       </div>
 
-      <ScanField label="Escanear Endereço Destino" onScan={handleScan} lastScanned={scanned} disabled={loading} />
+      <ScanField label="Escanear Endereço Destino" onScan={handleScan} lastScanned={scanned} disabled={loading || offlineBlocked} />
       {loading && <div className="flex justify-center py-4"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={28} /></div>}
     </ColetorLayout>
   );

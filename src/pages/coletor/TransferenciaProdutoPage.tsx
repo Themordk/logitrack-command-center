@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
+import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { Loader2 } from "lucide-react";
@@ -9,6 +10,7 @@ import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 interface Props { onNavigate: (path: string) => void; }
 
 export function TransferenciaProdutoPage({ onNavigate }: Props) {
+  const offlineBlocked = useOnlineOnlyBlocked();
   const origemDesc = sessionStorage.getItem("transf_origem_desc") || "";
   const origemId = sessionStorage.getItem("transf_origem_id") || "";
 
@@ -117,6 +119,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Transferência - Produto" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/transferencia/origem">
+      <OnlineOnlyNotice flow="Transferência" />
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
@@ -125,7 +128,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
         <p className="text-xs text-[hsl(213,31%,55%)] mt-1">Origem: <span className="text-white font-mono">{origemDesc}</span></p>
       </div>
 
-      <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} disabled={loading} />
+      <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} disabled={loading || offlineBlocked} />
       {loading && <div className="flex justify-center py-4"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={28} /></div>}
     </ColetorLayout>
   );
