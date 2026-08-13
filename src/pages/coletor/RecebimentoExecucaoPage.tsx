@@ -153,7 +153,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [movimentoId]);
+  }, [movimentoId, isOnline]);
 
   useEffect(() => {
     if (movimentoId) {
