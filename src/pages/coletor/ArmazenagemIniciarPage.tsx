@@ -42,6 +42,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const { isOnline, cacheData, getCachedData } = useOffline();
+  const result = useResultDialog({ coletorMode: true });
 
   const preloadedTarefa = (() => {
     const tid = sessionStorage.getItem("coletor_armazenagem_tarefa_id");
