@@ -144,8 +144,10 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       if (!isOnline) {
         const cached = await getCachedData<TarefaResult>(cacheKey);
         if (!cached) {
-          setOverlay("error");
-          setOverlayMsg("Sem conexão e sem dados em cache para este código.");
+          result.showWarning("Sem dados em cache", {
+            details: "Sem conexão e sem dados em cache para este código.",
+            instruction: "Conecte-se à rede ou escaneie um produto que já foi consultado online.",
+          });
           return;
         }
         setTarefa(cached);
