@@ -47,6 +47,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const [qtdSeparada, setQtdSeparada] = useState(0);
   const result = useResultDialog({ coletorMode: true });
   const { execute: executeOffline } = useOfflineAction();
+  const { isOnline } = useOffline();
 
   const [loteSel, setLoteSel] = useState<LoteSelecionado | null>(null);
   const [showVolumeDialog, setShowVolumeDialog] = useState(false);
