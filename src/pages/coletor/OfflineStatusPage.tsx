@@ -90,6 +90,13 @@ export function OfflineStatusPage({ onNavigate }: Props) {
     await load();
   };
 
+  const handleDiscard = async (id: string) => {
+    await OfflineStore.deleteAction(id);
+    await refreshCounts();
+    await load();
+    toast.success("Ação descartada.");
+  };
+
   const handleClearCache = async () => {
     if (!confirmClear) { setConfirmClear(true); return; }
     await OfflineStore.clearAllCache();
