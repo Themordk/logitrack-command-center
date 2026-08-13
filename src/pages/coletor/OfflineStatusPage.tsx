@@ -164,13 +164,21 @@ export function OfflineStatusPage({ onNavigate }: Props) {
                         <AlertTriangle size={13} className="text-red-400 mt-0.5 shrink-0" />
                         <span className="text-[11px] text-red-300 break-words">{a.errorMessage}</span>
                       </div>
-                      <button
-                        onClick={() => handleRetry(a.id)}
-                        disabled={!isOnline}
-                        className="self-start min-h-[48px] px-3 text-xs font-bold text-[hsl(217,91%,70%)] disabled:opacity-40"
-                      >
-                        Tentar novamente
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRetry(a.id)}
+                          disabled={!isOnline}
+                          className="min-h-[48px] px-3 text-xs font-bold text-[hsl(217,91%,70%)] disabled:opacity-40"
+                        >
+                          Tentar novamente
+                        </button>
+                        <button
+                          onClick={() => handleDiscard(a.id)}
+                          className="min-h-[48px] px-3 text-xs font-bold text-red-300"
+                        >
+                          Descartar
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>
