@@ -111,6 +111,24 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
       sessionStorage.setItem("coletor_conferencia_tarefas", JSON.stringify(tarefas));
       sessionStorage.setItem("coletor_conferencia_tarefa_idx", "0");
 
+      // Pré-cache dos EANs dos produtos desta onda (não bloqueante)
+      if (isOnline) {
+        void (async () => {
+          try {
+            const produtoIds = [...new Set(tarefas.map((t: any) => t.produto_id).filter(Boolean))];
+            if (produtoIds.length === 0) return;
+            const { data: eans } = await (supabase as any)
+              .from("produto_embalagem")
+              .select("ean, fator, embalagem, produto_id")
+              .in("produto_id", produtoIds);
+            if (eans && eans.length > 0) {
+              const { saveEanBatchToCache } = await import("@/lib/offlineEanCache");
+              await saveEanBatchToCache(eans);
+            }
+          } catch { /* non-blocking */ }
+        })();
+      }
+
       if (tarefas.length === 0) {
         result.showWarning("Nenhuma tarefa pendente para esta onda.");
         return;
