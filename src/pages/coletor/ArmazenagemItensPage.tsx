@@ -117,8 +117,8 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
   };
 
   useEffect(() => {
-    if (!data || data.length === 0) return;
-    for (const item of data) {
+    if (!data || !data.itens || data.itens.length === 0) return;
+    for (const item of data.itens) {
       const cacheEntry = {
         tarefa_id: item.tarefa_id,
         produto_id: item.produto_id,
