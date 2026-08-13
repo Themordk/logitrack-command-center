@@ -123,6 +123,14 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
   const handleScan = async (code: string) => {
     setLastScanned(code);
+
+    // Se já tem tarefa pré-carregada do sessionStorage, o scan é conferência
+    if (tarefa && preloadedTarefa) {
+      setOverlay("success");
+      setOverlayMsg(`Produto confirmado: ${tarefa.descricao}`);
+      return;
+    }
+
     setTarefa(null);
     setIsFromCache(false);
     if (!tenantId || !empresaId) return;
