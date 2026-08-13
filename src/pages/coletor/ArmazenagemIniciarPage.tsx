@@ -190,7 +190,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
 
-      <ScanField label="Escanear EAN ou HU" lastScanned={lastScanned} onScan={handleScan} />
+      <ScanField label={preloadedTarefa ? "Escanear para conferir (opcional)" : "Escanear EAN ou HU"} lastScanned={lastScanned} onScan={handleScan} />
 
       {loading && (
         <div className="flex justify-center py-6"><Loader2 size={28} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
