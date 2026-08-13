@@ -30,6 +30,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
   const [lotes, setLotes] = useState<LoteDisponivel[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const { isOnline } = useOffline();
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
