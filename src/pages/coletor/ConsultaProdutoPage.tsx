@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, Database } from "lucide-react";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -18,88 +20,102 @@ interface SaldoRow {
   data_fabricacao: string;
 }
 
+interface ConsultaProdutoData {
+  produtoId: string;
+  produtoNome: string;
+  produtoImg: string | null;
+  produtoFatorCaixa: number;
+  saldos: SaldoRow[];
+}
+
 export function ConsultaProdutoPage({ onNavigate }: Props) {
-  const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
-  const [produtoNome, setProdutoNome] = useState("");
-  const [produtoImg, setProdutoImg] = useState<string | null>(null);
-  const [produtoFatorCaixa, setProdutoFatorCaixa] = useState(1);
-  const [saldos, setSaldos] = useState<SaldoRow[]>([]);
-  const [error, setError] = useState("");
+  const [notFound, setNotFound] = useState(false);
+  const { isOnline } = useOffline();
 
-  const handleScan = async (code: string) => {
-    setScanned(code);
-    setError("");
-    setSaldos([]);
-    setProdutoNome("");
-    setProdutoImg(null);
-    setProdutoFatorCaixa(1);
-    setLoading(true);
-    try {
-      // Find produto by EAN
-      const { data: emb } = await (supabase as any)
-        .from("produto_embalagem")
-        .select("produto_id, produto:produto_id(descricao, sku, url_imagem, fator_caixa)")
-        .eq("ean", code)
-        .limit(1);
+  const fetchConsulta = useCallback(async (): Promise<ConsultaProdutoData> => {
+    // Find produto by EAN
+    const { data: emb } = await (supabase as any)
+      .from("produto_embalagem")
+      .select("produto_id, produto:produto_id(descricao, sku, url_imagem, fator_caixa)")
+      .eq("ean", scanned)
+      .limit(1);
 
-      if (!emb || emb.length === 0) {
-        setError("Produto não encontrado para este EAN.");
-        setLoading(false);
-        return;
-      }
-
-      const prodId = emb[0].produto_id;
-      (window as any).__lastProdutoEmb = prodId;
-      setProdutoNome(`${emb[0].produto?.sku} - ${emb[0].produto?.descricao}`);
-      setProdutoImg(emb[0].produto?.url_imagem ?? null);
-      setProdutoFatorCaixa(Number(emb[0].produto?.fator_caixa) || 1);
-
-      // Fetch stock grouped by address
-      // Sem FK entre endereco e tipo_estoque: resolvemos a descrição em consulta separada.
-      const { data: estoque } = await (supabase as any)
-        .from("estoque_geral")
-        .select(`
-          quantidade_disponivel, lote, data_validade, data_fabricacao, endereco_id,
-          endereco:endereco_id(
-            descricao,
-            tipo_endereco,
-            tipo_estoque_id
-          )
-        `)
-        .eq("produto_id", prodId)
-        .gt("quantidade_disponivel", 0);
-
-      const tipoIds = Array.from(
-        new Set((estoque || []).map((e: any) => e.endereco?.tipo_estoque_id).filter(Boolean)),
-      );
-      const tipoMap = new Map<string, string>();
-      if (tipoIds.length > 0) {
-        const { data: tipos } = await (supabase as any)
-          .from("tipo_estoque")
-          .select("id, descricao")
-          .in("id", tipoIds);
-        (tipos || []).forEach((t: any) => tipoMap.set(t.id, t.descricao));
-      }
-
-      const rows: SaldoRow[] = (estoque || []).map((e: any) => ({
-        endereco_desc: e.endereco?.descricao || "—",
-        tipo_endereco: e.endereco?.tipo_endereco || "—",
-        tipo_estoque_desc: tipoMap.get(e.endereco?.tipo_estoque_id) || "—",
-        quantidade_disponivel: Number(e.quantidade_disponivel) || 0,
-        lote: e.lote || "",
-        data_validade: e.data_validade || "",
-        data_fabricacao: e.data_fabricacao || "",
-      }));
-
-
-      setSaldos(rows);
-    } catch {
-      setError("Erro ao consultar.");
-    } finally {
-      setLoading(false);
+    if (!emb || emb.length === 0) {
+      throw new Error("PRODUTO_NAO_ENCONTRADO");
     }
+
+    const prodId = emb[0].produto_id;
+    const produtoNome = `${emb[0].produto?.sku} - ${emb[0].produto?.descricao}`;
+    const produtoImg = emb[0].produto?.url_imagem ?? null;
+    const produtoFatorCaixa = Number(emb[0].produto?.fator_caixa) || 1;
+
+    // Fetch stock grouped by address
+    // Sem FK entre endereco e tipo_estoque: resolvemos a descrição em consulta separada.
+    const { data: estoque } = await (supabase as any)
+      .from("estoque_geral")
+      .select(`
+        quantidade_disponivel, lote, data_validade, data_fabricacao, endereco_id,
+        endereco:endereco_id(
+          descricao,
+          tipo_endereco,
+          tipo_estoque_id
+        )
+      `)
+      .eq("produto_id", prodId)
+      .gt("quantidade_disponivel", 0);
+
+    const tipoIds = Array.from(
+      new Set((estoque || []).map((e: any) => e.endereco?.tipo_estoque_id).filter(Boolean)),
+    );
+    const tipoMap = new Map<string, string>();
+    if (tipoIds.length > 0) {
+      const { data: tipos } = await (supabase as any)
+        .from("tipo_estoque")
+        .select("id, descricao")
+        .in("id", tipoIds);
+      (tipos || []).forEach((t: any) => tipoMap.set(t.id, t.descricao));
+    }
+
+    const saldos: SaldoRow[] = (estoque || []).map((e: any) => ({
+      endereco_desc: e.endereco?.descricao || "—",
+      tipo_endereco: e.endereco?.tipo_endereco || "—",
+      tipo_estoque_desc: tipoMap.get(e.endereco?.tipo_estoque_id) || "—",
+      quantidade_disponivel: Number(e.quantidade_disponivel) || 0,
+      lote: e.lote || "",
+      data_validade: e.data_validade || "",
+      data_fabricacao: e.data_fabricacao || "",
+    }));
+
+    return { produtoId: prodId, produtoNome, produtoImg, produtoFatorCaixa, saldos };
+  }, [scanned]);
+
+  const { data, loading, isFromCache, error, refetch } = useOfflineCache<ConsultaProdutoData>(
+    `consulta_produto_${scanned}`,
+    fetchConsulta,
+    60,
+    !!scanned,
+  );
+
+  const produtoId = data?.produtoId ?? "";
+  const produtoNome = data?.produtoNome ?? "";
+  const produtoImg = data?.produtoImg ?? null;
+  const produtoFatorCaixa = data?.produtoFatorCaixa ?? 1;
+  const saldos = data?.saldos ?? [];
+
+  const handleScan = (code: string) => {
+    setNotFound(false);
+    setScanned(code);
   };
+
+  const semConexaoESemCache = !!scanned && !loading && !data && !isOnline;
+  const errorMessage = error === "PRODUTO_NAO_ENCONTRADO"
+    ? "Produto não encontrado para este EAN."
+    : error
+      ? "Erro ao consultar."
+      : "";
+  void refetch;
+  void notFound;
 
   const pulmao = saldos.filter(s => s.tipo_endereco === "PULMAO");
   const picking = saldos.filter(s => s.tipo_endereco === "PICKING");
@@ -110,10 +126,24 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} />
 
       {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
-      {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
+
+      {!loading && semConexaoESemCache && (
+        <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">
+          Sem conexão e sem dados em cache para esta consulta.
+        </div>
+      )}
+
+      {!loading && !semConexaoESemCache && errorMessage && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{errorMessage}</div>
+      )}
 
       {produtoNome && !loading && (
         <div className="flex flex-col gap-2">
+          {isFromCache && (
+            <span className="self-start flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+              <Database size={10} /> Cache
+            </span>
+          )}
           <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 w-full flex items-center gap-3">
             <ProdutoImagemThumb
               url={produtoImg}
@@ -133,9 +163,8 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
           <ActionButton
             variant="secondary"
             onClick={() => {
-              const emb = (window as any).__lastProdutoEmb;
-              if (emb) {
-                sessionStorage.setItem("coletor_consulta_produto_id", emb);
+              if (produtoId) {
+                sessionStorage.setItem("coletor_consulta_produto_id", produtoId);
                 onNavigate("/coletor/consulta/produto/detalhe");
               }
             }}
@@ -153,7 +182,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {!loading && scanned && saldos.length === 0 && !error && (
+      {!loading && scanned && data && saldos.length === 0 && !error && (
         <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Nenhum saldo encontrado.</div>
       )}
     </ColetorLayout>

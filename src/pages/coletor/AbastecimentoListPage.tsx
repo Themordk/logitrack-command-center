@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { Loader2, Archive, MapPin, ArrowDownToLine, PackageCheck } from "lucide-react";
+import { Loader2, Archive, MapPin, ArrowDownToLine, PackageCheck, Database } from "lucide-react";
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -41,53 +42,57 @@ interface TarefaAbastecimento {
 export function AbastecimentoListPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id") || "";
   const empresaId = localStorage.getItem("core_empresa_id") || "";
-  const [loading, setLoading] = useState(true);
-  const [tarefas, setTarefas] = useState<TarefaAbastecimento[]>([]);
   const [huMap, setHuMap] = useState<Record<string, string>>({});
   const [fase, setFase] = useState<"coleta" | "entrega">("coleta");
 
-  const loadTarefas = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.rpc("rpc_coletor_abastecimento_listar_tarefas" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-      });
-      if (error) throw error;
-      const rows = (data as TarefaAbastecimento[]) || [];
-      setTarefas(rows);
+  const fetchTarefas = useCallback(async (): Promise<TarefaAbastecimento[]> => {
+    if (!tenantId || !empresaId) return [];
+    const { data, error } = await supabase.rpc("rpc_coletor_abastecimento_listar_tarefas" as any, {
+      p_tenant_id: tenantId,
+      p_empresa_id: empresaId,
+    });
+    if (error) throw error;
+    const rows = (data as TarefaAbastecimento[]) || [];
 
-      const chaves = Array.from(new Set(rows.map(r => `${r.produto_id}__${r.endereco_origem_id}`)));
-      if (chaves.length > 0) {
-        const produtoIds = Array.from(new Set(rows.map(r => r.produto_id)));
-        const origemIds = Array.from(new Set(rows.map(r => r.endereco_origem_id)));
-        const { data: est } = await (supabase as any)
-          .from("estoque_geral")
-          .select("produto_id, endereco_id, hu_id, hu:hu_id(codigo_hu)")
-          .in("produto_id", produtoIds)
-          .in("endereco_id", origemIds)
-          .not("hu_id", "is", null)
-          .gt("quantidade_disponivel", 0);
-        const map: Record<string, string> = {};
-        (est || []).forEach((e: any) => {
-          const k = `${e.produto_id}__${e.endereco_id}`;
-          if (e.hu?.codigo_hu && !map[k]) map[k] = e.hu.codigo_hu;
-        });
-        setHuMap(map);
-      } else {
-        setHuMap({});
-      }
-    } catch (e: any) {
-      const parsed = parseError(e, "abastecimento-lista");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao carregar tarefas" : parsed.title);
-    } finally {
-      setLoading(false);
+    const chaves = Array.from(new Set(rows.map(r => `${r.produto_id}__${r.endereco_origem_id}`)));
+    if (chaves.length > 0) {
+      const produtoIds = Array.from(new Set(rows.map(r => r.produto_id)));
+      const origemIds = Array.from(new Set(rows.map(r => r.endereco_origem_id)));
+      const { data: est } = await (supabase as any)
+        .from("estoque_geral")
+        .select("produto_id, endereco_id, hu_id, hu:hu_id(codigo_hu)")
+        .in("produto_id", produtoIds)
+        .in("endereco_id", origemIds)
+        .not("hu_id", "is", null)
+        .gt("quantidade_disponivel", 0);
+      const map: Record<string, string> = {};
+      (est || []).forEach((e: any) => {
+        const k = `${e.produto_id}__${e.endereco_id}`;
+        if (e.hu?.codigo_hu && !map[k]) map[k] = e.hu.codigo_hu;
+      });
+      setHuMap(map);
+    } else {
+      setHuMap({});
     }
+
+    return rows;
   }, [tenantId, empresaId]);
 
-  useEffect(() => { loadTarefas(); }, [loadTarefas]);
+  const { data, loading, isFromCache, error, refetch } = useOfflineCache<TarefaAbastecimento[]>(
+    `abastecimento_tarefas_${empresaId}`,
+    fetchTarefas,
+    30,
+  );
+  const tarefas = data ?? [];
+  const loadTarefas = refetch;
+
+  useEffect(() => {
+    if (error) {
+      const parsed = parseError(error, "abastecimento-lista");
+      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
+      toast.error(fallbackToRaw ? "Erro ao carregar tarefas" : parsed.title);
+    }
+  }, [error]);
 
   const itensColeta = useMemo(() => tarefas.filter(t => !t.coleta_pendente), [tarefas]);
   const itensEntrega = useMemo(() =>
@@ -181,6 +186,11 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
             <p className="text-xs text-[hsl(213,31%,55%)]">
               {itensFase.length} item{itensFase.length > 1 ? "ns" : ""}
             </p>
+            {isFromCache && (
+              <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                <Database size={10} /> Cache
+              </span>
+            )}
             <RefreshListButton onRefresh={loadTarefas} />
           </div>
 

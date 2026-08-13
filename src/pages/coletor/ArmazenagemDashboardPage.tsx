@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { Loader2, Package, Layers, ArrowUp, CheckCircle, BarChart3 } from "lucide-react";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { Loader2, Package, Layers, ArrowUp, CheckCircle, BarChart3, Database } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -18,33 +19,27 @@ interface DashData {
 export function ArmazenagemDashboardPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
-  const [data, setData] = useState<DashData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadDashboard = useCallback(async () => {
-    if (!tenantId || !empresaId) return;
-    setLoading(true);
-    try {
-      const { data: result, error } = await supabase.rpc("rpc_coletor_armazenagem_dashboard" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-      });
-      if (error) throw error;
-      if (result && result.length > 0) {
-        setData(result[0]);
-      } else {
-        setData({ documentos_pendentes: 0, produtos_pendentes: 0, total_a_armazenar: 0, total_armazenado: 0, percentual_concluido: 0 });
-      }
-    } catch (err: any) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  const fetchDashboard = useCallback(async (): Promise<DashData> => {
+    if (!tenantId || !empresaId) {
+      return { documentos_pendentes: 0, produtos_pendentes: 0, total_a_armazenar: 0, total_armazenado: 0, percentual_concluido: 0 };
     }
+    const { data: result, error } = await supabase.rpc("rpc_coletor_armazenagem_dashboard" as any, {
+      p_tenant_id: tenantId,
+      p_empresa_id: empresaId,
+    });
+    if (error) throw error;
+    if (result && result.length > 0) {
+      return result[0] as DashData;
+    }
+    return { documentos_pendentes: 0, produtos_pendentes: 0, total_a_armazenar: 0, total_armazenado: 0, percentual_concluido: 0 };
   }, [tenantId, empresaId]);
 
-  useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+  const { data, loading, isFromCache, refetch } = useOfflineCache<DashData>(
+    `armazenagem_dashboard_${empresaId}`,
+    fetchDashboard,
+    15,
+  );
 
   const stats = [
     { icon: <Package size={20} />, label: "Movimentos Pendentes", value: data?.documentos_pendentes ?? 0, color: "hsl(217,91%,50%)" },
@@ -59,8 +54,14 @@ export function ArmazenagemDashboardPage({ onNavigate }: Props) {
         <div className="flex-1 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
       ) : (
         <>
-          <div className="flex justify-end">
-            <RefreshListButton onRefresh={loadDashboard} successMessage="Dashboard atualizado" />
+          <div className="flex items-center justify-between gap-2">
+            {isFromCache && (
+              <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                <Database size={10} /> Cache
+              </span>
+            )}
+            <div className="flex-1" />
+            <RefreshListButton onRefresh={refetch} successMessage="Dashboard atualizado" />
           </div>
 
           {/* Stats grid */}

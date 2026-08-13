@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
-import { Loader2, MapPin, CheckCircle, Archive } from "lucide-react";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { Loader2, MapPin, CheckCircle, Archive, Database } from "lucide-react";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 
 interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
@@ -37,62 +38,59 @@ interface ItemArmazenagem {
   fator_caixa: number | null;
 }
 
+interface ItensPayload {
+  itens: ItemArmazenagem[];
+  huMap: Record<string, HUInfo>;
+}
+
 export function ArmazenagemItensPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const movimentoId = sessionStorage.getItem("coletor_armazenagem_movimento_id");
   const movimentoNumero = sessionStorage.getItem("coletor_armazenagem_movimento_numero") || "";
 
-  const [itens, setItens] = useState<ItemArmazenagem[]>([]);
-  const [huMap, setHuMap] = useState<Record<string, HUInfo>>({});
-  const [loading, setLoading] = useState(true);
+  const fetchItens = useCallback(async (): Promise<ItensPayload> => {
+    if (!tenantId || !empresaId || !movimentoId) return { itens: [], huMap: {} };
+    const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_itens_movimento" as any, {
+      p_tenant_id: tenantId,
+      p_empresa_id: empresaId,
+      p_movimento_entrada_id: movimentoId,
+    });
+    if (error) throw error;
+    const rows = (data || []) as ItemArmazenagem[];
 
-  const load = useCallback(async () => {
-    if (!tenantId || !empresaId || !movimentoId) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_itens_movimento" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId,
-        p_movimento_entrada_id: movimentoId,
+    const tarefaIds = rows.map(i => i.tarefa_id);
+    const map: Record<string, HUInfo> = {};
+    if (tarefaIds.length > 0) {
+      const { data: huData } = await (supabase as any)
+        .from("tarefa_execucao")
+        .select("tarefa_id, hu, hu_rel:hu(codigo_hu, tipo_hu, tamanho)")
+        .in("tarefa_id", tarefaIds)
+        .not("hu", "is", null)
+        .neq("hu", "00000000-0000-0000-0000-000000000000");
+      (huData || []).forEach((exec: any) => {
+        if (exec.hu && exec.hu_rel && !map[exec.tarefa_id]) {
+          map[exec.tarefa_id] = {
+            hu_id: exec.hu,
+            codigo_hu: exec.hu_rel.codigo_hu || "",
+            tipo_hu: exec.hu_rel.tipo_hu || "",
+            tamanho: exec.hu_rel.tamanho || "",
+          };
+        }
       });
-      if (error) throw error;
-      const rows = (data || []) as ItemArmazenagem[];
-      setItens(rows);
-
-      const tarefaIds = rows.map(i => i.tarefa_id);
-      if (tarefaIds.length > 0) {
-        const { data: huData } = await (supabase as any)
-          .from("tarefa_execucao")
-          .select("tarefa_id, hu, hu_rel:hu(codigo_hu, tipo_hu, tamanho)")
-          .in("tarefa_id", tarefaIds)
-          .not("hu", "is", null)
-          .neq("hu", "00000000-0000-0000-0000-000000000000");
-        const map: Record<string, HUInfo> = {};
-        (huData || []).forEach((exec: any) => {
-          if (exec.hu && exec.hu_rel && !map[exec.tarefa_id]) {
-            map[exec.tarefa_id] = {
-              hu_id: exec.hu,
-              codigo_hu: exec.hu_rel.codigo_hu || "",
-              tipo_hu: exec.hu_rel.tipo_hu || "",
-              tamanho: exec.hu_rel.tamanho || "",
-            };
-          }
-        });
-        setHuMap(map);
-      } else {
-        setHuMap({});
-      }
-    } catch (err) {
-      console.error(err);
-      setItens([]);
-      setHuMap({});
-    } finally {
-      setLoading(false);
     }
+    return { itens: rows, huMap: map };
   }, [tenantId, empresaId, movimentoId]);
 
-  useEffect(() => { load(); }, [load]);
+  const { data, loading, isFromCache, refetch } = useOfflineCache<ItensPayload>(
+    `armazenagem_itens_${movimentoId}`,
+    fetchItens,
+    15,
+    !!movimentoId,
+  );
+
+  const itens = useMemo(() => data?.itens ?? [], [data]);
+  const huMap = useMemo(() => data?.huMap ?? {}, [data]);
 
   const handleSelectItem = (item: ItemArmazenagem) => {
     sessionStorage.setItem("coletor_armazenagem_tarefa_id", item.tarefa_id);
@@ -134,9 +132,16 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-[hsl(213,31%,55%)]">{itens.length} item(ns) pendente(s)</p>
-            <RefreshListButton onRefresh={load} />
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="text-xs text-[hsl(213,31%,55%)]">{itens.length} item(ns) pendente(s)</p>
+              {isFromCache && (
+                <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                  <Database size={10} /> Cache
+                </span>
+              )}
+            </div>
+            <RefreshListButton onRefresh={refetch} />
           </div>
 
           {itens.map((item) => (

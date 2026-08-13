@@ -8,6 +8,7 @@ import { MapPin, SkipForward, MoreVertical, ListOrdered, Loader2 } from "lucide-
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useOffline } from "@/contexts/OfflineContext";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -36,6 +37,7 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
   const [showEnderecoList, setShowEnderecoList] = useState(false);
   const result = useResultDialog({ coletorMode: true });
   const [loadingEnderecos, setLoadingEnderecos] = useState(true);
+  const { isOnline, cacheData, getCachedData } = useOffline();
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
 
@@ -51,32 +53,44 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       // Resolve endereco details from id_local_origem
       const enderecoIds = [...new Set(parsed.map(t => t.id_local_origem).filter(Boolean))];
       let enderecoMap: Record<string, { descricao: string; armazem: string; setor: string }> = {};
+      const cacheKey = `inventario_enderecos_${enderecoIds.slice().sort().join(",")}`;
 
       if (enderecoIds.length > 0) {
-        // Query endereco with armazem (has FK), but setor_id has no FK so query separately
-        const { data: enderecos } = await (supabase as any)
-          .from("endereco")
-          .select("id, descricao, armazem_id, setor_id, armazem:armazem(descricao)")
-          .in("id", enderecoIds);
+        if (!isOnline) {
+          const cached = await getCachedData<Record<string, { descricao: string; armazem: string; setor: string }>>(cacheKey);
+          if (cached) enderecoMap = cached;
+        } else {
+          try {
+            // Query endereco with armazem (has FK), but setor_id has no FK so query separately
+            const { data: enderecos } = await (supabase as any)
+              .from("endereco")
+              .select("id, descricao, armazem_id, setor_id, armazem:armazem(descricao)")
+              .in("id", enderecoIds);
 
-        // Get unique setor_ids and fetch setor names
-        const setorIds = [...new Set((enderecos || []).map((e: any) => e.setor_id).filter(Boolean))];
-        let setorMap: Record<string, string> = {};
-        if (setorIds.length > 0) {
-          const { data: setores } = await (supabase as any)
-            .from("setor")
-            .select("id, descricao")
-            .in("id", setorIds);
-          (setores || []).forEach((s: any) => { setorMap[s.id] = s.descricao; });
+            // Get unique setor_ids and fetch setor names
+            const setorIds = [...new Set((enderecos || []).map((e: any) => e.setor_id).filter(Boolean))];
+            let setorMap: Record<string, string> = {};
+            if (setorIds.length > 0) {
+              const { data: setores } = await (supabase as any)
+                .from("setor")
+                .select("id, descricao")
+                .in("id", setorIds);
+              (setores || []).forEach((s: any) => { setorMap[s.id] = s.descricao; });
+            }
+
+            (enderecos || []).forEach((e: any) => {
+              enderecoMap[e.id] = {
+                descricao: e.descricao || "—",
+                armazem: e.armazem?.descricao || "—",
+                setor: e.setor_id ? (setorMap[e.setor_id] || "—") : "—",
+              };
+            });
+            await cacheData(cacheKey, enderecoMap, 240).catch(() => {});
+          } catch {
+            const cached = await getCachedData<Record<string, { descricao: string; armazem: string; setor: string }>>(cacheKey);
+            if (cached) enderecoMap = cached;
+          }
         }
-
-        (enderecos || []).forEach((e: any) => {
-          enderecoMap[e.id] = {
-            descricao: e.descricao || "—",
-            armazem: e.armazem?.descricao || "—",
-            setor: e.setor_id ? (setorMap[e.setor_id] || "—") : "—",
-          };
-        });
       }
 
       const enriched = parsed.map(t => {

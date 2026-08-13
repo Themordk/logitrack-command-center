@@ -6,6 +6,9 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay } from "@/components/coletor/StatusOverlay";
 import { MapPin, CheckCircle2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { useOffline } from "@/contexts/OfflineContext";
+import { toast } from "sonner";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -34,6 +37,8 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   const [overlayMsg, setOverlayMsg] = useState("");
 
   const [destinoTipo, setDestinoTipo] = useState<string | null>(null);
+  const { execute: executeOffline } = useOfflineAction();
+  const { isOnline } = useOffline();
 
   const handleScanEndereco = async (code: string) => {
     const { data } = await (supabase as any)
@@ -96,8 +101,8 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
   const handleConfirmarEntrega = async () => {
     setSaving(true);
     try {
-      // Validar regras de armazenagem se destino for PICKING
-      if (destinoTipo === "PICKING") {
+      // Validar regras de armazenagem se destino for PICKING (somente online, requer consulta ao servidor)
+      if (destinoTipo === "PICKING" && isOnline) {
         const armazemId = localStorage.getItem("core_armazem_id");
         const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
           p_tenant_id: tenantId,
@@ -117,7 +122,7 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         }
       }
 
-      const { error } = await supabase.rpc("rpc_coletor_abastecimento_confirmar_entrega" as any, {
+      const offlineResult = await executeOffline("rpc_coletor_abastecimento_confirmar_entrega", {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
         p_tarefa_id: tarefaId,
@@ -126,11 +131,20 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         p_quantidade: Number(quantidade),
         p_usuario_id: usuarioId,
       });
-      if (error) throw error;
+
+      if (!offlineResult.success) throw offlineResult.data;
+
+      if (offlineResult.offline) {
+        toast.info("Ação salva. Será enviada quando a conexão retornar.");
+        setOverlay("success"); setOverlayMsg("Abastecimento registrado!");
+        setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+        return;
+      }
+
       setOverlay("success"); setOverlayMsg("Abastecimento registrado!");
       setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
     } catch (err: any) {
-      setOverlay("error"); setOverlayMsg(err.message || "Erro ao confirmar entrega");
+      setOverlay("error"); setOverlayMsg(err?.message || "Erro ao confirmar entrega");
     } finally {
       setSaving(false);
     }

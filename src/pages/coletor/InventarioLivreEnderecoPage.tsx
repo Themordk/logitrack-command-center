@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { MapPin } from "lucide-react";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useOffline } from "@/contexts/OfflineContext";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -18,6 +19,7 @@ export function InventarioLivreEnderecoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const result = useResultDialog({ coletorMode: true });
   const [contados, setContados] = useState(0);
+  const { isOnline, cacheData, getCachedData } = useOffline();
 
   const numero = sessionStorage.getItem("coletor_inventario_numero") || "";
 
@@ -34,17 +36,28 @@ export function InventarioLivreEnderecoPage({ onNavigate }: Props) {
   const handleScan = async (code: string) => {
     setLastScanned(code);
     setLoading(true);
+    const cacheKey = `inventario_livre_endereco_${code}`;
     try {
-      const { data: enderecos, error } = await (supabase as any)
-        .from("endereco")
-        .select("id, descricao, codigo_endereco, armazem_id")
-        .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
-        .limit(1);
-      if (error) throw error;
+      let found: any = null;
 
-      const found = enderecos?.[0];
+      if (!isOnline) {
+        found = await getCachedData<any>(cacheKey);
+      } else {
+        const { data: enderecos, error } = await (supabase as any)
+          .from("endereco")
+          .select("id, descricao, codigo_endereco, armazem_id")
+          .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
+          .limit(1);
+        if (error) throw error;
+        found = enderecos?.[0] || null;
+        if (found) await cacheData(cacheKey, found, 240).catch(() => {});
+      }
+
       if (!found) {
-        result.showWarning("Endereço não encontrado.", { onClose: () => setLastScanned("") });
+        result.showWarning(
+          isOnline ? "Endereço não encontrado." : "Endereço não encontrado em cache. Conecte-se para validar.",
+          { onClose: () => setLastScanned("") },
+        );
         setLoading(false);
         return;
       }

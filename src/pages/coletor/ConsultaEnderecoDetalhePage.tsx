@@ -2,9 +2,11 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -30,44 +32,48 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
   const enderecoId = sessionStorage.getItem("coletor_consulta_endereco_id") || "";
   const backPath = sessionStorage.getItem("coletor_consulta_endereco_back") || "/coletor/consulta/endereco";
   const [tab, setTab] = useState<Tab>("info");
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [endereco, setEndereco] = useState<EnderecoInfo | null>(null);
 
   // Form states
   const [configForm, setConfigForm] = useState({ tipo_endereco: "", curva_acesso: "", total_pallet: "", lado: "" });
   const [cubForm, setCubForm] = useState({ altura: "", largura: "", comprimento: "", m3: "" });
+  const { isOnline } = useOffline();
 
-  const load = useCallback(async () => {
-    if (!enderecoId) return;
-    setLoading(true);
-    try {
-      const { data } = await (supabase as any)
-        .from("endereco")
-        .select("id, codigo_endereco, descricao, situacao, ativo, tipo_endereco, curva_acesso, total_pallet, lado, altura, largura, comprimento, m3")
-        .eq("id", enderecoId)
-        .single();
-      if (data) {
-        setEndereco(data);
-        setConfigForm({
-          tipo_endereco: data.tipo_endereco || "",
-          curva_acesso: data.curva_acesso || "",
-          total_pallet: data.total_pallet != null ? String(data.total_pallet) : "",
-          lado: data.lado || "",
-        });
-        setCubForm({
-          altura: data.altura != null ? String(data.altura) : "",
-          largura: data.largura != null ? String(data.largura) : "",
-          comprimento: data.comprimento != null ? String(data.comprimento) : "",
-          m3: data.m3 != null ? String(data.m3) : "",
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
+  const fetchEndereco = useCallback(async (): Promise<EnderecoInfo> => {
+    const { data, error } = await (supabase as any)
+      .from("endereco")
+      .select("id, codigo_endereco, descricao, situacao, ativo, tipo_endereco, curva_acesso, total_pallet, lado, altura, largura, comprimento, m3")
+      .eq("id", enderecoId)
+      .single();
+    if (error) throw error;
+    return data as EnderecoInfo;
   }, [enderecoId]);
 
-  useEffect(() => { load(); }, [load]);
+  const { data: endereco, loading, isFromCache, refetch } = useOfflineCache<EnderecoInfo>(
+    `consulta_endereco_detalhe_${enderecoId}`,
+    fetchEndereco,
+    60,
+    !!enderecoId,
+  );
+
+  const load = refetch;
+
+  useEffect(() => {
+    if (endereco) {
+      setConfigForm({
+        tipo_endereco: endereco.tipo_endereco || "",
+        curva_acesso: endereco.curva_acesso || "",
+        total_pallet: endereco.total_pallet != null ? String(endereco.total_pallet) : "",
+        lado: endereco.lado || "",
+      });
+      setCubForm({
+        altura: endereco.altura != null ? String(endereco.altura) : "",
+        largura: endereco.largura != null ? String(endereco.largura) : "",
+        comprimento: endereco.comprimento != null ? String(endereco.comprimento) : "",
+        m3: endereco.m3 != null ? String(endereco.m3) : "",
+      });
+    }
+  }, [endereco]);
 
   const handleBack = (p: string) => {
     sessionStorage.removeItem("coletor_consulta_endereco_back");
@@ -140,13 +146,20 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
   if (!endereco) {
     return (
       <ColetorLayout title="Detalhe Endereço" onNavigate={handleBack} showBack backPath={backPath}>
-        <p className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Endereço não encontrado.</p>
+        <p className="text-center text-sm text-[hsl(213,31%,55%)] py-8">
+          {!isOnline ? "Sem conexão e sem dados em cache para esta consulta." : "Endereço não encontrado."}
+        </p>
       </ColetorLayout>
     );
   }
 
   return (
     <ColetorLayout title={endereco.descricao} onNavigate={handleBack} showBack backPath={backPath}>
+      {isFromCache && (
+        <span className="self-start flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+          <Database size={10} /> Cache
+        </span>
+      )}
       {/* Tab selector */}
       <div className="flex gap-1 p-1 rounded-xl bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)]">
         {(["info", "config", "cubagem"] as Tab[]).map((t) => (
