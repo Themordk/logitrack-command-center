@@ -110,7 +110,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         console.error("Erro ao buscar movimento_entrada_id:", err);
       }
     })();
-  }, [tarefaId, tenantId]);
+  }, [tarefaId, tenantId, isOnline]);
 
   // Fetch stats
   useEffect(() => {
