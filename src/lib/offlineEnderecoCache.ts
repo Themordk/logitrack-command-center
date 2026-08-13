@@ -15,7 +15,8 @@ export interface EnderecoCacheEntry {
 export async function getEnderecoFromCache(codigoEndereco: number): Promise<EnderecoCacheEntry | null> {
   const map = await getCachedData<Record<string, EnderecoCacheEntry>>(CACHE_KEY).catch(() => null);
   if (!map) return null;
-  return Object.values(map).find((e) => Number(e.codigo_endereco) === Number(codigoEndereco)) ?? null;
+  const list = Object.values(map) as EnderecoCacheEntry[];
+  return list.find((e) => Number(e.codigo_endereco) === Number(codigoEndereco)) ?? null;
 }
 
 /** Salva um endereço no cache offline (merge com o mapa existente). */
