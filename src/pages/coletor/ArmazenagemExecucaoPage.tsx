@@ -10,6 +10,8 @@ import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/Regist
 import { toast } from "sonner";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { getEnderecoFromCache, saveEnderecoToCache } from "@/lib/offlineEnderecoCache";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -26,6 +28,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const variosPickings = sessionStorage.getItem("coletor_armazenagem_varios_pickings") === "S";
   const huCodigo = sessionStorage.getItem("coletor_armazenagem_hu_codigo") || "";
   const { execute: executeOffline, isOnline } = useOfflineAction();
+  const result = useResultDialog({ coletorMode: true });
 
   const [estoquePulmao, setEstoquePulmao] = useState(0);
   const [estoquePicking, setEstoquePicking] = useState(0);
@@ -200,8 +203,9 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       if (!isOnline) {
         const cached = await getEnderecoFromCache(Number(code));
         if (!cached) {
-          setOverlay("error");
-          setOverlayMsg("Endereço não encontrado no cache offline. Escaneie este endereço online primeiro.");
+          result.showWarning("Endereço não encontrado no cache", {
+            instruction: "Escaneie este endereço quando estiver conectado à rede.",
+          });
           return;
         }
         endData = cached;
@@ -214,8 +218,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           .limit(1);
         if (error) throw error;
         if (!data || data.length === 0) {
-          setOverlay("error");
-          setOverlayMsg("Endereço não encontrado");
+          result.showWarning("Endereço não encontrado");
           return;
         }
         endData = {
@@ -228,8 +231,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       }
 
       if (!["LIVRE", "OCUPADO"].includes(endData.situacao)) {
-        setOverlay("error");
-        setOverlayMsg(`Endereço ${endData.descricao} está ${endData.situacao}. Movimentações não são permitidas. Procure a supervisão.`);
+        result.showWarning("Endereço bloqueado", {
+          details: `Endereço ${endData.descricao} está ${endData.situacao}.`,
+          instruction: "Movimentações não são permitidas neste endereço. Procure a supervisão.",
+        });
         return;
       }
       setEnderecoId(endData.id);
@@ -238,8 +243,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       setOverlay("success");
       setOverlayMsg(`Endereço: ${endData.descricao}`);
     } catch (err: any) {
-      setOverlay("error");
-      setOverlayMsg(err.message || "Erro ao buscar endereço");
+      result.showError(err, { context: "armazenagem-execucao-endereco" });
     }
   };
 
@@ -267,8 +271,9 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         if (valErr) throw valErr;
         if (validacao && !validacao.valido) {
           setSaving(false);
-          setOverlay("error");
-          setOverlayMsg(validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem");
+          result.showWarning("Endereço não permitido", {
+            details: validacao.erros?.join("\n") || "Endereço não permitido pelas regras de armazenagem.",
+          });
           return;
         }
       } else if (enderecoTipo === "PICKING" && !isOnline) {
@@ -296,9 +301,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
-        setOverlay("success");
-        setOverlayMsg("Armazenagem registrada localmente. Será sincronizada em breve.");
-        setTimeout(() => onNavigate("/coletor/armazenagem/concluido"), 1200);
+        result.showSuccess("Armazenagem registrada", {
+          instruction: "Os dados serão sincronizados quando a conexão retornar.",
+          onClose: () => onNavigate("/coletor/armazenagem/concluido"),
+        });
         return;
       }
 
@@ -325,9 +331,9 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         console.error("Log de sugestão falhou (não crítico):", logErr);
       }
 
-      setOverlay("success");
-      setOverlayMsg("Armazenagem registrada com sucesso!");
-      setTimeout(() => onNavigate("/coletor/armazenagem/concluido"), 1200);
+      result.showSuccess("Armazenagem registrada com sucesso!", {
+        onClose: () => onNavigate("/coletor/armazenagem/concluido"),
+      });
     } catch (err: any) {
       const msg = err.message || "Erro ao registrar armazenagem";
       const code = err.code || "";
@@ -337,12 +343,12 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
           setCapInfo(parsed);
           setShowCapModal(true);
         } else {
-          setOverlay("warning");
-          setOverlayMsg("Picking cheio. Armazene em um endereço de pulmão.");
+          result.showWarning("Picking cheio", {
+            instruction: "Armazene em um endereço de pulmão.",
+          });
         }
       } else {
-        setOverlay("error");
-        setOverlayMsg(msg);
+        result.showError(new Error(msg), { context: "armazenagem-execucao" });
       }
     } finally {
       setSaving(false);
@@ -358,6 +364,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Execução Armazenagem" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       {/* Stats */}
       {loadingStats ? (
