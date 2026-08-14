@@ -85,6 +85,7 @@ export const TIPO_DOC_LABEL: Record<string, string> = {
   DOCUMENTO_SAIDA: "Doc. Saída",
   MOVIMENTO_ENTRADA: "Mov. Entrada",
   MOVIMENTO_SAIDA: "Mov. Saída",
+  MOVIMENTO_ENTRADA_ITEM: "Mov. Entrada",
   INVENTARIO: "Inventário",
 };
 

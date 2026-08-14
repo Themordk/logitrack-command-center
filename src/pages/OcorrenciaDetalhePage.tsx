@@ -306,6 +306,9 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                     const routeMap: Record<string, string> = {
                       DOCUMENTO_ENTRADA: "/atividades/entradas",
                       DOCUMENTO_SAIDA: "/atividades/saidas",
+                      MOVIMENTO_ENTRADA: "/atividades/movimentos",
+                      MOVIMENTO_SAIDA: "/atividades/mov-saida",
+                      MOVIMENTO_ENTRADA_ITEM: "/atividades/movimentos",
                     };
                     const route = ocorrencia.tipo_documento_origem
                       ? routeMap[ocorrencia.tipo_documento_origem]
@@ -313,9 +316,13 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                     if (!route) {
                       return <span className="font-mono text-[10px] text-foreground">{ocorrencia.documento_origem_id}</span>;
                     }
+                    const usaDeepLink = ["DOCUMENTO_ENTRADA", "DOCUMENTO_SAIDA"].includes(ocorrencia.tipo_documento_origem);
+                    const href = usaDeepLink
+                      ? `${route}?detalhe=${ocorrencia.documento_origem_id}`
+                      : route;
                     return (
                       <button
-                        onClick={() => onNavigate(`${route}?detalhe=${ocorrencia.documento_origem_id}`)}
+                        onClick={() => onNavigate(href)}
                         className="text-[11px] text-primary hover:underline cursor-pointer text-left flex items-center gap-1"
                       >
                         <FileText size={11} />
