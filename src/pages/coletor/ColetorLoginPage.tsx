@@ -4,6 +4,8 @@ import { Boxes, Loader2, User, Lock } from "lucide-react";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal";
@@ -21,6 +23,7 @@ export function ColetorLoginPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [forceChange, setForceChange] = useState(false);
   const [pendingUsuario, setPendingUsuario] = useState<any>(null);
+  const result = useResultDialog({ coletorMode: true });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +92,10 @@ export function ColetorLoginPage({ onNavigate }: Props) {
       const parsed = parseError(err, "login-coletor");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
       const message = fallbackToRaw && err instanceof Error ? err.message : parsed.title;
-      toast.error(message);
+      result.showWarning("Não foi possível entrar", {
+        details: message,
+        instruction: "Verifique seu login e senha e tente novamente.",
+      });
     } finally {
       setLoading(false);
     }
@@ -289,6 +295,8 @@ export function ColetorLoginPage({ onNavigate }: Props) {
           Acessar Painel Administrativo
         </button>
       </main>
+
+      <ResultDialog {...result.dialogProps} />
 
       <ForcePasswordChangeModal
         open={forceChange}
