@@ -4,10 +4,13 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { Settings, Smartphone, ScanBarcode, Lock, Loader2, Eye, EyeOff, CheckCircle, Cloud } from "lucide-react";
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function ConfiguracoesPage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const [tipoDispositivo, setTipoDispositivo] = useState(
     () => localStorage.getItem("coletor_tipo_dispositivo") || "celular"
   );
@@ -29,11 +32,11 @@ export function ConfiguracoesPage({ onNavigate }: Props) {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (novaSenha.length < 6) {
-      toast.error("A nova senha deve ter no mínimo 6 caracteres.");
+      result.showWarning("A nova senha deve ter no mínimo 6 caracteres.");
       return;
     }
     if (novaSenha !== confirmarSenha) {
-      toast.error("As senhas não coincidem.");
+      result.showWarning("As senhas não coincidem.");
       return;
     }
 
@@ -48,7 +51,7 @@ export function ConfiguracoesPage({ onNavigate }: Props) {
       const currentEmail = session?.session?.user?.email;
 
       if (!currentEmail) {
-        toast.error("Sessão expirada. Faça login novamente.");
+        result.showWarning("Sessão expirada. Faça login novamente.");
         return;
       }
 
@@ -58,7 +61,7 @@ export function ConfiguracoesPage({ onNavigate }: Props) {
       });
 
       if (signInError) {
-        toast.error("Senha atual incorreta.");
+        result.showWarning("Senha atual incorreta.");
         return;
       }
 
@@ -81,7 +84,7 @@ export function ConfiguracoesPage({ onNavigate }: Props) {
     } catch (err: any) {
       const parsed = parseError(err, "configuracoes-coletor");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao alterar senha." : parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setChangingPassword(false);
     }
@@ -92,6 +95,7 @@ export function ConfiguracoesPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Configurações" onNavigate={onNavigate} showBack backPath="/coletor/home">
+      <ResultDialog {...result.dialogProps} />
       <div className="flex flex-col gap-6">
         {/* Device Type */}
         <div className="flex flex-col gap-3">

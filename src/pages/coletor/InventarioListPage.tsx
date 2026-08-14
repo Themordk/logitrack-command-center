@@ -50,7 +50,7 @@ export function InventarioListPage({ onNavigate }: Props) {
   const inventarios = data ?? [];
 
   useEffect(() => {
-    if (error) toast.error("Não foi possível carregar os inventários.");
+    if (error) result.showWarning("Não foi possível carregar os inventários.");
   }, [error]);
 
   const loadInventarios = refetch;

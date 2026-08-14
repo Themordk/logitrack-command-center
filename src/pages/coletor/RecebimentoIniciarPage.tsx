@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { parseError } from "@/lib/errorMapper";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -22,6 +24,7 @@ interface MovimentoResumo {
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -55,7 +58,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
   const movimentos = data ?? [];
 
   useEffect(() => {
-    if (error) toast.error("Erro ao carregar movimentos.");
+    if (error) result.showWarning("Erro ao carregar movimentos.");
   }, [error]);
 
   const loadMovimentos = refetch;
@@ -64,7 +67,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     if (!selectedId || !tenantId || !usuarioId) return;
     const empresaId = localStorage.getItem("core_empresa_id");
     if (!empresaId) {
-      toast.error("Empresa não identificada.");
+      result.showWarning("Empresa não identificada.");
       return;
     }
     setConfirming(true);
@@ -113,7 +116,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     } catch (err: any) {
       const parsed = parseError(err, "recebimento-iniciar");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao iniciar conferência." : parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setConfirming(false);
     }
@@ -128,6 +131,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Selecionar Movimento" onNavigate={onNavigate} showBack backPath="/coletor/recebimento">
+      <ResultDialog {...result.dialogProps} />
       <div className="flex flex-col flex-1 min-h-0 gap-3">
         <div className="flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2 min-w-0">

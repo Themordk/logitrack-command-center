@@ -84,7 +84,7 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
       setMotivos(data || []);
     } catch (err: any) {
       const parsed = parseError(err, "separacao-ocorrencias");
-      toast.error(parsed.title);
+      result.showParsedError(parsed);
     }
   };
 

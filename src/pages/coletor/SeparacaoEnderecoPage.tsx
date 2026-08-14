@@ -231,13 +231,13 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           setTarefas(newTarefas);
         }
       } catch {
-        toast.error("Erro ao buscar produto.");
+        result.showWarning("Erro ao buscar produto.");
         return;
       }
     }
 
     if (!produtoId) {
-      toast.error("Produto não identificado.");
+      result.showWarning("Produto não identificado.");
       return;
     }
 
@@ -281,7 +281,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       setOutrosEnderecos(lista);
     } catch (err: any) {
       const parsed = parseError(err, "separacao-endereco");
-      toast.error(parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setLoadingEnderecos(false);
     }

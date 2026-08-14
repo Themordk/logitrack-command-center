@@ -6,6 +6,8 @@ import { Loader2, Archive, MapPin, ArrowDownToLine, PackageCheck, Database } fro
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -40,6 +42,7 @@ interface TarefaAbastecimento {
 }
 
 export function AbastecimentoListPage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const tenantId = localStorage.getItem("core_tenant_id") || "";
   const empresaId = localStorage.getItem("core_empresa_id") || "";
   const [huMap, setHuMap] = useState<Record<string, string>>({});
@@ -90,7 +93,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
     if (error) {
       const parsed = parseError(error, "abastecimento-lista");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao carregar tarefas" : parsed.title);
+      result.showParsedError(parsed);
     }
   }, [error]);
 
@@ -143,6 +146,7 @@ export function AbastecimentoListPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Abastecimento" onNavigate={onNavigate} showBack backPath="/coletor/movimentos">
+      <ResultDialog {...result.dialogProps} />
       <div className="flex rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-1 gap-1">
         <button
           onClick={() => setFase("coleta")}

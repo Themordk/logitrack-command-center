@@ -6,6 +6,8 @@ import { OfflineStore, type PendingAction } from "@/lib/offlineStore";
 import { AlertTriangle, CheckCircle, Cloud, Database, Loader2, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { formatDateTime } from "@/utils/dateTime";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -43,6 +45,7 @@ function formatBytes(bytes: number) {
 }
 
 export function OfflineStatusPage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const { isOnline, isSyncing, lastCheckAt, lastSyncAt, syncNow, retryAction, checkNow, refreshCounts } = useOffline();
   const [actions, setActions] = useState<PendingAction[]>([]);
   const [cacheCount, setCacheCount] = useState(0);
@@ -63,7 +66,7 @@ export function OfflineStatusPage({ onNavigate }: Props) {
       setCacheCount(entries.length);
       setCacheSize(size);
     } catch {
-      toast.error("Não foi possível ler o armazenamento local.");
+      result.showWarning("Não foi possível ler o armazenamento local.");
     } finally {
       setLoading(false);
     }
@@ -76,7 +79,7 @@ export function OfflineStatusPage({ onNavigate }: Props) {
     const ok = await checkNow();
     setTesting(false);
     if (ok) toast.success("Conexão disponível.");
-    else toast.error("Sem conexão com o servidor.");
+    else result.showWarning("Sem conexão com o servidor.");
   };
 
   const handleSync = async () => {
@@ -113,6 +116,7 @@ export function OfflineStatusPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Status Offline" onNavigate={onNavigate} showBack backPath="/coletor/configuracoes">
+      <ResultDialog {...result.dialogProps} />
       <div className="flex flex-col gap-4">
         {/* Conexão */}
         <section className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-4 flex flex-col gap-3">

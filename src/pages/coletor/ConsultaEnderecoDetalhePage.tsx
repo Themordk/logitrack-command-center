@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useOffline } from "@/contexts/OfflineContext";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -29,6 +31,7 @@ interface EnderecoInfo {
 }
 
 export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const enderecoId = sessionStorage.getItem("coletor_consulta_endereco_id") || "";
   const backPath = sessionStorage.getItem("coletor_consulta_endereco_back") || "/coletor/consulta/endereco";
   const [tab, setTab] = useState<Tab>("info");
@@ -99,7 +102,7 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
     } catch (e: any) {
       const parsed = parseError(e, "consulta-endereco-detalhe");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao salvar." : parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setSaving(false);
     }
@@ -123,7 +126,7 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
     } catch (e: any) {
       const parsed = parseError(e, "consulta-endereco-detalhe");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao salvar." : parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setSaving(false);
     }
@@ -138,6 +141,7 @@ export function ConsultaEnderecoDetalhePage({ onNavigate }: Props) {
   if (loading) {
     return (
       <ColetorLayout title="Detalhe Endereço" onNavigate={handleBack} showBack backPath={backPath}>
+        <ResultDialog {...result.dialogProps} />
         <div className="flex justify-center py-12"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>
       </ColetorLayout>
     );

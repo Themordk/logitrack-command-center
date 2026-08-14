@@ -7,10 +7,13 @@ import { toast } from "sonner";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { parseError } from "@/lib/errorMapper";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function ConferenciaItensPage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const [tarefas, setTarefas] = useState<any[]>([]);
   const [clearingId, setClearingId] = useState<string | null>(null);
   const { tenantId } = useTenant();
@@ -42,7 +45,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
 
   const handleLimpar = async (t: any) => {
     if (!tenantId || !movimentoId || !t.produto_id || !usuarioId) {
-      toast.error("Dados de sessão incompletos.");
+      result.showWarning("Dados de sessão incompletos.");
       return;
     }
     if (!window.confirm(`Limpar toda a conferência do produto ${t.sku || ""}?`)) return;
@@ -59,7 +62,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
     if (!offlineResult.success) {
       const parsed = parseError(offlineResult.data, "conferencia-itens");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao limpar conferência." : parsed.title);
+      result.showParsedError(parsed);
       return;
     }
 
@@ -80,6 +83,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={`Itens - Onda #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/conferencia/produto">
+      <ResultDialog {...result.dialogProps} />
       <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
         {tarefas.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">

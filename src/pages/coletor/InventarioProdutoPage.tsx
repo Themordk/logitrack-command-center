@@ -85,7 +85,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
     } catch (err: unknown) {
       const parsed = parseError(err, "inventario-ean");
-      toast.error(parsed.title);
+      result.showParsedError(parsed);
     }
 
   };
@@ -94,7 +94,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
     if (!tarefa || quantidade === "" || !usuarioId) return;
     const qtd = Number(quantidade);
     if (isNaN(qtd) || qtd < 0) {
-      toast.error("Informe uma quantidade válida.");
+      result.showWarning("Informe uma quantidade válida.");
       return;
     }
 

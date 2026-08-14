@@ -216,7 +216,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
     } catch (err: unknown) {
       const parsed = parseError(err, "separacao-ean");
-      toast.error(parsed.title);
+      result.showParsedError(parsed);
     }
   };
 
@@ -226,7 +226,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     if (!tarefa || !quantidade || !usuarioId) return;
     const qtd = Number(quantidade);
     if (isNaN(qtd) || qtd <= 0) {
-      toast.error("Informe uma quantidade válida.");
+      result.showWarning("Informe uma quantidade válida.");
       return;
     }
 
@@ -237,7 +237,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     // Guard-rail: produtos com controle de lote exigem lote selecionado
     const requerLote = ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tarefa.tipo_controle);
     if (requerLote && !loteSel) {
-      toast.error("Selecione um lote antes de confirmar.");
+      result.showWarning("Selecione um lote antes de confirmar.");
       onNavigate("/coletor/separacao/lote");
       return;
     }
@@ -399,7 +399,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   const handleSalvarVolumes = async () => {
     const qtd = Number(volumeQtd);
     if (!qtd || qtd <= 0) {
-      toast.error("Informe uma quantidade válida.");
+      result.showWarning("Informe uma quantidade válida.");
       return;
     }
     setVolumeSaving(true);
@@ -414,19 +414,19 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         p_etapa_origem: "SEPARAÇÃO",
       });
       if (error) throw error;
-      let result: any = data;
+      let rpcVolumes: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcVolumes = JSON.parse(data); } catch { /* keep */ }
       }
-      if (result?.sucesso === false) {
-        toast.error(result.mensagem || "Erro ao gerar volumes.");
+      if (rpcVolumes?.sucesso === false) {
+        result.showError(new Error(rpcVolumes.mensagem || "Erro ao gerar volumes."), { context: "separacao-volumes" });
         return;
       }
-      toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      toast.success(rpcVolumes?.mensagem || `${qtd} volume(s) gerado(s)!`);
       // Fire-and-forget: impressão automática das etiquetas de volume
       const movIdImpr = sessionStorage.getItem("coletor_separacao_movimento_id") || undefined;
-      if (result?.volumes && Array.isArray(result.volumes)) {
-        for (const vol of result.volumes) {
+      if (rpcVolumes?.volumes && Array.isArray(rpcVolumes.volumes)) {
+        for (const vol of rpcVolumes.volumes) {
           solicitar({
             tipoEtiqueta: "VOLUME",
             dados: {
@@ -456,7 +456,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     } catch (err: any) {
       const parsed = parseError(err, "separacao-produto");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao gerar volumes." : parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setVolumeSaving(false);
     }

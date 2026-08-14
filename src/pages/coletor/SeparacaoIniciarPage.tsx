@@ -60,7 +60,7 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   const ondas = data ?? [];
 
   useEffect(() => {
-    if (error) toast.error("Não foi possível carregar as ondas.");
+    if (error) result.showWarning("Não foi possível carregar as ondas.");
   }, [error]);
 
   const loadOndas = refetch;
