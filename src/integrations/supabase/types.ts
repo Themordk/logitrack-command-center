@@ -3903,6 +3903,86 @@ export type Database = {
           },
         ]
       }
+      notificacao_painel: {
+        Row: {
+          cor: string | null
+          criado_em: string | null
+          descricao: string | null
+          empresa_id: string | null
+          icone: string | null
+          id: string
+          lida: boolean | null
+          lida_em: string | null
+          referencia_id: string | null
+          referencia_rota: string | null
+          tenant_id: string
+          tipo: string
+          titulo: string
+          usuario_id: string | null
+        }
+        Insert: {
+          cor?: string | null
+          criado_em?: string | null
+          descricao?: string | null
+          empresa_id?: string | null
+          icone?: string | null
+          id?: string
+          lida?: boolean | null
+          lida_em?: string | null
+          referencia_id?: string | null
+          referencia_rota?: string | null
+          tenant_id: string
+          tipo?: string
+          titulo: string
+          usuario_id?: string | null
+        }
+        Update: {
+          cor?: string | null
+          criado_em?: string | null
+          descricao?: string | null
+          empresa_id?: string | null
+          icone?: string | null
+          id?: string
+          lida?: boolean | null
+          lida_em?: string | null
+          referencia_id?: string | null
+          referencia_rota?: string | null
+          tenant_id?: string
+          tipo?: string
+          titulo?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_notificacao_painel_empresa"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_notificacao_painel_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_notificacao_painel_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_notificacao_painel_usuario"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ocorrencia_historico: {
         Row: {
           criado_em: string
@@ -9120,6 +9200,14 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: undefined
+      }
+      fn_marcar_notificacoes_lidas: {
+        Args: {
+          p_notificacao_ids?: string[]
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
       }
       fn_pme_atualizar_situacao_endereco: {
         Args: {
