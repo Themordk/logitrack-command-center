@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import {
   Target, Gauge, Activity, ListTodo,
