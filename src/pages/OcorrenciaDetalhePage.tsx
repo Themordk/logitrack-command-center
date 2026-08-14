@@ -18,44 +18,11 @@ interface Props {
   ocorrenciaId: string;
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  ABERTA: "bg-red-500/15 text-red-400 border-red-500/30",
-  EM_INVESTIGACAO: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-  EM_TRATAMENTO: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  RESOLVIDA: "bg-green-500/15 text-green-400 border-green-500/30",
-  CANCELADA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
-};
-const STATUS_LABEL: Record<string, string> = {
-  ABERTA: "Aberta",
-  EM_INVESTIGACAO: "Em investigação",
-  EM_TRATAMENTO: "Em tratamento",
-  RESOLVIDA: "Resolvida",
-  CANCELADA: "Cancelada",
-};
-const STATUS_DOT: Record<string, string> = {
-  ABERTA: "bg-red-500 text-red-50",
-  EM_INVESTIGACAO: "bg-yellow-500 text-yellow-50",
-  EM_TRATAMENTO: "bg-purple-500 text-purple-50",
-  RESOLVIDA: "bg-green-500 text-green-50",
-  CANCELADA: "bg-gray-500 text-gray-50",
-};
-const PRIORIDADE_BADGE: Record<string, string> = {
-  BAIXA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
-  NORMAL: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  ALTA: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-  CRITICA: "bg-red-500/15 text-red-400 border-red-500/30",
-};
-const ETAPA_LABEL: Record<string, string> = {
-  RECEBIMENTO: "Recebimento", ARMAZENAGEM: "Armazenagem", ABASTECIMENTO: "Abastecimento",
-  MOVIMENTACAO: "Movimentação", SEPARACAO: "Separação", EXPEDICAO: "Expedição",
-  INVENTARIO: "Inventário", AUDITORIA: "Auditoria",
-};
-const TIPO_LABEL: Record<string, string> = {
-  FALTA: "Falta", SOBRA: "Sobra", AVARIA: "Avaria",
-  DIVERGENCIA_INVENTARIO: "Divergência de inventário", EXTRAVIO: "Extravio",
-  PRODUTO_INCORRETO: "Produto incorreto", VALIDADE_INCORRETA: "Validade incorreta",
-  LOTE_INCORRETO: "Lote incorreto", OUTROS: "Outros",
-};
+import {
+  STATUS_BADGE, STATUS_LABEL, STATUS_DOT, PRIORIDADE_BADGE,
+  ETAPA_LABEL, TIPO_LABEL, TIPO_DOC_LABEL,
+} from "@/lib/ocorrenciaConstants";
+
 
 type DialogAction = "EM_INVESTIGACAO" | "EM_TRATAMENTO" | "RESOLVIDA" | "CANCELADA";
 
