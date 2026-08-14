@@ -648,6 +648,12 @@ function AppContent() {
     );
   }
 
+  // ===== Gate mobile: painel admin só permite Dashboard na Fase 1 =====
+  if (isMobile && currentPath !== "/") {
+    Promise.resolve().then(() => navigate("/"));
+    return <TenantBootSplash />;
+  }
+
 
   const bc = breadcrumbs[currentPath] ?? getDynamicBreadcrumb(currentPath) ?? [
     { label: "CORE LogiTrack" },
