@@ -502,6 +502,7 @@ function getInitialPath() {
 function AppContent() {
   const { tenantId, empresaId, loading, authenticated, login } = useTenant();
   const boot = useTenantBoot();
+  const isMobile = useIsMobile();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
 
   // Gate global de troca de senha obrigatória (painel administrativo).
