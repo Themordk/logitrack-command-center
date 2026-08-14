@@ -155,17 +155,40 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
       const saidaIds = rows
         .filter((r: any) => r.tipo_documento_origem === "DOCUMENTO_SAIDA" && r.documento_origem_id)
         .map((r: any) => r.documento_origem_id);
+      const movEntradaIds = rows
+        .filter((r: any) => r.tipo_documento_origem === "MOVIMENTO_ENTRADA" && r.documento_origem_id)
+        .map((r: any) => r.documento_origem_id);
+      const movSaidaIds = rows
+        .filter((r: any) => r.tipo_documento_origem === "MOVIMENTO_SAIDA" && r.documento_origem_id)
+        .map((r: any) => r.documento_origem_id);
+      const movEntradaItemIds = rows
+        .filter((r: any) => r.tipo_documento_origem === "MOVIMENTO_ENTRADA_ITEM" && r.documento_origem_id)
+        .map((r: any) => r.documento_origem_id);
 
-      const [entradas, saidas] = await Promise.all([
+      const [entradas, saidas, movEntradas, movSaidas, movEntradaItems] = await Promise.all([
         entradaIds.length
           ? (supabase as any).from("documento_entrada").select("id, numero_nota").in("id", entradaIds)
           : Promise.resolve({ data: [] }),
         saidaIds.length
           ? (supabase as any).from("documento_saida").select("id, numero_pedido").in("id", saidaIds)
           : Promise.resolve({ data: [] }),
+        movEntradaIds.length
+          ? (supabase as any).from("movimento_entrada").select("id, numero_movimento").in("id", movEntradaIds)
+          : Promise.resolve({ data: [] }),
+        movSaidaIds.length
+          ? (supabase as any).from("movimento_saida").select("id, numero_onda").in("id", movSaidaIds)
+          : Promise.resolve({ data: [] }),
+        movEntradaItemIds.length
+          ? (supabase as any).from("movimento_entrada_item").select("id, movimento_entrada_id, movimento_entrada:movimento_entrada_id(numero_movimento)").in("id", movEntradaItemIds)
+          : Promise.resolve({ data: [] }),
       ]);
       (entradas.data || []).forEach((d: any) => { docNumeros[d.id] = `NF ${d.numero_nota}`; });
       (saidas.data || []).forEach((d: any) => { docNumeros[d.id] = `Pedido ${d.numero_pedido}`; });
+      (movEntradas.data || []).forEach((d: any) => { docNumeros[d.id] = `Mov. ${d.numero_movimento}`; });
+      (movSaidas.data || []).forEach((d: any) => { docNumeros[d.id] = `Onda ${d.numero_onda}`; });
+      (movEntradaItems.data || []).forEach((d: any) => {
+        docNumeros[d.id] = `Mov. ${d.movimento_entrada?.numero_movimento ?? "—"}`;
+      });
 
       return { rows, count: count || 0, docNumeros };
     },
