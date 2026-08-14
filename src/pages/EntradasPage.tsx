@@ -3,13 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye } from "lucide-react";
+import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye, Trash2 } from "lucide-react";
 import { CadastroDocEntradaPage } from "./CadastroDocEntradaPage";
 import { DocEntradaDetalhePage } from "./DocEntradaDetalhePage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { ImportarNfeChaveModal } from "@/components/erp/ImportarNfeChaveModal";
-import { formatDate } from "@/utils/dateTime";
+import { ExcluirDocumentosModal } from "@/components/documentos/ExcluirDocumentosModal";
+import { formatDate, formatDateTime } from "@/utils/dateTime";
+
 
 
 interface DocEntry {
