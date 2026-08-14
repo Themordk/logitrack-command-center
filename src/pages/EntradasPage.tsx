@@ -461,6 +461,13 @@ export function EntradasPage() {
         onClose={() => setImportOpen(false)}
         onSuccess={() => fetchDocs()}
       />
+      <ExcluirDocumentosModal
+        isOpen={showExcluir}
+        onClose={() => setShowExcluir(false)}
+        onSuccess={() => { setSelected(new Set()); fetchDocs(); }}
+        documentoIds={Array.from(selected)}
+        tipoDocumento="entrada"
+      />
     </div>
   );
 }
