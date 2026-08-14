@@ -52,7 +52,7 @@ export function EntradasPage() {
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   const listQuery = useQuery({
-    queryKey: ["entradas-pendentes", tenantId, empresaId, armazemId, page],
+    queryKey: ["entradas-lista", aba, tenantId, empresaId, armazemId, page],
     queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
@@ -60,6 +60,7 @@ export function EntradasPage() {
         .from("documento_entrada")
         .select(
           `id, numero_nota, data_emissao, parceiro_id, tipo_entrada_id, valor_total_nota, qtd_volume,
+           excluido_em, excluido_por,
            parceiro:parceiro_id ( razaosocial ),
            tipo_entrada:tipo_entrada_id ( descricao ),
            itens:documento_entrada_item ( count )`,
@@ -67,12 +68,22 @@ export function EntradasPage() {
         )
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
-        .eq("status", 0)
-        .order("data_emissao", { ascending: false })
+        .eq("status", isExcluidos ? 99 : 0)
+        .order(isExcluidos ? "excluido_em" : "data_emissao", { ascending: false })
         .range(from, to);
       if (armazemId) query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
       const { data, error, count } = await query;
       if (error) throw error;
+
+      const usuarioMap = new Map<string, string>();
+      if (isExcluidos) {
+        const ids = Array.from(new Set((data || []).map((d: any) => d.excluido_por).filter(Boolean)));
+        if (ids.length > 0) {
+          const { data: users } = await (supabase as any).from("usuario").select("id, nome").in("id", ids);
+          (users || []).forEach((u: any) => usuarioMap.set(u.id, u.nome));
+        }
+      }
+
       const enriched: DocEntry[] = (data || []).map((doc: any) => ({
         id: doc.id,
         numero_nota: doc.numero_nota,
@@ -84,12 +95,15 @@ export function EntradasPage() {
         parceiro_nome: doc.parceiro?.razaosocial || "—",
         tipo_entrada_descricao: doc.tipo_entrada?.descricao || "—",
         total_skus: doc.itens?.[0]?.count ?? 0,
+        excluido_em: doc.excluido_em ?? null,
+        excluido_por_nome: doc.excluido_por ? usuarioMap.get(doc.excluido_por) || "—" : null,
       }));
       return { rows: enriched, count: count || 0 };
     },
     enabled: !!tenantId && !!empresaId,
     staleTime: 30_000,
   });
+
 
   const docs = listQuery.data?.rows ?? [];
   const total = listQuery.data?.count ?? 0;
