@@ -25,6 +25,8 @@ interface DocEntry {
   parceiro_nome?: string;
   total_skus?: number;
   tipo_entrada_descricao?: string;
+  excluido_em?: string | null;
+  excluido_por_nome?: string | null;
 }
 
 export function EntradasPage() {
@@ -32,9 +34,13 @@ export function EntradasPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  const [aba, setAba] = useState<"pendentes" | "excluidos">("pendentes");
+  const isExcluidos = aba === "excluidos";
+  const [showExcluir, setShowExcluir] = useState(false);
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
