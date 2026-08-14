@@ -200,26 +200,55 @@ export function EntradasPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCadastro(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors"
-          >
-            <Plus size={14} />
-            Novo Documento
-          </button>
-          <BotaoImportarERP onClick={() => setImportOpen(true)} />
-          <button
-            onClick={openModal}
-            disabled={selected.size === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <Truck size={14} />
-            Gerar Movimento ({selected.size})
-          </button>
+          {!isExcluidos && (
+            <>
+              <button
+                onClick={() => setShowCadastro(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+              >
+                <Plus size={14} />
+                Novo Documento
+              </button>
+              <BotaoImportarERP onClick={() => setImportOpen(true)} />
+              <button
+                onClick={() => setShowExcluir(true)}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Trash2 size={14} />
+                Excluir Selecionados ({selected.size})
+              </button>
+              <button
+                onClick={openModal}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Truck size={14} />
+                Gerar Movimento ({selected.size})
+              </button>
+            </>
+          )}
         </div>
       </div>
 
+      <div className="flex items-center gap-2">
+        {(["pendentes", "excluidos"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => { setAba(t); setPage(1); setSelected(new Set()); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              aba === t
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+            }`}
+          >
+            {t === "pendentes" ? "Pendentes" : "Excluídos"}
+          </button>
+        ))}
+      </div>
+
       <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
+
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={20} className="animate-spin text-muted-foreground" />
