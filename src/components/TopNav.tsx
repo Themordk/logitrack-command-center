@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
 import logoUrl from "@/assets/corelogitrack-logo.png";
@@ -128,6 +129,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
   const { tenantId, empresaId, usuarioNome, logout, changeEmpresa } = useTenant();
   const { can } = usePermissions();
   const isAdmin = useIsAdmin();
+  const isMobile = useIsMobile();
   const [empresas, setEmpresas] = useState<{ id: string; codigo: string | null; razaosocial: string }[]>([]);
 
   useEffect(() => {
@@ -188,13 +190,13 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
         </div>
 
         {/* Empresa selector — apenas ADMINISTRADOR pode trocar */}
-        <div className="flex items-center gap-1.5 px-4 border-r border-border mr-2">
-          <MapPin size={13} className="text-muted-foreground" />
+        <div className="flex items-center gap-1.5 px-4 border-r border-border mr-2 min-w-0">
+          <MapPin size={13} className="text-muted-foreground shrink-0" />
           {isAdmin ? (
             <select
               value={empresaId || ""}
               onChange={(e) => changeEmpresa(e.target.value)}
-              className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer"
+              className="bg-transparent text-xs text-foreground border-none outline-none cursor-pointer max-w-[120px] truncate"
               title="Trocar empresa ativa"
             >
               {empresas.map((e) => (
@@ -206,7 +208,7 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
             </select>
           ) : (
             <span
-              className="text-xs text-foreground font-medium"
+              className="text-xs text-foreground font-medium max-w-[120px] truncate"
               title="Empresa ativa"
             >
               {(() => {
@@ -217,61 +219,66 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
           )}
         </div>
 
-        {/* Nav items */}
-        <nav ref={menuRef} className="flex items-center gap-0.5 flex-1">
-          {filteredNavItems.map((item) => {
-            const isActive = item.path ? currentPath === item.path : item.children?.some((c) => c.path === currentPath);
-            const isOpen = openMenu === item.label;
+        {/* Nav items — desktop only */}
+        {!isMobile && (
+          <nav ref={menuRef} className="flex items-center gap-0.5 flex-1">
+            {filteredNavItems.map((item) => {
+              const isActive = item.path ? currentPath === item.path : item.children?.some((c) => c.path === currentPath);
+              const isOpen = openMenu === item.label;
 
-            if (!item.children) {
+              if (!item.children) {
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => handleNav(item.path!)}
+                    className={cn("nav-item", isActive && "nav-item-active text-primary")}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </button>
+                );
+              }
+
               return (
-                <button
-                  key={item.label}
-                  onClick={() => handleNav(item.path!)}
-                  className={cn("nav-item", isActive && "nav-item-active text-primary")}
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
-              );
-            }
+                <div key={item.label} className="relative">
+                  <button
+                    onClick={() => setOpenMenu(isOpen ? null : item.label)}
+                    className={cn("nav-item", (isActive || isOpen) && "nav-item-active")}
+                  >
+                    {item.icon}
+                    {item.label}
+                    <ChevronDown size={12} className={cn("transition-transform duration-200", isOpen && "rotate-180")} />
+                  </button>
 
-            return (
-              <div key={item.label} className="relative">
-                <button
-                  onClick={() => setOpenMenu(isOpen ? null : item.label)}
-                  className={cn("nav-item", (isActive || isOpen) && "nav-item-active")}
-                >
-                  {item.icon}
-                  {item.label}
-                  <ChevronDown size={12} className={cn("transition-transform duration-200", isOpen && "rotate-180")} />
-                </button>
-
-                {isOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-56 rounded-lg border border-border bg-card shadow-elevated animate-fade-in z-50 overflow-hidden">
-                    <div className="p-1">
-                      {item.children.map((child) => (
-                        <button
-                          key={child.path}
-                          onClick={() => handleNav(child.path)}
-                          className={cn(
-                            "w-full flex items-center gap-2 px-3 py-2 text-xs rounded-md transition-colors",
-                            currentPath === child.path
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                          )}
-                        >
-                          <ChevronRight size={11} className="opacity-40" />
-                          {child.label}
-                        </button>
-                      ))}
+                  {isOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-56 rounded-lg border border-border bg-card shadow-elevated animate-fade-in z-50 overflow-hidden">
+                      <div className="p-1">
+                        {item.children.map((child) => (
+                          <button
+                            key={child.path}
+                            onClick={() => handleNav(child.path)}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-3 py-2 text-xs rounded-md transition-colors",
+                              currentPath === child.path
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+                            )}
+                          >
+                            <ChevronRight size={11} className="opacity-40" />
+                            {child.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        )}
+
+        {/* Spacer no mobile para empurrar o logout à direita */}
+        {isMobile && <div className="flex-1" />}
 
         {/* Right side */}
         <div className="flex items-center gap-2">
@@ -282,21 +289,25 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
             <kbd className="text-xs bg-muted px-1 rounded">⌘K</kbd>
           </button> */}
 
-          {/* Notifications */}
-          <button className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors">
-            <Bell size={15} className="text-muted-foreground" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive border border-card" />
-          </button>
+          {/* Notifications — desktop only */}
+          {!isMobile && (
+            <button className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors">
+              <Bell size={15} className="text-muted-foreground" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive border border-card" />
+            </button>
+          )}
 
-          {/* User */}
-          <button className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-secondary transition-colors">
-            <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-semibold text-primary">
-              {(usuarioNome || "U").slice(0, 2).toUpperCase()}
-            </div>
-            <div className="text-left hidden md:block">
-              <div className="text-xs font-medium text-foreground leading-none">{usuarioNome || "Usuário"}</div>
-            </div>
-          </button>
+          {/* User — desktop only */}
+          {!isMobile && (
+            <button className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-secondary transition-colors">
+              <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-xs font-semibold text-primary">
+                {(usuarioNome || "U").slice(0, 2).toUpperCase()}
+              </div>
+              <div className="text-left hidden md:block">
+                <div className="text-xs font-medium text-foreground leading-none">{usuarioNome || "Usuário"}</div>
+              </div>
+            </button>
+          )}
 
           {/* Logout */}
           <button

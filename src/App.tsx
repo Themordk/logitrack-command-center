@@ -16,6 +16,7 @@ import { PermissionsProvider } from "./contexts/PermissionsContext";
 import { TenantBootProvider, useTenantBoot } from "./contexts/TenantBootContext";
 import { TenantBootSplash, TenantBootError, TenantPickerPage } from "./components/tenant/TenantBootScreens";
 import { UpdatePrompt } from "./components/pwa/UpdatePrompt";
+import { useIsMobile } from "./hooks/use-mobile";
 import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
@@ -501,6 +502,7 @@ function getInitialPath() {
 function AppContent() {
   const { tenantId, empresaId, loading, authenticated, login } = useTenant();
   const boot = useTenantBoot();
+  const isMobile = useIsMobile();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
 
   // Gate global de troca de senha obrigatória (painel administrativo).
@@ -644,6 +646,12 @@ function AppContent() {
         onSuccess={() => forcePwd.clear()}
       />
     );
+  }
+
+  // ===== Gate mobile: painel admin só permite Dashboard na Fase 1 =====
+  if (isMobile && currentPath !== "/") {
+    Promise.resolve().then(() => navigate("/"));
+    return <TenantBootSplash />;
   }
 
 
