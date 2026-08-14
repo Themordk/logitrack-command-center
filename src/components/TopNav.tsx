@@ -7,6 +7,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
 import logoUrl from "@/assets/corelogitrack-logo.png";
+import { NotificacoesDropdown } from "@/components/NotificacoesDropdown";
+
 
 import {
   Building2,
