@@ -226,16 +226,19 @@ export function EntradasPage() {
         ) : docs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <FileText size={32} className="mb-2 opacity-40" />
-            <p className="text-sm">Nenhum documento pendente encontrado.</p>
+            <p className="text-sm">{isExcluidos ? "Nenhum documento excluído encontrado." : "Nenhum documento pendente encontrado."}</p>
           </div>
+
         ) : (
           <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-secondary backdrop-blur">
-                  <th className="px-4 py-2.5 text-left w-10 bg-secondary">
-                    <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
-                  </th>
+                  {!isExcluidos && (
+                    <th className="px-4 py-2.5 text-left w-10 bg-secondary">
+                      <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
+                    </th>
+                  )}
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Nº Nota</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Data Emissão</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Parceiro</th>
@@ -243,15 +246,28 @@ export function EntradasPage() {
                   <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">SKUs</th>
                   <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">Volumes</th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase bg-secondary">Valor Total</th>
+                  {isExcluidos && (
+                    <>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Excluído em</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Excluído por</th>
+                      <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">Status</th>
+                    </>
+                  )}
                   <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16 bg-secondary">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {docs.map((doc) => (
-                  <tr key={doc.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => toggleSelect(doc.id)}>
-                    <td className="px-4 py-2.5">
-                      <input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" />
-                    </td>
+                  <tr
+                    key={doc.id}
+                    className={`border-b border-border/50 table-row-hover ${isExcluidos ? "" : "cursor-pointer"}`}
+                    onClick={() => { if (!isExcluidos) toggleSelect(doc.id); }}
+                  >
+                    {!isExcluidos && (
+                      <td className="px-4 py-2.5">
+                        <input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" />
+                      </td>
+                    )}
                     <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_nota}</td>
                     <td className="px-4 py-2.5 text-muted-foreground text-xs">{formatDate(doc.data_emissao)}</td>
                     <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
@@ -261,6 +277,15 @@ export function EntradasPage() {
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">
                       {doc.valor_total_nota.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </td>
+                    {isExcluidos && (
+                      <>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">{doc.excluido_em ? formatDateTime(doc.excluido_em) : "—"}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">{doc.excluido_por_nome || "—"}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border bg-red-500/15 text-red-400 border-red-500/30">EXCLUÍDO</span>
+                        </td>
+                      </>
+                    )}
                     <td className="px-4 py-2.5 text-center">
                       <button
                         onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
@@ -273,6 +298,7 @@ export function EntradasPage() {
                   </tr>
                 ))}
               </tbody>
+
             </table>
           </div>
         )}
