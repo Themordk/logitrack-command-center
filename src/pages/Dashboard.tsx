@@ -95,9 +95,9 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className={cn("flex gap-3", isMobile ? "flex-col items-start" : "items-center justify-between flex-wrap")}>
         <div>
-          <h1 className="text-xl font-bold text-foreground">Torre de Controle</h1>
+          <h1 className={cn("font-bold text-foreground", isMobile ? "text-lg" : "text-xl")}>Torre de Controle</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Visão executiva em tempo real</p>
         </div>
         <div className="flex items-center gap-3">
