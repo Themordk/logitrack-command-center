@@ -301,8 +301,28 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                 </InfoItem>
               )}
               {ocorrencia.documento_origem_id && (
-                <InfoItem icon={<FileText size={14} />} label="ID documento origem">
-                  <span className="font-mono text-[10px] text-foreground">{ocorrencia.documento_origem_id}</span>
+                <InfoItem icon={<FileText size={14} />} label="Documento de origem">
+                  {(() => {
+                    const routeMap: Record<string, string> = {
+                      DOCUMENTO_ENTRADA: "/atividades/entradas",
+                      DOCUMENTO_SAIDA: "/atividades/saidas",
+                    };
+                    const route = ocorrencia.tipo_documento_origem
+                      ? routeMap[ocorrencia.tipo_documento_origem]
+                      : undefined;
+                    if (!route) {
+                      return <span className="font-mono text-[10px] text-foreground">{ocorrencia.documento_origem_id}</span>;
+                    }
+                    return (
+                      <button
+                        onClick={() => onNavigate(`${route}?detalhe=${ocorrencia.documento_origem_id}`)}
+                        className="text-[11px] text-primary hover:underline cursor-pointer text-left flex items-center gap-1"
+                      >
+                        <FileText size={11} />
+                        {TIPO_DOC_LABEL[ocorrencia.tipo_documento_origem] ?? "Documento"} — Ver detalhes →
+                      </button>
+                    );
+                  })()}
                 </InfoItem>
               )}
               {ocorrencia.tarefa_execucao_id && (
@@ -318,11 +338,14 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
             </div>
 
 
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
-              <Stat label="Esperada" value={ocorrencia.quantidade_esperada} />
-              <Stat label="Real" value={ocorrencia.quantidade_real} />
-              <Stat label="Divergência" value={divQty} valueClass={divQty > 0 ? "text-red-400" : "text-green-400"} />
-            </div>
+            {(ocorrencia.quantidade_esperada != null || ocorrencia.quantidade_real != null || divQty > 0) && (
+              <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
+                <Stat label="Esperada" value={ocorrencia.quantidade_esperada} />
+                <Stat label="Real" value={ocorrencia.quantidade_real} />
+                <Stat label="Divergência" value={divQty} valueClass={divQty > 0 ? "text-red-400" : "text-green-400"} />
+              </div>
+            )}
+
 
             {ocorrencia.observacao && (
               <div className="mt-4 p-3 rounded-md bg-muted/30 text-xs text-foreground whitespace-pre-wrap">
