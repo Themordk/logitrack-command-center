@@ -16,6 +16,7 @@ import { PermissionsProvider } from "./contexts/PermissionsContext";
 import { TenantBootProvider, useTenantBoot } from "./contexts/TenantBootContext";
 import { TenantBootSplash, TenantBootError, TenantPickerPage } from "./components/tenant/TenantBootScreens";
 import { UpdatePrompt } from "./components/pwa/UpdatePrompt";
+import { useIsMobile } from "./hooks/use-mobile";
 import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
