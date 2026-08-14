@@ -109,7 +109,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
       setEditOper(false);
       await loadProduto();
     } catch (e: any) {
-      toast.error(e?.message || "Erro ao atualizar dados operacionais.");
+      result.showError(e, { context: "consulta-produto" });
     } finally {
       setOperSubmitting(false);
     }

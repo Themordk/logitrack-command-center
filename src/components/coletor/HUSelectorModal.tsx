@@ -6,6 +6,8 @@ import { parseError } from "@/lib/errorMapper";
 import { ActionButton } from "./ActionButton";
 import { ScanField } from "./ScanField";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface HUSelectorModalProps {
   open: boolean;
@@ -37,6 +39,7 @@ export function HUSelectorModal({
   initialMode = "scan",
   movimentoEntradaId,
 }: HUSelectorModalProps) {
+  const result = useResultDialog({ coletorMode: true });
   const [mode, setMode] = useState<Mode>(initialMode);
   const [scanResult, setScanResult] = useState<HuBusca | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -123,7 +126,7 @@ export function HUSelectorModal({
       if (error) throw error;
       const r = typeof data === "string" ? JSON.parse(data) : data;
       if (!r?.sucesso) {
-        toast.error(r?.mensagem || "Erro ao criar HU");
+        result.showError(new Error(r?.mensagem || "Erro ao criar HU"), { context: "hu-selector" });
         return;
       }
       toast.success(`HU ${r.codigo_hu} criada!`);
@@ -144,7 +147,7 @@ export function HUSelectorModal({
       onClose();
     } catch (err: any) {
       const parsed = parseError(err, "hu-selector");
-      toast.error(parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setCreating(false);
     }
