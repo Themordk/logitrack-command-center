@@ -138,13 +138,11 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
 
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
-        setOverlay("success"); setOverlayMsg("Abastecimento registrado!");
-        setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+        result.showSuccess("Abastecimento registrado!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
         return;
       }
 
-      setOverlay("success"); setOverlayMsg("Abastecimento registrado!");
-      setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+      result.showSuccess("Abastecimento registrado!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
     } catch (err: any) {
       result.showError(err, { context: "abastecimento" });
     } finally {

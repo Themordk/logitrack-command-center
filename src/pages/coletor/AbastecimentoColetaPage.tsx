@@ -113,13 +113,11 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
-        setOverlay("success"); setOverlayMsg("Coleta confirmada!");
-        setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+        result.showSuccess("Coleta confirmada!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
         return;
       }
 
-      setOverlay("success"); setOverlayMsg("Coleta confirmada!");
-      setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+      result.showSuccess("Coleta confirmada!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
     } catch (err: any) {
       result.showError(err, { context: "abastecimento" });
     } finally {

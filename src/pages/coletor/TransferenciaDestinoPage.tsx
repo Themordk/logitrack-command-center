@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
-import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 
@@ -30,8 +29,6 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
 
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
-  const [overlay, setOverlay] = useState<OverlayType>(null);
-  const [overlayMsg, setOverlayMsg] = useState("");
   const result = useResultDialog({ coletorMode: true });
 
   const handleScan = async (code: string) => {
@@ -143,7 +140,6 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Transferência - Destino" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/transferencia/detalhe">
       <OnlineOnlyNotice flow="Transferência" />
-      <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
