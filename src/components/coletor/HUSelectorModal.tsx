@@ -165,6 +165,7 @@ export function HUSelectorModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-end justify-center p-4">
+      <ResultDialog {...result.dialogProps} />
       <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-4 flex flex-col gap-3 animate-in slide-in-from-bottom duration-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-white font-bold">
