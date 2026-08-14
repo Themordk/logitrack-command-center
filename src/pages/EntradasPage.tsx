@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
