@@ -481,8 +481,12 @@ export type Database = {
           data_emissao: string
           data_entrada: string
           empresa_id: string
+          excluido_em: string | null
+          excluido_por: string | null
           id: string
+          motivo_exclusao_id: string | null
           numero_nota: string
+          observacao_exclusao: string | null
           parceiro_id: string
           qtd_volume: number | null
           status: number
@@ -499,8 +503,12 @@ export type Database = {
           data_emissao: string
           data_entrada: string
           empresa_id: string
+          excluido_em?: string | null
+          excluido_por?: string | null
           id?: string
+          motivo_exclusao_id?: string | null
           numero_nota: string
+          observacao_exclusao?: string | null
           parceiro_id: string
           qtd_volume?: number | null
           status: number
@@ -517,8 +525,12 @@ export type Database = {
           data_emissao?: string
           data_entrada?: string
           empresa_id?: string
+          excluido_em?: string | null
+          excluido_por?: string | null
           id?: string
+          motivo_exclusao_id?: string | null
           numero_nota?: string
+          observacao_exclusao?: string | null
           parceiro_id?: string
           qtd_volume?: number | null
           status?: number
@@ -540,6 +552,20 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_excluido_por_fkey"
+            columns: ["excluido_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_entrada_motivo_exclusao_id_fkey"
+            columns: ["motivo_exclusao_id"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
             referencedColumns: ["id"]
           },
           {
@@ -698,10 +724,14 @@ export type Database = {
           codigo_erp: string | null
           data_emissao: string
           empresa_id: string
+          excluido_em: string | null
+          excluido_por: string | null
           id: string
           id_externo: string | null
+          motivo_exclusao_id: string | null
           numero_pedido: number
           observacao: string | null
+          observacao_exclusao: string | null
           parceiro_id: string
           prioridade_externa: string | null
           rota_id: string | null
@@ -720,10 +750,14 @@ export type Database = {
           codigo_erp?: string | null
           data_emissao: string
           empresa_id: string
+          excluido_em?: string | null
+          excluido_por?: string | null
           id?: string
           id_externo?: string | null
+          motivo_exclusao_id?: string | null
           numero_pedido: number
           observacao?: string | null
+          observacao_exclusao?: string | null
           parceiro_id: string
           prioridade_externa?: string | null
           rota_id?: string | null
@@ -742,10 +776,14 @@ export type Database = {
           codigo_erp?: string | null
           data_emissao?: string
           empresa_id?: string
+          excluido_em?: string | null
+          excluido_por?: string | null
           id?: string
           id_externo?: string | null
+          motivo_exclusao_id?: string | null
           numero_pedido?: number
           observacao?: string | null
+          observacao_exclusao?: string | null
           parceiro_id?: string
           prioridade_externa?: string | null
           rota_id?: string | null
@@ -761,6 +799,20 @@ export type Database = {
           vendedor?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documento_saida_excluido_por_fkey"
+            columns: ["excluido_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_motivo_exclusao_id_fkey"
+            columns: ["motivo_exclusao_id"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_doc_saida_empresa"
             columns: ["empresa_id"]
@@ -8781,6 +8833,28 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_excluir_documento_entrada: {
+        Args: {
+          p_documento_entrada_id: string
+          p_empresa_id: string
+          p_motivo_ocorrencia_id: string
+          p_observacao?: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      fn_excluir_documento_saida: {
+        Args: {
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_motivo_ocorrencia_id: string
+          p_observacao?: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       fn_excluir_volume_expedicao: {
         Args: {
           p_observacao?: string
@@ -10523,6 +10597,7 @@ export type Database = {
         | "AUDITORIA"
         | "CONFERENCIA"
         | "OUTROS"
+        | "EXCLUSAO"
       enum_execucao_inventario: "AUDITORIA" | "ATUALIZACAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
@@ -10694,6 +10769,7 @@ export type Database = {
         | "VALIDADE_INCORRETA"
         | "LOTE_INCORRETO"
         | "OUTROS"
+        | "EXCLUSAO_DOCUMENTO"
       enum_tipo_operacao:
         | "RECEBIMENTO"
         | "ARMAZENAGEM"
@@ -10919,6 +10995,7 @@ export const Constants = {
         "AUDITORIA",
         "CONFERENCIA",
         "OUTROS",
+        "EXCLUSAO",
       ],
       enum_execucao_inventario: ["AUDITORIA", "ATUALIZACAO"],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
@@ -11111,6 +11188,7 @@ export const Constants = {
         "VALIDADE_INCORRETA",
         "LOTE_INCORRETO",
         "OUTROS",
+        "EXCLUSAO_DOCUMENTO",
       ],
       enum_tipo_operacao: [
         "RECEBIMENTO",
