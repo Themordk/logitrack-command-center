@@ -59,6 +59,16 @@ export function EntradasPage() {
 
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
+  // Deep-link: /atividades/entradas?detalhe=<uuid> abre direto o detalhe
+  useEffect(() => {
+    const detalheParam = getRouteParam("detalhe");
+    if (detalheParam) {
+      setDetalheId(detalheParam);
+      clearRouteParam("detalhe");
+    }
+  }, []);
+
+
   const listQuery = useQuery({
     queryKey: ["entradas-lista", aba, tenantId, empresaId, armazemId, page],
     queryFn: async () => {
