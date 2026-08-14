@@ -21,6 +21,7 @@ const REFRESH_INTERVAL = 60_000;
 
 export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
   const { tenantId, empresaId, empresaVersion, armazemId } = useTenant();
+  const isMobile = useIsMobile();
   const today = format(new Date(), "yyyy-MM-dd");
 
   const [filters, setFilters] = useState<FiltersState>({
