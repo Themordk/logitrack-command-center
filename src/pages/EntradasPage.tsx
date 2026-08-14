@@ -195,9 +195,10 @@ export function EntradasPage() {
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-foreground">Documentos de Entrada Pendentes</h1>
-          <p className="text-xs text-muted-foreground">Selecione documentos para gerar um movimento de entrada</p>
+          <h1 className="text-lg font-bold text-foreground">Documentos de Entrada {isExcluidos ? "Excluídos" : "Pendentes"}</h1>
+          <p className="text-xs text-muted-foreground">{isExcluidos ? "Documentos excluídos com rastreabilidade de ocorrência" : "Selecione documentos para gerar um movimento de entrada"}</p>
         </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowCadastro(true)}
