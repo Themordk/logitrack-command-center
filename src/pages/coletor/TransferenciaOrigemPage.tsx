@@ -4,6 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 import { Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -14,6 +16,7 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
   const [scanned, setScanned] = useState("");
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const result = useResultDialog({ coletorMode: true });
 
   const handleScan = async (code: string) => {
     setScanned(code);
@@ -26,14 +29,12 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
         .limit(1);
 
       if (!data || data.length === 0) {
-        setOverlay("error");
-        setOverlayMsg("Endereço não encontrado.");
+        result.showWarning("Endereço não encontrado.");
         return;
       }
 
       if (!["LIVRE", "OCUPADO"].includes(data[0].situacao)) {
-        setOverlay("error");
-        setOverlayMsg(`Endereço ${data[0].descricao} está ${data[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
+        result.showWarning(`Endereço ${data[0].descricao} está ${data[0].situacao}. Movimentações não são permitidas. Procure a supervisão.`);
         return;
       }
 
@@ -41,8 +42,7 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
       sessionStorage.setItem("transf_origem_desc", data[0].descricao);
       onNavigate("/coletor/movimentos/transferencia/produto");
     } catch {
-      setOverlay("error");
-      setOverlayMsg("Erro ao buscar endereço.");
+      result.showError(new Error("Erro ao buscar endereço."), { context: "transferencia" });
     } finally {
       setLoading(false);
     }
@@ -52,6 +52,7 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
     <ColetorLayout title="Transferência - Origem" onNavigate={onNavigate} showBack backPath="/coletor/movimentos">
       <OnlineOnlyNotice flow="Transferência" />
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
         <span className="text-xs text-[hsl(213,31%,55%)]">Passo 1 de 4</span>

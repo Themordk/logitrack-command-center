@@ -4,6 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 import { Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -14,6 +16,7 @@ export function MudancaPickingOrigemPage({ onNavigate }: Props) {
   const [scanned, setScanned] = useState("");
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const result = useResultDialog({ coletorMode: true });
 
   const handleScan = async (code: string) => {
     setScanned(code);
@@ -26,13 +29,11 @@ export function MudancaPickingOrigemPage({ onNavigate }: Props) {
         .limit(1);
 
       if (!data || data.length === 0) {
-        setOverlay("error");
-        setOverlayMsg("Endereço não encontrado.");
+        result.showWarning("Endereço não encontrado.");
         return;
       }
       if (!["LIVRE", "OCUPADO"].includes(data[0].situacao)) {
-        setOverlay("error");
-        setOverlayMsg(`Endereço ${data[0].descricao} está ${data[0].situacao}. Movimentações não são permitidas.`);
+        result.showWarning(`Endereço ${data[0].descricao} está ${data[0].situacao}. Movimentações não são permitidas.`);
         return;
       }
 
@@ -40,8 +41,7 @@ export function MudancaPickingOrigemPage({ onNavigate }: Props) {
       sessionStorage.setItem("mudpick_origem_desc", data[0].descricao);
       onNavigate("/coletor/movimentos/mudanca-picking/lista");
     } catch {
-      setOverlay("error");
-      setOverlayMsg("Erro ao buscar endereço.");
+      result.showError(new Error("Erro ao buscar endereço."), { context: "mudanca-picking" });
     } finally {
       setLoading(false);
     }
@@ -51,6 +51,7 @@ export function MudancaPickingOrigemPage({ onNavigate }: Props) {
     <ColetorLayout title="Mudança de Picking - Origem" onNavigate={onNavigate} showBack backPath="/coletor/movimentos">
       <OnlineOnlyNotice flow="Mudança de Picking" />
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
         <span className="text-xs text-[hsl(213,31%,55%)]">Passo 1 de 3</span>
         <p className="text-sm font-bold text-white">Escanear o endereço de ORIGEM</p>

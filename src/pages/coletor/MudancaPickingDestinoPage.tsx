@@ -4,6 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 import { Loader2 } from "lucide-react";
 
@@ -34,6 +36,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
   const [scanned, setScanned] = useState("");
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const result = useResultDialog({ coletorMode: true });
 
   const qtdTotal = itens.reduce((s, i) => s + i.quantidade_disponivel, 0);
 
@@ -48,21 +51,18 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
         .limit(1);
 
       if (!enderecos || enderecos.length === 0) {
-        setOverlay("error");
-        setOverlayMsg("Endereço destino não encontrado.");
+        result.showWarning("Endereço destino não encontrado.");
         return;
       }
       if (!["LIVRE", "OCUPADO"].includes(enderecos[0].situacao)) {
-        setOverlay("error");
-        setOverlayMsg(`Endereço ${enderecos[0].descricao} está ${enderecos[0].situacao}. Movimentações não são permitidas.`);
+        result.showWarning(`Endereço ${enderecos[0].descricao} está ${enderecos[0].situacao}. Movimentações não são permitidas.`);
         return;
       }
       const destinoId = enderecos[0].id;
       const destinoDesc = enderecos[0].descricao;
       const destinoTipo = enderecos[0].tipo_endereco;
       if (destinoId === origemId) {
-        setOverlay("error");
-        setOverlayMsg("Endereço destino igual ao origem.");
+        result.showWarning("Endereço destino igual ao origem.");
         return;
       }
 
@@ -81,8 +81,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
           });
           if (valErr) throw valErr;
           if (validacao && !validacao.valido) {
-            setOverlay("error");
-            setOverlayMsg(`SKU ${it.sku}: ${validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem."}`);
+            result.showWarning(`SKU ${it.sku}: ${validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem."}`);
             return;
           }
         }
@@ -133,8 +132,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
       sessionStorage.setItem("mudpick_qtd_total", String(qtdTotal));
       onNavigate("/coletor/movimentos/mudanca-picking/concluido");
     } catch (err: any) {
-      setOverlay("error");
-      setOverlayMsg(err?.message || "Erro ao gravar mudança de picking.");
+      result.showError(err, { context: "mudanca-picking" });
     } finally {
       setLoading(false);
     }
@@ -144,6 +142,7 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
     <ColetorLayout title="Mudança de Picking - Destino" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/mudanca-picking/lista">
       <OnlineOnlyNotice flow="Mudança de Picking" />
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
         <span className="text-xs text-[hsl(213,31%,55%)]">Passo 3 de 3</span>
