@@ -3,14 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye } from "lucide-react";
+import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fetchOptions } from "@/hooks/useCrud";
 import { CadastroDocSaidaPage } from "./CadastroDocSaidaPage";
 import { DocSaidaDetalhePage } from "./DocSaidaDetalhePage";
 import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { ImportarPedidoSaidaModal } from "@/components/erp/ImportarPedidoSaidaModal";
-import { formatDate } from "@/utils/dateTime";
+import { ExcluirDocumentosModal } from "@/components/documentos/ExcluirDocumentosModal";
+import { formatDate, formatDateTime } from "@/utils/dateTime";
 
 
 interface DocSaida {
@@ -21,6 +22,8 @@ interface DocSaida {
   valor_pedido: number;
   parceiro_nome?: string;
   total_skus?: number;
+  excluido_em?: string | null;
+  excluido_por_nome?: string | null;
 }
 
 export function SaidasPage() {
@@ -28,6 +31,9 @@ export function SaidasPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const pageSize = 20;
+  const [aba, setAba] = useState<"pendentes" | "excluidos">("pendentes");
+  const isExcluidos = aba === "excluidos";
+  const [showExcluir, setShowExcluir] = useState(false);
   const [showCadastro, setShowCadastro] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -47,24 +53,34 @@ export function SaidasPage() {
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   const listQuery = useQuery({
-    queryKey: ["saidas-pendentes", tenantId, empresaId, page],
+    queryKey: ["saidas-lista", aba, tenantId, empresaId, page],
     queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       const { data, error, count } = await (supabase as any)
         .from("documento_saida")
         .select(
-          `id, numero_pedido, data_emissao, parceiro_id, valor_pedido,
+          `id, numero_pedido, data_emissao, parceiro_id, valor_pedido, excluido_em, excluido_por,
            parceiro:parceiro_id ( razaosocial ),
            itens:documento_saida_item ( count )`,
           { count: "exact" }
         )
         .eq("tenant_id", tenantId)
         .eq("empresa_id", empresaId)
-        .eq("status", 0)
-        .order("data_emissao", { ascending: false })
+        .eq("status", isExcluidos ? 99 : 0)
+        .order(isExcluidos ? "excluido_em" : "data_emissao", { ascending: false })
         .range(from, to);
       if (error) throw error;
+
+      const usuarioMap = new Map<string, string>();
+      if (isExcluidos) {
+        const ids = Array.from(new Set((data || []).map((d: any) => d.excluido_por).filter(Boolean)));
+        if (ids.length > 0) {
+          const { data: users } = await (supabase as any).from("usuario").select("id, nome").in("id", ids);
+          (users || []).forEach((u: any) => usuarioMap.set(u.id, u.nome));
+        }
+      }
+
       const enriched: DocSaida[] = (data || []).map((doc: any) => ({
         id: doc.id,
         numero_pedido: doc.numero_pedido,
@@ -73,6 +89,8 @@ export function SaidasPage() {
         valor_pedido: doc.valor_pedido,
         parceiro_nome: doc.parceiro?.razaosocial || "—",
         total_skus: doc.itens?.[0]?.count ?? 0,
+        excluido_em: doc.excluido_em ?? null,
+        excluido_por_nome: doc.excluido_por ? usuarioMap.get(doc.excluido_por) || "—" : null,
       }));
       return { rows: enriched, count: count || 0 };
     },
@@ -151,18 +169,41 @@ export function SaidasPage() {
     <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-foreground">Documentos de Saída Pendentes</h1>
-          <p className="text-xs text-muted-foreground">Selecione documentos para gerar uma onda de carregamento</p>
+          <h1 className="text-lg font-bold text-foreground">Documentos de Saída {isExcluidos ? "Excluídos" : "Pendentes"}</h1>
+          <p className="text-xs text-muted-foreground">{isExcluidos ? "Documentos excluídos com rastreabilidade de ocorrência" : "Selecione documentos para gerar uma onda de carregamento"}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowCadastro(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors">
-            <Plus size={14} /> Novo Documento
-          </button>
-          <BotaoImportarERP onClick={() => setImportOpen(true)} />
-          <button onClick={openModal} disabled={selected.size === 0} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <Truck size={14} /> Gerar Onda ({selected.size})
-          </button>
+          {!isExcluidos && (
+            <>
+              <button onClick={() => setShowCadastro(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors">
+                <Plus size={14} /> Novo Documento
+              </button>
+              <BotaoImportarERP onClick={() => setImportOpen(true)} />
+              <button onClick={() => setShowExcluir(true)} disabled={selected.size === 0} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <Trash2 size={14} /> Excluir Selecionados ({selected.size})
+              </button>
+              <button onClick={openModal} disabled={selected.size === 0} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <Truck size={14} /> Gerar Onda ({selected.size})
+              </button>
+            </>
+          )}
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {(["pendentes", "excluidos"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => { setAba(t); setPage(1); setSelected(new Set()); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              aba === t
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
+            }`}
+          >
+            {t === "pendentes" ? "Pendentes" : "Excluídos"}
+          </button>
+        ))}
       </div>
 
       <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -171,33 +212,57 @@ export function SaidasPage() {
         ) : docs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <FileText size={32} className="mb-2 opacity-40" />
-            <p className="text-sm">Nenhum documento de saída pendente.</p>
+            <p className="text-sm">{isExcluidos ? "Nenhum documento excluído encontrado." : "Nenhum documento de saída pendente."}</p>
           </div>
         ) : (
           <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-border bg-secondary backdrop-blur">
-                  <th className="px-4 py-2.5 text-left w-10 bg-secondary">
-                    <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
-                  </th>
+                  {!isExcluidos && (
+                    <th className="px-4 py-2.5 text-left w-10 bg-secondary">
+                      <input type="checkbox" checked={selected.size === docs.length && docs.length > 0} onChange={toggleAll} className="rounded border-border" />
+                    </th>
+                  )}
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Nº Pedido</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Data Emissão</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Parceiro</th>
                   <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">SKUs</th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase bg-secondary">Valor</th>
+                  {isExcluidos && (
+                    <>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Excluído em</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Excluído por</th>
+                      <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">Status</th>
+                    </>
+                  )}
                   <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-16 bg-secondary">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {docs.map((doc) => (
-                  <tr key={doc.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => toggleSelect(doc.id)}>
-                    <td className="px-4 py-2.5"><input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" /></td>
+                  <tr
+                    key={doc.id}
+                    className={`border-b border-border/50 table-row-hover ${isExcluidos ? "" : "cursor-pointer"}`}
+                    onClick={() => { if (!isExcluidos) toggleSelect(doc.id); }}
+                  >
+                    {!isExcluidos && (
+                      <td className="px-4 py-2.5"><input type="checkbox" checked={selected.has(doc.id)} onChange={() => toggleSelect(doc.id)} onClick={(e) => e.stopPropagation()} className="rounded border-border" /></td>
+                    )}
                     <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_pedido}</td>
                     <td className="px-4 py-2.5 text-muted-foreground text-xs">{formatDate(doc.data_emissao)}</td>
                     <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
                     <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">{doc.valor_pedido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
+                    {isExcluidos && (
+                      <>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">{doc.excluido_em ? formatDateTime(doc.excluido_em) : "—"}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">{doc.excluido_por_nome || "—"}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border bg-red-500/15 text-red-400 border-red-500/30">EXCLUÍDO</span>
+                        </td>
+                      </>
+                    )}
                     <td className="px-4 py-2.5 text-center">
                       <button
                         onClick={(e) => { e.stopPropagation(); setDetalheId(doc.id); }}
@@ -273,6 +338,13 @@ export function SaidasPage() {
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
         onSuccess={() => fetchDocs()}
+      />
+      <ExcluirDocumentosModal
+        isOpen={showExcluir}
+        onClose={() => setShowExcluir(false)}
+        onSuccess={() => { setSelected(new Set()); fetchDocs(); }}
+        documentoIds={Array.from(selected)}
+        tipoDocumento="saida"
       />
     </div>
   );
