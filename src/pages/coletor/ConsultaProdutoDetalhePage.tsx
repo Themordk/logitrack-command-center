@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useOffline } from "@/contexts/OfflineContext";
 import { Database } from "lucide-react";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 
 interface Props {
@@ -63,6 +65,7 @@ interface PickingItem {
 }
 
 export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const tenantId = localStorage.getItem("core_tenant_id");
   const armazemId = localStorage.getItem("core_armazem_id");
   const empresaId = localStorage.getItem("core_empresa_id");
@@ -330,6 +333,7 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={produto.sku} onNavigate={(p) => { sessionStorage.removeItem("coletor_consulta_produto_back"); onNavigate(p); }} showBack backPath={backPath}>
+      <ResultDialog {...result.dialogProps} />
       {isFromCache && (
         <span className="self-start flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
           <Database size={10} /> Cache
