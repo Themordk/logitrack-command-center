@@ -25,6 +25,10 @@ interface Header {
   parceiro_id: string;
   tipo_entrada_id: string;
   chave_nfe: string | null;
+  excluido_em?: string | null;
+  excluido_por?: string | null;
+  motivo_exclusao_id?: string | null;
+  observacao_exclusao?: string | null;
 }
 
 interface ItemRow {
@@ -42,6 +46,7 @@ const STATUS_MAP: Record<number, { label: string; cls: string }> = {
   0: { label: "Pendente", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
   1: { label: "Em Movimento", cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   2: { label: "Concluído", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  99: { label: "Excluído", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
 };
 
 function InfoItem({ label, value, icon }: { label: string; value: React.ReactNode; icon?: React.ReactNode }) {
@@ -67,6 +72,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
   const [tipoEntrada, setTipoEntrada] = useState<string>("");
   const [armazem, setArmazem] = useState<string>("");
   const [items, setItems] = useState<ItemRow[]>([]);
+  const [exclusao, setExclusao] = useState<{ usuario: string; motivo: string; numero_ocorrencia: string | number | null } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -74,11 +80,33 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
         setLoading(true);
         const { data: doc, error: docErr } = await (supabase as any)
           .from("documento_entrada")
-          .select("id, numero_nota, data_emissao, data_entrada, status, qtd_volume, valor_total_produtos, valor_total_nota, created_at, parceiro_id, tipo_entrada_id, armazem_id, chave_nfe")
+          .select("id, numero_nota, data_emissao, data_entrada, status, qtd_volume, valor_total_produtos, valor_total_nota, created_at, parceiro_id, tipo_entrada_id, armazem_id, chave_nfe, excluido_em, excluido_por, motivo_exclusao_id, observacao_exclusao")
           .eq("id", documentoId)
           .single();
         if (docErr) throw docErr;
         setHeader(doc as Header);
+
+        if (doc.status === 99) {
+          const [usrRes, motRes, ocoRes] = await Promise.all([
+            doc.excluido_por
+              ? (supabase as any).from("usuario").select("nome").eq("id", doc.excluido_por).maybeSingle()
+              : Promise.resolve({ data: null }),
+            doc.motivo_exclusao_id
+              ? (supabase as any).from("motivo_ocorrencia").select("descricao").eq("id", doc.motivo_exclusao_id).maybeSingle()
+              : Promise.resolve({ data: null }),
+            (supabase as any)
+              .from("ocorrencia_operacional")
+              .select("numero_ocorrencia")
+              .eq("documento_origem_id", documentoId)
+              .order("criado_em", { ascending: false })
+              .limit(1),
+          ]);
+          setExclusao({
+            usuario: usrRes.data?.nome || "—",
+            motivo: motRes.data?.descricao || "—",
+            numero_ocorrencia: ocoRes.data?.[0]?.numero_ocorrencia ?? null,
+          });
+        }
 
         const [parceiroRes, tipoRes, armRes, itemsRes] = await Promise.all([
           (supabase as any).from("parceiro").select("razaosocial, cnpj").eq("id", doc.parceiro_id).single(),
@@ -182,6 +210,27 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
           </p>
         </div>
       </div>
+
+      {header.status === 99 && (
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <AlertTriangle size={16} className="text-red-500" />
+              Documento Excluído
+              <Badge className="ml-2 text-[10px] bg-red-500/15 text-red-400 border-red-500/30">EXCLUÍDO</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <InfoItem label="Excluído por" value={exclusao?.usuario} icon={<User size={10} />} />
+            <InfoItem label="Excluído em" value={formatDateTime(header.excluido_em)} icon={<Clock size={10} />} />
+            <InfoItem label="Motivo" value={exclusao?.motivo} />
+            <InfoItem label="Ocorrência" value={exclusao?.numero_ocorrencia ? `#${exclusao.numero_ocorrencia}` : "—"} icon={<Hash size={10} />} />
+            <div className="col-span-2 md:col-span-4">
+              <InfoItem label="Observação" value={header.observacao_exclusao} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Card 1: Dados do Documento */}
       <Card>
