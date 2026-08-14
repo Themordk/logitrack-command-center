@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
 import logoUrl from "@/assets/corelogitrack-logo.png";
