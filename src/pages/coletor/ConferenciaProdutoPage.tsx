@@ -182,7 +182,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     if (matchIdx < 0) {
       const existsInOnda = tarefas.some((t) => t.produto_id === emb.produto_id);
       if (existsInOnda) {
-        toast.warning("Item já conferido");
+        result.showWarning("Item já conferido");
         setEanScanned("");
         setEmbalagemInfo(null);
         setEanConfirmado(false);
@@ -220,7 +220,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       const confAtual = Number(activeTarefa?.conferido ?? activeTarefa?.separado ?? 0);
       const restanteAtual = reqAtual - confAtual;
       if (restanteAtual <= 0) {
-        toast.warning("Item já conferido");
+        result.showWarning("Item já conferido");
         setEanScanned("");
         setEmbalagemInfo(null);
         setEanConfirmado(false);
@@ -242,7 +242,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
 
   const handleConfirmar = async () => {
     if (!tarefa || !quantidade || Number(quantidade) <= 0) {
-      toast.error("Informe a quantidade.");
+      result.showWarning("Informe a quantidade", {
+        instruction: "Digite a quantidade antes de confirmar.",
+      });
       return;
     }
     const fator = embalagemInfo?.fator || 1;
@@ -422,7 +424,6 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         });
       }
     } catch (err: any) {
-      setOverlay({ type: "error", message: "Erro" });
       result.showError(err, { context: "conferencia" });
     } finally {
       setConfirming(false);
@@ -443,7 +444,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const handleSalvarVolumes = async () => {
     const qtd = Number(volumeQtd);
     if (!qtd || qtd <= 0) {
-      toast.error("Informe uma quantidade válida.");
+      result.showWarning("Quantidade inválida", {
+        instruction: "Informe uma quantidade válida.",
+      });
       return;
     }
     setVolumeSaving(true);
@@ -456,18 +459,18 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         p_etapa_origem: "CONFERÊNCIA",
       });
       if (error) throw error;
-      let result: any = data;
+      let rpcVolumes: any = data;
       if (typeof data === "string") {
-        try { result = JSON.parse(data); } catch { /* keep */ }
+        try { rpcVolumes = JSON.parse(data); } catch { /* keep */ }
       }
-      if (result?.sucesso === false) {
-        toast.error(result.mensagem || "Erro ao gerar volumes.");
+      if (rpcVolumes?.sucesso === false) {
+        result.showError(new Error(rpcVolumes.mensagem || "Erro ao gerar volumes."), { context: "conferencia-volumes" });
         return;
       }
-      toast.success(result?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      toast.success(rpcVolumes?.mensagem || `${qtd} volume(s) gerado(s)!`);
       // Fire-and-forget: impressão automática das etiquetas de volume
-      if (result?.volumes && Array.isArray(result.volumes)) {
-        for (const vol of result.volumes) {
+      if (rpcVolumes?.volumes && Array.isArray(rpcVolumes.volumes)) {
+        for (const vol of rpcVolumes.volumes) {
           solicitar({
             tipoEtiqueta: "VOLUME",
             dados: {
@@ -495,9 +498,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       setShowVolumeDialog(false);
       onNavigate("/coletor/conferencia/iniciar");
     } catch (err: any) {
-      const parsed = parseError(err, "conferencia-produto");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao gerar volumes." : parsed.title);
+      result.showError(err, { context: "conferencia-volumes" });
     } finally {
       setVolumeSaving(false);
     }
