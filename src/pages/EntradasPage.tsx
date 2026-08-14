@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
@@ -58,6 +60,16 @@ export function EntradasPage() {
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
+
+  // Deep-link: /atividades/entradas?detalhe=<uuid> abre direto o detalhe
+  useEffect(() => {
+    const detalheParam = getRouteParam("detalhe");
+    if (detalheParam) {
+      setDetalheId(detalheParam);
+      clearRouteParam("detalhe");
+    }
+  }, []);
+
 
   const listQuery = useQuery({
     queryKey: ["entradas-lista", aba, tenantId, empresaId, armazemId, page],

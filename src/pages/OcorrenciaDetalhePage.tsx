@@ -18,44 +18,11 @@ interface Props {
   ocorrenciaId: string;
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  ABERTA: "bg-red-500/15 text-red-400 border-red-500/30",
-  EM_INVESTIGACAO: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-  EM_TRATAMENTO: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  RESOLVIDA: "bg-green-500/15 text-green-400 border-green-500/30",
-  CANCELADA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
-};
-const STATUS_LABEL: Record<string, string> = {
-  ABERTA: "Aberta",
-  EM_INVESTIGACAO: "Em investigação",
-  EM_TRATAMENTO: "Em tratamento",
-  RESOLVIDA: "Resolvida",
-  CANCELADA: "Cancelada",
-};
-const STATUS_DOT: Record<string, string> = {
-  ABERTA: "bg-red-500 text-red-50",
-  EM_INVESTIGACAO: "bg-yellow-500 text-yellow-50",
-  EM_TRATAMENTO: "bg-purple-500 text-purple-50",
-  RESOLVIDA: "bg-green-500 text-green-50",
-  CANCELADA: "bg-gray-500 text-gray-50",
-};
-const PRIORIDADE_BADGE: Record<string, string> = {
-  BAIXA: "bg-gray-500/15 text-gray-400 border-gray-500/30",
-  NORMAL: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  ALTA: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-  CRITICA: "bg-red-500/15 text-red-400 border-red-500/30",
-};
-const ETAPA_LABEL: Record<string, string> = {
-  RECEBIMENTO: "Recebimento", ARMAZENAGEM: "Armazenagem", ABASTECIMENTO: "Abastecimento",
-  MOVIMENTACAO: "Movimentação", SEPARACAO: "Separação", EXPEDICAO: "Expedição",
-  INVENTARIO: "Inventário", AUDITORIA: "Auditoria",
-};
-const TIPO_LABEL: Record<string, string> = {
-  FALTA: "Falta", SOBRA: "Sobra", AVARIA: "Avaria",
-  DIVERGENCIA_INVENTARIO: "Divergência de inventário", EXTRAVIO: "Extravio",
-  PRODUTO_INCORRETO: "Produto incorreto", VALIDADE_INCORRETA: "Validade incorreta",
-  LOTE_INCORRETO: "Lote incorreto", OUTROS: "Outros",
-};
+import {
+  STATUS_BADGE, STATUS_LABEL, STATUS_DOT, PRIORIDADE_BADGE,
+  ETAPA_LABEL, TIPO_LABEL, TIPO_DOC_LABEL,
+} from "@/lib/ocorrenciaConstants";
+
 
 type DialogAction = "EM_INVESTIGACAO" | "EM_TRATAMENTO" | "RESOLVIDA" | "CANCELADA";
 
@@ -334,8 +301,28 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                 </InfoItem>
               )}
               {ocorrencia.documento_origem_id && (
-                <InfoItem icon={<FileText size={14} />} label="ID documento origem">
-                  <span className="font-mono text-[10px] text-foreground">{ocorrencia.documento_origem_id}</span>
+                <InfoItem icon={<FileText size={14} />} label="Documento de origem">
+                  {(() => {
+                    const routeMap: Record<string, string> = {
+                      DOCUMENTO_ENTRADA: "/atividades/entradas",
+                      DOCUMENTO_SAIDA: "/atividades/saidas",
+                    };
+                    const route = ocorrencia.tipo_documento_origem
+                      ? routeMap[ocorrencia.tipo_documento_origem]
+                      : undefined;
+                    if (!route) {
+                      return <span className="font-mono text-[10px] text-foreground">{ocorrencia.documento_origem_id}</span>;
+                    }
+                    return (
+                      <button
+                        onClick={() => onNavigate(`${route}?detalhe=${ocorrencia.documento_origem_id}`)}
+                        className="text-[11px] text-primary hover:underline cursor-pointer text-left flex items-center gap-1"
+                      >
+                        <FileText size={11} />
+                        {TIPO_DOC_LABEL[ocorrencia.tipo_documento_origem] ?? "Documento"} — Ver detalhes →
+                      </button>
+                    );
+                  })()}
                 </InfoItem>
               )}
               {ocorrencia.tarefa_execucao_id && (
@@ -351,11 +338,14 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
             </div>
 
 
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
-              <Stat label="Esperada" value={ocorrencia.quantidade_esperada} />
-              <Stat label="Real" value={ocorrencia.quantidade_real} />
-              <Stat label="Divergência" value={divQty} valueClass={divQty > 0 ? "text-red-400" : "text-green-400"} />
-            </div>
+            {(ocorrencia.quantidade_esperada != null || ocorrencia.quantidade_real != null || divQty > 0) && (
+              <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
+                <Stat label="Esperada" value={ocorrencia.quantidade_esperada} />
+                <Stat label="Real" value={ocorrencia.quantidade_real} />
+                <Stat label="Divergência" value={divQty} valueClass={divQty > 0 ? "text-red-400" : "text-green-400"} />
+              </div>
+            )}
+
 
             {ocorrencia.observacao && (
               <div className="mt-4 p-3 rounded-md bg-muted/30 text-xs text-foreground whitespace-pre-wrap">

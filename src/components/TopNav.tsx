@@ -7,6 +7,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { getModuleForChildRoute } from "@/hooks/useRoutePermission";
 import { supabase } from "@/integrations/supabase/client";
 import logoUrl from "@/assets/corelogitrack-logo.png";
+import { NotificacoesDropdown } from "@/components/NotificacoesDropdown";
+
 
 import {
   Building2,
@@ -290,12 +292,8 @@ export function TopNav({ currentPath, onNavigate }: TopNavProps) {
           </button> */}
 
           {/* Notifications — desktop only */}
-          {!isMobile && (
-            <button className="relative flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary transition-colors">
-              <Bell size={15} className="text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-destructive border border-card" />
-            </button>
-          )}
+          {!isMobile && <NotificacoesDropdown onNavigate={onNavigate} />}
+
 
           {/* User — desktop only */}
           {!isMobile && (
