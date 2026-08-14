@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 import { Loader2, Package } from "lucide-react";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 
@@ -28,8 +29,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
 
   const [loading, setLoading] = useState(true);
   const [itens, setItens] = useState<ItemEstoque[]>([]);
-  const [overlay, setOverlay] = useState<OverlayType>(null);
-  const [overlayMsg, setOverlayMsg] = useState("");
+  const result = useResultDialog({ coletorMode: true });
 
   useEffect(() => {
     (async () => {
@@ -53,8 +53,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
         }));
         setItens(list);
       } catch {
-        setOverlay("error");
-        setOverlayMsg("Erro ao buscar itens do endereço.");
+        result.showError(new Error("Erro ao buscar itens do endereço."), { context: "mudanca-picking" });
       } finally {
         setLoading(false);
       }
@@ -71,7 +70,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Mudança de Picking - Itens" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/mudanca-picking/origem">
       <OnlineOnlyNotice flow="Mudança de Picking" />
-      <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
         <span className="text-xs text-[hsl(213,31%,55%)]">Passo 2 de 3</span>

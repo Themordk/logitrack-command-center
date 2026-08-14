@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
-import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 import { Loader2 } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 
@@ -16,8 +17,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
 
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
-  const [overlay, setOverlay] = useState<OverlayType>(null);
-  const [overlayMsg, setOverlayMsg] = useState("");
+  const result = useResultDialog({ coletorMode: true });
 
   const tenantId = localStorage.getItem("core_tenant_id") || "";
 
@@ -33,8 +33,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
         });
         const hu = typeof huResult === "string" ? JSON.parse(huResult) : huResult;
         if (!hu?.encontrada) {
-          setOverlay("error");
-          setOverlayMsg("HU não encontrada.");
+          result.showWarning("HU não encontrada.");
           return;
         }
 
@@ -47,8 +46,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
           .limit(1);
 
         if (!estoque || estoque.length === 0) {
-          setOverlay("error");
-          setOverlayMsg("HU sem saldo neste endereço.");
+          result.showWarning("HU sem saldo neste endereço.");
           return;
         }
 
@@ -75,8 +73,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
         .limit(1);
 
       if (!emb || emb.length === 0) {
-        setOverlay("error");
-        setOverlayMsg("Produto não encontrado.");
+        result.showWarning("Produto não encontrado.");
         return;
       }
 
@@ -92,8 +89,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
         .limit(1);
 
       if (!estoque || estoque.length === 0) {
-        setOverlay("error");
-        setOverlayMsg("Produto sem saldo neste endereço.");
+        result.showWarning("Produto sem saldo neste endereço.");
         return;
       }
 
@@ -110,8 +106,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
       sessionStorage.setItem("transf_embalagem", emb[0].embalagem || "UN");
       onNavigate("/coletor/movimentos/transferencia/detalhe");
     } catch {
-      setOverlay("error");
-      setOverlayMsg("Erro ao buscar produto.");
+      result.showError(new Error("Erro ao buscar produto."), { context: "transferencia" });
     } finally {
       setLoading(false);
     }
@@ -120,7 +115,7 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Transferência - Produto" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/transferencia/origem">
       <OnlineOnlyNotice flow="Transferência" />
-      <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
         <span className="text-xs text-[hsl(213,31%,55%)]">Passo 2 de 4</span>

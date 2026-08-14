@@ -92,7 +92,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
       toast.success(`EAN confirmado! Fator: ${emb.fator}`);
     } catch (err: unknown) {
       const parsed = parseError(err, "inventario-livre-ean");
-      toast.error(parsed.title);
+      result.showParsedError(parsed);
     }
 
   };
@@ -106,7 +106,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
     if (!eanConfirmado || quantidade === "") return;
     const qtd = Number(quantidade);
     if (isNaN(qtd) || qtd < 0) {
-      toast.error("Informe uma quantidade válida.");
+      result.showWarning("Informe uma quantidade válida.");
       return;
     }
     if (requiresLote()) {
@@ -120,7 +120,7 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
     if (!eanConfirmado || quantidade === "") return;
     const qtd = Number(quantidade);
     if (isNaN(qtd) || qtd < 0) {
-      toast.error("Informe uma quantidade válida.");
+      result.showWarning("Informe uma quantidade válida.");
       return;
     }
 

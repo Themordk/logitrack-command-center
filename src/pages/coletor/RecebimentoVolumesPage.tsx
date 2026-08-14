@@ -6,10 +6,13 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { Loader2, PackageCheck, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function RecebimentoVolumesPage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const movimentoId = sessionStorage.getItem("coletor_movimento_id");
   const [totalVolume, setTotalVolume] = useState<number | null>(null);
   const [volumeInput, setVolumeInput] = useState("");
@@ -19,7 +22,7 @@ export function RecebimentoVolumesPage({ onNavigate }: Props) {
 
   useEffect(() => {
     if (!movimentoId) {
-      toast.error("Movimento não encontrado.");
+      result.showWarning("Movimento não encontrado.");
       onNavigate("/coletor/recebimento/iniciar");
       return;
     }
@@ -37,7 +40,7 @@ export function RecebimentoVolumesPage({ onNavigate }: Props) {
       if (error) throw error;
       setTotalVolume(data?.total_volume ?? 0);
     } catch {
-      toast.error("Erro ao carregar dados do movimento.");
+      result.showWarning("Erro ao carregar dados do movimento.");
     } finally {
       setLoading(false);
     }
@@ -47,7 +50,7 @@ export function RecebimentoVolumesPage({ onNavigate }: Props) {
     if (!movimentoId) return;
     const qtdConferida = Number(volumeInput);
     if (!qtdConferida || qtdConferida <= 0) {
-      toast.error("Informe a quantidade de volumes.");
+      result.showWarning("Informe a quantidade de volumes.");
       return;
     }
 
@@ -77,7 +80,7 @@ export function RecebimentoVolumesPage({ onNavigate }: Props) {
     } catch (err: any) {
       const parsed = parseError(err, "recebimento-volumes");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao confirmar volumes." : parsed.title);
+      result.showParsedError(parsed);
     } finally {
       setSubmitting(false);
     }
@@ -86,6 +89,7 @@ export function RecebimentoVolumesPage({ onNavigate }: Props) {
   if (loading) {
     return (
       <ColetorLayout title="Conferência de Volumes" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/iniciar">
+        <ResultDialog {...result.dialogProps} />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" />
         </div>

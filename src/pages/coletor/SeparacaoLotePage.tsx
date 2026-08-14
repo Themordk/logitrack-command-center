@@ -7,6 +7,8 @@ import { Layers, Loader2, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
 import { useOffline } from "@/contexts/OfflineContext";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -26,6 +28,7 @@ function fmtDate(iso: string | null): string {
 }
 
 export function SeparacaoLotePage({ onNavigate }: Props) {
+  const result = useResultDialog({ coletorMode: true });
   const [tarefa, setTarefa] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [lotes, setLotes] = useState<LoteDisponivel[]>([]);
@@ -92,7 +95,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
       }
 
       if (!produtoId || !enderecoId) {
-        toast.error("Produto ou endereço não identificado.");
+        result.showWarning("Produto ou endereço não identificado.");
         setLotes([]);
         return;
       }
@@ -144,7 +147,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
     } catch (err: any) {
       const parsed = parseError(err, "separacao-lote");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao carregar lotes." : parsed.title);
+      result.showParsedError(parsed);
       setLotes([]);
     } finally {
       setLoading(false);
@@ -153,7 +156,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
 
   const handleConfirmar = () => {
     if (selectedIdx === null) {
-      toast.error("Selecione um lote para continuar.");
+      result.showWarning("Selecione um lote para continuar.");
       return;
     }
     const sel = lotes[selectedIdx];
@@ -165,6 +168,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
   if (!tarefa) {
     return (
       <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/endereco">
+        <ResultDialog {...result.dialogProps} />
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma tarefa ativa.</p>
           <ActionButton onClick={() => onNavigate("/coletor/separacao/iniciar")}>Voltar</ActionButton>

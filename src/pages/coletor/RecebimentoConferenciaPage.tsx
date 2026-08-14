@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, Archive } from "lucide-react";
-import { parseError } from "@/lib/errorMapper";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { useOffline } from "@/contexts/OfflineContext";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -31,10 +31,9 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
   const [itens, setItens] = useState<ItemResumo[]>([]);
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
-  const [overlay, setOverlay] = useState<OverlayType>(null);
-  const [overlayMsg, setOverlayMsg] = useState("");
   const { execute: executeOffline } = useOfflineAction();
   const { isOnline } = useOffline();
+  const result = useResultDialog({ coletorMode: true });
 
   useEffect(() => {
     loadResumo();
@@ -65,7 +64,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
           }));
         setItens(resumo);
       } catch {
-        toast.error("Erro ao montar resumo offline.");
+        result.showError(new Error("Erro ao montar resumo offline."), { context: "recebimento-conferencia" });
       } finally {
         setLoading(false);
       }
@@ -99,7 +98,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
       setItens(Array.from(grouped.values()));
     } catch (err: any) {
       console.error("Erro resumo:", err);
-      toast.error("Erro ao carregar resumo.");
+      result.showError(new Error("Erro ao carregar resumo."), { context: "recebimento-conferencia" });
     } finally {
       setLoading(false);
     }
@@ -118,25 +117,26 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
 
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
-        setOverlay("success");
-        setOverlayMsg("Recebimento finalizado!");
-        setTimeout(() => onNavigate("/coletor/recebimento/concluido"), 1200);
+        result.showSuccess("Recebimento finalizado!", {
+          details: "Os dados serão sincronizados quando a conexão retornar.",
+          onClose: () => onNavigate("/coletor/recebimento/concluido"),
+        });
         return;
       }
 
       const resultado = offlineResult.data as string;
       if (resultado === "CONFERENCIA_FINALIZADA_COM_DIVERGENCIA") {
-        setOverlay("warning");
-        setOverlayMsg("Finalizado com divergências!");
+        result.showWarning("Finalizado com divergências!", {
+          instruction: "Revise as quantidades no relatório de recebimento.",
+          onClose: () => onNavigate("/coletor/recebimento/concluido"),
+        });
       } else {
-        setOverlay("success");
-        setOverlayMsg("Recebimento finalizado!");
+        result.showSuccess("Recebimento finalizado!", {
+          onClose: () => onNavigate("/coletor/recebimento/concluido"),
+        });
       }
-      setTimeout(() => onNavigate("/coletor/recebimento/concluido"), 1200);
     } catch (err: any) {
-      const parsed = parseError(err, "recebimento-conferencia");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao finalizar." : parsed.title);
+      result.showError(err, { context: "recebimento-finalizar" });
     } finally {
       setFinalizing(false);
     }
@@ -162,7 +162,7 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Resumo da Conferência" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/execucao">
-      <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Item list */}

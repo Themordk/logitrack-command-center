@@ -10,10 +10,11 @@ import { toast } from "sonner";
 import { Loader2, Trash2, AlertTriangle, Printer } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDateTimeShort } from "@/utils/dateTime";
-import { parseError } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOffline } from "@/contexts/OfflineContext";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -58,6 +59,7 @@ interface TarefaPlanejada {
 
 export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
+  const result = useResultDialog({ coletorMode: true });
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
@@ -149,7 +151,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       setItems(mapped);
     } catch {
-      toast.error("Erro ao carregar itens.");
+      result.showError(new Error("Erro ao carregar itens."), { context: "recebimento-execucao" });
     } finally {
       setLoading(false);
     }
@@ -190,7 +192,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     setQuantidade("");
 
     if (!movimentoId || !tenantId) {
-      showOverlayMsg("error", "Movimento não identificado");
+      result.showWarning("Movimento não identificado");
       return;
     }
 
@@ -198,7 +200,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       const cached = (await getCachedData<Record<string, any>>(barcodeCacheKey)) || {};
       const prod = cached[code];
       if (!prod) {
-        showOverlayMsg("error", "Produto não encontrado no cache offline");
+        result.showWarning("Produto não encontrado no cache offline", {
+          instruction: "Escaneie este produto quando estiver conectado à rede.",
+        });
         return;
       }
       applyProdutoResult(code, prod);
@@ -214,14 +218,14 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       if (error) throw error;
 
-      const result = typeof data === "string" ? JSON.parse(data) : data;
+      const rpcRes = typeof data === "string" ? JSON.parse(data) : data;
 
-      if (!result?.success) {
-        showOverlayMsg("error", result?.message || "Produto não encontrado");
+      if (!rpcRes?.success) {
+        result.showWarning(rpcRes?.message || "Produto não encontrado");
         return;
       }
 
-      const prod = result.data;
+      const prod = rpcRes.data;
 
       // Guarda o item no cache offline do documento para permitir a busca sem rede
       const cached = (await getCachedData<Record<string, any>>(barcodeCacheKey)) || {};
@@ -231,7 +235,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       applyProdutoResult(code, prod);
     } catch (err: any) {
       console.error(err);
-      showOverlayMsg("error", "Erro ao buscar produto");
+      result.showError(err, { context: "recebimento-execucao-produto" });
     }
   };
 
@@ -320,10 +324,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       setTimeout(() => { loadConferencia(); refreshTarefas(); }, 800);
     } catch (err: any) {
-      const parsed = parseError(err, "recebimento-execucao");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao confirmar." : parsed.title);
-      showOverlayMsg("error", "Erro ao confirmar");
+      result.showError(err, { context: "recebimento-confirmar" });
     } finally {
       setSaving(false);
     }
@@ -331,7 +332,9 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
   const handleDeleteExecucao = (item: ConferenciaItem) => {
     if (item.tarefa_status === "CONCLUIDA") {
-      toast.error("Não é possível remover. A conferência deste item já foi concluída.");
+      result.showWarning("Não é possível remover", {
+        details: "A conferência deste item já foi concluída.",
+      });
       return;
     }
     setCancelConfirm(item);
@@ -367,13 +370,11 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
         return;
       }
 
-      toast.success("Conferência cancelada.");
+      toast.info("Conferência cancelada.");
       loadConferencia();
       refreshTarefas();
     } catch (err: any) {
-      const parsed = parseError(err, "recebimento-execucao");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-      toast.error(fallbackToRaw ? "Erro ao cancelar." : parsed.title);
+      result.showError(err, { context: "recebimento-cancelar" });
     } finally {
       setDeleting(null);
     }
@@ -394,6 +395,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Conferência" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/iniciar">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       {/* HU opcional */}
       <HUActiveBar onHUChange={() => {}} movimentoEntradaId={movimentoId || null} />

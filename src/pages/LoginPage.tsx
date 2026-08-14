@@ -6,6 +6,8 @@ import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal"
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import { WarehouseCanvas } from "@/components/login/WarehouseCanvas";
 import { parseError } from "@/lib/errorMapper";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 import { resolveArmazemAtivo } from "@/lib/armazemResolver";
 
 import logoUrl from "@/assets/corelogitrack-logo.png";
@@ -29,6 +31,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
   const [forceChange, setForceChange] = useState(false);
   const [pendingUsuario, setPendingUsuario] = useState<any>(null);
   const [redirectingSupport, setRedirectingSupport] = useState(false);
+  const result = useResultDialog({ coletorMode: false });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +139,10 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
       // Preserva mensagens de negócio já bem escritas (throw new Error) quando o parser cai no fallback genérico
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
       const message = fallbackToRaw && err instanceof Error ? err.message : parsed.title;
-      toast.error(message);
+      result.showWarning("Não foi possível entrar", {
+        details: message,
+        instruction: "Verifique suas credenciais e tente novamente.",
+      });
     } finally {
       setLoading(false);
     }
@@ -165,7 +171,7 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
     localStorage.setItem("core_usuario_id", usuario.id);
     localStorage.setItem("core_usuario_nome", usuario.nome);
     localStorage.setItem("core_tipo_usuario", usuario.tipo_usuario || "");
-    if (armazem.erro) toast.warning(armazem.erro);
+    if (armazem.erro) result.showWarning(armazem.erro || "Problema ao resolver armazém");
     toast.success(`Bem-vindo, ${usuario.nome}!`);
     onLogin();
   };
@@ -430,6 +436,8 @@ export function LoginPage({ onLogin, onNavigateColetor, mode = "tenant", onBackT
           )}
         </div>
       </div>
+
+      <ResultDialog {...result.dialogProps} />
 
       <ForcePasswordChangeModal
         open={forceChange}

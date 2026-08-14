@@ -4,6 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOffline } from "@/contexts/OfflineContext";
 import { Loader2, AlertTriangle, MapPin, Database } from "lucide-react";
 
@@ -40,6 +42,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const { isOnline, cacheData, getCachedData } = useOffline();
+  const result = useResultDialog({ coletorMode: true });
 
   const preloadedTarefa = (() => {
     const tid = sessionStorage.getItem("coletor_armazenagem_tarefa_id");
@@ -141,8 +144,10 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       if (!isOnline) {
         const cached = await getCachedData<TarefaResult>(cacheKey);
         if (!cached) {
-          setOverlay("error");
-          setOverlayMsg("Sem conexão e sem dados em cache para este código.");
+          result.showWarning("Sem dados em cache", {
+            details: "Sem conexão e sem dados em cache para este código.",
+            instruction: "Conecte-se à rede ou escaneie um produto que já foi consultado online.",
+          });
           return;
         }
         setTarefa(cached);
@@ -158,8 +163,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       setOverlay("success");
       setOverlayMsg(code.toUpperCase().startsWith("HU-") ? `HU ${code} → ${row.descricao}` : `Produto encontrado: ${row.descricao}`);
     } catch (err: any) {
-      setOverlay("error");
-      setOverlayMsg(err.message || "Erro ao buscar tarefa");
+      result.showError(err, { context: "armazenagem-iniciar" });
     } finally {
       setLoading(false);
     }
@@ -189,6 +193,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
+      <ResultDialog {...result.dialogProps} />
 
       <ScanField label={preloadedTarefa ? "Escanear para conferir (opcional)" : "Escanear EAN ou HU"} lastScanned={lastScanned} onScan={handleScan} />
 

@@ -4,6 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
 import { Archive, CheckCircle2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
@@ -35,6 +37,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const result = useResultDialog({ coletorMode: true });
   const { execute: executeOffline } = useOfflineAction();
 
   const handleScanEndereco = async (code: string) => {
@@ -46,13 +49,13 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
       .limit(1);
 
     if (!data || data.length === 0) {
-      setOverlay("error"); setOverlayMsg("Endereço não encontrado"); return;
+      result.showWarning("Endereço não encontrado"); return;
     }
     if (!["LIVRE", "OCUPADO"].includes(data[0].situacao)) {
-      setOverlay("error"); setOverlayMsg(`Endereço ${data[0].descricao} está ${data[0].situacao}`); return;
+      result.showWarning(`Endereço ${data[0].descricao} está ${data[0].situacao}`); return;
     }
     if (data[0].id !== enderecoOrigemIdEsperado) {
-      setOverlay("error"); setOverlayMsg("Endereço não corresponde à origem esperada"); return;
+      result.showWarning("Endereço não corresponde à origem esperada"); return;
     }
 
     setEnderecoConfirmado(true);
@@ -83,10 +86,10 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
     }
 
     if (!foundProdutoId) {
-      setOverlay("error"); setOverlayMsg("Produto não encontrado"); return;
+      result.showWarning("Produto não encontrado"); return;
     }
     if (foundProdutoId !== produtoId) {
-      setOverlay("error"); setOverlayMsg("Produto não corresponde à tarefa"); return;
+      result.showWarning("Produto não corresponde à tarefa"); return;
     }
 
     setProdutoConfirmado(true);
@@ -110,15 +113,13 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
-        setOverlay("success"); setOverlayMsg("Coleta confirmada!");
-        setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+        result.showSuccess("Coleta confirmada!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
         return;
       }
 
-      setOverlay("success"); setOverlayMsg("Coleta confirmada!");
-      setTimeout(() => onNavigate("/coletor/movimentos/abastecimento"), 1200);
+      result.showSuccess("Coleta confirmada!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
     } catch (err: any) {
-      setOverlay("error"); setOverlayMsg(err?.message || "Erro ao confirmar coleta");
+      result.showError(err, { context: "abastecimento" });
     } finally {
       setSaving(false);
     }
@@ -127,6 +128,7 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title="Coleta Abastecimento" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/abastecimento">
       <StatusOverlay type={overlay} message={overlayMsg} />
+      <ResultDialog {...result.dialogProps} />
 
       <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 space-y-1">
         <div className="flex items-center gap-2">
