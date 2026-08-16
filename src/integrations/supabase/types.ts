@@ -3983,6 +3983,87 @@ export type Database = {
           },
         ]
       }
+      ocorrencia_anexo: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          nome_arquivo: string
+          ocorrencia_historico_id: string | null
+          ocorrencia_id: string
+          origem: string
+          storage_path: string
+          tamanho_bytes: number
+          tenant_id: string
+          thumbnail_path: string | null
+          tipo_arquivo: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome_arquivo: string
+          ocorrencia_historico_id?: string | null
+          ocorrencia_id: string
+          origem?: string
+          storage_path: string
+          tamanho_bytes?: number
+          tenant_id: string
+          thumbnail_path?: string | null
+          tipo_arquivo: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome_arquivo?: string
+          ocorrencia_historico_id?: string | null
+          ocorrencia_id?: string
+          origem?: string
+          storage_path?: string
+          tamanho_bytes?: number
+          tenant_id?: string
+          thumbnail_path?: string | null
+          tipo_arquivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocorrencia_anexo_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_anexo_ocorrencia_historico_id_fkey"
+            columns: ["ocorrencia_historico_id"]
+            isOneToOne: false
+            referencedRelation: "ocorrencia_historico"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_anexo_ocorrencia_id_fkey"
+            columns: ["ocorrencia_id"]
+            isOneToOne: false
+            referencedRelation: "ocorrencia_operacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_anexo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_anexo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ocorrencia_historico: {
         Row: {
           criado_em: string
