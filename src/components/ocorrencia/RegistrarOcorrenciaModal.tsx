@@ -4,8 +4,11 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertTriangle, Package, MapPin, User, Loader2 } from "lucide-react";
+import { AlertTriangle, Package, MapPin, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { parseError } from "@/lib/errorMapper";
+import { AnexoPicker } from "@/components/ocorrencia/AnexoPicker";
+import { uploadAnexoOcorrencia } from "@/lib/ocorrenciaAnexos";
+
 
 export interface OcorrenciaContexto {
   etapa?: string;
