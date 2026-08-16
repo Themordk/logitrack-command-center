@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle, ShieldAlert, CheckCircle2, Clock, RefreshCw, Filter, Search,
   ChevronLeft, ChevronRight, Eye, Loader2, X, Wrench, FileText, MapPin, Package,
-  ChevronUp, ChevronDown, MoreVertical, XCircle,
+  ChevronUp, ChevronDown, MoreVertical, XCircle, Paperclip,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
