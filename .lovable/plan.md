@@ -34,7 +34,11 @@ Em `OcorrenciasOperacionaisPage.tsx`, o `Promise.all` já existente (números de
 ## 6. Filtro por etapa em Motivos de Ocorrência
 Select "Todas as etapas" ao lado da busca, filtrando `crud.data` localmente antes de passar ao `CrudTable`. `useCrud`, `CrudTable` e `CrudModal` não são alterados.
 
+## 7. Correção do anexo legado do coletor
+`RegistrarOcorrenciaColetorButton.tsx` faz upload no bucket privado e depois grava `getPublicUrl` em `evidencia_url` — essa URL retorna 403 e nunca exibiu a foto. Passa a gravar um registro em `ocorrencia_anexo` (`origem: 'COLETOR'`, `storage_path` real) logo após o RPC retornar o `ocorrencia_id`, sem usar `getPublicUrl`. A exibição fica unificada na seção de anexos do detalhe, sempre com URL assinada.
+
 ## Observação técnica
+
 O filtro de etapa em Motivos é client-side sobre a página atual do grid (o `useCrud` pagina no servidor), então ele filtra os registros da página carregada.
 
 ## Fora de escopo
