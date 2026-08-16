@@ -106,6 +106,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const openDialog = (action: DialogAction) => {
     setDialogAction(action);
     setDialogText("");
+    setDialogArquivo(null);
   };
 
   const confirmDialog = async () => {
@@ -130,8 +131,17 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
         .eq("id", ocorrenciaId)
         .eq("tenant_id", tenantId);
       if (error) throw error;
+
+      if (dialogArquivo) {
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: dialogArquivo, tenantId, ocorrenciaId, usuarioId, origem: "ADMIN",
+        });
+        if (anexoErro) toast.error("Status atualizado, mas falha ao enviar anexo.");
+      }
+
       toast.success("Ocorrência atualizada.");
       setDialogAction(null);
+      setDialogArquivo(null);
       await load();
     } catch (err: any) {
       toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao atualizar." : p.title; })());
@@ -144,6 +154,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
     setHistStatus(ocorrencia?.status ?? "ABERTA");
     setHistObs("");
     setHistConcluir(false);
+    setHistArquivo(null);
     setHistOpen(true);
   };
 
@@ -161,7 +172,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
     }
     setHistSaving(true);
     try {
-      const { error: histErr } = await (supabase as any)
+      const { data: histData, error: histErr } = await (supabase as any)
         .from("ocorrencia_historico")
         .insert({
           tenant_id: tenantId,
@@ -170,7 +181,9 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
           status_novo: statusNovo,
           observacao: histObs.trim() || null,
           usuario_id: usuarioId,
-        });
+        })
+        .select("id")
+        .single();
       if (histErr) throw histErr;
 
       if (statusNovo !== ocorrencia.status) {
@@ -190,9 +203,23 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
         if (ocoErr) throw ocoErr;
       }
 
+      if (histArquivo) {
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: histArquivo,
+          tenantId,
+          ocorrenciaId,
+          usuarioId,
+          historicoId: histData?.id ?? null,
+          origem: "ADMIN",
+        });
+        if (anexoErro) toast.error("Histórico registrado, mas falha ao enviar anexo.");
+      }
+
       toast.success("Histórico registrado.");
       setHistOpen(false);
+      setHistArquivo(null);
       await load();
+
     } catch (err: any) {
       toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao registrar histórico." : p.title; })());
     } finally {
