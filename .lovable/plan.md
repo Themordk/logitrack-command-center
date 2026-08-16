@@ -1,9 +1,10 @@
 # Anexos e Evidências no Módulo de Ocorrências
 
 ## Verificações feitas antes do plano
-- `ocorrencia_anexo` **já está** em `src/integrations/supabase/types.ts` (linha ~3986), com as FKs `created_by`, `ocorrencia_id`, `ocorrencia_historico_id`, `tenant_id`. O Prompt 1 (regenerar tipos) é desnecessário e será pulado.
-- Bucket `evidencias` existe, privado, limite 10 MB, com os MIME types citados.
+- `ocorrencia_anexo` **já está** em `src/integrations/supabase/types.ts`: o bloco `ocorrencia_anexo: { Row: { created_at, created_by, id, nome_arquivo, ocorrencia_historico_id, ocorrencia_id, origem, storage_path, tamanho_bytes, tenant_id, thumbnail_path, tipo_arquivo } }` começa na linha 3986, e `ocorrencia_historico` só começa na 4067. Portanto o Prompt 1 (regenerar tipos) é desnecessário — o arquivo no repositório já está atualizado (uma cópia local antiga pode não estar). Os acessos usarão o client tipado, sem `as any`, exceto onde já é padrão do projeto.
+- Bucket `evidencias` existe, privado, limite 10 MB, com os MIME types citados. Por ser privado, **toda** exibição/download usa `createSignedUrl(path, 3600)`; `getPublicUrl` não será usado em nenhum trecho novo.
 - Políticas de storage já permitem `authenticated` ler/gravar/apagar quando o **primeiro** segmento do path é o `tenant_id` do usuário — ou seja, o path deve ser `{tenant_id}/{ocorrencia_id}/{timestamp}_{arquivo}` (sem prefixo `evidencias/`).
+
 
 ## 1. Constantes de etapas e tipos
 `RegistrarOcorrenciaModal.tsx`: ETAPAS passa a ter Conferência e Outros (sem Exclusão), na ordem operacional; TIPOS ganha "Exclusão de documento".
