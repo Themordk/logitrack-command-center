@@ -12,6 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
+import { AnexoPicker } from "@/components/ocorrencia/AnexoPicker";
+import { AnexosOcorrenciaSection, AnexoMiniCard, type AnexoRow } from "@/components/ocorrencia/AnexosOcorrenciaSection";
+import { uploadAnexoOcorrencia } from "@/lib/ocorrenciaAnexos";
+
 
 interface Props {
   onNavigate: (path: string) => void;
