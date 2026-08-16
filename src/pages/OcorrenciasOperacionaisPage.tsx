@@ -211,6 +211,8 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
 
   const rows = listQuery.data?.rows ?? [];
   const docNumeros = listQuery.data?.docNumeros ?? {};
+  const anexoCount: Record<string, number> = listQuery.data?.anexoCount ?? {};
+
   const total = listQuery.data?.count ?? 0;
   const loading = listQuery.isLoading;
 
