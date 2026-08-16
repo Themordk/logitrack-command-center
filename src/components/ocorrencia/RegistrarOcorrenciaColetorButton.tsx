@@ -141,12 +141,19 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
       if (typeof data === "string") { try { result = JSON.parse(data); } catch { /* keep */ } }
       if (result?.sucesso === false) { toast.error(result.mensagem || "Erro ao registrar ocorrência"); return; }
 
-      if (evidenciaUrl && result?.ocorrencia_id) {
-        await (supabase as any)
-          .from("ocorrencia_operacional")
-          .update({ evidencia_url: evidenciaUrl })
-          .eq("id", result.ocorrencia_id);
+      if (foto && result?.ocorrencia_id) {
+        setUploading(true);
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: foto,
+          tenantId,
+          ocorrenciaId: result.ocorrencia_id,
+          usuarioId,
+          origem: "COLETOR",
+        });
+        setUploading(false);
+        if (anexoErro) toast.error("Ocorrência registrada, mas falha ao enviar foto.");
       }
+
 
       toast.success(result?.mensagem || "Ocorrência registrada!");
       onSuccess?.({ ocorrencia_id: result?.ocorrencia_id, numero_ocorrencia: result?.numero_ocorrencia });
