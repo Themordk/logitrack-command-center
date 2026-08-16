@@ -70,6 +70,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [tarefa, setTarefa] = useState<TarefaResult | null>(preloadedTarefa);
   const [isFromCache, setIsFromCache] = useState(false);
+  const [eanConfirmado, setEanConfirmado] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
 
@@ -127,10 +128,60 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const handleScan = async (code: string) => {
     setLastScanned(code);
 
-    // Se já tem tarefa pré-carregada do sessionStorage, o scan é conferência
+    // Se já tem tarefa pré-carregada do sessionStorage, o scan é OBRIGATÓRIO para conferência
     if (tarefa && preloadedTarefa) {
-      setOverlay("success");
-      setOverlayMsg(`Produto confirmado: ${tarefa.descricao}`);
+      setEanConfirmado(false);
+
+      try {
+        const cacheKey = `ean_produto_${tarefa.produto_id}`;
+        let eansValidos: string[] = [];
+
+        if (!isOnline) {
+          const cached = await getCachedData<string[]>(cacheKey);
+          if (cached) {
+            eansValidos = cached;
+          } else {
+            // Offline sem cache: aceitar se o SKU bater (fallback mínimo)
+            if (code.trim().toUpperCase() === (tarefa.sku || "").trim().toUpperCase()) {
+              setEanConfirmado(true);
+              setOverlay("success");
+              setOverlayMsg(`Produto confirmado: ${tarefa.descricao}`);
+              return;
+            }
+            result.showWarning("Não foi possível validar o EAN offline", {
+              details: "Sem conexão e sem cache de EAN para este produto.",
+              instruction: "Conecte-se à rede ou confira o SKU do produto manualmente.",
+            });
+            return;
+          }
+        } else {
+          const { data: embData, error: embErr } = await (supabase as any)
+            .from("produto_embalagem")
+            .select("ean")
+            .eq("produto_id", tarefa.produto_id);
+
+          if (embErr) throw embErr;
+
+          eansValidos = (embData || []).map((e: any) => String(e.ean).trim().toUpperCase());
+          await cacheData(cacheKey, eansValidos, 480).catch(() => {});
+        }
+
+        const codeLimpo = code.trim().toUpperCase();
+        if (eansValidos.includes(codeLimpo)) {
+          setEanConfirmado(true);
+          setOverlay("success");
+          setOverlayMsg(`Produto confirmado: ${tarefa.descricao}`);
+        } else {
+          setEanConfirmado(false);
+          result.showWarning("EAN não corresponde ao produto esperado", {
+            details: `Código escaneado: ${code}\nProduto esperado: ${tarefa.sku} - ${tarefa.descricao}`,
+            instruction: "Verifique se está com o produto correto em mãos e escaneie novamente.",
+          });
+        }
+      } catch (err: any) {
+        setEanConfirmado(false);
+        result.showError(err, { context: "armazenagem-confirmar-ean" });
+      }
       return;
     }
 
@@ -195,7 +246,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
 
-      <ScanField label={preloadedTarefa ? "Escanear para conferir (opcional)" : "Escanear EAN ou HU"} lastScanned={lastScanned} onScan={handleScan} />
+      <ScanField label={preloadedTarefa ? "Escanear EAN para confirmar produto" : "Escanear EAN ou HU"} lastScanned={lastScanned} onScan={handleScan} />
 
       {loading && (
         <div className="flex justify-center py-6"><Loader2 size={28} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
@@ -260,7 +311,11 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
             )}
           </div>
 
-          <ActionButton onClick={handleConfirm} variant="primary">
+          <ActionButton
+            onClick={handleConfirm}
+            variant="primary"
+            disabled={!!preloadedTarefa && !eanConfirmado}
+          >
             CONFIRMAR E ARMAZENAR
           </ActionButton>
         </>
