@@ -43,12 +43,26 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const [histObs, setHistObs] = useState("");
   const [histConcluir, setHistConcluir] = useState(false);
   const [histSaving, setHistSaving] = useState(false);
+  const [anexos, setAnexos] = useState<AnexoRow[]>([]);
+  const [dialogArquivo, setDialogArquivo] = useState<File | null>(null);
+  const [histArquivo, setHistArquivo] = useState<File | null>(null);
+
+  const loadAnexos = useCallback(async () => {
+    if (!tenantId || !ocorrenciaId) return;
+    const { data } = await (supabase as any)
+      .from("ocorrencia_anexo")
+      .select("*, usuario:usuario!ocorrencia_anexo_created_by_fkey(nome)")
+      .eq("ocorrencia_id", ocorrenciaId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: true });
+    setAnexos((data || []) as AnexoRow[]);
+  }, [tenantId, ocorrenciaId]);
 
   const load = useCallback(async () => {
     if (!tenantId || !ocorrenciaId) return;
     setLoading(true);
     try {
-      const [ocoRes, histRes] = await Promise.all([
+      const [ocoRes, histRes, anexoRes] = await Promise.all([
         (supabase as any)
           .from("ocorrencia_operacional")
           .select(`*,
@@ -67,11 +81,19 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
           .eq("ocorrencia_id", ocorrenciaId)
           .eq("tenant_id", tenantId)
           .order("criado_em", { ascending: true }),
+        (supabase as any)
+          .from("ocorrencia_anexo")
+          .select("*, usuario:usuario!ocorrencia_anexo_created_by_fkey(nome)")
+          .eq("ocorrencia_id", ocorrenciaId)
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: true }),
       ]);
       if (ocoRes.error) throw ocoRes.error;
       if (histRes.error) throw histRes.error;
       setOcorrencia(ocoRes.data);
       setHistorico(histRes.data || []);
+      setAnexos((anexoRes?.data || []) as AnexoRow[]);
+
     } catch (err: any) {
       toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao carregar ocorrência." : p.title; })());
     } finally {
