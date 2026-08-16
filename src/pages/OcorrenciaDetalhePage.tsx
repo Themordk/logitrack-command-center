@@ -519,7 +519,15 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                             {h.observacao}
                           </p>
                         )}
+                        {anexos.some((a) => a.ocorrencia_historico_id === h.id) && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {anexos
+                              .filter((a) => a.ocorrencia_historico_id === h.id)
+                              .map((a) => <AnexoMiniCard key={a.id} anexo={a} />)}
+                          </div>
+                        )}
                       </div>
+
                     );
                   })}
                 </div>
