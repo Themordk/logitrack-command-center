@@ -66,8 +66,9 @@ export function MotivosOcorrenciaPage() {
 
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do motivo" },
-    { name: "etapa_ocorrencia", label: "Etapa Ocorrência", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO", "EXPEDICAO", "INVENTARIO", "AUDITORIA"] },
-    { name: "tipo_ocorrencia_padrao", label: "Tipo de Ocorrência Padrão", type: "enum", enumValues: ["FALTA", "SOBRA", "AVARIA", "DIVERGENCIA_INVENTARIO", "EXTRAVIO", "PRODUTO_INCORRETO", "VALIDADE_INCORRETA", "LOTE_INCORRETO", "OUTROS"] },
+    { name: "etapa_ocorrencia", label: "Etapa Ocorrência", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "INVENTARIO", "AUDITORIA", "OUTROS"] },
+    { name: "tipo_ocorrencia_padrao", label: "Tipo de Ocorrência Padrão", type: "enum", enumValues: ["FALTA", "SOBRA", "AVARIA", "DIVERGENCIA_INVENTARIO", "EXTRAVIO", "PRODUTO_INCORRETO", "VALIDADE_INCORRETA", "LOTE_INCORRETO", "EXCLUSAO_DOCUMENTO", "OUTROS"] },
+
     { name: "categoria_padrao", label: "Categoria padrão", type: "enum", required: true, defaultValue: "CORRETIVA", enumValues: ["PREVENTIVA", "CORRETIVA"] },
     { name: "prioridade_padrao", label: "Prioridade padrão", type: "enum", required: true, defaultValue: "NORMAL", enumValues: ["BAIXA", "NORMAL", "ALTA", "CRITICA"] },
     { name: "acao_automatica", label: "Ação automática", type: "enum", defaultValue: "NENHUMA", enumValues: ["NENHUMA", "BLOQUEIO_ESTOQUE", "NOTIFICACAO_SUPERVISOR", "AJUSTE_ESTOQUE"] },
