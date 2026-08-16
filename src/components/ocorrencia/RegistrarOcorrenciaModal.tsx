@@ -117,7 +117,6 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [motivoId]);
 
-  const showProdutoFields = !!contexto.produto_id;
   const divergencia = Math.abs(Number(quantidadeEsperada || 0) - Number(quantidadeReal || 0));
 
   const canSubmit = !!etapa && !!tipoOcorrencia && !!motivoId && !!categoria && !!prioridade && !saving;
@@ -158,9 +157,24 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
         toast.error(result.mensagem || "Erro ao registrar ocorrência");
         return;
       }
+
+      if (arquivo && result?.ocorrencia_id) {
+        setUploading(true);
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: arquivo,
+          tenantId,
+          ocorrenciaId: result.ocorrencia_id,
+          usuarioId,
+          origem: "ADMIN",
+        });
+        setUploading(false);
+        if (anexoErro) toast.error("Ocorrência registrada, mas falha ao enviar anexo.");
+      }
+
       toast.success(result?.mensagem || "Ocorrência registrada com sucesso");
       onSuccess?.({ ocorrencia_id: result?.ocorrencia_id, numero_ocorrencia: result?.numero_ocorrencia });
       onClose();
+
     } finally {
       setSaving(false);
     }
@@ -250,40 +264,50 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
             </div>
           </div>
 
-          {showProdutoFields && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={labelClass}>Qtd. esperada</label>
-                  <input type="number" step="any" value={quantidadeEsperada} onChange={(e) => setQuantidadeEsperada(e.target.value)} className={cn(inputClass, "w-full")} />
+          <div className="rounded-md border border-border">
+            <button
+              type="button"
+              onClick={() => setShowQtd((v) => !v)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs text-foreground"
+            >
+              <span>Detalhes de quantidade (opcional)</span>
+              {showQtd ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {showQtd && (
+              <div className="px-3 pb-3 space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={labelClass}>Qtd. esperada</label>
+                    <input type="number" step="any" value={quantidadeEsperada} onChange={(e) => setQuantidadeEsperada(e.target.value)} className={cn(inputClass, "w-full")} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Qtd. real</label>
+                    <input type="number" step="any" value={quantidadeReal} onChange={(e) => setQuantidadeReal(e.target.value)} className={cn(inputClass, "w-full")} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Divergência</label>
+                    <div className={cn(
+                      "h-9 px-3 rounded-md border border-border bg-secondary/20 text-xs font-mono flex items-center",
+                      divergencia > 0 ? "text-red-400" : "text-green-400",
+                    )}>
+                      {divergencia}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className={labelClass}>Qtd. real</label>
-                  <input type="number" step="any" value={quantidadeReal} onChange={(e) => setQuantidadeReal(e.target.value)} className={cn(inputClass, "w-full")} />
-                </div>
-                <div>
-                  <label className={labelClass}>Divergência</label>
-                  <div className={cn(
-                    "h-9 px-3 rounded-md border border-border bg-secondary/20 text-xs font-mono flex items-center",
-                    divergencia > 0 ? "text-red-400" : "text-green-400",
-                  )}>
-                    {divergencia}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Lote</label>
+                    <input value={lote} onChange={(e) => setLote(e.target.value)} className={cn(inputClass, "w-full")} placeholder="Opcional" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Validade</label>
+                    <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className={cn(inputClass, "w-full")} />
                   </div>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Lote</label>
-                  <input value={lote} onChange={(e) => setLote(e.target.value)} className={cn(inputClass, "w-full")} placeholder="Opcional" />
-                </div>
-                <div>
-                  <label className={labelClass}>Validade</label>
-                  <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className={cn(inputClass, "w-full")} />
-                </div>
-              </div>
-            </>
-          )}
+            )}
+          </div>
 
           <div>
             <label className={labelClass}>Observação</label>
@@ -295,6 +319,9 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
               className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
             />
           </div>
+
+          <AnexoPicker file={arquivo} onChange={setArquivo} disabled={saving} />
+
         </div>
 
         <DialogFooter>
