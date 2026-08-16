@@ -11,6 +11,8 @@ export function MotivosOcorrenciaPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [filterEtapa, setFilterEtapa] = useState("");
+
 
   const prioridadeBadge = (val: string) => {
     const colors: Record<string, string> = {
