@@ -560,7 +560,9 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               rows={4}
               className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
             />
+            <AnexoPicker file={dialogArquivo} onChange={setDialogArquivo} disabled={submitting} />
           </div>
+
           <DialogFooter>
             <button
               onClick={() => setDialogAction(null)}
