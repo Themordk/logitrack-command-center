@@ -460,7 +460,18 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               />
             </div>
           )}
+
+          <AnexosOcorrenciaSection
+            anexos={anexos.filter((a) => !a.ocorrencia_historico_id)}
+            tenantId={tenantId}
+            ocorrenciaId={ocorrenciaId}
+            usuarioId={usuarioId}
+            podeAnexar={podeAgir}
+            evidenciaLegado={ocorrencia.evidencia_url}
+            onChanged={loadAnexos}
+          />
         </div>
+
 
         {/* Histórico */}
         <div className="card-surface p-4 flex flex-col min-h-0">
