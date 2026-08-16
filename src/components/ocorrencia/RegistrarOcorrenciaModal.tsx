@@ -4,8 +4,11 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertTriangle, Package, MapPin, User, Loader2 } from "lucide-react";
+import { AlertTriangle, Package, MapPin, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { parseError } from "@/lib/errorMapper";
+import { AnexoPicker } from "@/components/ocorrencia/AnexoPicker";
+import { uploadAnexoOcorrencia } from "@/lib/ocorrenciaAnexos";
+
 
 export interface OcorrenciaContexto {
   etapa?: string;
@@ -39,6 +42,7 @@ const TIPOS: Array<[string, string]> = [
   ["PRODUTO_INCORRETO", "Produto incorreto"],
   ["VALIDADE_INCORRETA", "Validade incorreta"],
   ["LOTE_INCORRETO", "Lote incorreto"],
+  ["EXCLUSAO_DOCUMENTO", "Exclusão de documento"],
   ["OUTROS", "Outros"],
 ];
 
@@ -48,10 +52,13 @@ const ETAPAS: Array<[string, string]> = [
   ["ABASTECIMENTO", "Abastecimento"],
   ["MOVIMENTACAO", "Movimentação"],
   ["SEPARACAO", "Separação"],
+  ["CONFERENCIA", "Conferência"],
   ["EXPEDICAO", "Expedição"],
   ["INVENTARIO", "Inventário"],
   ["AUDITORIA", "Auditoria"],
+  ["OUTROS", "Outros"],
 ];
+
 
 const inputClass = "h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 const labelClass = "block text-[10px] uppercase font-medium text-muted-foreground mb-1";
@@ -72,6 +79,9 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
   const [observacao, setObservacao] = useState("");
   const [motivos, setMotivos] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [showQtd, setShowQtd] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -80,12 +90,16 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
     setMotivoId("");
     setCategoria("");
     setPrioridade("NORMAL");
-    setQuantidadeEsperada("0");
-    setQuantidadeReal("0");
+    setQuantidadeEsperada(contexto.quantidade_esperada != null ? String(contexto.quantidade_esperada) : "0");
+    setQuantidadeReal(contexto.quantidade_real != null ? String(contexto.quantidade_real) : "0");
     setLote("");
     setValidade("");
     setObservacao("");
+    setArquivo(null);
+    setShowQtd(!!contexto.produto_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, contexto.etapa]);
+
 
   useEffect(() => {
     if (!open || !tenantId || !etapa) { setMotivos([]); return; }
@@ -113,10 +127,9 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [motivoId]);
 
-  const showProdutoFields = !!contexto.produto_id;
   const divergencia = Math.abs(Number(quantidadeEsperada || 0) - Number(quantidadeReal || 0));
 
-  const canSubmit = !!etapa && !!tipoOcorrencia && !!motivoId && !!categoria && !!prioridade && !saving;
+  const canSubmit = !!etapa && !!tipoOcorrencia && !!motivoId && !!categoria && !!prioridade && !saving && !uploading;
 
   const submit = async () => {
     if (!canSubmit || !tenantId || !usuarioId) return;
@@ -154,9 +167,24 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
         toast.error(result.mensagem || "Erro ao registrar ocorrência");
         return;
       }
+
+      if (arquivo && result?.ocorrencia_id) {
+        setUploading(true);
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: arquivo,
+          tenantId,
+          ocorrenciaId: result.ocorrencia_id,
+          usuarioId,
+          origem: "ADMIN",
+        });
+        setUploading(false);
+        if (anexoErro) toast.error("Ocorrência registrada, mas falha ao enviar anexo.");
+      }
+
       toast.success(result?.mensagem || "Ocorrência registrada com sucesso");
       onSuccess?.({ ocorrencia_id: result?.ocorrencia_id, numero_ocorrencia: result?.numero_ocorrencia });
       onClose();
+
     } finally {
       setSaving(false);
     }
@@ -246,40 +274,50 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
             </div>
           </div>
 
-          {showProdutoFields && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={labelClass}>Qtd. esperada</label>
-                  <input type="number" step="any" value={quantidadeEsperada} onChange={(e) => setQuantidadeEsperada(e.target.value)} className={cn(inputClass, "w-full")} />
+          <div className="rounded-md border border-border">
+            <button
+              type="button"
+              onClick={() => setShowQtd((v) => !v)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs text-foreground"
+            >
+              <span>Detalhes de quantidade (opcional)</span>
+              {showQtd ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {showQtd && (
+              <div className="px-3 pb-3 space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={labelClass}>Qtd. esperada</label>
+                    <input type="number" step="any" value={quantidadeEsperada} onChange={(e) => setQuantidadeEsperada(e.target.value)} className={cn(inputClass, "w-full")} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Qtd. real</label>
+                    <input type="number" step="any" value={quantidadeReal} onChange={(e) => setQuantidadeReal(e.target.value)} className={cn(inputClass, "w-full")} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Divergência</label>
+                    <div className={cn(
+                      "h-9 px-3 rounded-md border border-border bg-secondary/20 text-xs font-mono flex items-center",
+                      divergencia > 0 ? "text-red-400" : "text-green-400",
+                    )}>
+                      {divergencia}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className={labelClass}>Qtd. real</label>
-                  <input type="number" step="any" value={quantidadeReal} onChange={(e) => setQuantidadeReal(e.target.value)} className={cn(inputClass, "w-full")} />
-                </div>
-                <div>
-                  <label className={labelClass}>Divergência</label>
-                  <div className={cn(
-                    "h-9 px-3 rounded-md border border-border bg-secondary/20 text-xs font-mono flex items-center",
-                    divergencia > 0 ? "text-red-400" : "text-green-400",
-                  )}>
-                    {divergencia}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Lote</label>
+                    <input value={lote} onChange={(e) => setLote(e.target.value)} className={cn(inputClass, "w-full")} placeholder="Opcional" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Validade</label>
+                    <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className={cn(inputClass, "w-full")} />
                   </div>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={labelClass}>Lote</label>
-                  <input value={lote} onChange={(e) => setLote(e.target.value)} className={cn(inputClass, "w-full")} placeholder="Opcional" />
-                </div>
-                <div>
-                  <label className={labelClass}>Validade</label>
-                  <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} className={cn(inputClass, "w-full")} />
-                </div>
-              </div>
-            </>
-          )}
+            )}
+          </div>
 
           <div>
             <label className={labelClass}>Observação</label>
@@ -291,6 +329,9 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
               className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
             />
           </div>
+
+          <AnexoPicker file={arquivo} onChange={setArquivo} disabled={saving} />
+
         </div>
 
         <DialogFooter>
@@ -307,7 +348,8 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <AlertTriangle size={14} />}
-            Registrar ocorrência
+            {uploading ? "Enviando anexo..." : "Registrar ocorrência"}
+
           </button>
         </DialogFooter>
       </DialogContent>

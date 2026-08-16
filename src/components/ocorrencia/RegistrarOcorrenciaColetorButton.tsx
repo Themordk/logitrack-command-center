@@ -6,6 +6,8 @@ import { AlertTriangle, ChevronDown, ChevronUp, Camera, X } from "lucide-react";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import type { OcorrenciaContexto } from "./RegistrarOcorrenciaModal";
 import { parseError } from "@/lib/errorMapper";
+import { uploadAnexoOcorrencia } from "@/lib/ocorrenciaAnexos";
+
 
 interface Props {
   contexto: OcorrenciaContexto;
@@ -111,30 +113,7 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
     if (!canSubmit || !tenantId || !usuarioId || !contexto.etapa) return;
     setSaving(true);
     try {
-      // Upload de evidência (não bloqueia em caso de falha)
-      let evidenciaUrl: string | null = null;
-      if (foto && tenantId) {
-        setUploading(true);
-        try {
-          const ext = foto.name.split(".").pop() || "jpg";
-          const path = `${tenantId}/ocorrencias/${Date.now()}.${ext}`;
-          const { error: uploadError } = await supabase.storage
-            .from("evidencias")
-            .upload(path, foto, { contentType: foto.type });
-          if (uploadError) {
-            const parsed = parseError(uploadError, "upload evidencia");
-            const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
-            toast.error(fallbackToRaw ? "Falha ao enviar foto." : parsed.title);
-          } else {
-            const { data: urlData } = supabase.storage
-              .from("evidencias")
-              .getPublicUrl(path);
-            evidenciaUrl = urlData?.publicUrl || null;
-          }
-        } finally {
-          setUploading(false);
-        }
-      }
+
 
       const { data, error } = await (supabase as any).rpc("registrar_ocorrencia_operacional", {
         p_tenant_id: tenantId,
@@ -164,12 +143,19 @@ export function RegistrarOcorrenciaColetorButton({ contexto, onSuccess, label = 
       if (typeof data === "string") { try { result = JSON.parse(data); } catch { /* keep */ } }
       if (result?.sucesso === false) { toast.error(result.mensagem || "Erro ao registrar ocorrência"); return; }
 
-      if (evidenciaUrl && result?.ocorrencia_id) {
-        await (supabase as any)
-          .from("ocorrencia_operacional")
-          .update({ evidencia_url: evidenciaUrl })
-          .eq("id", result.ocorrencia_id);
+      if (foto && result?.ocorrencia_id) {
+        setUploading(true);
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: foto,
+          tenantId,
+          ocorrenciaId: result.ocorrencia_id,
+          usuarioId,
+          origem: "COLETOR",
+        });
+        setUploading(false);
+        if (anexoErro) toast.error("Ocorrência registrada, mas falha ao enviar foto.");
       }
+
 
       toast.success(result?.mensagem || "Ocorrência registrada!");
       onSuccess?.({ ocorrencia_id: result?.ocorrencia_id, numero_ocorrencia: result?.numero_ocorrencia });

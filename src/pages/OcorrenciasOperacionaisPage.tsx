@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle, ShieldAlert, CheckCircle2, Clock, RefreshCw, Filter, Search,
   ChevronLeft, ChevronRight, Eye, Loader2, X, Wrench, FileText, MapPin, Package,
-  ChevronUp, ChevronDown, MoreVertical, XCircle,
+  ChevronUp, ChevronDown, MoreVertical, XCircle, Paperclip,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -190,7 +190,20 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
         docNumeros[d.id] = `Mov. ${d.movimento_entrada?.numero_movimento ?? "—"}`;
       });
 
-      return { rows, count: count || 0, docNumeros };
+      // Contagem de anexos por ocorrência da página
+      const anexoCount: Record<string, number> = {};
+      if (rows.length) {
+        const { data: anexosData } = await (supabase as any)
+          .from("ocorrencia_anexo")
+          .select("ocorrencia_id")
+          .in("ocorrencia_id", rows.map((r: any) => r.id));
+        (anexosData || []).forEach((a: any) => {
+          anexoCount[a.ocorrencia_id] = (anexoCount[a.ocorrencia_id] || 0) + 1;
+        });
+      }
+
+      return { rows, count: count || 0, docNumeros, anexoCount };
+
     },
     enabled: !!tenantId,
     staleTime: 30_000,
@@ -198,6 +211,8 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
 
   const rows = listQuery.data?.rows ?? [];
   const docNumeros = listQuery.data?.docNumeros ?? {};
+  const anexoCount: Record<string, number> = listQuery.data?.anexoCount ?? {};
+
   const total = listQuery.data?.count ?? 0;
   const loading = listQuery.isLoading;
 
@@ -463,7 +478,17 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
                           <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] border", PRIORIDADE_BADGE[r.prioridade] || "bg-secondary/40 text-muted-foreground border-border")}>
                             {PRIORIDADE_LABEL[r.prioridade] ?? r.prioridade}
                           </span>
+                          {(anexoCount[r.id] || 0) > 0 && (
+                            <span
+                              className="flex items-center gap-0.5 text-[10px] text-muted-foreground"
+                              title={`${anexoCount[r.id]} anexo(s)`}
+                            >
+                              <Paperclip size={11} />
+                              {anexoCount[r.id]}
+                            </span>
+                          )}
                         </div>
+
                         <div className="text-[11px] text-muted-foreground mt-0.5">
                           {(ETAPA_LABEL[r.etapa_ocorrencia] ?? r.etapa_ocorrencia)} · {(TIPO_LABEL[r.tipo_ocorrencia] ?? r.tipo_ocorrencia)}
                         </div>

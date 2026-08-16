@@ -11,6 +11,8 @@ export function MotivosOcorrenciaPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [filterEtapa, setFilterEtapa] = useState("");
+
 
   const prioridadeBadge = (val: string) => {
     const colors: Record<string, string> = {
@@ -31,8 +33,9 @@ export function MotivosOcorrenciaPage() {
     FALTA: "Falta", SOBRA: "Sobra", AVARIA: "Avaria",
     DIVERGENCIA_INVENTARIO: "Diverg. inventário", EXTRAVIO: "Extravio",
     PRODUTO_INCORRETO: "Prod. incorreto", VALIDADE_INCORRETA: "Val. incorreta",
-    LOTE_INCORRETO: "Lote incorreto", OUTROS: "Outros",
+    LOTE_INCORRETO: "Lote incorreto", EXCLUSAO_DOCUMENTO: "Exclusão doc.", OUTROS: "Outros",
   };
+
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição", type: "mono" },
@@ -65,8 +68,9 @@ export function MotivosOcorrenciaPage() {
 
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do motivo" },
-    { name: "etapa_ocorrencia", label: "Etapa Ocorrência", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO", "EXPEDICAO", "INVENTARIO", "AUDITORIA"] },
-    { name: "tipo_ocorrencia_padrao", label: "Tipo de Ocorrência Padrão", type: "enum", enumValues: ["FALTA", "SOBRA", "AVARIA", "DIVERGENCIA_INVENTARIO", "EXTRAVIO", "PRODUTO_INCORRETO", "VALIDADE_INCORRETA", "LOTE_INCORRETO", "OUTROS"] },
+    { name: "etapa_ocorrencia", label: "Etapa Ocorrência", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "INVENTARIO", "AUDITORIA", "OUTROS"] },
+    { name: "tipo_ocorrencia_padrao", label: "Tipo de Ocorrência Padrão", type: "enum", enumValues: ["FALTA", "SOBRA", "AVARIA", "DIVERGENCIA_INVENTARIO", "EXTRAVIO", "PRODUTO_INCORRETO", "VALIDADE_INCORRETA", "LOTE_INCORRETO", "EXCLUSAO_DOCUMENTO", "OUTROS"] },
+
     { name: "categoria_padrao", label: "Categoria padrão", type: "enum", required: true, defaultValue: "CORRETIVA", enumValues: ["PREVENTIVA", "CORRETIVA"] },
     { name: "prioridade_padrao", label: "Prioridade padrão", type: "enum", required: true, defaultValue: "NORMAL", enumValues: ["BAIXA", "NORMAL", "ALTA", "CRITICA"] },
     { name: "acao_automatica", label: "Ação automática", type: "enum", defaultValue: "NENHUMA", enumValues: ["NENHUMA", "BLOQUEIO_ESTOQUE", "NOTIFICACAO_SUPERVISOR", "AJUSTE_ESTOQUE"] },
@@ -81,12 +85,35 @@ export function MotivosOcorrenciaPage() {
     return crud.create(data);
   };
 
+  const filteredData = filterEtapa
+    ? crud.data.filter((d: any) => d.etapa_ocorrencia === filterEtapa)
+    : crud.data;
+
   return (
     <>
+      <div className="flex items-center justify-end mb-2">
+        <select
+          value={filterEtapa}
+          onChange={(e) => setFilterEtapa(e.target.value)}
+          className="h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground"
+        >
+          <option value="">Todas as etapas</option>
+          <option value="RECEBIMENTO">Recebimento</option>
+          <option value="ARMAZENAGEM">Armazenagem</option>
+          <option value="ABASTECIMENTO">Abastecimento</option>
+          <option value="MOVIMENTACAO">Movimentação</option>
+          <option value="SEPARACAO">Separação</option>
+          <option value="CONFERENCIA">Conferência</option>
+          <option value="EXPEDICAO">Expedição</option>
+          <option value="INVENTARIO">Inventário</option>
+          <option value="AUDITORIA">Auditoria</option>
+          <option value="OUTROS">Outros</option>
+        </select>
+      </div>
       <CrudTable
         title="Motivos de Ocorrência"
         columns={columns}
-        data={crud.data}
+        data={filteredData}
         loading={crud.loading}
         search={crud.search}
         onSearchChange={crud.setSearch}
@@ -101,6 +128,7 @@ export function MotivosOcorrenciaPage() {
         newLabel="Novo Motivo"
         searchPlaceholder="Buscar motivo..."
       />
+
       <CrudModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

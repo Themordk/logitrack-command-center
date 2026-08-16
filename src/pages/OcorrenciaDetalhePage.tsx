@@ -12,6 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
+import { AnexoPicker } from "@/components/ocorrencia/AnexoPicker";
+import { AnexosOcorrenciaSection, AnexoMiniCard, type AnexoRow } from "@/components/ocorrencia/AnexosOcorrenciaSection";
+import { uploadAnexoOcorrencia } from "@/lib/ocorrenciaAnexos";
+
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -39,12 +43,26 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const [histObs, setHistObs] = useState("");
   const [histConcluir, setHistConcluir] = useState(false);
   const [histSaving, setHistSaving] = useState(false);
+  const [anexos, setAnexos] = useState<AnexoRow[]>([]);
+  const [dialogArquivo, setDialogArquivo] = useState<File | null>(null);
+  const [histArquivo, setHistArquivo] = useState<File | null>(null);
+
+  const loadAnexos = useCallback(async () => {
+    if (!tenantId || !ocorrenciaId) return;
+    const { data } = await (supabase as any)
+      .from("ocorrencia_anexo")
+      .select("*, usuario:usuario!ocorrencia_anexo_created_by_fkey(nome)")
+      .eq("ocorrencia_id", ocorrenciaId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: true });
+    setAnexos((data || []) as AnexoRow[]);
+  }, [tenantId, ocorrenciaId]);
 
   const load = useCallback(async () => {
     if (!tenantId || !ocorrenciaId) return;
     setLoading(true);
     try {
-      const [ocoRes, histRes] = await Promise.all([
+      const [ocoRes, histRes, anexoRes] = await Promise.all([
         (supabase as any)
           .from("ocorrencia_operacional")
           .select(`*,
@@ -63,11 +81,19 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
           .eq("ocorrencia_id", ocorrenciaId)
           .eq("tenant_id", tenantId)
           .order("criado_em", { ascending: true }),
+        (supabase as any)
+          .from("ocorrencia_anexo")
+          .select("*, usuario:usuario!ocorrencia_anexo_created_by_fkey(nome)")
+          .eq("ocorrencia_id", ocorrenciaId)
+          .eq("tenant_id", tenantId)
+          .order("created_at", { ascending: true }),
       ]);
       if (ocoRes.error) throw ocoRes.error;
       if (histRes.error) throw histRes.error;
       setOcorrencia(ocoRes.data);
       setHistorico(histRes.data || []);
+      setAnexos((anexoRes?.data || []) as AnexoRow[]);
+
     } catch (err: any) {
       toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao carregar ocorrência." : p.title; })());
     } finally {
@@ -80,6 +106,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
   const openDialog = (action: DialogAction) => {
     setDialogAction(action);
     setDialogText("");
+    setDialogArquivo(null);
   };
 
   const confirmDialog = async () => {
@@ -104,8 +131,17 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
         .eq("id", ocorrenciaId)
         .eq("tenant_id", tenantId);
       if (error) throw error;
+
+      if (dialogArquivo) {
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: dialogArquivo, tenantId, ocorrenciaId, usuarioId, origem: "ADMIN",
+        });
+        if (anexoErro) toast.error("Status atualizado, mas falha ao enviar anexo.");
+      }
+
       toast.success("Ocorrência atualizada.");
       setDialogAction(null);
+      setDialogArquivo(null);
       await load();
     } catch (err: any) {
       toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao atualizar." : p.title; })());
@@ -118,6 +154,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
     setHistStatus(ocorrencia?.status ?? "ABERTA");
     setHistObs("");
     setHistConcluir(false);
+    setHistArquivo(null);
     setHistOpen(true);
   };
 
@@ -135,7 +172,7 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
     }
     setHistSaving(true);
     try {
-      const { error: histErr } = await (supabase as any)
+      const { data: histData, error: histErr } = await (supabase as any)
         .from("ocorrencia_historico")
         .insert({
           tenant_id: tenantId,
@@ -144,7 +181,9 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
           status_novo: statusNovo,
           observacao: histObs.trim() || null,
           usuario_id: usuarioId,
-        });
+        })
+        .select("id")
+        .single();
       if (histErr) throw histErr;
 
       if (statusNovo !== ocorrencia.status) {
@@ -164,9 +203,23 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
         if (ocoErr) throw ocoErr;
       }
 
+      if (histArquivo) {
+        const { error: anexoErro } = await uploadAnexoOcorrencia({
+          file: histArquivo,
+          tenantId,
+          ocorrenciaId,
+          usuarioId,
+          historicoId: histData?.id ?? null,
+          origem: "ADMIN",
+        });
+        if (anexoErro) toast.error("Histórico registrado, mas falha ao enviar anexo.");
+      }
+
       toast.success("Histórico registrado.");
       setHistOpen(false);
+      setHistArquivo(null);
       await load();
+
     } catch (err: any) {
       toast.error((() => { const p = parseError(err, "ocorrencia-detalhe-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Falha ao registrar histórico." : p.title; })());
     } finally {
@@ -407,7 +460,18 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               />
             </div>
           )}
+
+          <AnexosOcorrenciaSection
+            anexos={anexos.filter((a) => !a.ocorrencia_historico_id)}
+            tenantId={tenantId}
+            ocorrenciaId={ocorrenciaId}
+            usuarioId={usuarioId}
+            podeAnexar={podeAgir}
+            evidenciaLegado={ocorrencia.evidencia_url}
+            onChanged={loadAnexos}
+          />
         </div>
+
 
         {/* Histórico */}
         <div className="card-surface p-4 flex flex-col min-h-0">
@@ -455,7 +519,15 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
                             {h.observacao}
                           </p>
                         )}
+                        {anexos.some((a) => a.ocorrencia_historico_id === h.id) && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {anexos
+                              .filter((a) => a.ocorrencia_historico_id === h.id)
+                              .map((a) => <AnexoMiniCard key={a.id} anexo={a} />)}
+                          </div>
+                        )}
                       </div>
+
                     );
                   })}
                 </div>
@@ -488,7 +560,9 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               rows={4}
               className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary resize-none"
             />
+            <AnexoPicker file={dialogArquivo} onChange={setDialogArquivo} disabled={submitting} />
           </div>
+
           <DialogFooter>
             <button
               onClick={() => setDialogAction(null)}
@@ -557,7 +631,10 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               />
             </div>
 
+            <AnexoPicker file={histArquivo} onChange={setHistArquivo} disabled={histSaving} />
+
             {podeAgir && (
+
               <div className="flex items-start gap-3 p-3 rounded-md border border-border bg-secondary/30">
                 <Switch checked={histConcluir} onCheckedChange={setHistConcluir} />
                 <div className="flex-1">
