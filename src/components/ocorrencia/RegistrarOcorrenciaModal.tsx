@@ -129,7 +129,7 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
 
   const divergencia = Math.abs(Number(quantidadeEsperada || 0) - Number(quantidadeReal || 0));
 
-  const canSubmit = !!etapa && !!tipoOcorrencia && !!motivoId && !!categoria && !!prioridade && !saving;
+  const canSubmit = !!etapa && !!tipoOcorrencia && !!motivoId && !!categoria && !!prioridade && !saving && !uploading;
 
   const submit = async () => {
     if (!canSubmit || !tenantId || !usuarioId) return;
@@ -348,7 +348,8 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <AlertTriangle size={14} />}
-            Registrar ocorrência
+            {uploading ? "Enviando anexo..." : "Registrar ocorrência"}
+
           </button>
         </DialogFooter>
       </DialogContent>
