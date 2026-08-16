@@ -79,6 +79,9 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
   const [observacao, setObservacao] = useState("");
   const [motivos, setMotivos] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [showQtd, setShowQtd] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -87,12 +90,16 @@ export function RegistrarOcorrenciaModal({ open, onClose, contexto, onSuccess }:
     setMotivoId("");
     setCategoria("");
     setPrioridade("NORMAL");
-    setQuantidadeEsperada("0");
-    setQuantidadeReal("0");
+    setQuantidadeEsperada(contexto.quantidade_esperada != null ? String(contexto.quantidade_esperada) : "0");
+    setQuantidadeReal(contexto.quantidade_real != null ? String(contexto.quantidade_real) : "0");
     setLote("");
     setValidade("");
     setObservacao("");
+    setArquivo(null);
+    setShowQtd(!!contexto.produto_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, contexto.etapa]);
+
 
   useEffect(() => {
     if (!open || !tenantId || !etapa) { setMotivos([]); return; }
