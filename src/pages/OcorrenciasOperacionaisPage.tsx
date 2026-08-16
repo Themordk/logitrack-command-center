@@ -190,7 +190,20 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
         docNumeros[d.id] = `Mov. ${d.movimento_entrada?.numero_movimento ?? "—"}`;
       });
 
-      return { rows, count: count || 0, docNumeros };
+      // Contagem de anexos por ocorrência da página
+      const anexoCount: Record<string, number> = {};
+      if (rows.length) {
+        const { data: anexosData } = await (supabase as any)
+          .from("ocorrencia_anexo")
+          .select("ocorrencia_id")
+          .in("ocorrencia_id", rows.map((r: any) => r.id));
+        (anexosData || []).forEach((a: any) => {
+          anexoCount[a.ocorrencia_id] = (anexoCount[a.ocorrencia_id] || 0) + 1;
+        });
+      }
+
+      return { rows, count: count || 0, docNumeros, anexoCount };
+
     },
     enabled: !!tenantId,
     staleTime: 30_000,
