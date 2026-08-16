@@ -476,7 +476,17 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
                           <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] border", PRIORIDADE_BADGE[r.prioridade] || "bg-secondary/40 text-muted-foreground border-border")}>
                             {PRIORIDADE_LABEL[r.prioridade] ?? r.prioridade}
                           </span>
+                          {(anexoCount[r.id] || 0) > 0 && (
+                            <span
+                              className="flex items-center gap-0.5 text-[10px] text-muted-foreground"
+                              title={`${anexoCount[r.id]} anexo(s)`}
+                            >
+                              <Paperclip size={11} />
+                              {anexoCount[r.id]}
+                            </span>
+                          )}
                         </div>
+
                         <div className="text-[11px] text-muted-foreground mt-0.5">
                           {(ETAPA_LABEL[r.etapa_ocorrencia] ?? r.etapa_ocorrencia)} · {(TIPO_LABEL[r.tipo_ocorrencia] ?? r.tipo_ocorrencia)}
                         </div>
