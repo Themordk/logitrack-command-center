@@ -6,6 +6,8 @@ import { AlertTriangle, ChevronDown, ChevronUp, Camera, X } from "lucide-react";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import type { OcorrenciaContexto } from "./RegistrarOcorrenciaModal";
 import { parseError } from "@/lib/errorMapper";
+import { uploadAnexoOcorrencia } from "@/lib/ocorrenciaAnexos";
+
 
 interface Props {
   contexto: OcorrenciaContexto;
