@@ -83,12 +83,35 @@ export function MotivosOcorrenciaPage() {
     return crud.create(data);
   };
 
+  const filteredData = filterEtapa
+    ? crud.data.filter((d: any) => d.etapa_ocorrencia === filterEtapa)
+    : crud.data;
+
   return (
     <>
+      <div className="flex items-center justify-end mb-2">
+        <select
+          value={filterEtapa}
+          onChange={(e) => setFilterEtapa(e.target.value)}
+          className="h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground"
+        >
+          <option value="">Todas as etapas</option>
+          <option value="RECEBIMENTO">Recebimento</option>
+          <option value="ARMAZENAGEM">Armazenagem</option>
+          <option value="ABASTECIMENTO">Abastecimento</option>
+          <option value="MOVIMENTACAO">Movimentação</option>
+          <option value="SEPARACAO">Separação</option>
+          <option value="CONFERENCIA">Conferência</option>
+          <option value="EXPEDICAO">Expedição</option>
+          <option value="INVENTARIO">Inventário</option>
+          <option value="AUDITORIA">Auditoria</option>
+          <option value="OUTROS">Outros</option>
+        </select>
+      </div>
       <CrudTable
         title="Motivos de Ocorrência"
         columns={columns}
-        data={crud.data}
+        data={filteredData}
         loading={crud.loading}
         search={crud.search}
         onSearchChange={crud.setSearch}
@@ -103,6 +126,7 @@ export function MotivosOcorrenciaPage() {
         newLabel="Novo Motivo"
         searchPlaceholder="Buscar motivo..."
       />
+
       <CrudModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
