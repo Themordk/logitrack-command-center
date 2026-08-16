@@ -39,6 +39,7 @@ const TIPOS: Array<[string, string]> = [
   ["PRODUTO_INCORRETO", "Produto incorreto"],
   ["VALIDADE_INCORRETA", "Validade incorreta"],
   ["LOTE_INCORRETO", "Lote incorreto"],
+  ["EXCLUSAO_DOCUMENTO", "Exclusão de documento"],
   ["OUTROS", "Outros"],
 ];
 
@@ -48,10 +49,13 @@ const ETAPAS: Array<[string, string]> = [
   ["ABASTECIMENTO", "Abastecimento"],
   ["MOVIMENTACAO", "Movimentação"],
   ["SEPARACAO", "Separação"],
+  ["CONFERENCIA", "Conferência"],
   ["EXPEDICAO", "Expedição"],
   ["INVENTARIO", "Inventário"],
   ["AUDITORIA", "Auditoria"],
+  ["OUTROS", "Outros"],
 ];
+
 
 const inputClass = "h-9 px-3 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none focus:border-primary";
 const labelClass = "block text-[10px] uppercase font-medium text-muted-foreground mb-1";

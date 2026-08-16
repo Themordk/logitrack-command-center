@@ -31,8 +31,9 @@ export function MotivosOcorrenciaPage() {
     FALTA: "Falta", SOBRA: "Sobra", AVARIA: "Avaria",
     DIVERGENCIA_INVENTARIO: "Diverg. inventário", EXTRAVIO: "Extravio",
     PRODUTO_INCORRETO: "Prod. incorreto", VALIDADE_INCORRETA: "Val. incorreta",
-    LOTE_INCORRETO: "Lote incorreto", OUTROS: "Outros",
+    LOTE_INCORRETO: "Lote incorreto", EXCLUSAO_DOCUMENTO: "Exclusão doc.", OUTROS: "Outros",
   };
+
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição", type: "mono" },
