@@ -631,7 +631,10 @@ export function OcorrenciaDetalhePage({ onNavigate, ocorrenciaId }: Props) {
               />
             </div>
 
+            <AnexoPicker file={histArquivo} onChange={setHistArquivo} disabled={histSaving} />
+
             {podeAgir && (
+
               <div className="flex items-start gap-3 p-3 rounded-md border border-border bg-secondary/30">
                 <Switch checked={histConcluir} onCheckedChange={setHistConcluir} />
                 <div className="flex-1">
