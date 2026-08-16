@@ -1,9 +1,10 @@
 # Anexos e Evidências no Módulo de Ocorrências
 
 ## Verificações feitas antes do plano
-- `ocorrencia_anexo` **já está** em `src/integrations/supabase/types.ts` (linha ~3986), com as FKs `created_by`, `ocorrencia_id`, `ocorrencia_historico_id`, `tenant_id`. O Prompt 1 (regenerar tipos) é desnecessário e será pulado.
-- Bucket `evidencias` existe, privado, limite 10 MB, com os MIME types citados.
+- `ocorrencia_anexo` **já está** em `src/integrations/supabase/types.ts`: o bloco `ocorrencia_anexo: { Row: { created_at, created_by, id, nome_arquivo, ocorrencia_historico_id, ocorrencia_id, origem, storage_path, tamanho_bytes, tenant_id, thumbnail_path, tipo_arquivo } }` começa na linha 3986, e `ocorrencia_historico` só começa na 4067. Portanto o Prompt 1 (regenerar tipos) é desnecessário — o arquivo no repositório já está atualizado (uma cópia local antiga pode não estar). Os acessos usarão o client tipado, sem `as any`, exceto onde já é padrão do projeto.
+- Bucket `evidencias` existe, privado, limite 10 MB, com os MIME types citados. Por ser privado, **toda** exibição/download usa `createSignedUrl(path, 3600)`; `getPublicUrl` não será usado em nenhum trecho novo.
 - Políticas de storage já permitem `authenticated` ler/gravar/apagar quando o **primeiro** segmento do path é o `tenant_id` do usuário — ou seja, o path deve ser `{tenant_id}/{ocorrencia_id}/{timestamp}_{arquivo}` (sem prefixo `evidencias/`).
+
 
 ## 1. Constantes de etapas e tipos
 `RegistrarOcorrenciaModal.tsx`: ETAPAS passa a ter Conferência e Outros (sem Exclusão), na ordem operacional; TIPOS ganha "Exclusão de documento".
@@ -33,7 +34,11 @@ Em `OcorrenciasOperacionaisPage.tsx`, o `Promise.all` já existente (números de
 ## 6. Filtro por etapa em Motivos de Ocorrência
 Select "Todas as etapas" ao lado da busca, filtrando `crud.data` localmente antes de passar ao `CrudTable`. `useCrud`, `CrudTable` e `CrudModal` não são alterados.
 
+## 7. Correção do anexo legado do coletor
+`RegistrarOcorrenciaColetorButton.tsx` faz upload no bucket privado e depois grava `getPublicUrl` em `evidencia_url` — essa URL retorna 403 e nunca exibiu a foto. Passa a gravar um registro em `ocorrencia_anexo` (`origem: 'COLETOR'`, `storage_path` real) logo após o RPC retornar o `ocorrencia_id`, sem usar `getPublicUrl`. A exibição fica unificada na seção de anexos do detalhe, sempre com URL assinada.
+
 ## Observação técnica
+
 O filtro de etapa em Motivos é client-side sobre a página atual do grid (o `useCrud` pagina no servidor), então ele filtra os registros da página carregada.
 
 ## Fora de escopo
