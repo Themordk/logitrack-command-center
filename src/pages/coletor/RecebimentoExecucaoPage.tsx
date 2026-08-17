@@ -15,6 +15,7 @@ import { useOffline } from "@/contexts/OfflineContext";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -58,6 +59,12 @@ interface TarefaPlanejada {
 }
 
 export function RecebimentoExecucaoPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    return () => setFabVisivel(false);
+  }, [setFabVisivel]);
+
   const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
   const result = useResultDialog({ coletorMode: true });
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -86,6 +93,17 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<ConferenciaItem | null>(null);
+
+  // Publica contexto para o FAB de ocorrência
+  useEffect(() => {
+    setContexto({
+      etapa: "RECEBIMENTO",
+      produto_id: currentProduct?.produto_id || undefined,
+      produto_descricao: currentProduct?.descricao || undefined,
+      documento_origem_id: movimentoId || undefined,
+      tipo_documento_origem: movimentoId ? "MOVIMENTO_ENTRADA" : undefined,
+    });
+  }, [setContexto, currentProduct, movimentoId]);
 
   // Lote/validade modal
   const [showLoteModal, setShowLoteModal] = useState(false);

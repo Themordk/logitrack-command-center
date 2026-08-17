@@ -12,10 +12,17 @@ import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { getEnderecoFromCache, saveEnderecoToCache } from "@/lib/offlineEnderecoCache";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    return () => setFabVisivel(false);
+  }, [setFabVisivel]);
+
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
@@ -48,6 +55,21 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [overlayMsg, setOverlayMsg] = useState("");
   const [showCapModal, setShowCapModal] = useState(false);
   const [capInfo, setCapInfo] = useState<{ maximo: number; saldoAtual: number; cabeMais: number } | null>(null);
+
+  // Publica contexto rico para o FAB de ocorrência
+  useEffect(() => {
+    setContexto({
+      etapa: "ARMAZENAGEM",
+      produto_id: produtoId || undefined,
+      produto_descricao: produtoDesc || undefined,
+      tarefa_id: tarefaId || undefined,
+      endereco_id: enderecoId || undefined,
+      endereco_descricao: enderecoDesc || undefined,
+      documento_origem_id: movimentoEntradaId || undefined,
+      tipo_documento_origem: "MOVIMENTO_ENTRADA",
+      quantidade_esperada: Number(qtdRestante || 0),
+    });
+  }, [setContexto, produtoId, produtoDesc, tarefaId, enderecoId, enderecoDesc, movimentoEntradaId, qtdRestante]);
   const [sugestoes, setSugestoes] = useState<any[]>([]);
   const [loadingSugestao, setLoadingSugestao] = useState(false);
 
