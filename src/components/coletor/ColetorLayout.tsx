@@ -52,6 +52,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
   };
 
   return (
+    <OcorrenciaColetorProvider>
     <div className="h-screen bg-[#0f1117] flex flex-col overflow-hidden">
       {/* Header – 56px fixed */}
       <header className="h-14 bg-[hsl(217,91%,40%)] flex items-center justify-between px-3 shrink-0 z-50">
@@ -95,6 +96,10 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
       <main className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto min-h-0">
         {children}
       </main>
+
+      {/* FAB de Ocorrência — visibilidade controlada pelo context */}
+      <OcorrenciaFAB />
     </div>
+    </OcorrenciaColetorProvider>
   );
 }
