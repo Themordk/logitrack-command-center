@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOffline } from "@/contexts/OfflineContext";
 import { OfflineBanner } from "@/components/coletor/OfflineBanner";
+import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
+import { OcorrenciaFAB } from "@/components/ocorrencia/OcorrenciaFAB";
 
 import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
 
