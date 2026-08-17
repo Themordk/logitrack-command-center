@@ -4,6 +4,7 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2, Cloud } from "lucide-react";
 import { useOffline } from "@/contexts/OfflineContext";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -27,6 +28,12 @@ const modules: ModuleCard[] = [
 ];
 
 export function ColetorHomePage({ onNavigate }: Props) {
+  const { setFabVisivel, clearContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    clearContexto();
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, clearContexto]);
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
   const { can, loading: permLoading } = usePermissions();
   const { pendingCount } = useOffline();

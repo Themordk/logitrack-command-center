@@ -9,6 +9,7 @@ import { parseError } from "@/lib/errorMapper";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -24,6 +25,12 @@ interface MovimentoResumo {
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    setContexto({ etapa: "RECEBIMENTO" });
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, setContexto]);
   const result = useResultDialog({ coletorMode: true });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);

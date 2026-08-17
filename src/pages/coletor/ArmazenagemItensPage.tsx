@@ -7,6 +7,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { Loader2, MapPin, CheckCircle, Archive, Database } from "lucide-react";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 import * as OfflineStore from "@/lib/offlineStore";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
@@ -45,6 +46,12 @@ interface ItensPayload {
 }
 
 export function ArmazenagemItensPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    setContexto({ etapa: "ARMAZENAGEM" });
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, setContexto]);
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const movimentoId = sessionStorage.getItem("coletor_armazenagem_movimento_id");

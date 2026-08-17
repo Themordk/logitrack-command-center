@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
@@ -8,6 +8,7 @@ import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOffline } from "@/contexts/OfflineContext";
 import { Loader2, AlertTriangle, MapPin, Database } from "lucide-react";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -39,6 +40,12 @@ function ConvCaixa({ qtd, fator }: { qtd: number; fator: number }) {
 }
 
 export function ArmazenagemIniciarPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    setContexto({ etapa: "ARMAZENAGEM" });
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, setContexto]);
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const { isOnline, cacheData, getCachedData } = useOffline();
