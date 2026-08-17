@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOffline } from "@/contexts/OfflineContext";
 import { OfflineBanner } from "@/components/coletor/OfflineBanner";
-import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
 import { OcorrenciaFAB } from "@/components/ocorrencia/OcorrenciaFAB";
 
 import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
@@ -52,7 +51,6 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
   };
 
   return (
-    <OcorrenciaColetorProvider>
     <div className="h-screen bg-[#0f1117] flex flex-col overflow-hidden">
       {/* Header – 56px fixed */}
       <header className="h-14 bg-[hsl(217,91%,40%)] flex items-center justify-between px-3 shrink-0 z-50">
@@ -100,6 +98,5 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
       {/* FAB de Ocorrência — visibilidade controlada pelo context */}
       <OcorrenciaFAB />
     </div>
-    </OcorrenciaColetorProvider>
   );
 }

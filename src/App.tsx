@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 
 const queryClient = new QueryClient({
@@ -689,8 +690,10 @@ export default function App() {
         <TenantBootProvider>
           <TenantProvider>
             <PermissionsProvider>
-              <UpdatePrompt />
-              <AppContent />
+              <OcorrenciaColetorProvider>
+                <UpdatePrompt />
+                <AppContent />
+              </OcorrenciaColetorProvider>
             </PermissionsProvider>
           </TenantProvider>
         </TenantBootProvider>
