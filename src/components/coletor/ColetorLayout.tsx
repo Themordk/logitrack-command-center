@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOffline } from "@/contexts/OfflineContext";
 import { OfflineBanner } from "@/components/coletor/OfflineBanner";
 import { OcorrenciaFAB } from "@/components/ocorrencia/OcorrenciaFAB";
+import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
 
 import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
 
@@ -51,52 +52,54 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
   };
 
   return (
-    <div className="h-screen bg-[#0f1117] flex flex-col overflow-hidden">
-      {/* Header – 56px fixed */}
-      <header className="h-14 bg-[hsl(217,91%,40%)] flex items-center justify-between px-3 shrink-0 z-50">
-        <div className="flex items-center gap-2">
-          {showBack && (
-            <button onClick={() => onNavigate(backPath || "/coletor/home")} className="text-white p-1.5">
-              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-          )}
-          <span className="text-white font-bold text-lg truncate">{title}</span>
-          {titleBadge}
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            {isSyncing ? (
-              <>
-                <RefreshCw size={18} className="text-blue-200 animate-spin" />
-                <span className="text-xs font-semibold text-blue-200">SYNC</span>
-              </>
-            ) : (
-              <>
-                {online ? <Wifi size={18} className="text-green-300" /> : <WifiOff size={18} className="text-red-300" />}
-                <span className={`text-xs font-semibold ${online ? "text-green-300" : "text-red-300"}`}>
-                  {online ? "ONLINE" : "OFFLINE"}
-                </span>
-              </>
+    <OcorrenciaColetorProvider>
+      <div className="h-screen bg-[#0f1117] flex flex-col overflow-hidden">
+        {/* Header – 56px fixed */}
+        <header className="h-14 bg-[hsl(217,91%,40%)] flex items-center justify-between px-3 shrink-0 z-50">
+          <div className="flex items-center gap-2">
+            {showBack && (
+              <button onClick={() => onNavigate(backPath || "/coletor/home")} className="text-white p-1.5">
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+            )}
+            <span className="text-white font-bold text-lg truncate">{title}</span>
+            {titleBadge}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              {isSyncing ? (
+                <>
+                  <RefreshCw size={18} className="text-blue-200 animate-spin" />
+                  <span className="text-xs font-semibold text-blue-200">SYNC</span>
+                </>
+              ) : (
+                <>
+                  {online ? <Wifi size={18} className="text-green-300" /> : <WifiOff size={18} className="text-red-300" />}
+                  <span className={`text-xs font-semibold ${online ? "text-green-300" : "text-red-300"}`}>
+                    {online ? "ONLINE" : "OFFLINE"}
+                  </span>
+                </>
+              )}
+            </div>
+            {showLogout && (
+              <button onClick={handleLogout} className="text-white/80 hover:text-white p-1">
+                <LogOut size={20} />
+              </button>
             )}
           </div>
-          {showLogout && (
-            <button onClick={handleLogout} className="text-white/80 hover:text-white p-1">
-              <LogOut size={20} />
-            </button>
-          )}
-        </div>
-      </header>
+        </header>
 
-      <OfflineBanner onNavigate={onNavigate} />
+        <OfflineBanner onNavigate={onNavigate} />
 
 
-      {/* Body */}
-      <main className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto min-h-0">
-        {children}
-      </main>
+        {/* Body */}
+        <main className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto min-h-0">
+          {children}
+        </main>
 
-      {/* FAB de Ocorrência — visibilidade controlada pelo context */}
-      <OcorrenciaFAB />
-    </div>
+        {/* FAB de Ocorrência — visibilidade controlada pelo context */}
+        <OcorrenciaFAB />
+      </div>
+    </OcorrenciaColetorProvider>
   );
 }
