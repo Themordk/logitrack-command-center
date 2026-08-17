@@ -8,10 +8,17 @@ import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function RecebimentoVolumesPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    setContexto({ etapa: "RECEBIMENTO" });
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, setContexto]);
   const result = useResultDialog({ coletorMode: true });
   const movimentoId = sessionStorage.getItem("coletor_movimento_id");
   const [totalVolume, setTotalVolume] = useState<number | null>(null);

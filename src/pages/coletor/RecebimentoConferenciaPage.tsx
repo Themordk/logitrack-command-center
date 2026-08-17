@@ -8,6 +8,7 @@ import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { useOffline } from "@/contexts/OfflineContext";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -25,6 +26,12 @@ interface ItemResumo {
 }
 
 export function RecebimentoConferenciaPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    setContexto({ etapa: "RECEBIMENTO" });
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, setContexto]);
   const movimentoId = sessionStorage.getItem("coletor_movimento_id") || "";
   const usuarioId = localStorage.getItem("core_usuario_id");
   const tenantId = localStorage.getItem("core_tenant_id");

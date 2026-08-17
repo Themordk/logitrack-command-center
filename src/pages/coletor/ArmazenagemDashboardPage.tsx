@@ -1,10 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { Loader2, Package, Layers, ArrowUp, CheckCircle, BarChart3, Database } from "lucide-react";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -17,6 +18,12 @@ interface DashData {
 }
 
 export function ArmazenagemDashboardPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    setContexto({ etapa: "ARMAZENAGEM" });
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, setContexto]);
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
 

@@ -1,10 +1,18 @@
+import { useEffect } from "react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { CheckCircle, Home, RotateCcw } from "lucide-react";
+import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function RecebimentoConcluidoPage({ onNavigate }: Props) {
+  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  useEffect(() => {
+    setFabVisivel(true);
+    setContexto({ etapa: "RECEBIMENTO" });
+    return () => setFabVisivel(false);
+  }, [setFabVisivel, setContexto]);
   return (
     <ColetorLayout title="Concluído" onNavigate={onNavigate} showBack={false}>
       <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">

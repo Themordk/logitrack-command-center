@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOffline } from "@/contexts/OfflineContext";
 import { OfflineBanner } from "@/components/coletor/OfflineBanner";
+import { OcorrenciaFAB } from "@/components/ocorrencia/OcorrenciaFAB";
 
 import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
 
@@ -93,6 +94,9 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
       <main className="flex-1 flex flex-col p-3 gap-3 overflow-y-auto min-h-0">
         {children}
       </main>
+
+      {/* FAB de Ocorrência — visibilidade controlada pelo context */}
+      <OcorrenciaFAB />
     </div>
   );
 }
