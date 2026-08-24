@@ -10433,6 +10433,19 @@ export type Database = {
           usuario_nome: string
         }[]
       }
+      rpc_mapear_picking: {
+        Args: {
+          p_armazem_id: string
+          p_empresa_id: string
+          p_endereco_id: string
+          p_est_maximo: number
+          p_est_minimo: number
+          p_produto_id: string
+          p_tenant_id: string
+          p_tipo_picking: Database["public"]["Enums"]["enum_tipo_picking"]
+        }
+        Returns: Json
+      }
       rpc_painel_tv_operacional: { Args: { p_tv_token: string }; Returns: Json }
       rpc_painel_tv_vendas: { Args: { p_tv_token: string }; Returns: Json }
       rpc_relatorio_ciclo_pedido: {

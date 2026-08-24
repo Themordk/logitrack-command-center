@@ -109,20 +109,25 @@ export function MapearPickingPage({ onNavigate }: Props) {
     setSubmitting(true);
     setError("");
     try {
-      const { error: insertError } = await (supabase as any)
-        .from("picking_produto")
-        .insert({
-          tenant_id: tenantId,
-          empresa_id: empresaId,
-          armazem_id: armazemId,
-          produto_id: produtoId,
-          endereco_id: enderecoId,
-          est_minimo: Number(estMinimo),
-          est_maximo: Number(estMaximo),
-          tipo_picking: tipoPicking,
-          ativo: true,
-        });
-      if (insertError) throw insertError;
+      const { data, error: rpcError } = await (supabase as any).rpc("rpc_mapear_picking", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_armazem_id: armazemId,
+        p_produto_id: produtoId,
+        p_endereco_id: enderecoId,
+        p_tipo_picking: tipoPicking,
+        p_est_minimo: Number(estMinimo),
+        p_est_maximo: Number(estMaximo),
+      });
+
+      if (rpcError) throw rpcError;
+
+      if (data && !data.sucesso) {
+        // Produto já mapeado — mostrar mensagem amigável com endereço atual
+        setError(data.mensagem);
+        return;
+      }
+
       setStep("done");
     } catch (err: any) {
       setError(err.message || "Erro ao salvar.");
