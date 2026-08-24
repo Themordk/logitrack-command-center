@@ -52,9 +52,9 @@ Deno.serve(async (req) => {
         ativo: true,
       })
       .select("id, codigo, razaosocial")
-      .single();
+.single();
 
-if (empresaErr) {
+    if (empresaErr) {
       // Rollback manual
       await admin.from("tenant").delete().eq("id", tenantRow.id);
       return jsonResponse({ error: `Empresa: ${empresaErr.message}` }, 400);
