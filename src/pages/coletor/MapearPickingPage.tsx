@@ -31,6 +31,22 @@ export function MapearPickingPage({ onNavigate }: Props) {
   const [tipoPicking, setTipoPicking] = useState("FRACIONADO");
   const [submitting, setSubmitting] = useState(false);
 
+  // Check if coming from Consulta Produto with pre-loaded product
+  useEffect(() => {
+    const fromConsulta = sessionStorage.getItem("mapear_from_consulta");
+    if (fromConsulta) {
+      sessionStorage.removeItem("mapear_from_consulta");
+      try {
+        const parsed = JSON.parse(fromConsulta);
+        if (parsed.produtoId && parsed.produtoNome) {
+          setProdutoId(parsed.produtoId);
+          setProdutoNome(parsed.produtoNome);
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }, []);
+
+
   const handleScanEndereco = async (code: string) => {
     setScannedEndereco(code);
     setError("");
