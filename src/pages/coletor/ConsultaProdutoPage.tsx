@@ -1,9 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { ActionButton } from "@/components/coletor/ActionButton";
-import { ChevronRight, Loader2, Database } from "lucide-react";
+import { Loader2, Database, Search, Info, MapPin, ArrowLeftRight } from "lucide-react";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useOffline } from "@/contexts/OfflineContext";
