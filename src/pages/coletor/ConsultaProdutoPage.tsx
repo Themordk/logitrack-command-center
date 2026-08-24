@@ -10,6 +10,7 @@ import { useOffline } from "@/contexts/OfflineContext";
 interface Props { onNavigate: (path: string) => void; }
 
 interface SaldoRow {
+  endereco_id: string;
   endereco_desc: string;
   tipo_endereco: string;
   tipo_estoque_desc: string;
@@ -25,6 +26,7 @@ interface ConsultaProdutoData {
   produtoImg: string | null;
   produtoFatorCaixa: number;
   saldos: SaldoRow[];
+  pickingMapeadoIds: string[];
 }
 
 export function ConsultaProdutoPage({ onNavigate }: Props) {
@@ -77,6 +79,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
     }
 
     const saldos: SaldoRow[] = (estoque || []).map((e: any) => ({
+      endereco_id: e.endereco_id || "",
       endereco_desc: e.endereco?.descricao || "—",
       tipo_endereco: e.endereco?.tipo_endereco || "—",
       tipo_estoque_desc: tipoMap.get(e.endereco?.tipo_estoque_id) || "—",
@@ -86,7 +89,24 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       data_fabricacao: e.data_fabricacao || "",
     }));
 
-    return { produtoId: prodId, produtoNome, produtoImg, produtoFatorCaixa, saldos };
+    // Buscar endereços de picking mapeados para este produto
+    const pickingEnderecoIds = saldos
+      .filter(s => s.tipo_endereco === "PICKING")
+      .map(s => s.endereco_id)
+      .filter(Boolean);
+
+    let pickingMapeadoIds: string[] = [];
+    if (pickingEnderecoIds.length > 0) {
+      const { data: mapeados } = await (supabase as any)
+        .from("picking_produto")
+        .select("endereco_id")
+        .eq("produto_id", prodId)
+        .eq("ativo", true)
+        .in("endereco_id", pickingEnderecoIds);
+      pickingMapeadoIds = (mapeados || []).map((m: any) => m.endereco_id);
+    }
+
+    return { produtoId: prodId, produtoNome, produtoImg, produtoFatorCaixa, saldos, pickingMapeadoIds };
   }, [scanned]);
 
   const { data, loading, isFromCache, error, refetch } = useOfflineCache<ConsultaProdutoData>(
@@ -101,6 +121,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
   const produtoImg = data?.produtoImg ?? null;
   const produtoFatorCaixa = data?.produtoFatorCaixa ?? 1;
   const saldos = data?.saldos ?? [];
+  const pickingMapeadoIds = data?.pickingMapeadoIds ?? [];
 
   const handleScan = (code: string) => {
     setNotFound(false);
@@ -237,7 +258,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       {saldos.length > 0 && !loading && (
         <div className="flex flex-col gap-3">
           {pulmao.length > 0 && <SaldoSection title="Pulmão" items={pulmao} color="hsl(217,91%,50%)" fatorCaixa={produtoFatorCaixa} />}
-          {picking.length > 0 && <SaldoSection title="Picking" items={picking} color="hsl(142,76%,36%)" fatorCaixa={produtoFatorCaixa} />}
+          {picking.length > 0 && <SaldoSection title="Picking" items={picking} color="hsl(142,76%,36%)" fatorCaixa={produtoFatorCaixa} pickingMapeadoIds={pickingMapeadoIds} />}
           {outros.length > 0 && <SaldoSection title="Outros" items={outros} color="hsl(45,93%,47%)" fatorCaixa={produtoFatorCaixa} />}
         </div>
       )}
@@ -249,7 +270,13 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
   );
 }
 
-function SaldoSection({ title, items, color, fatorCaixa }: { title: string; items: SaldoRow[]; color: string; fatorCaixa: number }) {
+function SaldoSection({ title, items, color, fatorCaixa, pickingMapeadoIds = [] }: {
+  title: string;
+  items: SaldoRow[];
+  color: string;
+  fatorCaixa: number;
+  pickingMapeadoIds?: string[];
+}) {
   const total = items.reduce((a, b) => a + b.quantidade_disponivel, 0);
   const showCx = fatorCaixa > 1;
   const totalCx = showCx ? Math.floor(total / fatorCaixa) : 0;
@@ -275,6 +302,11 @@ function SaldoSection({ title, items, color, fatorCaixa }: { title: string; item
                 <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[hsl(222,35%,20%)] text-[hsl(213,31%,70%)] border border-[hsl(222,35%,28%)]">
                   {item.tipo_estoque_desc}
                 </span>
+                {pickingMapeadoIds.includes(item.endereco_id) && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-green-500/15 text-green-400 border border-green-500/30">
+                    ★ Mapeado
+                  </span>
+                )}
               </div>
               {item.lote && <p className="text-[10px] text-[hsl(213,31%,55%)]">Lote: {item.lote}</p>}
             </div>
