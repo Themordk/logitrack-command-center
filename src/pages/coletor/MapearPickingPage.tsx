@@ -138,6 +138,12 @@ export function MapearPickingPage({ onNavigate }: Props) {
     <ColetorLayout title="Mapear Picking" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
       {step === "scan_endereco" && (
         <>
+          {produtoId && produtoNome && (
+            <div className={cardClass}>
+              <span className={labelClass}>Produto (da consulta)</span>
+              <p className={valueClass}>{produtoNome}</p>
+            </div>
+          )}
           <ScanField label="Escanear Endereço" onScan={handleScanEndereco} lastScanned={scannedEndereco} />
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
         </>
