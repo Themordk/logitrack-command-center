@@ -182,17 +182,54 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
               )}
             </div>
           </div>
-          <ActionButton
-            variant="secondary"
-            onClick={() => {
-              if (produtoId) {
-                sessionStorage.setItem("coletor_consulta_produto_id", produtoId);
-                onNavigate("/coletor/consulta/produto/detalhe");
-              }
-            }}
-          >
-            Ver detalhes do produto <ChevronRight size={18} />
-          </ActionButton>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => {
+                if (produtoId) {
+                  sessionStorage.setItem("coletor_consulta_produto_id", produtoId);
+                  onNavigate("/coletor/consulta/produto/detalhe");
+                }
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[hsl(222,35%,20%)] border border-[hsl(222,35%,28%)] text-[hsl(213,31%,91%)] active:bg-[hsl(222,35%,16%)] active:scale-[0.96] transition-all"
+            >
+              <Info size={20} className="text-[hsl(217,91%,60%)]" />
+              <span className="text-[11px] font-bold">Detalhes</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (produtoId) {
+                  sessionStorage.setItem("mapear_from_consulta", JSON.stringify({
+                    produtoId,
+                    produtoNome,
+                    scannedEan: scanned,
+                  }));
+                  onNavigate("/coletor/consulta/mapear-picking");
+                }
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[hsl(222,35%,20%)] border border-[hsl(222,35%,28%)] text-[hsl(213,31%,91%)] active:bg-[hsl(222,35%,16%)] active:scale-[0.96] transition-all"
+            >
+              <MapPin size={20} className="text-[hsl(142,76%,45%)]" />
+              <span className="text-[11px] font-bold">Mapear</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (produtoId) {
+                  sessionStorage.setItem("transf_from_consulta", JSON.stringify({
+                    produtoId,
+                    produtoNome,
+                    scannedEan: scanned,
+                  }));
+                  onNavigate("/coletor/movimentos/transferencia/origem");
+                }
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[hsl(222,35%,20%)] border border-[hsl(222,35%,28%)] text-[hsl(213,31%,91%)] active:bg-[hsl(222,35%,16%)] active:scale-[0.96] transition-all"
+            >
+              <ArrowLeftRight size={20} className="text-[hsl(45,93%,55%)]" />
+              <span className="text-[11px] font-bold">Transferir</span>
+            </button>
+          </div>
         </div>
       )}
 
