@@ -1,9 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { ActionButton } from "@/components/coletor/ActionButton";
-import { ChevronRight, Loader2, Database } from "lucide-react";
+import { Loader2, Database, Search, Info, MapPin, ArrowLeftRight } from "lucide-react";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useOffline } from "@/contexts/OfflineContext";
@@ -108,6 +107,17 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
     setScanned(code);
   };
 
+  // Auto-load product coming from the text search page
+  useEffect(() => {
+    const eanFromSearch = sessionStorage.getItem("coletor_busca_ean");
+    if (eanFromSearch) {
+      sessionStorage.removeItem("coletor_busca_ean");
+      handleScan(eanFromSearch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const semConexaoESemCache = !!scanned && !loading && !data && !isOnline;
   const errorMessage = error === "PRODUTO_NAO_ENCONTRADO"
     ? "Produto não encontrado para este EAN."
@@ -123,7 +133,19 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Consulta Produto" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
-      <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} />
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} />
+        </div>
+        <button
+          onClick={() => onNavigate("/coletor/consulta/produto/busca")}
+          className="mt-1 w-12 h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white flex items-center justify-center shrink-0 active:scale-[0.95] active:bg-[hsl(217,91%,40%)] transition-all"
+          aria-label="Buscar produto por texto"
+          title="Buscar por descrição, SKU ou referência"
+        >
+          <Search size={20} />
+        </button>
+      </div>
 
       {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
 
@@ -160,17 +182,54 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
               )}
             </div>
           </div>
-          <ActionButton
-            variant="secondary"
-            onClick={() => {
-              if (produtoId) {
-                sessionStorage.setItem("coletor_consulta_produto_id", produtoId);
-                onNavigate("/coletor/consulta/produto/detalhe");
-              }
-            }}
-          >
-            Ver detalhes do produto <ChevronRight size={18} />
-          </ActionButton>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => {
+                if (produtoId) {
+                  sessionStorage.setItem("coletor_consulta_produto_id", produtoId);
+                  onNavigate("/coletor/consulta/produto/detalhe");
+                }
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[hsl(222,35%,20%)] border border-[hsl(222,35%,28%)] text-[hsl(213,31%,91%)] active:bg-[hsl(222,35%,16%)] active:scale-[0.96] transition-all"
+            >
+              <Info size={20} className="text-[hsl(217,91%,60%)]" />
+              <span className="text-[11px] font-bold">Detalhes</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (produtoId) {
+                  sessionStorage.setItem("mapear_from_consulta", JSON.stringify({
+                    produtoId,
+                    produtoNome,
+                    scannedEan: scanned,
+                  }));
+                  onNavigate("/coletor/consulta/mapear-picking");
+                }
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[hsl(222,35%,20%)] border border-[hsl(222,35%,28%)] text-[hsl(213,31%,91%)] active:bg-[hsl(222,35%,16%)] active:scale-[0.96] transition-all"
+            >
+              <MapPin size={20} className="text-[hsl(142,76%,45%)]" />
+              <span className="text-[11px] font-bold">Mapear</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (produtoId) {
+                  sessionStorage.setItem("transf_from_consulta", JSON.stringify({
+                    produtoId,
+                    produtoNome,
+                    scannedEan: scanned,
+                  }));
+                  onNavigate("/coletor/movimentos/transferencia/origem");
+                }
+              }}
+              className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[hsl(222,35%,20%)] border border-[hsl(222,35%,28%)] text-[hsl(213,31%,91%)] active:bg-[hsl(222,35%,16%)] active:scale-[0.96] transition-all"
+            >
+              <ArrowLeftRight size={20} className="text-[hsl(45,93%,55%)]" />
+              <span className="text-[11px] font-bold">Transferir</span>
+            </button>
+          </div>
         </div>
       )}
 

@@ -102,6 +102,7 @@ import { ArmazenagemExecucaoPage } from "./pages/coletor/ArmazenagemExecucaoPage
 import { ArmazenagemConcluidoPage } from "./pages/coletor/ArmazenagemConcluidoPage";
 import { ConsultaMenuPage } from "./pages/coletor/ConsultaMenuPage";
 import { ConsultaProdutoPage } from "./pages/coletor/ConsultaProdutoPage";
+import { ConsultaProdutoBuscaPage } from "./pages/coletor/ConsultaProdutoBuscaPage";
 import { ConsultaEnderecoPage } from "./pages/coletor/ConsultaEnderecoPage";
 import { ConsultaEnderecoDetalhePage } from "./pages/coletor/ConsultaEnderecoDetalhePage";
 import { ConsultaHUPage } from "./pages/coletor/ConsultaHUPage";
@@ -451,6 +452,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/armazenagem/concluido": return <ArmazenagemConcluidoPage onNavigate={onNavigate} />;
     case "/coletor/consulta": return <ConsultaMenuPage onNavigate={onNavigate} />;
     case "/coletor/consulta/produto": return <ConsultaProdutoPage onNavigate={onNavigate} />;
+    case "/coletor/consulta/produto/busca": return <ConsultaProdutoBuscaPage onNavigate={onNavigate} />;
     case "/coletor/consulta/endereco": return <ConsultaEnderecoPage onNavigate={onNavigate} />;
     case "/coletor/consulta/endereco/detalhe": return <ConsultaEnderecoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/consulta/hu": return <ConsultaHUPage onNavigate={onNavigate} />;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
@@ -31,6 +31,22 @@ export function MapearPickingPage({ onNavigate }: Props) {
   const [tipoPicking, setTipoPicking] = useState("FRACIONADO");
   const [submitting, setSubmitting] = useState(false);
 
+  // Check if coming from Consulta Produto with pre-loaded product
+  useEffect(() => {
+    const fromConsulta = sessionStorage.getItem("mapear_from_consulta");
+    if (fromConsulta) {
+      sessionStorage.removeItem("mapear_from_consulta");
+      try {
+        const parsed = JSON.parse(fromConsulta);
+        if (parsed.produtoId && parsed.produtoNome) {
+          setProdutoId(parsed.produtoId);
+          setProdutoNome(parsed.produtoNome);
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }, []);
+
+
   const handleScanEndereco = async (code: string) => {
     setScannedEndereco(code);
     setError("");
@@ -47,7 +63,12 @@ export function MapearPickingPage({ onNavigate }: Props) {
       }
       setEnderecoId(data[0].id);
       setEnderecoDesc(data[0].descricao);
-      setStep("scan_produto");
+      // If product is already known (from Consulta), skip to form
+      if (produtoId) {
+        setStep("form");
+      } else {
+        setStep("scan_produto");
+      }
     } catch {
       setError("Erro ao buscar endereço.");
     } finally {
@@ -117,6 +138,12 @@ export function MapearPickingPage({ onNavigate }: Props) {
     <ColetorLayout title="Mapear Picking" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
       {step === "scan_endereco" && (
         <>
+          {produtoId && produtoNome && (
+            <div className={cardClass}>
+              <span className={labelClass}>Produto (da consulta)</span>
+              <p className={valueClass}>{produtoNome}</p>
+            </div>
+          )}
           <ScanField label="Escanear Endereço" onScan={handleScanEndereco} lastScanned={scannedEndereco} />
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
         </>
