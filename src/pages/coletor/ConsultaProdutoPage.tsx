@@ -270,7 +270,13 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
   );
 }
 
-function SaldoSection({ title, items, color, fatorCaixa }: { title: string; items: SaldoRow[]; color: string; fatorCaixa: number }) {
+function SaldoSection({ title, items, color, fatorCaixa, pickingMapeadoIds = [] }: {
+  title: string;
+  items: SaldoRow[];
+  color: string;
+  fatorCaixa: number;
+  pickingMapeadoIds?: string[];
+}) {
   const total = items.reduce((a, b) => a + b.quantidade_disponivel, 0);
   const showCx = fatorCaixa > 1;
   const totalCx = showCx ? Math.floor(total / fatorCaixa) : 0;
