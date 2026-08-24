@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
         ativo: true,
       })
       .select("id, codigo, razaosocial")
-      .single();
+.single();
 
     if (empresaErr) {
       // Rollback manual
@@ -60,7 +60,42 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: `Empresa: ${empresaErr.message}` }, 400);
     }
 
-    return jsonResponse({ success: true, tenant: tenantRow, empresa: empresaRow });
+    // 3. Provisionar todas as configurações obrigatórias do tenant
+    const { data: provResult, error: provError } = await admin.rpc(
+      "fn_provisionar_tenant_completo",
+      { p_tenant_id: tenantRow.id }
+    );
+
+    if (provError) {
+      // Rollback: deletar empresa e tenant se o provisionamento falhar
+      await admin.from("empresa").delete().eq("id", empresaRow.id);
+      await admin.from("tenant").delete().eq("id", tenantRow.id);
+      return jsonResponse(
+        { error: `Provisionamento falhou: ${provError.message}` },
+        500
+      );
+    }
+
+    // Interpretar o resultado (jsonb já retorna parseado; tolerância para string)
+    const provData =
+      typeof provResult === "string" ? JSON.parse(provResult) : provResult;
+
+    // A função captura erros internamente e retorna sucesso:false
+    if (provData && provData.sucesso === false) {
+      await admin.from("empresa").delete().eq("id", empresaRow.id);
+      await admin.from("tenant").delete().eq("id", tenantRow.id);
+      return jsonResponse(
+        { error: `Provisionamento falhou: ${provData.erro || "Erro desconhecido"}` },
+        500
+      );
+    }
+
+    return jsonResponse({
+      success: true,
+      tenant: tenantRow,
+      empresa: empresaRow,
+      provisionamento: provData,
+    });
   } catch (err: any) {
     return jsonResponse({ success: false, error: err?.message || "Erro interno" }, 500);
   }

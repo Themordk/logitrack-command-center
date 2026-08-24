@@ -74,8 +74,11 @@ export function SupportCreateTenantModal({ onClose, onCreated }: Props) {
         },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Erro ao criar tenant");
-      toast.success(`Tenant "${data.tenant.nome}" criado com sucesso.`);
+if (!data?.success) throw new Error(data?.error || "Erro ao criar tenant");
+      const totalCriados = data.provisionamento?.total_criados ?? 0;
+      toast.success(
+        `Tenant "${data.tenant.nome}" criado e provisionado com sucesso! (${totalCriados} registros de configuração criados)`
+      );
       onCreated();
     } catch (err: any) {
       toast.error(parseError(err, "support-create-tenant-modal").title);
