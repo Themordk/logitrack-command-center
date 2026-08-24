@@ -10,6 +10,7 @@ import { useOffline } from "@/contexts/OfflineContext";
 interface Props { onNavigate: (path: string) => void; }
 
 interface SaldoRow {
+  endereco_id: string;
   endereco_desc: string;
   tipo_endereco: string;
   tipo_estoque_desc: string;
@@ -25,6 +26,7 @@ interface ConsultaProdutoData {
   produtoImg: string | null;
   produtoFatorCaixa: number;
   saldos: SaldoRow[];
+  pickingMapeadoIds: string[];
 }
 
 export function ConsultaProdutoPage({ onNavigate }: Props) {
