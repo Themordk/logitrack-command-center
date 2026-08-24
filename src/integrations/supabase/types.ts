@@ -721,6 +721,8 @@ export type Database = {
       }
       documento_saida: {
         Row: {
+          cancelamento_origem: string | null
+          cancelamento_solicitado_em: string | null
           codigo_erp: string | null
           data_emissao: string
           empresa_id: string
@@ -747,6 +749,8 @@ export type Database = {
           vendedor: string | null
         }
         Insert: {
+          cancelamento_origem?: string | null
+          cancelamento_solicitado_em?: string | null
           codigo_erp?: string | null
           data_emissao: string
           empresa_id: string
@@ -773,6 +777,8 @@ export type Database = {
           vendedor?: string | null
         }
         Update: {
+          cancelamento_origem?: string | null
+          cancelamento_solicitado_em?: string | null
           codigo_erp?: string | null
           data_emissao?: string
           empresa_id?: string
@@ -8927,6 +8933,16 @@ export type Database = {
         Args: { p_login: string; p_tenant_id?: string }
         Returns: string
       }
+      fn_cancelar_documento_saida: {
+        Args: {
+          p_codigo_erp?: string
+          p_documento_saida_id?: string
+          p_empresa_id: string
+          p_solicitado_por?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_cancelar_movimento_entrada: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
         Returns: Json
@@ -10662,6 +10678,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       solicitar_impressao: {
         Args: {
           p_armazem_id: string
@@ -10767,6 +10785,7 @@ export type Database = {
         | "CONFERENCIA"
         | "OUTROS"
         | "EXCLUSAO"
+        | "CANCELAMENTO"
       enum_execucao_inventario: "AUDITORIA" | "ATUALIZACAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
@@ -10939,6 +10958,7 @@ export type Database = {
         | "LOTE_INCORRETO"
         | "OUTROS"
         | "EXCLUSAO_DOCUMENTO"
+        | "CANCELAMENTO_DOCUMENTO"
       enum_tipo_operacao:
         | "RECEBIMENTO"
         | "ARMAZENAGEM"
@@ -11165,6 +11185,7 @@ export const Constants = {
         "CONFERENCIA",
         "OUTROS",
         "EXCLUSAO",
+        "CANCELAMENTO",
       ],
       enum_execucao_inventario: ["AUDITORIA", "ATUALIZACAO"],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
@@ -11358,6 +11379,7 @@ export const Constants = {
         "LOTE_INCORRETO",
         "OUTROS",
         "EXCLUSAO_DOCUMENTO",
+        "CANCELAMENTO_DOCUMENTO",
       ],
       enum_tipo_operacao: [
         "RECEBIMENTO",
