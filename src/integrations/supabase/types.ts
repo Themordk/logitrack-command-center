@@ -9424,6 +9424,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_provisionar_tenant_completo: {
+        Args: { p_tenant_id: string }
+        Returns: Json
+      }
       fn_resolve_tenant_by_slug: {
         Args: { p_slug: string }
         Returns: {
