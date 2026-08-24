@@ -114,6 +114,13 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
         <p className="text-sm font-bold text-white">Escanear o endereço de ORIGEM</p>
       </div>
 
+      {fromConsulta && (
+        <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3 mb-2">
+          <span className="text-xs text-[hsl(213,31%,55%)]">Produto (da consulta)</span>
+          <p className="text-sm font-bold text-white">{fromConsulta.produtoNome}</p>
+        </div>
+      )}
+
       <ScanField label="Escanear Endereço Origem" onScan={handleScan} lastScanned={scanned} disabled={loading || offlineBlocked} />
       {loading && <div className="flex justify-center py-4"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={28} /></div>}
     </ColetorLayout>
