@@ -79,6 +79,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
     }
 
     const saldos: SaldoRow[] = (estoque || []).map((e: any) => ({
+      endereco_id: e.endereco_id || "",
       endereco_desc: e.endereco?.descricao || "—",
       tipo_endereco: e.endereco?.tipo_endereco || "—",
       tipo_estoque_desc: tipoMap.get(e.endereco?.tipo_estoque_id) || "—",
@@ -88,7 +89,24 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       data_fabricacao: e.data_fabricacao || "",
     }));
 
-    return { produtoId: prodId, produtoNome, produtoImg, produtoFatorCaixa, saldos };
+    // Buscar endereços de picking mapeados para este produto
+    const pickingEnderecoIds = saldos
+      .filter(s => s.tipo_endereco === "PICKING")
+      .map(s => s.endereco_id)
+      .filter(Boolean);
+
+    let pickingMapeadoIds: string[] = [];
+    if (pickingEnderecoIds.length > 0) {
+      const { data: mapeados } = await (supabase as any)
+        .from("picking_produto")
+        .select("endereco_id")
+        .eq("produto_id", prodId)
+        .eq("ativo", true)
+        .in("endereco_id", pickingEnderecoIds);
+      pickingMapeadoIds = (mapeados || []).map((m: any) => m.endereco_id);
+    }
+
+    return { produtoId: prodId, produtoNome, produtoImg, produtoFatorCaixa, saldos, pickingMapeadoIds };
   }, [scanned]);
 
   const { data, loading, isFromCache, error, refetch } = useOfflineCache<ConsultaProdutoData>(
