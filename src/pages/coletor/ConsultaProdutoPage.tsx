@@ -302,6 +302,11 @@ function SaldoSection({ title, items, color, fatorCaixa, pickingMapeadoIds = [] 
                 <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[hsl(222,35%,20%)] text-[hsl(213,31%,70%)] border border-[hsl(222,35%,28%)]">
                   {item.tipo_estoque_desc}
                 </span>
+                {pickingMapeadoIds.includes(item.endereco_id) && (
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-green-500/15 text-green-400 border border-green-500/30">
+                    ★ Mapeado
+                  </span>
+                )}
               </div>
               {item.lote && <p className="text-[10px] text-[hsl(213,31%,55%)]">Lote: {item.lote}</p>}
             </div>
