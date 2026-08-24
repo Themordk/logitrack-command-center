@@ -258,7 +258,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       {saldos.length > 0 && !loading && (
         <div className="flex flex-col gap-3">
           {pulmao.length > 0 && <SaldoSection title="Pulmão" items={pulmao} color="hsl(217,91%,50%)" fatorCaixa={produtoFatorCaixa} />}
-          {picking.length > 0 && <SaldoSection title="Picking" items={picking} color="hsl(142,76%,36%)" fatorCaixa={produtoFatorCaixa} />}
+          {picking.length > 0 && <SaldoSection title="Picking" items={picking} color="hsl(142,76%,36%)" fatorCaixa={produtoFatorCaixa} pickingMapeadoIds={pickingMapeadoIds} />}
           {outros.length > 0 && <SaldoSection title="Outros" items={outros} color="hsl(45,93%,47%)" fatorCaixa={produtoFatorCaixa} />}
         </div>
       )}
