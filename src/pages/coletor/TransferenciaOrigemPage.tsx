@@ -87,12 +87,14 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
               return;
             }
 
+            // Reescrever dados do produto para que TransferenciaProdutoPage faça auto-submit
+            sessionStorage.setItem("transf_produto_ean", consulta.scannedEan);
             result.showWarning(`Produto ${consulta.produtoNome} sem saldo neste endereço. Escaneie outro produto.`);
             onNavigate("/coletor/movimentos/transferencia/produto");
             return;
           }
-        } catch {
-          // On error, fall through to normal flow
+        } catch (err) {
+          result.showWarning("Erro ao verificar estoque. Escaneie o produto manualmente.");
         }
       }
 
