@@ -63,7 +63,12 @@ export function MapearPickingPage({ onNavigate }: Props) {
       }
       setEnderecoId(data[0].id);
       setEnderecoDesc(data[0].descricao);
-      setStep("scan_produto");
+      // If product is already known (from Consulta), skip to form
+      if (produtoId) {
+        setStep("form");
+      } else {
+        setStep("scan_produto");
+      }
     } catch {
       setError("Erro ao buscar endereço.");
     } finally {
