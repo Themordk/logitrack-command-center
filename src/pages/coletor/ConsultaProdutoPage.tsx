@@ -133,7 +133,19 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Consulta Produto" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
-      <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} />
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} />
+        </div>
+        <button
+          onClick={() => onNavigate("/coletor/consulta/produto/busca")}
+          className="mt-1 w-12 h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white flex items-center justify-center shrink-0 active:scale-[0.95] active:bg-[hsl(217,91%,40%)] transition-all"
+          aria-label="Buscar produto por texto"
+          title="Buscar por descrição, SKU ou referência"
+        >
+          <Search size={20} />
+        </button>
+      </div>
 
       {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
 
