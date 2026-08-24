@@ -14,6 +14,20 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
   const result = useResultDialog({ coletorMode: true });
+  const [fromConsulta, setFromConsulta] = useState<{ produtoId: string; produtoNome: string; scannedEan: string } | null>(null);
+  const fromConsultaRef = useRef<{ produtoId: string; produtoNome: string; scannedEan: string } | null>(null);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("transf_from_consulta");
+    if (raw) {
+      sessionStorage.removeItem("transf_from_consulta");
+      try {
+        const parsed = JSON.parse(raw);
+        fromConsultaRef.current = parsed;
+        setFromConsulta(parsed);
+      } catch { /* ignore */ }
+    }
+  }, []);
 
   const handleScan = async (code: string) => {
     setScanned(code);
