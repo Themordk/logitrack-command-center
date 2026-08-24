@@ -102,6 +102,7 @@ import { ArmazenagemExecucaoPage } from "./pages/coletor/ArmazenagemExecucaoPage
 import { ArmazenagemConcluidoPage } from "./pages/coletor/ArmazenagemConcluidoPage";
 import { ConsultaMenuPage } from "./pages/coletor/ConsultaMenuPage";
 import { ConsultaProdutoPage } from "./pages/coletor/ConsultaProdutoPage";
+import { ConsultaProdutoBuscaPage } from "./pages/coletor/ConsultaProdutoBuscaPage";
 import { ConsultaEnderecoPage } from "./pages/coletor/ConsultaEnderecoPage";
 import { ConsultaEnderecoDetalhePage } from "./pages/coletor/ConsultaEnderecoDetalhePage";
 import { ConsultaHUPage } from "./pages/coletor/ConsultaHUPage";
