@@ -121,6 +121,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
   const produtoImg = data?.produtoImg ?? null;
   const produtoFatorCaixa = data?.produtoFatorCaixa ?? 1;
   const saldos = data?.saldos ?? [];
+  const pickingMapeadoIds = data?.pickingMapeadoIds ?? [];
 
   const handleScan = (code: string) => {
     setNotFound(false);
