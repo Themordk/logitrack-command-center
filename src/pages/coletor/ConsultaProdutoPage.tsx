@@ -107,6 +107,17 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
     setScanned(code);
   };
 
+  // Auto-load product coming from the text search page
+  useEffect(() => {
+    const eanFromSearch = sessionStorage.getItem("coletor_busca_ean");
+    if (eanFromSearch) {
+      sessionStorage.removeItem("coletor_busca_ean");
+      handleScan(eanFromSearch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   const semConexaoESemCache = !!scanned && !loading && !data && !isOnline;
   const errorMessage = error === "PRODUTO_NAO_ENCONTRADO"
     ? "Produto não encontrado para este EAN."
