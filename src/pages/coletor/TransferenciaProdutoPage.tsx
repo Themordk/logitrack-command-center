@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
@@ -18,6 +18,17 @@ export function TransferenciaProdutoPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
   const result = useResultDialog({ coletorMode: true });
+
+  const autoSubmittedRef = useRef(false);
+
+  useEffect(() => {
+    const preloadedEan = sessionStorage.getItem("transf_produto_ean");
+    if (preloadedEan && !autoSubmittedRef.current) {
+      autoSubmittedRef.current = true;
+      sessionStorage.removeItem("transf_produto_ean");
+      handleScan(preloadedEan);
+    }
+  }, []);
 
   const tenantId = localStorage.getItem("core_tenant_id") || "";
 

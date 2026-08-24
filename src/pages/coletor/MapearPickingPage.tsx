@@ -11,6 +11,7 @@ type Step = "scan_endereco" | "scan_produto" | "form" | "done";
 export function MapearPickingPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id");
   const armazemId = localStorage.getItem("core_armazem_id");
+  const empresaId = localStorage.getItem("core_empresa_id");
   const [step, setStep] = useState<Step>("scan_endereco");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -112,6 +113,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
         .from("picking_produto")
         .insert({
           tenant_id: tenantId,
+          empresa_id: empresaId,
           armazem_id: armazemId,
           produto_id: produtoId,
           endereco_id: enderecoId,
