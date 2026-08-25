@@ -206,7 +206,7 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
               suppressKeyboard
             />
           </>
-        ) : (
+        ) : step === "confirmar" ? (
           <>
             {/* Movimento */}
             <div className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-4">
