@@ -5,7 +5,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, Database } from "lucide-react";
+import { Loader2, Database, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useResultDialog } from "@/hooks/useResultDialog";
@@ -59,17 +59,66 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   );
   const ondas = data ?? [];
 
+  const [pedcanPorOnda, setPedcanPorOnda] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (!isOnline || ondas.length === 0 || !tenantId || !usuarioId) return;
+    let cancelado = false;
+    (async () => {
+      const entries = await Promise.all(
+        ondas.map(async (o) => {
+          try {
+            const { data, error } = await supabase.rpc("separacao_verificar_itens_cancelados" as any, {
+              p_tenant_id: tenantId,
+              p_movimento_saida_id: o.movimento_saida_id,
+              p_usuario_id: usuarioId,
+            });
+            if (error) return null;
+            const r: any = typeof data === "string" ? JSON.parse(data) : data;
+            if (r?.tem_itens_cancelados && r.itens?.length > 0) return [o.movimento_saida_id, r] as const;
+            return null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      if (cancelado) return;
+      const map: Record<string, any> = {};
+      entries.forEach((e) => { if (e) map[e[0]] = e[1]; });
+      setPedcanPorOnda(map);
+    })();
+    return () => { cancelado = true; };
+  }, [data, isOnline, tenantId, usuarioId]);
+
   useEffect(() => {
     if (error) result.showWarning("Não foi possível carregar as ondas.");
   }, [error]);
 
   const loadOndas = refetch;
 
+  const irParaEntregaCancelados = (movimentoSaidaId: string, resultado: any) => {
+    sessionStorage.setItem("coletor_separacao_cancel_itens", JSON.stringify(resultado.itens || []));
+    sessionStorage.setItem("coletor_separacao_cancel_endereco", resultado.endereco_cancelamento || "");
+    sessionStorage.setItem("coletor_separacao_cancel_endereco_id", resultado.endereco_cancelamento_id || "");
+    sessionStorage.setItem("coletor_separacao_cancel_docs", JSON.stringify(resultado.documentos_cancelados || []));
+    sessionStorage.setItem("coletor_separacao_cancel_movimento_id", movimentoSaidaId);
+    onNavigate("/coletor/separacao/cancelamento-entrega");
+  };
 
   const handleIniciar = async () => {
+
     if (!selectedId) return;
     const onda = ondas.find((o) => o.movimento_saida_id === selectedId);
     if (!onda) return;
+
+    // Onda com itens cancelados pendentes → devolução ao endereço de cancelamento
+    const pendencia = pedcanPorOnda[selectedId];
+    if (pendencia) {
+      irParaEntregaCancelados(selectedId, pendencia);
+      return;
+    }
+
+
 
     setStarting(true);
     const cacheKey = `tarefas_separacao_${selectedId}`;
@@ -183,7 +232,9 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                 key={onda.movimento_saida_id}
                 onClick={() => setSelectedId(onda.movimento_saida_id === selectedId ? null : onda.movimento_saida_id)}
                 className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left shrink-0 ${
-                  selectedId === onda.movimento_saida_id
+                  pedcanPorOnda[onda.movimento_saida_id]
+                    ? "bg-[hsl(222,40%,12%)] border-red-500/30"
+                    : selectedId === onda.movimento_saida_id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
@@ -205,7 +256,17 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                 <div className="text-xs text-[hsl(213,31%,45%)]">
                   Tipo: <span className="font-medium text-[hsl(213,31%,70%)]">{onda.tipo_venda}</span>
                 </div>
+                {pedcanPorOnda[onda.movimento_saida_id] && (
+                  <div className="flex items-center gap-2 mt-1 pt-2 border-t border-red-500/20">
+                    <Ban size={14} className="text-red-400 shrink-0 animate-pulse" />
+                    <span className="text-sm text-red-400 font-medium">
+                      {(pedcanPorOnda[onda.movimento_saida_id].itens?.length || 0)}{" "}
+                      {(pedcanPorOnda[onda.movimento_saida_id].itens?.length || 0) === 1 ? "item cancelado" : "itens cancelados"} — devolução pendente
+                    </span>
+                  </div>
+                )}
               </button>
+
             ))}
           </div>
         )}

@@ -339,7 +339,40 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
 
 
-  const advanceToNext = () => {
+  const verificarItensCancelados = async (): Promise<boolean> => {
+    try {
+      const tenantId = localStorage.getItem("core_tenant_id");
+      const usuarioId = localStorage.getItem("core_usuario_id");
+      const movimentoSaidaId = sessionStorage.getItem("coletor_separacao_movimento_id");
+      if (!tenantId || !usuarioId || !movimentoSaidaId) return false;
+
+      const { data, error } = await supabase.rpc("separacao_verificar_itens_cancelados" as any, {
+        p_tenant_id: tenantId,
+        p_movimento_saida_id: movimentoSaidaId,
+        p_usuario_id: usuarioId,
+      });
+      if (error) {
+        console.error("Erro ao verificar itens cancelados:", error);
+        return false;
+      }
+
+      const resultado: any = typeof data === "string" ? JSON.parse(data) : data;
+      if (resultado?.tem_itens_cancelados && resultado.itens?.length > 0) {
+        sessionStorage.setItem("coletor_separacao_cancel_itens", JSON.stringify(resultado.itens));
+        sessionStorage.setItem("coletor_separacao_cancel_endereco", resultado.endereco_cancelamento || "");
+        sessionStorage.setItem("coletor_separacao_cancel_endereco_id", resultado.endereco_cancelamento_id || "");
+        sessionStorage.setItem("coletor_separacao_cancel_docs", JSON.stringify(resultado.documentos_cancelados || []));
+        sessionStorage.setItem("coletor_separacao_cancel_movimento_id", movimentoSaidaId);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Erro ao verificar itens cancelados:", err);
+      return false;
+    }
+  };
+
+  const advanceToNext = async () => {
     const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
     const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
     const nextIdx = idx + 1;
@@ -352,10 +385,16 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         setShowVolumeDialog(true);
         return;
       }
+      const temCancelados = await verificarItensCancelados();
+      if (temCancelados) {
+        onNavigate("/coletor/separacao/cancelamento-entrega");
+        return;
+      }
       toast.success("Separação concluída para esta onda!");
       onNavigate("/coletor/separacao/iniciar");
       return;
     }
+
 
     sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
 
@@ -452,7 +491,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         });
       }
       setShowVolumeDialog(false);
-      onNavigate("/coletor/separacao/iniciar");
+      const temCanceladosVol = await verificarItensCancelados();
+      onNavigate(temCanceladosVol ? "/coletor/separacao/cancelamento-entrega" : "/coletor/separacao/iniciar");
+
     } catch (err: any) {
       const parsed = parseError(err, "separacao-produto");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
