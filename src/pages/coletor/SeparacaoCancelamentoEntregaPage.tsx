@@ -98,14 +98,8 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
       feedback.success();
       sessionStorage.setItem("coletor_separacao_cancel_resultado", JSON.stringify(resultado ?? {}));
 
-      const devolvidos = resultado?.itens_devolvidos ?? itens.length;
-      result.showSuccess(`${devolvidos} item(ns) devolvido(s) ao endereço de cancelamento!`, {
-        details: documentosCancelados.length ? `Pedidos: #${documentosCancelados.join(", #")}` : undefined,
-        onClose: () => {
-          limparSessao();
-          onNavigate("/coletor/separacao/iniciar");
-        },
-      });
+      setResultadoEntrega(resultado);
+      setStep("conclusao");
     } catch (err: unknown) {
       feedback.error();
       result.showError(err, { context: "cancelamento-entrega" });
