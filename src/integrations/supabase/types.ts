@@ -10660,6 +10660,15 @@ export type Database = {
         }
         Returns: Json
       }
+      separacao_confirmar_entrega_cancelamento: {
+        Args: {
+          p_endereco_destino_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       separacao_executar_coleta:
         | {
             Args: {
@@ -10694,6 +10703,14 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: undefined
+      }
+      separacao_verificar_itens_cancelados: {
+        Args: {
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
