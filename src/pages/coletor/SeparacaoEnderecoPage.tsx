@@ -373,6 +373,26 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/iniciar">
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
+        {/* Banner de cancelamento (realtime) */}
+        {notificacoes.map((notif) => (
+          <div
+            key={notif.documentoSaidaId}
+            className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 animate-pulse"
+          >
+            <Ban size={18} className="text-red-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-400 flex-1">
+              <span className="font-bold">{notif.documentoNumero}</span> — itens já separados serão devolvidos ao final da onda.
+            </p>
+            <button
+              onClick={() => dismissNotificacao(notif.documentoSaidaId)}
+              className="text-red-400/60 text-sm shrink-0"
+              aria-label="Fechar notificação"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
         {/* Progress */}
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[hsl(213,31%,55%)]">Endereço {progress}</span>
@@ -380,6 +400,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
             Ordem: {tarefa.ordem_tarefa}
           </span>
         </div>
+
 
         {/* Progress bar */}
         <div className="w-full h-1.5 bg-[hsl(222,35%,18%)] rounded-full overflow-hidden">
