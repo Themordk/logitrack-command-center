@@ -130,6 +130,8 @@ import { AbastecimentoColetaPage } from "./pages/coletor/AbastecimentoColetaPage
 import { AbastecimentoDestinoPage } from "./pages/coletor/AbastecimentoDestinoPage";
 import { RecebimentoVolumesPage } from "./pages/coletor/RecebimentoVolumesPage";
 import { SeparacaoIniciarPage } from "./pages/coletor/SeparacaoIniciarPage";
+import { SeparacaoCancelamentoEntregaPage } from "./pages/coletor/SeparacaoCancelamentoEntregaPage";
+
 import { SeparacaoEnderecoPage } from "./pages/coletor/SeparacaoEnderecoPage";
 import { SeparacaoLotePage } from "./pages/coletor/SeparacaoLotePage";
 import { SeparacaoProdutoPage } from "./pages/coletor/SeparacaoProdutoPage";

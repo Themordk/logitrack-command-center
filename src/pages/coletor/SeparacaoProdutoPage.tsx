@@ -491,7 +491,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         });
       }
       setShowVolumeDialog(false);
-      onNavigate("/coletor/separacao/iniciar");
+      const temCanceladosVol = await verificarItensCancelados();
+      onNavigate(temCanceladosVol ? "/coletor/separacao/cancelamento-entrega" : "/coletor/separacao/iniciar");
+
     } catch (err: any) {
       const parsed = parseError(err, "separacao-produto");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
