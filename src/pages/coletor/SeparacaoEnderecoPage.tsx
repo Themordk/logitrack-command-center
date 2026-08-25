@@ -62,6 +62,20 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
 
+  const feedback = useFeedback();
+  const movimentoSaidaId = sessionStorage.getItem("coletor_separacao_movimento_id");
+  const usuarioIdAtual = localStorage.getItem("core_usuario_id");
+  const { notificacoes, dismissNotificacao } = useCancelamentoRealtime({
+    movimentoSaidaId,
+    usuarioId: usuarioIdAtual,
+    enabled: true,
+  });
+
+  useEffect(() => {
+    if (notificacoes.length > 0) feedback.error();
+  }, [notificacoes.length]);
+
+
   useEffect(() => {
     const raw = sessionStorage.getItem("coletor_separacao_tarefas");
     const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
