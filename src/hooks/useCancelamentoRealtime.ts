@@ -48,8 +48,8 @@ export function useCancelamentoRealtime({
           if (row?.tipo !== "CANCELAMENTO_PEDIDO") return;
 
           const notif: CancelamentoNotificacao = {
-            documentoNumero: row.titulo || row.descricao || "desconhecido",
-            documentoSaidaId: row.referencia_id || row.id || "",
+            documentoNumero: row.titulo || "Pedido cancelado",
+            documentoSaidaId: row.referencia_id || "",
             timestamp: row.criado_em || new Date().toISOString(),
           };
 
