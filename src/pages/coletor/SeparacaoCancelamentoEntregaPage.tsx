@@ -263,6 +263,81 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
               </ActionButton>
             </div>
           </>
+        ) : null}
+
+        {step === "conclusao" && (
+          <>
+            {/* Ícone de sucesso */}
+            <div className="flex flex-col items-center gap-2 py-4">
+              <div className="w-16 h-16 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center">
+                <CheckCircle2 size={32} className="text-green-400" />
+              </div>
+              <p className="text-lg font-bold text-green-400">Entrega concluída</p>
+              <p className="text-sm text-[hsl(213,31%,55%)]">
+                Todos os itens foram devolvidos com sucesso.
+              </p>
+            </div>
+
+            {/* Resumo da devolução */}
+            <div className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <ClipboardList size={18} className="text-[hsl(213,31%,55%)]" />
+                <span className="text-sm font-bold text-white">Resumo da devolução</span>
+              </div>
+
+              {/* Itens devolvidos */}
+              {itens.map((item, idx) => (
+                <div
+                  key={`${item.tarefa_id}-${idx}`}
+                  className="flex items-center justify-between gap-2 py-2 border-t border-[hsl(222,35%,22%)] first:border-t-0"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-mono font-bold text-white truncate">{item.sku}</p>
+                    <p className="text-sm text-[hsl(213,31%,55%)] truncate">{item.produto}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-mono font-black text-green-400">{item.quantidade}x</span>
+                </div>
+              ))}
+
+              {/* Totais */}
+              <div className="flex items-center justify-between pt-2 mt-2 border-t border-[hsl(222,35%,22%)]">
+                <span className="text-sm text-[hsl(213,31%,55%)]">Total devolvido</span>
+                <span className="text-sm font-mono font-black text-white">{totalUnidades} un</span>
+              </div>
+            </div>
+
+            {/* Endereço de destino */}
+            <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-3 flex items-center gap-3">
+              <MapPin size={18} className="text-green-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm text-[hsl(213,31%,55%)]">Destino</p>
+                <p className="text-sm font-mono font-bold text-green-400">{enderecoCancelamento}</p>
+              </div>
+            </div>
+
+            {/* Documentos cancelados */}
+            {documentosCancelados.length > 0 && (
+              <div className="rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-3">
+                <p className="text-sm text-[hsl(213,31%,55%)] mb-1">Pedidos cancelados</p>
+                <p className="text-sm font-mono font-bold text-red-400">
+                  #{documentosCancelados.join(", #")}
+                </p>
+              </div>
+            )}
+
+            {/* Botão de voltar */}
+            <div className="pt-2">
+              <ActionButton
+                variant="primary"
+                onClick={() => {
+                  limparSessao();
+                  onNavigate("/coletor/separacao/iniciar");
+                }}
+              >
+                Voltar às ondas
+              </ActionButton>
+            </div>
+          </>
         )}
       </div>
 
