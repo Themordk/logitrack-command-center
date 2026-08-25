@@ -151,18 +151,22 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
       backPath="/coletor/separacao/iniciar"
     >
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
-        {/* Barra de progresso vermelha */}
+        {/* Barra de progresso */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-bold text-red-400 flex items-center gap-1.5">
-              <Ban size={16} /> Entrega de cancelados
+            <span className={`text-sm font-bold flex items-center gap-1.5 ${step === "conclusao" ? "text-green-400" : "text-red-400"}`}>
+              {step === "conclusao" ? <CheckCircle2 size={16} /> : <Ban size={16} />}
+              {step === "conclusao" ? "Entrega concluída" : "Entrega de cancelados"}
             </span>
             <span className="text-sm font-mono text-[hsl(213,31%,55%)]">
               {documentosCancelados.length ? `Pedido #${documentosCancelados.join(", #")}` : ""}
             </span>
           </div>
           <div className="h-1.5 rounded-full bg-[hsl(222,35%,16%)] overflow-hidden">
-            <div className="h-full bg-red-500" style={{ width: step === "scan" ? "50%" : "100%" }} />
+            <div
+              className={`h-1.5 rounded-full ${step === "conclusao" ? "bg-green-500" : "bg-red-500"}`}
+              style={{ width: step === "scan" ? "33%" : step === "confirmar" ? "66%" : "100%" }}
+            />
           </div>
         </div>
 
