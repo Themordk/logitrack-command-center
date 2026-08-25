@@ -144,7 +144,12 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
   );
 
   return (
-    <ColetorLayout title="Entrega de cancelados" onNavigate={onNavigate} showBack backPath="/coletor/separacao/iniciar">
+    <ColetorLayout
+      title={step === "conclusao" ? "Devolução concluída" : "Entrega de cancelados"}
+      onNavigate={onNavigate}
+      showBack={step !== "conclusao"}
+      backPath="/coletor/separacao/iniciar"
+    >
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
         {/* Barra de progresso vermelha */}
         <div>
