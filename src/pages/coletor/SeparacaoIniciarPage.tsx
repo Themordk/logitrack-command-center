@@ -111,6 +111,15 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
     const onda = ondas.find((o) => o.movimento_saida_id === selectedId);
     if (!onda) return;
 
+    // Onda com itens cancelados pendentes → devolução ao endereço de cancelamento
+    const pendencia = pedcanPorOnda[selectedId];
+    if (pendencia) {
+      irParaEntregaCancelados(selectedId, pendencia);
+      return;
+    }
+
+
+
     setStarting(true);
     const cacheKey = `tarefas_separacao_${selectedId}`;
     try {
