@@ -59,14 +59,54 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   );
   const ondas = data ?? [];
 
+  const [pedcanPorOnda, setPedcanPorOnda] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (!isOnline || ondas.length === 0 || !tenantId || !usuarioId) return;
+    let cancelado = false;
+    (async () => {
+      const entries = await Promise.all(
+        ondas.map(async (o) => {
+          try {
+            const { data, error } = await supabase.rpc("separacao_verificar_itens_cancelados" as any, {
+              p_tenant_id: tenantId,
+              p_movimento_saida_id: o.movimento_saida_id,
+              p_usuario_id: usuarioId,
+            });
+            if (error) return null;
+            const r: any = typeof data === "string" ? JSON.parse(data) : data;
+            if (r?.tem_itens_cancelados && r.itens?.length > 0) return [o.movimento_saida_id, r] as const;
+            return null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      if (cancelado) return;
+      const map: Record<string, any> = {};
+      entries.forEach((e) => { if (e) map[e[0]] = e[1]; });
+      setPedcanPorOnda(map);
+    })();
+    return () => { cancelado = true; };
+  }, [data, isOnline, tenantId, usuarioId]);
+
   useEffect(() => {
     if (error) result.showWarning("Não foi possível carregar as ondas.");
   }, [error]);
 
   const loadOndas = refetch;
 
+  const irParaEntregaCancelados = (movimentoSaidaId: string, resultado: any) => {
+    sessionStorage.setItem("coletor_separacao_cancel_itens", JSON.stringify(resultado.itens || []));
+    sessionStorage.setItem("coletor_separacao_cancel_endereco", resultado.endereco_cancelamento || "");
+    sessionStorage.setItem("coletor_separacao_cancel_endereco_id", resultado.endereco_cancelamento_id || "");
+    sessionStorage.setItem("coletor_separacao_cancel_docs", JSON.stringify(resultado.documentos_cancelados || []));
+    sessionStorage.setItem("coletor_separacao_cancel_movimento_id", movimentoSaidaId);
+    onNavigate("/coletor/separacao/cancelamento-entrega");
+  };
 
   const handleIniciar = async () => {
+
     if (!selectedId) return;
     const onda = ondas.find((o) => o.movimento_saida_id === selectedId);
     if (!onda) return;
