@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw, Trash2, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { formatDateTime } from "@/utils/dateTime";
 
 interface Props {
@@ -76,6 +77,55 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
     });
     setLoading(false);
   }, [direcao, tenantId, empresaId]);
+
+  const handleReprocessar = async (filaId: string) => {
+    try {
+      const { error } = await (supabase as any).rpc("integracao_reprocessar_fila", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_fila_id: filaId,
+        p_direcao: direcao,
+      });
+      if (error) throw error;
+      toast.success("Item reenviado para processamento");
+      load();
+    } catch (e: any) {
+      toast.error("Erro ao reprocessar: " + (e.message || "falha"));
+    }
+  };
+
+  const handleDescartar = async (filaId: string) => {
+    if (!window.confirm("Descartar este item? Ele será marcado como cancelado.")) return;
+    try {
+      const { error } = await (supabase as any).rpc("integracao_descartar_fila", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_fila_id: filaId,
+        p_direcao: direcao,
+      });
+      if (error) throw error;
+      toast.success("Item descartado");
+      load();
+    } catch (e: any) {
+      toast.error("Erro ao descartar: " + (e.message || "falha"));
+    }
+  };
+
+  const handleReprocessarTodos = async () => {
+    if (!window.confirm(`Reprocessar ${counts.erro} item(ns) com erro?`)) return;
+    try {
+      const { data, error } = await (supabase as any).rpc("integracao_reprocessar_fila_todos", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_direcao: direcao,
+      });
+      if (error) throw error;
+      toast.success(`${data} item(ns) reenviado(s) para processamento`);
+      load();
+    } catch (e: any) {
+      toast.error("Erro ao reprocessar: " + (e.message || "falha"));
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
