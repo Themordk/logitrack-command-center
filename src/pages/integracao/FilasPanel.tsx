@@ -144,6 +144,16 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
           </div>
         ))}
       </div>
+      {counts.erro > 0 && (
+        <div className="px-3 mb-2">
+          <button
+            onClick={handleReprocessarTodos}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-sky-500/30 bg-sky-500/10 text-xs text-sky-400 hover:bg-sky-500/20"
+          >
+            <RefreshCw size={12} /> Reprocessar todos com erro ({counts.erro})
+          </button>
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-secondary/40 backdrop-blur z-10">
@@ -155,16 +165,17 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
               <th className="text-right px-3 py-2 font-medium">Tent.</th>
               <th className="text-left px-3 py-2 font-medium">Criado</th>
               <th className="text-left px-3 py-2 font-medium">Próx. tentativa</th>
+              <th className="text-right px-3 py-2 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
                 <Loader2 size={14} className="inline animate-spin mr-2" />Carregando…
               </td></tr>
             )}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Fila vazia</td></tr>
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Fila vazia</td></tr>
             )}
             {!loading && rows.map((r) => (
               <tr key={r.id} className="border-t border-border/40 hover:bg-secondary/30">
@@ -179,6 +190,28 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
                 </td>
                 <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{formatDateTime(r.criado_em)}</td>
                 <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{r.processar_apos ? formatDateTime(r.processar_apos) : "—"}</td>
+                <td className="px-3 py-1.5">
+                  <div className="flex items-center justify-end gap-1">
+                    {(r.status === "erro" || r.status === "cancelado") && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleReprocessar(r.id); }}
+                        title="Reprocessar"
+                        className="p-1 rounded hover:bg-secondary/60 text-sky-400 hover:text-sky-300"
+                      >
+                        <RotateCcw size={13} />
+                      </button>
+                    )}
+                    {(r.status === "erro" || r.status === "pendente") && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDescartar(r.id); }}
+                        title="Descartar"
+                        className="p-1 rounded hover:bg-secondary/60 text-rose-400 hover:text-rose-300"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
