@@ -33,9 +33,10 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
   const result = useResultDialog({ coletorMode: true });
   const feedback = useFeedback();
 
-  const [step, setStep] = useState<"scan" | "confirmar">("scan");
+  const [step, setStep] = useState<"scan" | "confirmar" | "conclusao">("scan");
   const [lastScanned, setLastScanned] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resultadoEntrega, setResultadoEntrega] = useState<any>(null);
 
   const [itens] = useState<ItemCancelado[]>(() => readJson<ItemCancelado[]>("coletor_separacao_cancel_itens", []));
   const [documentosCancelados] = useState<string[]>(() => readJson<string[]>("coletor_separacao_cancel_docs", []));
