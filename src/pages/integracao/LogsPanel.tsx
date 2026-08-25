@@ -38,6 +38,7 @@ export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
   const [status, setStatus] = useState<string>("");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+  const [disparadoPor, setDisparadoPor] = useState("");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any[]>([]);
   const [hasNext, setHasNext] = useState(false);
@@ -58,6 +59,7 @@ export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
       p_erp_provedor_id: sistemaOrigem || null,
       p_limite: limit,
       p_offset: offset,
+      p_disparado_por: disparadoPor || null,
     });
     if (error) throw error;
     let rows: any[] = data || [];
@@ -92,9 +94,9 @@ export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, empresaId, sistemaOrigem, modulo, entidade, status, from, to, page]);
+  }, [tenantId, empresaId, sistemaOrigem, modulo, entidade, status, from, to, page, disparadoPor]);
 
-  useEffect(() => setPage(1), [modulo, entidade, status, from, to]);
+  useEffect(() => setPage(1), [modulo, entidade, status, from, to, disparadoPor]);
 
   const handleExport = async () => {
     try {
@@ -140,7 +142,7 @@ export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
           <Download size={12} /> Exportar CSV
         </button>
       </div>
-      <div className="px-4 py-2 border-b border-border bg-secondary/10 grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="px-4 py-2 border-b border-border bg-secondary/10 grid grid-cols-2 md:grid-cols-6 gap-2">
         <select className={inputClass} value={modulo} onChange={(e) => { setModulo(e.target.value); setEntidade(""); }}>
           <option value="">Módulo (todos)</option>
           {MODULOS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
@@ -152,6 +154,12 @@ export function LogsPanel({ tenantId, empresaId, sistemaOrigem }: Props) {
         <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Status (todos)</option>
           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select className={inputClass} value={disparadoPor} onChange={(e) => setDisparadoPor(e.target.value)}>
+          <option value="">Origem (todas)</option>
+          <option value="webhook">Webhook (Push)</option>
+          <option value="polling">Polling</option>
+          <option value="manual">Manual</option>
         </select>
         <input type="date" className={inputClass} value={from} onChange={(e) => setFrom(e.target.value)} />
         <input type="date" className={inputClass} value={to} onChange={(e) => setTo(e.target.value)} />

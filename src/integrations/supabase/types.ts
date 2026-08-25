@@ -9551,6 +9551,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      integracao_descartar_fila: {
+        Args: {
+          p_direcao?: string
+          p_empresa_id: string
+          p_fila_id: string
+          p_tenant_id: string
+        }
+        Returns: boolean
+      }
       integracao_get_credenciais: {
         Args: {
           p_empresa_id: string
@@ -9594,6 +9603,41 @@ export type Database = {
           ultimo_sync_em: string
         }[]
       }
+      integracao_get_webhook_info: {
+        Args: {
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_revelar?: boolean
+          p_tenant_id: string
+        }
+        Returns: {
+          conexao_id: string
+          tipo_integracao: string
+          webhook_ativo: boolean
+          webhook_criado_em: string
+          webhook_label: string
+          webhook_secret_display: string
+          webhook_ultimo_uso_em: string
+        }[]
+      }
+      integracao_listar_api_docs: {
+        Args: { p_grupo?: string }
+        Returns: {
+          batch_limite: number
+          campos: Json
+          descricao: string
+          descricao_longa: string
+          endpoint: string
+          entidade: string
+          grupo: string
+          id: string
+          metodo: string
+          notas: string
+          ordem: number
+          payload_exemplo: Json
+          response_exemplo: Json
+        }[]
+      }
       integracao_listar_fila: {
         Args: {
           p_direcao?: string
@@ -9616,35 +9660,66 @@ export type Database = {
           tentativas: number
         }[]
       }
-      integracao_listar_logs: {
-        Args: {
-          p_empresa_id: string
-          p_entidade?: string
-          p_erp_provedor_id?: string
-          p_limite?: number
-          p_offset?: number
-          p_status?: string
-          p_tenant_id: string
-        }
-        Returns: {
-          criado_em: string
-          direcao: string
-          disparado_por: string
-          duracao_ms: number
-          entidade: string
-          erp_provedor_id: string
-          id: string
-          id_chamada: string
-          mensagem_erro: string
-          modulo: string
-          operacao: string
-          registros_atualizados: number
-          registros_buscados: number
-          registros_erro: number
-          registros_inseridos: number
-          status: string
-        }[]
-      }
+      integracao_listar_logs:
+        | {
+            Args: {
+              p_empresa_id: string
+              p_entidade?: string
+              p_erp_provedor_id?: string
+              p_limite?: number
+              p_offset?: number
+              p_status?: string
+              p_tenant_id: string
+            }
+            Returns: {
+              criado_em: string
+              direcao: string
+              disparado_por: string
+              duracao_ms: number
+              entidade: string
+              erp_provedor_id: string
+              id: string
+              id_chamada: string
+              mensagem_erro: string
+              modulo: string
+              operacao: string
+              registros_atualizados: number
+              registros_buscados: number
+              registros_erro: number
+              registros_inseridos: number
+              status: string
+            }[]
+          }
+        | {
+            Args: {
+              p_disparado_por?: string
+              p_empresa_id: string
+              p_entidade?: string
+              p_erp_provedor_id?: string
+              p_limite?: number
+              p_offset?: number
+              p_status?: string
+              p_tenant_id: string
+            }
+            Returns: {
+              criado_em: string
+              direcao: string
+              disparado_por: string
+              duracao_ms: number
+              entidade: string
+              erp_provedor_id: string
+              id: string
+              id_chamada: string
+              mensagem_erro: string
+              modulo: string
+              operacao: string
+              registros_atualizados: number
+              registros_buscados: number
+              registros_erro: number
+              registros_inseridos: number
+              status: string
+            }[]
+          }
       integracao_listar_provedores: {
         Args: never
         Returns: {
@@ -9680,6 +9755,27 @@ export type Database = {
       integracao_marcar_exportado: {
         Args: { p_documento_id: string; p_entidade: string }
         Returns: undefined
+      }
+      integracao_regenerar_webhook_secret: {
+        Args: {
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_reprocessar_fila: {
+        Args: {
+          p_direcao?: string
+          p_empresa_id: string
+          p_fila_id: string
+          p_tenant_id: string
+        }
+        Returns: boolean
+      }
+      integracao_reprocessar_fila_todos: {
+        Args: { p_direcao?: string; p_empresa_id: string; p_tenant_id: string }
+        Returns: number
       }
       integracao_resetar_cursor: {
         Args: { p_empresa_id: string; p_entidade: string; p_tenant_id: string }
@@ -9733,6 +9829,15 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: undefined
+      }
+      integracao_toggle_webhook: {
+        Args: {
+          p_ativo: boolean
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_tenant_id: string
+        }
+        Returns: boolean
       }
       integracao_upsert_documento_entrada: {
         Args: {

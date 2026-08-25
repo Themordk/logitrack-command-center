@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useErpProvedor, type EsquemaCampo } from "./useErpProvedor";
 import { parseError } from "@/lib/errorMapper";
+import { ApiKeySection } from "./ApiKeySection";
 
 interface Props {
   erpId: string;
@@ -176,7 +177,8 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
   }
 
   return (
-    <div className="card-surface p-6 space-y-5">
+    <div className="space-y-4">
+      <div className="card-surface p-6 space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {esquema.map((c) => {
           const isSecret = c.tipo === "senha";
@@ -265,6 +267,9 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
           Salvar Configurações
         </button>
       </div>
+      </div>
+
+      <ApiKeySection tenantId={tenantId} empresaId={empresaId} erpProvedorId={erpId} onChanged={onSaved} />
     </div>
   );
 }

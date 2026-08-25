@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw, Trash2, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { formatDateTime } from "@/utils/dateTime";
 
 interface Props {
@@ -77,6 +78,55 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
     setLoading(false);
   }, [direcao, tenantId, empresaId]);
 
+  const handleReprocessar = async (filaId: string) => {
+    try {
+      const { error } = await (supabase as any).rpc("integracao_reprocessar_fila", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_fila_id: filaId,
+        p_direcao: direcao,
+      });
+      if (error) throw error;
+      toast.success("Item reenviado para processamento");
+      load();
+    } catch (e: any) {
+      toast.error("Erro ao reprocessar: " + (e.message || "falha"));
+    }
+  };
+
+  const handleDescartar = async (filaId: string) => {
+    if (!window.confirm("Descartar este item? Ele será marcado como cancelado.")) return;
+    try {
+      const { error } = await (supabase as any).rpc("integracao_descartar_fila", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_fila_id: filaId,
+        p_direcao: direcao,
+      });
+      if (error) throw error;
+      toast.success("Item descartado");
+      load();
+    } catch (e: any) {
+      toast.error("Erro ao descartar: " + (e.message || "falha"));
+    }
+  };
+
+  const handleReprocessarTodos = async () => {
+    if (!window.confirm(`Reprocessar ${counts.erro} item(ns) com erro?`)) return;
+    try {
+      const { data, error } = await (supabase as any).rpc("integracao_reprocessar_fila_todos", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_direcao: direcao,
+      });
+      if (error) throw error;
+      toast.success(`${data} item(ns) reenviado(s) para processamento`);
+      load();
+    } catch (e: any) {
+      toast.error("Erro ao reprocessar: " + (e.message || "falha"));
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     load();
@@ -94,6 +144,16 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
           </div>
         ))}
       </div>
+      {counts.erro > 0 && (
+        <div className="px-3 mb-2">
+          <button
+            onClick={handleReprocessarTodos}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-sky-500/30 bg-sky-500/10 text-xs text-sky-400 hover:bg-sky-500/20"
+          >
+            <RefreshCw size={12} /> Reprocessar todos com erro ({counts.erro})
+          </button>
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-secondary/40 backdrop-blur z-10">
@@ -105,16 +165,17 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
               <th className="text-right px-3 py-2 font-medium">Tent.</th>
               <th className="text-left px-3 py-2 font-medium">Criado</th>
               <th className="text-left px-3 py-2 font-medium">Próx. tentativa</th>
+              <th className="text-right px-3 py-2 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
                 <Loader2 size={14} className="inline animate-spin mr-2" />Carregando…
               </td></tr>
             )}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Fila vazia</td></tr>
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">Fila vazia</td></tr>
             )}
             {!loading && rows.map((r) => (
               <tr key={r.id} className="border-t border-border/40 hover:bg-secondary/30">
@@ -129,6 +190,28 @@ function QueueTable({ direcao, tenantId, empresaId }: { direcao: Tab; tenantId: 
                 </td>
                 <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{formatDateTime(r.criado_em)}</td>
                 <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{r.processar_apos ? formatDateTime(r.processar_apos) : "—"}</td>
+                <td className="px-3 py-1.5">
+                  <div className="flex items-center justify-end gap-1">
+                    {(r.status === "erro" || r.status === "cancelado") && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleReprocessar(r.id); }}
+                        title="Reprocessar"
+                        className="p-1 rounded hover:bg-secondary/60 text-sky-400 hover:text-sky-300"
+                      >
+                        <RotateCcw size={13} />
+                      </button>
+                    )}
+                    {(r.status === "erro" || r.status === "pendente") && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDescartar(r.id); }}
+                        title="Descartar"
+                        className="p-1 rounded hover:bg-secondary/60 text-rose-400 hover:text-rose-300"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
