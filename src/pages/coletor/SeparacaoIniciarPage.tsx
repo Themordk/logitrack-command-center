@@ -232,7 +232,9 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                 key={onda.movimento_saida_id}
                 onClick={() => setSelectedId(onda.movimento_saida_id === selectedId ? null : onda.movimento_saida_id)}
                 className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left shrink-0 ${
-                  selectedId === onda.movimento_saida_id
+                  pedcanPorOnda[onda.movimento_saida_id]
+                    ? "bg-[hsl(222,40%,12%)] border-red-500/30"
+                    : selectedId === onda.movimento_saida_id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
@@ -254,7 +256,17 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                 <div className="text-xs text-[hsl(213,31%,45%)]">
                   Tipo: <span className="font-medium text-[hsl(213,31%,70%)]">{onda.tipo_venda}</span>
                 </div>
+                {pedcanPorOnda[onda.movimento_saida_id] && (
+                  <div className="flex items-center gap-2 mt-1 pt-2 border-t border-red-500/20">
+                    <Ban size={14} className="text-red-400 shrink-0 animate-pulse" />
+                    <span className="text-sm text-red-400 font-medium">
+                      {(pedcanPorOnda[onda.movimento_saida_id].itens?.length || 0)}{" "}
+                      {(pedcanPorOnda[onda.movimento_saida_id].itens?.length || 0) === 1 ? "item cancelado" : "itens cancelados"} — devolução pendente
+                    </span>
+                  </div>
+                )}
               </button>
+
             ))}
           </div>
         )}
