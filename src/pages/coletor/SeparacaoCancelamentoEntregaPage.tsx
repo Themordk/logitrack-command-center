@@ -203,6 +203,7 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
               lastScanned={lastScanned}
               onScan={handleScan}
               disabled={loading}
+              suppressKeyboard
             />
           </>
         ) : (
