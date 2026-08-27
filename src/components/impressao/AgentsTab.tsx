@@ -58,6 +58,28 @@ export function AgentsTab() {
     }
   };
 
+  const regenerateKey = async (r: any) => {
+    if (!confirm("Regenerar chave de ativação? A chave atual será invalidada.")) return;
+    const { error } = await supabase
+      .from("print_agent")
+      .update({
+        chave_api: crypto.randomUUID(),
+        chave_api_ativada: false,
+        chave_api_expira_em: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+        ativado_em: null,
+        ativado_hostname: null,
+        ativado_ip: null,
+        auth_user_id: null,
+      })
+      .eq("id", r.id);
+    if (error) {
+      toast.error("Erro ao regenerar chave");
+      return;
+    }
+    await crud.refresh();
+    toast.success("Chave regenerada!");
+  };
+
   const columns: ColumnSpec[] = [
     { key: "nome", label: "Nome" },
     { key: "armazem", label: "Armazém", render: (r) => r.armazem?.descricao || "—" },
