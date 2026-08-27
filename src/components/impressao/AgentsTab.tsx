@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Copy } from "lucide-react";
+import { Copy, RefreshCw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud, fetchOptions } from "@/hooks/useCrud";
