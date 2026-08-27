@@ -28,7 +28,7 @@ export function AgentsTab() {
     table: "print_agent",
     tenantId,
     orderBy: "nome",
-    select: "*, armazem:armazem_id(descricao)",
+    select: "*, armazem:armazem_id(descricao), chave_api_ativada, chave_api_expira_em, ativado_em, ativado_hostname, ativado_ip",
   });
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,6 +41,13 @@ export function AgentsTab() {
     fetchOptions("armazem", tenantId, "descricao", empresaId ? { empresa_id: empresaId } : undefined)
       .then(setArmazemOptions);
   }, [tenantId, empresaId]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      crud.refresh();
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [crud.refresh]);
 
   const copyKey = async (key: string) => {
     try {
