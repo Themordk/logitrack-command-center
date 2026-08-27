@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -4912,9 +4912,14 @@ export type Database = {
       print_agent: {
         Row: {
           armazem_id: string
+          ativado_em: string | null
+          ativado_hostname: string | null
+          ativado_ip: string | null
           ativo: boolean
           auth_user_id: string | null
           chave_api: string
+          chave_api_ativada: boolean
+          chave_api_expira_em: string | null
           created_at: string
           created_by: string | null
           hostname: string | null
@@ -4931,9 +4936,14 @@ export type Database = {
         }
         Insert: {
           armazem_id: string
+          ativado_em?: string | null
+          ativado_hostname?: string | null
+          ativado_ip?: string | null
           ativo?: boolean
           auth_user_id?: string | null
           chave_api?: string
+          chave_api_ativada?: boolean
+          chave_api_expira_em?: string | null
           created_at?: string
           created_by?: string | null
           hostname?: string | null
@@ -4950,9 +4960,14 @@ export type Database = {
         }
         Update: {
           armazem_id?: string
+          ativado_em?: string | null
+          ativado_hostname?: string | null
+          ativado_ip?: string | null
           ativo?: boolean
           auth_user_id?: string | null
           chave_api?: string
+          chave_api_ativada?: boolean
+          chave_api_expira_em?: string | null
           created_at?: string
           created_by?: string | null
           hostname?: string | null
@@ -8592,6 +8607,15 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: undefined
       }
+      ativar_agent_por_chave_api: {
+        Args: {
+          p_auth_user_id: string
+          p_chave_api: string
+          p_hostname?: string
+          p_ip?: string
+        }
+        Returns: Json
+      }
       atribuir_tarefa: {
         Args: {
           p_empresa_id: string
@@ -10283,6 +10307,7 @@ export type Database = {
         Args: { p_tarefa_execucao_id: string }
         Returns: undefined
       }
+      regenerar_chave_api_agent: { Args: { p_agent_id: string }; Returns: Json }
       registrar_heartbeat_agent: {
         Args: {
           p_agent_id: string
