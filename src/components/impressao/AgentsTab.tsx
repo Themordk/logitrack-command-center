@@ -85,7 +85,6 @@ export function AgentsTab() {
     { key: "armazem", label: "Armazém", render: (r) => r.armazem?.descricao || "—" },
     { key: "hostname", label: "Hostname", type: "mono" },
     { key: "versao", label: "Versão", type: "mono" },
-    { key: "ip_local", label: "IP Local", type: "mono" },
     {
       key: "status", label: "Status", render: (r) => (
         <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold uppercase ${statusColors[r.status] || "bg-gray-500/15 text-gray-400 border-gray-500/30"}`}>
@@ -95,17 +94,62 @@ export function AgentsTab() {
     },
     { key: "ultimo_heartbeat", label: "Último Heartbeat", render: (r) => <span className="text-xs text-muted-foreground">{relativeTime(r.ultimo_heartbeat)}</span> },
     {
+      key: "ativacao", label: "Ativação", render: (r) => {
+        const ativada = r.chave_api_ativada === true;
+        const expirada = r.chave_api_expira_em && new Date(r.chave_api_expira_em) < new Date();
+
+        if (ativada) {
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold uppercase bg-green-500/15 text-green-400 border-green-500/30 w-fit">
+                Ativado
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {r.ativado_hostname || "—"} · {relativeTime(r.ativado_em)}
+              </span>
+            </div>
+          );
+        }
+        if (expirada) {
+          return (
+            <span className="inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold uppercase bg-red-500/15 text-red-400 border-red-500/30 w-fit">
+              Expirada
+            </span>
+          );
+        }
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold uppercase bg-yellow-500/15 text-yellow-400 border-yellow-500/30 w-fit">
+              Pendente
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Expira em {relativeTime(r.chave_api_expira_em)}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
       key: "chave_api", label: "Chave API", render: (r) => (
         <div className="flex items-center gap-1.5">
           <span className="font-mono text-xs text-muted-foreground">{r.chave_api ? `${String(r.chave_api).slice(0, 8)}…` : "—"}</span>
           {r.chave_api && (
-            <button
-              onClick={() => copyKey(r.chave_api)}
-              className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
-              title="Copiar chave API"
-            >
-              <Copy size={12} />
-            </button>
+            <>
+              <button
+                onClick={() => copyKey(r.chave_api)}
+                className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
+                title="Copiar chave API"
+              >
+                <Copy size={12} />
+              </button>
+              <button
+                onClick={() => regenerateKey(r)}
+                className="w-6 h-6 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center"
+                title="Regenerar chave"
+              >
+                <RefreshCw size={12} />
+              </button>
+            </>
           )}
         </div>
       ),
