@@ -472,20 +472,8 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
                 <div className="flex gap-2">
                   <button onClick={() => openEmbForm(emb)} className="p-1.5 rounded-lg bg-[hsl(222,35%,18%)]"><Edit2 size={14} className="text-[hsl(217,91%,60%)]" /></button>
                   <button
-                    onClick={() => solicitar({
-                      tipoEtiqueta: "PRODUTO",
-                      dados: {
-                        sku: produto?.sku || "",
-                        descricao: produto?.descricao || "",
-                        ean: emb.ean || "",
-                        referencia: (produto as any)?.referencia || "",
-                        embalagem: emb.embalagem || "",
-                        marca: (produto as any)?.marca || "",
-                      },
-                      origem: "CONSULTA_PRODUTO",
-                      documentoOrigemId: emb.id,
-                      tipoDocumentoOrigem: "produto_embalagem",
-                    })}
+                    onClick={() => { setEmbParaImprimir(emb); setCopiasImpressao(1); }}
+
                     className="p-1.5 rounded-lg bg-[hsl(217,91%,50%)]/10 border border-[hsl(217,91%,50%)]/30"
                     title="Imprimir etiqueta"
                   >
