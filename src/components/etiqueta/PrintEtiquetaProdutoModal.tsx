@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { CopiasField } from "./CopiasField";
+
 import {
   Printer,
   Send,
@@ -58,6 +60,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
   const [zoomLevel, setZoomLevel] = useState<"fit" | 1.5 | 2>("fit");
   const [overflowInfo, setOverflowInfo] = useState<OverflowInfo | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [copias, setCopias] = useState(1);
+
 
   useEffect(() => {
     if (!open) return;
@@ -93,8 +97,10 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
     if (open) {
       setIndicePreview(0);
       setZoomLevel("fit");
+      setCopias(1);
     }
   }, [open, items.length]);
+
 
   const total = items.length;
   const plural = total > 1;
