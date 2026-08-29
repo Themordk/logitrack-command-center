@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { CopiasField } from "./CopiasField";
+
 import {
   Printer,
   Send,
@@ -58,6 +60,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
   const [zoomLevel, setZoomLevel] = useState<"fit" | 1.5 | 2>("fit");
   const [overflowInfo, setOverflowInfo] = useState<OverflowInfo | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [copias, setCopias] = useState(1);
+
 
   useEffect(() => {
     if (!open) return;
@@ -93,8 +97,10 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
     if (open) {
       setIndicePreview(0);
       setZoomLevel("fit");
+      setCopias(1);
     }
   }, [open, items.length]);
+
 
   const total = items.length;
   const plural = total > 1;
@@ -143,7 +149,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
           p_documento_origem_id: item.embalagem_id || item.produto_id || null,
           p_tipo_documento_origem: "produto_embalagem",
           p_prioridade: 5,
-          p_quantidade_copias: 1,
+          p_quantidade_copias: copias,
           p_impressora_id: null,
           p_setor_uso: null,
           p_template_id: selectedConfig?.id ?? null,
@@ -206,7 +212,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
         p_documento_origem_id: itemAtual.embalagem_id || itemAtual.produto_id || null,
         p_tipo_documento_origem: "produto_embalagem",
         p_prioridade: 5,
-        p_quantidade_copias: 1,
+        p_quantidade_copias: copias,
         p_impressora_id: null,
         p_setor_uso: null,
         p_template_id: selectedConfig?.id ?? null,
@@ -414,6 +420,10 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
                   )}
                 </div>
 
+                <CopiasField value={copias} onChange={setCopias} disabled={enviando} />
+
+
+
                 {semZpl && (
                   <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
                     <AlertTriangle size={13} className="text-destructive shrink-0 mt-0.5" />
@@ -484,7 +494,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
             ) : (
               <>
                 <Send size={15} />
-                Enviar {total} para fila
+                Enviar {total * copias} para fila
               </>
             )}
           </button>

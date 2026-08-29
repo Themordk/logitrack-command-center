@@ -75,6 +75,35 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const [tab, setTab] = useState<Tab>("info");
   const { solicitar } = useSolicitarImpressao();
   const { isOnline } = useOffline();
+  const [embParaImprimir, setEmbParaImprimir] = useState<Embalagem | null>(null);
+  const [copiasImpressao, setCopiasImpressao] = useState(1);
+  const [imprimindo, setImprimindo] = useState(false);
+
+  const confirmarImpressao = async () => {
+    if (!embParaImprimir) return;
+    setImprimindo(true);
+    try {
+      await solicitar({
+        tipoEtiqueta: "PRODUTO",
+        dados: {
+          sku: produto?.sku || "",
+          descricao: produto?.descricao || "",
+          ean: embParaImprimir.ean || "",
+          referencia: (produto as any)?.referencia || "",
+          embalagem: embParaImprimir.embalagem || "",
+          marca: (produto as any)?.marca || "",
+        },
+        origem: "CONSULTA_PRODUTO",
+        documentoOrigemId: embParaImprimir.id,
+        tipoDocumentoOrigem: "produto_embalagem",
+        quantidadeCopias: copiasImpressao,
+      });
+    } finally {
+      setImprimindo(false);
+      setEmbParaImprimir(null);
+    }
+  };
+
 
   // Embalagens
   const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
@@ -472,20 +501,8 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
                 <div className="flex gap-2">
                   <button onClick={() => openEmbForm(emb)} className="p-1.5 rounded-lg bg-[hsl(222,35%,18%)]"><Edit2 size={14} className="text-[hsl(217,91%,60%)]" /></button>
                   <button
-                    onClick={() => solicitar({
-                      tipoEtiqueta: "PRODUTO",
-                      dados: {
-                        sku: produto?.sku || "",
-                        descricao: produto?.descricao || "",
-                        ean: emb.ean || "",
-                        referencia: (produto as any)?.referencia || "",
-                        embalagem: emb.embalagem || "",
-                        marca: (produto as any)?.marca || "",
-                      },
-                      origem: "CONSULTA_PRODUTO",
-                      documentoOrigemId: emb.id,
-                      tipoDocumentoOrigem: "produto_embalagem",
-                    })}
+                    onClick={() => { setEmbParaImprimir(emb); setCopiasImpressao(1); }}
+
                     className="p-1.5 rounded-lg bg-[hsl(217,91%,50%)]/10 border border-[hsl(217,91%,50%)]/30"
                     title="Imprimir etiqueta"
                   >
@@ -623,6 +640,80 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
           </div>
         </div>
       )}
+
+      {embParaImprimir && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={() => !imprimindo && setEmbParaImprimir(null)}>
+          <div
+            className="w-full rounded-t-2xl bg-[hsl(222,35%,12%)] border-t border-[hsl(222,35%,22%)] p-4 flex flex-col gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <p className="text-sm font-bold text-white">Quantidade de cópias</p>
+              <p className="text-xs text-[hsl(213,31%,55%)]">
+                {embParaImprimir.embalagem} · {embParaImprimir.ean || "sem EAN"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 5, 10].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCopiasImpressao(n)}
+                  className={`h-11 rounded-xl font-bold text-sm border ${
+                    copiasImpressao === n
+                      ? "bg-[hsl(217,91%,50%)] text-white border-[hsl(217,91%,50%)]"
+                      : "bg-[hsl(222,35%,18%)] text-white border-[hsl(222,35%,22%)]"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCopiasImpressao((c) => Math.max(1, c - 1))}
+                className="h-12 w-12 rounded-xl bg-[hsl(222,35%,18%)] border border-[hsl(222,35%,22%)] text-white text-xl font-bold"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={copiasImpressao}
+                onChange={(e) => setCopiasImpressao(Math.min(20, Math.max(1, Math.floor(Number(e.target.value) || 1))))}
+                className="flex-1 h-12 text-center rounded-xl bg-[hsl(222,35%,18%)] border border-[hsl(222,35%,22%)] text-white text-lg font-bold outline-none"
+              />
+              <button
+                onClick={() => setCopiasImpressao((c) => Math.min(20, c + 1))}
+                className="h-12 w-12 rounded-xl bg-[hsl(222,35%,18%)] border border-[hsl(222,35%,22%)] text-white text-xl font-bold"
+              >
+                +
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEmbParaImprimir(null)}
+                disabled={imprimindo}
+                className="flex-1 h-12 rounded-xl border border-[hsl(222,35%,22%)] text-[hsl(213,31%,55%)] font-bold text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarImpressao}
+                disabled={imprimindo}
+                className="flex-1 h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {imprimindo ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+                Imprimir {copiasImpressao}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ColetorLayout>
+
   );
 }
