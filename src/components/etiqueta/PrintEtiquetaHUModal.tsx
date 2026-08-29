@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { CopiasField } from "./CopiasField";
+
 import {
   Printer,
   Send,
@@ -75,6 +77,8 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
   const [zoomLevel, setZoomLevel] = useState<"fit" | 1.5 | 2>("fit");
   const [overflowInfo, setOverflowInfo] = useState<OverflowInfo | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [copias, setCopias] = useState(1);
+
   const [husEnriquecidas, setHusEnriquecidas] = useState<HURow[]>([]);
   const [loadingDados, setLoadingDados] = useState(false);
 
@@ -172,8 +176,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
     if (open) {
       setIndicePreview(0);
       setZoomLevel("fit");
+      setCopias(1);
     }
   }, [open, hus.length]);
+
 
   const lista: HURow[] = husEnriquecidas.length > 0 ? husEnriquecidas : (hus as HURow[]);
   const total = lista.length;
@@ -500,6 +506,10 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
                   )}
                 </div>
 
+                <CopiasField value={copias} onChange={setCopias} disabled={enviando} />
+
+
+
                 {semZpl && (
                   <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
                     <AlertTriangle size={13} className="text-destructive shrink-0 mt-0.5" />
@@ -560,7 +570,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
             ) : (
               <>
                 <Send size={15} />
-                Enviar {total} para fila
+                Enviar {total * copias} para fila
               </>
             )}
           </button>
