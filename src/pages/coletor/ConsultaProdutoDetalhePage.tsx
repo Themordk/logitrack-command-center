@@ -75,6 +75,35 @@ export function ConsultaProdutoDetalhePage({ onNavigate }: Props) {
   const [tab, setTab] = useState<Tab>("info");
   const { solicitar } = useSolicitarImpressao();
   const { isOnline } = useOffline();
+  const [embParaImprimir, setEmbParaImprimir] = useState<Embalagem | null>(null);
+  const [copiasImpressao, setCopiasImpressao] = useState(1);
+  const [imprimindo, setImprimindo] = useState(false);
+
+  const confirmarImpressao = async () => {
+    if (!embParaImprimir) return;
+    setImprimindo(true);
+    try {
+      await solicitar({
+        tipoEtiqueta: "PRODUTO",
+        dados: {
+          sku: produto?.sku || "",
+          descricao: produto?.descricao || "",
+          ean: embParaImprimir.ean || "",
+          referencia: (produto as any)?.referencia || "",
+          embalagem: embParaImprimir.embalagem || "",
+          marca: (produto as any)?.marca || "",
+        },
+        origem: "CONSULTA_PRODUTO",
+        documentoOrigemId: embParaImprimir.id,
+        tipoDocumentoOrigem: "produto_embalagem",
+        quantidadeCopias: copiasImpressao,
+      });
+    } finally {
+      setImprimindo(false);
+      setEmbParaImprimir(null);
+    }
+  };
+
 
   // Embalagens
   const [embalagens, setEmbalagens] = useState<Embalagem[]>([]);
