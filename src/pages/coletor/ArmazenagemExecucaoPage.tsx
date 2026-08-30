@@ -440,6 +440,45 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
 
+      {cancelamento && (
+        <CancelamentoOverlay
+          titulo="NÃO ARMAZENE"
+          mensagem="O documento deste item foi cancelado. Retorne o item ao box de recebimento."
+          detalhes={{
+            numeroNota: cancelamento.numeroNota,
+            motivo: cancelamento.motivo,
+            origem: cancelamento.origem,
+          }}
+          redirectPath="/coletor/armazenagem"
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {docCanceladoInline && !cancelamento && (
+        <div
+          className="space-y-2"
+          style={{
+            backgroundColor: "rgba(239, 83, 80, 0.12)",
+            border: "1px solid rgba(239, 83, 80, 0.3)",
+            borderRadius: 6,
+            padding: 12,
+          }}
+        >
+          <p className="text-[14px] font-bold" style={{ color: "#ef5350" }}>✕ DOCUMENTO CANCELADO</p>
+          <p className="text-[12px]" style={{ color: "#7a8899" }}>
+            O documento deste item foi cancelado. Não armazene.
+          </p>
+          <button
+            onClick={() => onNavigate("/coletor/armazenagem")}
+            className="w-full font-bold uppercase text-[13px]"
+            style={{ minHeight: 48, borderRadius: 8, border: "1px solid #ef5350", color: "#ef5350" }}
+          >
+            Voltar à armazenagem
+          </button>
+        </div>
+      )}
+
+
       {/* Stats */}
       {loadingStats ? (
         <div className="flex justify-center py-4"><Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
