@@ -243,10 +243,21 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   };
 
   const handleScanEndereco = async (code: string) => {
+    // Verificação pré-ação (fallback caso o Realtime falhe)
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não armazene este item.");
+        return;
+      }
+    }
     setEnderecoScan(code);
     setEnderecoId(null);
     setEnderecoDesc("");
     setEnderecoTipo("");
+
     // LMS: mark task as started on first address scan
     markTarefaIniciadaByTarefa(tarefaId, usuarioId);
     try {
