@@ -243,6 +243,19 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       return;
     }
 
+    // Verificação pré-ação (fallback caso o Realtime falhe)
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não é possível continuar a conferência.");
+        return;
+      }
+    }
+
+
+
     if (!isOnline) {
       const cached = (await getCachedData<Record<string, any>>(barcodeCacheKey)) || {};
       const prod = cached[code];
