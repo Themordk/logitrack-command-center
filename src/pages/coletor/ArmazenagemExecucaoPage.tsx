@@ -47,6 +47,33 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [loadingStats, setLoadingStats] = useState(true);
 
   const [movimentoEntradaId, setMovimentoEntradaId] = useState<string | null>(null);
+  const [documentoEntradaId, setDocumentoEntradaId] = useState<string | null>(null);
+  const [docCanceladoInline, setDocCanceladoInline] = useState(false);
+  const { cancelamento } = useCancelamentoListener(documentoEntradaId, tenantId);
+  const { error: feedbackError } = useFeedback();
+
+  // Resolve o documento de entrada vinculado ao movimento da tarefa
+  useEffect(() => {
+    if (!movimentoEntradaId || !tenantId || !isOnline) return;
+    let ativo = true;
+    (async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from("movimento_entrada_documento")
+          .select("documento_entrada_id")
+          .eq("movimento_entrada_id", movimentoEntradaId)
+          .eq("tenant_id", tenantId)
+          .limit(1)
+          .maybeSingle();
+        if (ativo && data?.documento_entrada_id) setDocumentoEntradaId(data.documento_entrada_id);
+      } catch {
+        // ignora — verificação pré-ação cobre o fallback
+      }
+    })();
+    return () => { ativo = false; };
+  }, [movimentoEntradaId, tenantId, isOnline]);
+
+
 
   const [quantidade, setQuantidade] = useState("");
   const [enderecoScan, setEnderecoScan] = useState("");
