@@ -13,6 +13,9 @@ import { getEnderecoFromCache, saveEnderecoToCache } from "@/lib/offlineEndereco
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
+import { CancelamentoOverlay } from "@/components/coletor/CancelamentoOverlay";
+import { useCancelamentoListener, documentoEntradaCancelado } from "@/hooks/useCancelamentoListener";
+import { useFeedback } from "@/hooks/useFeedback";
 
 interface Props { onNavigate: (path: string) => void; }
 
