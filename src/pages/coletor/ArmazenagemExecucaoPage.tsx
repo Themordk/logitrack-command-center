@@ -301,7 +301,18 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
   const handleConfirm = async () => {
     if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
+    // Verificação pré-ação (fallback caso o Realtime falhe)
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não armazene este item.");
+        return;
+      }
+    }
     setSaving(true);
+
     try {
       const lote = sessionStorage.getItem("coletor_armazenagem_lote") || "";
       const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
