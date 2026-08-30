@@ -317,7 +317,17 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const doConfirm = async () => {
     if (!currentProduct || !quantidade) return;
     if (!movimentoId || !tenantId || !usuarioId) return;
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não é possível continuar a conferência.");
+        return;
+      }
+    }
     setSaving(true);
+
 
     try {
       const fator = currentProduct.fator || 1;
