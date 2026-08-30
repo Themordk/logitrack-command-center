@@ -475,6 +475,9 @@ export type Database = {
       documento_entrada: {
         Row: {
           armazem_id: string | null
+          cancelamento_motivo: string | null
+          cancelamento_origem: string | null
+          cancelamento_solicitado_em: string | null
           chave_nfe: string | null
           codigo_erp: string | null
           created_at: string | null
@@ -497,6 +500,9 @@ export type Database = {
         }
         Insert: {
           armazem_id?: string | null
+          cancelamento_motivo?: string | null
+          cancelamento_origem?: string | null
+          cancelamento_solicitado_em?: string | null
           chave_nfe?: string | null
           codigo_erp?: string | null
           created_at?: string | null
@@ -519,6 +525,9 @@ export type Database = {
         }
         Update: {
           armazem_id?: string | null
+          cancelamento_motivo?: string | null
+          cancelamento_origem?: string | null
+          cancelamento_solicitado_em?: string | null
           chave_nfe?: string | null
           codigo_erp?: string | null
           created_at?: string | null
@@ -8956,6 +8965,17 @@ export type Database = {
       fn_buscar_email_por_login: {
         Args: { p_login: string; p_tenant_id?: string }
         Returns: string
+      }
+      fn_cancelar_documento_entrada: {
+        Args: {
+          p_codigo_erp?: string
+          p_documento_entrada_id?: string
+          p_empresa_id: string
+          p_motivo?: string
+          p_solicitado_por?: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       fn_cancelar_documento_saida: {
         Args: {
