@@ -13,6 +13,9 @@ import { getEnderecoFromCache, saveEnderecoToCache } from "@/lib/offlineEndereco
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
+import { CancelamentoOverlay } from "@/components/coletor/CancelamentoOverlay";
+import { useCancelamentoListener, documentoEntradaCancelado } from "@/hooks/useCancelamentoListener";
+import { useFeedback } from "@/hooks/useFeedback";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -44,6 +47,33 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [loadingStats, setLoadingStats] = useState(true);
 
   const [movimentoEntradaId, setMovimentoEntradaId] = useState<string | null>(null);
+  const [documentoEntradaId, setDocumentoEntradaId] = useState<string | null>(null);
+  const [docCanceladoInline, setDocCanceladoInline] = useState(false);
+  const { cancelamento } = useCancelamentoListener(documentoEntradaId, tenantId);
+  const { error: feedbackError } = useFeedback();
+
+  // Resolve o documento de entrada vinculado ao movimento da tarefa
+  useEffect(() => {
+    if (!movimentoEntradaId || !tenantId || !isOnline) return;
+    let ativo = true;
+    (async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from("movimento_entrada_documento")
+          .select("documento_entrada_id")
+          .eq("movimento_entrada_id", movimentoEntradaId)
+          .eq("tenant_id", tenantId)
+          .limit(1)
+          .maybeSingle();
+        if (ativo && data?.documento_entrada_id) setDocumentoEntradaId(data.documento_entrada_id);
+      } catch {
+        // ignora — verificação pré-ação cobre o fallback
+      }
+    })();
+    return () => { ativo = false; };
+  }, [movimentoEntradaId, tenantId, isOnline]);
+
+
 
   const [quantidade, setQuantidade] = useState("");
   const [enderecoScan, setEnderecoScan] = useState("");
@@ -213,10 +243,21 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   };
 
   const handleScanEndereco = async (code: string) => {
+    // Verificação pré-ação (fallback caso o Realtime falhe)
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não armazene este item.");
+        return;
+      }
+    }
     setEnderecoScan(code);
     setEnderecoId(null);
     setEnderecoDesc("");
     setEnderecoTipo("");
+
     // LMS: mark task as started on first address scan
     markTarefaIniciadaByTarefa(tarefaId, usuarioId);
     try {
@@ -271,7 +312,18 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
   const handleConfirm = async () => {
     if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
+    // Verificação pré-ação (fallback caso o Realtime falhe)
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não armazene este item.");
+        return;
+      }
+    }
     setSaving(true);
+
     try {
       const lote = sessionStorage.getItem("coletor_armazenagem_lote") || "";
       const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
@@ -387,6 +439,45 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     <ColetorLayout title="Execução Armazenagem" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
+
+      {cancelamento && (
+        <CancelamentoOverlay
+          titulo="NÃO ARMAZENE"
+          mensagem="O documento deste item foi cancelado. Retorne o item ao box de recebimento."
+          detalhes={{
+            numeroNota: cancelamento.numeroNota,
+            motivo: cancelamento.motivo,
+            origem: cancelamento.origem,
+          }}
+          redirectPath="/coletor/armazenagem"
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {docCanceladoInline && !cancelamento && (
+        <div
+          className="space-y-2"
+          style={{
+            backgroundColor: "rgba(239, 83, 80, 0.12)",
+            border: "1px solid rgba(239, 83, 80, 0.3)",
+            borderRadius: 6,
+            padding: 12,
+          }}
+        >
+          <p className="text-[14px] font-bold" style={{ color: "#ef5350" }}>✕ DOCUMENTO CANCELADO</p>
+          <p className="text-[12px]" style={{ color: "#7a8899" }}>
+            O documento deste item foi cancelado. Não armazene.
+          </p>
+          <button
+            onClick={() => onNavigate("/coletor/armazenagem")}
+            className="w-full font-bold uppercase text-[13px]"
+            style={{ minHeight: 48, borderRadius: 8, border: "1px solid #ef5350", color: "#ef5350" }}
+          >
+            Voltar à armazenagem
+          </button>
+        </div>
+      )}
+
 
       {/* Stats */}
       {loadingStats ? (

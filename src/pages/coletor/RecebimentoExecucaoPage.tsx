@@ -16,6 +16,9 @@ import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
+import { CancelamentoOverlay } from "@/components/coletor/CancelamentoOverlay";
+import { useCancelamentoListener, documentoEntradaCancelado } from "@/hooks/useCancelamentoListener";
+import { useFeedback } from "@/hooks/useFeedback";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -93,6 +96,32 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState<ConferenciaItem | null>(null);
+  const [documentoEntradaId, setDocumentoEntradaId] = useState<string | null>(null);
+  const [docCanceladoInline, setDocCanceladoInline] = useState(false);
+  const { cancelamento } = useCancelamentoListener(documentoEntradaId, tenantId);
+  const { error: feedbackError } = useFeedback();
+
+  // Resolve o documento de entrada vinculado ao movimento em conferência
+  useEffect(() => {
+    if (!movimentoId || !tenantId || !isOnline) return;
+    let ativo = true;
+    (async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from("movimento_entrada_documento")
+          .select("documento_entrada_id")
+          .eq("movimento_entrada_id", movimentoId)
+          .eq("tenant_id", tenantId)
+          .limit(1)
+          .maybeSingle();
+        if (ativo && data?.documento_entrada_id) setDocumentoEntradaId(data.documento_entrada_id);
+      } catch {
+        // ignora — verificação pré-ação cobre o fallback
+      }
+    })();
+    return () => { ativo = false; };
+  }, [movimentoId, tenantId, isOnline]);
+
 
   // Publica contexto para o FAB de ocorrência
   useEffect(() => {
@@ -214,6 +243,19 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       return;
     }
 
+    // Verificação pré-ação (fallback caso o Realtime falhe)
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não é possível continuar a conferência.");
+        return;
+      }
+    }
+
+
+
     if (!isOnline) {
       const cached = (await getCachedData<Record<string, any>>(barcodeCacheKey)) || {};
       const prod = cached[code];
@@ -275,7 +317,17 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   const doConfirm = async () => {
     if (!currentProduct || !quantidade) return;
     if (!movimentoId || !tenantId || !usuarioId) return;
+    if (isOnline && documentoEntradaId) {
+      const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
+      if (cancelado) {
+        setDocCanceladoInline(true);
+        feedbackError();
+        toast.error("Este documento foi cancelado. Não é possível continuar a conferência.");
+        return;
+      }
+    }
     setSaving(true);
+
 
     try {
       const fator = currentProduct.fator || 1;
@@ -414,6 +466,49 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
     <ColetorLayout title="Conferência" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/iniciar">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
+
+      {cancelamento && (
+        <CancelamentoOverlay
+          titulo="DOCUMENTO CANCELADO"
+          mensagem={`A NF ${cancelamento.numeroNota} foi cancelada pelo ERP. Pare a conferência imediatamente.`}
+          detalhes={{
+            numeroNota: cancelamento.numeroNota,
+            motivo: cancelamento.motivo,
+            origem: cancelamento.origem,
+            infoAdicional: {
+              label: "Itens conferidos",
+              valor: `${tarefas.filter((t) => Number(t.conferido || 0) >= Number(t.quantidade_requerida || 0)).length} de ${tarefas.length}`,
+            },
+          }}
+          redirectPath="/coletor/home"
+          onNavigate={onNavigate}
+        />
+      )}
+
+      {docCanceladoInline && !cancelamento && (
+        <div
+          className="space-y-2"
+          style={{
+            backgroundColor: "rgba(239, 83, 80, 0.12)",
+            border: "1px solid rgba(239, 83, 80, 0.3)",
+            borderRadius: 6,
+            padding: 12,
+          }}
+        >
+          <p className="text-[14px] font-bold" style={{ color: "#ef5350" }}>✕ DOCUMENTO CANCELADO</p>
+          <p className="text-[12px]" style={{ color: "#7a8899" }}>
+            Esta NF foi cancelada. Não é possível continuar a conferência.
+          </p>
+          <button
+            onClick={() => onNavigate("/coletor/home")}
+            className="w-full font-bold uppercase text-[13px]"
+            style={{ minHeight: 48, borderRadius: 8, border: "1px solid #ef5350", color: "#ef5350" }}
+          >
+            Voltar ao início
+          </button>
+        </div>
+      )}
+
 
       {/* HU opcional */}
       <HUActiveBar onHUChange={() => {}} movimentoEntradaId={movimentoId || null} />
