@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
 
 export type StatusSla = "DENTRO" | "ALERTA" | "FORA" | "EM_ANDAMENTO";
 
