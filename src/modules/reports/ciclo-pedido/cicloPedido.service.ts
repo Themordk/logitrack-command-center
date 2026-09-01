@@ -69,20 +69,22 @@ export async function fetchCicloPedidoReport(
 ): Promise<{ rows: CicloPedidoRow[]; kpis: CicloPedidoKpis }> {
   const sla = filters.sla_horas && filters.sla_horas > 0 ? filters.sla_horas : 24;
 
-  const { data, error } = await (supabase as any).rpc("rpc_relatorio_ciclo_pedido", {
-    p_tenant_id: filters.tenant_id,
-    p_empresa_id: filters.empresa_id || null,
-    p_armazem_id: filters.armazem_id || null,
-    p_data_inicio: filters.data_inicio || null,
-    p_data_fim: filters.data_fim || null,
-    p_status_onda: filters.status_onda || null,
-    p_prioridade: filters.prioridade || null,
-    p_sla_horas: sla,
-  });
-  if (error) throw error;
-  if (!data || data.length === 0) return { rows: [], kpis: emptyKpis() };
+  const data = await fetchAllRpcRows(
+    "rpc_relatorio_ciclo_pedido",
+    {
+      p_tenant_id: filters.tenant_id,
+      p_empresa_id: filters.empresa_id || null,
+      p_armazem_id: filters.armazem_id || null,
+      p_data_inicio: filters.data_inicio || null,
+      p_data_fim: filters.data_fim || null,
+      p_status_onda: filters.status_onda || null,
+      p_prioridade: filters.prioridade || null,
+      p_sla_horas: sla,
+    },
+  );
+  if (data.length === 0) return { rows: [], kpis: emptyKpis() };
 
-  let rows: CicloPedidoRow[] = (data as any[]).map((r) => {
+  let rows: CicloPedidoRow[] = data.map((r: any) => {
     const tempo_total = r.tempo_total_min != null ? Number(r.tempo_total_min) : null;
     const tempo_fila = r.tempo_fila_min != null ? Number(r.tempo_fila_min) : null;
     const tempo_picking = r.tempo_picking_min != null ? Number(r.tempo_picking_min) : null;

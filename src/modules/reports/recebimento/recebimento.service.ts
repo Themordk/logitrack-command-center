@@ -60,18 +60,20 @@ export interface RecebimentoKpis {
 export async function fetchRecebimentoReport(filters: RecebimentoFilter): Promise<{ rows: RecebimentoRow[]; kpis: RecebimentoKpis }> {
   const sla = filters.sla_horas && filters.sla_horas > 0 ? filters.sla_horas : 24;
 
-  const { data, error } = await (supabase as any).rpc("rpc_relatorio_dock_to_stock", {
-    p_tenant_id: filters.tenant_id,
-    p_empresa_id: filters.empresa_id || null,
-    p_armazem_id: filters.armazem_id || null,
-    p_data_inicio: filters.data_inicio || null,
-    p_data_fim: filters.data_fim || null,
-    p_sla_horas: sla,
-  });
-  if (error) throw error;
-  if (!data || data.length === 0) return { rows: [], kpis: emptyKpis() };
+  const data = await fetchAllRpcRows(
+    "rpc_relatorio_dock_to_stock",
+    {
+      p_tenant_id: filters.tenant_id,
+      p_empresa_id: filters.empresa_id || null,
+      p_armazem_id: filters.armazem_id || null,
+      p_data_inicio: filters.data_inicio || null,
+      p_data_fim: filters.data_fim || null,
+      p_sla_horas: sla,
+    },
+  );
+  if (data.length === 0) return { rows: [], kpis: emptyKpis() };
 
-  let rows: RecebimentoRow[] = (data as any[]).map((r) => ({
+  let rows: RecebimentoRow[] = data.map((r: any) => ({
     id: r.movimento_entrada_id,
     numero_movimento: r.numero_movimento,
     status: r.status_movimento,
