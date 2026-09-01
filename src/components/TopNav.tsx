@@ -101,6 +101,7 @@ const navItems: NavItem[] = [
       { label: "Recebimento (Dock-to-Stock)", path: "/relatorios/recebimento" },
       { label: "Tempo de Ciclo de Pedido", path: "/relatorios/ciclo-pedido" },
       { label: "Cancelamentos de Tarefas", path: "/relatorios/cancelamentos" },
+      { label: "Documentos Cancelados", path: "/relatorios/documentos-cancelados" },
     ],
   },
   {
