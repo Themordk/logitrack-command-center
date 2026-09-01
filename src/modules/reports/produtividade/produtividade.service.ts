@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 const sb = supabase as any;
 
@@ -62,48 +64,51 @@ export interface DetalheTipoTarefaRow {
 export async function fetchProdutividadeDiaria(
   filters: ProdutividadeFilters,
 ): Promise<MetricaDiariaRow[]> {
-  let q = sb
-    .from("lms_metrica_diaria")
-    .select(`
+  const data = await fetchAllSelectRows(
+    "lms_metrica_diaria",
+    `
       *,
       usuario:usuario_id ( id, nome ),
       turno:turno_id ( descricao )
-    `)
-    .eq("tenant_id", filters.tenantId)
-    .gte("data_referencia", filters.dataInicio)
-    .lte("data_referencia", filters.dataFim)
-    .order("data_referencia", { ascending: false });
+    `,
+    (q) => {
+      q = q
+        .eq("tenant_id", filters.tenantId)
+        .gte("data_referencia", filters.dataInicio)
+        .lte("data_referencia", filters.dataFim)
+        .order("data_referencia", { ascending: false });
 
-  if (filters.empresaId) q = q.eq("empresa_id", filters.empresaId);
-  if (filters.armazemId) q = q.eq("armazem_id", filters.armazemId);
-  if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
-  if (filters.turnoId) q = q.eq("turno_id", filters.turnoId);
-
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data || []) as MetricaDiariaRow[];
+      if (filters.empresaId) q = q.eq("empresa_id", filters.empresaId);
+      if (filters.armazemId) q = q.eq("armazem_id", filters.armazemId);
+      if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
+      if (filters.turnoId) q = q.eq("turno_id", filters.turnoId);
+      return q;
+    },
+  );
+  return data as MetricaDiariaRow[];
 }
 
 export async function fetchDetalheTipoTarefa(
   filters: ProdutividadeFilters,
 ): Promise<DetalheTipoTarefaRow[]> {
-  let q = sb
-    .from("lms_metrica_tipo_tarefa")
-    .select(`
+  const data = await fetchAllSelectRows(
+    "lms_metrica_tipo_tarefa",
+    `
       *,
       usuario:usuario_id ( id, nome ),
       tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos, categoria, meta_unidades_hora, meta_tarefas_hora, peso_produtividade, cor_interface, unidade_medida )
-    `)
-    .eq("tenant_id", filters.tenantId)
-    .gte("data_referencia", filters.dataInicio)
-    .lte("data_referencia", filters.dataFim)
-    .order("data_referencia", { ascending: false });
-
-  if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
-
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data || []) as DetalheTipoTarefaRow[];
+    `,
+    (q) => {
+      q = q
+        .eq("tenant_id", filters.tenantId)
+        .gte("data_referencia", filters.dataInicio)
+        .lte("data_referencia", filters.dataFim)
+        .order("data_referencia", { ascending: false });
+      if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
+      return q;
+    },
+  );
+  return data as DetalheTipoTarefaRow[];
 }
 
 export async function fetchOperadores(
@@ -163,17 +168,17 @@ export async function fetchTimelineOperador(
   dataInicio: string,
   dataFim: string,
 ): Promise<TimelineEntry[]> {
-  const { data, error } = await sb
-    .from("vw_lms_timeline_operador")
-    .select("*")
-    .eq("usuario_id", usuarioId)
-    .gte("concluido_em", dataInicio)
-    .lte("concluido_em", dataFim + "T23:59:59")
-    .order("concluido_em", { ascending: true });
+  const data = await fetchAllSelectRows(
+    "vw_lms_timeline_operador",
+    "*",
+    (q) => q
+      .eq("usuario_id", usuarioId)
+      .gte("concluido_em", dataInicio)
+      .lte("concluido_em", dataFim + "T23:59:59")
+      .order("concluido_em", { ascending: true }),
+  );
 
-  if (error) throw error;
-
-  return (data || []).map((d: any) => ({
+  return data.map((d: any) => ({
     execucao_id: d.execucao_id,
     tarefa_id: d.tarefa_id,
     tipo_tarefa_codigo: d.tipo_tarefa_codigo,
@@ -260,16 +265,18 @@ export async function fetchTarefasColaborador(params: {
   tipo_tarefa_id?: string | null;
   status?: string | null;
 }): Promise<TarefaColaboradorRow[]> {
-  const { data, error } = await sb.rpc("rpc_relatorio_tarefas_colaborador", {
-    p_tenant_id: params.tenant_id,
-    p_data_inicio: params.data_inicio,
-    p_data_fim: params.data_fim,
-    p_usuario_id: params.usuario_id,
-    p_empresa_id: params.empresa_id ?? null,
-    p_armazem_id: params.armazem_id ?? null,
-    p_tipo_tarefa_id: params.tipo_tarefa_id ?? null,
-    p_status: params.status ?? null,
-  });
-  if (error) throw error;
-  return (data || []) as TarefaColaboradorRow[];
+  const data = await fetchAllRpcRows(
+    "rpc_relatorio_tarefas_colaborador",
+    {
+      p_tenant_id: params.tenant_id,
+      p_data_inicio: params.data_inicio,
+      p_data_fim: params.data_fim,
+      p_usuario_id: params.usuario_id,
+      p_empresa_id: params.empresa_id ?? null,
+      p_armazem_id: params.armazem_id ?? null,
+      p_tipo_tarefa_id: params.tipo_tarefa_id ?? null,
+      p_status: params.status ?? null,
+    },
+  );
+  return data as TarefaColaboradorRow[];
 }
