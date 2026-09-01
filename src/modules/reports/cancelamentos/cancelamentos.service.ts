@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 export interface CancelamentosFilter {
   tenant_id: string;
@@ -35,49 +36,48 @@ export interface CancelamentoRow {
 export async function fetchCancelamentos(
   filters: CancelamentosFilter,
 ): Promise<CancelamentoRow[]> {
-  let query = supabase
-    .from("tarefa_execucao")
-    .select(
-      `
+  const selectColumns = `
+    id,
+    quantidade_executada,
+    concluido_em,
+    atribuido_em,
+    iniciado_em,
+    operador:usuario_id ( nome ),
+    usuario_cancelamento:usuario_corte ( nome ),
+    motivo:motivo_ocorrencia ( descricao ),
+    endereco_origem:endereco_origem_id ( descricao ),
+    endereco_destino:endereco_destino_id ( descricao ),
+    tarefa:tarefa_id (
       id,
-      quantidade_executada,
-      concluido_em,
-      atribuido_em,
-      iniciado_em,
-      operador:usuario_id ( nome ),
-      usuario_cancelamento:usuario_corte ( nome ),
-      motivo:motivo_ocorrencia ( descricao ),
-      endereco_origem:endereco_origem_id ( descricao ),
-      endereco_destino:endereco_destino_id ( descricao ),
-      tarefa:tarefa_id (
-        id,
-        quantidade_requerida,
-        tipo_documento_origem,
-        id_documento_origem,
-        empresa_id,
-        armazem_id,
-        tipo_tarefa_id,
-        tipo_tarefa:tipo_tarefa_id ( codigo, descricao ),
-        produto:produto_id ( sku, descricao )
-      )
-    `,
+      quantidade_requerida,
+      tipo_documento_origem,
+      id_documento_origem,
+      empresa_id,
+      armazem_id,
+      tipo_tarefa_id,
+      tipo_tarefa:tipo_tarefa_id ( codigo, descricao ),
+      produto:produto_id ( sku, descricao )
     )
-    .eq("tenant_id", filters.tenant_id)
-    .eq("status", "CANCELADA")
-    .gte("concluido_em", filters.data_inicio)
-    .lte("concluido_em", filters.data_fim + "T23:59:59.999Z")
-    .order("concluido_em", { ascending: false })
-    .limit(2000);
+  `;
 
-  if (filters.usuario_corte_id) {
-    query = query.eq("usuario_corte", filters.usuario_corte_id);
-  }
+  const data = await fetchAllSelectRows(
+    "tarefa_execucao",
+    selectColumns,
+    (q) => {
+      q = q
+        .eq("tenant_id", filters.tenant_id)
+        .eq("status", "CANCELADA")
+        .gte("concluido_em", filters.data_inicio)
+        .lte("concluido_em", filters.data_fim + "T23:59:59.999Z")
+        .order("concluido_em", { ascending: false });
+      if (filters.usuario_corte_id) {
+        q = q.eq("usuario_corte", filters.usuario_corte_id);
+      }
+      return q;
+    },
+  );
 
-  const { data, error } = await query;
-  if (error) throw error;
-  if (!data) return [];
-
-  let rows: CancelamentoRow[] = (data as any[]).map((r) => {
+  let rows: CancelamentoRow[] = data.map((r: any) => {
     const t = r.tarefa as any;
     const tt = t?.tipo_tarefa as any;
     const prod = t?.produto as any;

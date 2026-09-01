@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 export interface CortesFilter {
   tenant_id: string;
@@ -23,9 +24,9 @@ export interface CorteRow {
 }
 
 export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow[]> {
-  let query = supabase
-    .from("movimento_saida_item")
-    .select(`
+  const data = await fetchAllSelectRows(
+    "movimento_saida_item",
+    `
       id,
       qtde_cortada,
       autorizado_em,
@@ -33,21 +34,21 @@ export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow
       produto:produto_id (sku, descricao, preco_custo),
       motivo:motivo_ocorrencia (descricao),
       usuario_auth:usuario_autorizou (login)
-    `)
-    .gt("qtde_cortada", 0)
-    .gte("autorizado_em", filters.data_inicio)
-    .lte("autorizado_em", filters.data_fim + "T23:59:59");
+    `,
+    (q) => {
+      q = q
+        .gt("qtde_cortada", 0)
+        .gte("autorizado_em", filters.data_inicio)
+        .lte("autorizado_em", filters.data_fim + "T23:59:59")
+        .order("autorizado_em", { ascending: false });
+      if (filters.motivo_ocorrencia_id) {
+        q = q.eq("motivo_ocorrencia", filters.motivo_ocorrencia_id);
+      }
+      return q;
+    },
+  );
 
-  if (filters.motivo_ocorrencia_id) {
-    query = query.eq("motivo_ocorrencia", filters.motivo_ocorrencia_id);
-  }
-
-  const { data, error } = await query.order("autorizado_em", { ascending: false });
-
-  if (error) throw error;
-  if (!data) return [];
-
-  let rows: CorteRow[] = (data as any[]).map((r) => {
+  let rows: CorteRow[] = data.map((r: any) => {
     const mov = r.movimento_saida as any;
     const prod = r.produto as any;
     const mot = r.motivo as any;
