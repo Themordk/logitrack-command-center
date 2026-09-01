@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
 
 export interface DocumentoCanceladoFilter {
   tenant_id: string;
@@ -30,7 +30,7 @@ export interface DocumentoCanceladoRow {
 export async function fetchDocumentosCancelados(
   filters: DocumentoCanceladoFilter,
 ): Promise<DocumentoCanceladoRow[]> {
-  const { data, error } = await (supabase as any).rpc(
+  const data = await fetchAllRpcRows(
     "fn_relatorio_documentos_cancelados",
     {
       p_tenant_id: filters.tenant_id,
@@ -41,13 +41,11 @@ export async function fetchDocumentosCancelados(
     },
   );
 
-  if (error) throw error;
-  if (!data) return [];
-
-  return (data as any[]).map((r) => ({
+  return data.map((r: any) => ({
     ...r,
     valor_total: Number(r.valor_total ?? 0),
     qtd_itens: Number(r.qtd_itens ?? 0),
     status: Number(r.status),
   }));
 }
+
