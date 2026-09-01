@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
 
 export interface MovimentacoesFilter {
   tenant_id: string;
@@ -11,17 +12,19 @@ export interface MovimentacoesFilter {
 }
 
 export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
-  const { data, error } = await (supabase as any).rpc("rpc_historico_movimento_com_saldo", {
-    p_tenant_id: filters.tenant_id,
-    p_empresa_id: filters.empresa_id || null,
-    p_data_inicio: filters.data_inicio,
-    p_data_fim: filters.data_fim,
-    p_sku: filters.sku || null,
-    p_tipo_mov: filters.tipo_movimento ?? null,
-  });
-  if (error) throw error;
+  const data = await fetchAllRpcRows(
+    "rpc_historico_movimento_com_saldo",
+    {
+      p_tenant_id: filters.tenant_id,
+      p_empresa_id: filters.empresa_id || null,
+      p_data_inicio: filters.data_inicio,
+      p_data_fim: filters.data_fim,
+      p_sku: filters.sku || null,
+      p_tipo_mov: filters.tipo_movimento ?? null,
+    },
+  );
 
-  let results = (data || []).map((row: any) => ({
+  let results = data.map((row: any) => ({
     id: row.id,
     criado_em: row.criado_em,
     sku: row.sku || "",
