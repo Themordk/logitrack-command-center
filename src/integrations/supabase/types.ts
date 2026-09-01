@@ -9472,6 +9472,33 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: Json
       }
+      fn_relatorio_documentos_cancelados: {
+        Args: {
+          p_data_fim: string
+          p_data_inicio: string
+          p_empresa_id?: string
+          p_tenant_id: string
+          p_tipo_documento?: string
+        }
+        Returns: {
+          cancelamento_motivo: string
+          cancelamento_origem: string
+          cancelamento_solicitado_em: string
+          codigo_erp: string
+          data_documento: string
+          empresa_id: string
+          id: string
+          numero_documento: string
+          parceiro_cnpj: string
+          parceiro_nome: string
+          qtd_itens: number
+          status: number
+          status_label: string
+          tipo_doc_descricao: string
+          tipo_documento: string
+          valor_total: number
+        }[]
+      }
       fn_resolve_tenant_by_slug: {
         Args: { p_slug: string }
         Returns: {
