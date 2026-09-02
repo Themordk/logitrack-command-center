@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 export type StatusItem = "CONFORME" | "SOBRA" | "FALTA" | "PENDENTE";
 export type Severidade = "OK" | "PEQUENA" | "MEDIA" | "GRANDE";
@@ -76,19 +77,20 @@ function calcSeveridade(diffPct: number): Severidade {
 
 export async function fetchInventarioReport(filters: InventarioFilter): Promise<{ rows: InventarioRow[]; kpis: InventarioKpis }> {
   // 1) Carrega cabeçalhos de inventário (filtros + lookup)
-  let invQuery = (supabase as any)
-    .from("inventario")
-    .select("id, numero_inventario, descricao, status, iniciado_em, finalizado_em, armazem_id, empresa_id")
-    .eq("tenant_id", filters.tenant_id);
-  if (filters.empresa_id) invQuery = invQuery.eq("empresa_id", filters.empresa_id);
-  if (filters.armazem_id) invQuery = invQuery.eq("armazem_id", filters.armazem_id);
-  if (filters.inventario_id) invQuery = invQuery.eq("id", filters.inventario_id);
-  if (filters.data_inicio) invQuery = invQuery.gte("iniciado_em", filters.data_inicio);
-  if (filters.data_fim) invQuery = invQuery.lte("iniciado_em", filters.data_fim);
-
-  const { data: invs, error: errInv } = await invQuery;
-  if (errInv) throw errInv;
-  if (!invs || invs.length === 0) {
+  const invs = await fetchAllSelectRows<any>(
+    "inventario",
+    "id, numero_inventario, descricao, status, iniciado_em, finalizado_em, armazem_id, empresa_id",
+    (q) => {
+      q = q.eq("tenant_id", filters.tenant_id);
+      if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
+      if (filters.armazem_id) q = q.eq("armazem_id", filters.armazem_id);
+      if (filters.inventario_id) q = q.eq("id", filters.inventario_id);
+      if (filters.data_inicio) q = q.gte("iniciado_em", filters.data_inicio);
+      if (filters.data_fim) q = q.lte("iniciado_em", filters.data_fim);
+      return q;
+    },
+  );
+  if (invs.length === 0) {
     return { rows: [], kpis: emptyKpis() };
   }
 
@@ -97,20 +99,20 @@ export async function fetchInventarioReport(filters: InventarioFilter): Promise<
   const invIds = invs.map((i: any) => i.id);
 
   // 2) Itens do(s) inventário(s) na view consolidada
-  let itensQuery = (supabase as any)
-    .from("inventario_item_resumo")
-    .select("*")
-    .in("inventario_id", invIds)
-    .limit(5000);
-  if (filters.sku) itensQuery = itensQuery.ilike("sku", `%${filters.sku}%`);
-  if (filters.rua !== undefined) itensQuery = itensQuery.eq("rua", filters.rua);
-  if (filters.predio !== undefined) itensQuery = itensQuery.eq("predio", filters.predio);
-  if (filters.nivel !== undefined) itensQuery = itensQuery.eq("nivel", filters.nivel);
-  if (filters.apto !== undefined) itensQuery = itensQuery.eq("apto", filters.apto);
-
-  const { data: itens, error: errItens } = await itensQuery;
-  if (errItens) throw errItens;
-  if (!itens || itens.length === 0) {
+  const itens = await fetchAllSelectRows<any>(
+    "inventario_item_resumo",
+    "*",
+    (q) => {
+      q = q.in("inventario_id", invIds);
+      if (filters.sku) q = q.ilike("sku", `%${filters.sku}%`);
+      if (filters.rua !== undefined) q = q.eq("rua", filters.rua);
+      if (filters.predio !== undefined) q = q.eq("predio", filters.predio);
+      if (filters.nivel !== undefined) q = q.eq("nivel", filters.nivel);
+      if (filters.apto !== undefined) q = q.eq("apto", filters.apto);
+      return q;
+    },
+  );
+  if (itens.length === 0) {
     return { rows: [], kpis: emptyKpis() };
   }
 
@@ -118,12 +120,12 @@ export async function fetchInventarioReport(filters: InventarioFilter): Promise<
   const skus = Array.from(new Set(itens.map((i: any) => i.sku).filter(Boolean)));
   const precoMap = new Map<string, number>();
   if (skus.length > 0) {
-    const { data: prods } = await (supabase as any)
-      .from("produto")
-      .select("sku, preco_custo")
-      .eq("tenant_id", filters.tenant_id)
-      .in("sku", skus);
-    for (const p of (prods || [])) {
+    const prods = await fetchAllSelectRows<any>(
+      "produto",
+      "sku, preco_custo",
+      (q) => q.eq("tenant_id", filters.tenant_id).in("sku", skus),
+    );
+    for (const p of prods) {
       precoMap.set(p.sku, Number(p.preco_custo) || 0);
     }
   }

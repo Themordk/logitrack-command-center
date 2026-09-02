@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 export interface EstoqueFilter {
   tenant_id: string;
@@ -38,33 +39,29 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
   if (hasProdutoFilter) {
     // EAN → produto_embalagem
     if (ean) {
-      const { data: embData, error: embErr } = await (supabase as any)
-        .from("produto_embalagem")
-        .select("produto_id")
-        .eq("ean", ean);
-      if (embErr) throw embErr;
-      const eanIds = (embData || []).map((e: any) => e.produto_id);
+      const embData = await fetchAllSelectRows<any>(
+        "produto_embalagem",
+        "produto_id",
+        (q) => q.eq("ean", ean),
+      );
+      const eanIds = embData.map((e: any) => e.produto_id);
       if (eanIds.length === 0) return [];
       produtoIds = intersect(produtoIds, eanIds);
     }
 
     // produto: sku/marca/grupo/subgrupo/parceiro
     if (sku || marca || filters.grupo_id || filters.subgrupo_id || filters.parceiro_id) {
-      let pq = (supabase as any)
-        .from("produto")
-        .select("id")
-        .eq("tenant_id", filters.tenant_id)
-        .limit(5000);
-      if (filters.empresa_id) pq = pq.eq("empresa_id", filters.empresa_id);
-      if (sku) pq = pq.ilike("sku", `%${sku}%`);
-      if (marca) pq = pq.ilike("marca", `%${marca}%`);
-      if (filters.grupo_id) pq = pq.eq("grupo_id", filters.grupo_id);
-      if (filters.subgrupo_id) pq = pq.eq("subgrupo_id", filters.subgrupo_id);
-      if (filters.parceiro_id) pq = pq.eq("parceiro_id", filters.parceiro_id);
-
-      const { data: prods, error: pErr } = await pq;
-      if (pErr) throw pErr;
-      const ids = (prods || []).map((p: any) => p.id);
+      const prods = await fetchAllSelectRows<any>("produto", "id", (q) => {
+        q = q.eq("tenant_id", filters.tenant_id);
+        if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
+        if (sku) q = q.ilike("sku", `%${sku}%`);
+        if (marca) q = q.ilike("marca", `%${marca}%`);
+        if (filters.grupo_id) q = q.eq("grupo_id", filters.grupo_id);
+        if (filters.subgrupo_id) q = q.eq("subgrupo_id", filters.subgrupo_id);
+        if (filters.parceiro_id) q = q.eq("parceiro_id", filters.parceiro_id);
+        return q;
+      });
+      const ids = prods.map((p: any) => p.id);
       if (ids.length === 0) return [];
       produtoIds = intersect(produtoIds, ids);
       if (produtoIds.length === 0) return [];
@@ -79,32 +76,25 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null);
 
   if (hasEnderecoFilter) {
-    let eq = (supabase as any)
-      .from("endereco")
-      .select("id")
-      .eq("tenant_id", filters.tenant_id)
-      .limit(10000);
-    if (filters.armazem_id) eq = eq.eq("armazem_id", filters.armazem_id);
-    if (filters.tipo_endereco) eq = eq.eq("tipo_endereco", filters.tipo_endereco);
-    if (filters.tipo_estoque_id) eq = eq.eq("tipo_estoque_id", filters.tipo_estoque_id);
-    if (filters.setor_id) eq = eq.eq("setor_id", filters.setor_id);
-    if (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null) {
-      eq = eq.eq("codigo_endereco", filters.codigo_endereco);
-    }
-
-    const { data: ends, error: eErr } = await eq;
-    if (eErr) throw eErr;
-    enderecoIds = (ends || []).map((e: any) => e.id);
+    const ends = await fetchAllSelectRows<any>("endereco", "id", (q) => {
+      q = q.eq("tenant_id", filters.tenant_id);
+      if (filters.armazem_id) q = q.eq("armazem_id", filters.armazem_id);
+      if (filters.tipo_endereco) q = q.eq("tipo_endereco", filters.tipo_endereco);
+      if (filters.tipo_estoque_id) q = q.eq("tipo_estoque_id", filters.tipo_estoque_id);
+      if (filters.setor_id) q = q.eq("setor_id", filters.setor_id);
+      if (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null) {
+        q = q.eq("codigo_endereco", filters.codigo_endereco);
+      }
+      return q;
+    });
+    enderecoIds = ends.map((e: any) => e.id);
     if (enderecoIds.length === 0) return [];
   }
 
   // ===== C. Query principal =====
-  const hasRestrictiveFilter = produtoIds !== null || enderecoIds !== null;
-  const limit = hasRestrictiveFilter ? 2000 : 500;
-
-  let query = supabase
-    .from("estoque_geral")
-    .select(`
+  const query = fetchAllSelectRows<any>(
+    "estoque_geral",
+    `
       id,
       lote,
       data_validade,
@@ -130,19 +120,21 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
         setor_id,
         tipo_estoque_id
       )
-    `)
-    .eq("tenant_id", filters.tenant_id)
-    .order("atualizado_em", { ascending: false })
-    .limit(limit);
+    `,
+    (q) => {
+      q = q
+        .eq("tenant_id", filters.tenant_id)
+        .order("atualizado_em", { ascending: false });
+      if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
+      if (produtoIds) q = q.in("produto_id", produtoIds);
+      if (enderecoIds) q = q.in("endereco_id", enderecoIds);
+      return q;
+    },
+  );
 
-  if (filters.empresa_id) query = query.eq("empresa_id", filters.empresa_id);
-  if (produtoIds) query = query.in("produto_id", produtoIds);
-  if (enderecoIds) query = query.in("endereco_id", enderecoIds);
+  const data = await query;
 
-  const { data, error } = await query;
-  if (error) throw error;
-
-  let results = (data || []).map((row: any) => ({
+  let results = data.map((row: any) => ({
     id: row.id,
     sku: row.produto?.sku || "",
     descricao: row.produto?.descricao || "",
