@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 export interface OcupacaoFilter {
   tenant_id: string;
@@ -72,46 +73,48 @@ function derivePercentual(qtdTotal: number, skusCount: number): number {
 
 export async function fetchOcupacaoData(filters: OcupacaoFilter): Promise<OcupacaoData> {
   // 1. Fetch enderecos
-  let endQuery = supabase
-    .from("endereco")
-    .select("id, descricao, setor_id, tipo_endereco, situacao, total_pallet, m3")
-    .eq("tenant_id", filters.tenant_id)
-    .eq("armazem_id", filters.armazem_id)
-    .eq("ativo", true);
-
-  if (filters.setor_id) endQuery = endQuery.eq("setor_id", filters.setor_id);
-  if (filters.tipo_endereco) endQuery = endQuery.eq("tipo_endereco", filters.tipo_endereco as any);
+  const endQuery = fetchAllSelectRows<any>(
+    "endereco",
+    "id, descricao, setor_id, tipo_endereco, situacao, total_pallet, m3",
+    (q) => {
+      q = q
+        .eq("tenant_id", filters.tenant_id)
+        .eq("armazem_id", filters.armazem_id)
+        .eq("ativo", true);
+      if (filters.setor_id) q = q.eq("setor_id", filters.setor_id);
+      if (filters.tipo_endereco) q = q.eq("tipo_endereco", filters.tipo_endereco as any);
+      return q;
+    },
+  );
 
   // 2. Fetch setores for this armazem
-  const setoresQuery = supabase
-    .from("setor")
-    .select("id, descricao")
-    .eq("tenant_id", filters.tenant_id)
-    .eq("armazem_id", filters.armazem_id)
-    .eq("ativo", true);
+  const setoresQuery = fetchAllSelectRows<any>(
+    "setor",
+    "id, descricao",
+    (q) =>
+      q
+        .eq("tenant_id", filters.tenant_id)
+        .eq("armazem_id", filters.armazem_id)
+        .eq("ativo", true),
+  );
 
   // 3. Fetch estoque_geral aggregated
-  const estoqueQuery = supabase
-    .from("estoque_geral")
-    .select("endereco_id, quantidade_total, produto_id")
-    .eq("tenant_id", filters.tenant_id)
-    .eq("empresa_id", filters.empresa_id)
-    .gt("quantidade_total", 0);
+  const estoqueQuery = fetchAllSelectRows<any>(
+    "estoque_geral",
+    "endereco_id, quantidade_total, produto_id",
+    (q) =>
+      q
+        .eq("tenant_id", filters.tenant_id)
+        .eq("empresa_id", filters.empresa_id)
+        .gt("quantidade_total", 0),
+  );
 
   // Run all in parallel
-  const [endResult, setoresResult, estoqueResult] = await Promise.all([
+  const [enderecosList, setoresList, estoqueList] = await Promise.all([
     endQuery,
     setoresQuery,
     estoqueQuery,
   ]);
-
-  if (endResult.error) throw endResult.error;
-  if (setoresResult.error) throw setoresResult.error;
-  if (estoqueResult.error) throw estoqueResult.error;
-
-  const enderecosList = endResult.data || [];
-  const setoresList = setoresResult.data || [];
-  const estoqueList = estoqueResult.data || [];
 
   // Build setor map
   const setorMap = new Map(setoresList.map(s => [s.id, s.descricao]));

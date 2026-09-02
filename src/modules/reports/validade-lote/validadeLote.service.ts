@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 export interface ValidadeLoteFilter {
   tenant_id: string;
@@ -44,9 +45,9 @@ function classifica(dias: number): ValidadeLoteRow["criticidade"] {
 }
 
 export async function fetchValidadeLoteReport(filters: ValidadeLoteFilter): Promise<ValidadeLoteRow[]> {
-  let query = (supabase as any)
-    .from("estoque_geral")
-    .select(`
+  const data = await fetchAllSelectRows<any>(
+    "estoque_geral",
+    `
       id,
       lote,
       data_validade,
@@ -56,20 +57,18 @@ export async function fetchValidadeLoteReport(filters: ValidadeLoteFilter): Prom
       endereco_id,
       produto:produto_id ( sku, descricao, marca, grupo_id, subgrupo_id, tipo_controle ),
       endereco:endereco_id ( descricao, tipo_endereco, armazem_id, setor_id )
-    `)
-    .eq("tenant_id", filters.tenant_id)
-    .gt("quantidade_total", 0)
-    .limit(2000);
-
-  if (filters.empresa_id) query = query.eq("empresa_id", filters.empresa_id);
-
-  const { data, error } = await query;
-  if (error) throw error;
+    `,
+    (q) => {
+      q = q.eq("tenant_id", filters.tenant_id).gt("quantidade_total", 0);
+      if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
+      return q;
+    },
+  );
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  let rows: ValidadeLoteRow[] = (data || [])
+  let rows: ValidadeLoteRow[] = data
     .filter((row: any) => {
       // Apenas produtos com controle de lote/validade
       const tc = row.produto?.tipo_controle;

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 export interface BaixoGiroFilter {
   tenant_id: string;
@@ -36,15 +37,15 @@ function classifica(dias: number | null): BaixoGiroRow["classificacao"] {
 
 export async function fetchBaixoGiroReport(filters: BaixoGiroFilter): Promise<BaixoGiroRow[]> {
   // 1. Saldo agregado por produto
-  let saldoQuery = (supabase as any)
-    .from("estoque_geral")
-    .select("produto_id, quantidade_total")
-    .eq("tenant_id", filters.tenant_id)
-    .gt("quantidade_total", 0)
-    .limit(10000);
-  if (filters.empresa_id) saldoQuery = saldoQuery.eq("empresa_id", filters.empresa_id);
-  const { data: saldos, error: errSaldo } = await saldoQuery;
-  if (errSaldo) throw errSaldo;
+  const saldos = await fetchAllSelectRows<any>(
+    "estoque_geral",
+    "produto_id, quantidade_total",
+    (q) => {
+      q = q.eq("tenant_id", filters.tenant_id).gt("quantidade_total", 0);
+      if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
+      return q;
+    },
+  );
 
   const saldoMap = new Map<string, number>();
   for (const s of (saldos || [])) {
@@ -66,17 +67,19 @@ export async function fetchBaixoGiroReport(filters: BaixoGiroFilter): Promise<Ba
   // 2. Última saída por produto (busca em batch)
   const ultimaSaidaMap = new Map<string, string>();
   for (const ids of chunk(produtoIds, ID_BATCH)) {
-    let ultSaidaQuery = (supabase as any)
-      .from("estoque_movimento")
-      .select("produto_id, criado_em")
-      .eq("tenant_id", filters.tenant_id)
-      .eq("tipo_movimento", 2)
-      .in("produto_id", ids)
-      .order("criado_em", { ascending: false })
-      .limit(50000);
-    if (filters.empresa_id) ultSaidaQuery = ultSaidaQuery.eq("empresa_id", filters.empresa_id);
-    const { data: movs, error: errMov } = await ultSaidaQuery;
-    if (errMov) throw errMov;
+    const movs = await fetchAllSelectRows<any>(
+      "estoque_movimento",
+      "produto_id, criado_em",
+      (q) => {
+        q = q
+          .eq("tenant_id", filters.tenant_id)
+          .eq("tipo_movimento", 2)
+          .in("produto_id", ids)
+          .order("criado_em", { ascending: false });
+        if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
+        return q;
+      },
+    );
     for (const m of (movs || [])) {
       if (!ultimaSaidaMap.has(m.produto_id)) {
         ultimaSaidaMap.set(m.produto_id, m.criado_em);
@@ -87,12 +90,11 @@ export async function fetchBaixoGiroReport(filters: BaixoGiroFilter): Promise<Ba
   // 3. Metadados dos produtos (em batch)
   const produtoMap = new Map<string, any>();
   for (const ids of chunk(produtoIds, ID_BATCH)) {
-    const { data: produtos, error: errProd } = await (supabase as any)
-      .from("produto")
-      .select("id, sku, descricao, marca, grupo_id, subgrupo_id, preco_custo")
-      .eq("tenant_id", filters.tenant_id)
-      .in("id", ids);
-    if (errProd) throw errProd;
+    const produtos = await fetchAllSelectRows<any>(
+      "produto",
+      "id, sku, descricao, marca, grupo_id, subgrupo_id, preco_custo",
+      (q) => q.eq("tenant_id", filters.tenant_id).in("id", ids),
+    );
     for (const p of (produtos || [])) produtoMap.set(p.id, p);
   }
 
