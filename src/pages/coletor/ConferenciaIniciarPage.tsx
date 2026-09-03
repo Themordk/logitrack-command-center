@@ -177,7 +177,10 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
               </span>
             )}
           </div>
-          <RefreshListButton onRefresh={loadOndas} />
+          <div className="flex items-center gap-3 shrink-0">
+            <FilterListButton onClick={() => setFiltroOpen(true)} activeCount={activeCount} />
+            <RefreshListButton onRefresh={loadOndas} />
+          </div>
         </div>
 
         {loading ? (
@@ -188,9 +191,20 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma onda liberada para conferência.</p>
           </div>
+        ) : ondasFiltradas.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma onda corresponde aos filtros.</p>
+            <button
+              type="button"
+              onClick={clear}
+              className="h-9 px-4 rounded-xl border border-amber-500/40 text-xs font-medium text-amber-400 active:scale-95 transition-all"
+            >
+              Limpar filtros
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
-            {ondas.map((onda) => (
+            {ondasFiltradas.map((onda) => (
               <button
                 key={onda.movimento_saida_id}
                 onClick={() => setSelectedId(onda.movimento_saida_id === selectedId ? null : onda.movimento_saida_id)}
