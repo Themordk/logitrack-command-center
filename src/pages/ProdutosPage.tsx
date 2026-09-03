@@ -244,7 +244,7 @@ function ProdutoDetailModal({
     if (!pickForm.armazem_id || !pickForm.endereco_id || !pickForm.tipo_picking) { toast.error("Armazém, Endereço e Tipo são obrigatórios."); return; }
     setPickSaving(true);
     const data: any = { ...pickForm };
-    delete data.id; delete data.tenant_id; delete data.produto_id; delete data.endereco;
+    delete data.id; delete data.tenant_id; delete data.produto_id; delete data.endereco; delete data.tipo_alocacao;
     data.est_minimo = Number(data.est_minimo) || 0;
     data.est_maximo = Number(data.est_maximo) || 0;
     try {
