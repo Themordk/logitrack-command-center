@@ -456,6 +456,25 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           <div className="flex items-center gap-2">
             <Package size={18} className="text-[hsl(217,91%,60%)]" />
             <span className="text-sm font-bold text-[hsl(213,31%,91%)]">Produto a coletar</span>
+            {(() => {
+              // Indica quando esta tarefa é split do mesmo produto da tarefa anterior
+              if (currentIdx > 0) {
+                const anterior = tarefas[currentIdx - 1];
+                const mesmoItem =
+                  anterior &&
+                  tarefa.produto_id &&
+                  anterior.produto_id === tarefa.produto_id &&
+                  (anterior.endereco_id || anterior.endereco) !== (tarefa.endereco_id || tarefa.endereco);
+                if (mesmoItem) {
+                  return (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[hsl(217,91%,50%)]/15 text-[hsl(217,91%,60%)] border border-[hsl(217,91%,50%)]/30">
+                      Continuação
+                    </span>
+                  );
+                }
+              }
+              return null;
+            })()}
           </div>
           <div className="flex items-center gap-4 flex-wrap">
             <div className="text-xs text-[hsl(213,31%,55%)]">SKU: <span className="font-bold text-[hsl(213,31%,91%)] font-mono">{tarefa.sku || "—"}</span></div>
