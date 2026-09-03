@@ -4803,7 +4803,6 @@ export type Database = {
           id: string
           produto_id: string
           tenant_id: string
-          tipo_alocacao: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tipo_picking: Database["public"]["Enums"]["enum_tipo_picking"]
         }
         Insert: {
@@ -4816,7 +4815,6 @@ export type Database = {
           id?: string
           produto_id: string
           tenant_id: string
-          tipo_alocacao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tipo_picking: Database["public"]["Enums"]["enum_tipo_picking"]
         }
         Update: {
@@ -4829,7 +4827,6 @@ export type Database = {
           id?: string
           produto_id?: string
           tenant_id?: string
-          tipo_alocacao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tipo_picking?: Database["public"]["Enums"]["enum_tipo_picking"]
         }
         Relationships: [
@@ -5283,7 +5280,6 @@ export type Database = {
           permite_mistura_validade: boolean
           priorizar_consolidacao: boolean
           tenant_id: string
-          tipo_picking_padrao: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tolerancia_validade_dias: number
           updated_at: string
           updated_by: string | null
@@ -5301,7 +5297,6 @@ export type Database = {
           permite_mistura_validade?: boolean
           priorizar_consolidacao?: boolean
           tenant_id: string
-          tipo_picking_padrao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tolerancia_validade_dias?: number
           updated_at?: string
           updated_by?: string | null
@@ -5319,7 +5314,6 @@ export type Database = {
           permite_mistura_validade?: boolean
           priorizar_consolidacao?: boolean
           tenant_id?: string
-          tipo_picking_padrao?: Database["public"]["Enums"]["enum_tipo_alocacao_picking"]
           tolerancia_validade_dias?: number
           updated_at?: string
           updated_by?: string | null
@@ -8874,6 +8868,75 @@ export type Database = {
         }
         Returns: Json
       }
+      docs_listar_changelog: {
+        Args: never
+        Returns: {
+          data: string
+          descricao: string
+          detalhes: string
+          id: string
+          tipo: string
+          versao: string
+        }[]
+      }
+      docs_listar_endpoints: {
+        Args: { p_grupo?: string }
+        Returns: {
+          batch_limite: number
+          campos: Json
+          curl_exemplo: string
+          descricao: string
+          descricao_longa: string
+          endpoint: string
+          entidade: string
+          grupo: string
+          headers_exemplo: Json
+          id: string
+          metodo: string
+          notas: string
+          ordem: number
+          parametros_query: Json
+          payload_exemplo: Json
+          response_exemplo: Json
+          tags: string[]
+          versao_desde: string
+        }[]
+      }
+      docs_listar_enums: {
+        Args: { p_categoria?: string }
+        Returns: {
+          categoria: string
+          contexto: string
+          descricao: string
+          id: string
+          ordem: number
+          valor: string
+        }[]
+      }
+      docs_listar_erros: {
+        Args: never
+        Returns: {
+          acao_recomendada: string
+          codigo: string
+          descricao: string
+          http_status: number
+          id: string
+          ordem: number
+        }[]
+      }
+      docs_listar_guias: {
+        Args: { p_secao?: string }
+        Returns: {
+          conteudo: string
+          icone: string
+          id: string
+          ordem: number
+          secao: string
+          slug: string
+          subtitulo: string
+          titulo: string
+        }[]
+      }
       entrada_conferencia_buscar_tarefas: {
         Args: {
           p_empresa_id: string
@@ -11115,7 +11178,6 @@ export type Database = {
       enum_status_volume: "ABERTO" | "FECHADO" | "CONFERIDO" | "EXPEDIDO"
       enum_tamanho_hu: "P" | "M" | "G" | "GG" | "EG"
       enum_tipo_abastecimento: "PREVENTIVO" | "CORRETIVO"
-      enum_tipo_alocacao_picking: "FIXO" | "ROTATIVO"
       enum_tipo_box: "RECEBIMENTO" | "SEPARACAO" | "EXPEDICAO"
       enum_tipo_conexao_impressora: "USB" | "REDE" | "BLUETOOTH"
       enum_tipo_conferencia:
@@ -11531,7 +11593,6 @@ export const Constants = {
       enum_status_volume: ["ABERTO", "FECHADO", "CONFERIDO", "EXPEDIDO"],
       enum_tamanho_hu: ["P", "M", "G", "GG", "EG"],
       enum_tipo_abastecimento: ["PREVENTIVO", "CORRETIVO"],
-      enum_tipo_alocacao_picking: ["FIXO", "ROTATIVO"],
       enum_tipo_box: ["RECEBIMENTO", "SEPARACAO", "EXPEDICAO"],
       enum_tipo_conexao_impressora: ["USB", "REDE", "BLUETOOTH"],
       enum_tipo_conferencia: [
