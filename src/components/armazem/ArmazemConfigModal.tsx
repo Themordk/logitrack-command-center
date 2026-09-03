@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
@@ -28,7 +28,7 @@ interface RegraArmazenagem {
   tolerancia_validade_dias: number;
   usar_cruzamento_curvas: boolean;
   priorizar_consolidacao: boolean;
-  tipo_picking_padrao: "FIXO" | "ROTATIVO";
+  
   ativo: boolean;
 }
 
@@ -39,7 +39,7 @@ const REGRA_DEFAULTS: RegraArmazenagem = {
   tolerancia_validade_dias: 0,
   usar_cruzamento_curvas: true,
   priorizar_consolidacao: true,
-  tipo_picking_padrao: "FIXO",
+  
   ativo: true,
 };
 
@@ -101,7 +101,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
           .maybeSingle(),
         (supabase as any)
           .from("regra_armazenagem")
-          .select("id, permite_mistura_sku, permite_mistura_lote, permite_mistura_validade, tolerancia_validade_dias, usar_cruzamento_curvas, priorizar_consolidacao, tipo_picking_padrao, ativo")
+          .select("id, permite_mistura_sku, permite_mistura_lote, permite_mistura_validade, tolerancia_validade_dias, usar_cruzamento_curvas, priorizar_consolidacao, ativo")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -164,7 +164,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         tolerancia_validade_dias: regra.tolerancia_validade_dias,
         usar_cruzamento_curvas: regra.usar_cruzamento_curvas,
         priorizar_consolidacao: regra.priorizar_consolidacao,
-        tipo_picking_padrao: regra.tipo_picking_padrao,
+        
         ativo: regra.ativo,
         updated_by: usuarioId,
       };
@@ -412,34 +412,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                         </p>
                       </div>
                       <Switch checked={regra.priorizar_consolidacao} onCheckedChange={(v) => updateRegra("priorizar_consolidacao", v)} />
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm font-medium flex items-center">
-                          Tipo de alocação padrão
-                          <HelpTip text="FIXO: endereço reservado ao produto. ROTATIVO: liberado quando saldo zera." />
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {regra.tipo_picking_padrao === "FIXO"
-                            ? "Endereço permanece reservado mesmo vazio"
-                            : "Endereço liberado quando saldo zera"}
-                        </p>
-                      </div>
-                      <Select
-                        value={regra.tipo_picking_padrao}
-                        onValueChange={(v) => updateRegra("tipo_picking_padrao", v as "FIXO" | "ROTATIVO")}
-                      >
-                        <SelectTrigger className="w-36">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FIXO">Fixo</SelectItem>
-                          <SelectItem value="ROTATIVO">Rotativo</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
 
                     <Separator />
