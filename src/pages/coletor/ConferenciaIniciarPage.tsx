@@ -63,6 +63,15 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
   );
   const ondas = data ?? [];
 
+  const [filtroOpen, setFiltroOpen] = useState(false);
+  const { filters, setFilters, clear, activeCount, apply } = useOndasFilter("coletor_filtro_ondas_conferencia");
+  const ondasFiltradas = apply(ondas);
+  const tiposSaida = [...new Set(ondas.map((o) => (o.tipo_venda || "").trim()).filter(Boolean))].sort();
+
+  useEffect(() => {
+    if (selectedId && !ondasFiltradas.some((o) => o.movimento_saida_id === selectedId)) setSelectedId(null);
+  }, [selectedId, ondasFiltradas]);
+
   useEffect(() => {
     if (error) result.showWarning("Não foi possível carregar as ondas.");
   }, [error]);
