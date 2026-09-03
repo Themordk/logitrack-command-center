@@ -243,6 +243,15 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
         </div>
       </div>
 
+      <FiltroOndasSheet
+        open={filtroOpen}
+        onClose={() => setFiltroOpen(false)}
+        filters={filters}
+        tiposSaida={tiposSaida}
+        onApply={setFilters}
+        onClear={clear}
+      />
+
       <ResultDialog {...result.dialogProps} />
 
     </ColetorLayout>
