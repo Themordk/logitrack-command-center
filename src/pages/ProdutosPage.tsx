@@ -237,7 +237,7 @@ function ProdutoDetailModal({
   // ── Picking CRUD ──
   const openPickModal = (pick?: any) => {
     setEditPick(pick || null);
-    setPickForm(pick ? { tipo_alocacao: "FIXO", ...pick } : { armazem_id: armazemId || "", endereco_id: "", tipo_picking: "", tipo_alocacao: "FIXO", est_minimo: 0, est_maximo: 0, ativo: true });
+    setPickForm(pick ? { ...pick } : { armazem_id: armazemId || "", endereco_id: "", tipo_picking: "", est_minimo: 0, est_maximo: 0, ativo: true });
     setPickModalOpen(true);
   };
   const savePick = async () => {
