@@ -164,7 +164,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         tolerancia_validade_dias: regra.tolerancia_validade_dias,
         usar_cruzamento_curvas: regra.usar_cruzamento_curvas,
         priorizar_consolidacao: regra.priorizar_consolidacao,
-        tipo_picking_padrao: regra.tipo_picking_padrao,
+        
         ativo: regra.ativo,
         updated_by: usuarioId,
       };
