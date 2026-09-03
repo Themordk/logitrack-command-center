@@ -541,11 +541,6 @@ function ProdutoDetailModal({
                     <tr key={p.id} className="border-b border-border/50 table-row-hover">
                       <td className="px-3 py-2 font-mono text-xs">{p.endereco?.codigo_endereco ?? p.endereco?.descricao ?? "—"}</td>
                       <td className="px-3 py-2 text-center text-xs">{formatTipoPicking(p.tipo_picking)}</td>
-                      <td className="px-3 py-2 text-center text-xs">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${(p.tipo_alocacao ?? "FIXO") === "FIXO" ? "bg-blue-500/15 text-blue-400" : "bg-amber-500/15 text-amber-400"}`}>
-                          {p.tipo_alocacao ?? "FIXO"}
-                        </span>
-                      </td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_minimo}</td>
                       <td className="px-3 py-2 text-center text-xs">{p.est_maximo}</td>
                       <td className="px-3 py-2 text-right">
