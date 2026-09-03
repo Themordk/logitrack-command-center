@@ -28,7 +28,7 @@ interface RegraArmazenagem {
   tolerancia_validade_dias: number;
   usar_cruzamento_curvas: boolean;
   priorizar_consolidacao: boolean;
-  tipo_picking_padrao: "FIXO" | "ROTATIVO";
+  
   ativo: boolean;
 }
 
