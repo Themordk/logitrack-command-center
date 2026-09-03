@@ -104,6 +104,25 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
       onNavigate("/coletor/separacao/iniciar");
     } else {
       sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
+
+      // Toast informativo quando próxima tarefa é do mesmo produto em outro endereço
+      const atual = tarefas[idx];
+      const proxima = tarefas[nextIdx];
+      const mesmoProduto =
+        proxima &&
+        atual &&
+        (proxima.produto_id === atual.produto_id ||
+          (!proxima.produto_id && !atual.produto_id && proxima.sku === atual.sku));
+      const endAtual = atual?.endereco_id || atual?.endereco || null;
+      const endProx = proxima?.endereco_id || proxima?.endereco || null;
+
+      if (mesmoProduto && endAtual !== endProx) {
+        toast.info(
+          `Continuando ${proxima.sku || proxima.produto || "produto"} em outro endereço`,
+          { duration: 3000 }
+        );
+      }
+
       onNavigate("/coletor/separacao/endereco");
     }
   };

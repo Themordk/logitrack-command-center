@@ -432,6 +432,20 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       return;
     }
 
+    // Toast informativo quando próxima tarefa é do mesmo produto em outro endereço
+    const mesmoProduto =
+      proxima &&
+      atual &&
+      (proxima.produto_id === atual.produto_id ||
+        (!proxima.produto_id && !atual.produto_id && proxima.sku === atual.sku));
+
+    if (mesmoProduto) {
+      toast.info(
+        `Continuando ${proxima.sku || proxima.produto || "produto"} em outro endereço`,
+        { duration: 3000 }
+      );
+    }
+
     onNavigate("/coletor/separacao/endereco");
   };
 
