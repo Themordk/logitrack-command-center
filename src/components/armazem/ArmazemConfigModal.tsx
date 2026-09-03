@@ -101,7 +101,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
           .maybeSingle(),
         (supabase as any)
           .from("regra_armazenagem")
-          .select("id, permite_mistura_sku, permite_mistura_lote, permite_mistura_validade, tolerancia_validade_dias, usar_cruzamento_curvas, priorizar_consolidacao, tipo_picking_padrao, ativo")
+          .select("id, permite_mistura_sku, permite_mistura_lote, permite_mistura_validade, tolerancia_validade_dias, usar_cruzamento_curvas, priorizar_consolidacao, ativo")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
