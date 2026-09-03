@@ -62,6 +62,15 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   );
   const ondas = data ?? [];
 
+  const [filtroOpen, setFiltroOpen] = useState(false);
+  const { filters, setFilters, clear, activeCount, apply } = useOndasFilter("coletor_filtro_ondas_separacao");
+  const ondasFiltradas = apply(ondas);
+  const tiposSaida = [...new Set(ondas.map((o) => (o.tipo_venda || "").trim()).filter(Boolean))].sort();
+
+  useEffect(() => {
+    if (selectedId && !ondasFiltradas.some((o) => o.movimento_saida_id === selectedId)) setSelectedId(null);
+  }, [selectedId, ondasFiltradas]);
+
   const [pedcanPorOnda, setPedcanPorOnda] = useState<Record<string, any>>({});
 
   useEffect(() => {
