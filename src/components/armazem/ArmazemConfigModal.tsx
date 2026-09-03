@@ -414,33 +414,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                       <Switch checked={regra.priorizar_consolidacao} onCheckedChange={(v) => updateRegra("priorizar_consolidacao", v)} />
                     </div>
 
-                    <Separator />
-
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm font-medium flex items-center">
-                          Tipo de alocação padrão
-                          <HelpTip text="FIXO: endereço reservado ao produto. ROTATIVO: liberado quando saldo zera." />
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {regra.tipo_picking_padrao === "FIXO"
-                            ? "Endereço permanece reservado mesmo vazio"
-                            : "Endereço liberado quando saldo zera"}
-                        </p>
-                      </div>
-                      <Select
-                        value={regra.tipo_picking_padrao}
-                        onValueChange={(v) => updateRegra("tipo_picking_padrao", v as "FIXO" | "ROTATIVO")}
-                      >
-                        <SelectTrigger className="w-36">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="FIXO">Fixo</SelectItem>
-                          <SelectItem value="ROTATIVO">Rotativo</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
 
                     <Separator />
 
