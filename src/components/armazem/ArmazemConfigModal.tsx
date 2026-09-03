@@ -39,7 +39,7 @@ const REGRA_DEFAULTS: RegraArmazenagem = {
   tolerancia_validade_dias: 0,
   usar_cruzamento_curvas: true,
   priorizar_consolidacao: true,
-  tipo_picking_padrao: "FIXO",
+  
   ativo: true,
 };
 
