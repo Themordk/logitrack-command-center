@@ -8,6 +8,9 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2, Database, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
+import { FilterListButton } from "@/components/coletor/FilterListButton";
+import { FiltroOndasSheet } from "@/components/coletor/FiltroOndasSheet";
+import { useOndasFilter } from "@/hooks/useOndasFilter";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
@@ -58,6 +61,15 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
     30,
   );
   const ondas = data ?? [];
+
+  const [filtroOpen, setFiltroOpen] = useState(false);
+  const { filters, setFilters, clear, activeCount, apply } = useOndasFilter("coletor_filtro_ondas_separacao");
+  const ondasFiltradas = apply(ondas);
+  const tiposSaida = [...new Set(ondas.map((o) => (o.tipo_venda || "").trim()).filter(Boolean))].sort();
+
+  useEffect(() => {
+    if (selectedId && !ondasFiltradas.some((o) => o.movimento_saida_id === selectedId)) setSelectedId(null);
+  }, [selectedId, ondasFiltradas]);
 
   const [pedcanPorOnda, setPedcanPorOnda] = useState<Record<string, any>>({});
 
@@ -213,7 +225,10 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
               </span>
             )}
           </div>
-          <RefreshListButton onRefresh={loadOndas} />
+          <div className="flex items-center gap-3 shrink-0">
+            <FilterListButton onClick={() => setFiltroOpen(true)} activeCount={activeCount} />
+            <RefreshListButton onRefresh={loadOndas} />
+          </div>
         </div>
 
 
@@ -225,9 +240,20 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma onda liberada para separação.</p>
           </div>
+        ) : ondasFiltradas.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma onda corresponde aos filtros.</p>
+            <button
+              type="button"
+              onClick={clear}
+              className="h-9 px-4 rounded-xl border border-amber-500/40 text-xs font-medium text-amber-400 active:scale-95 transition-all"
+            >
+              Limpar filtros
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
-            {ondas.map((onda) => (
+            {ondasFiltradas.map((onda) => (
               <button
                 key={onda.movimento_saida_id}
                 onClick={() => setSelectedId(onda.movimento_saida_id === selectedId ? null : onda.movimento_saida_id)}
@@ -277,6 +303,15 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
           </ActionButton>
         </div>
       </div>
+
+      <FiltroOndasSheet
+        open={filtroOpen}
+        onClose={() => setFiltroOpen(false)}
+        filters={filters}
+        tiposSaida={tiposSaida}
+        onApply={setFilters}
+        onClear={clear}
+      />
 
       <ResultDialog {...result.dialogProps} />
     </ColetorLayout>
