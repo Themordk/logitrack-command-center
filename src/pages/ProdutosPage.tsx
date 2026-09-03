@@ -626,13 +626,6 @@ function ProdutoDetailModal({
                 {TIPO_PICKING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <div>
-              <label className={labelClass}>Tipo Alocação</label>
-              <select value={pickForm.tipo_alocacao || "FIXO"} onChange={(e) => setPickForm({ ...pickForm, tipo_alocacao: e.target.value })} className={inputClass}>
-                <option value="FIXO">FIXO</option>
-                <option value="ROTATIVO">ROTATIVO</option>
-              </select>
-            </div>
             <div><label className={labelClass}>Est. Mínimo</label><input type="number" value={pickForm.est_minimo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_minimo: e.target.value })} className={inputClass} /></div>
             <div><label className={labelClass}>Est. Máximo</label><input type="number" value={pickForm.est_maximo ?? 0} onChange={(e) => setPickForm({ ...pickForm, est_maximo: e.target.value })} className={inputClass} /></div>
             <div className="flex items-center gap-3">
