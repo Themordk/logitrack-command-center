@@ -414,7 +414,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                       <Switch checked={regra.priorizar_consolidacao} onCheckedChange={(v) => updateRegra("priorizar_consolidacao", v)} />
                     </div>
 
-
                     <Separator />
 
                     <div className="flex items-start justify-between gap-4">
