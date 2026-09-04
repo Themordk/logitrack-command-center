@@ -381,6 +381,44 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     sessionStorage.removeItem("coletor_separacao_lote_selecionado");
 
     if (nextIdx >= tarefas.length) {
+      // Re-consultar servidor para verificar se há tarefas pendentes
+      // (o operador pode ter pulado tarefas anteriores)
+      try {
+        const movimentoId = sessionStorage.getItem("coletor_separacao_movimento_id");
+        const empresaId = localStorage.getItem("core_empresa_id");
+        if (movimentoId && tenantId && empresaId && usuarioId) {
+          const { data: pendingData } = await supabase.rpc("separacao_buscar_tarefas" as any, {
+            p_tenant_id: tenantId,
+            p_empresa_id: empresaId,
+            p_movimento_saida_id: movimentoId,
+            p_usuario_id: usuarioId,
+          });
+
+          let pendingTarefas: any[] = [];
+          if (pendingData) {
+            let parsed = pendingData;
+            if (typeof parsed === "string") {
+              try { parsed = JSON.parse(parsed); } catch { /* keep */ }
+            }
+            if (Array.isArray(parsed)) {
+              pendingTarefas = parsed;
+            }
+          }
+
+          if (pendingTarefas.length > 0) {
+            // Ainda há tarefas pendentes — recarregar e voltar para a primeira
+            sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(pendingTarefas));
+            sessionStorage.setItem("coletor_separacao_tarefa_idx", "0");
+            toast.info("Voltando para tarefas pendentes nesta onda.");
+            onNavigate("/coletor/separacao/endereco");
+            return;
+          }
+        }
+      } catch {
+        // Se falhar a consulta, continua com o fluxo de saída normal
+      }
+
+      // Todas as tarefas concluídas — seguir fluxo de finalização
       if (geraVolumeEtapa === "SEPARAÇÃO") {
         setShowVolumeDialog(true);
         return;

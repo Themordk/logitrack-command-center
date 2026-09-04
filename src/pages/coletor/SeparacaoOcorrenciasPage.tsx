@@ -95,36 +95,74 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
     loadMotivos();
   };
 
-  const advanceToNext = () => {
+  const advanceToNext = async () => {
     const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
     const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
     const nextIdx = idx + 1;
     if (nextIdx >= tarefas.length) {
-      toast.success("Separação concluída para esta onda!");
-      onNavigate("/coletor/separacao/iniciar");
-    } else {
-      sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
+      // Re-consultar servidor para verificar se há tarefas pendentes
+      try {
+        const movimentoId = sessionStorage.getItem("coletor_separacao_movimento_id");
+        const tenantId = localStorage.getItem("core_tenant_id");
+        const empresaId = localStorage.getItem("core_empresa_id");
+        const usuarioId = localStorage.getItem("core_usuario_id");
+        if (movimentoId && tenantId && empresaId && usuarioId) {
+          const { data: pendingData } = await supabase.rpc("separacao_buscar_tarefas" as any, {
+            p_tenant_id: tenantId,
+            p_empresa_id: empresaId,
+            p_movimento_saida_id: movimentoId,
+            p_usuario_id: usuarioId,
+          });
 
-      // Toast informativo quando próxima tarefa é do mesmo produto em outro endereço
-      const atual = tarefas[idx];
-      const proxima = tarefas[nextIdx];
-      const mesmoProduto =
-        proxima &&
-        atual &&
-        (proxima.produto_id === atual.produto_id ||
-          (!proxima.produto_id && !atual.produto_id && proxima.sku === atual.sku));
-      const endAtual = atual?.endereco_id || atual?.endereco || null;
-      const endProx = proxima?.endereco_id || proxima?.endereco || null;
+          let pendingTarefas: any[] = [];
+          if (pendingData) {
+            let parsed = pendingData;
+            if (typeof parsed === "string") {
+              try { parsed = JSON.parse(parsed); } catch { /* keep */ }
+            }
+            if (Array.isArray(parsed)) {
+              pendingTarefas = parsed;
+            }
+          }
 
-      if (mesmoProduto && endAtual !== endProx) {
-        toast.info(
-          `Continuando ${proxima.sku || proxima.produto || "produto"} em outro endereço`,
-          { duration: 3000 }
-        );
+          if (pendingTarefas.length > 0) {
+            sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(pendingTarefas));
+            sessionStorage.setItem("coletor_separacao_tarefa_idx", "0");
+            toast.info("Voltando para tarefas pendentes nesta onda.");
+            onNavigate("/coletor/separacao/endereco");
+            return;
+          }
+        }
+      } catch {
+        // Se falhar, continua com fluxo normal de saída
       }
 
-      onNavigate("/coletor/separacao/endereco");
+      toast.success("Separação concluída para esta onda!");
+      onNavigate("/coletor/separacao/iniciar");
+      return;
     }
+
+    sessionStorage.setItem("coletor_separacao_tarefa_idx", String(nextIdx));
+
+    // Toast informativo quando próxima tarefa é do mesmo produto em outro endereço
+    const atual = tarefas[idx];
+    const proxima = tarefas[nextIdx];
+    const mesmoProduto =
+      proxima &&
+      atual &&
+      (proxima.produto_id === atual.produto_id ||
+        (!proxima.produto_id && !atual.produto_id && proxima.sku === atual.sku));
+    const endAtual = atual?.endereco_id || atual?.endereco || null;
+    const endProx = proxima?.endereco_id || proxima?.endereco || null;
+
+    if (mesmoProduto && endAtual !== endProx) {
+      toast.info(
+        `Continuando ${proxima.sku || proxima.produto || "produto"} em outro endereço`,
+        { duration: 3000 }
+      );
+    }
+
+    onNavigate("/coletor/separacao/endereco");
   };
 
   const handleConfirm = async () => {
