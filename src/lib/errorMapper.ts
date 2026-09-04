@@ -141,6 +141,10 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "Quantidade informada é inválida.",
     instruction: "Informe uma quantidade maior que zero.",
   },
+  QUANTIDADE_EXCEDE_SALDO: {
+    title: "Quantidade excede o saldo disponível na tarefa.",
+    instruction: "Ajuste a quantidade para o valor permitido e tente novamente.",
+  },
 
   // === Abastecimento ===
   ABASTECIMENTO_NAO_ENCONTRADO: {
