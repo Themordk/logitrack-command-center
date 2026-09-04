@@ -79,6 +79,10 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "Saldo insuficiente neste endereço.",
     instruction: "Verifique a quantidade e tente novamente.",
   },
+  ESTOQUE_INEXISTENTE: {
+    title: "Não há registro de estoque neste endereço para o produto.",
+    instruction: "Verifique se o endereço e o produto estão corretos.",
+  },
 
   // === EAN / Produto ===
   EAN_NAO_ENCONTRADO: {
@@ -123,6 +127,10 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "Esta tarefa foi cancelada.",
     instruction: "Volte à lista de tarefas.",
   },
+  EXECUCAO_NAO_ENCONTRADA: {
+    title: "Execução de tarefa não encontrada.",
+    instruction: "Atualize a lista e tente novamente.",
+  },
 
   // === Separação / Conferência / Expedição ===
   ONDA_NAO_ENCONTRADA: {
@@ -144,6 +152,22 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   QUANTIDADE_EXCEDE_SALDO: {
     title: "Quantidade excede o saldo disponível na tarefa.",
     instruction: "Ajuste a quantidade para o valor permitido e tente novamente.",
+  },
+  SEM_SALDO_PARA_CORTE: {
+    title: "Não há saldo disponível para cortar nesta tarefa.",
+    instruction: "Verifique se o item já foi cortado ou separado.",
+  },
+  LIMPEZA_NAO_PERMITIDA: {
+    title: "Este item não pode ser limpo no status atual.",
+    instruction: "Verifique o status do item e tente novamente.",
+  },
+  ITEM_MOVIMENTO_NAO_ENCONTRADO: {
+    title: "Item do movimento não encontrado.",
+    instruction: "Atualize a lista e tente novamente.",
+  },
+  ENDERECO_CANCELAMENTO_NAO_CONFIGURADO: {
+    title: "Endereço de cancelamento não configurado para este armazém.",
+    instruction: "Peça ao supervisor para configurar o endereço de cancelamento.",
   },
 
   // === Abastecimento ===
@@ -200,6 +224,14 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   OPERACAO_NAO_PERMITIDA: {
     title: "Esta operação não é permitida.",
     instruction: "Verifique as condições e tente novamente.",
+  },
+  TENANT_OBRIGATORIO: {
+    title: "Identificação da empresa não encontrada.",
+    instruction: "Faça logout e entre novamente.",
+  },
+  ARMAZEM_NAO_IDENTIFICADO: {
+    title: "Armazém não identificado para esta operação.",
+    instruction: "Verifique suas configurações ou fale com o supervisor.",
   },
 };
 
