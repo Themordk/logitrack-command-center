@@ -121,6 +121,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       icone: "warning",
       instrucao: "Este produto possui picking fixo. Armazene no endereço de picking cadastrado ou no pulmão.",
     },
+    PICKING_ENDERECO_DIVERGENTE: {
+      titulo: "Picking já cadastrado em outro endereço",
+      icone: "warning",
+    },
     QUANTIDADE_EXCEDIDA: {
       titulo: "Quantidade excede o permitido",
       icone: "warning",
@@ -435,6 +439,15 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
             instruction: "Armazene em um endereço de pulmão.",
           });
         }
+        return;
+      }
+
+      // Caso especial: Picking já cadastrado em outro endereço → mostrar endereço correto
+      if (codigo === "PICKING_ENDERECO_DIVERGENTE") {
+        result.showWarning("Picking em outro endereço", {
+          details: `Este produto já possui picking cadastrado no endereço ${dados.endereco_picking_cadastrado}.`,
+          instruction: "Armazene no endereço de picking correto ou utilize um endereço de pulmão.",
+        });
         return;
       }
 
