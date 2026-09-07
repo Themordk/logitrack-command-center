@@ -8962,6 +8962,9 @@ export type Database = {
           p_hu: string
           p_lote: string
           p_movimento_entrada_id: string
+          p_picking_est_maximo?: number
+          p_picking_est_minimo?: number
+          p_picking_tipo?: Database["public"]["Enums"]["enum_tipo_picking"]
           p_quantidade: number
           p_tarefa_id: string
           p_tenant_id: string
@@ -10860,29 +10863,54 @@ export type Database = {
           tipo_venda: string
         }[]
       }
-      separacao_buscar_tarefas: {
-        Args: {
-          p_empresa_id: string
-          p_movimento_saida_id: string
-          p_tenant_id: string
-          p_usuario_id: string
-        }
-        Returns: {
-          armazem: string
-          endereco: string
-          endereco_id: string
-          fator_caixa: number
-          ordem_tarefa: number
-          produto: string
-          quantidade_requerida: number
-          saldo_endereco: number
-          separado: number
-          setor: string
-          sku: string
-          status: string
-          tarefa_id: string
-        }[]
-      }
+      separacao_buscar_tarefas:
+        | {
+            Args: {
+              p_armazem_id: string
+              p_empresa_id: string
+              p_movimento_saida_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: {
+              armazem: string
+              descricao: string
+              endereco: string
+              endereco_id: string
+              fator_caixa: number
+              id: string
+              ordem_tarefa: number
+              quantidade_requerida: number
+              saldo_endereco: number
+              separado: number
+              setor: string
+              sku: string
+              status: string
+            }[]
+          }
+        | {
+            Args: {
+              p_empresa_id: string
+              p_movimento_saida_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: {
+              armazem: string
+              endereco: string
+              endereco_id: string
+              fator_caixa: number
+              ordem_tarefa: number
+              produto: string
+              quantidade_requerida: number
+              saldo_endereco: number
+              separado: number
+              setor: string
+              sku: string
+              status: string
+              tarefa_id: string
+            }[]
+          }
       separacao_conferencia_limpar_item: {
         Args: {
           p_movimento_saida_id: string
@@ -10909,31 +10937,30 @@ export type Database = {
         }
         Returns: Json
       }
-      separacao_executar_coleta:
-        | {
-            Args: {
-              p_endereco_id: string
-              p_quantidade: number
-              p_tarefa_id: string
-              p_tenant_id: string
-              p_usuario_id: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_endereco_id: string
-              p_fabricacao: string
-              p_hu: string
-              p_lote: string
-              p_quantidade: number
-              p_tarefa_id: string
-              p_tenant_id: string
-              p_usuario_id: string
-              p_validade: string
-            }
-            Returns: string
-          }
+      separacao_executar_coleta: {
+        Args: {
+          p_endereco_id: string
+          p_fabricacao: string
+          p_hu: string
+          p_lote: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+          p_validade: string
+        }
+        Returns: string
+      }
+      separacao_executar_coleta_old: {
+        Args: {
+          p_endereco_id: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: string
+      }
       separacao_limpar_item: {
         Args: {
           p_empresa_id: string
