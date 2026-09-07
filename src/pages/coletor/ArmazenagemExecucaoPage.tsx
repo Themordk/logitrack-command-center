@@ -90,6 +90,43 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [pickingEstMinimo, setPickingEstMinimo] = useState("");
   const [pickingEstMaximo, setPickingEstMaximo] = useState("");
 
+  // Catálogo de mensagens para erros de negócio da armazenagem
+  const ERRO_ARMAZENAGEM: Record<string, {
+    titulo: string;
+    icone: "warning" | "error" | "info";
+    instrucao?: string;
+  }> = {
+    TAREFA_NAO_ENCONTRADA: {
+      titulo: "Tarefa não encontrada",
+      icone: "error",
+      instrucao: "Volte para a lista de tarefas e tente novamente.",
+    },
+    TAREFA_CONCLUIDA: {
+      titulo: "Tarefa já concluída",
+      icone: "warning",
+      instrucao: "Esta tarefa já foi finalizada. Selecione outra tarefa.",
+    },
+    ENDERECO_NAO_ENCONTRADO: {
+      titulo: "Endereço não encontrado",
+      icone: "error",
+      instrucao: "Verifique o código do endereço e escaneie novamente.",
+    },
+    ENDERECO_BLOQUEADO: {
+      titulo: "Endereço bloqueado",
+      icone: "warning",
+      instrucao: "Movimentações não são permitidas neste endereço. Procure a supervisão.",
+    },
+    PICKING_FIXO_INVALIDO: {
+      titulo: "Endereço de picking inválido",
+      icone: "warning",
+      instrucao: "Este produto possui picking fixo. Armazene no endereço de picking cadastrado ou no pulmão.",
+    },
+    QUANTIDADE_EXCEDIDA: {
+      titulo: "Quantidade excede o permitido",
+      icone: "warning",
+    },
+  };
+
   // Publica contexto rico para o FAB de ocorrência
   useEffect(() => {
     setContexto({
