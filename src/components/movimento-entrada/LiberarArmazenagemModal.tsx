@@ -71,6 +71,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
             .from("motivo_ocorrencia")
             .select("id, descricao")
             .eq("tenant_id", tenantId)
+            .eq("etapa_ocorrencia", "RECEBIMENTO")
             .eq("ativo", true)
             .order("descricao"),
         ]);
