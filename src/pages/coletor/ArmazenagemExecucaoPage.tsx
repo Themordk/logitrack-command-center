@@ -121,6 +121,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       icone: "warning",
       instrucao: "Este produto possui picking fixo. Armazene no endereço de picking cadastrado ou no pulmão.",
     },
+    PICKING_ENDERECO_DIVERGENTE: {
+      titulo: "Picking já cadastrado em outro endereço",
+      icone: "warning",
+    },
     QUANTIDADE_EXCEDIDA: {
       titulo: "Quantidade excede o permitido",
       icone: "warning",
