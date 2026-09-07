@@ -85,6 +85,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [overlayMsg, setOverlayMsg] = useState("");
   const [showCapModal, setShowCapModal] = useState(false);
   const [capInfo, setCapInfo] = useState<{ maximo: number; saldoAtual: number; cabeMais: number } | null>(null);
+  const [showPickingModal, setShowPickingModal] = useState(false);
+  const [pickingTipo, setPickingTipo] = useState<"FRACIONADO" | "MASTER" | "PDV">("FRACIONADO");
+  const [pickingEstMinimo, setPickingEstMinimo] = useState("");
+  const [pickingEstMaximo, setPickingEstMaximo] = useState("");
 
   // Publica contexto rico para o FAB de ocorrência
   useEffect(() => {
@@ -310,6 +314,97 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     }
   };
 
+  const executarArmazenagem = async (pickingParams?: {
+    p_picking_tipo: string;
+    p_picking_est_minimo: number;
+    p_picking_est_maximo: number;
+  }) => {
+    const lote = sessionStorage.getItem("coletor_armazenagem_lote") || "";
+    const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
+    const fabricacaoRaw = sessionStorage.getItem("coletor_armazenagem_fabricacao");
+    const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
+    const armazemId = localStorage.getItem("core_armazem_id");
+
+    // Validar endereço com as regras de armazenagem (somente PICKING) — pula quando offline
+    if (enderecoTipo === "PICKING" && isOnline) {
+      const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
+        p_tenant_id: tenantId,
+        p_armazem_id: armazemId,
+        p_produto_id: produtoId,
+        p_endereco_id: enderecoId,
+        p_lote: lote || null,
+        p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
+        p_quantidade: Number(quantidade),
+      });
+      if (valErr) throw valErr;
+      if (validacao && !validacao.valido) {
+        setSaving(false);
+        result.showWarning("Endereço não permitido", {
+          details: validacao.erros?.join("\n") || "Endereço não permitido pelas regras de armazenagem.",
+        });
+        return;
+      }
+    } else if (enderecoTipo === "PICKING" && !isOnline) {
+      toast.info("Sem conexão: a validação do endereço de picking será feita na sincronização.");
+    }
+
+    // Multiply quantity by embalagem fator
+    const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
+    const fator = fatorRaw ? Number(fatorRaw) : 1;
+    const qtdFinal = Number(quantidade) * fator;
+
+    const offlineResult = await executeOffline("finalizar_armazenagem", {
+      p_tenant_id: tenantId,
+      p_tarefa_id: tarefaId,
+      p_movimento_entrada_id: movimentoEntradaId,
+      p_usuario: usuarioId,
+      p_quantidade: qtdFinal,
+      p_endereco_destino_id: enderecoId,
+      p_lote: lote,
+      p_validade: validadeRaw || "1900-01-01",
+      p_fabricacao: fabricacaoRaw || "1900-01-01",
+      p_hu: huId,
+      ...(pickingParams || {}),
+    });
+    if (!offlineResult.success) throw offlineResult.data;
+
+    if (offlineResult.offline) {
+      toast.info("Ação salva. Será enviada quando a conexão retornar.");
+      result.showSuccess("Armazenagem registrada", {
+        details: "Os dados serão sincronizados quando a conexão retornar.",
+        onClose: () => onNavigate("/coletor/armazenagem/concluido"),
+      });
+      return;
+    }
+
+    // Log da sugestão (não crítico)
+    try {
+      const empresaIdLog = localStorage.getItem("core_empresa_id");
+      const sugestaoTop = sugestoes.length > 0 ? sugestoes[0] : null;
+      await (supabase as any).from("log_sugestao_armazenagem").insert({
+        tenant_id: tenantId,
+        empresa_id: empresaIdLog,
+        armazem_id: armazemId,
+        produto_id: produtoId,
+        endereco_sugerido_id: sugestaoTop?.endereco_id || enderecoId,
+        endereco_escolhido_id: enderecoId,
+        score: sugestaoTop?.score || 0,
+        tipo_sugestao: sugestaoTop?.tipo_sugestao || "FALLBACK",
+        motivo_sugestao: sugestaoTop?.motivo || "Escaneado manualmente",
+        aceita: sugestaoTop ? enderecoId === sugestaoTop.endereco_id : null,
+        lote: lote || null,
+        quantidade: Number(quantidade),
+        usuario_id: usuarioId,
+      });
+    } catch (logErr) {
+      console.error("Log de sugestão falhou (não crítico):", logErr);
+    }
+
+    result.showSuccess("Armazenagem registrada com sucesso!", {
+      onClose: () => onNavigate("/coletor/armazenagem/concluido"),
+    });
+  };
+
   const handleConfirm = async () => {
     if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
     // Verificação pré-ação (fallback caso o Realtime falhe)
@@ -323,95 +418,21 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       }
     }
     setSaving(true);
-
     try {
-      const lote = sessionStorage.getItem("coletor_armazenagem_lote") || "";
-      const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
-      const fabricacaoRaw = sessionStorage.getItem("coletor_armazenagem_fabricacao");
-      const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
-      const armazemId = localStorage.getItem("core_armazem_id");
-
-      // Validar endereço com as regras de armazenagem (somente PICKING) — pula quando offline
-      if (enderecoTipo === "PICKING" && isOnline) {
-        const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
-          p_tenant_id: tenantId,
-          p_armazem_id: armazemId,
-          p_produto_id: produtoId,
-          p_endereco_id: enderecoId,
-          p_lote: lote || null,
-          p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
-          p_quantidade: Number(quantidade),
-        });
-        if (valErr) throw valErr;
-        if (validacao && !validacao.valido) {
-          setSaving(false);
-          result.showWarning("Endereço não permitido", {
-            details: validacao.erros?.join("\n") || "Endereço não permitido pelas regras de armazenagem.",
-          });
-          return;
-        }
-      } else if (enderecoTipo === "PICKING" && !isOnline) {
-        toast.info("Sem conexão: a validação do endereço de picking será feita na sincronização.");
-      }
-
-      // Multiply quantity by embalagem fator
-      const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
-      const fator = fatorRaw ? Number(fatorRaw) : 1;
-      const qtdFinal = Number(quantidade) * fator;
-
-      const offlineResult = await executeOffline("finalizar_armazenagem", {
-        p_tenant_id: tenantId,
-        p_tarefa_id: tarefaId,
-        p_movimento_entrada_id: movimentoEntradaId,
-        p_usuario: usuarioId,
-        p_quantidade: qtdFinal,
-        p_endereco_destino_id: enderecoId,
-        p_lote: lote,
-        p_validade: validadeRaw || "1900-01-01",
-        p_fabricacao: fabricacaoRaw || "1900-01-01",
-        p_hu: huId,
-      });
-      if (!offlineResult.success) throw offlineResult.data;
-
-      if (offlineResult.offline) {
-        toast.info("Ação salva. Será enviada quando a conexão retornar.");
-        result.showSuccess("Armazenagem registrada", {
-          details: "Os dados serão sincronizados quando a conexão retornar.",
-          onClose: () => onNavigate("/coletor/armazenagem/concluido"),
-        });
-        return;
-      }
-
-      // Log da sugestão (não crítico)
-      try {
-        const empresaIdLog = localStorage.getItem("core_empresa_id");
-        const sugestaoTop = sugestoes.length > 0 ? sugestoes[0] : null;
-        await (supabase as any).from("log_sugestao_armazenagem").insert({
-          tenant_id: tenantId,
-          empresa_id: empresaIdLog,
-          armazem_id: armazemId,
-          produto_id: produtoId,
-          endereco_sugerido_id: sugestaoTop?.endereco_id || enderecoId,
-          endereco_escolhido_id: enderecoId,
-          score: sugestaoTop?.score || 0,
-          tipo_sugestao: sugestaoTop?.tipo_sugestao || "FALLBACK",
-          motivo_sugestao: sugestaoTop?.motivo || "Escaneado manualmente",
-          aceita: sugestaoTop ? enderecoId === sugestaoTop.endereco_id : null,
-          lote: lote || null,
-          quantidade: Number(quantidade),
-          usuario_id: usuarioId,
-        });
-      } catch (logErr) {
-        console.error("Log de sugestão falhou (não crítico):", logErr);
-      }
-
-      result.showSuccess("Armazenagem registrada com sucesso!", {
-        onClose: () => onNavigate("/coletor/armazenagem/concluido"),
-      });
+      await executarArmazenagem();
     } catch (err: any) {
       const msg = err.message || "Erro ao registrar armazenagem";
       const code = err.code || "";
-      if (code === "P0002" || msg.includes("Capacidade do picking excedida")) {
+
+      // NOVO: Picking não cadastrado — abrir modal para coleta inline
+      if (code === "P0003" || msg.includes("PICKING_NAO_CADASTRADO")) {
+        setPickingTipo("FRACIONADO");
+        setPickingEstMinimo("");
+        setPickingEstMaximo("");
+        setShowPickingModal(true);
+
+      // EXISTENTE: Capacidade excedida
+      } else if (code === "P0002" || msg.includes("Capacidade do picking excedida")) {
         const parsed = parseCapacidadeMsg(msg);
         if (parsed && parsed.cabeMais > 0) {
           setCapInfo(parsed);
@@ -421,9 +442,32 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
             instruction: "Armazene em um endereço de pulmão.",
           });
         }
+
+      // EXISTENTE: Outros erros
       } else {
         result.showError(new Error(msg), { context: "armazenagem-execucao" });
       }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmComPicking = async () => {
+    if (!pickingEstMinimo || !pickingEstMaximo) {
+      toast.error("Preencha estoque mínimo e máximo.");
+      return;
+    }
+    setShowPickingModal(false);
+    setSaving(true);
+    try {
+      await executarArmazenagem({
+        p_picking_tipo: pickingTipo,
+        p_picking_est_minimo: Number(pickingEstMinimo),
+        p_picking_est_maximo: Number(pickingEstMaximo),
+      });
+    } catch (err: any) {
+      const msg = err.message || "Erro ao registrar armazenagem";
+      result.showError(new Error(msg), { context: "armazenagem-execucao" });
     } finally {
       setSaving(false);
     }
@@ -639,6 +683,76 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
               )}
               <ActionButton onClick={handleAlterarEndereco} variant="secondary">
                 ALTERAR ENDEREÇO (PULMÃO)
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de picking não cadastrado */}
+      {showPickingModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-5 space-y-4">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="w-14 h-14 rounded-full bg-[hsl(280,70%,55%)]/20 flex items-center justify-center">
+                <MapPin size={32} className="text-[hsl(280,70%,55%)]" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Cadastrar Picking</h3>
+              <p className="text-sm text-[hsl(213,31%,55%)]">
+                Este produto não possui endereço de picking cadastrado. Preencha os dados abaixo para continuar a armazenagem.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-[hsl(213,31%,55%)] mb-1">Tipo de Picking *</label>
+                <select
+                  value={pickingTipo}
+                  onChange={(e) => setPickingTipo(e.target.value as any)}
+                  className="w-full h-10 px-3 rounded-lg border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                >
+                  <option value="FRACIONADO">Fracionado</option>
+                  <option value="MASTER">Master</option>
+                  <option value="PDV">PDV</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-[hsl(213,31%,55%)] mb-1">Estoque Mínimo *</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={pickingEstMinimo}
+                  onChange={(e) => setPickingEstMinimo(e.target.value)}
+                  placeholder="0"
+                  className="w-full h-10 px-3 rounded-lg border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-[hsl(213,31%,55%)] mb-1">Estoque Máximo *</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={pickingEstMaximo}
+                  onChange={(e) => setPickingEstMaximo(e.target.value)}
+                  placeholder="0"
+                  className="w-full h-10 px-3 rounded-lg border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)]  text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <ActionButton
+                onClick={handleConfirmComPicking}
+                loading={saving}
+                variant="success"
+              >
+                CONFIRMAR E ARMAZENAR
+              </ActionButton>
+              <ActionButton
+                onClick={() => setShowPickingModal(false)}
+                variant="secondary"
+              >
+                CANCELAR
               </ActionButton>
             </div>
           </div>
