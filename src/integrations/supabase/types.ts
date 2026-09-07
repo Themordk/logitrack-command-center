@@ -8971,7 +8971,7 @@ export type Database = {
           p_usuario: string
           p_validade: string
         }
-        Returns: string
+        Returns: Json
       }
       finalizar_conferencia_entrada_item: {
         Args: {

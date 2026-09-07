@@ -90,6 +90,43 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [pickingEstMinimo, setPickingEstMinimo] = useState("");
   const [pickingEstMaximo, setPickingEstMaximo] = useState("");
 
+  // Catálogo de mensagens para erros de negócio da armazenagem
+  const ERRO_ARMAZENAGEM: Record<string, {
+    titulo: string;
+    icone: "warning" | "error" | "info";
+    instrucao?: string;
+  }> = {
+    TAREFA_NAO_ENCONTRADA: {
+      titulo: "Tarefa não encontrada",
+      icone: "error",
+      instrucao: "Volte para a lista de tarefas e tente novamente.",
+    },
+    TAREFA_CONCLUIDA: {
+      titulo: "Tarefa já concluída",
+      icone: "warning",
+      instrucao: "Esta tarefa já foi finalizada. Selecione outra tarefa.",
+    },
+    ENDERECO_NAO_ENCONTRADO: {
+      titulo: "Endereço não encontrado",
+      icone: "error",
+      instrucao: "Verifique o código do endereço e escaneie novamente.",
+    },
+    ENDERECO_BLOQUEADO: {
+      titulo: "Endereço bloqueado",
+      icone: "warning",
+      instrucao: "Movimentações não são permitidas neste endereço. Procure a supervisão.",
+    },
+    PICKING_FIXO_INVALIDO: {
+      titulo: "Endereço de picking inválido",
+      icone: "warning",
+      instrucao: "Este produto possui picking fixo. Armazene no endereço de picking cadastrado ou no pulmão.",
+    },
+    QUANTIDADE_EXCEDIDA: {
+      titulo: "Quantidade excede o permitido",
+      icone: "warning",
+    },
+  };
+
   // Publica contexto rico para o FAB de ocorrência
   useEffect(() => {
     setContexto({
@@ -107,21 +144,6 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [sugestoes, setSugestoes] = useState<any[]>([]);
   const [loadingSugestao, setLoadingSugestao] = useState(false);
 
-  const parseCapacidadeMsg = (msg: string): { maximo: number; saldoAtual: number; cabeMais: number } | null => {
-    try {
-      const maxMatch = msg.match(/Máximo:\s*([\d.,]+)/i);
-      const saldoMatch = msg.match(/Saldo atual:\s*([\d.,]+)/i);
-      const cabeMatch = msg.match(/Cabe mais:\s*([\d.,]+)/i);
-      if (maxMatch && saldoMatch && cabeMatch) {
-        return {
-          maximo: Number(maxMatch[1].replace(",", ".")),
-          saldoAtual: Number(saldoMatch[1].replace(",", ".")),
-          cabeMais: Number(cabeMatch[1].replace(",", ".")),
-        };
-      }
-    } catch {}
-    return null;
-  };
 
   const handleArmazenarParcial = () => {
     if (!capInfo) return;
@@ -366,8 +388,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       p_hu: huId,
       ...(pickingParams || {}),
     });
+
     if (!offlineResult.success) throw offlineResult.data;
 
+    // Offline: ação enfileirada, sucesso imediato
     if (offlineResult.offline) {
       toast.info("Ação salva. Será enviada quando a conexão retornar.");
       result.showSuccess("Armazenagem registrada", {
@@ -377,6 +401,75 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       return;
     }
 
+    // ====================================================
+    // NOVO: Tratar resposta JSON estruturada
+    // ====================================================
+    const response = offlineResult.data;
+
+    // --- ERRO DE NEGÓCIO ---
+    if (response && response.sucesso === false) {
+      const codigo = response.codigo as string;
+      const dados = response.dados || {};
+
+      // Caso especial: Picking não cadastrado → abrir modal
+      if (codigo === "PICKING_NAO_CADASTRADO") {
+        setPickingTipo("FRACIONADO");
+        setPickingEstMinimo("");
+        setPickingEstMaximo("");
+        setShowPickingModal(true);
+        return;
+      }
+
+      // Caso especial: Capacidade excedida → abrir modal de capacidade
+      if (codigo === "CAPACIDADE_EXCEDIDA") {
+        const capDados = {
+          maximo: Number(dados.maximo) || 0,
+          saldoAtual: Number(dados.saldo_atual) || 0,
+          cabeMais: Number(dados.cabe_mais) || 0,
+        };
+        if (capDados.cabeMais > 0) {
+          setCapInfo(capDados);
+          setShowCapModal(true);
+        } else {
+          result.showWarning("Picking cheio", {
+            instruction: "Armazene em um endereço de pulmão.",
+          });
+        }
+        return;
+      }
+
+      // Caso especial: Quantidade excedida → mostrar restante
+      if (codigo === "QUANTIDADE_EXCEDIDA") {
+        const catItem = ERRO_ARMAZENAGEM[codigo];
+        result.showWarning(catItem?.titulo || response.mensagem, {
+          details: `Restante permitido: ${dados.restante}`,
+          instruction: "Ajuste a quantidade e tente novamente.",
+        });
+        return;
+      }
+
+      // Demais erros catalogados
+      const catItem = ERRO_ARMAZENAGEM[codigo];
+      if (catItem) {
+        if (catItem.icone === "error") {
+          result.showError(new Error(response.mensagem), { context: "armazenagem-execucao" });
+        } else {
+          result.showWarning(catItem.titulo, {
+            details: response.mensagem,
+            instruction: catItem.instrucao,
+          });
+        }
+        return;
+      }
+
+      // Código desconhecido — fallback genérico
+      result.showError(new Error(response.mensagem || "Erro desconhecido na armazenagem."), {
+        context: "armazenagem-execucao",
+      });
+      return;
+    }
+
+    // --- SUCESSO ---
     // Log da sugestão (não crítico)
     try {
       const empresaIdLog = localStorage.getItem("core_empresa_id");
@@ -400,13 +493,19 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       console.error("Log de sugestão falhou (não crítico):", logErr);
     }
 
-    result.showSuccess("Armazenagem registrada com sucesso!", {
+    // Mensagem de sucesso diferenciada quando picking foi registrado inline
+    const msgSucesso = response?.picking_registrado
+      ? "Picking cadastrado e armazenagem registrada!"
+      : "Armazenagem registrada com sucesso!";
+
+    result.showSuccess(msgSucesso, {
       onClose: () => onNavigate("/coletor/armazenagem/concluido"),
     });
   };
 
   const handleConfirm = async () => {
     if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
+
     // Verificação pré-ação (fallback caso o Realtime falhe)
     if (isOnline && documentoEntradaId) {
       const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
@@ -417,36 +516,14 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         return;
       }
     }
+
     setSaving(true);
     try {
       await executarArmazenagem();
     } catch (err: any) {
-      const msg = err.message || "Erro ao registrar armazenagem";
-      const code = err.code || "";
-
-      // NOVO: Picking não cadastrado — abrir modal para coleta inline
-      if (code === "P0003" || msg.includes("PICKING_NAO_CADASTRADO")) {
-        setPickingTipo("FRACIONADO");
-        setPickingEstMinimo("");
-        setPickingEstMaximo("");
-        setShowPickingModal(true);
-
-      // EXISTENTE: Capacidade excedida
-      } else if (code === "P0002" || msg.includes("Capacidade do picking excedida")) {
-        const parsed = parseCapacidadeMsg(msg);
-        if (parsed && parsed.cabeMais > 0) {
-          setCapInfo(parsed);
-          setShowCapModal(true);
-        } else {
-          result.showWarning("Picking cheio", {
-            instruction: "Armazene em um endereço de pulmão.",
-          });
-        }
-
-      // EXISTENTE: Outros erros
-      } else {
-        result.showError(new Error(msg), { context: "armazenagem-execucao" });
-      }
+      // Apenas exceções de infraestrutura (assert_tenant_match, rede, etc.)
+      const msg = err.message || "Erro inesperado ao registrar armazenagem";
+      result.showError(new Error(msg), { context: "armazenagem-execucao" });
     } finally {
       setSaving(false);
     }
