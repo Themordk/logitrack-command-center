@@ -373,8 +373,8 @@ export function MovimentoSaidaPage() {
     setTabLoading(true);
     try {
       const [sepRes, confRes, docsRes] = await Promise.all([
-        (supabase as any).from("vw_movimento_saida_separacao_detalhe").select("*").eq("movimento_id", movId),
-        (supabase as any).from("vw_movimento_saida_conferencia_detalhe").select("*").eq("movimento_saida_id", movId),
+        (supabase as any).from("vw_movimento_saida_separacao_detalhe").select("*").eq("movimento_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
+        (supabase as any).from("vw_movimento_saida_conferencia_detalhe").select("*").eq("movimento_saida_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
         (supabase as any).from("vw_movimento_saida_docs_vinculados").select("*").eq("movimento_saida_id", movId).order("ordem"),
       ]);
       setTabSeparacao(sepRes.data || []);
