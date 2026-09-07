@@ -442,6 +442,15 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         return;
       }
 
+      // Caso especial: Picking já cadastrado em outro endereço → mostrar endereço correto
+      if (codigo === "PICKING_ENDERECO_DIVERGENTE") {
+        result.showWarning("Picking em outro endereço", {
+          details: `Este produto já possui picking cadastrado no endereço ${dados.endereco_picking_cadastrado}.`,
+          instruction: "Armazene no endereço de picking correto ou utilize um endereço de pulmão.",
+        });
+        return;
+      }
+
       // Caso especial: Quantidade excedida → mostrar restante
       if (codigo === "QUANTIDADE_EXCEDIDA") {
         const catItem = ERRO_ARMAZENAGEM[codigo];
