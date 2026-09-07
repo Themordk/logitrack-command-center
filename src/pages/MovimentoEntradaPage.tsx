@@ -387,8 +387,8 @@ export function MovimentoEntradaPage() {
     setDetailLoading(true);
     try {
       const [r2, r3] = await Promise.all([
-        (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId),
-        (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId),
+        (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
+        (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
       ]);
 
       setConferenciaItems(r2.data || []);
