@@ -505,6 +505,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
   const handleConfirm = async () => {
     if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
+
     // Verificação pré-ação (fallback caso o Realtime falhe)
     if (isOnline && documentoEntradaId) {
       const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
@@ -515,36 +516,14 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         return;
       }
     }
+
     setSaving(true);
     try {
       await executarArmazenagem();
     } catch (err: any) {
-      const msg = err.message || "Erro ao registrar armazenagem";
-      const code = err.code || "";
-
-      // NOVO: Picking não cadastrado — abrir modal para coleta inline
-      if (code === "P0003" || msg.includes("PICKING_NAO_CADASTRADO")) {
-        setPickingTipo("FRACIONADO");
-        setPickingEstMinimo("");
-        setPickingEstMaximo("");
-        setShowPickingModal(true);
-
-      // EXISTENTE: Capacidade excedida
-      } else if (code === "P0002" || msg.includes("Capacidade do picking excedida")) {
-        const parsed = parseCapacidadeMsg(msg);
-        if (parsed && parsed.cabeMais > 0) {
-          setCapInfo(parsed);
-          setShowCapModal(true);
-        } else {
-          result.showWarning("Picking cheio", {
-            instruction: "Armazene em um endereço de pulmão.",
-          });
-        }
-
-      // EXISTENTE: Outros erros
-      } else {
-        result.showError(new Error(msg), { context: "armazenagem-execucao" });
-      }
+      // Apenas exceções de infraestrutura (assert_tenant_match, rede, etc.)
+      const msg = err.message || "Erro inesperado ao registrar armazenagem";
+      result.showError(new Error(msg), { context: "armazenagem-execucao" });
     } finally {
       setSaving(false);
     }
