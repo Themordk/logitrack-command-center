@@ -144,21 +144,6 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [sugestoes, setSugestoes] = useState<any[]>([]);
   const [loadingSugestao, setLoadingSugestao] = useState(false);
 
-  const parseCapacidadeMsg = (msg: string): { maximo: number; saldoAtual: number; cabeMais: number } | null => {
-    try {
-      const maxMatch = msg.match(/Máximo:\s*([\d.,]+)/i);
-      const saldoMatch = msg.match(/Saldo atual:\s*([\d.,]+)/i);
-      const cabeMatch = msg.match(/Cabe mais:\s*([\d.,]+)/i);
-      if (maxMatch && saldoMatch && cabeMatch) {
-        return {
-          maximo: Number(maxMatch[1].replace(",", ".")),
-          saldoAtual: Number(saldoMatch[1].replace(",", ".")),
-          cabeMais: Number(cabeMatch[1].replace(",", ".")),
-        };
-      }
-    } catch {}
-    return null;
-  };
 
   const handleArmazenarParcial = () => {
     if (!capInfo) return;
