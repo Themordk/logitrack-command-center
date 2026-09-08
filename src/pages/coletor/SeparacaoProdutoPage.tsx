@@ -9,7 +9,7 @@ import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { formatDate } from "@/utils/dateTime";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { useOffline } from "@/contexts/OfflineContext";
@@ -279,14 +279,9 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         return;
       }
 
-      const data = offlineResult.data;
-      let rpcResult: any = data;
-      if (typeof data === "string") {
-        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
-      }
-
-      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
-        result.showWarning(rpcResult.mensagem || "Erro ao registrar coleta");
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "separacao" });
         return;
       }
 

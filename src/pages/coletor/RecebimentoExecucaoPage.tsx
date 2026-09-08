@@ -347,6 +347,14 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
 
       if (!offlineResult.success) throw offlineResult.data;
 
+      if (!offlineResult.offline) {
+        const rpcResult = parseRpcResult(offlineResult.data);
+        if (!rpcResult.sucesso) {
+          result.showError(rpcResult, { context: "recebimento-confirmar" });
+          return;
+        }
+      }
+
       showOverlayMsg("success", `✔ ${quantidade} un. confirmadas`);
 
       const produtoConfirmado = currentProduct;

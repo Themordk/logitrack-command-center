@@ -333,14 +333,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         return;
       }
 
-      const data = offlineResult.data;
-      let rpcResult: any = data;
-      if (typeof data === "string") {
-        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
-      }
-
-      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
-        result.showWarning(rpcResult.mensagem || "Erro na conferência");
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "conferencia" });
         return;
       }
 

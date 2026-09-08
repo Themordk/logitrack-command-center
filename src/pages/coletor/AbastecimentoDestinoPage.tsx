@@ -142,7 +142,21 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         return;
       }
 
-      result.showSuccess("Abastecimento registrado!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "abastecimento" });
+        return;
+      }
+
+      if (rpcResult.codigo === "ABASTECIMENTO_PARCIAL") {
+        result.showSuccess("Entrega parcial registrada. Continue com as demais coletas.", {
+          onClose: () => onNavigate("/coletor/movimentos/abastecimento"),
+        });
+      } else {
+        result.showSuccess("Abastecimento concluído com sucesso!", {
+          onClose: () => onNavigate("/coletor/movimentos/abastecimento"),
+        });
+      }
     } catch (err: any) {
       result.showError(err, { context: "abastecimento" });
     } finally {
