@@ -8724,7 +8724,7 @@ export type Database = {
               p_tenant_id: string
               p_usuario_id: string
             }
-            Returns: string
+            Returns: Json
           }
         | {
             Args: {
@@ -8734,7 +8734,7 @@ export type Database = {
               p_tenant_id: string
               p_usuario_id: string
             }
-            Returns: string
+            Returns: Json
           }
       cortar_item_separacao:
         | {
@@ -8983,7 +8983,7 @@ export type Database = {
           p_usuario: string
           p_validade: string
         }
-        Returns: string
+        Returns: Json
       }
       finalizar_conferencia_entrada_movimento: {
         Args: {
@@ -8991,7 +8991,7 @@ export type Database = {
           p_tenant_id: string
           p_usuario: string
         }
-        Returns: string
+        Returns: Json
       }
       fn_buscar_dados_armazenagem: {
         Args: { p_ean: string; p_empresa_ids: string[]; p_tenant_id: string }
@@ -9324,7 +9324,7 @@ export type Database = {
           p_usuario: string
           p_validade?: string
         }
-        Returns: string
+        Returns: Json
       }
       fn_liberar_armz_carregar_contexto: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
@@ -10513,7 +10513,7 @@ export type Database = {
           p_tenant_id: string
           p_usuario_id: string
         }
-        Returns: string
+        Returns: Json
       }
       rpc_coletor_abastecimento_confirmar_entrega: {
         Args: {
@@ -10525,7 +10525,7 @@ export type Database = {
           p_tenant_id: string
           p_usuario_id: string
         }
-        Returns: string
+        Returns: Json
       }
       rpc_coletor_abastecimento_listar_tarefas: {
         Args: { p_empresa_id: string; p_tenant_id: string }
@@ -10918,7 +10918,7 @@ export type Database = {
           p_tenant_id: string
           p_usuario_id: string
         }
-        Returns: undefined
+        Returns: Json
       }
       separacao_confirmar_endereco: {
         Args: {
@@ -10949,7 +10949,7 @@ export type Database = {
           p_usuario_id: string
           p_validade: string
         }
-        Returns: string
+        Returns: Json
       }
       separacao_executar_coleta_old: {
         Args: {
