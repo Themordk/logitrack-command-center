@@ -351,6 +351,11 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     const huId = sessionStorage.getItem("coletor_armazenagem_hu") || "00000000-0000-0000-0000-000000000000";
     const armazemId = localStorage.getItem("core_armazem_id");
 
+    // Multiply quantity by embalagem fator (antes da validação, para ambas RPCs usarem o mesmo valor)
+    const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
+    const fator = fatorRaw ? Number(fatorRaw) : 1;
+    const qtdFinal = Number(quantidade) * fator;
+
     // Validar endereço com as regras de armazenagem (somente PICKING) — pula quando offline
     if (enderecoTipo === "PICKING" && isOnline) {
       const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
@@ -360,7 +365,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         p_endereco_id: enderecoId,
         p_lote: lote || null,
         p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
-        p_quantidade: Number(quantidade),
+        p_quantidade: qtdFinal,
       });
       if (valErr) throw valErr;
       if (validacao && !validacao.valido) {
@@ -373,11 +378,6 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     } else if (enderecoTipo === "PICKING" && !isOnline) {
       toast.info("Sem conexão: a validação do endereço de picking será feita na sincronização.");
     }
-
-    // Multiply quantity by embalagem fator
-    const fatorRaw = sessionStorage.getItem("coletor_armazenagem_fator");
-    const fator = fatorRaw ? Number(fatorRaw) : 1;
-    const qtdFinal = Number(quantidade) * fator;
 
     const offlineResult = await executeOffline("finalizar_armazenagem", {
       p_tenant_id: tenantId,
