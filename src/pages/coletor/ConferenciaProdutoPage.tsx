@@ -12,6 +12,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { parseRpcResult } from "@/lib/errorMapper";
 import { useOffline } from "@/contexts/OfflineContext";
 import { getEanFromCache, saveEanToCache, type EanCacheEntry } from "@/lib/offlineEanCache";
 

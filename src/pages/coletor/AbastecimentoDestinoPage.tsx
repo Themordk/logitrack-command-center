@@ -9,6 +9,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { MapPin, CheckCircle2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { parseRpcResult } from "@/lib/errorMapper";
 import { useOffline } from "@/contexts/OfflineContext";
 import { toast } from "sonner";
 

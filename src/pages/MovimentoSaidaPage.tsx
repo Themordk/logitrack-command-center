@@ -13,7 +13,7 @@ import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 
