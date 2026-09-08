@@ -1531,13 +1531,19 @@ export function MovimentoSaidaPage() {
                 if (!limparConfItemDialog || !tenantId || !usuarioId) return;
                 setLimparConfItemLoading(true);
                 try {
-                  const { error } = await supabase.rpc("separacao_conferencia_limpar_item" as any, {
+                  const { data, error } = await supabase.rpc("separacao_conferencia_limpar_item" as any, {
                     p_tenant_id: tenantId,
                     p_movimento_saida_id: limparConfItemDialog.movId,
                     p_produto_id: limparConfItemDialog.produtoId,
                     p_usuario_id: usuarioId,
                   });
                   if (error) throw error;
+                  const rpcResult = parseRpcResult(data);
+                  if (!rpcResult.sucesso) {
+                    toast.error(rpcResult.mensagem || "Erro ao limpar conferência.");
+                    setLimparConfItemLoading(false);
+                    return;
+                  }
                   toast.success("Conferência do item limpa com sucesso!");
                   setLimparConfItemDialog(null);
                   if (selectedId) loadTabData(selectedId);

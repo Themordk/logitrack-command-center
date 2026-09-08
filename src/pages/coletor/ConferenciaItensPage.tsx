@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
@@ -61,9 +61,16 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
 
     if (!offlineResult.success) {
       const parsed = parseError(offlineResult.data, "conferencia-itens");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
       result.showParsedError(parsed);
       return;
+    }
+
+    if (!offlineResult.offline) {
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "conferencia-itens" });
+        return;
+      }
     }
 
     const updated = tarefas.map((x) =>

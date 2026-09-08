@@ -202,7 +202,9 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
           })
         ));
         results.forEach(r => {
-          if (r.status === "fulfilled" && !(r.value as any)?.error) ok++;
+          if (r.status !== "fulfilled" || (r.value as any)?.error) { fail++; return; }
+          const rpcResult = parseRpcResult((r.value as any)?.data);
+          if (rpcResult.sucesso) ok++;
           else fail++;
         });
       }

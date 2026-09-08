@@ -9,6 +9,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { Archive, CheckCircle2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { parseRpcResult } from "@/lib/errorMapper";
 import { toast } from "sonner";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -114,6 +115,12 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
       if (offlineResult.offline) {
         toast.info("Ação salva. Será enviada quando a conexão retornar.");
         result.showSuccess("Coleta confirmada!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
+        return;
+      }
+
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "abastecimento" });
         return;
       }
 
