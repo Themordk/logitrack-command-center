@@ -246,6 +246,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     sessionStorage.setItem("coletor_armazenagem_fabricacao", tarefa.fabricacao || "");
     sessionStorage.setItem("coletor_armazenagem_picking_sugerido", tarefa.enderecos_picking || "");
     sessionStorage.setItem("coletor_armazenagem_varios_pickings", tarefa.varios_pickings || "N");
+    sessionStorage.setItem("coletor_armazenagem_fator", String(tarefa.fator_caixa || 1));
     if (!sessionStorage.getItem("coletor_armazenagem_hu")) {
       sessionStorage.removeItem("coletor_armazenagem_hu_codigo");
     }
