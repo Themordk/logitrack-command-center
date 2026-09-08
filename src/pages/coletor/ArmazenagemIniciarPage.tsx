@@ -140,17 +140,18 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       setEanConfirmado(false);
 
       try {
-        const cacheKey = `ean_produto_${tarefa.produto_id}`;
-        let eansValidos: string[] = [];
+        const cacheKey = `ean_emb_produto_${tarefa.produto_id}`;
+        let embMap: { ean: string; fator: number }[] = [];
 
         if (!isOnline) {
-          const cached = await getCachedData<string[]>(cacheKey);
+          const cached = await getCachedData<{ ean: string; fator: number }[]>(cacheKey);
           if (cached) {
-            eansValidos = cached;
+            embMap = cached;
           } else {
-            // Offline sem cache: aceitar se o SKU bater (fallback mínimo)
+            // Offline sem cache: aceitar se o SKU bater (fallback mínimo, fator=1)
             if (code.trim().toUpperCase() === (tarefa.sku || "").trim().toUpperCase()) {
               setEanConfirmado(true);
+              sessionStorage.setItem("coletor_armazenagem_fator", "1");
               setOverlay("success");
               setOverlayMsg(`Produto confirmado: ${tarefa.descricao}`);
               return;
@@ -164,18 +165,24 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
         } else {
           const { data: embData, error: embErr } = await (supabase as any)
             .from("produto_embalagem")
-            .select("ean")
+            .select("ean, fator")
             .eq("produto_id", tarefa.produto_id);
 
           if (embErr) throw embErr;
 
-          eansValidos = (embData || []).map((e: any) => String(e.ean).trim().toUpperCase());
-          await cacheData(cacheKey, eansValidos, 480).catch(() => {});
+          embMap = (embData || []).map((e: any) => ({
+            ean: String(e.ean).trim().toUpperCase(),
+            fator: Number(e.fator) || 1,
+          }));
+          await cacheData(cacheKey, embMap, 480).catch(() => {});
         }
 
         const codeLimpo = code.trim().toUpperCase();
-        if (eansValidos.includes(codeLimpo)) {
+        const embEncontrada = embMap.find((e) => e.ean === codeLimpo);
+        if (embEncontrada) {
           setEanConfirmado(true);
+          // Gravar o fator ESPECÍFICO do EAN escaneado (não o fator_caixa genérico do produto)
+          sessionStorage.setItem("coletor_armazenagem_fator", String(embEncontrada.fator));
           setOverlay("success");
           setOverlayMsg(`Produto confirmado: ${tarefa.descricao}`);
         } else {
