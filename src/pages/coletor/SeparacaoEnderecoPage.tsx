@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, Package, Navigation, Ban } from "lucide-react";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { formatDate } from "@/utils/dateTime";
 import { useOffline } from "@/contexts/OfflineContext";
 import { useCancelamentoRealtime } from "@/hooks/useCancelamentoRealtime";
@@ -178,22 +178,9 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       if (error) throw error;
 
 
-      let rpcResult: any;
-      if (typeof data === "string") {
-        try { rpcResult = JSON.parse(data); } catch { rpcResult = data; }
-      } else {
-        rpcResult = data;
-      }
-
-      // Handle object result with sucesso field
-      if (rpcResult && typeof rpcResult === "object" && rpcResult.sucesso === false) {
-        result.showWarning(rpcResult.mensagem || "Endereço incorreto! Escaneie o endereço informado.", { onClose: () => setLastScanned("") });
-        return;
-      }
-
-      // Handle string error result
-      if (typeof rpcResult === "string" && rpcResult.toLowerCase().includes("erro")) {
-        result.showWarning(rpcResult, { onClose: () => setLastScanned("") });
+      const rpcResult = parseRpcResult(data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "separacao-endereco", onClose: () => setLastScanned("") });
         return;
       }
 

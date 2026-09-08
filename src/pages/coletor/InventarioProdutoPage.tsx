@@ -9,7 +9,7 @@ import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 
 
@@ -135,18 +135,29 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
         return;
       }
 
-      const data = offlineResult.data;
-      let rpcResult: any = data;
-      if (typeof data === "string") {
-        try { rpcResult = JSON.parse(data); } catch { /* keep */ }
-      }
-
-      if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
-        result.showWarning(rpcResult.mensagem || "Erro ao registrar contagem");
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "inventario-contagem" });
         return;
       }
 
-      result.showSuccess("Contagem registrada com sucesso!", { onClose: advanceToNext });
+      switch (rpcResult.codigo) {
+        case "INVENTARIO_CONCLUIDO":
+          result.showSuccess("Contagem convergiu! Item do inventário concluído.", { onClose: advanceToNext });
+          break;
+        case "SEGUNDA_CONTAGEM_GERADA":
+          result.showWarning("Divergência na 1ª contagem. Realize a 2ª contagem.");
+          break;
+        case "TERCEIRA_CONTAGEM_GERADA":
+          result.showWarning("Divergência na 2ª contagem. Realize a 3ª contagem.");
+          break;
+        case "DIVERGENCIA_FINAL":
+          result.showWarning("Três contagens divergentes. Divergência final registrada.", { onClose: advanceToNext });
+          break;
+        default:
+          result.showSuccess("Contagem registrada com sucesso!", { onClose: advanceToNext });
+          break;
+      }
     } catch (err: unknown) {
       result.showError(err, { context: "inventario-contagem" });
     } finally {

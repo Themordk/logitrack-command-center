@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Truck, Loader2 } from "lucide-react";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -179,13 +179,9 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
         });
         if (error) throw error;
 
-        let rpcResult: any = data;
-        if (typeof data === "string") {
-          try { rpcResult = JSON.parse(data); } catch { /* keep */ }
-        }
-
-        if (rpcResult && typeof rpcResult === "object" && !Array.isArray(rpcResult) && rpcResult.sucesso === false) {
-          result.showWarning(rpcResult.mensagem || "Erro ao cortar saldo");
+        const rpcResult = parseRpcResult(data);
+        if (!rpcResult.sucesso) {
+          result.showError(rpcResult, { context: "separacao-ocorrencia" });
           setShowMotivoModal(null);
           return;
         }

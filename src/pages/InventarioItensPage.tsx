@@ -4,7 +4,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Search, ArrowLeft, Eye, Eraser, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -202,7 +202,9 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
           })
         ));
         results.forEach(r => {
-          if (r.status === "fulfilled" && !(r.value as any)?.error) ok++;
+          if (r.status !== "fulfilled" || (r.value as any)?.error) { fail++; return; }
+          const rpcResult = parseRpcResult((r.value as any)?.data);
+          if (rpcResult.sucesso) ok++;
           else fail++;
         });
       }

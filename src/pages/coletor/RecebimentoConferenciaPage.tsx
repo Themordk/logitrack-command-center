@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, Archive } from "lucide-react";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { parseRpcResult } from "@/lib/errorMapper";
 import { useOffline } from "@/contexts/OfflineContext";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
@@ -131,10 +132,19 @@ export function RecebimentoConferenciaPage({ onNavigate }: Props) {
         return;
       }
 
-      const resultado = offlineResult.data as string;
-      if (resultado === "CONFERENCIA_FINALIZADA_COM_DIVERGENCIA") {
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "recebimento-finalizar" });
+        return;
+      }
+
+      if (rpcResult.codigo === "CONFERENCIA_FINALIZADA_COM_DIVERGENCIA") {
         result.showWarning("Finalizado com divergências!", {
           instruction: "Revise as quantidades no relatório de recebimento.",
+          onClose: () => onNavigate("/coletor/recebimento/concluido"),
+        });
+      } else if (rpcResult.codigo === "CONFERENCIA_FINALIZADA_ARMAZENAGEM_AUTOMATICA") {
+        result.showSuccess("Conferência finalizada! Armazenagem automática iniciada.", {
           onClose: () => onNavigate("/coletor/recebimento/concluido"),
         });
       } else {

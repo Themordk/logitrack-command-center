@@ -233,7 +233,87 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "Armazém não identificado para esta operação.",
     instruction: "Verifique suas configurações ou fale com o supervisor.",
   },
+
+  // === Conferência de Entrada ===
+  HU_INVALIDA: {
+    title: "HU não encontrada ou inativa.",
+    instruction: "Verifique o código da HU e tente novamente.",
+  },
+  MOVIMENTO_NAO_ENCONTRADO: {
+    title: "Movimento de entrada não encontrado.",
+    instruction: "Volte à lista de movimentos.",
+  },
+
+  // === Conferência de Saída ===
+  MODO_CONFERENCIA_INVALIDO: {
+    title: "Modo de conferência inválido.",
+    instruction: "Use 'manual' ou 'checkout'.",
+  },
+
+  // === Separação ===
+  ENDERECO_DIVERGENTE: {
+    title: "Endereço escaneado não corresponde ao esperado.",
+    instruction: "Verifique o endereço e escaneie novamente.",
+  },
+
+  // === Abastecimento ===
+  ENDERECO_ORIGEM_INVALIDO: {
+    title: "Endereço de origem não corresponde à tarefa.",
+    instruction: "Escaneie o endereço correto.",
+  },
+  QUANTIDADE_EXCEDIDA: {
+    title: "Quantidade excede o requerido pela tarefa.",
+    instruction: "Ajuste a quantidade e tente novamente.",
+  },
+  SALDO_DISPONIVEL_INSUFICIENTE: {
+    title: "Saldo disponível insuficiente no endereço.",
+    instruction: "Verifique o estoque disponível.",
+  },
+  COLETA_JA_ENTREGUE: {
+    title: "Esta coleta já foi entregue ou cancelada.",
+    instruction: "Volte à lista de coletas.",
+  },
+  ENDERECO_DESTINO_INVALIDO: {
+    title: "Endereço de destino não corresponde ao picking.",
+    instruction: "Escaneie o endereço de picking correto.",
+  },
+  QUANTIDADE_EXCEDE_COLETA: {
+    title: "Quantidade maior que o coletado.",
+    instruction: "Ajuste a quantidade para o valor coletado.",
+  },
+
+  // === Separação - Conferência ===
+  CORTE_REGISTRADO: {
+    title: "Corte registrado com sucesso.",
+    instruction: "",
+  },
 };
+
+export interface RpcResult {
+  sucesso: boolean;
+  codigo: string;
+  mensagem: string;
+  dados?: Record<string, unknown>;
+}
+
+/**
+ * Processa a resposta de uma RPC que retorna jsonb estruturado.
+ * Normaliza string JSON → objeto. Retorna o objeto tipado.
+ */
+export function parseRpcResult(data: unknown): RpcResult {
+  let result = data;
+  if (typeof data === "string") {
+    try {
+      result = JSON.parse(data);
+    } catch {
+      return { sucesso: false, codigo: "ERRO_DESCONHECIDO", mensagem: data };
+    }
+  }
+  if (result && typeof result === "object" && "sucesso" in result) {
+    return result as unknown as RpcResult;
+  }
+  return { sucesso: true, codigo: "OK", mensagem: "Operação realizada." };
+}
 
 const SYSTEM_ERROR_PATTERNS: Array<{
   pattern: RegExp;
@@ -344,6 +424,24 @@ function findBusinessError(
  * Analisa qualquer erro e retorna um objeto estruturado com mensagem amigável.
  */
 export function parseError(error: unknown, context?: string): ParsedError {
+  // Retorno estruturado das RPCs { sucesso, codigo, mensagem }
+  if (error && typeof error === "object" && "codigo" in error) {
+    const obj = error as { codigo?: unknown; mensagem?: unknown };
+    const code = typeof obj.codigo === "string" ? obj.codigo : "";
+    const msg = typeof obj.mensagem === "string" ? obj.mensagem : "";
+    const mapped = code ? BUSINESS_ERROR_MAP[code] : undefined;
+    if (mapped || (code && msg)) {
+      return {
+        type: "business",
+        title: mapped?.title ?? msg,
+        instruction: mapped?.instruction ?? "",
+        details: mapped && msg && msg !== mapped.title ? msg : undefined,
+        errorCode: code || undefined,
+        technicalMessage: context ? `[${context}] ${msg || code}` : msg || code,
+      };
+    }
+  }
+
   const rawMessage = extractMessage(error);
 
   const businessMatch = findBusinessError(rawMessage);

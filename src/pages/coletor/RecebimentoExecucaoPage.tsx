@@ -13,6 +13,7 @@ import { formatDateTimeShort } from "@/utils/dateTime";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOffline } from "@/contexts/OfflineContext";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { parseRpcResult } from "@/lib/errorMapper";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
@@ -346,6 +347,14 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       });
 
       if (!offlineResult.success) throw offlineResult.data;
+
+      if (!offlineResult.offline) {
+        const rpcResult = parseRpcResult(offlineResult.data);
+        if (!rpcResult.sucesso) {
+          result.showError(rpcResult, { context: "recebimento-confirmar" });
+          return;
+        }
+      }
 
       showOverlayMsg("success", `✔ ${quantidade} un. confirmadas`);
 

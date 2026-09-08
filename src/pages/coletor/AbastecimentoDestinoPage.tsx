@@ -9,6 +9,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { MapPin, CheckCircle2 } from "lucide-react";
 import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { parseRpcResult } from "@/lib/errorMapper";
 import { useOffline } from "@/contexts/OfflineContext";
 import { toast } from "sonner";
 
@@ -142,7 +143,21 @@ export function AbastecimentoDestinoPage({ onNavigate }: Props) {
         return;
       }
 
-      result.showSuccess("Abastecimento registrado!", { onClose: () => onNavigate("/coletor/movimentos/abastecimento") });
+      const rpcResult = parseRpcResult(offlineResult.data);
+      if (!rpcResult.sucesso) {
+        result.showError(rpcResult, { context: "abastecimento" });
+        return;
+      }
+
+      if (rpcResult.codigo === "ABASTECIMENTO_PARCIAL") {
+        result.showSuccess("Entrega parcial registrada. Continue com as demais coletas.", {
+          onClose: () => onNavigate("/coletor/movimentos/abastecimento"),
+        });
+      } else {
+        result.showSuccess("Abastecimento concluído com sucesso!", {
+          onClose: () => onNavigate("/coletor/movimentos/abastecimento"),
+        });
+      }
     } catch (err: any) {
       result.showError(err, { context: "abastecimento" });
     } finally {
