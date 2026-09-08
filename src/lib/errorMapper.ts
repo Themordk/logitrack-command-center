@@ -424,6 +424,24 @@ function findBusinessError(
  * Analisa qualquer erro e retorna um objeto estruturado com mensagem amigável.
  */
 export function parseError(error: unknown, context?: string): ParsedError {
+  // Retorno estruturado das RPCs { sucesso, codigo, mensagem }
+  if (error && typeof error === "object" && "codigo" in error) {
+    const obj = error as { codigo?: unknown; mensagem?: unknown };
+    const code = typeof obj.codigo === "string" ? obj.codigo : "";
+    const msg = typeof obj.mensagem === "string" ? obj.mensagem : "";
+    const mapped = code ? BUSINESS_ERROR_MAP[code] : undefined;
+    if (mapped || (code && msg)) {
+      return {
+        type: "business",
+        title: mapped?.title ?? msg,
+        instruction: mapped?.instruction ?? "",
+        details: mapped && msg && msg !== mapped.title ? msg : undefined,
+        errorCode: code || undefined,
+        technicalMessage: context ? `[${context}] ${msg || code}` : msg || code,
+      };
+    }
+  }
+
   const rawMessage = extractMessage(error);
 
   const businessMatch = findBusinessError(rawMessage);
