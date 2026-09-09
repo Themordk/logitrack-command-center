@@ -9175,7 +9175,7 @@ export type Database = {
       }
       fn_gerar_conferencia_saida: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
-        Returns: undefined
+        Returns: Json
       }
       fn_gerar_tarefas_inventario: {
         Args: {
@@ -10969,7 +10969,7 @@ export type Database = {
           p_tenant_id: string
           p_usuario_id: string
         }
-        Returns: undefined
+        Returns: Json
       }
       separacao_verificar_itens_cancelados: {
         Args: {
