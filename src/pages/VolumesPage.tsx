@@ -72,11 +72,12 @@ export function VolumesPage({ onNavigate }: { onNavigate?: (path: string) => voi
         p_observacao: deleteObs.trim() || null,
       });
       if (error) throw error;
-      if (!data?.sucesso) {
-        toast.error(parseError(data, "excluir-volume-expedicao").title);
+      const rpcData = data as any;
+      if (!rpcData?.sucesso) {
+        toast.error(parseError(rpcData, "excluir-volume-expedicao").title);
         return;
       }
-      const result = (data as any).dados;
+      const result = rpcData.dados;
       toast.success(
         `Volume ${result?.codigo_volume ?? ""} excluído.`,
         { description: `Movimento passou de ${result?.total_antes ?? "?"} para ${result?.total_depois ?? "?"} volume(s). Ocorrência registrada.` }
