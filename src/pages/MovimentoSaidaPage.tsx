@@ -596,7 +596,11 @@ export function MovimentoSaidaPage() {
         p_itens: [{ produto_id: item.produto_id, endereco_picking: item.endereco_picking }],
       });
       if (error) throw error;
-      toast.success("Abastecimento gerado para o item!");
+      if (!data?.sucesso) {
+        toast.error(parseError(data, "gerar-abastecimento-item").title);
+        return;
+      }
+      toast.success(data.mensagem || "Abastecimento gerado para o item!");
       // Refresh saldo
       if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens, "itens");
       if (liberarResult?.ocorrencias) {
@@ -1481,23 +1485,20 @@ export function MovimentoSaidaPage() {
                 if (!limparSepItemDialog || !tenantId || !empresaId || !usuarioId) return;
                 setLimparSepItemLoading(true);
                 try {
-                  const { error } = await supabase.rpc("separacao_limpar_item" as any, {
+                  const { data, error } = await supabase.rpc("separacao_limpar_item" as any, {
                     p_tenant_id: tenantId,
                     p_empresa_id: empresaId,
                     p_usuario_id: usuarioId,
                     p_movimento_saida_id: limparSepItemDialog.movId,
                     p_produto_id: limparSepItemDialog.produtoId,
                   });
-                  if (error) {
-                    if (error.message?.includes("Endereço de cancelamento não configurado")) {
-                      toast.error(
-                        "Endereço de cancelamento não configurado para este armazém. Acesse Armazém > Configurações para configurar antes de continuar."
-                      );
-                      return;
-                    }
-                    throw error;
+                  if (error) throw error;
+                  if (!data?.sucesso) {
+                    // Mensagem amigável vem direto do backend via data.mensagem
+                    toast.error(parseError(data, "limpar-separacao-item").title);
+                    return;
                   }
-                  toast.success("Separação do item limpa com sucesso!");
+                  toast.success(data.mensagem || "Separação do item limpa com sucesso!");
                   setLimparSepItemDialog(null);
                   if (selectedId) loadTabData(selectedId);
                   fetchMovimentos();

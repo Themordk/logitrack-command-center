@@ -76,7 +76,13 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
           p_simular: true,
         });
         if (error) throw error;
-        const parsed: SimItem[] = (result || []).map((r: any) => ({
+        if (!result?.sucesso) {
+          toast.error(parseError(result, "simular-abastecimento").title);
+          return;
+        }
+        // dados contém o array de itens para simulação
+        const itensSimulacao = result.dados?.itens || result.dados || [];
+        const parsed: SimItem[] = (itensSimulacao).map((r: any) => ({
           ...r,
           quantidade: Number(r.quantidade),
           saldo_picking: Number(r.saldo_picking),
@@ -194,9 +200,13 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
         p_itens: p_itens,
       });
       if (error) throw error;
+      if (!result?.sucesso) {
+        toast.error(parseError(result, "gerar-abastecimento").title);
+        return;
+      }
 
-      const abastId = result?.abastecimento_id;
-      const totalTarefas = result?.total_tarefas || selectedItems.length;
+      const abastId = result.dados?.abastecimento_id;
+      const totalTarefas = result.dados?.total_tarefas || selectedItems.length;
 
       // If user assigned, create tarefa_atribuicao records
       if (selectedUsuario && abastId) {

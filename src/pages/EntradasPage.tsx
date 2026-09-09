@@ -13,6 +13,7 @@ import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { ImportarNfeChaveModal } from "@/components/erp/ImportarNfeChaveModal";
 import { ExcluirDocumentosModal } from "@/components/documentos/ExcluirDocumentosModal";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 
 
@@ -190,7 +191,7 @@ export function EntradasPage() {
     if (!formData.box_id) { toast.error("Selecione um Box."); return; }
     setGenerating(true);
     try {
-      const { error } = await (supabase as any).rpc("gerar_movimento_entrada", {
+      const { data, error } = await (supabase as any).rpc("gerar_movimento_entrada", {
         p_tenant_id: tenantId,
         p_usuario_id: usuarioId,
         p_documento_entrada_ids: Array.from(selected),
@@ -203,13 +204,16 @@ export function EntradasPage() {
         p_observacao: formData.observacao || null,
       });
       if (error) throw error;
-
-      toast.success("Movimento de entrada gerado com sucesso!");
+      if (!data?.sucesso) {
+        toast.error(parseError(data, "gerar-movimento-entrada").title);
+        return;
+      }
+      toast.success(data.mensagem || "Movimento de entrada gerado com sucesso!");
       setShowModal(false);
       setSelected(new Set());
       fetchDocs();
     } catch (err: any) {
-      toast.error(`Erro ao gerar movimento: ${err.message}`);
+      toast.error(parseError(err, "gerar-movimento-entrada").title);
     } finally {
       setGenerating(false);
     }
