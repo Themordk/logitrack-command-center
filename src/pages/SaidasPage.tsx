@@ -14,6 +14,7 @@ import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { ImportarPedidoSaidaModal } from "@/components/erp/ImportarPedidoSaidaModal";
 import { ExcluirDocumentosModal } from "@/components/documentos/ExcluirDocumentosModal";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
+import { parseError } from "@/lib/errorMapper";
 
 
 interface DocSaida {
@@ -155,12 +156,16 @@ export function SaidasPage() {
         p_veiculo_id: formData.veiculo_id || null,
       });
       if (error) throw error;
-      toast.success(data || "Onda de carregamento gerada com sucesso!");
+      if (!data?.sucesso) {
+        toast.error(parseError(data, "gerar-onda-separacao").title);
+        return;
+      }
+      toast.success(data.mensagem || "Onda de carregamento gerada com sucesso!");
       setShowModal(false);
       setSelected(new Set());
       fetchDocs();
     } catch (err: any) {
-      toast.error(`Erro ao gerar: ${err.message}`);
+      toast.error(parseError(err, "gerar-onda-separacao").title);
     } finally {
       setGenerating(false);
     }

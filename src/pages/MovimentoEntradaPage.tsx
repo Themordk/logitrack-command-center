@@ -556,11 +556,14 @@ export function MovimentoEntradaPage() {
         p_tenant_id: tenantId,
       });
       if (error) {
-        setCancelarResult(error);
-        toast.error("Erro ao cancelar movimento.");
+        setCancelarResult({ sucesso: false, mensagem: error.message });
+        toast.error(parseError(error, "cancelar-movimento-entrada").title);
+      } else if (!data?.sucesso) {
+        setCancelarResult(data);
+        toast.error(parseError(data, "cancelar-movimento-entrada").title);
       } else {
         setCancelarResult(data);
-        toast.success("Movimento cancelado com sucesso.");
+        toast.success(data.mensagem || "Movimento cancelado com sucesso.");
         if (selectedMov === cancelMovId) {
           setSelectedMov(null);
           setSelectedMovStatus(null);
@@ -568,8 +571,8 @@ export function MovimentoEntradaPage() {
         fetchMovements();
       }
     } catch (err: any) {
-      setCancelarResult({ error: err.message });
-      toast.error(parseError(err, "movimento-entrada-page").title);
+      setCancelarResult({ sucesso: false, mensagem: err.message });
+      toast.error(parseError(err, "cancelar-movimento-entrada").title);
     } finally {
       setCancelando(false);
     }
