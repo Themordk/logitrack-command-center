@@ -157,6 +157,7 @@ import { PainelTvOperacional } from "./pages/tv/PainelTvOperacional";
 import { PainelTvVendas } from "./pages/tv/PainelTvVendas";
 import { useForcePasswordChange } from "./hooks/useForcePasswordChange";
 import { ForcePasswordChangeModal } from "./components/ForcePasswordChangeModal";
+import { Toaster } from "@/components/ui/sonner";
 
 
 function TvRouter() {

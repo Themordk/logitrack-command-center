@@ -453,16 +453,19 @@ export function MovimentoEntradaPage() {
         p_usuario_id: usuarioId,
       });
       if (error) throw error;
-      const msg = String(data || "");
-      if (msg.startsWith("Erro")) {
-        toast.error(msg);
-      } else {
-        toast.success(msg || "Movimento liberado para conferência.");
-        fetchMovements();
-        if (selectedMov === movId) loadDetails(movId, "LIBERADO");
+
+      // A RPC retorna jsonb: { sucesso, codigo, mensagem, dados }
+      const rpcData = data as any;
+      if (!rpcData?.sucesso) {
+        toast.error(parseError(rpcData, "gerar-tarefas-conferencia-entrada").title);
+        return;
       }
+
+      toast.success(rpcData.mensagem || "Movimento liberado para conferência.");
+      fetchMovements();
+      if (selectedMov === movId) loadDetails(movId, "LIBERADO");
     } catch (err: any) {
-      toast.error(parseError(err, "movimento-entrada-page").title);
+      toast.error(parseError(err, "gerar-tarefas-conferencia-entrada").title);
     }
   };
 
