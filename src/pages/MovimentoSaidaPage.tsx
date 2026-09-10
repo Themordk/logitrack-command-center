@@ -413,19 +413,9 @@ export function MovimentoSaidaPage() {
       });
       if (error) throw error;
 
-      // Parse the result - could be JSON or string
-      let result: LiberarResult;
-      if (typeof data === "string") {
-        try {
-          result = JSON.parse(data);
-        } catch {
-          result = { sucesso: true, mensagem: data };
-        }
-      } else if (typeof data === "object" && data !== null) {
-        result = data as LiberarResult;
-      } else {
-        result = { sucesso: true, mensagem: "Liberado para separação!" };
-      }
+      // A RPC retorna jsonb — Supabase entrega como objeto diretamente
+      const result: LiberarResult = data as LiberarResult;
+
 
       if (result.sucesso) {
         const pdv = result.pdv;
@@ -497,23 +487,25 @@ export function MovimentoSaidaPage() {
       if (error) throw error;
 
       setCancelarResult(data);
-      const result = typeof data === "string" ? JSON.parse(data) : data;
-      if (result?.sucesso) {
-        toast.success(result.mensagem || "Onda cancelada com sucesso!");
-        if (selectedId === deleteConfirmId) {
-          setSelectedId(null);
-          setSelectedMov(null);
-        }
-        fetchMovimentos();
-      } else {
-        toast.error(result?.mensagem || "Erro ao cancelar onda.");
+
+      if (!data?.sucesso) {
+        toast.error(parseError(data, "cancelar-onda-carregamento").title);
+        return;
       }
+
+      toast.success(data.mensagem || "Onda cancelada com sucesso!");
+      if (selectedId === deleteConfirmId) {
+        setSelectedId(null);
+        setSelectedMov(null);
+      }
+      fetchMovimentos();
     } catch (err: any) {
-      toast.error(parseError(err, "movimento-saida-page").title);
+      toast.error(parseError(err, "cancelar-onda-carregamento").title);
     } finally {
       setDeleting(false);
     }
   };
+
 
   const handleGerarAbastecimentoPreventivo = async () => {
     if (!liberarResult?.itens || !liberarMovId || !tenantId) return;
@@ -523,12 +515,21 @@ export function MovimentoSaidaPage() {
         p_tenant_id: tenantId,
       });
       if (error) throw error;
-      toast.success(typeof data === "string" ? data : "Abastecimento preventivo gerado!");
+
+      // A RPC retorna jsonb: { sucesso, codigo, mensagem, dados }
+      const rpcData = data as any;
+      if (!rpcData?.sucesso) {
+        toast.error(parseError(rpcData, "gerar-abastecimento-preventivo").title);
+        return;
+      }
+
+      toast.success(rpcData.mensagem || "Abastecimento preventivo gerado!");
       setLiberarDialogOpen(false);
     } catch (err: any) {
-      toast.error(parseError(err, "movimento-saida-page").title);
+      toast.error(parseError(err, "gerar-abastecimento-preventivo").title);
     }
   };
+
 
   const fetchSaldoPulmao = async (itens: OcorrenciaItem[], target: "itens" | "ocorrencias" = "itens") => {
     setLoadingSaldoPulmao(true);
