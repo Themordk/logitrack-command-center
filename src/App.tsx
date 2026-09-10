@@ -157,6 +157,7 @@ import { PainelTvOperacional } from "./pages/tv/PainelTvOperacional";
 import { PainelTvVendas } from "./pages/tv/PainelTvVendas";
 import { useForcePasswordChange } from "./hooks/useForcePasswordChange";
 import { ForcePasswordChangeModal } from "./components/ForcePasswordChangeModal";
+import { Toaster } from "@/components/ui/sonner";
 
 
 function TvRouter() {
@@ -688,6 +689,7 @@ export default function App() {
       <ErrorBoundary showDetails>
         <QueryClientProvider client={queryClient}>
           <TvRouter />
+          <Toaster />
         </QueryClientProvider>
       </ErrorBoundary>
     );
@@ -702,6 +704,7 @@ export default function App() {
               <OcorrenciaColetorProvider>
                 <UpdatePrompt />
                 <AppContent />
+                <Toaster />
               </OcorrenciaColetorProvider>
             </PermissionsProvider>
           </TenantProvider>
