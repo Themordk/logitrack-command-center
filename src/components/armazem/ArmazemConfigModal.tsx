@@ -234,6 +234,9 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setEnderecoQuarentenaId(null);
       setEnderecoArmazenagemAutomaticaId(null);
       setRegra({ ...REGRA_DEFAULTS });
+      setFaixaExcelente(110);
+      setFaixaBom(90);
+      setFaixaAtencao(70);
       setConfirmRemove(false);
       onClose();
       return true;
@@ -438,6 +441,49 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                       </div>
                       <Switch checked={regra.ativo} onCheckedChange={(v) => updateRegra("ativo", v)} />
                     </div>
+                  </div>
+                </section>
+
+                <Separator />
+
+                {/* Faixas de performance LMS */}
+                <section>
+                  <SectionTitle
+                    icon={<BarChart3 size={14} className="text-primary" />}
+                    title="Faixas de performance LMS"
+                    subtitle="Limites do score composto usados para classificar operadores"
+                  />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm font-medium">
+                        Excelente (≥)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={200} value={faixaExcelente} onChange={(e) => setFaixaExcelente(Number(e.target.value))} className="w-24 h-9" />
+                        <span className="text-xs text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm font-medium">
+                        Bom (≥)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={200} value={faixaBom} onChange={(e) => setFaixaBom(Number(e.target.value))} className="w-24 h-9" />
+                        <span className="text-xs text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm font-medium">
+                        Atenção (≥)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={200} value={faixaAtencao} onChange={(e) => setFaixaAtencao(Number(e.target.value))} className="w-24 h-9" />
+                        <span className="text-xs text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Padrão: Excelente ≥110% · Bom ≥90% · Atenção ≥70% · Abaixo = Crítico
+                    </p>
                   </div>
                 </section>
               </>
