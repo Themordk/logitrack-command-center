@@ -286,6 +286,14 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Detalhe do Operador" },
     ];
   }
+  if (path.startsWith("/atividades/scorecard/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Atividades" },
+      { label: "Operadores Ativos", path: "/atividades/operadores-ativos" },
+      { label: "Scorecard Operador" },
+    ];
+  }
   const erpMatch = path.match(/^\/config\/integracao\/([^/?]+)/);
   if (erpMatch) {
     return [
