@@ -55,6 +55,7 @@ import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { OperadoresAtivosPage } from "./pages/OperadoresAtivosPage";
+import { ScorecardOperadorPage } from "@/pages/ScorecardOperadorPage";
 import { TarefasAtivasPage } from "./pages/TarefasAtivasPage";
 import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 import { InventarioPage } from "./pages/InventarioPage";
