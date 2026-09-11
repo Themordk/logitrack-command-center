@@ -1,7 +1,18 @@
 import { Trophy, Medal, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { corFaixaPerformance, iconeTendencia } from "@/pages/dashboard/dashboard.service";
 
-interface Operador { usuario_id: string; nome: string; tarefas: number; produtividade: number; tempo_medio_seg?: number }
+interface Operador {
+  usuario_id: string;
+  nome: string;
+  tarefas: number;
+  produtividade: number;
+  tempo_medio_seg?: number;
+  score_composto?: number;
+  faixa_performance?: string;
+  tendencia?: string;
+  score_tendencia_5d?: number;
+}
 
 function initials(nome: string) {
   const parts = (nome || "").trim().split(/\s+/).filter(Boolean);
@@ -18,12 +29,12 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
     "bg-orange-500/15 text-orange-400 border-orange-500/30",
   ];
   const podioIcon = [Trophy, Medal, Award];
-  const max = Math.max(1, ...safeData.map((d) => d.tarefas));
+  const max = Math.max(1, ...safeData.map((d) => d.score_composto || d.tarefas));
 
   return (
     <div className="card-surface p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Top Operadores</h3>
+        <h3 className="text-sm font-semibold text-foreground">Ranking LMS</h3>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">{safeData.length} operadores</span>
           {onNavigate && safeData.length > 0 && (
@@ -45,7 +56,7 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
           {safeData.map((op, idx) => {
             const isPodio = idx < 3;
             const Icon = isPodio ? podioIcon[idx] : null;
-            const pct = Math.max(6, Math.round((op.tarefas / max) * 100));
+            const pct = Math.max(6, Math.round(((op.score_composto || op.tarefas) / max) * 100));
             return (
               <button
                 key={op.usuario_id}
@@ -60,12 +71,26 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
                   {Icon ? <Icon size={14} /> : initials(op.nome)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{op.nome}</p>
-                  <p className="text-[11px] text-muted-foreground">{op.produtividade} tarefas/h</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{op.nome}</p>
+                    {op.faixa_performance && (
+                      <span className={cn("inline-flex items-center px-1.5 py-px rounded-full text-[10px] border shrink-0", corFaixaPerformance(op.faixa_performance).bg, corFaixaPerformance(op.faixa_performance).text, corFaixaPerformance(op.faixa_performance).border)}>
+                        {corFaixaPerformance(op.faixa_performance).label}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {op.tarefas} tarefas · {op.produtividade} tarefas/h
+                    {op.tendencia && op.tendencia !== "SEM_HISTORICO" && (
+                      <span className={cn("ml-1.5 font-medium", iconeTendencia(op.tendencia).color)}>
+                        {iconeTendencia(op.tendencia).icon}
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <div className="flex items-center gap-3 w-[200px] shrink-0">
                   <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap ml-auto">
-                    {op.tarefas} tarefas
+                    {op.score_composto ? `${op.score_composto}%` : `${op.tarefas}`}
                   </span>
                   <div className="w-24 h-1.5 rounded-full bg-secondary/60 overflow-hidden">
                     <div

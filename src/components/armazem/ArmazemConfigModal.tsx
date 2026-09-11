@@ -87,6 +87,11 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   // Regras de armazenagem
   const [regra, setRegra] = useState<RegraArmazenagem>(REGRA_DEFAULTS);
 
+  // Faixas de performance LMS
+  const [faixaExcelente, setFaixaExcelente] = useState(110);
+  const [faixaBom, setFaixaBom] = useState(90);
+  const [faixaAtencao, setFaixaAtencao] = useState(70);
+
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
     let cancelled = false;
@@ -95,7 +100,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const [cfgRes, regRes] = await Promise.all([
         (supabase as any)
           .from("armazem_config")
-          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id")
+          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -114,6 +119,9 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setEnderecoAvariaId(cfg?.endereco_avaria_id ?? null);
       setEnderecoQuarentenaId(cfg?.endereco_quarentena_id ?? null);
       setEnderecoArmazenagemAutomaticaId(cfg?.endereco_armazenagem_automatica_id ?? null);
+      setFaixaExcelente(cfg?.lms_faixa_excelente_pct ?? 110);
+      setFaixaBom(cfg?.lms_faixa_bom_pct ?? 90);
+      setFaixaAtencao(cfg?.lms_faixa_atencao_pct ?? 70);
 
       const reg = regRes.data;
       setRegra(reg ? { ...REGRA_DEFAULTS, ...reg } : { ...REGRA_DEFAULTS });
@@ -140,6 +148,9 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         endereco_avaria_id: enderecoAvariaId,
         endereco_quarentena_id: enderecoQuarentenaId,
         endereco_armazenagem_automatica_id: enderecoArmazenagemAutomaticaId,
+        lms_faixa_excelente_pct: faixaExcelente,
+        lms_faixa_bom_pct: faixaBom,
+        lms_faixa_atencao_pct: faixaAtencao,
         ativo: true,
         updated_by: usuarioId,
       };
@@ -223,6 +234,9 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setEnderecoQuarentenaId(null);
       setEnderecoArmazenagemAutomaticaId(null);
       setRegra({ ...REGRA_DEFAULTS });
+      setFaixaExcelente(110);
+      setFaixaBom(90);
+      setFaixaAtencao(70);
       setConfirmRemove(false);
       onClose();
       return true;
@@ -427,6 +441,49 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                       </div>
                       <Switch checked={regra.ativo} onCheckedChange={(v) => updateRegra("ativo", v)} />
                     </div>
+                  </div>
+                </section>
+
+                <Separator />
+
+                {/* Faixas de performance LMS */}
+                <section>
+                  <SectionTitle
+                    icon={<BarChart3 size={14} className="text-primary" />}
+                    title="Faixas de performance LMS"
+                    subtitle="Limites do score composto usados para classificar operadores"
+                  />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm font-medium">
+                        Excelente (≥)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={200} value={faixaExcelente} onChange={(e) => setFaixaExcelente(Number(e.target.value))} className="w-24 h-9" />
+                        <span className="text-xs text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm font-medium">
+                        Bom (≥)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={200} value={faixaBom} onChange={(e) => setFaixaBom(Number(e.target.value))} className="w-24 h-9" />
+                        <span className="text-xs text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-sm font-medium">
+                        Atenção (≥)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" min={0} max={200} value={faixaAtencao} onChange={(e) => setFaixaAtencao(Number(e.target.value))} className="w-24 h-9" />
+                        <span className="text-xs text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Padrão: Excelente ≥110% · Bom ≥90% · Atenção ≥70% · Abaixo = Crítico
+                    </p>
                   </div>
                 </section>
               </>

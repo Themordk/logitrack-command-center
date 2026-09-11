@@ -7,7 +7,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatarTempoEspera } from "@/pages/dashboard/dashboard.service";
+import { formatarTempoEspera, corFaixaPerformance } from "@/pages/dashboard/dashboard.service";
 
 const sb = supabase as any;
 const REFRESH_INTERVAL = 30_000;
@@ -38,6 +38,16 @@ interface OperadorAtivo {
   tempo_ocioso_seg: number | null;
   ultima_conclusao: string | null;
   tarefas_hoje: number;
+  // Novos campos LMS:
+  score_dia: number;
+  faixa_performance: string;
+  taxa_ocupacao: number;
+  produtividade_hora: number;
+  lms_faixa_excelente_pct: number;
+  lms_faixa_bom_pct: number;
+  lms_faixa_atencao_pct: number;
+  lms_tempo_transito_seg: number;
+  lms_tempo_ocioso_alerta_seg: number;
 }
 
 export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) => void }) {
@@ -167,6 +177,9 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                   <th className="text-left px-4 py-2.5 font-medium">Produto</th>
                   <th className="text-left px-4 py-2.5 font-medium">Endereço</th>
                   <th className="text-left px-4 py-2.5 font-medium">Tempo</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Score</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Ocupação</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Prod/h</th>
                   <th className="text-right px-4 py-2.5 font-medium">Tarefas Hoje</th>
                   <th className="text-left px-4 py-2.5 font-medium">Sessão</th>
                 </tr>
@@ -179,11 +192,12 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                   let badgeClass = "bg-green-500/15 text-green-400 border-green-500/30";
                   let badgeLabel = "Em Atividade";
                   if (ocioso) {
-                    if (ociosoSeg > 20 * 60) {
+                    const limiteAlerta = o.lms_tempo_ocioso_alerta_seg || 900; // default 15min
+                    if (ociosoSeg > limiteAlerta * 2) {
                       borderClass = "border-l-2 border-l-red-500";
                       badgeClass = "bg-red-500/15 text-red-400 border-red-500/30";
-                      badgeLabel = "Ocioso > 20min";
-                    } else if (ociosoSeg > 10 * 60) {
+                      badgeLabel = "Ocioso Crítico";
+                    } else if (ociosoSeg > limiteAlerta) {
                       borderClass = "border-l-2 border-l-yellow-500";
                       badgeClass = "bg-yellow-500/15 text-yellow-400 border-yellow-500/30";
                       badgeLabel = "Ocioso";
@@ -222,6 +236,32 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                       </td>
                       <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">{endereco}</td>
                       <td className="px-4 py-3 tabular-nums">{tempo > 0 ? formatarTempoEspera(tempo) : "—"}</td>
+                      {/* Score LMS */}
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {o.score_dia > 0 ? (
+                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corFaixaPerformance(o.faixa_performance).bg, corFaixaPerformance(o.faixa_performance).text, corFaixaPerformance(o.faixa_performance).border)}>
+                            {o.score_dia.toFixed(0)}%
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      {/* Taxa Ocupação */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-1.5 rounded-full bg-secondary/60 overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full"
+                              style={{ width: `${Math.min(100, Math.max(0, o.taxa_ocupacao || 0))}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground tabular-nums">{(o.taxa_ocupacao || 0).toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      {/* Produtividade/hora */}
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {o.produtividade_hora > 0 ? o.produtividade_hora.toFixed(1) : "—"}
+                      </td>
                       <td className="px-4 py-3 text-right tabular-nums">{o.tarefas_hoje}</td>
                       <td className="px-4 py-3 text-muted-foreground">{o.inicio_sessao ? formatTime(o.inicio_sessao) : "—"}</td>
                     </tr>

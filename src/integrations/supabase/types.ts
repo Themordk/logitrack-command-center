@@ -278,6 +278,11 @@ export type Database = {
           endereco_cancelamento_id: string | null
           endereco_quarentena_id: string | null
           id: string
+          lms_faixa_atencao_pct: number
+          lms_faixa_bom_pct: number
+          lms_faixa_excelente_pct: number
+          lms_tempo_ocioso_alerta_seg: number
+          lms_tempo_transito_seg: number
           tenant_id: string
           updated_at: string
           updated_by: string | null
@@ -293,6 +298,11 @@ export type Database = {
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
           id?: string
+          lms_faixa_atencao_pct?: number
+          lms_faixa_bom_pct?: number
+          lms_faixa_excelente_pct?: number
+          lms_tempo_ocioso_alerta_seg?: number
+          lms_tempo_transito_seg?: number
           tenant_id: string
           updated_at?: string
           updated_by?: string | null
@@ -308,6 +318,11 @@ export type Database = {
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
           id?: string
+          lms_faixa_atencao_pct?: number
+          lms_faixa_bom_pct?: number
+          lms_faixa_excelente_pct?: number
+          lms_tempo_ocioso_alerta_seg?: number
+          lms_tempo_transito_seg?: number
           tenant_id?: string
           updated_at?: string
           updated_by?: string | null
@@ -2639,6 +2654,7 @@ export type Database = {
           peso_total: number | null
           produtividade_hora: number | null
           quantidade_total: number | null
+          score_dia: number
           skus_distintos: number | null
           tarefas_canceladas: number | null
           tarefas_concluidas: number | null
@@ -2647,6 +2663,7 @@ export type Database = {
           tempo_jornada: number | null
           tempo_ocioso: number | null
           tempo_produtivo: number | null
+          tempo_transito: number
           tenant_id: string
           turno_id: string | null
           usuario_id: string
@@ -2660,6 +2677,7 @@ export type Database = {
           peso_total?: number | null
           produtividade_hora?: number | null
           quantidade_total?: number | null
+          score_dia?: number
           skus_distintos?: number | null
           tarefas_canceladas?: number | null
           tarefas_concluidas?: number | null
@@ -2668,6 +2686,7 @@ export type Database = {
           tempo_jornada?: number | null
           tempo_ocioso?: number | null
           tempo_produtivo?: number | null
+          tempo_transito?: number
           tenant_id: string
           turno_id?: string | null
           usuario_id: string
@@ -2681,6 +2700,7 @@ export type Database = {
           peso_total?: number | null
           produtividade_hora?: number | null
           quantidade_total?: number | null
+          score_dia?: number
           skus_distintos?: number | null
           tarefas_canceladas?: number | null
           tarefas_concluidas?: number | null
@@ -2689,6 +2709,7 @@ export type Database = {
           tempo_jornada?: number | null
           tempo_ocioso?: number | null
           tempo_produtivo?: number | null
+          tempo_transito?: number
           tenant_id?: string
           turno_id?: string | null
           usuario_id?: string
@@ -8828,13 +8849,16 @@ export type Database = {
           p_tenant_id: string
           p_turno_id?: string
         }
-        Returns: {
-          nome: string
-          produtividade: number
-          tarefas: number
-          tempo_medio_seg: number
-          usuario_id: string
-        }[]
+        Returns: Json
+      }
+      dashboard_scorecard_operador: {
+        Args: {
+          p_data_fim?: string
+          p_data_ini?: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
       }
       dashboard_tarefas_ativas: {
         Args: {
