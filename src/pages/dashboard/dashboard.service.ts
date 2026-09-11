@@ -45,6 +45,18 @@ export interface KpisResult {
     sem_ocorrencia: number;
     total: number;
   };
+  lms: {
+    score_medio_equipe: number;
+    taxa_ocupacao_media: number;
+    produtividade_hora_media: number;
+    operadores_avaliados: number;
+    distribuicao_faixas: {
+      excelente: number;
+      bom: number;
+      atencao: number;
+      critico: number;
+    };
+  };
 }
 
 export interface OperadorRanking {
@@ -53,6 +65,12 @@ export interface OperadorRanking {
   tarefas: number;
   produtividade: number;
   tempo_medio_seg: number;
+  // Novos campos LMS:
+  score_composto: number;
+  faixa_performance: string; // "EXCELENTE" | "BOM" | "ATENCAO" | "CRITICO"
+  quantidade_total: number;
+  score_tendencia_5d: number;
+  tendencia: string; // "SUBINDO" | "ESTAVEL" | "CAINDO" | "SEM_HISTORICO"
 }
 
 export interface OcorrenciaResumo {
@@ -133,6 +151,26 @@ export function formatarTempoEspera(segundos: number): string {
   return `${minutos}min`;
 }
 
+// ── Helper: cor da faixa de performance LMS ──
+export function corFaixaPerformance(faixa: string): { bg: string; text: string; border: string; label: string } {
+  switch (faixa) {
+    case "EXCELENTE": return { bg: "bg-green-500/15", text: "text-green-400", border: "border-green-500/30", label: "Excelente" };
+    case "BOM":       return { bg: "bg-blue-500/15",  text: "text-blue-400",  border: "border-blue-500/30",  label: "Bom" };
+    case "ATENCAO":   return { bg: "bg-yellow-500/15", text: "text-yellow-400", border: "border-yellow-500/30", label: "Atenção" };
+    case "CRITICO":   return { bg: "bg-red-500/15",   text: "text-red-400",   border: "border-red-500/30",   label: "Crítico" };
+    default:          return { bg: "bg-secondary/30",  text: "text-muted-foreground", border: "border-border/50", label: "Sem dados" };
+  }
+}
+
+export function iconeTendencia(tendencia: string): { icon: string; color: string } {
+  switch (tendencia) {
+    case "SUBINDO":  return { icon: "↑", color: "text-green-400" };
+    case "CAINDO":   return { icon: "↓", color: "text-red-400" };
+    case "ESTAVEL":  return { icon: "→", color: "text-muted-foreground" };
+    default:         return { icon: "—", color: "text-muted-foreground" };
+  }
+}
+
 // ── RPC 1: KPIs escalares ──
 
 export async function fetchKpis(f: DashboardFilters) {
@@ -172,7 +210,12 @@ export async function fetchRankingOperadores(f: DashboardFilters, limite = 8): P
     console.error("dashboard_ranking_operadores error:", error);
     return [];
   }
-  return (data || []) as OperadorRanking[];
+  // Backend retorna jsonb: pode vir como array direto ou wrappado
+  const raw = data;
+  if (Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])) {
+    return raw[0] as OperadorRanking[];
+  }
+  return (raw || []) as OperadorRanking[];
 }
 
 // ── RPC 3: Ocorrências ──

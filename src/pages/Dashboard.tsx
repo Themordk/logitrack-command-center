@@ -5,7 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import {
   Target, Gauge, Activity, ListTodo,
-  PlayCircle, Users, Package, ShieldCheck, RefreshCw,
+  PlayCircle, Users, Package, ShieldCheck, RefreshCw, BarChart3,
 } from "lucide-react";
 import { DashboardFilters, FiltersState } from "./dashboard/components/DashboardFilters";
 import { KPICardPro, KPISeverity } from "./dashboard/components/KPICardPro";
@@ -203,6 +203,54 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           onClick={() => onNavigate("/atividades/ocorrencias")}
         />
       </div>
+
+      {/* KPIs LMS */}
+      {kpis?.lms && kpis.lms.operadores_avaliados > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={16} className="text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">Performance LMS</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICardPro
+              title="Score Médio da Equipe"
+              value={`${kpis.lms.score_medio_equipe}%`}
+              subtitle={`${kpis.lms.operadores_avaliados} operadores avaliados`}
+              icon={<Target size={20} />}
+              severity={kpis.lms.score_medio_equipe >= 90 ? "good" : kpis.lms.score_medio_equipe >= 70 ? "warn" : "bad"}
+              progress={kpis.lms.score_medio_equipe}
+              onClick={() => onNavigate("/atividades/operadores-ativos")}
+            />
+            <KPICardPro
+              title="Taxa de Ocupação Média"
+              value={`${kpis.lms.taxa_ocupacao_media}%`}
+              subtitle="Tempo produtivo sobre tempo logado"
+              icon={<Gauge size={20} />}
+              severity={kpis.lms.taxa_ocupacao_media >= 70 ? "good" : kpis.lms.taxa_ocupacao_media >= 40 ? "warn" : "bad"}
+              progress={kpis.lms.taxa_ocupacao_media}
+              onClick={() => onNavigate("/atividades/operadores-ativos")}
+            />
+            <KPICardPro
+              title="Produtividade Média"
+              value={`${kpis.lms.produtividade_hora_media}`}
+              subtitle="Tarefas por hora trabalhada"
+              icon={<Activity size={20} />}
+              severity="neutral"
+              unit="tarefas/h"
+              onClick={() => onNavigate("/relatorios/produtividade")}
+            />
+            <KPICardPro
+              title="Distribuição de Faixas"
+              value={`${kpis.lms.operadores_avaliados}`}
+              subtitle={`${kpis.lms.distribuicao_faixas.excelente}★ ${kpis.lms.distribuicao_faixas.bom}✓ ${kpis.lms.distribuicao_faixas.atencao}⚠ ${kpis.lms.distribuicao_faixas.critico}✗`}
+              icon={<Users size={20} />}
+              severity="neutral"
+              unit="operadores"
+              onClick={() => onNavigate("/atividades/operadores-ativos")}
+            />
+          </div>
+        </div>
+      )}
 
       <TendenciaChart data={tendencia} loading={loading} />
 

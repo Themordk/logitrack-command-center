@@ -87,6 +87,11 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   // Regras de armazenagem
   const [regra, setRegra] = useState<RegraArmazenagem>(REGRA_DEFAULTS);
 
+  // Faixas de performance LMS
+  const [faixaExcelente, setFaixaExcelente] = useState(110);
+  const [faixaBom, setFaixaBom] = useState(90);
+  const [faixaAtencao, setFaixaAtencao] = useState(70);
+
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
     let cancelled = false;
@@ -95,7 +100,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const [cfgRes, regRes] = await Promise.all([
         (supabase as any)
           .from("armazem_config")
-          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id")
+          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -114,6 +119,9 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setEnderecoAvariaId(cfg?.endereco_avaria_id ?? null);
       setEnderecoQuarentenaId(cfg?.endereco_quarentena_id ?? null);
       setEnderecoArmazenagemAutomaticaId(cfg?.endereco_armazenagem_automatica_id ?? null);
+      setFaixaExcelente(cfg?.lms_faixa_excelente_pct ?? 110);
+      setFaixaBom(cfg?.lms_faixa_bom_pct ?? 90);
+      setFaixaAtencao(cfg?.lms_faixa_atencao_pct ?? 70);
 
       const reg = regRes.data;
       setRegra(reg ? { ...REGRA_DEFAULTS, ...reg } : { ...REGRA_DEFAULTS });
@@ -140,6 +148,9 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         endereco_avaria_id: enderecoAvariaId,
         endereco_quarentena_id: enderecoQuarentenaId,
         endereco_armazenagem_automatica_id: enderecoArmazenagemAutomaticaId,
+        lms_faixa_excelente_pct: faixaExcelente,
+        lms_faixa_bom_pct: faixaBom,
+        lms_faixa_atencao_pct: faixaAtencao,
         ativo: true,
         updated_by: usuarioId,
       };
