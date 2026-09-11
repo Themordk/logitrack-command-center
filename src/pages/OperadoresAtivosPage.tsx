@@ -211,8 +211,13 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                   return (
                     <tr key={o.usuario_id} className={cn("border-b border-border/30 hover:bg-secondary/20 transition-colors", borderClass)}>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-foreground">{o.nome}</div>
-                        {o.tipo_operacao && <div className="text-[11px] text-muted-foreground">{o.tipo_operacao}</div>}
+                        <button
+                          onClick={() => onNavigate(`/atividades/scorecard/${o.usuario_id}`)}
+                          className="text-left hover:underline"
+                        >
+                          <div className="font-medium text-foreground">{o.nome}</div>
+                          {o.tipo_operacao && <div className="text-[11px] text-muted-foreground">{o.tipo_operacao}</div>}
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", badgeClass)}>
