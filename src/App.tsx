@@ -198,6 +198,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
   "/atividades/ocorrencias": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ocorrências Operacionais" }],
   "/atividades/operadores-ativos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Operadores Ativos" }],
+  "/atividades/scorecard": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Scorecard Operador" }],
   "/atividades/tarefas-ativas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Tarefas Ativas" }],
   "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
@@ -358,6 +359,11 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/documentos-cancelados": return <DocumentosCanceladosPage />;
     case "/relatorios/picking-nao-cadastrado": return <PickingNaoCadastradoReportPage onNavigate={onNavigate} />;
     default: {
+      // Dynamic route: /atividades/scorecard/:id
+      if (path.startsWith("/atividades/scorecard/")) {
+        const id = path.replace("/atividades/scorecard/", "").split("?")[0];
+        return <ScorecardOperadorPage onNavigate={onNavigate} params={{ id }} />;
+      }
       // Dynamic route: /atividades/ocorrencias/:id
       if (path.startsWith("/atividades/ocorrencias/")) {
         const ocorrenciaId = path.replace("/atividades/ocorrencias/", "").split("?")[0];
