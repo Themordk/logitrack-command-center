@@ -73,6 +73,70 @@ export interface OperadorRanking {
   tendencia: string; // "SUBINDO" | "ESTAVEL" | "CAINDO" | "SEM_HISTORICO"
 }
 
+export interface ScorecardOperador {
+  operador: {
+    usuario_id: string;
+    nome: string;
+    tipo_operacao: string | null;
+    habilidade: string | null;
+    tipo_usuario: string | null;
+    armazem: string | null;
+    armazem_id: string | null;
+    turno: string | null;
+    turno_inicio: string | null;
+    turno_fim: string | null;
+  };
+  metricas_periodo: {
+    score_medio: number;
+    taxa_ocupacao_media: number;
+    produtividade_hora_media: number;
+    total_tarefas: number;
+    total_canceladas: number;
+    quantidade_total: number;
+    peso_total: number;
+    documentos_processados: number;
+    tempo_produtivo_total: number;
+    tempo_transito_total: number;
+    tempo_ocioso_total: number;
+    dias_trabalhados: number;
+    faixa_performance: string;
+  };
+  detalhamento_tipo: Array<{
+    tipo_tarefa_codigo: string;
+    tipo_tarefa_desc: string;
+    categoria: string;
+    cor_interface: string | null;
+    tarefas: number;
+    quantidade_total: number;
+    tempo_medio_seg: number;
+    tempo_total_seg: number;
+    tempo_estimado_seg: number;
+    meta_unidades_hora: number | null;
+    performance_pct: number | null;
+  }>;
+  evolucao_diaria: Array<{
+    data: string;
+    score_dia: number;
+    taxa_ocupacao: number;
+    produtividade_hora: number;
+    tarefas_concluidas: number;
+    tempo_produtivo: number;
+    tempo_transito: number;
+    tempo_ocioso: number;
+  }>;
+  comparativo_equipe: {
+    total_operadores: number;
+    posicao: number;
+    score_equipe_media: number;
+    score_equipe_max: number;
+    score_equipe_min: number;
+  };
+  periodo: {
+    data_ini: string;
+    data_fim: string;
+  };
+}
+
 export interface OcorrenciaResumo {
   total: number;
   abertas: number;
@@ -256,4 +320,25 @@ export async function fetchTendencia(f: DashboardFilters): Promise<TendenciaItem
     return [];
   }
   return (data || []) as TendenciaItem[];
+}
+
+// ── RPC 5: Scorecard individual do operador ──
+
+export async function fetchScorecardOperador(
+  tenantId: string,
+  usuarioId: string,
+  dataIni: string,
+  dataFim: string,
+): Promise<ScorecardOperador | null> {
+  const { data, error } = await sb.rpc("dashboard_scorecard_operador", {
+    p_tenant_id: tenantId,
+    p_usuario_id: usuarioId,
+    p_data_ini: dataIni,
+    p_data_fim: dataFim,
+  });
+  if (error) {
+    console.error("dashboard_scorecard_operador error:", error);
+    return null;
+  }
+  return data as ScorecardOperador;
 }

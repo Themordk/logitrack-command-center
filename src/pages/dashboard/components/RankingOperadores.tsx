@@ -60,7 +60,7 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
             return (
               <button
                 key={op.usuario_id}
-                onClick={() => onNavigate?.("/relatorios/produtividade")}
+                onClick={() => onNavigate?.(`/atividades/scorecard/${op.usuario_id}`)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors w-full text-left",
                   isPodio ? podio[idx] : "bg-secondary/30 border-transparent text-foreground hover:bg-secondary/50",

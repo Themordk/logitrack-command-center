@@ -55,6 +55,7 @@ import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
 import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { OperadoresAtivosPage } from "./pages/OperadoresAtivosPage";
+import { ScorecardOperadorPage } from "@/pages/ScorecardOperadorPage";
 import { TarefasAtivasPage } from "./pages/TarefasAtivasPage";
 import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
 import { InventarioPage } from "./pages/InventarioPage";
@@ -197,6 +198,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
   "/atividades/ocorrencias": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ocorrências Operacionais" }],
   "/atividades/operadores-ativos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Operadores Ativos" }],
+  "/atividades/scorecard": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Scorecard Operador" }],
   "/atividades/tarefas-ativas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Tarefas Ativas" }],
   "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
@@ -284,6 +286,14 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Detalhe do Operador" },
     ];
   }
+  if (path.startsWith("/atividades/scorecard/")) {
+    return [
+      { label: "CORE LogiTrack" },
+      { label: "Atividades" },
+      { label: "Operadores Ativos", path: "/atividades/operadores-ativos" },
+      { label: "Scorecard Operador" },
+    ];
+  }
   const erpMatch = path.match(/^\/config\/integracao\/([^/?]+)/);
   if (erpMatch) {
     return [
@@ -357,6 +367,11 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
     case "/relatorios/documentos-cancelados": return <DocumentosCanceladosPage />;
     case "/relatorios/picking-nao-cadastrado": return <PickingNaoCadastradoReportPage onNavigate={onNavigate} />;
     default: {
+      // Dynamic route: /atividades/scorecard/:id
+      if (path.startsWith("/atividades/scorecard/")) {
+        const id = path.replace("/atividades/scorecard/", "").split("?")[0];
+        return <ScorecardOperadorPage onNavigate={onNavigate} params={{ id }} />;
+      }
       // Dynamic route: /atividades/ocorrencias/:id
       if (path.startsWith("/atividades/ocorrencias/")) {
         const ocorrenciaId = path.replace("/atividades/ocorrencias/", "").split("?")[0];
