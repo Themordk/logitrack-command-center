@@ -8,7 +8,7 @@ import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarD
 
 export function ParceirosPage() {
   const { tenantId, empresaId, armazemId, empresaVersion } = useTenant();
-  const crud = useCrud({ table: "parceiro", tenantId, orderBy: "razaosocial" });
+  const crud = useCrud({ table: "parceiro", tenantId, orderBy: "razaosocial", searchFields: ["razaosocial", "nome_fantasia"] });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
