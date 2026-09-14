@@ -65,7 +65,7 @@ export function ParceirosPage() {
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Parceiro"
-        searchPlaceholder="Buscar por razão social..."
+        searchPlaceholder="Buscar por razão social ou nome fantasia..."
         headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
       />
       <ImportarDoERPModal
