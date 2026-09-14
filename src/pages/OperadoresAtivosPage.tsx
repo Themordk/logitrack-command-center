@@ -185,27 +185,29 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
               <thead>
                 <tr className="border-b border-border/50 text-xs text-muted-foreground uppercase tracking-wide">
                   <th className="text-left px-4 py-2.5 font-medium">Operador</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Status</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Tarefa Atual</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Produto</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Endereço</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Tempo</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Status / Tempo</th>
                   <th className="text-right px-4 py-2.5 font-medium">Score</th>
                   <th className="text-left px-4 py-2.5 font-medium">Ocupação</th>
                   <th className="text-right px-4 py-2.5 font-medium">Prod/h</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Tarefas Hoje</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Sessão</th>
+                  <th className="text-right px-4 py-2.5 font-medium">Concluídas</th>
+                  <th className="text-left px-4 py-2.5 font-medium">Online</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((o) => {
+                  const isTransito = o.status_operador === "EM_TRANSITO";
                   const ocioso = o.status_operador === "OCIOSO";
                   const ociosoSeg = o.tempo_ocioso_seg || 0;
+
+                  // Lógica de badge de status
                   let borderClass = "";
                   let badgeClass = "bg-green-500/15 text-green-400 border-green-500/30";
                   let badgeLabel = "Em Atividade";
-                  if (ocioso) {
-                    const limiteAlerta = o.lms_tempo_ocioso_alerta_seg || 900; // default 15min
+                  if (isTransito) {
+                    badgeClass = "bg-cyan-500/15 text-cyan-400 border-cyan-500/30";
+                    badgeLabel = "Em Trânsito";
+                  } else if (ocioso) {
+                    const limiteAlerta = o.lms_tempo_ocioso_alerta_seg || 900;
                     if (ociosoSeg > limiteAlerta * 2) {
                       borderClass = "border-l-2 border-l-red-500";
                       badgeClass = "bg-red-500/15 text-red-400 border-red-500/30";
@@ -219,52 +221,69 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                       badgeLabel = "Ocioso";
                     }
                   }
-                  const tempo = ocioso ? o.tempo_ocioso_seg || 0 : o.tempo_na_tarefa_seg || 0;
-                  const endereco = [o.endereco_origem, o.endereco_destino].filter(Boolean).join(" → ") || "—";
+
+                  // Fora do turno sobrepõe a borda
+                  if (o.fora_do_turno === true) {
+                    borderClass = "border-l-2 border-l-orange-500";
+                  }
+
+                  // Tempo no estado atual
+                  const tempoSeg = ocioso || isTransito
+                    ? (o.tempo_ocioso_seg || 0)
+                    : (o.tempo_na_tarefa_seg || 0);
+
                   return (
                     <tr key={o.usuario_id} className={cn("border-b border-border/30 hover:bg-secondary/20 transition-colors", borderClass)}>
+                      {/* ── COL 1: Operador ── */}
                       <td className="px-4 py-3">
                         <button
                           onClick={() => onNavigate(`/atividades/scorecard/${o.usuario_id}`)}
                           className="text-left hover:underline"
                         >
-                          <div className="font-medium text-foreground">{o.nome}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium text-foreground">{o.nome}</div>
+                            {o.fora_do_turno === true && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                                <AlertTriangle size={10} />
+                                EXTRA
+                              </span>
+                            )}
+                          </div>
                           {o.tipo_operacao && <div className="text-[11px] text-muted-foreground">{o.tipo_operacao}</div>}
+                          {o.turno_descricao && (
+                            <div className="text-[10px] text-muted-foreground/70">
+                              {o.turno_descricao}
+                              {o.turno_hora_inicio && o.turno_hora_fim &&
+                                ` (${o.turno_hora_inicio.slice(0,5)}-${o.turno_hora_fim.slice(0,5)})`
+                              }
+                            </div>
+                          )}
                         </button>
                       </td>
+                      {/* ── COL 2: Status / Tempo (merged) ── */}
                       <td className="px-4 py-3">
-                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", badgeClass)}>
-                          {badgeLabel}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {ocioso ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <div>
-                            <div className="font-medium text-foreground">{o.tipo_tarefa_desc || o.tipo_tarefa_codigo || "—"}</div>
-                            {o.produto_sku && <div className="text-[11px] text-muted-foreground">SKU {o.produto_sku}</div>}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 max-w-[240px]">
-                        <div className="truncate text-muted-foreground" title={o.produto_descricao || ""}>
-                          {o.produto_descricao || "—"}
+                        <div className="flex flex-col gap-0.5">
+                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border w-fit", badgeClass)}>
+                            {badgeLabel}
+                          </span>
+                          {tempoSeg > 0 && (
+                            <span className="text-[11px] text-muted-foreground tabular-nums">
+                              {formatarTempoEspera(tempoSeg)}
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">{endereco}</td>
-                      <td className="px-4 py-3 tabular-nums">{tempo > 0 ? formatarTempoEspera(tempo) : "—"}</td>
-                      {/* Score LMS */}
+                      {/* ── COL 3: Score LMS ── */}
                       <td className="px-4 py-3 text-right tabular-nums">
                         {o.score_dia > 0 ? (
                           <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corFaixaPerformance(o.faixa_performance).bg, corFaixaPerformance(o.faixa_performance).text, corFaixaPerformance(o.faixa_performance).border)}>
                             {o.score_dia.toFixed(0)}%
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">--</span>
                         )}
                       </td>
-                      {/* Taxa Ocupação */}
+                      {/* ── COL 4: Ocupação ── */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-16 h-1.5 rounded-full bg-secondary/60 overflow-hidden">
@@ -276,12 +295,14 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                           <span className="text-xs text-muted-foreground tabular-nums">{(o.taxa_ocupacao || 0).toFixed(0)}%</span>
                         </div>
                       </td>
-                      {/* Produtividade/hora */}
+                      {/* ── COL 5: Prod/h ── */}
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {o.produtividade_hora > 0 ? o.produtividade_hora.toFixed(1) : "—"}
+                        {o.produtividade_hora > 0 ? o.produtividade_hora.toFixed(1) : "--"}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{o.tarefas_hoje}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{o.inicio_sessao ? formatTime(o.inicio_sessao) : "—"}</td>
+                      {/* ── COL 6: Concluídas ── */}
+                      <td className="px-4 py-3 text-right tabular-nums font-medium">{o.tarefas_hoje}</td>
+                      {/* ── COL 7: Online ── */}
+                      <td className="px-4 py-3 text-muted-foreground text-[12px]">{o.inicio_sessao ? formatTime(o.inicio_sessao) : "--"}</td>
                     </tr>
                   );
                 })}
