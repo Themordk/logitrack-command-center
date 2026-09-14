@@ -20,11 +20,19 @@ interface OperadorAtivo {
   tipo_usuario: string | null;
   armazem: string | null;
   armazem_id: string | null;
+  // Turno do operador (novos campos do backend)
+  turno_descricao: string | null;
+  turno_hora_inicio: string | null;
+  turno_hora_fim: string | null;
+  fora_do_turno: boolean | null;
+  // Sessão
   inicio_sessao: string;
   ultimo_heartbeat: string;
   seg_desde_heartbeat: number;
-  status_operador: "EM_ATIVIDADE" | "OCIOSO";
-  tarefa_execucao_id: string | null;
+  // Status agora inclui EM_TRANSITO
+  status_operador: "EM_ATIVIDADE" | "EM_TRANSITO" | "OCIOSO";
+  ociosidade_alerta: boolean;
+  // Tarefa ativa
   tarefa_id: string | null;
   tipo_tarefa_codigo: string | null;
   tipo_tarefa_desc: string | null;
@@ -33,12 +41,12 @@ interface OperadorAtivo {
   endereco_origem: string | null;
   endereco_destino: string | null;
   quantidade_requerida: number | null;
-  iniciado_em: string | null;
+  atribuido_em: string | null;
   tempo_na_tarefa_seg: number | null;
   tempo_ocioso_seg: number | null;
   ultima_conclusao: string | null;
   tarefas_hoje: number;
-  // Novos campos LMS:
+  // LMS
   score_dia: number;
   faixa_performance: string;
   taxa_ocupacao: number;
@@ -132,10 +140,12 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <MiniCard icon={<Users size={18} />} label="Total Online" value={totalOnline} accent="text-blue-400 bg-blue-500/10 border-blue-500/20" />
         <MiniCard icon={<PlayCircle size={18} />} label="Em Atividade" value={totalAtivos} accent="text-green-400 bg-green-500/10 border-green-500/20" />
+        <MiniCard icon={<Navigation size={18} />} label="Em Trânsito" value={totalEmTransito} accent="text-cyan-400 bg-cyan-500/10 border-cyan-500/20" />
         <MiniCard icon={<Clock size={18} />} label="Ociosos" value={totalOciosos} accent={totalOciosos > 0 ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" : "text-muted-foreground bg-secondary/40 border-border/50"} />
+        <MiniCard icon={<AlertTriangle size={18} />} label="Fora do Turno" value={totalForaDoTurno} accent={totalForaDoTurno > 0 ? "text-orange-400 bg-orange-500/10 border-orange-500/20" : "text-muted-foreground bg-secondary/40 border-border/50"} />
       </div>
 
       <div className="card-surface p-3 flex flex-wrap items-center gap-2">
@@ -151,6 +161,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
           <SelectContent>
             <SelectItem value="ALL">Todos os status</SelectItem>
             <SelectItem value="EM_ATIVIDADE">Em Atividade</SelectItem>
+            <SelectItem value="EM_TRANSITO">Em Trânsito</SelectItem>
             <SelectItem value="OCIOSO">Ociosos</SelectItem>
           </SelectContent>
         </Select>
