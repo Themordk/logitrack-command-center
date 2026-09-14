@@ -50,7 +50,7 @@ interface Inventario {
 interface Props { onNavigate: (path: string) => void; }
 
 export function InventarioPage({ onNavigate }: Props) {
-  const { tenantId, empresaId, armazemId } = useTenant();
+  const { tenantId, usuarioId, empresaId, armazemId } = useTenant();
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
