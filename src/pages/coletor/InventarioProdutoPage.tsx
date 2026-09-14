@@ -90,6 +90,14 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
 
   };
 
+  const resetForRecount = (nextContagem: number) => {
+    sessionStorage.setItem("coletor_inventario_contagem", String(nextContagem));
+    setEanScanned("");
+    setEmbalagemInfo(null);
+    setEanConfirmado(false);
+    setQuantidade("");
+  };
+
   const handleConfirmar = async () => {
     if (!tarefa || quantidade === "" || !usuarioId) return;
     const qtd = Number(quantidade);
@@ -146,10 +154,14 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
           result.showSuccess("Contagem convergiu! Item do inventário concluído.", { onClose: advanceToNext });
           break;
         case "SEGUNDA_CONTAGEM_GERADA":
-          result.showWarning("Divergência na 1ª contagem. Realize a 2ª contagem.");
+          result.showWarning("Divergência na 1ª contagem. Realize a 2ª contagem.", {
+            onClose: () => resetForRecount(2),
+          });
           break;
         case "TERCEIRA_CONTAGEM_GERADA":
-          result.showWarning("Divergência na 2ª contagem. Realize a 3ª contagem.");
+          result.showWarning("Divergência na 2ª contagem. Realize a 3ª contagem.", {
+            onClose: () => resetForRecount(3),
+          });
           break;
         case "DIVERGENCIA_FINAL":
           result.showWarning("Três contagens divergentes. Divergência final registrada.", { onClose: advanceToNext });

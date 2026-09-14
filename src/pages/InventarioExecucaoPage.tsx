@@ -34,7 +34,10 @@ export function InventarioExecucaoPage({ onNavigate, inventarioId, numeroInventa
   const pageSize = 30;
 
   const fetchExecucoes = useCallback(async () => {
-    if (!tarefaId) return;
+    if (!tarefaId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const from = (page - 1) * pageSize;
@@ -114,7 +117,11 @@ export function InventarioExecucaoPage({ onNavigate, inventarioId, numeroInventa
                 </thead>
                 <tbody>
                   {execucoes.length === 0 ? (
-                    <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhuma execução encontrada.</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                      {!tarefaId
+                        ? "Tarefa não informada. Volte e selecione um item do inventário."
+                        : "Nenhuma execução encontrada para esta tarefa."}
+                    </td></tr>
                   ) : execucoes.map((ex, idx) => (
                     <tr key={ex.id} className={cn("border-b border-border/50 hover:bg-secondary/30 transition-colors", idx % 2 !== 0 && "bg-secondary/10")}>
                       <td className="px-3 py-2 text-sm font-mono font-semibold text-primary">{sku}</td>
