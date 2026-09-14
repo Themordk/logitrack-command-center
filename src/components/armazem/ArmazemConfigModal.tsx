@@ -548,7 +548,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                           <span className="text-[11px] text-muted-foreground/60">({tempoOciosoAlertaMin * 60}s)</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Alerta amarelo: > {tempoOciosoAlertaMin}min · Alerta vermelho (crítico): > {tempoOciosoAlertaMin * 2}min
+                          Alerta amarelo: {'>'} {tempoOciosoAlertaMin}min · Alerta vermelho (crítico): {'>'} {tempoOciosoAlertaMin * 2}min
                         </p>
                       </div>
                     </div>
