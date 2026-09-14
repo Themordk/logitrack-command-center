@@ -67,6 +67,37 @@ interface UseCrudOptions {
   orderDir?: "asc" | "desc";
   select?: string;
   filters?: Record<string, any>;
+  /** Campos textuais usados na busca (ilike). Default: ["descricao"] + extras por tabela. */
+  searchFields?: string[];
+}
+
+// Monta as partes de OR para a busca textual, combinando campos padrão e customizados.
+function buildSearchOrParts(
+  table: string,
+  search: string,
+  searchFields?: string[],
+): string[] {
+  const textFields = searchFields ? [...searchFields] : ["descricao"];
+  if (searchFields) return textFields.map((f) => `${f}.ilike.%${search}%`);
+  // Extras por tabela (apenas quando não houver campos customizados)
+  if (table === "hu") textFields.push("codigo_hu");
+  if (table === "volume_expedicao" || table === "vw_volume_expedicao_lista") textFields.push("codigo_volume");
+  if (table === "vw_volume_expedicao_lista") textFields.push("parceiro_nome", "destino_carga");
+  if (table === "produto" || table === "vw_produto_listagem") textFields.push("sku");
+  if (table === "tipo_entrada" || table === "tipo_saida") textFields.push("codigo_erp");
+  if (table === "veiculos") textFields.push("placa");
+  if (table === "vw_endereco_listagem") {
+    textFields.push("armazem_descricao", "setor_descricao", "tipo_estoque_descricao");
+  }
+  const orParts = textFields.map((f) => `${f}.ilike.%${search}%`);
+  // codigo_endereco é numeric no banco — ilike não funciona; usa eq quando o termo é numérico
+  if ((table === "endereco" || table === "vw_endereco_listagem") && /^\d+$/.test(search.trim())) {
+    orParts.push(`codigo_endereco.eq.${search.trim()}`);
+  }
+  if (table === "vw_volume_expedicao_lista" && /^\d+$/.test(search.trim())) {
+    orParts.push(`numero_onda.eq.${search.trim()}`);
+  }
+  return orParts;
 }
 
 export function useCrud<T extends Record<string, any>>({
@@ -78,6 +109,7 @@ export function useCrud<T extends Record<string, any>>({
   orderDir = "asc",
   select = "*",
   filters = {},
+  searchFields,
 }: UseCrudOptions) {
 
   const { empresaId: rawEmpresaId, armazemId: rawArmazemId, empresaVersion } = useTenant();
