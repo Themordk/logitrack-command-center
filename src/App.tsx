@@ -381,7 +381,7 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
       }
       // Dynamic route: /atividades/abastecimento/gerar
       if (path.startsWith("/atividades/abastecimento/gerar")) {
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         const tipo = params.get("tipo") || "PREVENTIVO";
         const armazemId = params.get("armazem") || "";
         return <AbastecimentoGeracaoPage onNavigate={onNavigate} tipo={tipo} armazemId={armazemId} />;
@@ -399,20 +399,20 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
       // Dynamic route: /relatorios/produtividade/tarefas/:id
       const tarefasColabMatch = path.match(/^\/relatorios\/produtividade\/tarefas\/([^/?]+)/);
       if (tarefasColabMatch) {
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         return <TarefasColaboradorPage usuarioId={tarefasColabMatch[1]} onNavigate={onNavigate} dataInicio={params.get("inicio") || undefined} dataFim={params.get("fim") || undefined} />;
       }
       // Dynamic route: /relatorios/produtividade/operador/:id
       const operadorMatch = path.match(/^\/relatorios\/produtividade\/operador\/([^/?]+)/);
       if (operadorMatch) {
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         return <ProdutividadeOperadorPage usuarioId={operadorMatch[1]} onNavigate={onNavigate} dataInicio={params.get("inicio") || undefined} dataFim={params.get("fim") || undefined} />;
       }
       // Dynamic route: /atividades/inventario/:id/execucao
       const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);
       if (invExecMatch) {
         const invId = invExecMatch[1];
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         const numero = Number(params.get("numero") || "0");
         const tarefaId = params.get("tarefa_id") || "";
         const sku = decodeURIComponent(params.get("sku") || "");
@@ -422,7 +422,7 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
       const invItensMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/itens/);
       if (invItensMatch) {
         const invId = invItensMatch[1];
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         const numero = Number(params.get("numero") || "0");
         return <InventarioItensPage onNavigate={onNavigate} inventarioId={invId} numeroInventario={numero} />;
       }
