@@ -631,11 +631,11 @@ function AppContent() {
   // Rotas de SUPORTE DA PLATAFORMA (independentes do tenant) — área protegida apenas
   if (isSupportArea) {
     const renderSupport = () => {
-      const detalheMatch = currentPath.match(/^\/suporte\/tenants\/([^/?]+)/);
+      const detalheMatch = pathOnly.match(/^\/suporte\/tenants\/([^/?]+)/);
       if (detalheMatch) {
         return <SupportTenantDetailPage tenantId={detalheMatch[1]} onNavigate={navigate} />;
       }
-      if (currentPath.startsWith("/suporte/chamados")) {
+      if (pathOnly.startsWith("/suporte/chamados")) {
         const params = new URLSearchParams(currentPath.split("?")[1] || "");
         return <SupportChamadosPage onNavigate={navigate} tenantId={params.get("tenant_id") || undefined} />;
       }
