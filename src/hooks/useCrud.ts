@@ -197,7 +197,7 @@ export function useCrud<T extends Record<string, any>>({
     } finally {
       setLoading(false);
     }
-  }, [table, tenantId, empresaId, armazemId, empresaVersion, page, pageSize, search, orderBy, orderDir, select, JSON.stringify(filters), requiresArmazem, requiresEmpresa]);
+  }, [table, tenantId, empresaId, armazemId, empresaVersion, page, pageSize, search, orderBy, orderDir, select, searchFields, JSON.stringify(filters), requiresArmazem, requiresEmpresa]);
 
   useEffect(() => {
     fetchData();
@@ -295,7 +295,7 @@ export function useCrud<T extends Record<string, any>>({
       toast.error(parsed.title);
       return [];
     }
-  }, [table, safeTenantId, empresaId, armazemId, search, JSON.stringify(filters), requiresArmazem, requiresEmpresa]);
+  }, [table, safeTenantId, empresaId, armazemId, search, searchFields, JSON.stringify(filters), requiresArmazem, requiresEmpresa]);
 
   return {
     data,
