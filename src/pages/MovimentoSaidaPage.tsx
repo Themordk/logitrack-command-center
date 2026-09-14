@@ -111,6 +111,12 @@ interface OcorrenciaItem {
   saldo_picking?: number;
   endereco_picking?: string;
   saldo_pulmao?: number;
+  enderecos_bloqueados?: Array<{
+    endereco_id: string;
+    codigo: string;
+    situacao: string;
+    saldo_disponivel: number;
+  }>;
   [key: string]: any;
 }
 
@@ -137,6 +143,7 @@ interface MotivoOcorrencia {
 
 const normalizeOccurrenceType = (tipo?: string | null) => (tipo || "").trim().toUpperCase();
 const isSaldoInsuficientePicking = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SALDO_PICKING_INSUFICIENTE";
+const isEnderecoBloqueado = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "ESTOQUE_ENDERECO_BLOQUEADO";
 
 export function MovimentoSaidaPage() {
   const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
@@ -1206,6 +1213,7 @@ export function MovimentoSaidaPage() {
           {/* Ocorrências list from new JSON format */}
           {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (() => {
             const hasPicking = liberarResult.ocorrencias.some((oc) => isSaldoInsuficientePicking(oc.tipo));
+            const hasBloqueado = liberarResult.ocorrencias.some((oc) => isEnderecoBloqueado(oc.tipo));
             return (
             <div className="mt-4 space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Ocorrências ({liberarResult.ocorrencias.length})</p>
@@ -1222,6 +1230,9 @@ export function MovimentoSaidaPage() {
                           <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Ação</th>
                         </>
                       )}
+                      {hasBloqueado && (
+                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereços Bloqueados</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1229,7 +1240,12 @@ export function MovimentoSaidaPage() {
                       <tr key={i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{oc.sku || "—"}</td>
                         <td className="px-3 py-2 text-xs">
-                          <span className="px-2 py-0.5 rounded bg-destructive/15 text-destructive text-[11px] font-medium uppercase">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded text-[11px] font-medium uppercase",
+                            isEnderecoBloqueado(oc.tipo)
+                              ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                              : "bg-destructive/15 text-destructive"
+                          )}>
                             {oc.tipo?.replace(/_/g, " ") || "—"}
                           </span>
                         </td>
@@ -1268,6 +1284,30 @@ export function MovimentoSaidaPage() {
                               )}
                             </td>
                           </>
+                        )}
+                        {hasBloqueado && (
+                          <td className="px-3 py-2">
+                            {isEnderecoBloqueado(oc.tipo) && oc.enderecos_bloqueados?.length ? (
+                              <div className="space-y-1">
+                                {oc.enderecos_bloqueados.map((eb, j) => (
+                                  <div key={j} className="flex items-center gap-2 text-xs">
+                                    <span className="font-mono text-foreground">{eb.codigo}</span>
+                                    <span className={cn(
+                                      "px-1.5 py-0.5 rounded text-[10px] font-medium uppercase",
+                                      eb.situacao === "BLOQUEADO_INVENTARIO"
+                                        ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                                        : "bg-destructive/15 text-destructive"
+                                    )}>
+                                      {eb.situacao === "BLOQUEADO_INVENTARIO" ? "Inventário" : "Bloqueado"}
+                                    </span>
+                                    <span className="text-muted-foreground">Saldo: <span className="font-mono font-medium text-foreground">{eb.saldo_disponivel}</span></span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
                         )}
                       </tr>
                     ))}
