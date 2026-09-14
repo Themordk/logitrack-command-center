@@ -1285,6 +1285,30 @@ export function MovimentoSaidaPage() {
                             </td>
                           </>
                         )}
+                        {hasBloqueado && (
+                          <td className="px-3 py-2">
+                            {isEnderecoBloqueado(oc.tipo) && oc.enderecos_bloqueados?.length ? (
+                              <div className="space-y-1">
+                                {oc.enderecos_bloqueados.map((eb, j) => (
+                                  <div key={j} className="flex items-center gap-2 text-xs">
+                                    <span className="font-mono text-foreground">{eb.codigo}</span>
+                                    <span className={cn(
+                                      "px-1.5 py-0.5 rounded text-[10px] font-medium uppercase",
+                                      eb.situacao === "BLOQUEADO_INVENTARIO"
+                                        ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                                        : "bg-destructive/15 text-destructive"
+                                    )}>
+                                      {eb.situacao === "BLOQUEADO_INVENTARIO" ? "Inventário" : "Bloqueado"}
+                                    </span>
+                                    <span className="text-muted-foreground">Saldo: <span className="font-mono font-medium text-foreground">{eb.saldo_disponivel}</span></span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
