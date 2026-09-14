@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, Play, Pause, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dateTime";
-import { parseError } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
 
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
@@ -116,11 +116,30 @@ export function InventarioPage({ onNavigate }: Props) {
   const handleChangeStatus = async (invId: string, newStatus: string, label: string) => {
     setOpenMenuId(null);
     try {
-      const { error } = await (supabase as any)
-        .from("inventario")
-        .update({ status: newStatus })
-        .eq("id", invId);
-      if (error) throw error;
+      if (newStatus === "FINALIZADO") {
+        // Finalização segue o processo completo via RPC (grava contagens,
+        // acuracidade e status), nunca update direto do status.
+        if (!tenantId || !usuarioId) {
+          toast.error("Sessão inválida. Recarregue a página e tente novamente.");
+          return;
+        }
+        const { data, error } = await supabase.rpc("fn_inventario_finalizar_geral", {
+          p_tenant_id: tenantId,
+          p_inventario_id: invId,
+          p_usuario_id: usuarioId,
+        });
+        if (error) throw error;
+        const rpcResult = parseRpcResult(data);
+        if (!rpcResult.sucesso) {
+          throw new Error(rpcResult.mensagem || "Erro ao finalizar o inventário.");
+        }
+      } else {
+        const { error } = await (supabase as any)
+          .from("inventario")
+          .update({ status: newStatus })
+          .eq("id", invId);
+        if (error) throw error;
+      }
       toast.success(`Inventário ${label} com sucesso!`);
       fetchInventarios();
     } catch (err: any) {
