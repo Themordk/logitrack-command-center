@@ -595,7 +595,7 @@ function AppContent() {
   // ou recarga com hash em "/"), redireciona para /suporte/tenants e mostra splash.
   // NÃO bloqueia /suporte-login (ele precisa renderizar para o usuário entrar).
   if (isPlatformSupport && authenticated && !isSupportArea && !isSupportLogin) {
-    if (currentPath !== "/suporte/tenants") {
+    if (pathOnly !== "/suporte/tenants") {
       // Schedule navigation no próximo tick para evitar setState durante render
       Promise.resolve().then(() => navigate("/suporte/tenants"));
     }
