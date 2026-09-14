@@ -243,6 +243,14 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "Movimento de entrada não encontrado.",
     instruction: "Volte à lista de movimentos.",
   },
+  SHELF_LIFE_INSUFICIENTE: {
+    title: "Shelf life insuficiente para recebimento.",
+    instruction: "A validade informada não atinge o mínimo exigido. Verifique com o supervisor se o produto pode ser recebido.",
+  },
+  VALIDADE_OBRIGATORIA: {
+    title: "Data de validade obrigatória.",
+    instruction: "Informe a data de validade para este produto.",
+  },
 
   // === Conferência de Saída ===
   MODO_CONFERENCIA_INVALIDO: {

@@ -351,6 +351,24 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
       if (!offlineResult.offline) {
         const rpcResult = parseRpcResult(offlineResult.data);
         if (!rpcResult.sucesso) {
+          // Enriquecer mensagem de shelf life com detalhes da RPC
+          if (rpcResult.codigo === "SHELF_LIFE_INSUFICIENTE" && rpcResult.dados) {
+            const d = rpcResult.dados as {
+              dias_restantes: number;
+              shelf_minimo: number;
+              is_devolucao: boolean;
+              shelf_produto: number | null;
+              shelf_parceiro: number | null;
+            };
+            result.showWarning("Shelf life insuficiente", {
+              details: rpcResult.mensagem,
+              instruction: `Dias restantes: ${d.dias_restantes} · Mínimo exigido: ${d.shelf_minimo} dias`
+                + (d.is_devolucao ? " (critério de devolução)" : "")
+                + (d.shelf_parceiro && d.shelf_parceiro > 0 ? ` · Parceiro exige: ${d.shelf_parceiro} dias` : ""),
+            });
+            return;
+          }
+
           result.showError(rpcResult, { context: "recebimento-confirmar" });
           return;
         }

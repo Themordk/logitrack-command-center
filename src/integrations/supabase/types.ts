@@ -6286,6 +6286,7 @@ export type Database = {
           ativo: boolean
           codigo_erp: string | null
           descricao: string
+          devolucao: boolean
           empresa_id: string
           gera_mov_automatico: boolean
           id: string
@@ -6299,6 +6300,7 @@ export type Database = {
           ativo?: boolean
           codigo_erp?: string | null
           descricao: string
+          devolucao?: boolean
           empresa_id: string
           gera_mov_automatico?: boolean
           id?: string
@@ -6312,6 +6314,7 @@ export type Database = {
           ativo?: boolean
           codigo_erp?: string | null
           descricao?: string
+          devolucao?: boolean
           empresa_id?: string
           gera_mov_automatico?: boolean
           id?: string
