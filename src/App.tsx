@@ -679,19 +679,19 @@ function AppContent() {
   }
 
   // ===== Gate mobile: painel admin só permite Dashboard na Fase 1 =====
-  if (isMobile && currentPath !== "/") {
+  if (isMobile && pathOnly !== "/") {
     Promise.resolve().then(() => navigate("/"));
     return <TenantBootSplash />;
   }
 
 
-  const bc = breadcrumbs[currentPath] ?? getDynamicBreadcrumb(currentPath) ?? [
+  const bc = breadcrumbs[pathOnly] ?? getDynamicBreadcrumb(pathOnly) ?? [
     { label: "CORE LogiTrack" },
-    { label: currentPath.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
+    { label: pathOnly.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
   ];
 
   return (
-    <Layout currentPath={currentPath} breadcrumb={bc} onNavigate={navigate}>
+    <Layout currentPath={pathOnly} breadcrumb={bc} onNavigate={navigate}>
       {renderPage(currentPath, navigate)}
     </Layout>
   );
