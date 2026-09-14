@@ -307,7 +307,9 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
 }
 
 
-function renderPage(path: string, onNavigate: (p: string) => void) {
+function renderPage(fullPath: string, onNavigate: (p: string) => void) {
+  const [rawPath, queryString] = fullPath.split("?");
+  const path = rawPath || "/";
   switch (path) {
     case "/": return <Dashboard onNavigate={onNavigate} />;
     
@@ -379,7 +381,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
       }
       // Dynamic route: /atividades/abastecimento/gerar
       if (path.startsWith("/atividades/abastecimento/gerar")) {
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         const tipo = params.get("tipo") || "PREVENTIVO";
         const armazemId = params.get("armazem") || "";
         return <AbastecimentoGeracaoPage onNavigate={onNavigate} tipo={tipo} armazemId={armazemId} />;
@@ -397,20 +399,20 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
       // Dynamic route: /relatorios/produtividade/tarefas/:id
       const tarefasColabMatch = path.match(/^\/relatorios\/produtividade\/tarefas\/([^/?]+)/);
       if (tarefasColabMatch) {
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         return <TarefasColaboradorPage usuarioId={tarefasColabMatch[1]} onNavigate={onNavigate} dataInicio={params.get("inicio") || undefined} dataFim={params.get("fim") || undefined} />;
       }
       // Dynamic route: /relatorios/produtividade/operador/:id
       const operadorMatch = path.match(/^\/relatorios\/produtividade\/operador\/([^/?]+)/);
       if (operadorMatch) {
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         return <ProdutividadeOperadorPage usuarioId={operadorMatch[1]} onNavigate={onNavigate} dataInicio={params.get("inicio") || undefined} dataFim={params.get("fim") || undefined} />;
       }
       // Dynamic route: /atividades/inventario/:id/execucao
       const invExecMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/execucao/);
       if (invExecMatch) {
         const invId = invExecMatch[1];
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         const numero = Number(params.get("numero") || "0");
         const tarefaId = params.get("tarefa_id") || "";
         const sku = decodeURIComponent(params.get("sku") || "");
@@ -420,7 +422,7 @@ function renderPage(path: string, onNavigate: (p: string) => void) {
       const invItensMatch = path.match(/^\/atividades\/inventario\/([^/]+)\/itens/);
       if (invItensMatch) {
         const invId = invItensMatch[1];
-        const params = new URLSearchParams(path.split("?")[1] || "");
+        const params = new URLSearchParams(queryString || "");
         const numero = Number(params.get("numero") || "0");
         return <InventarioItensPage onNavigate={onNavigate} inventarioId={invId} numeroInventario={numero} />;
       }
@@ -521,8 +523,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
 }
 
 function getInitialPath() {
-  const hash = window.location.hash.replace("#", "") || "/";
-  return hash.split("?")[0] || "/";
+  return window.location.hash.replace("#", "") || "/";
 }
 
 
@@ -531,10 +532,11 @@ function AppContent() {
   const boot = useTenantBoot();
   const isMobile = useIsMobile();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
+  const pathOnly = currentPath.split("?")[0] || "/";
 
   // Gate global de troca de senha obrigatória (painel administrativo).
   // Precisa viver aqui porque a LoginPage é desmontada assim que a sessão existe.
-  const pathForGate = currentPath;
+  const pathForGate = pathOnly;
   const gateEnabled =
     authenticated &&
     !loading &&
@@ -548,14 +550,14 @@ function AppContent() {
   // Sync hash with state
   const navigate = (path: string) => {
     window.location.hash = path;
-    setCurrentPath(path.split("?")[0] || "/");
+    setCurrentPath(path);
   };
 
   // Listen for browser back/forward
   useEffect(() => {
     const onHashChange = () => {
       const hash = window.location.hash.replace("#", "") || "/";
-      setCurrentPath(hash.split("?")[0] || "/");
+      setCurrentPath(hash);
     };
 
     window.addEventListener("hashchange", onHashChange);
@@ -563,12 +565,12 @@ function AppContent() {
   }, []);
 
   // Detect if we're in coletor mode
-  const isColetor = currentPath.startsWith("/coletor");
+  const isColetor = pathOnly.startsWith("/coletor");
 
   // Distinção entre rota PÚBLICA de login do suporte e ÁREA PROTEGIDA do suporte.
   // Importante: "/suporte-login" começa com "/suporte" mas NÃO faz parte da área protegida.
-  const isSupportLogin = currentPath === "/suporte-login";
-  const isSupportArea = currentPath === "/suporte" || currentPath.startsWith("/suporte/");
+  const isSupportLogin = pathOnly === "/suporte-login";
+  const isSupportArea = pathOnly === "/suporte" || pathOnly.startsWith("/suporte/");
 
   // Flag persistente que indica que o usuário autenticado é do suporte da plataforma.
   // Usada para evitar que páginas de tenant (Dashboard, TenantPicker) sejam renderizadas
@@ -593,7 +595,7 @@ function AppContent() {
   // ou recarga com hash em "/"), redireciona para /suporte/tenants e mostra splash.
   // NÃO bloqueia /suporte-login (ele precisa renderizar para o usuário entrar).
   if (isPlatformSupport && authenticated && !isSupportArea && !isSupportLogin) {
-    if (currentPath !== "/suporte/tenants") {
+    if (pathOnly !== "/suporte/tenants") {
       // Schedule navigation no próximo tick para evitar setState durante render
       Promise.resolve().then(() => navigate("/suporte/tenants"));
     }
@@ -629,11 +631,11 @@ function AppContent() {
   // Rotas de SUPORTE DA PLATAFORMA (independentes do tenant) — área protegida apenas
   if (isSupportArea) {
     const renderSupport = () => {
-      const detalheMatch = currentPath.match(/^\/suporte\/tenants\/([^/?]+)/);
+      const detalheMatch = pathOnly.match(/^\/suporte\/tenants\/([^/?]+)/);
       if (detalheMatch) {
         return <SupportTenantDetailPage tenantId={detalheMatch[1]} onNavigate={navigate} />;
       }
-      if (currentPath.startsWith("/suporte/chamados")) {
+      if (pathOnly.startsWith("/suporte/chamados")) {
         const params = new URLSearchParams(currentPath.split("?")[1] || "");
         return <SupportChamadosPage onNavigate={navigate} tenantId={params.get("tenant_id") || undefined} />;
       }
@@ -677,19 +679,19 @@ function AppContent() {
   }
 
   // ===== Gate mobile: painel admin só permite Dashboard na Fase 1 =====
-  if (isMobile && currentPath !== "/") {
+  if (isMobile && pathOnly !== "/") {
     Promise.resolve().then(() => navigate("/"));
     return <TenantBootSplash />;
   }
 
 
-  const bc = breadcrumbs[currentPath] ?? getDynamicBreadcrumb(currentPath) ?? [
+  const bc = breadcrumbs[pathOnly] ?? getDynamicBreadcrumb(pathOnly) ?? [
     { label: "CORE LogiTrack" },
-    { label: currentPath.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
+    { label: pathOnly.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
   ];
 
   return (
-    <Layout currentPath={currentPath} breadcrumb={bc} onNavigate={navigate}>
+    <Layout currentPath={pathOnly} breadcrumb={bc} onNavigate={navigate}>
       {renderPage(currentPath, navigate)}
     </Layout>
   );
