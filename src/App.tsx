@@ -532,10 +532,11 @@ function AppContent() {
   const boot = useTenantBoot();
   const isMobile = useIsMobile();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
+  const pathOnly = currentPath.split("?")[0] || "/";
 
   // Gate global de troca de senha obrigatória (painel administrativo).
   // Precisa viver aqui porque a LoginPage é desmontada assim que a sessão existe.
-  const pathForGate = currentPath;
+  const pathForGate = pathOnly;
   const gateEnabled =
     authenticated &&
     !loading &&
@@ -549,14 +550,14 @@ function AppContent() {
   // Sync hash with state
   const navigate = (path: string) => {
     window.location.hash = path;
-    setCurrentPath(path.split("?")[0] || "/");
+    setCurrentPath(path);
   };
 
   // Listen for browser back/forward
   useEffect(() => {
     const onHashChange = () => {
       const hash = window.location.hash.replace("#", "") || "/";
-      setCurrentPath(hash.split("?")[0] || "/");
+      setCurrentPath(hash);
     };
 
     window.addEventListener("hashchange", onHashChange);
@@ -564,12 +565,12 @@ function AppContent() {
   }, []);
 
   // Detect if we're in coletor mode
-  const isColetor = currentPath.startsWith("/coletor");
+  const isColetor = pathOnly.startsWith("/coletor");
 
   // Distinção entre rota PÚBLICA de login do suporte e ÁREA PROTEGIDA do suporte.
   // Importante: "/suporte-login" começa com "/suporte" mas NÃO faz parte da área protegida.
-  const isSupportLogin = currentPath === "/suporte-login";
-  const isSupportArea = currentPath === "/suporte" || currentPath.startsWith("/suporte/");
+  const isSupportLogin = pathOnly === "/suporte-login";
+  const isSupportArea = pathOnly === "/suporte" || pathOnly.startsWith("/suporte/");
 
   // Flag persistente que indica que o usuário autenticado é do suporte da plataforma.
   // Usada para evitar que páginas de tenant (Dashboard, TenantPicker) sejam renderizadas
