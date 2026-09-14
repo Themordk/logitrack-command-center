@@ -28,6 +28,7 @@ export function TiposEntradaPage() {
 
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
+    { key: "devolucao", label: "Devolução", type: "badge" },
     { key: "codigo_erp", label: "Código ERP" },
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "badge" },
     { key: "armazenagem_automatica", label: "Armazenagem Automática", type: "badge" },
@@ -44,6 +45,7 @@ export function TiposEntradaPage() {
       realiza_conferencia: true,
       armazenagem_automatica: false,
       gera_mov_automatico: false, libera_mov_automatico: false,
+      devolucao: false,
       ativo: true,
     });
     setModalOpen(true);
@@ -111,6 +113,23 @@ export function TiposEntradaPage() {
                   <select value={form.prioridade || "NORMAL"} onChange={(e) => set("prioridade", e.target.value)} className={inputClass}>
                     {["BAIXA", "NORMAL", "ALTA", "URGENTE"].map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Classificação ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Classificação</p>
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={!!form.devolucao}
+                  onCheckedChange={(v) => set("devolucao", v)}
+                />
+                <div>
+                  <label className="text-sm text-foreground">É devolução</label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Quando ativado, a conferência de entrada usará o shelf life de devolução do produto.
+                  </p>
                 </div>
               </div>
             </div>
