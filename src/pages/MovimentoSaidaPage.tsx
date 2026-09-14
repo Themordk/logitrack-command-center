@@ -1240,7 +1240,12 @@ export function MovimentoSaidaPage() {
                       <tr key={i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{oc.sku || "—"}</td>
                         <td className="px-3 py-2 text-xs">
-                          <span className="px-2 py-0.5 rounded bg-destructive/15 text-destructive text-[11px] font-medium uppercase">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded text-[11px] font-medium uppercase",
+                            isEnderecoBloqueado(oc.tipo)
+                              ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                              : "bg-destructive/15 text-destructive"
+                          )}>
                             {oc.tipo?.replace(/_/g, " ") || "—"}
                           </span>
                         </td>
