@@ -523,8 +523,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
 }
 
 function getInitialPath() {
-  const hash = window.location.hash.replace("#", "") || "/";
-  return hash.split("?")[0] || "/";
+  return window.location.hash.replace("#", "") || "/";
 }
 
 
