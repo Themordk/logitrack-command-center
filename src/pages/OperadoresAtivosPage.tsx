@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { formatTime } from "@/utils/dateTime";
-import { Users, PlayCircle, Clock, RefreshCw, ArrowLeft } from "lucide-react";
+import { Users, PlayCircle, Clock, RefreshCw, ArrowLeft, AlertTriangle, Navigation } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -57,7 +57,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [armazens, setArmazens] = useState<any[]>([]);
   const [filtroArmazem, setFiltroArmazem] = useState<string | null>(armazemId || null);
-  const [filtroStatus, setFiltroStatus] = useState<"ALL" | "EM_ATIVIDADE" | "OCIOSO">("ALL");
+  const [filtroStatus, setFiltroStatus] = useState<"ALL" | "EM_ATIVIDADE" | "EM_TRANSITO" | "OCIOSO">("ALL");
 
   useEffect(() => {
     if (!tenantId) return;
@@ -95,6 +95,8 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
   const totalOnline = data.length;
   const totalAtivos = data.filter((o) => o.status_operador === "EM_ATIVIDADE").length;
   const totalOciosos = data.filter((o) => o.status_operador === "OCIOSO").length;
+  const totalEmTransito = data.filter((o) => o.status_operador === "EM_TRANSITO").length;
+  const totalForaDoTurno = data.filter((o) => o.fora_do_turno === true).length;
 
   return (
     <div className="space-y-5 animate-fade-in">
