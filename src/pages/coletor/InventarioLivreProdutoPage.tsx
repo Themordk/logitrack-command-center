@@ -206,10 +206,10 @@ export function InventarioLivreProdutoPage({ onNavigate }: Props) {
             <span className="text-sm font-bold text-white">Endereço</span>
           </div>
           <div className="text-xs text-[hsl(213,31%,55%)]">
-            Descrição: <span className="font-bold text-[hsl(213,31%,91%)]">{enderecoDescricao || "—"}</span>
+            Código: <span className="font-bold text-[hsl(213,31%,91%)]">{enderecoCodigo || "—"}</span>
           </div>
           <div className="mt-2 py-3 px-4 bg-[hsl(217,91%,50%)]/10 rounded-xl border border-[hsl(217,91%,50%)]/30 text-center">
-            <p className="text-2xl font-black text-white tracking-wide font-mono">{enderecoCodigo || "—"}</p>
+            <p className="text-2xl font-black text-white tracking-wide font-mono">{enderecoDescricao || "—"}</p>
           </div>
         </div>
 
