@@ -307,7 +307,9 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
 }
 
 
-function renderPage(path: string, onNavigate: (p: string) => void) {
+function renderPage(fullPath: string, onNavigate: (p: string) => void) {
+  const [rawPath, queryString] = fullPath.split("?");
+  const path = rawPath || "/";
   switch (path) {
     case "/": return <Dashboard onNavigate={onNavigate} />;
     
