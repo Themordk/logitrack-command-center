@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, Save, Trash2, MapPin, Settings2, ShieldCheck, BarChart3, Info } from "lucide-react";
+import { Loader2, Save, Trash2, MapPin, Settings2, ShieldCheck, BarChart3, Info, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
@@ -92,6 +92,10 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   const [faixaBom, setFaixaBom] = useState(90);
   const [faixaAtencao, setFaixaAtencao] = useState(70);
 
+  // Tempos LMS (armazenados em minutos no estado, convertidos para segundos ao salvar)
+  const [tempoTransitoMin, setTempoTransitoMin] = useState(5);
+  const [tempoOciosoAlertaMin, setTempoOciosoAlertaMin] = useState(15);
+
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
     let cancelled = false;
@@ -100,7 +104,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const [cfgRes, regRes] = await Promise.all([
         (supabase as any)
           .from("armazem_config")
-          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct")
+          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -122,6 +126,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setFaixaExcelente(cfg?.lms_faixa_excelente_pct ?? 110);
       setFaixaBom(cfg?.lms_faixa_bom_pct ?? 90);
       setFaixaAtencao(cfg?.lms_faixa_atencao_pct ?? 70);
+      setTempoTransitoMin(Math.round((cfg?.lms_tempo_transito_seg ?? 300) / 60));
+      setTempoOciosoAlertaMin(Math.round((cfg?.lms_tempo_ocioso_alerta_seg ?? 900) / 60));
 
       const reg = regRes.data;
       setRegra(reg ? { ...REGRA_DEFAULTS, ...reg } : { ...REGRA_DEFAULTS });
@@ -151,6 +157,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         lms_faixa_excelente_pct: faixaExcelente,
         lms_faixa_bom_pct: faixaBom,
         lms_faixa_atencao_pct: faixaAtencao,
+        lms_tempo_transito_seg: tempoTransitoMin * 60,
+        lms_tempo_ocioso_alerta_seg: tempoOciosoAlertaMin * 60,
         ativo: true,
         updated_by: usuarioId,
       };
@@ -237,6 +245,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setFaixaExcelente(110);
       setFaixaBom(90);
       setFaixaAtencao(70);
+      setTempoTransitoMin(5);
+      setTempoOciosoAlertaMin(15);
       setConfirmRemove(false);
       onClose();
       return true;
@@ -483,6 +493,68 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Padrão: Excelente ≥110% · Bom ≥90% · Atenção ≥70% · Abaixo = Crítico
+                    </p>
+
+                    <Separator className="my-4" />
+
+                    <SectionTitle
+                      icon={<Clock size={14} className="text-primary" />}
+                      title="Tempos operacionais LMS"
+                      subtitle="Controla os limiares de trânsito e ociosidade dos operadores"
+                    />
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium flex items-center">
+                          Tempo de trânsito
+                          <HelpTip text="Tempo máximo que o operador permanece no status 'Em Trânsito' após concluir uma tarefa. Se não iniciar nova tarefa dentro desse período, o status muda para 'Ocioso'. Ajuste conforme a distância média entre posições no armazém." />
+                        </Label>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Tempo entre concluir uma tarefa e iniciar a próxima antes de ser considerado ocioso
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={tempoTransitoMin}
+                            onChange={(e) => setTempoTransitoMin(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))}
+                            className="w-24 h-9"
+                          />
+                          <span className="text-xs text-muted-foreground">minutos</span>
+                          <span className="text-[11px] text-muted-foreground/60">({tempoTransitoMin * 60}s)</span>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <Label className="text-sm font-medium flex items-center">
+                          Alerta de ociosidade
+                          <HelpTip text="Tempo de ociosidade contínua após o qual o operador recebe destaque amarelo ('Ocioso'). Se ultrapassar o dobro desse tempo, o destaque muda para vermelho ('Ocioso Crítico'). Valores menores tornam o monitoramento mais rigoroso." />
+                        </Label>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Tempo ocioso antes de disparar alerta visual para o supervisor
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={60}
+                            value={tempoOciosoAlertaMin}
+                            onChange={(e) => setTempoOciosoAlertaMin(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
+                            className="w-24 h-9"
+                          />
+                          <span className="text-xs text-muted-foreground">minutos</span>
+                          <span className="text-[11px] text-muted-foreground/60">({tempoOciosoAlertaMin * 60}s)</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Alerta amarelo: > {tempoOciosoAlertaMin}min · Alerta vermelho (crítico): > {tempoOciosoAlertaMin * 2}min
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Padrão: Trânsito = 5min · Alerta ociosidade = 15min
                     </p>
                   </div>
                 </section>
