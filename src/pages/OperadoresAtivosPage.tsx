@@ -280,13 +280,33 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                       {/* ── COL 2: Status / Tempo (merged) ── */}
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-0.5">
-                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border w-fit", badgeClass)}>
-                            {badgeLabel}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border w-fit", badgeClass)}>
+                              {badgeLabel}
+                            </span>
+                            {showAlertPulse && (
+                              <span className="relative flex h-2.5 w-2.5" title="Alerta: tarefa pendente sem atividade">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                              </span>
+                            )}
+                          </div>
                           {tempoSeg > 0 && (
                             <span className="text-[11px] text-muted-foreground tabular-nums">
                               {formatarTempoEspera(tempoSeg)}
                             </span>
+                          )}
+                          {ociosoComTarefa && o.tipo_tarefa_desc && (
+                            <div className="flex flex-col gap-0.5 mt-0.5">
+                              <span className="text-[10px] text-amber-400/80 font-medium truncate max-w-[200px]" title={o.tipo_tarefa_desc}>
+                                ⚠ {o.tipo_tarefa_desc}
+                              </span>
+                              {o.tarefa_status && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  Status: {o.tarefa_status}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </td>
