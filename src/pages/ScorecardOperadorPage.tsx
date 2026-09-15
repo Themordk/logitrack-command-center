@@ -44,7 +44,7 @@ export function ScorecardOperadorPage({
 }) {
   const usuarioId = params?.id || "";
   const { tenantId, empresaVersion } = useTenant();
-  const [dias, setDias] = useState("7");
+  const [dias, setDias] = useState("0");
   const [data, setData] = useState<ScorecardOperador | null>(null);
   const [loading, setLoading] = useState(true);
 

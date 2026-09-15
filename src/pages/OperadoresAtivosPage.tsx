@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { formatTime } from "@/utils/dateTime";
-import { Users, PlayCircle, Clock, RefreshCw, ArrowLeft, AlertTriangle, Navigation } from "lucide-react";
+import { Users, PlayCircle, Clock, RefreshCw, ArrowLeft, AlertTriangle, AlertOctagon, Navigation } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,7 +30,7 @@ interface OperadorAtivo {
   ultimo_heartbeat: string;
   seg_desde_heartbeat: number;
   // Status agora inclui EM_TRANSITO
-  status_operador: "EM_ATIVIDADE" | "EM_TRANSITO" | "OCIOSO";
+  status_operador: "EM_ATIVIDADE" | "EM_TRANSITO" | "OCIOSO_COM_TAREFA" | "OCIOSO";
   ociosidade_alerta: boolean;
   // Tarefa ativa
   tarefa_id: string | null;
@@ -56,6 +56,11 @@ interface OperadorAtivo {
   lms_faixa_atencao_pct: number;
   lms_tempo_transito_seg: number;
   lms_tempo_ocioso_alerta_seg: number;
+  // Novos campos do modelo 4-estados
+  tarefa_status: string | null;
+  tarefa_pendente_alerta: boolean;
+  seg_desde_ultima_atividade: number | null;
+  lms_tempo_inatividade_tarefa_seg: number;
 }
 
 export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) => void }) {
@@ -65,7 +70,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [armazens, setArmazens] = useState<any[]>([]);
   const [filtroArmazem, setFiltroArmazem] = useState<string | null>(armazemId || null);
-  const [filtroStatus, setFiltroStatus] = useState<"ALL" | "EM_ATIVIDADE" | "EM_TRANSITO" | "OCIOSO">("ALL");
+  const [filtroStatus, setFiltroStatus] = useState<"ALL" | "EM_ATIVIDADE" | "EM_TRANSITO" | "OCIOSO_COM_TAREFA" | "OCIOSO">("ALL");
 
   useEffect(() => {
     if (!tenantId) return;
@@ -104,6 +109,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
   const totalAtivos = data.filter((o) => o.status_operador === "EM_ATIVIDADE").length;
   const totalOciosos = data.filter((o) => o.status_operador === "OCIOSO").length;
   const totalEmTransito = data.filter((o) => o.status_operador === "EM_TRANSITO").length;
+  const totalOciosoComTarefa = data.filter((o) => o.status_operador === "OCIOSO_COM_TAREFA").length;
   const totalForaDoTurno = data.filter((o) => o.fora_do_turno === true).length;
 
   return (
@@ -140,10 +146,11 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <MiniCard icon={<Users size={18} />} label="Total Online" value={totalOnline} accent="text-blue-400 bg-blue-500/10 border-blue-500/20" />
         <MiniCard icon={<PlayCircle size={18} />} label="Em Atividade" value={totalAtivos} accent="text-green-400 bg-green-500/10 border-green-500/20" />
         <MiniCard icon={<Navigation size={18} />} label="Em Trânsito" value={totalEmTransito} accent="text-cyan-400 bg-cyan-500/10 border-cyan-500/20" />
+        <MiniCard icon={<AlertOctagon size={18} />} label="Ocioso c/ Tarefa" value={totalOciosoComTarefa} accent={totalOciosoComTarefa > 0 ? "text-amber-400 bg-amber-500/10 border-amber-500/20" : "text-muted-foreground bg-secondary/40 border-border/50"} />
         <MiniCard icon={<Clock size={18} />} label="Ociosos" value={totalOciosos} accent={totalOciosos > 0 ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" : "text-muted-foreground bg-secondary/40 border-border/50"} />
         <MiniCard icon={<AlertTriangle size={18} />} label="Fora do Turno" value={totalForaDoTurno} accent={totalForaDoTurno > 0 ? "text-orange-400 bg-orange-500/10 border-orange-500/20" : "text-muted-foreground bg-secondary/40 border-border/50"} />
       </div>
@@ -157,11 +164,12 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
           </SelectContent>
         </Select>
         <Select value={filtroStatus} onValueChange={(v) => setFiltroStatus(v as any)}>
-          <SelectTrigger className="w-[180px] h-9 bg-secondary/40 border-border/50"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[200px] h-9 bg-secondary/40 border-border/50"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todos os status</SelectItem>
             <SelectItem value="EM_ATIVIDADE">Em Atividade</SelectItem>
             <SelectItem value="EM_TRANSITO">Em Trânsito</SelectItem>
+            <SelectItem value="OCIOSO_COM_TAREFA">Ocioso c/ Tarefa</SelectItem>
             <SelectItem value="OCIOSO">Ociosos</SelectItem>
           </SelectContent>
         </Select>
