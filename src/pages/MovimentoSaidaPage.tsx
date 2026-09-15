@@ -1477,6 +1477,29 @@ export function MovimentoSaidaPage() {
               )}
             </div>
           )}
+
+          {/* Footer com ação de override de shelf life */}
+          {liberarResult?.ocorrencias &&
+           liberarResult.ocorrencias.length > 0 &&
+           liberarResult.ocorrencias.every((oc) => isShelfLifeInsuficiente(oc.tipo)) && (
+            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+              <p className="text-xs text-muted-foreground max-w-md">
+                Todos os produtos estão com shelf life abaixo do exigido pelo parceiro.
+                Você pode liberar a onda mesmo assim — as tarefas serão criadas com o estoque disponível.
+              </p>
+              <button
+                onClick={async () => {
+                  setLiberarDialogOpen(false);
+                  if (liberarMovId) {
+                    await handleLiberar(liberarMovId, true);
+                  }
+                }}
+                className="ml-4 px-4 py-2 rounded-md text-sm font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors whitespace-nowrap"
+              >
+                Liberar Mesmo Assim
+              </button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
