@@ -32,16 +32,33 @@ export function UsuariosPage() {
     if (tenantId) {
       fetchOptions("empresa", tenantId, "razaosocial").then(setEmpresaOptions);
       fetchOptions("perfil", tenantId, "nome").then(setPerfilOptions);
-      // Armazém filtrado por empresa ativa
+      // Armazém filtrado por empresa ativa + turnos de TODOS os armazéns da empresa
       if (empresaId) {
-        fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(setArmazemOptions);
+        fetchOptions("armazem", tenantId, "descricao", { empresa_id: empresaId }).then(async (opts) => {
+          setArmazemOptions(opts);
+          const ids = opts.map((o) => o.value).filter(Boolean);
+          if (ids.length === 0) {
+            setTurnoOptions([]);
+            return;
+          }
+          const { data } = await (supabase as any)
+            .from("turnos")
+            .select("id, descricao, hora_inicio, hora_fim")
+            .eq("tenant_id", tenantId)
+            .in("armazem_id", ids)
+            .eq("ativo", true)
+            .order("descricao");
+          setTurnoOptions(
+            (data || []).map((t: any) => ({
+              value: t.id,
+              label: t.hora_inicio && t.hora_fim
+                ? `${t.descricao} (${String(t.hora_inicio).slice(0, 5)} - ${String(t.hora_fim).slice(0, 5)})`
+                : t.descricao,
+            })),
+          );
+        });
       } else {
         setArmazemOptions([]);
-      }
-      // Turnos filtrados por armazém ativo (turnos pertencem a um armazém)
-      if (armazemId) {
-        fetchOptions("turnos", tenantId, "descricao", { armazem_id: armazemId }).then(setTurnoOptions);
-      } else {
         setTurnoOptions([]);
       }
       // Zonas de atividade (PICKING) do armazém ativo para separação
