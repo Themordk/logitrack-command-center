@@ -57,6 +57,39 @@ export interface KpisResult {
       critico: number;
     };
   };
+  // Novas seções da Torre de Controle reestruturada
+  taxa_corte: {
+    taxa: number;
+    itens_cortados: number;
+    itens_total: number;
+    qtd_cortada: number;
+    qtd_esperada: number;
+    taxa_anterior: number;
+  };
+  inventario: {
+    total: number;
+    em_contagem: number;
+    finalizados: number;
+    acuracia_media: number;
+    total_itens: number;
+    total_divergencias: number;
+  };
+  ocupacao_por_zona: Array<{
+    zona_id: string;
+    zona_nome: string;
+    total: number;
+    ocupados: number;
+    livres: number;
+    bloqueados: number;
+    taxa_ocupacao: number;
+  }>;
+  breakdown_tipo_tarefa: Array<{
+    categoria: string;
+    descricao: string;
+    cor: string;
+    concluidas: number;
+    tempo_medio_seg: number;
+  }>;
 }
 
 export interface OperadorRanking {
@@ -235,6 +268,28 @@ export function iconeTendencia(tendencia: string): { icon: string; color: string
   }
 }
 
+export const LABELS_CATEGORIA_TAREFA: Record<string, string> = {
+  RECEBIMENTO: "Recebimento",
+  ARMAZENAGEM: "Armazenagem",
+  SEPARACAO: "Separação",
+  EXPEDICAO: "Expedição",
+  MOVIMENTACAO: "Movimentação",
+  INVENTARIO: "Inventário",
+  ABASTECIMENTO: "Abastecimento",
+  OUTROS: "Outros",
+};
+
+export const CORES_CATEGORIA_TAREFA: Record<string, string> = {
+  RECEBIMENTO: "hsl(200 70% 55%)",
+  ARMAZENAGEM: "hsl(260 60% 55%)",
+  SEPARACAO: "hsl(30 80% 55%)",
+  EXPEDICAO: "hsl(340 75% 55%)",
+  MOVIMENTACAO: "hsl(170 60% 45%)",
+  INVENTARIO: "hsl(45 90% 50%)",
+  ABASTECIMENTO: "hsl(120 50% 45%)",
+  OUTROS: "hsl(220 15% 55%)",
+};
+
 // ── RPC 1: KPIs escalares ──
 
 export async function fetchKpis(f: DashboardFilters) {
@@ -255,6 +310,7 @@ export async function fetchKpis(f: DashboardFilters) {
     kpis,
     trendTaxaConclusao: trend(kpis.taxa_conclusao.valor, kpis.taxa_conclusao.valor_anterior),
     trendProdutividade: trend(kpis.produtividade.valor, kpis.produtividade.valor_anterior),
+    trendTaxaCorte: kpis.taxa_corte ? trend(kpis.taxa_corte.taxa, kpis.taxa_corte.taxa_anterior) : undefined,
   };
 }
 
