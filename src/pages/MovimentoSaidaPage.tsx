@@ -1327,6 +1327,52 @@ export function MovimentoSaidaPage() {
                             )}
                           </td>
                         )}
+                        {hasShelfLife && (
+                          <td className="px-3 py-2">
+                            {isShelfLifeInsuficiente(oc.tipo) && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-muted-foreground">Exigido:</span>
+                                  <span className="font-semibold text-foreground">{oc.shelf_exigido} dias</span>
+                                  <span className="text-muted-foreground">|</span>
+                                  <span className="text-muted-foreground">Disponível:</span>
+                                  <span className="font-semibold text-destructive">{oc.shelf_disponivel} dias</span>
+                                </div>
+                                {oc.lotes_disponiveis && oc.lotes_disponiveis.length > 0 && (
+                                  <div className="rounded border border-border/50 overflow-hidden">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-secondary/20">
+                                          <th className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground">Lote</th>
+                                          <th className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground">Validade</th>
+                                          <th className="px-2 py-1 text-right text-[10px] font-medium text-muted-foreground">Dias Rest.</th>
+                                          <th className="px-2 py-1 text-right text-[10px] font-medium text-muted-foreground">Qtd Disp.</th>
+                                          <th className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground">Endereço</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {oc.lotes_disponiveis.map((lote, j) => (
+                                          <tr key={j} className="border-t border-border/30">
+                                            <td className="px-2 py-1 font-mono">{lote.lote || "—"}</td>
+                                            <td className="px-2 py-1">{new Date(lote.validade).toLocaleDateString("pt-BR")}</td>
+                                            <td className={cn(
+                                              "px-2 py-1 text-right font-mono font-semibold",
+                                              lote.dias_rest < (oc.shelf_exigido || 0) ? "text-destructive" : "text-green-500"
+                                            )}>
+                                              {lote.dias_rest}
+                                            </td>
+                                            <td className="px-2 py-1 text-right font-mono">{lote.qtd_disp}</td>
+                                            <td className="px-2 py-1 font-mono">{lote.endereco}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
