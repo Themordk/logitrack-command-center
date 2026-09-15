@@ -1226,6 +1226,7 @@ export function MovimentoSaidaPage() {
           {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (() => {
             const hasPicking = liberarResult.ocorrencias.some((oc) => isSaldoInsuficientePicking(oc.tipo));
             const hasBloqueado = liberarResult.ocorrencias.some((oc) => isEnderecoBloqueado(oc.tipo));
+            const hasShelfLife = liberarResult.ocorrencias.some((oc) => isShelfLifeInsuficiente(oc.tipo));
             return (
             <div className="mt-4 space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Ocorrências ({liberarResult.ocorrencias.length})</p>
@@ -1245,6 +1246,9 @@ export function MovimentoSaidaPage() {
                       {hasBloqueado && (
                         <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereços Bloqueados</th>
                       )}
+                      {hasShelfLife && (
+                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Detalhes Shelf Life</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1256,6 +1260,8 @@ export function MovimentoSaidaPage() {
                             "px-2 py-0.5 rounded text-[11px] font-medium uppercase",
                             isEnderecoBloqueado(oc.tipo)
                               ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                              : isShelfLifeInsuficiente(oc.tipo)
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                               : "bg-destructive/15 text-destructive"
                           )}>
                             {oc.tipo?.replace(/_/g, " ") || "—"}
