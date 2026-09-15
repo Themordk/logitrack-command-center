@@ -281,6 +281,7 @@ export type Database = {
           lms_faixa_atencao_pct: number
           lms_faixa_bom_pct: number
           lms_faixa_excelente_pct: number
+          lms_tempo_inatividade_tarefa_seg: number
           lms_tempo_ocioso_alerta_seg: number
           lms_tempo_transito_seg: number
           tenant_id: string
@@ -301,6 +302,7 @@ export type Database = {
           lms_faixa_atencao_pct?: number
           lms_faixa_bom_pct?: number
           lms_faixa_excelente_pct?: number
+          lms_tempo_inatividade_tarefa_seg?: number
           lms_tempo_ocioso_alerta_seg?: number
           lms_tempo_transito_seg?: number
           tenant_id: string
@@ -321,6 +323,7 @@ export type Database = {
           lms_faixa_atencao_pct?: number
           lms_faixa_bom_pct?: number
           lms_faixa_excelente_pct?: number
+          lms_tempo_inatividade_tarefa_seg?: number
           lms_tempo_ocioso_alerta_seg?: number
           lms_tempo_transito_seg?: number
           tenant_id?: string
