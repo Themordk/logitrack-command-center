@@ -79,7 +79,10 @@ export function TendenciaChart({ data, loading }: { data: Item[]; loading?: bool
                   border: "1px solid hsl(var(--border))",
                   borderRadius: 8,
                   fontSize: 12,
+                  color: "hsl(var(--popover-foreground))",
                 }}
+                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+                labelStyle={{ color: "hsl(var(--popover-foreground))" }}
                 labelFormatter={(label) => `Hora: ${label}`}
                 formatter={(value: number, name: string) => {
                   if (name === "tarefas") return [`${value} tarefas`, "Tarefas"];

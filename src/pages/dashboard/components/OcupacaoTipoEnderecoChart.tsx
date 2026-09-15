@@ -1,9 +1,9 @@
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { MapPin } from "lucide-react";
 
-interface ZonaOcupacao {
-  zona_id: string;
-  zona_nome: string;
+interface TipoEnderecoOcupacao {
+  tipo_endereco: string;
+  tipo_nome: string;
   total: number;
   ocupados: number;
   livres: number;
@@ -12,19 +12,19 @@ interface ZonaOcupacao {
 }
 
 interface Props {
-  data: ZonaOcupacao[];
+  data: TipoEnderecoOcupacao[];
   loading?: boolean;
 }
 
-export function OcupacaoZonaChart({ data, loading }: Props) {
+export function OcupacaoTipoEnderecoChart({ data, loading }: Props) {
   const safeData = Array.isArray(data) ? data : [];
   const temDados = safeData.length > 0;
 
-  const chartData = safeData.map((z) => ({
-    nome: z.zona_nome,
-    ocupados: z.ocupados,
-    livres: z.livres,
-    bloqueados: z.bloqueados,
+  const chartData = safeData.map((t) => ({
+    nome: t.tipo_nome,
+    ocupados: t.ocupados,
+    livres: t.livres,
+    bloqueados: t.bloqueados,
   }));
 
   const labels: Record<string, string> = {
@@ -38,11 +38,11 @@ export function OcupacaoZonaChart({ data, loading }: Props) {
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <MapPin size={16} className="text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Ocupação por Zona</h3>
+          <h3 className="text-sm font-semibold text-foreground">Ocupação por Tipo de Endereço</h3>
         </div>
         {temDados && (
           <span className="text-xs text-muted-foreground">
-            {safeData.length} zona{safeData.length !== 1 ? "s" : ""}
+            {safeData.length} tipo{safeData.length !== 1 ? "s" : ""}
           </span>
         )}
       </div>
@@ -51,7 +51,7 @@ export function OcupacaoZonaChart({ data, loading }: Props) {
         <div className="h-[220px] rounded-lg bg-secondary/30 animate-pulse" />
       ) : !temDados ? (
         <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground text-center px-4">
-          Nenhuma zona configurada para este armazém.
+          Nenhum endereço configurado para este armazém.
         </div>
       ) : (
         <>
@@ -81,8 +81,10 @@ export function OcupacaoZonaChart({ data, loading }: Props) {
                     fontSize: 12,
                     color: "hsl(var(--popover-foreground))",
                   }}
+                  itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+                  labelStyle={{ color: "hsl(var(--popover-foreground))" }}
                   formatter={(value: number, name: string) => [`${value} endereços`, labels[name] || name]}
-                  labelFormatter={(label: string) => `Zona: ${label}`}
+                  labelFormatter={(label: string) => `Tipo: ${label}`}
                 />
                 <Bar dataKey="ocupados" stackId="a" fill="hsl(45 93% 47%)" radius={[0, 0, 0, 0]} />
                 <Bar dataKey="livres" stackId="a" fill="hsl(142 76% 36%)" />
@@ -92,15 +94,15 @@ export function OcupacaoZonaChart({ data, loading }: Props) {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {safeData.map((z) => (
-              <div key={z.zona_id} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-secondary/40 text-xs">
-                <span className="text-muted-foreground">{z.zona_nome}</span>
+            {safeData.map((t) => (
+              <div key={t.tipo_endereco} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-secondary/40 text-xs">
+                <span className="text-muted-foreground">{t.tipo_nome}</span>
                 <span
                   className={`font-semibold ${
-                    z.taxa_ocupacao > 85 ? "text-red-400" : z.taxa_ocupacao >= 70 ? "text-yellow-400" : "text-green-400"
+                    t.taxa_ocupacao > 85 ? "text-red-400" : t.taxa_ocupacao >= 70 ? "text-yellow-400" : "text-green-400"
                   }`}
                 >
-                  {z.taxa_ocupacao}%
+                  {t.taxa_ocupacao}%
                 </span>
               </div>
             ))}

@@ -74,9 +74,9 @@ export interface KpisResult {
     total_itens: number;
     total_divergencias: number;
   };
-  ocupacao_por_zona: Array<{
-    zona_id: string;
-    zona_nome: string;
+  ocupacao_por_tipo_endereco: Array<{
+    tipo_endereco: string;
+    tipo_nome: string;
     total: number;
     ocupados: number;
     livres: number;
@@ -276,6 +276,7 @@ export const LABELS_CATEGORIA_TAREFA: Record<string, string> = {
   MOVIMENTACAO: "Movimentação",
   INVENTARIO: "Inventário",
   ABASTECIMENTO: "Abastecimento",
+  CONFERENCIA: "Conferência",
   OUTROS: "Outros",
 };
 
@@ -287,6 +288,7 @@ export const CORES_CATEGORIA_TAREFA: Record<string, string> = {
   MOVIMENTACAO: "hsl(170 60% 45%)",
   INVENTARIO: "hsl(45 90% 50%)",
   ABASTECIMENTO: "hsl(120 50% 45%)",
+  CONFERENCIA: "hsl(280 65% 60%)",
   OUTROS: "hsl(220 15% 55%)",
 };
 
