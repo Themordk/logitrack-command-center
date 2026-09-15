@@ -268,6 +268,28 @@ export function iconeTendencia(tendencia: string): { icon: string; color: string
   }
 }
 
+export const LABELS_CATEGORIA_TAREFA: Record<string, string> = {
+  RECEBIMENTO: "Recebimento",
+  ARMAZENAGEM: "Armazenagem",
+  SEPARACAO: "Separação",
+  EXPEDICAO: "Expedição",
+  MOVIMENTACAO: "Movimentação",
+  INVENTARIO: "Inventário",
+  ABASTECIMENTO: "Abastecimento",
+  OUTROS: "Outros",
+};
+
+export const CORES_CATEGORIA_TAREFA: Record<string, string> = {
+  RECEBIMENTO: "hsl(200 70% 55%)",
+  ARMAZENAGEM: "hsl(260 60% 55%)",
+  SEPARACAO: "hsl(30 80% 55%)",
+  EXPEDICAO: "hsl(340 75% 55%)",
+  MOVIMENTACAO: "hsl(170 60% 45%)",
+  INVENTARIO: "hsl(45 90% 50%)",
+  ABASTECIMENTO: "hsl(120 50% 45%)",
+  OUTROS: "hsl(220 15% 55%)",
+};
+
 // ── RPC 1: KPIs escalares ──
 
 export async function fetchKpis(f: DashboardFilters) {
@@ -288,6 +310,7 @@ export async function fetchKpis(f: DashboardFilters) {
     kpis,
     trendTaxaConclusao: trend(kpis.taxa_conclusao.valor, kpis.taxa_conclusao.valor_anterior),
     trendProdutividade: trend(kpis.produtividade.valor, kpis.produtividade.valor_anterior),
+    trendTaxaCorte: kpis.taxa_corte ? trend(kpis.taxa_corte.taxa, kpis.taxa_corte.taxa_anterior) : undefined,
   };
 }
 
