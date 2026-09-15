@@ -117,6 +117,16 @@ interface OcorrenciaItem {
     situacao: string;
     saldo_disponivel: number;
   }>;
+  // Shelf life
+  shelf_exigido?: number;
+  shelf_disponivel?: number;
+  lotes_disponiveis?: Array<{
+    lote: string;
+    validade: string;
+    dias_rest: number;
+    qtd_disp: number;
+    endereco: string;
+  }>;
   [key: string]: any;
 }
 
@@ -144,6 +154,7 @@ interface MotivoOcorrencia {
 const normalizeOccurrenceType = (tipo?: string | null) => (tipo || "").trim().toUpperCase();
 const isSaldoInsuficientePicking = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SALDO_PICKING_INSUFICIENTE";
 const isEnderecoBloqueado = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "ESTOQUE_ENDERECO_BLOQUEADO";
+const isShelfLifeInsuficiente = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SHELF_LIFE_INSUFICIENTE";
 
 export function MovimentoSaidaPage() {
   const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
@@ -404,7 +415,7 @@ export function MovimentoSaidaPage() {
   };
 
 
-  const handleLiberar = async (movId: string) => {
+  const handleLiberar = async (movId: string, ignorarShelfLife = false) => {
     setActionMenuId(null);
     if (!usuarioId) {
       toast.error("Usuário não identificado na sessão. Faça login novamente.");
@@ -417,6 +428,7 @@ export function MovimentoSaidaPage() {
         p_tenant_id: tenantId,
         p_empresa_id: mov?.empresa_id || empresaId,
         p_usuario_id: usuarioId,
+        p_ignorar_shelf_life: ignorarShelfLife,
       });
       if (error) throw error;
 
