@@ -57,6 +57,39 @@ export interface KpisResult {
       critico: number;
     };
   };
+  // Novas seções da Torre de Controle reestruturada
+  taxa_corte: {
+    taxa: number;
+    itens_cortados: number;
+    itens_total: number;
+    qtd_cortada: number;
+    qtd_esperada: number;
+    taxa_anterior: number;
+  };
+  inventario: {
+    total: number;
+    em_contagem: number;
+    finalizados: number;
+    acuracia_media: number;
+    total_itens: number;
+    total_divergencias: number;
+  };
+  ocupacao_por_zona: Array<{
+    zona_id: string;
+    zona_nome: string;
+    total: number;
+    ocupados: number;
+    livres: number;
+    bloqueados: number;
+    taxa_ocupacao: number;
+  }>;
+  breakdown_tipo_tarefa: Array<{
+    categoria: string;
+    descricao: string;
+    cor: string;
+    concluidas: number;
+    tempo_medio_seg: number;
+  }>;
 }
 
 export interface OperadorRanking {
