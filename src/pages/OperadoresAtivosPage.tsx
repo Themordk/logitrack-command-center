@@ -205,15 +205,24 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                 {filtered.map((o) => {
                   const isTransito = o.status_operador === "EM_TRANSITO";
                   const ocioso = o.status_operador === "OCIOSO";
+                  const ociosoComTarefa = o.status_operador === "OCIOSO_COM_TAREFA";
                   const ociosoSeg = o.tempo_ocioso_seg || 0;
 
-                  // Lógica de badge de status
+                  // Lógica de badge de status (modelo 4-estados)
                   let borderClass = "";
                   let badgeClass = "bg-green-500/15 text-green-400 border-green-500/30";
                   let badgeLabel = "Em Atividade";
+                  let showAlertPulse = false;
+
                   if (isTransito) {
                     badgeClass = "bg-cyan-500/15 text-cyan-400 border-cyan-500/30";
                     badgeLabel = "Em Trânsito";
+                  } else if (ociosoComTarefa) {
+                    // NOVO: Operador tem tarefa atribuída mas está inativo além do threshold
+                    borderClass = "border-l-2 border-l-amber-500";
+                    badgeClass = "bg-amber-500/15 text-amber-400 border-amber-500/30";
+                    badgeLabel = "Ocioso c/ Tarefa";
+                    showAlertPulse = o.tarefa_pendente_alerta === true;
                   } else if (ocioso) {
                     const limiteAlerta = o.lms_tempo_ocioso_alerta_seg || 900;
                     if (ociosoSeg > limiteAlerta * 2) {
@@ -238,7 +247,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                   // Tempo no estado atual
                   const tempoSeg = ocioso || isTransito
                     ? (o.tempo_ocioso_seg || 0)
-                    : (o.tempo_na_tarefa_seg || 0);
+                    : (o.seg_desde_ultima_atividade || o.tempo_na_tarefa_seg || 0);
 
                   return (
                     <tr key={o.usuario_id} className={cn("border-b border-border/30 hover:bg-secondary/20 transition-colors", borderClass)}>
