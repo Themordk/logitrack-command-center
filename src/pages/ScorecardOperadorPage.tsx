@@ -116,6 +116,7 @@ export function ScorecardOperadorPage({
           <Select value={dias} onValueChange={setDias}>
             <SelectTrigger className="w-[170px] h-9 bg-secondary/40 border-border/50"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="0">Data atual</SelectItem>
               <SelectItem value="7">Últimos 7 dias</SelectItem>
               <SelectItem value="15">Últimos 15 dias</SelectItem>
               <SelectItem value="30">Últimos 30 dias</SelectItem>
