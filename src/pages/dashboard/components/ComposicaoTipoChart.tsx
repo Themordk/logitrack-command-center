@@ -63,6 +63,8 @@ export function ComposicaoTipoChart({ data, loading }: Props) {
                   fontSize: 12,
                   color: "hsl(var(--popover-foreground))",
                 }}
+                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+                labelStyle={{ color: "hsl(var(--popover-foreground))" }}
                 formatter={(value: number, _name: string, props: any) => [
                   `${value} tarefas (Tempo médio: ${formatarTempoEspera(props?.payload?.tempo_medio ?? 0)})`,
                   "Concluídas",

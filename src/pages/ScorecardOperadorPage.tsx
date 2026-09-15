@@ -53,7 +53,9 @@ export function ScorecardOperadorPage({
     setLoading(true);
     const fim = new Date();
     const ini = new Date();
-    ini.setDate(ini.getDate() - (Number(dias) - 1));
+    if (Number(dias) > 0) {
+      ini.setDate(ini.getDate() - (Number(dias) - 1));
+    }
     const res = await fetchScorecardOperador(
       tenantId,
       usuarioId,

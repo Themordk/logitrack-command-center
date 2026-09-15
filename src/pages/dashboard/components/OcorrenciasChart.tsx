@@ -104,7 +104,9 @@ export function OcorrenciasChart({ data, loading, onNavigate }: Props) {
               <YAxis dataKey="nome" type="category" stroke="hsl(var(--muted-foreground))" fontSize={11} width={150} tick={{ fill: "hsl(var(--muted-foreground))" }} />
               <Tooltip
                 cursor={{ fill: "hsl(var(--secondary) / 0.3)" }}
-                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12, color: "hsl(var(--popover-foreground))" }}
+                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+                labelStyle={{ color: "hsl(var(--popover-foreground))" }}
                 formatter={(value: number, _name: string, props: any) => {
                   const pendentes = props.payload.pendentes;
                   return [

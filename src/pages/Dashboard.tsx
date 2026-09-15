@@ -14,7 +14,7 @@ import { KPICardPro, KPISeverity } from "./dashboard/components/KPICardPro";
 import { RankingOperadores } from "./dashboard/components/RankingOperadores";
 import { OcorrenciasChart } from "./dashboard/components/OcorrenciasChart";
 import { TendenciaChart } from "./dashboard/components/TendenciaChart";
-import { OcupacaoZonaChart } from "./dashboard/components/OcupacaoZonaChart";
+import { OcupacaoTipoEnderecoChart } from "./dashboard/components/OcupacaoTipoEnderecoChart";
 import { ComposicaoTipoChart } from "./dashboard/components/ComposicaoTipoChart";
 import {
   fetchKpis, fetchRankingOperadores, fetchOcorrencias, fetchTendencia,
@@ -259,7 +259,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
             />
           </div>
 
-          <OcupacaoZonaChart data={kpis?.ocupacao_por_zona || []} loading={loading} />
+          <OcupacaoTipoEnderecoChart data={kpis?.ocupacao_por_tipo_endereco || []} loading={loading} />
         </CollapsibleContent>
       </Collapsible>
 
