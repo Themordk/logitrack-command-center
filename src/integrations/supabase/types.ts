@@ -10305,6 +10305,7 @@ export type Database = {
       liberar_onda_separacao: {
         Args: {
           p_empresa_id: string
+          p_ignorar_shelf_life?: boolean
           p_movimento_saida_id: string
           p_tenant_id: string
           p_usuario_id: string

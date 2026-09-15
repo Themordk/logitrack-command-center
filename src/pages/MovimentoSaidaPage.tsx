@@ -117,6 +117,16 @@ interface OcorrenciaItem {
     situacao: string;
     saldo_disponivel: number;
   }>;
+  // Shelf life
+  shelf_exigido?: number;
+  shelf_disponivel?: number;
+  lotes_disponiveis?: Array<{
+    lote: string;
+    validade: string;
+    dias_rest: number;
+    qtd_disp: number;
+    endereco: string;
+  }>;
   [key: string]: any;
 }
 
@@ -144,6 +154,7 @@ interface MotivoOcorrencia {
 const normalizeOccurrenceType = (tipo?: string | null) => (tipo || "").trim().toUpperCase();
 const isSaldoInsuficientePicking = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SALDO_PICKING_INSUFICIENTE";
 const isEnderecoBloqueado = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "ESTOQUE_ENDERECO_BLOQUEADO";
+const isShelfLifeInsuficiente = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SHELF_LIFE_INSUFICIENTE";
 
 export function MovimentoSaidaPage() {
   const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
@@ -404,7 +415,7 @@ export function MovimentoSaidaPage() {
   };
 
 
-  const handleLiberar = async (movId: string) => {
+  const handleLiberar = async (movId: string, ignorarShelfLife = false) => {
     setActionMenuId(null);
     if (!usuarioId) {
       toast.error("Usuário não identificado na sessão. Faça login novamente.");
@@ -417,6 +428,7 @@ export function MovimentoSaidaPage() {
         p_tenant_id: tenantId,
         p_empresa_id: mov?.empresa_id || empresaId,
         p_usuario_id: usuarioId,
+        p_ignorar_shelf_life: ignorarShelfLife,
       });
       if (error) throw error;
 
@@ -1214,6 +1226,7 @@ export function MovimentoSaidaPage() {
           {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (() => {
             const hasPicking = liberarResult.ocorrencias.some((oc) => isSaldoInsuficientePicking(oc.tipo));
             const hasBloqueado = liberarResult.ocorrencias.some((oc) => isEnderecoBloqueado(oc.tipo));
+            const hasShelfLife = liberarResult.ocorrencias.some((oc) => isShelfLifeInsuficiente(oc.tipo));
             return (
             <div className="mt-4 space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Ocorrências ({liberarResult.ocorrencias.length})</p>
@@ -1233,6 +1246,9 @@ export function MovimentoSaidaPage() {
                       {hasBloqueado && (
                         <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereços Bloqueados</th>
                       )}
+                      {hasShelfLife && (
+                        <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Detalhes Shelf Life</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1244,6 +1260,8 @@ export function MovimentoSaidaPage() {
                             "px-2 py-0.5 rounded text-[11px] font-medium uppercase",
                             isEnderecoBloqueado(oc.tipo)
                               ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                              : isShelfLifeInsuficiente(oc.tipo)
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                               : "bg-destructive/15 text-destructive"
                           )}>
                             {oc.tipo?.replace(/_/g, " ") || "—"}
@@ -1306,6 +1324,52 @@ export function MovimentoSaidaPage() {
                               </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        )}
+                        {hasShelfLife && (
+                          <td className="px-3 py-2">
+                            {isShelfLifeInsuficiente(oc.tipo) && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-muted-foreground">Exigido:</span>
+                                  <span className="font-semibold text-foreground">{oc.shelf_exigido} dias</span>
+                                  <span className="text-muted-foreground">|</span>
+                                  <span className="text-muted-foreground">Disponível:</span>
+                                  <span className="font-semibold text-destructive">{oc.shelf_disponivel} dias</span>
+                                </div>
+                                {oc.lotes_disponiveis && oc.lotes_disponiveis.length > 0 && (
+                                  <div className="rounded border border-border/50 overflow-hidden">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-secondary/20">
+                                          <th className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground">Lote</th>
+                                          <th className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground">Validade</th>
+                                          <th className="px-2 py-1 text-right text-[10px] font-medium text-muted-foreground">Dias Rest.</th>
+                                          <th className="px-2 py-1 text-right text-[10px] font-medium text-muted-foreground">Qtd Disp.</th>
+                                          <th className="px-2 py-1 text-left text-[10px] font-medium text-muted-foreground">Endereço</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {oc.lotes_disponiveis.map((lote, j) => (
+                                          <tr key={j} className="border-t border-border/30">
+                                            <td className="px-2 py-1 font-mono">{lote.lote || "—"}</td>
+                                            <td className="px-2 py-1">{new Date(lote.validade).toLocaleDateString("pt-BR")}</td>
+                                            <td className={cn(
+                                              "px-2 py-1 text-right font-mono font-semibold",
+                                              lote.dias_rest < (oc.shelf_exigido || 0) ? "text-destructive" : "text-green-500"
+                                            )}>
+                                              {lote.dias_rest}
+                                            </td>
+                                            <td className="px-2 py-1 text-right font-mono">{lote.qtd_disp}</td>
+                                            <td className="px-2 py-1 font-mono">{lote.endereco}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
                         )}
@@ -1411,6 +1475,29 @@ export function MovimentoSaidaPage() {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Footer com ação de override de shelf life */}
+          {liberarResult?.ocorrencias &&
+           liberarResult.ocorrencias.length > 0 &&
+           liberarResult.ocorrencias.every((oc) => isShelfLifeInsuficiente(oc.tipo)) && (
+            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+              <p className="text-xs text-muted-foreground max-w-md">
+                Todos os produtos estão com shelf life abaixo do exigido pelo parceiro.
+                Você pode liberar a onda mesmo assim — as tarefas serão criadas com o estoque disponível.
+              </p>
+              <button
+                onClick={async () => {
+                  setLiberarDialogOpen(false);
+                  if (liberarMovId) {
+                    await handleLiberar(liberarMovId, true);
+                  }
+                }}
+                className="ml-4 px-4 py-2 rounded-md text-sm font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors whitespace-nowrap"
+              >
+                Liberar Mesmo Assim
+              </button>
             </div>
           )}
         </DialogContent>
