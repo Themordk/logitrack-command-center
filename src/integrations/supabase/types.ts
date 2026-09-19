@@ -9099,6 +9099,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_coletor_metas_operador: {
+        Args: { p_periodo?: string; p_tenant_id: string; p_usuario_id: string }
+        Returns: Json
+      }
       fn_conferencia_buscar_produto_por_barcode: {
         Args: {
           p_codigo_barras: string
