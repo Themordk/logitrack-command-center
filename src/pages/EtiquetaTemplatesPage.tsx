@@ -108,6 +108,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [zplCode, setZplCode] = useState<string>("");
   const [modoManualZpl, setModoManualZpl] = useState(false);
+  const [eplCode, setEplCode] = useState<string>("");
+  const [tsplCode, setTsplCode] = useState<string>("");
+  const [abaLinguagem, setAbaLinguagem] = useState<LinguagemEtiqueta>("ZPL");
+  const [previewLinguagem, setPreviewLinguagem] = useState<LinguagemEtiqueta>("ZPL");
+  const [filtroLinguagem, setFiltroLinguagem] = useState<"" | LinguagemEtiqueta>("");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
 
   // Dados mock para preencher placeholders no preview térmico
   const dadosMockPreview = useMemo<Record<string, string>>(
