@@ -7,6 +7,16 @@ import { parseError } from "@/lib/errorMapper";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { gerarZplTemplate } from "@/lib/zplGenerator";
 import { ZplPreview } from "@/components/etiqueta/ZplPreview";
+import { CanvasLabelPreview } from "@/components/etiqueta/CanvasLabelPreview";
+import {
+  LINGUAGENS,
+  COR_LINGUAGEM,
+  SNIPPETS,
+  dadosExemploPara,
+  gerarEplAutomatico,
+  gerarTsplAutomatico,
+  type LinguagemEtiqueta,
+} from "@/lib/etiquetaLinguagens";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
