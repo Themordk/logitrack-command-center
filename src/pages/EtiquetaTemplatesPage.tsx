@@ -661,9 +661,27 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                           )}
                         </div>
                       </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        {t.largura_mm}×{t.altura_mm}mm · {t.orientacao}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-muted-foreground">
+                          {t.largura_mm}×{t.altura_mm}mm · {t.orientacao}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {(t.linguagens_suportadas && t.linguagens_suportadas.length > 0
+                            ? t.linguagens_suportadas
+                            : ["ZPL"]
+                          ).map((l) => (
+                            <span
+                              key={l}
+                              className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                                COR_LINGUAGEM[l as LinguagemEtiqueta] ||
+                                "bg-secondary text-muted-foreground border-border"
+                              }`}
+                            >
+                              {l}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
