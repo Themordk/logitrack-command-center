@@ -225,11 +225,18 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         const customizado = salvo.length > 0 && salvo !== gerado;
         setZplCode(selected.corpo_zpl || "");
         setModoManualZpl(customizado);
+        setEplCode(selected.corpo_epl || "");
+        setTsplCode(selected.corpo_tspl || "");
+        const lp = (selected.linguagem_padrao as LinguagemEtiqueta) || "ZPL";
+        setAbaLinguagem(LINGUAGENS.includes(lp) ? lp : "ZPL");
+        setPreviewLinguagem(LINGUAGENS.includes(lp) ? lp : "ZPL");
         loadedTemplateIdRef.current = selected.id;
       }
     } else {
       setDraft(null);
       setZplCode("");
+      setEplCode("");
+      setTsplCode("");
       setModoManualZpl(false);
       loadedTemplateIdRef.current = null;
     }
