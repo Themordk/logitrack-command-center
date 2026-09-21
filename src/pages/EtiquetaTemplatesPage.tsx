@@ -586,7 +586,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Templates ({templates.length})
+                  Templates ({templatesFiltrados.length})
                 </span>
                 <button
                   onClick={handleCreateNew}
@@ -596,18 +596,47 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </button>
               </div>
 
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">Linguagem:</span>
+                <button
+                  onClick={() => setFiltroLinguagem("")}
+                  className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                    filtroLinguagem === ""
+                      ? "bg-primary/20 text-primary border-primary/40"
+                      : "bg-secondary text-muted-foreground border-border"
+                  }`}
+                >
+                  TODAS
+                </button>
+                {LINGUAGENS.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setFiltroLinguagem(filtroLinguagem === l ? "" : l)}
+                    className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                      filtroLinguagem === l ? COR_LINGUAGEM[l] : "bg-secondary text-muted-foreground border-border"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
               {loading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-3">
                   <Loader2 size={12} className="animate-spin" /> Carregando...
                 </div>
-              ) : templates.length === 0 ? (
+              ) : templatesFiltrados.length === 0 ? (
                 <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-md px-2.5 py-2 text-[11px] text-muted-foreground">
                   <Info size={12} className="mt-0.5 shrink-0" />
-                  <span>Nenhum template cadastrado. Clique em "Novo template" para criar.</span>
+                  <span>
+                    {templates.length === 0
+                      ? 'Nenhum template cadastrado. Clique em "Novo template" para criar.'
+                      : "Nenhum template com a linguagem selecionada."}
+                  </span>
                 </div>
               ) : (
                 <div className="space-y-1.5 max-h-[260px] overflow-auto pr-1">
-                  {templates.map((t) => (
+                  {templatesFiltrados.map((t) => (
                     <div
                       key={t.id}
                       onClick={() => setSelectedTemplateId(t.id)}
