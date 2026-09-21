@@ -7,6 +7,16 @@ import { parseError } from "@/lib/errorMapper";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { gerarZplTemplate } from "@/lib/zplGenerator";
 import { ZplPreview } from "@/components/etiqueta/ZplPreview";
+import { CanvasLabelPreview } from "@/components/etiqueta/CanvasLabelPreview";
+import {
+  LINGUAGENS,
+  COR_LINGUAGEM,
+  SNIPPETS,
+  dadosExemploPara,
+  gerarEplAutomatico,
+  gerarTsplAutomatico,
+  type LinguagemEtiqueta,
+} from "@/lib/etiquetaLinguagens";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
@@ -98,6 +108,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [zplCode, setZplCode] = useState<string>("");
   const [modoManualZpl, setModoManualZpl] = useState(false);
+  const [eplCode, setEplCode] = useState<string>("");
+  const [tsplCode, setTsplCode] = useState<string>("");
+  const [abaLinguagem, setAbaLinguagem] = useState<LinguagemEtiqueta>("ZPL");
+  const [previewLinguagem, setPreviewLinguagem] = useState<LinguagemEtiqueta>("ZPL");
+  const [filtroLinguagem, setFiltroLinguagem] = useState<"" | LinguagemEtiqueta>("");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
 
   // Dados mock para preencher placeholders no preview térmico
   const dadosMockPreview = useMemo<Record<string, string>>(
@@ -209,11 +225,18 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         const customizado = salvo.length > 0 && salvo !== gerado;
         setZplCode(selected.corpo_zpl || "");
         setModoManualZpl(customizado);
+        setEplCode(selected.corpo_epl || "");
+        setTsplCode(selected.corpo_tspl || "");
+        const lp = (selected.linguagem_padrao as LinguagemEtiqueta) || "ZPL";
+        setAbaLinguagem(LINGUAGENS.includes(lp) ? lp : "ZPL");
+        setPreviewLinguagem(LINGUAGENS.includes(lp) ? lp : "ZPL");
         loadedTemplateIdRef.current = selected.id;
       }
     } else {
       setDraft(null);
       setZplCode("");
+      setEplCode("");
+      setTsplCode("");
       setModoManualZpl(false);
       loadedTemplateIdRef.current = null;
     }
@@ -231,6 +254,79 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
       console.warn("[ZPL Generator]", err);
     }
   }, [draft, tipo, modoManualZpl]);
+
+  // ─── Editor multi-linguagem ───
+  const codigoAtual =
+    abaLinguagem === "ZPL" ? zplCode : abaLinguagem === "EPL" ? eplCode : tsplCode;
+
+  const setCodigoAtual = useCallback(
+    (valor: string) => {
+      if (abaLinguagem === "ZPL") {
+        setModoManualZpl(true);
+        setZplCode(valor);
+      } else if (abaLinguagem === "EPL") {
+        setEplCode(valor);
+      } else {
+        setTsplCode(valor);
+      }
+    },
+    [abaLinguagem],
+  );
+
+  const inserirNoEditor = useCallback(
+    (texto: string) => {
+      const ta = editorRef.current;
+      const atual = codigoAtual || "";
+      if (!ta) {
+        setCodigoAtual(atual + texto);
+        return;
+      }
+      const start = ta.selectionStart ?? atual.length;
+      const end = ta.selectionEnd ?? atual.length;
+      const novo = atual.slice(0, start) + texto + atual.slice(end);
+      setCodigoAtual(novo);
+      requestAnimationFrame(() => {
+        ta.focus();
+        const pos = start + texto.length;
+        ta.setSelectionRange(pos, pos);
+      });
+    },
+    [codigoAtual, setCodigoAtual],
+  );
+
+  const gerarCodigoAba = useCallback(() => {
+    if (!draft) return;
+    try {
+      if (abaLinguagem === "ZPL") {
+        setZplCode(gerarZplTemplate(tipo, draft));
+        setModoManualZpl(false);
+      } else if (abaLinguagem === "EPL") {
+        setEplCode(gerarEplAutomatico(draft));
+      } else {
+        setTsplCode(gerarTsplAutomatico(draft));
+      }
+      toast.success(`Código ${abaLinguagem} gerado a partir da configuração visual.`);
+    } catch (err) {
+      console.warn("[Gerador de etiqueta]", err);
+      toast.error("Não foi possível gerar o código automaticamente.");
+    }
+  }, [abaLinguagem, draft, tipo]);
+
+  const copiarDoZpl = useCallback(() => {
+    if (abaLinguagem === "ZPL") return;
+    setCodigoAtual(zplCode);
+    toast.success("Código ZPL copiado para a aba — adapte os comandos.");
+  }, [abaLinguagem, setCodigoAtual, zplCode]);
+
+  const dadosPreview = useMemo(
+    () => ({ ...dadosMockPreview, ...dadosExemploPara(tipo) }),
+    [dadosMockPreview, tipo],
+  );
+
+  const templatesFiltrados = useMemo(() => {
+    if (!filtroLinguagem) return templates;
+    return templates.filter((t) => (t.linguagens_suportadas || ["ZPL"]).includes(filtroLinguagem));
+  }, [templates, filtroLinguagem]);
 
 
 
@@ -271,6 +367,9 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         direcao_seta: draft.direcao_seta,
         escala_fonte: draft.escala_fonte,
         corpo_zpl: zplCode,
+        corpo_epl: eplCode.trim() ? eplCode : null,
+        corpo_tspl: tsplCode.trim() ? tsplCode : null,
+        linguagem_padrao: draft.linguagem_padrao || "ZPL",
         updated_at: new Date().toISOString(),
       };
       const { error } = await (supabase as any)
@@ -487,7 +586,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Templates ({templates.length})
+                  Templates ({templatesFiltrados.length})
                 </span>
                 <button
                   onClick={handleCreateNew}
@@ -497,18 +596,47 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </button>
               </div>
 
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">Linguagem:</span>
+                <button
+                  onClick={() => setFiltroLinguagem("")}
+                  className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                    filtroLinguagem === ""
+                      ? "bg-primary/20 text-primary border-primary/40"
+                      : "bg-secondary text-muted-foreground border-border"
+                  }`}
+                >
+                  TODAS
+                </button>
+                {LINGUAGENS.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setFiltroLinguagem(filtroLinguagem === l ? "" : l)}
+                    className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                      filtroLinguagem === l ? COR_LINGUAGEM[l] : "bg-secondary text-muted-foreground border-border"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
               {loading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-3">
                   <Loader2 size={12} className="animate-spin" /> Carregando...
                 </div>
-              ) : templates.length === 0 ? (
+              ) : templatesFiltrados.length === 0 ? (
                 <div className="flex items-start gap-2 bg-muted/40 border border-border rounded-md px-2.5 py-2 text-[11px] text-muted-foreground">
                   <Info size={12} className="mt-0.5 shrink-0" />
-                  <span>Nenhum template cadastrado. Clique em "Novo template" para criar.</span>
+                  <span>
+                    {templates.length === 0
+                      ? 'Nenhum template cadastrado. Clique em "Novo template" para criar.'
+                      : "Nenhum template com a linguagem selecionada."}
+                  </span>
                 </div>
               ) : (
                 <div className="space-y-1.5 max-h-[260px] overflow-auto pr-1">
-                  {templates.map((t) => (
+                  {templatesFiltrados.map((t) => (
                     <div
                       key={t.id}
                       onClick={() => setSelectedTemplateId(t.id)}
@@ -533,9 +661,27 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                           )}
                         </div>
                       </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        {t.largura_mm}×{t.altura_mm}mm · {t.orientacao}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-muted-foreground">
+                          {t.largura_mm}×{t.altura_mm}mm · {t.orientacao}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {(t.linguagens_suportadas && t.linguagens_suportadas.length > 0
+                            ? t.linguagens_suportadas
+                            : ["ZPL"]
+                          ).map((l) => (
+                            <span
+                              key={l}
+                              className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${
+                                COR_LINGUAGEM[l as LinguagemEtiqueta] ||
+                                "bg-secondary text-muted-foreground border-border"
+                              }`}
+                            >
+                              {l}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -622,6 +768,21 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                   Aviso: as dimensões não correspondem à orientação selecionada. Ajuste largura/altura ou troque a orientação.
                 </p>
               )}
+
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">
+                  Linguagem padrão
+                </label>
+                <select
+                  value={draft.linguagem_padrao || "ZPL"}
+                  onChange={(e) => setDraft({ ...draft, linguagem_padrao: e.target.value })}
+                  className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none"
+                >
+                  {LINGUAGENS.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
 
               {/* Dimensões customizadas (mm) */}
               <div className="grid grid-cols-3 gap-2">
@@ -760,110 +921,212 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
           )}
         </div>
 
-        {/* Área com abas: Preview térmica + Código ZPL */}
+        {/* Área com abas: Preview térmica + Editor de código multi-linguagem */}
         <div className="bg-card border border-border rounded-lg p-4 flex flex-col">
           <Tabs defaultValue="termica" className="flex flex-col flex-1">
             <TabsList className="grid w-full grid-cols-2 mb-3">
               <TabsTrigger value="termica" className="text-xs flex items-center gap-1.5">
-                <Printer size={12} /> Preview Térmica
+                <Printer size={12} /> Preview
               </TabsTrigger>
-              <TabsTrigger value="zpl" className="text-xs flex items-center gap-1.5">
-                <Code size={12} /> Código ZPL
+              <TabsTrigger value="codigo" className="text-xs flex items-center gap-1.5">
+                <Code size={12} /> Editor de Código
               </TabsTrigger>
             </TabsList>
 
-
-
-            <TabsContent value="zpl" className="flex-1 mt-0 hidden data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Printer size={11} />
-                  Código ZPL para impressora térmica
-                </span>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={modoManualZpl}
-                      onChange={(e) => {
-                        const manual = e.target.checked;
-                        setModoManualZpl(manual);
-                        if (!manual && draft) {
-                          try {
-                            setZplCode(gerarZplTemplate(tipo, draft));
-                          } catch (err) {
-                            console.warn("[ZPL Generator]", err);
-                          }
-                        }
-                      }}
-                      className="accent-primary"
-                    />
-                    Edição manual
-                  </label>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(zplCode);
-                      toast.success("Código ZPL copiado!");
-                    }}
-                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Copy size={10} /> Copiar
-                  </button>
-                </div>
+            <TabsContent value="codigo" className="flex-1 mt-0 hidden data-[state=active]:flex data-[state=active]:flex-col">
+              {/* Abas de linguagem */}
+              <div className="flex items-center gap-1.5 mb-2">
+                {LINGUAGENS.map((l) => {
+                  const preenchido =
+                    (l === "ZPL" ? zplCode : l === "EPL" ? eplCode : tsplCode).trim().length > 0;
+                  const ativa = abaLinguagem === l;
+                  return (
+                    <button
+                      key={l}
+                      onClick={() => setAbaLinguagem(l)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+                        ativa
+                          ? COR_LINGUAGEM[l]
+                          : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                      }`}
+                    >
+                      {l}
+                      <span className={preenchido ? "text-emerald-400" : "text-muted-foreground"}>
+                        {preenchido ? "✓" : "○"}
+                      </span>
+                    </button>
+                  );
+                })}
+                <div className="flex-1" />
+                <button
+                  onClick={gerarCodigoAba}
+                  className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80"
+                  title="Gerar código a partir da configuração visual"
+                >
+                  <Code size={11} /> Gerar automático
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(codigoAtual);
+                    toast.success(`Código ${abaLinguagem} copiado!`);
+                  }}
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Copy size={10} /> Copiar
+                </button>
               </div>
 
-              <textarea
-                value={zplCode}
-                onChange={(e) => setZplCode(e.target.value)}
-                readOnly={!modoManualZpl}
-                className={`flex-1 min-h-[400px] font-mono text-[11px] leading-relaxed border border-border rounded-lg p-3 resize-none outline-none focus:ring-1 focus:ring-primary/50 ${
-                  modoManualZpl
-                    ? "bg-[hsl(222,47%,6%)] text-green-400"
-                    : "bg-[hsl(222,47%,8%)] text-green-400/70 cursor-default"
-                }`}
-                spellCheck={false}
-                placeholder="^XA&#10;^CI28&#10;...comandos ZPL...&#10;^XZ"
-              />
-
-              {!modoManualZpl && (
-                <p className="text-[10px] text-muted-foreground mt-2 italic">
-                  Modo automático: o código ZPL é gerado a partir das configurações acima.
-                  Ative "Edição manual" para editar livremente.
-                </p>
+              {abaLinguagem === "ZPL" && (
+                <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer select-none mb-2">
+                  <input
+                    type="checkbox"
+                    checked={modoManualZpl}
+                    onChange={(e) => {
+                      const manual = e.target.checked;
+                      setModoManualZpl(manual);
+                      if (!manual && draft) {
+                        try {
+                          setZplCode(gerarZplTemplate(tipo, draft));
+                        } catch (err) {
+                          console.warn("[ZPL Generator]", err);
+                        }
+                      }
+                    }}
+                    className="accent-primary"
+                  />
+                  Edição manual (desmarcado: o ZPL é gerado da configuração visual)
+                </label>
               )}
 
-              {modoManualZpl && draft?.campos && draft.campos.filter((c) => c.ativo).length > 0 && (
-                <div className="mt-2 p-2 bg-secondary/40 rounded-md">
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    <strong>Placeholders disponíveis</strong> (substituídos pelo agente):{" "}
-                    {draft.campos
-                      .filter((c) => c.ativo)
-                      .map((c) => (
-                        <code
-                          key={c.chave}
-                          className="bg-black/30 px-1 py-0.5 rounded text-green-400 mx-0.5"
-                        >
-                          {"{{" + c.chave + "}}"}
-                        </code>
-                      ))}
+              {abaLinguagem !== "ZPL" && !codigoAtual.trim() ? (
+                <div className="flex-1 min-h-[300px] flex flex-col items-center justify-center gap-2 border border-dashed border-border rounded-lg p-6">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Este template ainda não possui código {abaLinguagem}.
                   </p>
+                  <button
+                    onClick={gerarCodigoAba}
+                    className="w-64 px-3 py-2 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90"
+                  >
+                    Gerar automaticamente da configuração visual
+                  </button>
+                  <button
+                    onClick={copiarDoZpl}
+                    className="w-64 px-3 py-2 rounded-md border border-border text-xs text-foreground hover:bg-secondary"
+                  >
+                    Copiar do ZPL e adaptar
+                  </button>
+                  <button
+                    onClick={() => setCodigoAtual("\n")}
+                    className="w-64 px-3 py-2 rounded-md border border-border text-xs text-muted-foreground hover:bg-secondary"
+                  >
+                    Começar do zero
+                  </button>
+                </div>
+              ) : (
+                <textarea
+                  ref={editorRef}
+                  value={codigoAtual}
+                  onChange={(e) => setCodigoAtual(e.target.value)}
+                  readOnly={abaLinguagem === "ZPL" && !modoManualZpl}
+                  className={`flex-1 min-h-[360px] font-mono text-[11px] leading-relaxed border border-border rounded-lg p-3 resize-none outline-none focus:ring-1 focus:ring-primary/50 ${
+                    abaLinguagem === "ZPL" && !modoManualZpl
+                      ? "bg-[hsl(222,47%,8%)] text-green-400/70 cursor-default"
+                      : "bg-[hsl(222,47%,6%)] text-green-400"
+                  }`}
+                  spellCheck={false}
+                  placeholder={
+                    abaLinguagem === "ZPL"
+                      ? "^XA ... ^XZ"
+                      : abaLinguagem === "EPL"
+                        ? 'N\nq640\nQ240,24\nA40,15,0,3,1,1,N,"TEXTO"'
+                        : 'SIZE 100 mm,40 mm\nCLS\nTEXT 16,20,"3",0,1,1,"TEXTO"'
+                  }
+                />
+              )}
+
+              {/* Campos disponíveis */}
+              {draft?.campos && draft.campos.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Campos disponíveis
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {draft.campos.map((c) => (
+                      <button
+                        key={c.chave}
+                        onClick={() => inserirNoEditor(`{{${c.chave}}}`)}
+                        title={c.label}
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/30 text-green-400 border border-border hover:border-primary/50"
+                      >
+                        {"{{" + c.chave + "}}"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* Snippets */}
+              <div className="mt-2">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Snippets {abaLinguagem}
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {SNIPPETS[abaLinguagem].map((s) => (
+                    <button
+                      key={s.label}
+                      onClick={() => inserirNoEditor(`${s.code}\n`)}
+                      title={s.description}
+                      className="text-[10px] px-2 py-1 rounded border border-border bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/50"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="termica" className="flex-1 mt-0 hidden data-[state=active]:flex data-[state=active]:flex-col">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 gap-2">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Preview da impressão térmica (via Labelary)
+                  Preview da impressão térmica
                 </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground">Preview como:</span>
+                  <select
+                    value={previewLinguagem}
+                    onChange={(e) => setPreviewLinguagem(e.target.value as LinguagemEtiqueta)}
+                    className="bg-secondary text-foreground text-xs rounded-md px-2 py-1 border border-border outline-none"
+                  >
+                    {LINGUAGENS.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <ZplPreview
-                zpl={zplCode}
-                larguraMm={draft?.largura_mm || 100}
-                alturaMm={draft?.altura_mm || 40}
-                dados={dadosMockPreview}
-              />
+              {previewLinguagem === "ZPL" ? (
+                <ZplPreview
+                  zpl={zplCode}
+                  larguraMm={draft?.largura_mm || 100}
+                  alturaMm={draft?.altura_mm || 40}
+                  dados={dadosPreview}
+                />
+              ) : (previewLinguagem === "EPL" ? eplCode : tsplCode).trim() ? (
+                <CanvasLabelPreview
+                  code={previewLinguagem === "EPL" ? eplCode : tsplCode}
+                  linguagem={previewLinguagem}
+                  larguraMm={Number(draft?.largura_mm) || 100}
+                  alturaMm={Number(draft?.altura_mm) || 40}
+                  dados={dadosPreview}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 border border-dashed border-border rounded-lg p-8 text-center">
+                  <Info size={18} className="text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum código {previewLinguagem} neste template. Use o Editor de Código para gerar.
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
           </Tabs>

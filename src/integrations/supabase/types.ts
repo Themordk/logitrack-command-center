@@ -1689,6 +1689,7 @@ export type Database = {
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
+          corpo_epl: string | null
           corpo_tspl: string | null
           corpo_zpl: string
           created_at: string
@@ -1701,6 +1702,7 @@ export type Database = {
           intervalo_colunas_mm: number
           largura_mm: number
           linguagem_padrao: string
+          linguagens_suportadas: string[]
           logo_url: string | null
           nome: string
           orientacao: string
@@ -1718,6 +1720,7 @@ export type Database = {
           campos?: Json
           com_cabecalho?: boolean
           com_logo?: boolean
+          corpo_epl?: string | null
           corpo_tspl?: string | null
           corpo_zpl?: string
           created_at?: string
@@ -1730,6 +1733,7 @@ export type Database = {
           intervalo_colunas_mm?: number
           largura_mm?: number
           linguagem_padrao?: string
+          linguagens_suportadas?: string[]
           logo_url?: string | null
           nome: string
           orientacao?: string
@@ -1747,6 +1751,7 @@ export type Database = {
           campos?: Json
           com_cabecalho?: boolean
           com_logo?: boolean
+          corpo_epl?: string | null
           corpo_tspl?: string | null
           corpo_zpl?: string
           created_at?: string
@@ -1759,6 +1764,7 @@ export type Database = {
           intervalo_colunas_mm?: number
           largura_mm?: number
           linguagem_padrao?: string
+          linguagens_suportadas?: string[]
           logo_url?: string | null
           nome?: string
           orientacao?: string
@@ -1900,6 +1906,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fila_impressao_impressora_id_fkey"
+            columns: ["impressora_id"]
+            isOneToOne: false
+            referencedRelation: "vw_template_impressora_compat"
+            referencedColumns: ["impressora_id"]
+          },
+          {
             foreignKeyName: "fila_impressao_solicitado_por_fkey"
             columns: ["solicitado_por"]
             isOneToOne: false
@@ -1912,6 +1925,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "etiqueta_template"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fila_impressao_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "vw_template_impressora_compat"
+            referencedColumns: ["template_id"]
           },
           {
             foreignKeyName: "fila_impressao_tenant_id_fkey"
@@ -8490,6 +8510,35 @@ export type Database = {
           },
         ]
       }
+      vw_template_impressora_compat: {
+        Row: {
+          compativel: boolean | null
+          impressora_id: string | null
+          impressora_linguagem: string | null
+          impressora_nome: string | null
+          linguagens_suportadas: string[] | null
+          template_id: string | null
+          template_nome: string | null
+          template_tipo: string | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etiqueta_template_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etiqueta_template_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_tenant_resumo: {
         Row: {
           ativo: boolean | null
@@ -10334,6 +10383,7 @@ export type Database = {
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
+          corpo_epl: string | null
           corpo_tspl: string | null
           corpo_zpl: string
           created_at: string
@@ -10346,6 +10396,7 @@ export type Database = {
           intervalo_colunas_mm: number
           largura_mm: number
           linguagem_padrao: string
+          linguagens_suportadas: string[]
           logo_url: string | null
           nome: string
           orientacao: string
@@ -10509,6 +10560,7 @@ export type Database = {
           campos: Json
           com_cabecalho: boolean
           com_logo: boolean
+          corpo_epl: string | null
           corpo_tspl: string | null
           corpo_zpl: string
           created_at: string
@@ -10521,6 +10573,7 @@ export type Database = {
           intervalo_colunas_mm: number
           largura_mm: number
           linguagem_padrao: string
+          linguagens_suportadas: string[]
           logo_url: string | null
           nome: string
           orientacao: string
