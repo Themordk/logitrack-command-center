@@ -255,6 +255,79 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     }
   }, [draft, tipo, modoManualZpl]);
 
+  // ─── Editor multi-linguagem ───
+  const codigoAtual =
+    abaLinguagem === "ZPL" ? zplCode : abaLinguagem === "EPL" ? eplCode : tsplCode;
+
+  const setCodigoAtual = useCallback(
+    (valor: string) => {
+      if (abaLinguagem === "ZPL") {
+        setModoManualZpl(true);
+        setZplCode(valor);
+      } else if (abaLinguagem === "EPL") {
+        setEplCode(valor);
+      } else {
+        setTsplCode(valor);
+      }
+    },
+    [abaLinguagem],
+  );
+
+  const inserirNoEditor = useCallback(
+    (texto: string) => {
+      const ta = editorRef.current;
+      const atual = codigoAtual || "";
+      if (!ta) {
+        setCodigoAtual(atual + texto);
+        return;
+      }
+      const start = ta.selectionStart ?? atual.length;
+      const end = ta.selectionEnd ?? atual.length;
+      const novo = atual.slice(0, start) + texto + atual.slice(end);
+      setCodigoAtual(novo);
+      requestAnimationFrame(() => {
+        ta.focus();
+        const pos = start + texto.length;
+        ta.setSelectionRange(pos, pos);
+      });
+    },
+    [codigoAtual, setCodigoAtual],
+  );
+
+  const gerarCodigoAba = useCallback(() => {
+    if (!draft) return;
+    try {
+      if (abaLinguagem === "ZPL") {
+        setZplCode(gerarZplTemplate(tipo, draft));
+        setModoManualZpl(false);
+      } else if (abaLinguagem === "EPL") {
+        setEplCode(gerarEplAutomatico(draft));
+      } else {
+        setTsplCode(gerarTsplAutomatico(draft));
+      }
+      toast.success(`Código ${abaLinguagem} gerado a partir da configuração visual.`);
+    } catch (err) {
+      console.warn("[Gerador de etiqueta]", err);
+      toast.error("Não foi possível gerar o código automaticamente.");
+    }
+  }, [abaLinguagem, draft, tipo]);
+
+  const copiarDoZpl = useCallback(() => {
+    if (abaLinguagem === "ZPL") return;
+    setCodigoAtual(zplCode);
+    toast.success("Código ZPL copiado para a aba — adapte os comandos.");
+  }, [abaLinguagem, setCodigoAtual, zplCode]);
+
+  const dadosPreview = useMemo(
+    () => ({ ...dadosMockPreview, ...dadosExemploPara(tipo) }),
+    [dadosMockPreview, tipo],
+  );
+
+  const templatesFiltrados = useMemo(() => {
+    if (!filtroLinguagem) return templates;
+    return templates.filter((t) => (t.linguagens_suportadas || ["ZPL"]).includes(filtroLinguagem));
+  }, [templates, filtroLinguagem]);
+
 
 
   const handleFieldToggle = (chave: string) => {
