@@ -367,6 +367,9 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         direcao_seta: draft.direcao_seta,
         escala_fonte: draft.escala_fonte,
         corpo_zpl: zplCode,
+        corpo_epl: eplCode.trim() ? eplCode : null,
+        corpo_tspl: tsplCode.trim() ? tsplCode : null,
+        linguagem_padrao: draft.linguagem_padrao || "ZPL",
         updated_at: new Date().toISOString(),
       };
       const { error } = await (supabase as any)
