@@ -769,6 +769,21 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </p>
               )}
 
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">
+                  Linguagem padrão
+                </label>
+                <select
+                  value={draft.linguagem_padrao || "ZPL"}
+                  onChange={(e) => setDraft({ ...draft, linguagem_padrao: e.target.value })}
+                  className="w-full bg-secondary text-foreground text-sm rounded-md px-3 py-2 border border-border outline-none"
+                >
+                  {LINGUAGENS.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Dimensões customizadas (mm) */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
