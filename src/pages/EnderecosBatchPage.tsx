@@ -77,6 +77,9 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [createdEnderecos, setCreatedEnderecos] = useState<any[]>([]);
 
   useEffect(() => {
     setArmazemId(ctxArmazemId || "");
