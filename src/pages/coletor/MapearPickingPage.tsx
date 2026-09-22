@@ -53,6 +53,15 @@ export function MapearPickingPage({ onNavigate }: Props) {
   }, []);
 
 
+  const recarregarMapeados = async (endId: string) => {
+    const { data: mapeados } = await (supabase as any)
+      .from("picking_produto")
+      .select("id, est_minimo, est_maximo, produto:produto_id(sku, descricao)")
+      .eq("endereco_id", endId)
+      .eq("ativo", true);
+    setProdutosMapeados(mapeados || []);
+  };
+
   const handleScanEndereco = async (code: string) => {
     setScannedEndereco(code);
     setError("");
@@ -71,12 +80,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
       setEnderecoDesc(data[0].descricao);
 
       // Busca produtos já mapeados neste endereço
-      const { data: mapeados } = await (supabase as any)
-        .from("picking_produto")
-        .select("id, est_minimo, est_maximo, produto:produto_id(sku, descricao)")
-        .eq("endereco_id", data[0].id)
-        .eq("ativo", true);
-      setProdutosMapeados(mapeados || []);
+      await recarregarMapeados(data[0].id);
 
       // If product is already known (from Consulta), skip to form
       if (produtoId) {
@@ -88,6 +92,24 @@ export function MapearPickingPage({ onNavigate }: Props) {
       setError("Erro ao buscar endereço.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async (): Promise<boolean> => {
+    if (!pendingDelete) return false;
+    setError("");
+    try {
+      const { error: delError } = await (supabase as any)
+        .from("picking_produto")
+        .delete()
+        .eq("id", pendingDelete.id)
+        .eq("tenant_id", tenantId);
+      if (delError) throw delError;
+      if (enderecoId) await recarregarMapeados(enderecoId);
+      return true;
+    } catch (err: any) {
+      setError(err.message || "Erro ao excluir mapeamento.");
+      return false;
     }
   };
 
