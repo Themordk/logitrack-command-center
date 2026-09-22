@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2, CheckCircle, Package } from "lucide-react";
+import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { Loader2, CheckCircle, Package, Trash2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -34,6 +35,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
 
   // Produtos já mapeados no endereço escaneado
   const [produtosMapeados, setProdutosMapeados] = useState<any[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<any | null>(null);
 
   // Check if coming from Consulta Produto with pre-loaded product
   useEffect(() => {
