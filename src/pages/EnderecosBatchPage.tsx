@@ -147,6 +147,38 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
     return null;
   };
 
+  const fetchEnderecosByIds = async (ids: string[]): Promise<any[]> => {
+    if (!tenantId || ids.length === 0) return [];
+    const chunkSize = 300;
+    const results: any[] = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const { data, error } = await (supabase as any)
+        .from("vw_endereco_listagem")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("id", chunk);
+      if (error) throw error;
+      if (data) results.push(...data);
+    }
+    return results;
+  };
+
+  const offerPrint = async (ids: string[]) => {
+    try {
+      const rows = await fetchEnderecosByIds(ids);
+      if (rows.length === 0) {
+        onNavigate?.("/armazem/enderecos");
+        return;
+      }
+      setCreatedEnderecos(rows);
+      setConfirmPrintOpen(true);
+    } catch {
+      toast.error("Endereços criados, mas falhou carregar para impressão.");
+      onNavigate?.("/armazem/enderecos");
+    }
+  };
+
   const handleGenerate = async () => {
     const err = validateBeforeGenerate();
     if (err) {
