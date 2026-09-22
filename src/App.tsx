@@ -74,6 +74,7 @@ import { EstoqueReportPage } from "./modules/reports/estoque/EstoqueReportPage";
 import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/MovimentacoesReportPage";
 import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhePage";
 import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
+import { ProdutosMapeadosReportPage } from "./modules/reports/produtos-mapeados/ProdutosMapeadosReportPage";
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 import { TarefasColaboradorPage } from "./modules/reports/produtividade/TarefasColaboradorPage";
@@ -223,6 +224,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
   "/relatorios/movimentacoes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Histórico de Movimentos" }],
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
+  "/relatorios/produtos-mapeados": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtos Mapeados em Picking" }],
   "/relatorios/produtividade": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtividade Operacional" }],
   "/relatorios/cortes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cortes de Separação" }],
   "/relatorios/curva-abc": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Curva ABC" }],
@@ -357,6 +359,7 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/relatorios/estoque": return <EstoqueReportPage />;
     case "/relatorios/movimentacoes": return <MovimentacoesReportPage onNavigate={onNavigate} />;
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
+    case "/relatorios/produtos-mapeados": return <ProdutosMapeadosReportPage onNavigate={onNavigate} />;
     case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
     case "/relatorios/cortes": return <CortesReportPage />;
     case "/relatorios/curva-abc": return <CurvaAbcReportPage />;
