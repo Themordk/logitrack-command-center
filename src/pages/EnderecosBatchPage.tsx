@@ -3,7 +3,8 @@ import { useTenant } from "@/contexts/TenantContext";
 import { fetchOptions } from "@/hooks/useCrud";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Layers, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Layers, Eye, Loader2, Printer } from "lucide-react";
+import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
 import {
   Dialog,
   DialogContent,
@@ -76,6 +77,9 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [confirmPrintOpen, setConfirmPrintOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [createdEnderecos, setCreatedEnderecos] = useState<any[]>([]);
 
   useEffect(() => {
     setArmazemId(ctxArmazemId || "");
@@ -141,6 +145,49 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
     if (overLimit) return `Limite de ${MAX_BATCH} endereços por lote excedido (${totalCount})`;
     if (tipoEndereco === "PULMAO" && !totalPallet) return "Total Pallets é obrigatório para PULMAO";
     return null;
+  };
+
+  const fetchEnderecosByIds = async (ids: string[]): Promise<any[]> => {
+    if (!tenantId || ids.length === 0) return [];
+    const chunkSize = 300;
+    const results: any[] = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const { data, error } = await (supabase as any)
+        .from("vw_endereco_listagem")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .in("id", chunk);
+      if (error) throw error;
+      if (data) results.push(...data);
+    }
+    return results;
+  };
+
+  const offerPrint = async (ids: string[]) => {
+    try {
+      const rows = await fetchEnderecosByIds(ids);
+      if (rows.length === 0) {
+        onNavigate?.("/armazem/enderecos");
+        return;
+      }
+      setCreatedEnderecos(rows);
+      setConfirmPrintOpen(true);
+    } catch {
+      toast.error("Endereços criados, mas falhou carregar para impressão.");
+      onNavigate?.("/armazem/enderecos");
+    }
+  };
+
+  const handleConfirmPrintYes = () => {
+    setConfirmPrintOpen(false);
+    setPrintOpen(true);
+  };
+
+  const handleConfirmPrintNo = () => {
+    setConfirmPrintOpen(false);
+    setCreatedEnderecos([]);
+    onNavigate?.("/armazem/enderecos");
   };
 
   const handleGenerate = async () => {
@@ -209,16 +256,22 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
 
       // 2. Chunked insert
       let inserted = 0;
+      const insertedIds: string[] = [];
       for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
         const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-        const { error } = await (supabase as any).from("endereco").insert(chunk);
+        const { data: insData, error } = await (supabase as any)
+          .from("endereco")
+          .insert(chunk)
+          .select("id");
         if (error) {
           const parsed = parseError(error, "gerar enderecos");
           const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
           toast.error(fallbackToRaw ? `Erro após ${inserted} criados.` : parsed.title);
           setGenerating(false);
+          if (insertedIds.length > 0) await offerPrint(insertedIds);
           return;
         }
+        insertedIds.push(...((insData || []).map((r: any) => r.id)));
         inserted += chunk.length;
         setProgress(inserted);
       }
@@ -228,7 +281,11 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
           ? `${inserted} endereços criados com sucesso! (${skipped} já existiam, ignorados)`
           : `${inserted} endereços foram criados com sucesso!`
       );
-      onNavigate?.("/armazem/enderecos");
+      if (insertedIds.length > 0) {
+        await offerPrint(insertedIds);
+      } else {
+        onNavigate?.("/armazem/enderecos");
+      }
     } catch (e: any) {
       const parsed = parseError(e, "gerar enderecos");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
@@ -433,6 +490,56 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de impressão */}
+      <Dialog open={confirmPrintOpen} onOpenChange={(o) => !o && handleConfirmPrintNo()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Printer size={16} className="text-primary" />
+              </span>
+              Imprimir etiquetas?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {createdEnderecos.length === 1
+              ? "1 endereço foi criado. Deseja imprimir a etiqueta agora?"
+              : `${createdEnderecos.length.toLocaleString("pt-BR")} endereços foram criados. Deseja imprimir as etiquetas agora?`}
+            {createdEnderecos.length > 200 && (
+              <span className="block mt-2 text-xs text-yellow-400">
+                Atenção: enviar essa quantidade pode demorar alguns minutos.
+              </span>
+            )}
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              onClick={handleConfirmPrintNo}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-secondary transition-colors"
+            >
+              Agora não
+            </button>
+            <button
+              onClick={handleConfirmPrintYes}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+            >
+              <Printer size={14} />
+              Sim, imprimir
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PrintEtiquetaEnderecoModal
+        open={printOpen}
+        onClose={() => {
+          setPrintOpen(false);
+          setCreatedEnderecos([]);
+          onNavigate?.("/armazem/enderecos");
+        }}
+        enderecos={createdEnderecos}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
