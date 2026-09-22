@@ -95,6 +95,7 @@ const navItems: NavItem[] = [
       { label: "Histórico de Movimentos", path: "/relatorios/movimentacoes" },
       { label: "Cortes de Separação", path: "/relatorios/cortes" },
       { label: "Ocupação de Endereços", path: "/relatorios/ocupacao" },
+      { label: "Produtos Mapeados em Picking", path: "/relatorios/produtos-mapeados" },
       { label: "Produtividade Operacional", path: "/relatorios/produtividade" },
       { label: "Expedições", path: "/relatorios/expedicoes" },
       { label: "Inventário", path: "/relatorios/inventario" },
