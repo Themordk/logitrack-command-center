@@ -297,16 +297,32 @@ export function MapearPickingPage({ onNavigate }: Props) {
           <CheckCircle size={48} className="text-[hsl(142,76%,36%)]" />
           <p className="text-lg font-bold text-white">Picking mapeado!</p>
           <p className="text-sm text-[hsl(213,31%,55%)] text-center">{produtoNome}<br />→ {enderecoDesc}</p>
+
+          {/* Botão primário: mapear outro produto no MESMO endereço */}
+          <button
+            onClick={() => {
+              setProdutoId(""); setProdutoNome(""); setScannedEan("");
+              setEstMinimo(""); setEstMaximo(""); setTipoPicking("FRACIONADO");
+              setError("");
+              setStep("scan_produto");
+            }}
+            className="w-full h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white font-bold text-sm active:scale-[0.98] transition-all"
+          >
+            Mapear outro produto
+          </button>
+
+          {/* Botão secundário: trocar endereço (reseta tudo) */}
           <button
             onClick={() => {
               setStep("scan_endereco");
               setEnderecoId(""); setEnderecoDesc(""); setScannedEndereco("");
               setProdutoId(""); setProdutoNome(""); setScannedEan("");
               setEstMinimo(""); setEstMaximo(""); setTipoPicking("FRACIONADO");
+              setError("");
             }}
-            className="w-full h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white font-bold text-sm active:scale-[0.98] transition-all"
+            className="w-full h-12 rounded-xl border border-[hsl(222,35%,22%)] text-[hsl(213,31%,55%)] font-bold text-sm active:scale-[0.98] transition-all"
           >
-            Mapear outro produto
+            Trocar endereço
           </button>
         </div>
       )}
