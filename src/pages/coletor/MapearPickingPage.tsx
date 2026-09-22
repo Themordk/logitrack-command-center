@@ -201,7 +201,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
                 <p className="text-white text-sm font-bold truncate">{item.produto?.sku || "—"}</p>
                 <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.produto?.descricao || "—"}</p>
               </div>
-              <div className="flex items-center justify-end gap-4">
+              <div className="flex items-center justify-end gap-3">
                 <div className="text-right">
                   <span className="block text-xs text-[hsl(213,31%,55%)]">Mín</span>
                   <span className="block text-xs text-white font-semibold tabular-nums">{item.est_minimo ?? 0}</span>
@@ -210,6 +210,13 @@ export function MapearPickingPage({ onNavigate }: Props) {
                   <span className="block text-xs text-[hsl(213,31%,55%)]">Máx</span>
                   <span className="block text-xs text-white font-semibold tabular-nums">{item.est_maximo ?? 0}</span>
                 </div>
+                <button
+                  onClick={() => setPendingDelete(item)}
+                  aria-label={`Excluir mapeamento de ${item.produto?.sku || "produto"}`}
+                  className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-[hsl(0,72%,60%)] border border-[hsl(0,72%,50%,0.3)] bg-[hsl(0,72%,50%,0.1)] active:scale-[0.95] transition-all"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           ))
