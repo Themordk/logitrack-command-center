@@ -3,7 +3,8 @@ import { useTenant } from "@/contexts/TenantContext";
 import { fetchOptions } from "@/hooks/useCrud";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Layers, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Layers, Eye, Loader2, Printer } from "lucide-react";
+import { PrintEtiquetaEnderecoModal } from "@/components/etiqueta/PrintEtiquetaEnderecoModal";
 import {
   Dialog,
   DialogContent,
