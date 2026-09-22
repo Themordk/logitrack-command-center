@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2, CheckCircle, Package } from "lucide-react";
+import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { Loader2, CheckCircle, Package, Trash2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -34,6 +35,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
 
   // Produtos já mapeados no endereço escaneado
   const [produtosMapeados, setProdutosMapeados] = useState<any[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<any | null>(null);
 
   // Check if coming from Consulta Produto with pre-loaded product
   useEffect(() => {
@@ -50,6 +52,15 @@ export function MapearPickingPage({ onNavigate }: Props) {
     }
   }, []);
 
+
+  const recarregarMapeados = async (endId: string) => {
+    const { data: mapeados } = await (supabase as any)
+      .from("picking_produto")
+      .select("id, est_minimo, est_maximo, produto:produto_id(sku, descricao)")
+      .eq("endereco_id", endId)
+      .eq("ativo", true);
+    setProdutosMapeados(mapeados || []);
+  };
 
   const handleScanEndereco = async (code: string) => {
     setScannedEndereco(code);
@@ -69,12 +80,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
       setEnderecoDesc(data[0].descricao);
 
       // Busca produtos já mapeados neste endereço
-      const { data: mapeados } = await (supabase as any)
-        .from("picking_produto")
-        .select("id, est_minimo, est_maximo, produto:produto_id(sku, descricao)")
-        .eq("endereco_id", data[0].id)
-        .eq("ativo", true);
-      setProdutosMapeados(mapeados || []);
+      await recarregarMapeados(data[0].id);
 
       // If product is already known (from Consulta), skip to form
       if (produtoId) {
@@ -86,6 +92,24 @@ export function MapearPickingPage({ onNavigate }: Props) {
       setError("Erro ao buscar endereço.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async (): Promise<boolean> => {
+    if (!pendingDelete) return false;
+    setError("");
+    try {
+      const { error: delError } = await (supabase as any)
+        .from("picking_produto")
+        .delete()
+        .eq("id", pendingDelete.id)
+        .eq("tenant_id", tenantId);
+      if (delError) throw delError;
+      if (enderecoId) await recarregarMapeados(enderecoId);
+      return true;
+    } catch (err: any) {
+      setError(err.message || "Erro ao excluir mapeamento.");
+      return false;
     }
   };
 
@@ -177,7 +201,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
                 <p className="text-white text-sm font-bold truncate">{item.produto?.sku || "—"}</p>
                 <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.produto?.descricao || "—"}</p>
               </div>
-              <div className="flex items-center justify-end gap-4">
+              <div className="flex items-center justify-end gap-3">
                 <div className="text-right">
                   <span className="block text-xs text-[hsl(213,31%,55%)]">Mín</span>
                   <span className="block text-xs text-white font-semibold tabular-nums">{item.est_minimo ?? 0}</span>
@@ -186,6 +210,13 @@ export function MapearPickingPage({ onNavigate }: Props) {
                   <span className="block text-xs text-[hsl(213,31%,55%)]">Máx</span>
                   <span className="block text-xs text-white font-semibold tabular-nums">{item.est_maximo ?? 0}</span>
                 </div>
+                <button
+                  onClick={() => setPendingDelete(item)}
+                  aria-label={`Excluir mapeamento de ${item.produto?.sku || "produto"}`}
+                  className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-[hsl(0,72%,60%)] border border-[hsl(0,72%,50%,0.3)] bg-[hsl(0,72%,50%,0.1)] active:scale-[0.95] transition-all"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           ))
@@ -215,8 +246,8 @@ export function MapearPickingPage({ onNavigate }: Props) {
             <span className={labelClass}>Endereço</span>
             <p className={valueClass}>{enderecoDesc}</p>
           </div>
-          {produtosMapeadosGrid}
           <ScanField label="Escanear EAN do Produto" onScan={handleScanProduto} lastScanned={scannedEan} />
+          {produtosMapeadosGrid}
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
         </>
       )}
@@ -281,6 +312,14 @@ export function MapearPickingPage({ onNavigate }: Props) {
       )}
 
       {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
+
+      <DeleteConfirmDialog
+        open={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Excluir Mapeamento"
+        description={`Tem certeza que deseja excluir o mapeamento do produto ${pendingDelete?.produto?.sku || ""} neste endereço? Esta ação não pode ser desfeita.`}
+      />
     </ColetorLayout>
   );
 }
