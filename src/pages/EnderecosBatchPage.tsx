@@ -179,6 +179,17 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
     }
   };
 
+  const handleConfirmPrintYes = () => {
+    setConfirmPrintOpen(false);
+    setPrintOpen(true);
+  };
+
+  const handleConfirmPrintNo = () => {
+    setConfirmPrintOpen(false);
+    setCreatedEnderecos([]);
+    onNavigate?.("/armazem/enderecos");
+  };
+
   const handleGenerate = async () => {
     const err = validateBeforeGenerate();
     if (err) {
