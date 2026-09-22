@@ -213,16 +213,22 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
 
       // 2. Chunked insert
       let inserted = 0;
+      const insertedIds: string[] = [];
       for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
         const chunk = toInsert.slice(i, i + CHUNK_SIZE);
-        const { error } = await (supabase as any).from("endereco").insert(chunk);
+        const { data: insData, error } = await (supabase as any)
+          .from("endereco")
+          .insert(chunk)
+          .select("id");
         if (error) {
           const parsed = parseError(error, "gerar enderecos");
           const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
           toast.error(fallbackToRaw ? `Erro após ${inserted} criados.` : parsed.title);
           setGenerating(false);
+          if (insertedIds.length > 0) await offerPrint(insertedIds);
           return;
         }
+        insertedIds.push(...((insData || []).map((r: any) => r.id)));
         inserted += chunk.length;
         setProgress(inserted);
       }
@@ -232,7 +238,11 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
           ? `${inserted} endereços criados com sucesso! (${skipped} já existiam, ignorados)`
           : `${inserted} endereços foram criados com sucesso!`
       );
-      onNavigate?.("/armazem/enderecos");
+      if (insertedIds.length > 0) {
+        await offerPrint(insertedIds);
+      } else {
+        onNavigate?.("/armazem/enderecos");
+      }
     } catch (e: any) {
       const parsed = parseError(e, "gerar enderecos");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
