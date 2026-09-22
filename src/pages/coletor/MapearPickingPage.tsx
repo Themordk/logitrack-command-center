@@ -246,8 +246,8 @@ export function MapearPickingPage({ onNavigate }: Props) {
             <span className={labelClass}>Endereço</span>
             <p className={valueClass}>{enderecoDesc}</p>
           </div>
-          {produtosMapeadosGrid}
           <ScanField label="Escanear EAN do Produto" onScan={handleScanProduto} lastScanned={scannedEan} />
+          {produtosMapeadosGrid}
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
         </>
       )}
@@ -312,6 +312,14 @@ export function MapearPickingPage({ onNavigate }: Props) {
       )}
 
       {error && <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{error}</div>}
+
+      <DeleteConfirmDialog
+        open={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Excluir Mapeamento"
+        description={`Tem certeza que deseja excluir o mapeamento do produto ${pendingDelete?.produto?.sku || ""} neste endereço? Esta ação não pode ser desfeita.`}
+      />
     </ColetorLayout>
   );
 }
