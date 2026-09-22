@@ -215,6 +215,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
             <span className={labelClass}>Endereço</span>
             <p className={valueClass}>{enderecoDesc}</p>
           </div>
+          {produtosMapeadosGrid}
           <ScanField label="Escanear EAN do Produto" onScan={handleScanProduto} lastScanned={scannedEan} />
           {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
         </>
@@ -226,6 +227,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
             <span className={labelClass}>Endereço</span>
             <p className={valueClass}>{enderecoDesc}</p>
           </div>
+          {produtosMapeadosGrid}
           <div className={cardClass}>
             <span className={labelClass}>Produto</span>
             <p className={valueClass}>{produtoNome}</p>
