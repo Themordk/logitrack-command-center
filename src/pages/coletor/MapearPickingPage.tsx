@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle, Package } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -31,6 +31,9 @@ export function MapearPickingPage({ onNavigate }: Props) {
   const [estMaximo, setEstMaximo] = useState("");
   const [tipoPicking, setTipoPicking] = useState("FRACIONADO");
   const [submitting, setSubmitting] = useState(false);
+
+  // Produtos já mapeados no endereço escaneado
+  const [produtosMapeados, setProdutosMapeados] = useState<any[]>([]);
 
   // Check if coming from Consulta Produto with pre-loaded product
   useEffect(() => {
@@ -64,6 +67,15 @@ export function MapearPickingPage({ onNavigate }: Props) {
       }
       setEnderecoId(data[0].id);
       setEnderecoDesc(data[0].descricao);
+
+      // Busca produtos já mapeados neste endereço
+      const { data: mapeados } = await (supabase as any)
+        .from("picking_produto")
+        .select("id, est_minimo, est_maximo, produto:produto_id(sku, descricao)")
+        .eq("endereco_id", data[0].id)
+        .eq("ativo", true);
+      setProdutosMapeados(mapeados || []);
+
       // If product is already known (from Consulta), skip to form
       if (produtoId) {
         setStep("form");
