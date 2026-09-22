@@ -479,6 +479,56 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de impressão */}
+      <Dialog open={confirmPrintOpen} onOpenChange={(o) => !o && handleConfirmPrintNo()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Printer size={16} className="text-primary" />
+              </span>
+              Imprimir etiquetas?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {createdEnderecos.length === 1
+              ? "1 endereço foi criado. Deseja imprimir a etiqueta agora?"
+              : `${createdEnderecos.length.toLocaleString("pt-BR")} endereços foram criados. Deseja imprimir as etiquetas agora?`}
+            {createdEnderecos.length > 200 && (
+              <span className="block mt-2 text-xs text-yellow-400">
+                Atenção: enviar essa quantidade pode demorar alguns minutos.
+              </span>
+            )}
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              onClick={handleConfirmPrintNo}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-secondary transition-colors"
+            >
+              Agora não
+            </button>
+            <button
+              onClick={handleConfirmPrintYes}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+            >
+              <Printer size={14} />
+              Sim, imprimir
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PrintEtiquetaEnderecoModal
+        open={printOpen}
+        onClose={() => {
+          setPrintOpen(false);
+          setCreatedEnderecos([]);
+          onNavigate?.("/armazem/enderecos");
+        }}
+        enderecos={createdEnderecos}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
