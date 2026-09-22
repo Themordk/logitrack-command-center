@@ -153,6 +153,47 @@ export function MapearPickingPage({ onNavigate }: Props) {
   const valueClass = "text-sm font-bold text-white";
   const inputClass = "w-full h-10 px-3 rounded-lg border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] text-sm text-white outline-none focus:border-[hsl(217,91%,50%)]";
 
+  const produtosMapeadosGrid = (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <Package size={12} className="text-[hsl(213,31%,55%)]" />
+          <span className="text-xs text-[hsl(213,31%,55%)] uppercase font-semibold">Produtos Mapeados</span>
+        </div>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,70%)] border border-[hsl(217,91%,60%)]/30 font-semibold tabular-nums">
+          {produtosMapeados.length}
+        </span>
+      </div>
+      <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl max-h-48 overflow-y-auto">
+        {produtosMapeados.length === 0 ? (
+          <p className="text-xs text-[hsl(213,31%,55%)] text-center py-3">Nenhum produto mapeado neste endereço.</p>
+        ) : (
+          produtosMapeados.map((item, idx) => (
+            <div
+              key={item.id}
+              className={`grid grid-cols-2 gap-2 p-3 ${idx < produtosMapeados.length - 1 ? "border-b border-[hsl(222,35%,22%)]" : ""}`}
+            >
+              <div className="min-w-0">
+                <p className="text-white text-sm font-bold truncate">{item.produto?.sku || "—"}</p>
+                <p className="text-xs text-[hsl(213,31%,55%)] truncate">{item.produto?.descricao || "—"}</p>
+              </div>
+              <div className="flex items-center justify-end gap-4">
+                <div className="text-right">
+                  <span className="block text-xs text-[hsl(213,31%,55%)]">Mín</span>
+                  <span className="block text-xs text-white font-semibold tabular-nums">{item.est_minimo ?? 0}</span>
+                </div>
+                <div className="text-right">
+                  <span className="block text-xs text-[hsl(213,31%,55%)]">Máx</span>
+                  <span className="block text-xs text-white font-semibold tabular-nums">{item.est_maximo ?? 0}</span>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <ColetorLayout title="Mapear Picking" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
       {step === "scan_endereco" && (
