@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
         theme_color: "#1a56db",
         background_color: "#0f1117",
         display: "standalone",
-        orientation: "portrait",
+        orientation: "portrait-primary",
         start_url: "/#/coletor/login",
         scope: "/",
         icons: [
