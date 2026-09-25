@@ -4,6 +4,12 @@
  * A Screen Orientation API só funciona em contexto seguro e, no Chrome Android,
  * normalmente apenas quando o app está instalado (modo standalone/fullscreen).
  * Em iOS ou em aba comum a chamada falha — o erro é ignorado silenciosamente.
+ *
+ * IMPORTANTE: usar "portrait-primary" e NÃO "portrait".
+ * No Android, "portrait" vira SCREEN_ORIENTATION_SENSOR_PORTRAIT, que usa o
+ * acelerômetro mesmo com a rotação automática DESLIGADA e gira a tela 180°
+ * quando o operador inclina o coletor para baixo (ex.: ao bipar/movimentar
+ * mercadoria). "portrait-primary" fixa a tela em retrato normal, sem sensor.
  */
 
 const isColetorRoute = () => window.location.hash.toLowerCase().startsWith("#/coletor");
@@ -13,7 +19,7 @@ async function applyLock() {
   if (!orientation || typeof orientation.lock !== "function") return;
   if (!isColetorRoute()) return;
   try {
-    await orientation.lock("portrait");
+    await orientation.lock("portrait-primary");
   } catch {
     // Não suportado / bloqueado pelo navegador — ignorar.
   }
