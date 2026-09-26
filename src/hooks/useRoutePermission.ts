@@ -49,6 +49,7 @@ const routeToModuleMap: Record<string, string> = {
   "/config/empresas": "web.config.empresas",
   "/config/usuarios": "web.config.usuarios",
   "/config/integracao": "web.config.integracao",
+  "/integracao/padroes-produto": "web.config.integracao",
   "/config/perfis": "web.config.perfis",
 };
 

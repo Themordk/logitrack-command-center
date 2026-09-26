@@ -17,6 +17,7 @@ import type { EtiquetaProdutoItem } from "@/components/etiqueta/EtiquetaProdutoP
 import { EnderecoSearchInput } from "@/components/armazem/EnderecoSearchInput";
 import { parseError } from "@/lib/errorMapper";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
+import { useRegrasPadraoProduto, PadraoCampoIndicador } from "@/pages/integracao/PadraoCampoIndicador";
 
 const TIPO_PICKING_OPTIONS = [
   { value: "MASTER", label: "Master" },
@@ -281,6 +282,9 @@ function ProdutoDetailModal({
 
   const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30";
   const labelClass = "block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide";
+  const padroes = useRegrasPadraoProduto(empresaId ?? null, open);
+  const ind = (k: string) => <PadraoCampoIndicador regra={padroes.regra(k)} onNavigate={onNavigate} />;
+  const lk = (k: string) => padroes.bloqueado(k);
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -374,17 +378,17 @@ function ProdutoDetailModal({
               <h3 className="text-sm font-semibold text-foreground mb-3">Controle de Estoque</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className={labelClass}>Tipo de Controle *</label>
-                  <select value={form.tipo_controle || ""} onChange={(e) => set("tipo_controle", e.target.value)} className={inputClass}>
+                  <label className={labelClass}>Tipo de Controle *{ind("tipo_controle")}</label>
+                  <select value={form.tipo_controle || ""} onChange={(e) => set("tipo_controle", e.target.value)} className={inputClass} disabled={lk("tipo_controle")}>
                     <option value="">Selecionar...</option>
                     {["UNIDADE", "LOTE", "VALIDADE", "SERIE", "METROS"].map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.peso_variavel} onCheckedChange={(v) => set("peso_variavel", v)} />
-                  <label className="text-sm text-foreground">Peso Variável</label>
+                  <Switch checked={!!form.peso_variavel} onCheckedChange={(v) => set("peso_variavel", v)} disabled={lk("peso_variavel")} />
+                  <label className="text-sm text-foreground">Peso Variável{ind("peso_variavel")}</label>
                 </div>
-                <div><label className={labelClass}>Tolerância</label><input type="number" step="0.01" value={form.tolerancia ?? ""} onChange={(e) => set("tolerancia", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Tolerância{ind("tolerancia")}</label><input type="number" step="0.01" value={form.tolerancia ?? ""} onChange={(e) => set("tolerancia", e.target.value)} className={inputClass} disabled={lk("tolerancia")} /></div>
               </div>
             </div>
 
@@ -392,9 +396,9 @@ function ProdutoDetailModal({
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-3">Controle de Vencimento</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><label className={labelClass}>Dias Shelf</label><input type="number" value={form.dias_shelf ?? ""} onChange={(e) => set("dias_shelf", e.target.value)} className={inputClass} /></div>
-                <div><label className={labelClass}>Shelf Entrada</label><input type="number" step="0.01" value={form.shelf_entrada ?? ""} onChange={(e) => set("shelf_entrada", e.target.value)} className={inputClass} /></div>
-                <div><label className={labelClass}>Shelf Devolução</label><input type="number" step="0.01" value={form.shelf_devolucao ?? ""} onChange={(e) => set("shelf_devolucao", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Dias Shelf{ind("dias_shelf")}</label><input type="number" value={form.dias_shelf ?? ""} onChange={(e) => set("dias_shelf", e.target.value)} className={inputClass} disabled={lk("dias_shelf")} /></div>
+                <div><label className={labelClass}>Shelf Entrada{ind("shelf_entrada")}</label><input type="number" step="0.01" value={form.shelf_entrada ?? ""} onChange={(e) => set("shelf_entrada", e.target.value)} className={inputClass} disabled={lk("shelf_entrada")} /></div>
+                <div><label className={labelClass}>Shelf Devolução{ind("shelf_devolucao")}</label><input type="number" step="0.01" value={form.shelf_devolucao ?? ""} onChange={(e) => set("shelf_devolucao", e.target.value)} className={inputClass} disabled={lk("shelf_devolucao")} /></div>
               </div>
             </div>
 
@@ -402,9 +406,9 @@ function ProdutoDetailModal({
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-3">Empilhamento</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><label className={labelClass}>Lastro</label><input type="number" value={form.lastro ?? ""} onChange={(e) => set("lastro", e.target.value)} className={inputClass} /></div>
-                <div><label className={labelClass}>Camada</label><input type="number" value={form.camada ?? ""} onChange={(e) => set("camada", e.target.value)} className={inputClass} /></div>
-                <div><label className={labelClass}>Fator Caixa</label><input type="number" value={form.fator_caixa ?? ""} onChange={(e) => set("fator_caixa", e.target.value)} className={inputClass} /></div>
+                <div><label className={labelClass}>Lastro{ind("lastro")}</label><input type="number" value={form.lastro ?? ""} onChange={(e) => set("lastro", e.target.value)} className={inputClass} disabled={lk("lastro")} /></div>
+                <div><label className={labelClass}>Camada{ind("camada")}</label><input type="number" value={form.camada ?? ""} onChange={(e) => set("camada", e.target.value)} className={inputClass} disabled={lk("camada")} /></div>
+                <div><label className={labelClass}>Fator Caixa{ind("fator_caixa")}</label><input type="number" value={form.fator_caixa ?? ""} onChange={(e) => set("fator_caixa", e.target.value)} className={inputClass} disabled={lk("fator_caixa")} /></div>
               </div>
             </div>
 
@@ -413,19 +417,19 @@ function ProdutoDetailModal({
               <h3 className="text-sm font-semibold text-foreground mb-3">Expedição</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.usa_picking} onCheckedChange={(v) => set("usa_picking", v)} />
-                  <label className="text-sm text-foreground">Usa Picking</label>
+                  <Switch checked={!!form.usa_picking} onCheckedChange={(v) => set("usa_picking", v)} disabled={lk("usa_picking")} />
+                  <label className="text-sm text-foreground">Usa Picking{ind("usa_picking")}</label>
                 </div>
                 <div>
-                  <label className={labelClass}>Tipo de Separação *</label>
-                  <select value={form.tipo_separacao || ""} onChange={(e) => set("tipo_separacao", e.target.value)} className={inputClass}>
+                  <label className={labelClass}>Tipo de Separação *{ind("tipo_separacao")}</label>
+                  <select value={form.tipo_separacao || ""} onChange={(e) => set("tipo_separacao", e.target.value)} className={inputClass} disabled={lk("tipo_separacao")}>
                     <option value="">Selecionar...</option>
                     {["FRACIONADO", "EMBALAGEM_TOTAL", "CAIXARIA"].map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.varios_pickings} onCheckedChange={(v) => set("varios_pickings", v)} />
-                  <label className="text-sm text-foreground">Vários Pickings</label>
+                  <Switch checked={!!form.varios_pickings} onCheckedChange={(v) => set("varios_pickings", v)} disabled={lk("varios_pickings")} />
+                  <label className="text-sm text-foreground">Vários Pickings{ind("varios_pickings")}</label>
                 </div>
               </div>
             </div>
