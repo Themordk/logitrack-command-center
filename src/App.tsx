@@ -50,6 +50,7 @@ import { MotivosOcorrenciaPage } from "./pages/MotivosOcorrenciaPage";
 
 import { SubgruposPage } from "./pages/SubgruposPage";
 import { IntegracaoPage } from "./pages/IntegracaoPage";
+import { ProdutoPadroesPage } from "./pages/integracao/ProdutoPadroesPage";
 import { TiposEntradaPage } from "./pages/TiposEntradaPage";
 import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
@@ -217,6 +218,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/empresas": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Empresas" }],
   "/config/usuarios": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Usuários" }],
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
+  "/integracao/padroes-produto": [{ label: "CORE LogiTrack" }, { label: "Integração" }, { label: "Padrões de cadastro de produto" }],
   "/config/perfis": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Perfis de Acesso" }],
   "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Tipos de Tarefa" }],
   "/config/motivos-ocorrencia": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Motivos de Ocorrência" }],
@@ -352,6 +354,7 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/config/empresas": return <EmpresasPage />;
     case "/config/usuarios": return <UsuariosPage />;
     case "/config/integracao": return <IntegracaoPage onNavigate={onNavigate} />;
+    case "/integracao/padroes-produto": return <ProdutoPadroesPage onNavigate={onNavigate} />;
     case "/config/perfis": return <PerfisAcessoPage />;
     case "/config/tipos-tarefa": return <TiposTarefaPage />;
     

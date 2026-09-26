@@ -117,6 +117,7 @@ const navItems: NavItem[] = [
       { label: "Templates de Etiqueta", path: "/config/etiquetas" },
       { label: "Impressão", path: "/config/impressao" },
       { label: "Integração ERP", path: "/config/integracao" },
+      { label: "Padrões de cadastro de produto", path: "/integracao/padroes-produto" },
       { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
     ],
   },

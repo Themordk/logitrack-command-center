@@ -177,7 +177,7 @@ function LinhaCampo({
             {ajudaModo && <p className="text-[11px] text-muted-foreground">{ajudaModo}</p>}
             {erro && <p className="text-[11px] text-destructive" role="alert">{erro}</p>}
             {atual.modo === "SEMPRE" && CAMPOS_IMPACTO.has(def.chave) && (
-              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-[11px] text-warning">
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-400">
                 <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden />
                 <span>
                   Este campo muda como a separação e a armazenagem funcionam para todos os produtos. Edições manuais no cadastro serão sobrescritas pela integração.
