@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useCrud, fetchOptions } from "@/hooks/useCrud";
@@ -18,6 +18,7 @@ import { EnderecoSearchInput } from "@/components/armazem/EnderecoSearchInput";
 import { parseError } from "@/lib/errorMapper";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 import { useRegrasPadraoProduto, PadraoCampoIndicador } from "@/pages/integracao/PadraoCampoIndicador";
+import { CAMPOS_PADRAO_PRODUTO } from "@/pages/integracao/produtoPadroes.types";
 
 const TIPO_PICKING_OPTIONS = [
   { value: "MASTER", label: "Master" },
@@ -285,6 +286,23 @@ function ProdutoDetailModal({
   const padroes = useRegrasPadraoProduto(empresaId ?? null, open);
   const ind = (k: string) => <PadraoCampoIndicador regra={padroes.regra(k)} onNavigate={onNavigate} />;
   const lk = (k: string) => padroes.bloqueado(k);
+
+  // Preenche campos com regra de padrão na CRIAÇÃO (uma vez por abertura),
+  // pois campos com modo SEMPRE ficam desabilitados e o usuário não os altera.
+  const padroesAplicadosRef = useRef(false);
+  useEffect(() => {
+    if (!open) { padroesAplicadosRef.current = false; return; }
+    if (isEdit || padroesAplicadosRef.current || !padroes.carregado) return;
+    padroesAplicadosRef.current = true;
+    const patch: Record<string, any> = {};
+    for (const def of CAMPOS_PADRAO_PRODUTO) {
+      const regra = padroes.regra(def.chave);
+      if (!regra || regra.valor === null || regra.valor === undefined) continue;
+      if (def.tipo === "boolean") patch[def.chave] = !!regra.valor;
+      else patch[def.chave] = String(regra.valor);
+    }
+    if (Object.keys(patch).length) setForm((p) => ({ ...p, ...patch }));
+  }, [open, isEdit, padroes]);
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>

@@ -8,7 +8,7 @@ import { listarRegrasPadrao, regrasPadraoQueryKey } from "./produtoPadroesServic
 
 /** Regras de padrão da integração para o formulário de produto. Erros (ex.: sem permissão) são ignorados. */
 export function useRegrasPadraoProduto(empresaId: string | null, enabled = true) {
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: regrasPadraoQueryKey(empresaId),
     queryFn: () => listarRegrasPadrao(empresaId).catch(() => [] as RegraPadraoProduto[]),
     staleTime: 60_000,
@@ -19,6 +19,7 @@ export function useRegrasPadraoProduto(empresaId: string | null, enabled = true)
   return {
     regra: (campo: string) => mapa.get(campo),
     bloqueado: (campo: string) => mapa.get(campo)?.modo === "SEMPRE",
+    carregado: !isLoading,
   };
 }
 

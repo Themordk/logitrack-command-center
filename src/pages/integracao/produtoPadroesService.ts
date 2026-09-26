@@ -7,15 +7,20 @@ import type {
 const rpc = (fn: string, args: Record<string, unknown>) =>
   (supabase.rpc as unknown as (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>)(fn, args);
 
-const parse = <T,>(data: unknown): T => (typeof data === "string" ? JSON.parse(data) : data) as T;
+// JSON.parse apenas para strings JSON reais (objetos/arrays). Valores escalares
+// (boolean, number, texto como "CAIXARIA") já chegam nativos do Supabase e não
+// devem ser parseados — JSON.parse("CAIXARIA") lança erro e quebra a listagem.
+const parse = <T,>(data: unknown): T => {
+  if (typeof data !== "string") return data as T;
+  const t = data.trimStart();
+  return (t.startsWith("{") || t.startsWith("[") ? JSON.parse(data) : data) as T;
+};
 
 export async function listarRegrasPadrao(empresaId: string | null): Promise<RegraPadraoProduto[]> {
   const { data, error } = await rpc("rpc_produto_regra_padrao_listar", { p_empresa_id: empresaId });
   if (error) throw new Error(error.message);
-  return (parse<RegraPadraoProduto[]>(data) ?? []).map((r) => ({
-    ...r,
-    valor: parse<ValorPadrao>(r.valor),
-  }));
+  // `valor` já chega como valor JS nativo (boolean/number/string) — usar como veio.
+  return (parse<RegraPadraoProduto[]>(data) ?? []).map((r) => ({ ...r }));
 }
 
 export async function salvarRegraPadrao(params: {

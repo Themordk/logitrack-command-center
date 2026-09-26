@@ -216,7 +216,7 @@ function LinhaCampo({
 }
 
 export function ProdutoPadroesPage({ onNavigate: _onNavigate }: { onNavigate?: (p: string) => void }) {
-  const { empresaId, empresaVersion } = useTenant() as any;
+  const { empresaId, empresaVersion } = useTenant();
   const { can } = usePermissions();
   const podeLer = can(MODULO, "READ");
   const podeEditar = can(MODULO, "UPDATE");
