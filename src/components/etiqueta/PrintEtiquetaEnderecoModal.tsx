@@ -98,7 +98,8 @@ export function PrintEtiquetaEnderecoModal({
     return () => {
       cancelled = true;
     };
-  }, [open, enderecos, reloadDados]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, enderecos.map((e) => String(e.id)).join(","), reloadDados]);
 
   // Carrega templates de ENDERECO
   useEffect(() => {
