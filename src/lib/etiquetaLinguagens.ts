@@ -4,6 +4,7 @@
  * - Snippets de inserção rápida
  * - Geradores automáticos EPL e TSPL a partir da configuração visual
  */
+import { dadosExemploDoCatalogo } from "./etiquetaVariaveis";
 import type { EtiquetaConfig, TipoEtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 
 export type LinguagemEtiqueta = "ZPL" | "EPL" | "TSPL";
@@ -27,14 +28,7 @@ export function getTipoLabel(tipo: string): string {
 }
 
 export const DADOS_EXEMPLO: Record<string, Record<string, string>> = {
-  ENDERECO: {
-    codigo_endereco: "R01-P01-N01-A01",
-    descricao: "Rua 01 - Predio 01 - Nivel 01",
-    tipo_endereco: "PICKING",
-    curva_acesso: "A",
-    setor: "SECO",
-    seta_simbolo: ">",
-  },
+  ENDERECO: dadosExemploDoCatalogo("ENDERECO"),
   PRODUTO: {
     sku: "SKU-001234",
     codigo: "SKU-001234",
