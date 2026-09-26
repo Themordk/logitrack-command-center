@@ -287,6 +287,23 @@ function ProdutoDetailModal({
   const ind = (k: string) => <PadraoCampoIndicador regra={padroes.regra(k)} onNavigate={onNavigate} />;
   const lk = (k: string) => padroes.bloqueado(k);
 
+  // Preenche campos com regra de padrão na CRIAÇÃO (uma vez por abertura),
+  // pois campos com modo SEMPRE ficam desabilitados e o usuário não os altera.
+  const padroesAplicadosRef = useRef(false);
+  useEffect(() => {
+    if (!open) { padroesAplicadosRef.current = false; return; }
+    if (isEdit || padroesAplicadosRef.current || !padroes.carregado) return;
+    padroesAplicadosRef.current = true;
+    const patch: Record<string, any> = {};
+    for (const def of CAMPOS_PADRAO_PRODUTO) {
+      const regra = padroes.regra(def.chave);
+      if (!regra || regra.valor === null || regra.valor === undefined) continue;
+      if (def.tipo === "boolean") patch[def.chave] = !!regra.valor;
+      else patch[def.chave] = String(regra.valor);
+    }
+    if (Object.keys(patch).length) setForm((p) => ({ ...p, ...patch }));
+  }, [open, isEdit, padroes]);
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
