@@ -14,7 +14,7 @@ export interface RegraPadraoProduto {
 }
 
 export type RpcResultado<T = Record<string, unknown>> =
-  | ({ sucesso: true } & T)
+  | ({ sucesso: true; codigo?: string; mensagem?: string } & T)
   | { sucesso: false; codigo?: string; mensagem?: string };
 
 export interface SimulacaoCampo {
