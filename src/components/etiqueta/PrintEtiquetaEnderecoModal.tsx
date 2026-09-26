@@ -64,6 +64,42 @@ export function PrintEtiquetaEnderecoModal({
   const [enviando, setEnviando] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<"fit" | 1.5 | 2>("fit");
   const [overflowInfo, setOverflowInfo] = useState<OverflowInfo | null>(null);
+  const [dadosPorId, setDadosPorId] = useState<Record<string, Record<string, string>>>({});
+  const [loadingDados, setLoadingDados] = useState(false);
+  const [erroDados, setErroDados] = useState(false);
+  const [reloadDados, setReloadDados] = useState(0);
+
+  // Dados completos dos endereços via RPC (fonte única das variáveis)
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingDados(true);
+      setErroDados(false);
+      try {
+        const ids = enderecos.map((e) => String(e.id));
+        const CHUNK = 500;
+        const mapa: Record<string, Record<string, string>> = {};
+        for (let i = 0; i < ids.length; i += CHUNK) {
+          const { data, error } = await (supabase.rpc as any)("dados_etiqueta_endereco", {
+            p_endereco_ids: ids.slice(i, i + CHUNK),
+          });
+          if (error) throw error;
+          for (const row of (data ?? []) as Record<string, string>[]) mapa[row.endereco_id] = row;
+        }
+        if (!cancelled) setDadosPorId(mapa);
+      } catch (err) {
+        console.error("[Impressão Endereço] dados_etiqueta_endereco:", err);
+        if (!cancelled) setErroDados(true);
+      } finally {
+        if (!cancelled) setLoadingDados(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, enderecos.map((e) => String(e.id)).join(","), reloadDados]);
 
   // Carrega templates de ENDERECO
   useEffect(() => {
@@ -123,17 +159,19 @@ export function PrintEtiquetaEnderecoModal({
     }
   }, [selectedConfig]);
 
+  const montarDados = (enderecoId: string) => ({
+    ...(dadosPorId[enderecoId] ?? {}),
+    direcao_seta: direcaoSeta,
+    seta_simbolo: SETA_SIMBOLO[direcaoSeta],
+  });
+
   const dadosPreview = useMemo(() => {
     if (!enderecoAtual) return {};
-    return {
-      codigo_endereco: enderecoAtual.codigo_endereco != null ? String(enderecoAtual.codigo_endereco) : "",
-      descricao: enderecoAtual.descricao ?? "",
-      tipo_endereco: enderecoAtual.tipo_endereco ?? "",
-      curva_acesso: enderecoAtual.curva_acesso ?? "",
-      direcao_seta: direcaoSeta,
-      seta_simbolo: SETA_SIMBOLO[direcaoSeta],
-    };
-  }, [enderecoAtual, direcaoSeta]);
+    return montarDados(String(enderecoAtual.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enderecoAtual, direcaoSeta, dadosPorId]);
+
+  const dadosIndisponiveis = loadingDados || erroDados;
 
   const semTemplates = !loadingConfig && templates.length === 0;
   const semZpl = !!selectedConfig && !zplDoTemplate;
@@ -154,18 +192,16 @@ export function PrintEtiquetaEnderecoModal({
     const errosDetalhados: string[] = [];
 
     for (const end of enderecos) {
+      if (!dadosPorId[String(end.id)]) {
+        errorCount++;
+        errosDetalhados.push(`${end.descricao ?? end.id}: dados do endereço não encontrados`);
+        continue;
+      }
       try {
         const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
           p_armazem_id: armazemId,
           p_tipo_etiqueta: "ENDERECO",
-          p_dados: {
-            codigo_endereco: end.codigo_endereco != null ? String(end.codigo_endereco) : "",
-            descricao: end.descricao ?? "",
-            tipo_endereco: end.tipo_endereco ?? "",
-            curva_acesso: end.curva_acesso ?? "",
-            direcao_seta: direcaoSeta,
-            seta_simbolo: SETA_SIMBOLO[direcaoSeta],
-          },
+          p_dados: montarDados(String(end.id)),
           p_origem: "PAINEL_ADMINISTRATIVO",
           p_documento_origem_id: String(end.id),
           p_tipo_documento_origem: "endereco",
@@ -220,21 +256,17 @@ export function PrintEtiquetaEnderecoModal({
       return;
     }
     if (!selectedConfig || !enderecoAtual) return;
+    if (!dadosPorId[String(enderecoAtual.id)]) {
+      toast.error(`${enderecoAtual.descricao ?? enderecoAtual.id}: dados do endereço não encontrados`);
+      return;
+    }
 
     setEnviando(true);
     try {
       const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
         p_armazem_id: armazemId,
         p_tipo_etiqueta: "ENDERECO",
-        p_dados: {
-          codigo_endereco:
-            enderecoAtual.codigo_endereco != null ? String(enderecoAtual.codigo_endereco) : "",
-          descricao: enderecoAtual.descricao ?? "",
-          tipo_endereco: enderecoAtual.tipo_endereco ?? "",
-          curva_acesso: enderecoAtual.curva_acesso ?? "",
-          direcao_seta: direcaoSeta,
-          seta_simbolo: SETA_SIMBOLO[direcaoSeta],
-        },
+        p_dados: montarDados(String(enderecoAtual.id)),
         p_origem: "PAINEL_ADMINISTRATIVO",
         p_documento_origem_id: String(enderecoAtual.id),
         p_tipo_documento_origem: "endereco",
@@ -317,6 +349,22 @@ export function PrintEtiquetaEnderecoModal({
               </div>
             </div>
 
+            {loadingDados ? (
+              <div className="h-[220px] rounded-md border border-border bg-secondary/40 animate-pulse flex items-center justify-center text-xs text-muted-foreground">
+                Carregando dados dos endereços…
+              </div>
+            ) : erroDados ? (
+              <div className="h-[220px] rounded-md border border-destructive/40 bg-destructive/10 flex flex-col items-center justify-center gap-3 text-xs text-destructive px-4 text-center">
+                Não foi possível carregar os dados dos endereços. Tente novamente.
+                <button
+                  type="button"
+                  onClick={() => setReloadDados((v) => v + 1)}
+                  className="px-3 py-1.5 rounded-md border border-border bg-secondary text-foreground text-xs font-medium hover:bg-secondary/80"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : (
             <ZplPreview
               zpl={zplDoTemplate}
               larguraMm={Number(selectedConfig?.largura_mm) || 100}
@@ -327,6 +375,7 @@ export function PrintEtiquetaEnderecoModal({
               zoom={zoomLevel}
               onOverflow={setOverflowInfo}
             />
+            )}
 
             {total > 1 && (
               <div className="flex items-center justify-center gap-2 mt-2">
@@ -355,7 +404,7 @@ export function PrintEtiquetaEnderecoModal({
                 <button
                   type="button"
                   onClick={handleReimprimirAtual}
-                  disabled={enviando || !selectedConfig}
+                  disabled={enviando || !selectedConfig || dadosIndisponiveis}
                   className="ml-2 flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Printer size={12} />
@@ -514,7 +563,7 @@ export function PrintEtiquetaEnderecoModal({
           </button>
           <button
             onClick={handleEnviar}
-            disabled={enviando || !selectedConfig || semTemplates}
+            disabled={enviando || !selectedConfig || semTemplates || dadosIndisponiveis}
             className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {enviando ? (

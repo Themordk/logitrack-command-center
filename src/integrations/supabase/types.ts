@@ -431,6 +431,357 @@ export type Database = {
           },
         ]
       }
+      bkp_conv_cx_20260926_documento_saida_excluidos: {
+        Row: {
+          backup_em: string | null
+          cancelamento_origem: string | null
+          cancelamento_solicitado_em: string | null
+          codigo_erp: string | null
+          data_emissao: string | null
+          empresa_id: string | null
+          excluido_em: string | null
+          excluido_por: string | null
+          id: string | null
+          id_externo: string | null
+          motivo_exclusao_id: string | null
+          numero_pedido: number | null
+          observacao: string | null
+          observacao_exclusao: string | null
+          parceiro_id: string | null
+          prioridade_externa: string | null
+          rota_id: string | null
+          sincronizado_em: string | null
+          sistema_origem: string | null
+          status: number | null
+          status_integracao: string | null
+          tenant_id: string | null
+          tentativas_processamento: number | null
+          tipo_pedido_id: string | null
+          transportador: string | null
+          valor_pedido: number | null
+          vendedor: string | null
+        }
+        Insert: {
+          backup_em?: string | null
+          cancelamento_origem?: string | null
+          cancelamento_solicitado_em?: string | null
+          codigo_erp?: string | null
+          data_emissao?: string | null
+          empresa_id?: string | null
+          excluido_em?: string | null
+          excluido_por?: string | null
+          id?: string | null
+          id_externo?: string | null
+          motivo_exclusao_id?: string | null
+          numero_pedido?: number | null
+          observacao?: string | null
+          observacao_exclusao?: string | null
+          parceiro_id?: string | null
+          prioridade_externa?: string | null
+          rota_id?: string | null
+          sincronizado_em?: string | null
+          sistema_origem?: string | null
+          status?: number | null
+          status_integracao?: string | null
+          tenant_id?: string | null
+          tentativas_processamento?: number | null
+          tipo_pedido_id?: string | null
+          transportador?: string | null
+          valor_pedido?: number | null
+          vendedor?: string | null
+        }
+        Update: {
+          backup_em?: string | null
+          cancelamento_origem?: string | null
+          cancelamento_solicitado_em?: string | null
+          codigo_erp?: string | null
+          data_emissao?: string | null
+          empresa_id?: string | null
+          excluido_em?: string | null
+          excluido_por?: string | null
+          id?: string | null
+          id_externo?: string | null
+          motivo_exclusao_id?: string | null
+          numero_pedido?: number | null
+          observacao?: string | null
+          observacao_exclusao?: string | null
+          parceiro_id?: string | null
+          prioridade_externa?: string | null
+          rota_id?: string | null
+          sincronizado_em?: string | null
+          sistema_origem?: string | null
+          status?: number | null
+          status_integracao?: string | null
+          tenant_id?: string | null
+          tentativas_processamento?: number | null
+          tipo_pedido_id?: string | null
+          transportador?: string | null
+          valor_pedido?: number | null
+          vendedor?: string | null
+        }
+        Relationships: []
+      }
+      bkp_conv_cx_20260926_documento_saida_item: {
+        Row: {
+          backup_em: string | null
+          codigo_erp: string | null
+          codigo_erp_produto: string | null
+          documento_saida_id: string | null
+          id: string | null
+          produto_id: string | null
+          quantidade: number | null
+          quantidade_erp: number | null
+          sistema_origem: string | null
+          status_mapeamento: string | null
+          tenant_id: string | null
+          unidade_erp: string | null
+          valor_total: number | null
+          valor_unit: number | null
+        }
+        Insert: {
+          backup_em?: string | null
+          codigo_erp?: string | null
+          codigo_erp_produto?: string | null
+          documento_saida_id?: string | null
+          id?: string | null
+          produto_id?: string | null
+          quantidade?: number | null
+          quantidade_erp?: number | null
+          sistema_origem?: string | null
+          status_mapeamento?: string | null
+          tenant_id?: string | null
+          unidade_erp?: string | null
+          valor_total?: number | null
+          valor_unit?: number | null
+        }
+        Update: {
+          backup_em?: string | null
+          codigo_erp?: string | null
+          codigo_erp_produto?: string | null
+          documento_saida_id?: string | null
+          id?: string | null
+          produto_id?: string | null
+          quantidade?: number | null
+          quantidade_erp?: number | null
+          sistema_origem?: string | null
+          status_mapeamento?: string | null
+          tenant_id?: string | null
+          unidade_erp?: string | null
+          valor_total?: number | null
+          valor_unit?: number | null
+        }
+        Relationships: []
+      }
+      bkp_conv_cx_20260926_estoque_geral: {
+        Row: {
+          atualizado_em: string | null
+          backup_em: string | null
+          data_fabricacao: string | null
+          data_validade: string | null
+          empresa_id: string | null
+          endereco_id: string | null
+          fator_snapshot: number | null
+          hu_id: string | null
+          id: string | null
+          lote: string | null
+          numero_serie: string | null
+          produto_id: string | null
+          quantidade_bloqueada: number | null
+          quantidade_disponivel: number | null
+          quantidade_total: number | null
+          tenant_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          backup_em?: string | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
+          empresa_id?: string | null
+          endereco_id?: string | null
+          fator_snapshot?: number | null
+          hu_id?: string | null
+          id?: string | null
+          lote?: string | null
+          numero_serie?: string | null
+          produto_id?: string | null
+          quantidade_bloqueada?: number | null
+          quantidade_disponivel?: number | null
+          quantidade_total?: number | null
+          tenant_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          backup_em?: string | null
+          data_fabricacao?: string | null
+          data_validade?: string | null
+          empresa_id?: string | null
+          endereco_id?: string | null
+          fator_snapshot?: number | null
+          hu_id?: string | null
+          id?: string | null
+          lote?: string | null
+          numero_serie?: string | null
+          produto_id?: string | null
+          quantidade_bloqueada?: number | null
+          quantidade_disponivel?: number | null
+          quantidade_total?: number | null
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
+      bkp_conv_cx_20260926_movimento_saida_item: {
+        Row: {
+          autorizado_em: string | null
+          backup_em: string | null
+          id: string | null
+          motivo_ocorrencia: string | null
+          movimento_saida_id: string | null
+          produto_id: string | null
+          qtd_conferida: number | null
+          qtd_esperada: number | null
+          qtd_separada: number | null
+          qtde_cortada: number | null
+          status: Database["public"]["Enums"]["enum_status_item_onda"] | null
+          tenant_id: string | null
+          usuario_autorizou: string | null
+          valor_total: number | null
+          valor_unit: number | null
+        }
+        Insert: {
+          autorizado_em?: string | null
+          backup_em?: string | null
+          id?: string | null
+          motivo_ocorrencia?: string | null
+          movimento_saida_id?: string | null
+          produto_id?: string | null
+          qtd_conferida?: number | null
+          qtd_esperada?: number | null
+          qtd_separada?: number | null
+          qtde_cortada?: number | null
+          status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
+          tenant_id?: string | null
+          usuario_autorizou?: string | null
+          valor_total?: number | null
+          valor_unit?: number | null
+        }
+        Update: {
+          autorizado_em?: string | null
+          backup_em?: string | null
+          id?: string | null
+          motivo_ocorrencia?: string | null
+          movimento_saida_id?: string | null
+          produto_id?: string | null
+          qtd_conferida?: number | null
+          qtd_esperada?: number | null
+          qtd_separada?: number | null
+          qtde_cortada?: number | null
+          status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
+          tenant_id?: string | null
+          usuario_autorizou?: string | null
+          valor_total?: number | null
+          valor_unit?: number | null
+        }
+        Relationships: []
+      }
+      bkp_conv_cx_20260926_tarefa: {
+        Row: {
+          armazem_id: string | null
+          auto_separacao: boolean | null
+          backup_em: string | null
+          concluido_em: string | null
+          contagem_inventario: number | null
+          criado_em: string | null
+          criado_por: string | null
+          empresa_id: string | null
+          id: string | null
+          id_documento_origem: string | null
+          id_local_destino: string | null
+          id_local_origem: string | null
+          motivo_ocorrencia: string | null
+          ordem_tarefa: number | null
+          percentual_execucao: number | null
+          prioridade_tarefa:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
+          produto_id: string | null
+          quantidade_cortada: number | null
+          quantidade_executada: number | null
+          quantidade_executada2: number | null
+          quantidade_executada3: number | null
+          quantidade_executada4: number | null
+          quantidade_requerida: number | null
+          status: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          tenant_id: string | null
+          tipo_documento_origem: string | null
+          tipo_tarefa_id: string | null
+          usuario_cortou: string | null
+        }
+        Insert: {
+          armazem_id?: string | null
+          auto_separacao?: boolean | null
+          backup_em?: string | null
+          concluido_em?: string | null
+          contagem_inventario?: number | null
+          criado_em?: string | null
+          criado_por?: string | null
+          empresa_id?: string | null
+          id?: string | null
+          id_documento_origem?: string | null
+          id_local_destino?: string | null
+          id_local_origem?: string | null
+          motivo_ocorrencia?: string | null
+          ordem_tarefa?: number | null
+          percentual_execucao?: number | null
+          prioridade_tarefa?:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
+          produto_id?: string | null
+          quantidade_cortada?: number | null
+          quantidade_executada?: number | null
+          quantidade_executada2?: number | null
+          quantidade_executada3?: number | null
+          quantidade_executada4?: number | null
+          quantidade_requerida?: number | null
+          status?: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          tenant_id?: string | null
+          tipo_documento_origem?: string | null
+          tipo_tarefa_id?: string | null
+          usuario_cortou?: string | null
+        }
+        Update: {
+          armazem_id?: string | null
+          auto_separacao?: boolean | null
+          backup_em?: string | null
+          concluido_em?: string | null
+          contagem_inventario?: number | null
+          criado_em?: string | null
+          criado_por?: string | null
+          empresa_id?: string | null
+          id?: string | null
+          id_documento_origem?: string | null
+          id_local_destino?: string | null
+          id_local_origem?: string | null
+          motivo_ocorrencia?: string | null
+          ordem_tarefa?: number | null
+          percentual_execucao?: number | null
+          prioridade_tarefa?:
+            | Database["public"]["Enums"]["enum_prioridade_onda"]
+            | null
+          produto_id?: string | null
+          quantidade_cortada?: number | null
+          quantidade_executada?: number | null
+          quantidade_executada2?: number | null
+          quantidade_executada3?: number | null
+          quantidade_executada4?: number | null
+          quantidade_requerida?: number | null
+          status?: Database["public"]["Enums"]["enum_status_tarefa"] | null
+          tenant_id?: string | null
+          tipo_documento_origem?: string | null
+          tipo_tarefa_id?: string | null
+          usuario_cortou?: string | null
+        }
+        Relationships: []
+      }
       box: {
         Row: {
           armazem_id: string
@@ -898,9 +1249,11 @@ export type Database = {
           id: string
           produto_id: string
           quantidade: number
+          quantidade_erp: number | null
           sistema_origem: string | null
           status_mapeamento: string | null
           tenant_id: string
+          unidade_erp: string | null
           valor_total: number
           valor_unit: number
         }
@@ -911,9 +1264,11 @@ export type Database = {
           id?: string
           produto_id: string
           quantidade: number
+          quantidade_erp?: number | null
           sistema_origem?: string | null
           status_mapeamento?: string | null
           tenant_id: string
+          unidade_erp?: string | null
           valor_total: number
           valor_unit: number
         }
@@ -924,9 +1279,11 @@ export type Database = {
           id?: string
           produto_id?: string
           quantidade?: number
+          quantidade_erp?: number | null
           sistema_origem?: string | null
           status_mapeamento?: string | null
           tenant_id?: string
+          unidade_erp?: string | null
           valor_total?: number
           valor_unit?: number
         }
@@ -8860,6 +9217,10 @@ export type Database = {
       cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: { Args: never; Returns: Json }
+      dados_etiqueta_endereco: {
+        Args: { p_endereco_ids: string[] }
+        Returns: Json
+      }
       dados_etiqueta_hu: {
         Args: { p_hu_ids: string[]; p_tenant_id: string }
         Returns: Json
@@ -9203,6 +9564,15 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_etiqueta_num: {
+        Args: { p_casas?: number; p_valor: number }
+        Returns: string
+      }
+      fn_etiqueta_pad: {
+        Args: { p_min?: number; p_valor: number }
+        Returns: string
+      }
+      fn_etiqueta_sanitizar: { Args: { p_valor: string }; Returns: string }
       fn_excluir_documento_entrada: {
         Args: {
           p_documento_entrada_id: string
@@ -10783,6 +11153,37 @@ export type Database = {
       }
       rpc_painel_tv_operacional: { Args: { p_tv_token: string }; Returns: Json }
       rpc_painel_tv_vendas: { Args: { p_tv_token: string }; Returns: Json }
+      rpc_produto_regra_padrao_aplicar: {
+        Args: { p_empresa_id: string; p_simular?: boolean }
+        Returns: Json
+      }
+      rpc_produto_regra_padrao_listar: {
+        Args: { p_empresa_id: string }
+        Returns: {
+          ativo: boolean
+          atualizado_por: string
+          campo: string
+          modo: string
+          observacao: string
+          updated_at: string
+          valor: Json
+        }[]
+      }
+      rpc_produto_regra_padrao_remover: {
+        Args: { p_campo: string; p_empresa_id: string }
+        Returns: Json
+      }
+      rpc_produto_regra_padrao_salvar: {
+        Args: {
+          p_ativo?: boolean
+          p_campo: string
+          p_empresa_id: string
+          p_modo: string
+          p_observacao?: string
+          p_valor: Json
+        }
+        Returns: Json
+      }
       rpc_relatorio_ciclo_pedido: {
         Args: {
           p_armazem_id?: string

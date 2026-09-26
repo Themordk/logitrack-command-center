@@ -17,6 +17,7 @@ import {
   gerarTsplAutomatico,
   type LinguagemEtiqueta,
 } from "@/lib/etiquetaLinguagens";
+import { GRUPOS_ORDEM, variaveisPorTipo, mesclarCamposComCatalogo } from "@/lib/etiquetaVariaveis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
@@ -56,10 +57,10 @@ interface Empresa {
 }
 
 const DEFAULT_CAMPOS_BY_TIPO: Record<TipoEtiquetaConfig, CampoEtiqueta[]> = {
-  ENDERECO: [
-    { chave: "descricao", label: "Descrição", ativo: true, ordem: 1 },
-    { chave: "codigo_endereco", label: "Código", ativo: true, ordem: 2 },
-  ],
+  ENDERECO: mesclarCamposComCatalogo("ENDERECO", []).map((c) => ({
+    ...c,
+    ativo: ["codigo_endereco", "descricao", "tipo_endereco", "curva_acesso", "setor"].includes(c.chave),
+  })),
   HU: [
     { chave: "codigo_hu", label: "Código HU", ativo: true, ordem: 1 },
     { chave: "tipo_hu", label: "Tipo de HU", ativo: true, ordem: 2 },
@@ -88,15 +89,22 @@ const DEFAULT_CAMPOS_BY_TIPO: Record<TipoEtiquetaConfig, CampoEtiqueta[]> = {
 function parseTemplateRow(row: any): EtiquetaConfig {
   return {
     ...row,
-    campos: typeof row.campos === "string" ? JSON.parse(row.campos) : row.campos,
+    campos: mesclarCamposComCatalogo(
+      row.tipo,
+      typeof row.campos === "string" ? JSON.parse(row.campos) : row.campos,
+    ),
   };
 }
+
+const normTxt = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const { tenantId } = useTenant();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [empresaSel, setEmpresaSel] = useState<string>(""); // "" = padrão do tenant
   const [tipo, setTipo] = useState<TipoEtiquetaConfig>("ENDERECO");
+  const [mostrarInativos, setMostrarInativos] = useState(false);
+  const [buscaVar, setBuscaVar] = useState("");
 
   const [templates, setTemplates] = useState<EtiquetaConfig[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -338,10 +346,15 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     });
   };
 
-  const moveField = (idx: number, dir: -1 | 1) => {
+  const moveField = (chave: string, dir: -1 | 1) => {
     if (!draft) return;
     const arr = [...draft.campos];
-    const target = idx + dir;
+    const visiveis = mostrarInativos ? arr : arr.filter((c) => c.ativo);
+    const vi = visiveis.findIndex((c) => c.chave === chave);
+    const vizinho = visiveis[vi + dir];
+    if (vi < 0 || !vizinho) return;
+    const idx = arr.findIndex((c) => c.chave === chave);
+    const target = arr.findIndex((c) => c.chave === vizinho.chave);
     if (target < 0 || target >= arr.length) return;
     [arr[idx], arr[target]] = [arr[target], arr[idx]];
     const reordered = arr.map((c, i) => ({ ...c, ordem: i + 1 }));
@@ -857,11 +870,22 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
               )}
 
               <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
-                  Campos ({draft.campos.filter((c) => c.ativo).length}/{draft.campos.length} ativos)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                    Campos ({draft.campos.filter((c) => c.ativo).length}/{draft.campos.length} ativos)
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={mostrarInativos}
+                      onChange={(e) => setMostrarInativos(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    Mostrar inativos
+                  </label>
+                </div>
                 <div className="space-y-1 max-h-[320px] overflow-auto pr-1">
-                  {draft.campos.map((c, idx) => (
+                  {(() => { const lista = mostrarInativos ? draft.campos : draft.campos.filter((c) => c.ativo); return lista.map((c, idx) => (
                     <div
                       key={c.chave}
                       className="flex items-center gap-2 bg-secondary/60 border border-border rounded-md px-2 py-1.5"
@@ -877,7 +901,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                         <div className="text-[10px] text-muted-foreground truncate">{c.chave}</div>
                       </div>
                       <button
-                        onClick={() => moveField(idx, -1)}
+                        onClick={() => moveField(c.chave, -1)}
                         disabled={idx === 0}
                         className="p-1 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30"
                         title="Mover acima"
@@ -885,15 +909,15 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                         <ArrowUp size={12} />
                       </button>
                       <button
-                        onClick={() => moveField(idx, 1)}
-                        disabled={idx === draft.campos.length - 1}
+                        onClick={() => moveField(c.chave, 1)}
+                        disabled={idx === lista.length - 1}
                         className="p-1 rounded hover:bg-secondary text-muted-foreground disabled:opacity-30"
                         title="Mover abaixo"
                       >
                         <ArrowDown size={12} />
                       </button>
                     </div>
-                  ))}
+                  )); })()}
                 </div>
               </div>
 
@@ -1044,8 +1068,53 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 />
               )}
 
+              {/* Campos disponíveis (catálogo) */}
+              {draft && variaveisPorTipo(tipo) && (() => {
+                const ativos = new Set(draft.campos.filter((c) => c.ativo).map((c) => c.chave));
+                const q = normTxt(buscaVar.trim());
+                const vars = variaveisPorTipo(tipo)!.filter(
+                  (x) => !q || normTxt(x.chave).includes(q) || normTxt(x.label).includes(q),
+                );
+                return (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Campos disponíveis ({vars.length})
+                      </p>
+                      <input
+                        value={buscaVar}
+                        onChange={(e) => setBuscaVar(e.target.value)}
+                        placeholder="Buscar variável..."
+                        className="h-6 w-40 text-[10px] px-2 rounded bg-secondary border border-border text-foreground"
+                      />
+                    </div>
+                    {GRUPOS_ORDEM.map((g) => {
+                      const doGrupo = vars.filter((x) => x.grupo === g);
+                      if (doGrupo.length === 0) return null;
+                      return (
+                        <div key={g} className="mb-1.5">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 opacity-80">{g}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {doGrupo.map((x) => (
+                              <button
+                                key={x.chave}
+                                onClick={() => inserirNoEditor(`{{${x.chave}}}`)}
+                                title={`${x.label} — ex.: ${x.exemplo}${x.descricao ? `\n${x.descricao}` : ""}`}
+                                className={`text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/30 text-green-400 border hover:border-primary/50 ${ativos.has(x.chave) ? "border-primary/40" : "border-border"}`}
+                              >
+                                {"{{" + x.chave + "}}"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
               {/* Campos disponíveis */}
-              {draft?.campos && draft.campos.length > 0 && (
+              {!variaveisPorTipo(tipo) && draft?.campos && draft.campos.length > 0 && (
                 <div className="mt-2">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                     Campos disponíveis
