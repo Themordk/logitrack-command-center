@@ -96,6 +96,32 @@ function parseTemplateRow(row: any): EtiquetaConfig {
   };
 }
 
+/** Remove lixo fora de ^XA...^XZ e converte comentários (--- texto ---) em ^FX. Não altera mais nada. */
+export function normalizarZpl(zpl: string): string {
+  if (!zpl) return zpl;
+  let out = zpl;
+  const ini = out.indexOf("^XA");
+  const fim = out.lastIndexOf("^XZ");
+  if (ini >= 0 && fim >= ini) out = out.slice(ini, fim + 3);
+  out = out.replace(/^([ \t]*)\(\s*-*\s*(.*?)\s*-*\s*\)[ \t]*$/gm, (_m, ind, txt) => `${ind}^FX ${txt}`);
+  return out;
+}
+
+function lerPwLl(zpl: string): { pw: number; ll: number } | null {
+  const pw = zpl.match(/\^PW(\d+)/); const ll = zpl.match(/\^LL(\d+)/);
+  if (!pw || !ll) return null;
+  return { pw: Number(pw[1]), ll: Number(ll[1]) };
+}
+
+function ajustarPwLl(zpl: string, pw: number, ll: number): string {
+  let out = zpl;
+  out = /\^PW\d+/.test(out) ? out.replace(/\^PW\d+/, `^PW${pw}`) : out.replace("^XA", `^XA^PW${pw}`);
+  out = /\^LL\d+/.test(out) ? out.replace(/\^LL\d+/, `^LL${ll}`) : out.replace(/\^PW\d+/, (m) => `${m}^LL${ll}`);
+  return out;
+}
+
+const DPI_REF_KEY = "core_etiqueta_dpi_ref";
+
 const normTxt = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export function EtiquetaTemplatesPage({ onNavigate }: Props) {
@@ -120,6 +146,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
   const [tsplCode, setTsplCode] = useState<string>("");
   const [abaLinguagem, setAbaLinguagem] = useState<LinguagemEtiqueta>("ZPL");
   const [previewLinguagem, setPreviewLinguagem] = useState<LinguagemEtiqueta>("ZPL");
+  const [dpiRef, setDpiRef] = useState<203 | 300>(() => (localStorage.getItem(DPI_REF_KEY) === "300" ? 300 : 203));
   const [filtroLinguagem, setFiltroLinguagem] = useState<"" | LinguagemEtiqueta>("");
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -361,10 +388,12 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
     setDraft({ ...draft, campos: reordered });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (zplOverride?: string) => {
     if (!draft || !tenantId) return;
     setSaving(true);
     try {
+      const zplFinal = normalizarZpl(typeof zplOverride === "string" ? zplOverride : zplCode);
+      if (zplFinal !== zplCode) setZplCode(zplFinal);
       const payload = {
         nome: draft.nome,
         tamanho: draft.tamanho,
@@ -379,7 +408,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         intervalo_colunas_mm: draft.intervalo_colunas_mm,
         direcao_seta: draft.direcao_seta,
         escala_fonte: draft.escala_fonte,
-        corpo_zpl: zplCode,
+        corpo_zpl: zplFinal,
         corpo_epl: eplCode.trim() ? eplCode : null,
         corpo_tspl: tsplCode.trim() ? tsplCode : null,
         linguagem_padrao: draft.linguagem_padrao || "ZPL",
@@ -391,6 +420,30 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         .eq("id", draft.id);
       if (error) throw error;
       toast.success("Template salvo com sucesso!");
+      // Conferência de tamanho (somente aviso — nunca bloqueia)
+      const dim = lerPwLl(zplFinal);
+      const dpmm = dpiRef === 300 ? 12 : 8;
+      const lw = Number(draft.largura_mm) || 0, lh = Number(draft.altura_mm) || 0;
+      if (dim && lw > 0 && lh > 0) {
+        const zw = dim.pw / dpmm, zh = dim.ll / dpmm;
+        if (Math.abs(zw - lw) > 1 || Math.abs(zh - lh) > 1) {
+          const alvoPw = Math.round(lw * dpmm), alvoLl = Math.round(lh * dpmm);
+          toast.warning(
+            `O ZPL usa ^PW${dim.pw}/^LL${dim.ll} (${Math.round(zw)}×${Math.round(zh)}mm a ${dpiRef} dpi), mas o template está cadastrado como ${lw}×${lh}mm.`,
+            {
+              duration: 10000,
+              action: {
+                label: "Ajustar ZPL ao tamanho cadastrado",
+                onClick: () => {
+                  const novo = ajustarPwLl(zplFinal, alvoPw, alvoLl);
+                  setZplCode(novo);
+                  handleSave(novo);
+                },
+              },
+            },
+          );
+        }
+      }
       reload();
     } catch (err: any) {
       const parsed = parseError(err, "salvar template de etiqueta");
@@ -425,6 +478,14 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
         zplInicial = gerarZplTemplate(tipo, tempConfig);
       } catch {
         zplInicial = "^XA^CI28^PW800^LL320^CF0,20^FO16,10^FDNovo template^FS^XZ";
+      }
+      {
+        const dpmm = dpiRef === 300 ? 12 : 8;
+        zplInicial = ajustarPwLl(
+          zplInicial,
+          Math.round(Number(tempConfig.largura_mm) * dpmm),
+          Math.round(Number(tempConfig.altura_mm) * dpmm),
+        );
       }
 
       const payload = {
@@ -797,6 +858,23 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 </select>
               </div>
 
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Resolução de referência</label>
+                <select
+                  value={String(dpiRef)}
+                  onChange={(e) => {
+                    const v = e.target.value === "300" ? 300 : 203;
+                    setDpiRef(v);
+                    localStorage.setItem(DPI_REF_KEY, String(v));
+                  }}
+                  className="w-full bg-secondary text-foreground text-sm rounded-md px-2 py-2 border border-border outline-none"
+                >
+                  <option value="203">203 dpi (8 dots/mm)</option>
+                  <option value="300">300 dpi (12 dots/mm)</option>
+                </select>
+                <div className="text-[10px] text-muted-foreground mt-1">Usada só para conferir ^PW/^LL e gerar o ZPL inicial.</div>
+              </div>
+
               {/* Dimensões customizadas (mm) */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
@@ -923,7 +1001,7 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
 
               <div className="flex items-center gap-2 pt-2">
                 <button
-                  onClick={handleSave}
+                  onClick={() => handleSave()}
                   disabled={saving}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
