@@ -19,7 +19,7 @@ import { parseError } from "@/lib/errorMapper";
 import { toast } from "sonner";
 import { ImpressoraSelect } from "@/components/impressao/ImpressoraSelect";
 
-const ERROS_IMPRESSORA = ["IMPRESSORA_OFFLINE", "SEM_IMPRESSORA_ONLINE", "IMPRESSORA_INVALIDA"];
+const ERROS_IMPRESSORA = ["IMPRESSORA_OFFLINE", "SEM_IMPRESSORA_ONLINE", "IMPRESSORA_INVALIDA", "SEM_IMPRESSORA_CADASTRADA"];
 import type { EtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 import type { OverflowInfo } from "@/lib/detectarOverflowZpl";
 
