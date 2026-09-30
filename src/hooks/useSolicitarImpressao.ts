@@ -51,16 +51,17 @@ export function useSolicitarImpressao() {
           description: `Job ${String(result.job_id).substring(0, 8)}...`,
           duration: 2000,
         });
-        if (result.aviso) toast.warning(result.aviso, { duration: 4000 });
+        if (result.aviso) toast.warning(result.aviso, { duration: 4000, id: "impressao-aviso-tamanho" });
         return true;
       } else {
         console.warn("[Impressão] Sem impressora/template:", result?.error);
-        toast.warning("Etiqueta não impressa", { description: result?.error, duration: 5000 });
+        if (result?.codigo === "SEM_IMPRESSORA_CADASTRADA") return false;
+        toast.warning("Etiqueta não impressa", { description: result?.error, duration: 5000, id: "impressao-falha" });
         return false;
       }
     } catch (err: any) {
       console.warn("[Impressão] Erro ao solicitar:", err?.message);
-      toast.error("Falha ao enviar etiqueta", { description: err?.message });
+      toast.error("Falha ao enviar etiqueta", { description: err?.message, id: "impressao-erro" });
       return false;
     }
   }, []);
