@@ -19,6 +19,9 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { parseError } from "@/lib/errorMapper";
 import { toast } from "sonner";
+import { ImpressoraSelect } from "@/components/impressao/ImpressoraSelect";
+
+const ERROS_IMPRESSORA = ["IMPRESSORA_OFFLINE", "SEM_IMPRESSORA_ONLINE", "IMPRESSORA_INVALIDA"];
 import type { EtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 import type { OverflowInfo } from "@/lib/detectarOverflowZpl";
 import type { EtiquetaProdutoItem } from "./EtiquetaProdutoPreview";
@@ -60,6 +63,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
   const [zoomLevel, setZoomLevel] = useState<"fit" | 1.5 | 2>("fit");
   const [overflowInfo, setOverflowInfo] = useState<OverflowInfo | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [impressoraId, setImpressoraId] = useState<string | null>(null);
+  const [temImpressoraOnline, setTemImpressoraOnline] = useState(true);
   const [copias, setCopias] = useState(1);
 
 
@@ -138,6 +143,9 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
     let successCount = 0;
     let errorCount = 0;
     const errosDetalhados: string[] = [];
+    let impressoraNome: string | null = null;
+    let avisoLote: string | null = null;
+    let erroImpressora: string | null = null;
 
     for (const item of items) {
       try {
@@ -150,7 +158,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
           p_tipo_documento_origem: "produto_embalagem",
           p_prioridade: 5,
           p_quantidade_copias: copias,
-          p_impressora_id: null,
+          p_impressora_id: impressoraId,
           p_setor_uso: null,
           p_template_id: selectedConfig?.id ?? null,
         });
@@ -163,6 +171,11 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
         const result = typeof data === "string" ? JSON.parse(data) : data;
         if (result?.success) {
           successCount++;
+          if (!impressoraNome) impressoraNome = result.impressora_nome ?? null;
+          if (!avisoLote && result.aviso) avisoLote = result.aviso;
+        } else if (ERROS_IMPRESSORA.includes(result?.codigo)) {
+          erroImpressora = result?.error ?? "Impressora indisponível";
+          break;
         } else {
           errorCount++;
           errosDetalhados.push(
@@ -177,20 +190,27 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
 
     setEnviando(false);
 
+    if (erroImpressora) toast.error(erroImpressora);
+    if (avisoLote) toast.warning(avisoLote);
+    const destino = impressoraNome ? `para ${impressoraNome}` : "para impressão";
+    const detalhes = errosDetalhados.slice(0, 3).join("\n");
+
     if (successCount > 0 && errorCount === 0) {
-      toast.success(`${successCount} etiqueta(s) enviada(s) para impressão`);
-      onClose();
+      toast.success(`${successCount} etiqueta(s) enviada(s) ${destino}`);
+      if (!erroImpressora) onClose();
       return;
     }
     if (successCount > 0 && errorCount > 0) {
-      toast.success(`${successCount} etiqueta(s) enviada(s)`);
-      toast.warning(`${errorCount} falharam — verifique a Fila de Impressão`);
+      toast.success(`${successCount} etiqueta(s) enviada(s) ${destino}`);
+      toast.warning(`${errorCount} falharam — verifique a Fila de Impressão`, { description: detalhes });
       console.warn("[Impressão Produto] Falhas:", errosDetalhados);
-      onClose();
+      if (!erroImpressora) onClose();
       return;
     }
+    if (erroImpressora) return;
     toast.error(
       "Nenhuma etiqueta foi enfileirada. Verifique se há impressora cadastrada no armazém e template configurado.",
+      { description: detalhes || undefined },
     );
     console.error("[Impressão Produto] Todas falharam:", errosDetalhados);
   };
@@ -213,13 +233,14 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
         p_tipo_documento_origem: "produto_embalagem",
         p_prioridade: 5,
         p_quantidade_copias: copias,
-        p_impressora_id: null,
+        p_impressora_id: impressoraId,
         p_setor_uso: null,
         p_template_id: selectedConfig?.id ?? null,
       });
       if (error) throw error;
       const result = typeof data === "string" ? JSON.parse(data) : data;
       if (result?.success) {
+        if (result.aviso) toast.warning(result.aviso);
         toast.success(`Etiqueta ${identificadorLegivel(itemAtual)} enviada para impressão`);
       } else {
         toast.error(result?.error ?? "Falha ao enfileirar");
@@ -331,7 +352,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
                 <button
                   type="button"
                   onClick={handleReimprimirAtual}
-                  disabled={enviando || !selectedConfig}
+                  disabled={enviando || !temImpressoraOnline || !selectedConfig}
                   className="ml-2 flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Printer size={12} />
@@ -420,6 +441,22 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
                   )}
                 </div>
 
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                    Impressora
+                  </label>
+                  <ImpressoraSelect
+                    armazemId={armazemId ?? null}
+                    tipoEtiqueta="PRODUTO"
+                    value={impressoraId}
+                    onChange={(id) => setImpressoraId(id)}
+                    templateLarguraMm={selectedConfig ? Number(selectedConfig.largura_mm) : undefined}
+                    templateAlturaMm={selectedConfig ? Number(selectedConfig.altura_mm) : undefined}
+                    onDisponibilidadeChange={setTemImpressoraOnline}
+                    lembrarEscolha
+                  />
+                </div>
+
                 <CopiasField value={copias} onChange={setCopias} disabled={enviando} />
 
 
@@ -483,7 +520,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
           </button>
           <button
             onClick={handleEnviar}
-            disabled={enviando || loadingConfig || !selectedConfig || semTemplates}
+            disabled={enviando || !temImpressoraOnline || loadingConfig || !selectedConfig || semTemplates}
             className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {enviando ? (
