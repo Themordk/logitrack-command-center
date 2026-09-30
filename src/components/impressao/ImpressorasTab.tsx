@@ -43,12 +43,13 @@ export function ImpressorasTab() {
     table: "impressora",
     tenantId,
     orderBy: "nome",
-    select: "*, print_agent:agent_id(nome), armazem:armazem_id(descricao)",
+    select: "*, print_agent:agent_id(nome, status, ultimo_heartbeat), armazem:armazem_id(descricao)",
   });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [formState, setFormState] = useState<Record<string, any>>({});
 
   const { data: agentOptions = [] } = useQuery({
     queryKey: ["print-agents-options", tenantId, empresaId, armazemId],
@@ -92,9 +93,12 @@ export function ImpressorasTab() {
     { key: "agent", label: "Agent", render: (r) => r.print_agent?.nome || "—" },
     {
       key: "status_conexao", label: "Status", render: (r) => {
-        const s = r.status_conexao || "DESCONHECIDO";
-        const Icon = s === "ONLINE" ? Wifi : WifiOff;
-        return <Badge className={statusColors[s]}><Icon size={10} /> {s}</Badge>;
+        const ag = r.print_agent;
+        const online = r.ativo && ag?.status === "ONLINE" && !!ag?.ultimo_heartbeat
+          && Date.now() - new Date(ag.ultimo_heartbeat).getTime() < 2 * 60 * 1000;
+        return online
+          ? <Badge className={statusColors.ONLINE}><Wifi size={10} /> Online</Badge>
+          : <Badge className={statusColors.OFFLINE}><WifiOff size={10} /> Agente offline</Badge>;
       },
     },
     { key: "ativo", label: "Ativo", type: "badge" },
@@ -104,7 +108,7 @@ export function ImpressorasTab() {
     { name: "nome", label: "Nome da Impressora", type: "text", required: true, placeholder: "Zebra ZD420 - Recebimento" },
     { name: "codigo", label: "Código", type: "text", required: true, placeholder: "IMP-REC-01" },
     { name: "setor_uso", label: "Setor de Uso", type: "enum", required: true, enumValues: ["RECEBIMENTO", "EXPEDICAO", "GERAL", "INVENTARIO"], defaultValue: "GERAL" },
-    { name: "agent_id", label: "Agent Responsável", type: "select", options: agentOptions, placeholder: hasAgents ? "Selecionar..." : "Nenhum agent cadastrado para este armazém" },
+    { name: "agent_id", label: "Agent Responsável", type: "select", required: true, options: agentOptions, placeholder: hasAgents ? "Selecionar..." : "Nenhum agent cadastrado para este armazém" },
 
     { name: "tipo_conexao", label: "Tipo de Conexão", type: "enum", required: true, enumValues: ["USB", "REDE", "BLUETOOTH"], defaultValue: "USB" },
     {
@@ -117,7 +121,11 @@ export function ImpressorasTab() {
       visibleWhen: (f) => f.tipo_conexao === "REDE",
     },
     {
-      name: "nome_sistema", label: "Nome no Sistema Operacional", type: "text", placeholder: "\\\\PC-DOCA\\ZebraZD420",
+      name: "nome_sistema",
+      label: formState.tipo_conexao === "USB" && String(formState.nome_sistema || "").startsWith("\\\\")
+        ? "Nome no Sistema Operacional — ⚠ Caminho de rede: o job passará pelo compartilhamento do Windows de outro PC. Prefira cadastrar a impressora no agente do PC onde ela está fisicamente conectada."
+        : "Nome no Sistema Operacional",
+      type: "text", placeholder: "\\\\PC-DOCA\\ZebraZD420",
       visibleWhen: (f) => f.tipo_conexao === "USB" || f.tipo_conexao === "BLUETOOTH",
       requiredWhen: (f) => f.tipo_conexao === "USB" || f.tipo_conexao === "BLUETOOTH",
     },
@@ -128,7 +136,7 @@ export function ImpressorasTab() {
     { name: "dpi", label: "Resolução (DPI)", type: "select", required: true, options: [{ value: "203", label: "203" }, { value: "300", label: "300" }], defaultValue: "203" },
 
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
-  ], [agentOptions, hasAgents]);
+  ], [agentOptions, hasAgents, formState.tipo_conexao, formState.nome_sistema]);
 
   const filtered = crud.search
     ? crud.data.filter((r) => {
@@ -143,6 +151,9 @@ export function ImpressorasTab() {
     if (!empresaId || !armazemId) {
       toast.error("Selecione empresa e armazém no topo antes de cadastrar impressoras");
       return false;
+    }
+    if (editItem && editItem.ativo === true && data.ativo === false) {
+      if (!confirm("Os jobs pendentes desta impressora serão cancelados automaticamente. Continuar?")) return false;
     }
     const payload: any = { ...data, empresa_id: empresaId, armazem_id: armazemId };
     if (data.dpi) payload.dpi = Number(data.dpi);
@@ -180,6 +191,7 @@ export function ImpressorasTab() {
           fields={fields}
           initialData={editItem}
           onSave={handleSave}
+          onFormChange={setFormState}
         />
       )}
 

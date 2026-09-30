@@ -5,6 +5,20 @@ import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTime } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ImpressoraSelect, type TipoEtiquetaImpressora } from "@/components/impressao/ImpressoraSelect";
+
+const DOIS_MIN = 2 * 60 * 1000;
+const TIPOS_VALIDOS = ["PRODUTO", "HU", "VOLUME", "ENDERECO"];
+
+function aguardandoAgente(r: any): boolean {
+  if (!["PENDENTE", "REIMPRESSAO"].includes(r.status)) return false;
+  if (Date.now() - new Date(r.criado_em).getTime() <= DOIS_MIN) return false;
+  const ag = r.impressora?.print_agent;
+  if (!ag) return true;
+  if (ag.status !== "ONLINE") return true;
+  return !ag.ultimo_heartbeat || Date.now() - new Date(ag.ultimo_heartbeat).getTime() > DOIS_MIN;
+}
 
 const STATUS_OPTIONS = ["PENDENTE", "PROCESSANDO", "IMPRESSO", "ERRO", "CANCELADO", "REIMPRESSAO"];
 const ORIGEM_OPTIONS = ["CONFERENCIA_ENTRADA", "EXPEDICAO", "MANUAL", "REIMPRESSAO"];
@@ -75,7 +89,7 @@ export function FilaImpressaoTab({ active }: { active: boolean }) {
     try {
       let q = (supabase as any)
         .from("fila_impressao")
-        .select("*, impressora:impressora_id(nome, codigo), etiqueta_template:template_id(nome, tipo)")
+        .select("*, impressora:impressora_id(nome, codigo, agent_id, print_agent:agent_id(nome, status, ultimo_heartbeat)), etiqueta_template:template_id(nome, tipo, largura_mm, altura_mm)")
         .eq("tenant_id", tenantId)
         .eq("armazem_id", armazemId)
         .order("criado_em", { ascending: false })
@@ -123,22 +137,47 @@ export function FilaImpressaoTab({ active }: { active: boolean }) {
   const impressosHoje = data.filter((r) => r.status === "IMPRESSO" && new Date(r.criado_em) >= todayStart).length;
   const errosHoje = data.filter((r) => r.status === "ERRO" && new Date(r.criado_em) >= todayStart).length;
 
-  const reimprimir = async (id: string) => {
+  const [reimpJob, setReimpJob] = useState<any>(null);
+  const [reimpImpressora, setReimpImpressora] = useState<string | null>(null);
+  const [reimpEnviando, setReimpEnviando] = useState(false);
+
+  const abrirReimprimir = (r: any) => {
+    setReimpJob(r);
+    setReimpImpressora(r.impressora_id || null);
+  };
+
+  const confirmarReimprimir = async () => {
+    if (!reimpJob) return;
+    setReimpEnviando(true);
     try {
-      const { error } = await (supabase.rpc as any)("reimprimir_etiqueta", { p_job_original_id: id });
+      const { data: result, error } = await (supabase.rpc as any)("reimprimir_etiqueta", {
+        p_job_original_id: reimpJob.id,
+        p_impressora_id: reimpImpressora,
+      });
       if (error) throw error;
-      toast.success("Job de reimpressão criado");
+      if (!result?.success) {
+        toast.error(result?.error || "Não foi possível reimprimir");
+        return;
+      }
+      toast.success("Reimpressão enviada para " + (result.impressora_nome || "impressora"));
+      setReimpJob(null);
       fetchData();
     } catch (err: any) {
       toast.error(parseError(err, "reimprimir etiqueta").title);
+    } finally {
+      setReimpEnviando(false);
     }
   };
 
   const cancelar = async (id: string) => {
     if (!confirm("Cancelar este job de impressão?")) return;
     try {
-      const { error } = await (supabase.rpc as any)("cancelar_job_impressao", { p_job_id: id });
+      const { data: result, error } = await (supabase.rpc as any)("cancelar_job_impressao", { p_job_id: id });
       if (error) throw error;
+      if (result && result.success === false) {
+        toast.error(result.error || "Não foi possível cancelar o job");
+        return;
+      }
       toast.success("Job cancelado");
       fetchData();
     } catch (err: any) {
@@ -184,16 +223,16 @@ export function FilaImpressaoTab({ active }: { active: boolean }) {
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-border bg-secondary/30">
-                {["Data/Hora", "Origem", "Status", "Impressora", "Template", "Cópias", "Tentativas", "Erro", "Impresso em", "Ações"].map((h) => (
+                {["Data/Hora", "Origem", "Status", "Impressora", "Agente", "Template", "Cópias", "Tentativas", "Erro", "Impresso em", "Ações"].map((h) => (
                   <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading && data.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground"><Loader2 size={18} className="inline animate-spin mr-2" /> Carregando...</td></tr>
+                <tr><td colSpan={11} className="px-4 py-12 text-center text-sm text-muted-foreground"><Loader2 size={18} className="inline animate-spin mr-2" /> Carregando...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum job de impressão.</td></tr>
+                <tr><td colSpan={11} className="px-4 py-12 text-center text-sm text-muted-foreground">Nenhum job de impressão.</td></tr>
               ) : data.map((r, idx) => {
                 const canCancel = ["PENDENTE", "ERRO", "REIMPRESSAO"].includes(r.status);
                 return (
@@ -204,8 +243,18 @@ export function FilaImpressaoTab({ active }: { active: boolean }) {
                         {r.origem}
                       </span>
                     </td>
-                    <td className="px-3 py-2"><StatusBadgeCell value={r.status} /></td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <StatusBadgeCell value={r.status} />
+                        {aguardandoAgente(r) && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold uppercase bg-amber-500/15 text-amber-400 border-amber-500/30 whitespace-nowrap">
+                            Aguardando agente
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-xs text-foreground">{r.impressora?.nome || "—"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{r.impressora?.print_agent?.nome || "—"}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">{r.etiqueta_template?.nome || "—"}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">{r.quantidade_copias}</td>
                     <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{r.tentativas}/{r.max_tentativas}</td>
@@ -217,7 +266,7 @@ export function FilaImpressaoTab({ active }: { active: boolean }) {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => reimprimir(r.id)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-primary flex items-center justify-center" title="Reimprimir">
+                        <button onClick={() => abrirReimprimir(r)} className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-primary flex items-center justify-center" title="Reimprimir">
                           <RotateCcw size={13} />
                         </button>
                         {canCancel && (
@@ -234,6 +283,36 @@ export function FilaImpressaoTab({ active }: { active: boolean }) {
           </table>
         </div>
       </div>
+      <Dialog open={!!reimpJob} onOpenChange={(o) => { if (!o && !reimpEnviando) setReimpJob(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reimprimir etiqueta</DialogTitle>
+          </DialogHeader>
+          {reimpJob && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Impressora</label>
+              <ImpressoraSelect
+                armazemId={reimpJob.armazem_id || armazemId || null}
+                tipoEtiqueta={(TIPOS_VALIDOS.includes(reimpJob.etiqueta_template?.tipo) ? reimpJob.etiqueta_template.tipo : "ENDERECO") as TipoEtiquetaImpressora}
+                value={reimpImpressora}
+                onChange={(id) => setReimpImpressora(id)}
+                templateLarguraMm={reimpJob.etiqueta_template?.largura_mm ?? undefined}
+                templateAlturaMm={reimpJob.etiqueta_template?.altura_mm ?? undefined}
+                lembrarEscolha={false}
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <button onClick={() => setReimpJob(null)} disabled={reimpEnviando} className="px-4 h-9 rounded-lg border border-border text-sm text-foreground hover:bg-secondary disabled:opacity-50">
+              Cancelar
+            </button>
+            <button onClick={confirmarReimprimir} disabled={reimpEnviando} className="px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2">
+              {reimpEnviando && <Loader2 size={14} className="animate-spin" />}
+              Reimprimir
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
