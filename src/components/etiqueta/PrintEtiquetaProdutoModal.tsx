@@ -438,6 +438,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
                       {Math.round(Number(selectedConfig.largura_mm) * 8)}×
                       {Math.round(Number(selectedConfig.altura_mm) * 8)}px
                     </div>
+                  )}
+                </div>
 
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
@@ -453,8 +455,6 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
                     onDisponibilidadeChange={setTemImpressoraOnline}
                     lembrarEscolha
                   />
-                </div>
-                  )}
                 </div>
 
                 <CopiasField value={copias} onChange={setCopias} disabled={enviando} />

@@ -509,6 +509,8 @@ export function PrintEtiquetaEnderecoModal({
                       {Math.round(Number(selectedConfig.largura_mm) * 8)}×
                       {Math.round(Number(selectedConfig.altura_mm) * 8)}px
                     </div>
+                  )}
+                </div>
 
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
@@ -524,8 +526,6 @@ export function PrintEtiquetaEnderecoModal({
                     onDisponibilidadeChange={setTemImpressoraOnline}
                     lembrarEscolha
                   />
-                </div>
-                  )}
                 </div>
 
                 <div>
