@@ -178,6 +178,9 @@ export function AgentsTab() {
       toast.error("Intervalo de Polling deve estar entre 500 e 10000 ms");
       return false;
     }
+    if (editItem && editItem.ativo === true && data.ativo === false) {
+      if (!confirm("Os jobs pendentes das impressoras deste agente serão cancelados automaticamente. Continuar?")) return false;
+    }
     if (editItem) return crud.update(editItem.id, data as any);
     return crud.create(data as any);
   };
