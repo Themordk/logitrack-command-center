@@ -431,6 +431,48 @@ export type Database = {
           },
         ]
       }
+      bkp_cancel_saida_20260928: {
+        Row: {
+          backup_em: string | null
+          codigo_erp: string | null
+          data_onda: string | null
+          documento_saida_id: string | null
+          movimento_saida_id: string | null
+          numero_onda: number | null
+          numero_pedido: number | null
+          status_documento: number | null
+          status_onda:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
+        }
+        Insert: {
+          backup_em?: string | null
+          codigo_erp?: string | null
+          data_onda?: string | null
+          documento_saida_id?: string | null
+          movimento_saida_id?: string | null
+          numero_onda?: number | null
+          numero_pedido?: number | null
+          status_documento?: number | null
+          status_onda?:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
+        }
+        Update: {
+          backup_em?: string | null
+          codigo_erp?: string | null
+          data_onda?: string | null
+          documento_saida_id?: string | null
+          movimento_saida_id?: string | null
+          numero_onda?: number | null
+          numero_pedido?: number | null
+          status_documento?: number | null
+          status_onda?:
+            | Database["public"]["Enums"]["enum_status_onda_carregamento"]
+            | null
+        }
+        Relationships: []
+      }
       bkp_conv_cx_20260926_documento_saida_excluidos: {
         Row: {
           backup_em: string | null
@@ -779,6 +821,108 @@ export type Database = {
           tipo_documento_origem?: string | null
           tipo_tarefa_id?: string | null
           usuario_cortou?: string | null
+        }
+        Relationships: []
+      }
+      bkp_conv_cx_documento_entrada_item: {
+        Row: {
+          backup_em: string | null
+          documento_entrada_id: string
+          id: string
+          motivo: string | null
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+          valor_total: number
+          valor_unidade: number
+        }
+        Insert: {
+          backup_em?: string | null
+          documento_entrada_id: string
+          id: string
+          motivo?: string | null
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+          valor_total: number
+          valor_unidade: number
+        }
+        Update: {
+          backup_em?: string | null
+          documento_entrada_id?: string
+          id?: string
+          motivo?: string | null
+          produto_id?: string
+          quantidade?: number
+          tenant_id?: string
+          valor_total?: number
+          valor_unidade?: number
+        }
+        Relationships: []
+      }
+      bkp_tipo_cfop_20260928_entrada: {
+        Row: {
+          backup_em: string | null
+          cfop_entrada: Json | null
+          codigo_erp: string | null
+          documento_entrada_id: string | null
+          numero_nota: string | null
+          origem: string | null
+          status: number | null
+          tipo_entrada_anterior: string | null
+          tipo_entrada_novo: string | null
+        }
+        Insert: {
+          backup_em?: string | null
+          cfop_entrada?: Json | null
+          codigo_erp?: string | null
+          documento_entrada_id?: string | null
+          numero_nota?: string | null
+          origem?: string | null
+          status?: number | null
+          tipo_entrada_anterior?: string | null
+          tipo_entrada_novo?: string | null
+        }
+        Update: {
+          backup_em?: string | null
+          cfop_entrada?: Json | null
+          codigo_erp?: string | null
+          documento_entrada_id?: string | null
+          numero_nota?: string | null
+          origem?: string | null
+          status?: number | null
+          tipo_entrada_anterior?: string | null
+          tipo_entrada_novo?: string | null
+        }
+        Relationships: []
+      }
+      bkp_tipo_cfop_20260928_saida: {
+        Row: {
+          backup_em: string | null
+          documento_saida_id: string | null
+          numero_pedido: number | null
+          ondas: Json | null
+          sistema_origem: string | null
+          status: number | null
+          tipo_pedido_id: string | null
+        }
+        Insert: {
+          backup_em?: string | null
+          documento_saida_id?: string | null
+          numero_pedido?: number | null
+          ondas?: Json | null
+          sistema_origem?: string | null
+          status?: number | null
+          tipo_pedido_id?: string | null
+        }
+        Update: {
+          backup_em?: string | null
+          documento_saida_id?: string | null
+          numero_pedido?: number | null
+          ondas?: Json | null
+          sistema_origem?: string | null
+          status?: number | null
+          tipo_pedido_id?: string | null
         }
         Relationships: []
       }
@@ -10131,6 +10275,10 @@ export type Database = {
       get_my_tenant_id: { Args: never; Returns: string }
       get_user_tenant_id: { Args: never; Returns: string }
       hu_padrao: { Args: never; Returns: string }
+      impressora_elegivel: {
+        Args: { p_impressora_id: string }
+        Returns: boolean
+      }
       integracao_atualizar_teste: {
         Args: {
           p_empresa_id: string
@@ -10370,6 +10518,19 @@ export type Database = {
       integracao_resetar_cursor: {
         Args: { p_empresa_id: string; p_entidade: string; p_tenant_id: string }
         Returns: undefined
+      }
+      integracao_resolver_tipo_cfop: {
+        Args: {
+          p_cfops: string[]
+          p_direcao: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          cfop: string
+          origem: string
+          tipo_id: string
+        }[]
       }
       integracao_resolver_webhook: {
         Args: { p_webhook_secret: string }
@@ -10784,6 +10945,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      listar_impressoras_disponiveis: {
+        Args: { p_armazem_id: string }
+        Returns: Json
       }
       listar_itens_hu: {
         Args: { p_hu_id: string; p_tenant_id: string }
