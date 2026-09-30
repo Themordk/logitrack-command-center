@@ -226,7 +226,7 @@ export function AgentsTab() {
           return crud.remove(deleteItem.id, true);
         }}
         title="Desativar Agent"
-        description={`Desativar o agent "${deleteItem?.nome}"?`}
+        description={`Desativar o agent "${deleteItem?.nome}"? Os jobs pendentes das impressoras deste agente serão cancelados automaticamente. Continuar?`}
       />
     </div>
   );

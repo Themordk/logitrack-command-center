@@ -203,7 +203,7 @@ export function ImpressorasTab() {
           return crud.remove(deleteItem.id, true);
         }}
         title="Desativar Impressora"
-        description={`Desativar a impressora "${deleteItem?.nome}"?`}
+        description={`Desativar a impressora "${deleteItem?.nome}"? Os jobs pendentes desta impressora serão cancelados automaticamente. Continuar?`}
       />
     </div>
   );

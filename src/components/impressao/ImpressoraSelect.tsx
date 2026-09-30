@@ -37,7 +37,7 @@ interface ImpressoraSelectProps {
 
 export function ImpressoraSelect({
   armazemId, tipoEtiqueta, value, onChange,
-  templateLarguraMm, templateAlturaMm, onDisponibilidadeChange, lembrarEscolha = true,
+  templateLarguraMm, templateAlturaMm, onDisponibilidadeChange, lembrarEscolha = false,
 }: ImpressoraSelectProps) {
   const storageKey = `core_impressora_${tipoEtiqueta}`;
   const restoredRef = useRef(false);
