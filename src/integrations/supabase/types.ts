@@ -6974,6 +6974,7 @@ export type Database = {
           conferencia_checkout: boolean
           descricao: string
           empresa_id: string
+          exibe_parceiro_separacao: boolean
           gera_abastecimento_automatico: boolean
           gera_mov_automatico: boolean
           gera_volume_etapa: Database["public"]["Enums"]["enum_momento_geracao_volume"]
@@ -6993,6 +6994,7 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao: string
           empresa_id: string
+          exibe_parceiro_separacao?: boolean
           gera_abastecimento_automatico?: boolean
           gera_mov_automatico?: boolean
           gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
@@ -7012,6 +7014,7 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao?: string
           empresa_id?: string
+          exibe_parceiro_separacao?: boolean
           gera_abastecimento_automatico?: boolean
           gera_mov_automatico?: boolean
           gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
