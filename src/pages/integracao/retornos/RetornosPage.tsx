@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "../StatusBar";
 import { usePermissaoRetorno, useRetornoConfig } from "./useRetornos";
+import { DestinosTab } from "./destinos/DestinosTab";
 
 type Aba = "fluxos" | "execucoes" | "destinos" | "depara";
 const ABAS: Aba[] = ["fluxos", "execucoes", "destinos", "depara"];
@@ -130,7 +131,7 @@ function Conteudo({ onNavigate, aba }: { onNavigate: (p: string) => void; aba: A
           <Vazio icone={Activity} texto="Aqui aparecerá cada envio ao ERP, com o caminho percorrido, a resposta e as opções de reprocessar ou descartar." />
         </TabsContent>
         <TabsContent value="destinos" className="mt-0">
-          <Vazio icone={Send} texto="Aqui aparecerão os destinos (endereços do ERP) com autenticação, limites e o botão de testar conexão." />
+          <DestinosTab />
         </TabsContent>
         <TabsContent value="depara" className="mt-0">
           <Vazio icone={ArrowLeftRight} texto="Aqui aparecerão as tabelas de-para que traduzem valores do WMS para os códigos do ERP." />
