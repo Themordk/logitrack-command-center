@@ -38,6 +38,7 @@ export function TiposSaidaPage() {
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
     { key: "conferencia_checkout", label: "Conferência Checkout", type: "custom", render: (row) => boolBadge(row.conferencia_checkout) },
     { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
+    { key: "exibe_parceiro_separacao", label: "Exibe Parceiro", type: "custom", render: (row) => boolBadge(row.exibe_parceiro_separacao) },
     { key: "gera_mov_automatico", label: "Gera Mov. Automático", type: "custom", render: (row) => boolBadge(row.gera_mov_automatico) },
     { key: "libera_mov_automatico", label: "Libera Mov. Automático", type: "custom", render: (row) => boolBadge(row.libera_mov_automatico) },
     { key: "conferencia_cega", label: "Conf. Cega", type: "custom", render: (row) => boolBadge(row.conferencia_cega) },
@@ -58,7 +59,7 @@ export function TiposSaidaPage() {
     setForm(item ? { ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
-      separa_pulmao: false, gera_volume_etapa: "CONFERÊNCIA",
+      separa_pulmao: false, exibe_parceiro_separacao: true, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
       gera_abastecimento_automatico: false,
       reserva_separacao_movimento: true, reserva_conferencia_movimento: true,
@@ -174,6 +175,13 @@ export function TiposSaidaPage() {
                 <div className="flex items-center gap-3">
                   <Switch checked={!!form.separa_pulmao} onCheckedChange={(v) => set("separa_pulmao", v)} />
                   <label className="text-sm text-foreground">Separa pulmão</label>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Switch checked={!!form.exibe_parceiro_separacao} onCheckedChange={(v) => set("exibe_parceiro_separacao", v)} />
+                  <div>
+                    <label className="text-sm text-foreground">Exibir parceiro na separação</label>
+                    <p className="text-xs text-muted-foreground">Mostra o nome do cliente para o operador ao escolher a onda no coletor.</p>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>

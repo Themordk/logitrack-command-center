@@ -5,7 +5,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, Database, Ban } from "lucide-react";
+import { Loader2, Database, Ban, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { FilterListButton } from "@/components/coletor/FilterListButton";
@@ -24,6 +24,8 @@ interface OndaResumo {
   tipo_venda: string;
   prioridade: string;
   status: string;
+  exibe_parceiro?: boolean;
+  parceiro_nome?: string | null;
 }
 
 export function SeparacaoIniciarPage({ onNavigate }: Props) {
@@ -56,7 +58,7 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   }, [tenantId, empresaId, usuarioId]);
 
   const { data, loading, isFromCache, error, refetch } = useOfflineCache<OndaResumo[]>(
-    `ondas_separacao_${empresaId}`,
+    `ondas_separacao_v2_${empresaId}`,
     fetchOndas,
     30,
   );
@@ -279,6 +281,14 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                 <div className="text-xs text-[hsl(213,31%,55%)]">
                   Pedidos: <span className="font-bold text-[hsl(213,31%,91%)]">{onda.pedidos}</span>
                 </div>
+                {onda.exibe_parceiro === true && onda.parceiro_nome && (
+                  <div className="flex items-center gap-1.5 text-xs text-[hsl(213,31%,55%)] min-w-0">
+                    <Building2 size={12} className="shrink-0" />
+                    <span className="truncate" title={onda.parceiro_nome}>
+                      Parceiro: <span className="font-bold text-[hsl(213,31%,91%)]">{onda.parceiro_nome}</span>
+                    </span>
+                  </div>
+                )}
                 <div className="text-xs text-[hsl(213,31%,45%)]">
                   Tipo: <span className="font-medium text-[hsl(213,31%,70%)]">{onda.tipo_venda}</span>
                 </div>
