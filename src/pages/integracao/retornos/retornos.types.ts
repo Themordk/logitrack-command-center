@@ -224,8 +224,8 @@ export interface DocumentoRecente {
   codigo_erp: string | null;
   sistema_origem: string | null;
   quando: string;
-  passa_filtro: boolean;
-  barrado_por: Regra | null;
+  passa_filtro: boolean | null;
+  barrado_por: string | null;
   contexto: Contexto;
 }
 

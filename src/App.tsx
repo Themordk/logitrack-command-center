@@ -448,7 +448,7 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
       // Motor de Retorno — avaliar ANTES da regex genérica de provedor ERP
       if (path === "/config/integracao/retornos") {
         const params = new URLSearchParams(queryString || "");
-        return <RetornosPage onNavigate={onNavigate} aba={params.get("aba")} />;
+        return <RetornosPage onNavigate={onNavigate} params={params} />;
       }
       const fluxoMatch = path.match(/^\/config\/integracao\/retornos\/fluxo\/([^/?]+)/);
       if (fluxoMatch) {

@@ -15,23 +15,11 @@ import { parseError } from "@/lib/errorMapper";
 import { relativeTime } from "../../StatusBar";
 import { retornosKeys } from "../retornosKeys";
 import { listarDestinos, salvarDestino } from "../retornosService";
-import type { AuthTipo, Destino, DestinoEntrada } from "../retornos.types";
+import type { Destino } from "../retornos.types";
+import { AUTH_ROTULO, destinoParaEntrada } from "./destinosUtils";
 import { usePermissaoRetorno } from "../useRetornos";
 import { DestinoSheet } from "./DestinoSheet";
 import { TestarDestinoDialog } from "./TestarDestinoDialog";
-
-export const AUTH_ROTULO: Record<AuthTipo, string> = {
-  nenhuma: "Nenhuma", api_key: "API key", bearer: "Bearer token", basic: "Basic", hmac: "Assinatura HMAC",
-};
-
-export function destinoParaEntrada(d: Destino): DestinoEntrada {
-  return {
-    id: d.id, nome: d.nome, modo: d.modo, metodo: d.metodo, url_base: d.url_base, auth_tipo: d.auth_tipo,
-    auth_config: d.auth_config ?? {}, headers: d.headers ?? {}, timeout_ms: d.timeout_ms,
-    max_tentativas: d.max_tentativas, limite_falhas: d.limite_falhas, ativo: d.ativo,
-    erp_provedor_id: d.erp_provedor_id,
-  };
-}
 
 function Situacao({ d }: { d: Destino }) {
   if (!d.ativo) return <Badge variant="outline" className="bg-zinc-500/15 text-zinc-400 border-zinc-500/30 gap-1"><CircleOff size={12} /> Inativo</Badge>;
@@ -68,7 +56,8 @@ function Acao({ label, icon: Icon, onClick, disabled }: { label: string; icon: t
 
 type Confirmacao = { tipo: "retomar" | "ativar" | "desativar"; destino: Destino } | null;
 
-export function DestinosTab() {
+// params: parâmetros da URL da aba atual (ainda não usados nesta aba).
+export function DestinosTab(_props: { params?: URLSearchParams }) {
   const { tenantId, empresaId } = useTenant();
   const { podeEditar } = usePermissaoRetorno();
   const qc = useQueryClient();
@@ -217,6 +206,12 @@ export function DestinosTab() {
                   ? `Ativar ${confirmacao.destino.nome}? Os fluxos que usam este destino voltam a enviar.`
                   : `Desativar ${confirmacao?.destino.nome}? Os fluxos que usam este destino deixam de enviar.`}
             </AlertDialogDescription>
+            {confirmacao?.tipo === "desativar" && confirmacao.destino.fluxos_usando > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/15 px-3 py-2 text-xs text-amber-400">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
+                <span>{confirmacao.destino.fluxos_usando.toLocaleString("pt-BR")} fluxo(s) usam este destino; os envios deles vão falhar com 'Destino inexistente ou inativo' até você ativar de novo ou trocar o destino nos fluxos.</span>
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={salvando}>Cancelar</AlertDialogCancel>
