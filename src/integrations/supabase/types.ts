@@ -473,6 +473,33 @@ export type Database = {
         }
         Relationships: []
       }
+      bkp_cfop1407_20261002_entrada: {
+        Row: {
+          backup_em: string | null
+          cfop_entrada: Json | null
+          codigo_erp: string | null
+          documento_entrada_id: string | null
+          numero_nota: string | null
+          status_anterior: number | null
+        }
+        Insert: {
+          backup_em?: string | null
+          cfop_entrada?: Json | null
+          codigo_erp?: string | null
+          documento_entrada_id?: string | null
+          numero_nota?: string | null
+          status_anterior?: number | null
+        }
+        Update: {
+          backup_em?: string | null
+          cfop_entrada?: Json | null
+          codigo_erp?: string | null
+          documento_entrada_id?: string | null
+          numero_nota?: string | null
+          status_anterior?: number | null
+        }
+        Relationships: []
+      }
       bkp_conv_cx_20260926_documento_saida_excluidos: {
         Row: {
           backup_em: string | null
@@ -1005,7 +1032,9 @@ export type Database = {
           observacao_exclusao: string | null
           parceiro_id: string
           qtd_volume: number | null
+          sincronizado_em: string | null
           status: number
+          status_integracao: string | null
           tenant_id: string
           tipo_entrada_id: string
           valor_total_nota: number
@@ -1030,7 +1059,9 @@ export type Database = {
           observacao_exclusao?: string | null
           parceiro_id: string
           qtd_volume?: number | null
+          sincronizado_em?: string | null
           status: number
+          status_integracao?: string | null
           tenant_id: string
           tipo_entrada_id: string
           valor_total_nota: number
@@ -1055,7 +1086,9 @@ export type Database = {
           observacao_exclusao?: string | null
           parceiro_id?: string
           qtd_volume?: number | null
+          sincronizado_em?: string | null
           status?: number
+          status_integracao?: string | null
           tenant_id?: string
           tipo_entrada_id?: string
           valor_total_nota?: number
@@ -9577,6 +9610,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_armazem_padrao_empresa: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: string
+      }
       fn_buscar_dados_armazenagem: {
         Args: { p_ean: string; p_empresa_ids: string[]; p_tenant_id: string }
         Returns: {
@@ -10557,6 +10594,199 @@ export type Database = {
           ultimo_status: string
           ultimo_sync_em: string
         }[]
+      }
+      integracao_retorno_arquivar_fluxo: {
+        Args: { p_arquivar?: boolean; p_fluxo_id: string }
+        Returns: Json
+      }
+      integracao_retorno_ativar_fluxo: {
+        Args: { p_ativo: boolean; p_fluxo_id: string }
+        Returns: Json
+      }
+      integracao_retorno_catalogo: { Args: never; Returns: Json }
+      integracao_retorno_config: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      integracao_retorno_contexto_documento: {
+        Args: {
+          p_documento_id: string
+          p_empresa_id: string
+          p_entidade: string
+          p_evento?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_definir_motor: {
+        Args: { p_empresa_id: string; p_motor: string; p_tenant_id: string }
+        Returns: Json
+      }
+      integracao_retorno_descartar: {
+        Args: { p_execucao_id: string; p_motivo?: string }
+        Returns: Json
+      }
+      integracao_retorno_documentos_recentes: {
+        Args: {
+          p_busca?: string
+          p_combinador?: string
+          p_empresa_id: string
+          p_evento: string
+          p_filtros?: Json
+          p_limite?: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_execucoes_documento: {
+        Args: {
+          p_documento_id: string
+          p_empresa_id: string
+          p_entidade: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_executar: {
+        Args: {
+          p_documento_id: string
+          p_fluxo_id: string
+          p_modo?: string
+          p_usar_rascunho?: boolean
+        }
+        Returns: Json
+      }
+      integracao_retorno_listar_destinos: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      integracao_retorno_listar_execucoes: {
+        Args: {
+          p_empresa_id: string
+          p_filtros?: Json
+          p_limite?: number
+          p_offset?: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_listar_fluxos: {
+        Args: {
+          p_empresa_id: string
+          p_incluir_arquivados?: boolean
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_listar_mapa: {
+        Args: { p_empresa_id: string; p_fluxo_id?: string; p_tenant_id: string }
+        Returns: Json
+      }
+      integracao_retorno_obter_execucao: {
+        Args: { p_execucao_id: string }
+        Returns: Json
+      }
+      integracao_retorno_obter_fluxo: {
+        Args: { p_fluxo_id: string }
+        Returns: Json
+      }
+      integracao_retorno_pode_editar: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: boolean
+      }
+      integracao_retorno_publicar_fluxo: {
+        Args: { p_ativar?: boolean; p_fluxo_id: string }
+        Returns: Json
+      }
+      integracao_retorno_reprocessar: {
+        Args: { p_a_partir_no?: string; p_execucao_id: string }
+        Returns: Json
+      }
+      integracao_retorno_restaurar_versao: {
+        Args: { p_fluxo_id: string; p_versao: number }
+        Returns: Json
+      }
+      integracao_retorno_salvar_destino: {
+        Args: {
+          p_destino: Json
+          p_empresa_id: string
+          p_remover_segredo?: boolean
+          p_segredo?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_salvar_fluxo: {
+        Args: { p_empresa_id: string; p_fluxo: Json; p_tenant_id: string }
+        Returns: Json
+      }
+      integracao_retorno_salvar_mapa: {
+        Args: {
+          p_dominio: string
+          p_empresa_id: string
+          p_fluxo_id: string
+          p_itens: Json
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_svc_atualizar_documento: {
+        Args: {
+          p_execucao_id: string
+          p_marcar_exportado?: boolean
+          p_status_integracao: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_svc_concluir: {
+        Args: { p_execucao_id: string; p_resultado: Json }
+        Returns: Json
+      }
+      integracao_retorno_svc_destino_resultado: {
+        Args: { p_destino_id: string; p_erro?: string; p_sucesso: boolean }
+        Returns: Json
+      }
+      integracao_retorno_svc_destino_teste: {
+        Args: { p_destino_id: string }
+        Returns: Json
+      }
+      integracao_retorno_svc_notificar: {
+        Args: {
+          p_cor?: string
+          p_descricao: string
+          p_execucao_id: string
+          p_titulo: string
+        }
+        Returns: Json
+      }
+      integracao_retorno_svc_reservar: {
+        Args: { p_execucao_id?: string; p_limite?: number }
+        Returns: Json
+      }
+      integracao_retorno_svc_teste_registrar: {
+        Args: {
+          p_caminho: string
+          p_chave: string
+          p_corpo: string
+          p_headers: Json
+          p_metodo: string
+          p_query: Json
+          p_status: number
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_retorno_svc_token_valido: {
+        Args: { p_token: string }
+        Returns: boolean
+      }
+      integracao_retorno_validar_fluxo: {
+        Args: { p_definicao: Json; p_empresa_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      integracao_retorno_versoes_fluxo: {
+        Args: { p_fluxo_id: string }
+        Returns: Json
       }
       integracao_salvar_conexao: {
         Args: {
