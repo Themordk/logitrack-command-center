@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
-import { Loader2, Package, Database } from "lucide-react";
+import { Loader2, Package, Database, Building2 } from "lucide-react";
 import { formatDate } from "@/utils/dateTime";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
@@ -21,6 +21,7 @@ interface MovimentoArmazenagem {
   qtd_total_requerida: number;
   qtd_total_executada: number;
   percentual_concluido: number;
+  parceiro_nome: string | null;
 }
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
@@ -49,7 +50,7 @@ export function ArmazenagemMovimentosPage({ onNavigate }: Props) {
   }, [tenantId, empresaId]);
 
   const { data, loading, isFromCache, refetch } = useOfflineCache<MovimentoArmazenagem[]>(
-    `armazenagem_movimentos_${empresaId}`,
+    `armazenagem_movimentos_v2_${empresaId}`,
     fetchMovimentos,
     15,
   );
@@ -100,6 +101,14 @@ export function ArmazenagemMovimentosPage({ onNavigate }: Props) {
                   <span className="text-lg font-bold text-white">Movimento #{mov.numero_movimento}</span>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status.className}`}>{status.text}</span>
                 </div>
+
+                <div className="flex items-center gap-1.5 text-[11px] text-[hsl(213,31%,55%)] min-w-0">
+                  <Building2 size={12} className="shrink-0" />
+                  <span className="truncate" title={mov.parceiro_nome || ""}>
+                    Parceiro: <b className="text-[hsl(213,31%,85%)]">{mov.parceiro_nome || "—"}</b>
+                  </span>
+                </div>
+
 
                 <div className="flex items-center justify-between text-[11px] text-[hsl(213,31%,55%)]">
                   <span>Doca: <b className="text-[hsl(213,31%,85%)]">{mov.box_descricao || "—"}</b></span>
