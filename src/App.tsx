@@ -51,6 +51,8 @@ import { MotivosOcorrenciaPage } from "./pages/MotivosOcorrenciaPage";
 import { SubgruposPage } from "./pages/SubgruposPage";
 import { IntegracaoPage } from "./pages/IntegracaoPage";
 import { ProdutoPadroesPage } from "./pages/integracao/ProdutoPadroesPage";
+import { RetornosPage } from "./pages/integracao/retornos/RetornosPage";
+import { FluxoEditorPage } from "./pages/integracao/retornos/FluxoEditorPage";
 import { TiposEntradaPage } from "./pages/TiposEntradaPage";
 import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";
@@ -298,6 +300,17 @@ function getDynamicBreadcrumb(path: string): { label: string; path?: string }[] 
       { label: "Scorecard Operador" },
     ];
   }
+  if (path === "/config/integracao/retornos" || path.startsWith("/config/integracao/retornos/")) {
+    const base = [
+      { label: "CORE LogiTrack" },
+      { label: "Configurações" },
+      { label: "Integração", path: "/config/integracao" },
+    ];
+    if (path.startsWith("/config/integracao/retornos/fluxo/")) {
+      return [...base, { label: "Retornos ao ERP", path: "/config/integracao/retornos" }, { label: "Editor de fluxo" }];
+    }
+    return [...base, { label: "Retornos ao ERP" }];
+  }
   const erpMatch = path.match(/^\/config\/integracao\/([^/?]+)/);
   if (erpMatch) {
     return [
@@ -431,6 +444,15 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
         const params = new URLSearchParams(queryString || "");
         const numero = Number(params.get("numero") || "0");
         return <InventarioItensPage onNavigate={onNavigate} inventarioId={invId} numeroInventario={numero} />;
+      }
+      // Motor de Retorno — avaliar ANTES da regex genérica de provedor ERP
+      if (path === "/config/integracao/retornos") {
+        const params = new URLSearchParams(queryString || "");
+        return <RetornosPage onNavigate={onNavigate} aba={params.get("aba")} />;
+      }
+      const fluxoMatch = path.match(/^\/config\/integracao\/retornos\/fluxo\/([^/?]+)/);
+      if (fluxoMatch) {
+        return <FluxoEditorPage onNavigate={onNavigate} fluxoId={fluxoMatch[1]} />;
       }
       // Dynamic route: /config/integracao/:erpProvedorId
       const erpMatch = path.match(/^\/config\/integracao\/([^/?]+)/);
