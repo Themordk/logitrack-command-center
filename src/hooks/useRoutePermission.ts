@@ -50,6 +50,7 @@ const routeToModuleMap: Record<string, string> = {
   "/config/usuarios": "web.config.usuarios",
   "/config/integracao": "web.config.integracao",
   "/integracao/padroes-produto": "web.config.integracao",
+  "/config/integracao/retornos": "web.config.integracao",
   "/config/perfis": "web.config.perfis",
 };
 
@@ -64,6 +65,7 @@ const coletorModuleMap: Record<string, string> = {
 };
 
 export function getModuleForRoute(path: string): string | null {
+  if (path.startsWith("/config/integracao/retornos/")) return "web.config.integracao";
   return routeToModuleMap[path] || null;
 }
 
@@ -72,6 +74,7 @@ export function getModuleForColetorPath(path: string): string | null {
 }
 
 export function getModuleForChildRoute(childPath: string): string | null {
+  if (childPath.startsWith("/config/integracao/retornos/")) return "web.config.integracao";
   // Try exact match first
   if (routeToModuleMap[childPath]) return routeToModuleMap[childPath];
   // Convert path like /armazem/enderecos → web.armazem.enderecos

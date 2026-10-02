@@ -8,6 +8,36 @@ export interface ParsedError {
 }
 
 const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }> = {
+  // === Motor de Retorno ao ERP (códigos mais longos antes dos prefixos) ===
+  RETORNO_SEM_PERMISSAO: { title: "Você não tem permissão para alterar os retornos ao ERP.", instruction: "Peça acesso de edição em Integração ao administrador." },
+  RETORNO_ACESSO_NEGADO: { title: "Acesso negado a esta empresa.", instruction: "Confira a empresa selecionada." },
+  RETORNO_NAO_AUTENTICADO: { title: "Sua sessão expirou.", instruction: "Entre novamente." },
+  RETORNO_EMPRESA_INVALIDA: { title: "Empresa inválida para este tenant.", instruction: "Selecione outra empresa." },
+  RETORNO_PARAMETROS: { title: "Empresa não selecionada.", instruction: "Selecione uma empresa." },
+  RETORNO_DESTINO_NAO_ENCONTRADO: { title: "Destino não encontrado.", instruction: "Atualize a lista." },
+  RETORNO_DESTINO_URL: { title: "URL inválida.", instruction: "Use https:// e um endereço público." },
+  RETORNO_DESTINO_HEADER_SECRETO: { title: "Credencial em header não é permitida.", instruction: "Use o campo Autenticação." },
+  RETORNO_DESTINO_SEM_SEGREDO: { title: "Falta o segredo da autenticação.", instruction: "Informe o token, chave ou senha." },
+  RETORNO_DESTINO_NOME: { title: "Informe o nome do destino.", instruction: "" },
+  RETORNO_DESTINO_JSON: { title: "Headers inválidos.", instruction: "Revise os headers." },
+  RETORNO_FLUXO_NAO_ENCONTRADO: { title: "Fluxo não encontrado.", instruction: "Atualize a lista." },
+  RETORNO_FLUXO_NAO_PUBLICADO: { title: "Este fluxo ainda não foi publicado.", instruction: "Publique antes de ativar ou executar." },
+  RETORNO_FLUXO_ARQUIVADO: { title: "Fluxo arquivado.", instruction: "Desarquive para editar." },
+  RETORNO_FLUXO_INVALIDO: { title: "O fluxo tem erros.", instruction: "Corrija os itens marcados no canvas." },
+  RETORNO_FLUXO_NOME: { title: "Informe o nome do fluxo.", instruction: "" },
+  RETORNO_FLUXO_GRANDE: { title: "Fluxo grande demais.", instruction: "Reduza nós ou o payload." },
+  RETORNO_FLUXO_DEFINICAO: { title: "Definição do fluxo inválida.", instruction: "Recarregue o editor." },
+  RETORNO_MANUAL_RASCUNHO: { title: "Execução manual usa a versão publicada.", instruction: "Use Testar ou Simular para o rascunho." },
+  RETORNO_DOCUMENTO_NAO_ENCONTRADO: { title: "Documento não encontrado nesta empresa.", instruction: "Escolha outro documento." },
+  RETORNO_EXECUCAO_NAO_ENCONTRADA: { title: "Execução não encontrada.", instruction: "Atualize a lista." },
+  RETORNO_EXECUCAO_EM_ANDAMENTO: { title: "A execução ainda está em andamento.", instruction: "Aguarde terminar." },
+  RETORNO_DESCARTE_INVALIDO: { title: "Esta execução não pode ser descartada.", instruction: "Só pendentes ou com erro." },
+  RETORNO_REPROCESSAR_NO: { title: "Escolha o nó de onde recomeçar.", instruction: "" },
+  RETORNO_NO_INEXISTENTE: { title: "Nó não existe nesta versão do fluxo.", instruction: "Escolha outro nó." },
+  RETORNO_VERSAO_NAO_ENCONTRADA: { title: "Versão não encontrada.", instruction: "Atualize o histórico." },
+  RETORNO_MAPA_INVALIDO: { title: "De-para inválido.", instruction: "Revise o domínio e os valores." },
+  RETORNO_MOTOR_INVALIDO: { title: "Motor inválido.", instruction: "" },
+  RETORNO_MODO_INVALIDO: { title: "Modo de execução inválido.", instruction: "" },
   // === Inventário ===
   INVENTARIO_NAO_ENCONTRADO: {
     title: "Inventário não encontrado.",
