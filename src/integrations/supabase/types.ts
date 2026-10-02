@@ -11495,6 +11495,23 @@ export type Database = {
           itens_pendentes: number
           movimento_entrada_id: string
           numero_movimento: number
+          parceiro_nome: string
+          percentual_concluido: number
+          qtd_total_executada: number
+          qtd_total_requerida: number
+          status_movimento: string
+          total_itens: number
+        }[]
+      }
+      rpc_coletor_armazenagem_listar_movimentos_bkp_20261002: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          box_descricao: string
+          created_at: string
+          itens_armazenados: number
+          itens_pendentes: number
+          movimento_entrada_id: string
+          numero_movimento: number
           percentual_concluido: number
           qtd_total_executada: number
           qtd_total_requerida: number
@@ -11736,6 +11753,23 @@ export type Database = {
         Returns: Json
       }
       separacao_buscar_ondas: {
+        Args: {
+          p_empresa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          exibe_parceiro: boolean
+          movimento_saida_id: string
+          numero_onda: number
+          parceiro_nome: string
+          pedidos: string
+          prioridade: string
+          status: string
+          tipo_venda: string
+        }[]
+      }
+      separacao_buscar_ondas_bkp_20261002: {
         Args: {
           p_empresa_id: string
           p_tenant_id: string
