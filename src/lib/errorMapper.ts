@@ -38,6 +38,8 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   RETORNO_MAPA_INVALIDO: { title: "De-para inválido.", instruction: "Revise o domínio e os valores." },
   RETORNO_MOTOR_INVALIDO: { title: "Motor inválido.", instruction: "" },
   RETORNO_MODO_INVALIDO: { title: "Modo de execução inválido.", instruction: "" },
+  RETORNO_EVENTO_INVALIDO: { title: "Evento inválido.", instruction: "Escolha um evento do catálogo." },
+  RETORNO_ENTIDADE_INVALIDA: { title: "Tipo de documento inválido.", instruction: "Use documento de entrada ou de saída." },
   // === Inventário ===
   INVENTARIO_NAO_ENCONTRADO: {
     title: "Inventário não encontrado.",

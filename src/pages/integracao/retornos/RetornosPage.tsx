@@ -13,7 +13,7 @@ const ABAS: Aba[] = ["fluxos", "execucoes", "destinos", "depara"];
 
 interface Props {
   onNavigate: (path: string) => void;
-  aba?: string | null;
+  params?: URLSearchParams;
 }
 
 function urlAba(aba: Aba, extra?: Record<string, string>) {
@@ -90,7 +90,7 @@ function Vazio({ icone: Icon, texto }: { icone: LucideIcon; texto: string }) {
   );
 }
 
-function Conteudo({ onNavigate, aba }: { onNavigate: (p: string) => void; aba: Aba }) {
+function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void; aba: Aba; params: URLSearchParams }) {
   const { podeEditar } = usePermissaoRetorno();
 
   return (
@@ -131,7 +131,7 @@ function Conteudo({ onNavigate, aba }: { onNavigate: (p: string) => void; aba: A
           <Vazio icone={Activity} texto="Aqui aparecerá cada envio ao ERP, com o caminho percorrido, a resposta e as opções de reprocessar ou descartar." />
         </TabsContent>
         <TabsContent value="destinos" className="mt-0">
-          <DestinosTab />
+          <DestinosTab params={params} />
         </TabsContent>
         <TabsContent value="depara" className="mt-0">
           <Vazio icone={ArrowLeftRight} texto="Aqui aparecerão as tabelas de-para que traduzem valores do WMS para os códigos do ERP." />
@@ -141,7 +141,9 @@ function Conteudo({ onNavigate, aba }: { onNavigate: (p: string) => void; aba: A
   );
 }
 
-export function RetornosPage({ onNavigate, aba }: Props) {
+export function RetornosPage({ onNavigate, params }: Props) {
+  const parametros = params ?? new URLSearchParams();
+  const aba = parametros.get("aba");
   const { empresaId, empresaVersion } = useTenant();
   const { can, loading } = usePermissions();
   const abaAtual: Aba = ABAS.includes(aba as Aba) ? (aba as Aba) : "fluxos";
@@ -152,5 +154,5 @@ export function RetornosPage({ onNavigate, aba }: Props) {
   if (!loading && !can("web.config.integracao", "READ")) {
     return <div className="text-sm text-muted-foreground p-4">Você não tem permissão para acessar esta tela.</div>;
   }
-  return <Conteudo key={`${empresaId}-${empresaVersion}`} onNavigate={onNavigate} aba={abaAtual} />;
+  return <Conteudo key={`${empresaId}-${empresaVersion}`} onNavigate={onNavigate} aba={abaAtual} params={parametros} />;
 }

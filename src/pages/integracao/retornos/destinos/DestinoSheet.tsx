@@ -17,7 +17,7 @@ import { parseError } from "@/lib/errorMapper";
 import { salvarDestino } from "../retornosService";
 import type { AuthTipo, Destino, DestinoEntrada, MetodoHttp } from "../retornos.types";
 import { useCatalogoRetorno } from "../useRetornos";
-import { AUTH_ROTULO } from "./DestinosTab";
+import { AUTH_ROTULO } from "./destinosUtils";
 
 const METODOS: MetodoHttp[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const HEADERS_PROIBIDOS = ["authorization", "x-api-key", "cookie", "proxy-authorization"];
@@ -109,7 +109,7 @@ export function DestinoSheet({ aberto, destino, podeEditar, onFechar, onSalvo }:
     form.headers.forEach((h) => { if (h.chave.trim()) headers[h.chave.trim()] = h.valor; });
     return {
       ...(destino ? { id: destino.id } : {}),
-      nome: form.nome.trim(), modo: form.modo, metodo: form.metodo, url_base: form.url_base.trim(),
+      nome: form.nome.trim(), modo: form.modo, metodo: form.modo === "webhook" ? "POST" : form.metodo, url_base: form.url_base.trim(),
       auth_tipo: form.auth_tipo, auth_config, headers,
       timeout_ms: Number(form.timeout_ms), max_tentativas: Number(form.max_tentativas), limite_falhas: Number(form.limite_falhas),
       ativo: form.ativo, erp_provedor_id: destino?.erp_provedor_id ?? null,
@@ -181,14 +181,14 @@ export function DestinoSheet({ aberto, destino, podeEditar, onFechar, onSalvo }:
           </Secao>
 
           <Secao titulo="Endereço">
-            <div className="grid grid-cols-[120px_1fr] gap-3">
-              <div className="flex flex-col gap-1.5">
+            <div className={form.modo === "webhook" ? "grid grid-cols-1 gap-3" : "grid grid-cols-[120px_1fr] gap-3"}>
+              {form.modo !== "webhook" && <div className="flex flex-col gap-1.5">
                 <label htmlFor="d-metodo" className={lbl}>Método</label>
                 <Select value={form.metodo} onValueChange={(v) => set("metodo", v as MetodoHttp)} disabled={ro}>
                   <SelectTrigger id="d-metodo" className={inp}><SelectValue /></SelectTrigger>
                   <SelectContent>{METODOS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                 </Select>
-              </div>
+              </div>}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="d-url" className={lbl}>URL base *</label>
                 <Input id="d-url" className={`${inp} font-mono text-xs`} placeholder="https://api.erp.com.br/v1"
@@ -216,7 +216,8 @@ export function DestinoSheet({ aberto, destino, podeEditar, onFechar, onSalvo }:
                   <label htmlFor="d-apiem" className={lbl}>Enviar em</label>
                   <Select value={form.apiKeyEm} onValueChange={(v) => {
                     set("apiKeyEm", v as Form["apiKeyEm"]);
-                    if (v === "header" && !form.apiKeyNome) set("apiKeyNome", "X-API-Key");
+                    if (v === "query" && form.apiKeyNome === "X-API-Key") set("apiKeyNome", "api_key");
+                    else if (v === "header" && (form.apiKeyNome === "api_key" || !form.apiKeyNome)) set("apiKeyNome", "X-API-Key");
                   }} disabled={ro}>
                     <SelectTrigger id="d-apiem" className={inp}><SelectValue /></SelectTrigger>
                     <SelectContent>

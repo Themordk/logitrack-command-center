@@ -106,6 +106,16 @@ export async function invokeDispatcher(body: { acao: "executar"; execucao_id: st
 export async function invokeDispatcher(body: { acao: "testar_destino"; destino_id: string }): Promise<DispatcherTestarResposta>;
 export async function invokeDispatcher(body: DispatcherBody): Promise<DispatcherExecutarResposta | DispatcherTestarResposta> {
   const { data, error } = await supabase.functions.invoke("retorno-dispatcher", { body });
-  if (error) throw error;
+  if (error) {
+    let msg = error.message;
+    const ctx = (error as { context?: { json?: () => Promise<unknown> } }).context;
+    if (ctx && typeof ctx.json === "function") {
+      try {
+        const corpo = (await ctx.json()) as { erro?: unknown } | null;
+        if (corpo && typeof corpo.erro === "string" && corpo.erro) msg = corpo.erro;
+      } catch { /* corpo não é JSON */ }
+    }
+    throw new Error(msg);
+  }
   return data as DispatcherExecutarResposta | DispatcherTestarResposta;
 }
