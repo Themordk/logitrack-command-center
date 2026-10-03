@@ -4,6 +4,7 @@ import { usePermissions } from "@/contexts/PermissionsContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { relativeTime } from "../StatusBar";
 import { usePermissaoRetorno, useRetornoConfig } from "./useRetornos";
 import { DestinosTab } from "./destinos/DestinosTab";
@@ -97,6 +98,7 @@ function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void
   const { podeEditar } = usePermissaoRetorno();
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
       <div className="flex flex-col gap-1">
         <button
@@ -138,10 +140,11 @@ function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void
           <DestinosTab params={params} />
         </TabsContent>
         <TabsContent value="depara" className="mt-0">
-          <DeparaTab />
+          <DeparaTab params={params} onNavigate={onNavigate} />
         </TabsContent>
       </Tabs>
     </div>
+    </TooltipProvider>
   );
 }
 
