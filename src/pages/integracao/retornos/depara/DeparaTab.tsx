@@ -30,12 +30,17 @@ const novaChave = () => `l${++seq}`;
 
 type Pendente = { tipo: "escopo" | "dominio"; valor: string } | null;
 
-export function DeparaTab() {
+interface DeparaTabProps {
+  params?: URLSearchParams;
+  onNavigate?: (path: string) => void;
+}
+
+export function DeparaTab({ params, onNavigate }: DeparaTabProps) {
   const { tenantId, empresaId, empresaVersion } = useTenant();
   const { podeEditar } = usePermissaoRetorno();
   const qc = useQueryClient();
 
-  const [escopo, setEscopo] = useState<string>(EMPRESA);
+  const [escopo, setEscopo] = useState<string>(() => params?.get("fluxo") || EMPRESA);
   const [dominio, setDominio] = useState<string | null>(null);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [alterado, setAlterado] = useState(false);
@@ -52,6 +57,18 @@ export function DeparaTab() {
     queryFn: () => listarFluxos(tenantId as string, empresaId as string, false),
     enabled: !!tenantId && !!empresaId,
   });
+
+  // Valida o fluxo vindo da URL assim que a lista de fluxos carregar.
+  const [fluxoUrlValidado, setFluxoUrlValidado] = useState(false);
+  useEffect(() => {
+    if (fluxoUrlValidado || !fluxosQ.isSuccess) return;
+    setFluxoUrlValidado(true);
+    if (escopo !== EMPRESA && !(fluxosQ.data ?? []).some((f) => f.id === escopo)) {
+      setEscopo(EMPRESA);
+      toast.info("Fluxo não encontrado; mostrando o de-para da empresa.");
+      onNavigate?.("/config/integracao/retornos?aba=depara");
+    }
+  }, [fluxoUrlValidado, fluxosQ.isSuccess, fluxosQ.data, escopo, onNavigate]);
 
   const mapaQ = useQuery({
     queryKey: [...retornosKeys.mapa(tenantId, empresaId, fluxoId), empresaVersion],
@@ -99,7 +116,12 @@ export function DeparaTab() {
 
   function aplicarTroca(p: NonNullable<Pendente>) {
     setAlterado(false);
-    if (p.tipo === "escopo") { setEscopo(p.valor); setDominio(null); setNovosDominios([]); }
+    if (p.tipo === "escopo") {
+      setEscopo(p.valor); setDominio(null); setNovosDominios([]);
+      const q = new URLSearchParams({ aba: "depara" });
+      if (p.valor !== EMPRESA) q.set("fluxo", p.valor);
+      onNavigate?.(`/config/integracao/retornos?${q.toString()}`);
+    }
     else setDominio(p.valor);
   }
 
@@ -134,8 +156,10 @@ export function DeparaTab() {
         tenantId as string, empresaId as string, fluxoId, dominio,
         linhas.map((l) => ({ valor_wms: l.valor_wms.trim(), valor_erp: l.valor_erp.trim() })),
       );
-      setAlterado(false);
       await qc.invalidateQueries({ queryKey: ["retorno-mapa"] });
+      await mapaQ.refetch();
+      // Só agora libera a grade: o efeito reidrata com os dados novos.
+      setAlterado(false);
       toast.success("De-para salvo.");
     } catch (e) {
       toast.error(parseError(e, "Salvar de-para").title);
@@ -215,7 +239,7 @@ export function DeparaTab() {
                 <span className="text-muted-foreground font-normal"> · {fluxoId ? "deste fluxo" : "da empresa"}</span>
               </h3>
               {podeEditar && (
-                <Button size="sm" variant="outline" onClick={() => {
+                <Button size="sm" variant="outline" disabled={salvando} onClick={() => {
                   setLinhas((ls) => [...ls, { chave: novaChave(), valor_wms: "", valor_erp: "" }]);
                   setAlterado(true);
                 }}>
@@ -249,7 +273,7 @@ export function DeparaTab() {
                         <Input
                           value={l.valor_wms}
                           onChange={(e) => editar(l.chave, "valor_wms", e.target.value)}
-                          disabled={!podeEditar}
+                          disabled={!podeEditar || salvando}
                           aria-label="Valor no WMS"
                           aria-invalid={inval}
                           className={`h-8 font-mono text-xs bg-secondary/40 ${inval ? "border-rose-500/60" : ""}`}
@@ -265,7 +289,7 @@ export function DeparaTab() {
                         <Input
                           value={l.valor_erp}
                           onChange={(e) => editar(l.chave, "valor_erp", e.target.value)}
-                          disabled={!podeEditar}
+                          disabled={!podeEditar || salvando}
                           aria-label="Código no ERP"
                           className="h-8 font-mono text-xs bg-secondary/40"
                         />
@@ -275,7 +299,7 @@ export function DeparaTab() {
                           <TooltipTrigger asChild>
                             <Button
                               size="icon" variant="ghost" className="h-8 w-8" aria-label="Remover linha"
-                              disabled={!podeEditar}
+                              disabled={!podeEditar || salvando}
                               onClick={() => { setLinhas((ls) => ls.filter((x) => x.chave !== l.chave)); setAlterado(true); }}
                             >
                               <Trash2 size={14} />
@@ -322,7 +346,7 @@ export function DeparaTab() {
                   <Undo2 size={14} /> Descartar alterações
                 </Button>
                 <Button size="sm" disabled={salvando || temInvalida} onClick={salvar}>
-                  {salvando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar de-para
+                  {salvando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {salvando ? "Salvando…" : "Salvar de-para"}
                 </Button>
               </div>
             </div>

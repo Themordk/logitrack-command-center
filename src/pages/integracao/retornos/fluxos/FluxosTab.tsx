@@ -25,7 +25,7 @@ import {
 import { relativeTime } from "../../StatusBar";
 import { StatusRetornoBadge } from "../components/StatusRetornoBadge";
 import { retornosKeys } from "../retornosKeys";
-import { arquivarFluxo, ativarFluxo, listarFluxos, listarProvedoresErp, obterFluxo, salvarFluxo } from "../retornosService";
+import { arquivarFluxo, ativarFluxo, listarFluxos, listarProvedoresErp, listarMapa, obterFluxo, salvarFluxo, salvarMapa } from "../retornosService";
 import { usePermissaoRetorno } from "../useRetornos";
 import type { FluxoResumo } from "../retornos.types";
 import { descreverModo } from "./fluxosUtils";
@@ -101,8 +101,26 @@ export function FluxosTab({ onNavigate }: Props) {
         erp_provedor_id: completo.erp_provedor_id,
         definicao: completo.definicao_rascunho,
       });
+      let deparaOk = true;
+      try {
+        const mapa = await listarMapa(tenantId as string, empresaId as string, f.id);
+        const proprios = mapa.filter((i) => i.fluxo_id === f.id);
+        const porDominio = new Map<string, { valor_wms: string; valor_erp: string }[]>();
+        proprios.forEach((i) => {
+          const l = porDominio.get(i.dominio) ?? [];
+          l.push({ valor_wms: i.valor_wms, valor_erp: i.valor_erp });
+          porDominio.set(i.dominio, l);
+        });
+        for (const [dominio, itens] of porDominio) {
+          await salvarMapa(tenantId as string, empresaId as string, copia.id, dominio, itens);
+        }
+        if (porDominio.size > 0) await qc.invalidateQueries({ queryKey: ["retorno-mapa"] });
+      } catch (e) {
+        deparaOk = false;
+        toast.warning("Fluxo duplicado, mas o de-para não foi copiado.", { description: parseError(e, "Copiar de-para").title });
+      }
       await qc.invalidateQueries({ queryKey: ["retorno-fluxos"] });
-      toast.success("Fluxo duplicado.");
+      if (deparaOk) toast.success("Fluxo duplicado.");
       abrir(copia.id);
     } catch (e) {
       toast.error(parseError(e, "Duplicar fluxo").title);

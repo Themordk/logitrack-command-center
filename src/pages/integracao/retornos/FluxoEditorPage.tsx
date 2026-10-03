@@ -1,4 +1,5 @@
 import { ArrowLeft, Workflow } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -7,6 +8,7 @@ interface Props {
 
 export function FluxoEditorPage({ onNavigate }: Props) {
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
       <div className="flex flex-col gap-1">
         <button
@@ -23,5 +25,6 @@ export function FluxoEditorPage({ onNavigate }: Props) {
         <p className="text-sm text-muted-foreground">Editor em construção</p>
       </div>
     </div>
+    </TooltipProvider>
   );
 }

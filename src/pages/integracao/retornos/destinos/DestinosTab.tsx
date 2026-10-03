@@ -6,7 +6,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -102,7 +102,7 @@ export function DestinosTab(_props: { params?: URLSearchParams }) {
   const novo = () => setSheet({ aberto: true, destino: null });
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <>
       <div className="card-surface flex flex-col min-h-0">
         <div className="px-4 py-2.5 border-b border-border bg-secondary/30 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Destinos</h3>
@@ -221,6 +221,6 @@ export function DestinosTab(_props: { params?: URLSearchParams }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </TooltipProvider>
+    </>
   );
 }
