@@ -33,6 +33,7 @@
 
 `p_destino`: `{ id?, nome, modo: 'http'|'webhook', metodo, url_base, auth_tipo, auth_config, headers, timeout_ms, max_tentativas, limite_falhas, ativo, erp_provedor_id?, reativar? }`.
 - Sem exclusão: "remover" = `ativo:false`.
+- `modo: 'webhook'` sempre grava `metodo = 'POST'`, porque o envelope assinado precisa de corpo. Esconda o campo Método nesse modo.
 - `p_segredo` vazio/null **mantém** o segredo atual. `p_remover_segredo:true` apaga.
 - Salvar um destino pausado o reativa (zera falhas), a não ser que `reativar:false`.
 - Regras do backend: `url_base` https e host público; headers não podem conter `Authorization`, `X-API-Key`, `Cookie`, `Proxy-Authorization`; `auth_tipo` ≠ `nenhuma` exige segredo.
@@ -65,7 +66,11 @@
 | `integracao_retorno_documentos_recentes` | `p_tenant_id, p_empresa_id, p_evento, p_filtros jsonb, p_combinador 'e'\|'ou', p_limite, p_busca text\|null` | `{ documento_id, movimento_id, entidade, numero, tipo, codigo_erp, sistema_origem, quando, passa_filtro, barrado_por, contexto }[]` |
 | `integracao_retorno_contexto_documento` | `p_tenant_id, p_empresa_id, p_entidade, p_documento_id, p_evento\|null` | `Contexto` (§3.6) |
 
-`barrado_por` = a regra de filtro que barrou o documento (ou `null`).
+- `barrado_por` é uma **string**: o `campo` da primeira regra que o documento não atende (ex.: `"documento.codigo_erp"`), ou `null`. Mostre-o só quando `passa_filtro === false`. Com combinador `ou`, o documento pode passar e ainda trazer `barrado_por`.
+- Sem `p_filtros` (null), `passa_filtro` vem `null`, e não `true`.
+- `p_busca` é **igualdade exata** com o número do documento (pedido ou nota) ou com o `codigo_erp`. Não é busca parcial.
+- `p_limite` vai até 50.
+- Os eventos `manual.*` listam qualquer documento da empresa (exceto excluídos), do mais recente para o mais antigo.
 
 ### Execuções
 | RPC | Parâmetros | Retorno |
@@ -275,6 +280,10 @@ O errorMapper casa **por substring** e na ordem do objeto. Por isso, declare os 
 | RETORNO_MAPA_INVALIDO | De-para inválido. | Revise o domínio e os valores. |
 | RETORNO_MOTOR_INVALIDO | Motor inválido. | — |
 | RETORNO_MODO_INVALIDO | Modo de execução inválido. | — |
+| RETORNO_EVENTO_INVALIDO | Evento inválido. | Escolha um evento do catálogo. |
+| RETORNO_ENTIDADE_INVALIDA | Tipo de documento inválido. | Use documento de entrada ou de saída. |
+
+Erros da Edge Function (`supabase.functions.invoke`) chegam como `FunctionsHttpError` com mensagem genérica. Leia o corpo com `await error.context.json()` para obter `{ erro, codigo }` e mostre o campo `erro`. Os códigos possíveis são `JWT`, `SEM_PERMISSAO`, `SEM_ACESSO`, `DESTINO` e `INTERNO`.
 
 ## 5. Exemplo de definição (o fluxo Omie em produção)
 ```json
