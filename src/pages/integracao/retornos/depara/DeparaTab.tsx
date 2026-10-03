@@ -239,7 +239,7 @@ export function DeparaTab({ params, onNavigate }: DeparaTabProps) {
                 <span className="text-muted-foreground font-normal"> · {fluxoId ? "deste fluxo" : "da empresa"}</span>
               </h3>
               {podeEditar && (
-                <Button size="sm" variant="outline" onClick={() => {
+                <Button size="sm" variant="outline" disabled={salvando} onClick={() => {
                   setLinhas((ls) => [...ls, { chave: novaChave(), valor_wms: "", valor_erp: "" }]);
                   setAlterado(true);
                 }}>
