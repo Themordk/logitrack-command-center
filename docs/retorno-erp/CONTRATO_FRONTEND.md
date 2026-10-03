@@ -139,6 +139,7 @@ type FluxoResumo = { id; nome; descricao; erp_provedor_id; evento: string|null; 
   versao_publicada: number|null; publicado_em; ativo: boolean; arquivado_em; updated_at; created_at;
   status: 'rascunho'|'publicado'|'pausado'|'arquivado'; alteracoes_nao_publicadas: boolean;
   execucoes_24h: Partial<Record<StatusExecucao, number>>; ultima_execucao_em: string|null };
+// evento/evento_nome/modo_ativacao/agrupamento: da versão publicada; se o fluxo nunca foi publicado, lidos do gatilho do rascunho.
 type FluxoCompleto = FluxoResumo & { definicao_rascunho: Definicao; definicao_publicada: Definicao|null; validacao_rascunho: Validacao };
 
 type Definicao = { versao_schema: 1; nos: No[]; ligacoes: Ligacao[] };
