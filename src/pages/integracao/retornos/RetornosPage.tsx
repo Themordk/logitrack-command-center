@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { relativeTime } from "../StatusBar";
 import { usePermissaoRetorno, useRetornoConfig } from "./useRetornos";
 import { DestinosTab } from "./destinos/DestinosTab";
+import { DeparaTab } from "./depara/DeparaTab";
+import { MotorCard } from "./MotorCard";
 
 type Aba = "fluxos" | "execucoes" | "destinos" | "depara";
 const ABAS: Aba[] = ["fluxos", "execucoes", "destinos", "depara"];
@@ -124,7 +126,8 @@ function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void
           <TabsTrigger value="destinos" className="gap-1.5"><Send size={14} /> Destinos</TabsTrigger>
           <TabsTrigger value="depara" className="gap-1.5"><ArrowLeftRight size={14} /> De-para</TabsTrigger>
         </TabsList>
-        <TabsContent value="fluxos" className="mt-0">
+        <TabsContent value="fluxos" className="mt-0 flex flex-col gap-3">
+          {podeEditar && <MotorCard />}
           <Vazio icone={Workflow} texto="Aqui aparecerão os fluxos de retorno: qual evento do WMS dispara, o que é montado e para onde é enviado." />
         </TabsContent>
         <TabsContent value="execucoes" className="mt-0">
@@ -134,7 +137,7 @@ function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void
           <DestinosTab params={params} />
         </TabsContent>
         <TabsContent value="depara" className="mt-0">
-          <Vazio icone={ArrowLeftRight} texto="Aqui aparecerão as tabelas de-para que traduzem valores do WMS para os códigos do ERP." />
+          <DeparaTab />
         </TabsContent>
       </Tabs>
     </div>
