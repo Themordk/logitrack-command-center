@@ -346,7 +346,7 @@ export function DeparaTab({ params, onNavigate }: DeparaTabProps) {
                   <Undo2 size={14} /> Descartar alterações
                 </Button>
                 <Button size="sm" disabled={salvando || temInvalida} onClick={salvar}>
-                  {salvando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar de-para
+                  {salvando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} {salvando ? "Salvando…" : "Salvar de-para"}
                 </Button>
               </div>
             </div>
