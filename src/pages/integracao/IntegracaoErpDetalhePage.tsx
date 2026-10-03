@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, KeyRound, RefreshCw, ListChecks, BookOpen } from "lucide-react";
+import { ArrowLeft, KeyRound, RefreshCw, ListChecks, BookOpen, Workflow } from "lucide-react";
 import { StatusBar } from "./StatusBar";
 import { CredenciaisDinamicasTab } from "./CredenciaisDinamicasTab";
 import { SincronizacaoTab } from "./SincronizacaoTab";
 import { LogsFilasTab } from "./LogsFilasTab";
 import { DocumentacaoApiTab } from "./DocumentacaoApiTab";
+import { RetornosErpTab } from "./retornos/fluxos/RetornosErpTab";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -82,6 +83,9 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <ListChecks size={14} /> Logs e Filas
             </TabsTrigger>
+            <TabsTrigger value="retornos" className="flex items-center gap-2">
+              <Workflow size={14} /> Retornos
+            </TabsTrigger>
             <TabsTrigger value="docs" className="flex items-center gap-2">
               <BookOpen size={14} /> Documentação API
             </TabsTrigger>
@@ -106,6 +110,9 @@ export function IntegracaoErpDetalhePage({ erpProvedorId, onNavigate }: Props) {
               empresaId={empresaId}
               sistemaOrigem={erpProvedorId}
             />
+          </TabsContent>
+          <TabsContent value="retornos" className="flex-1 min-h-0 overflow-auto">
+            <RetornosErpTab erpProvedorId={erpProvedorId} onNavigate={onNavigate} />
           </TabsContent>
           <TabsContent value="docs" className="flex-1 min-h-0 overflow-auto">
             <DocumentacaoApiTab
