@@ -9,6 +9,7 @@ import { usePermissaoRetorno, useRetornoConfig } from "./useRetornos";
 import { DestinosTab } from "./destinos/DestinosTab";
 import { DeparaTab } from "./depara/DeparaTab";
 import { MotorCard } from "./MotorCard";
+import { FluxosTab } from "./fluxos/FluxosTab";
 
 type Aba = "fluxos" | "execucoes" | "destinos" | "depara";
 const ABAS: Aba[] = ["fluxos", "execucoes", "destinos", "depara"];
@@ -128,7 +129,7 @@ function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void
         </TabsList>
         <TabsContent value="fluxos" className="mt-0 flex flex-col gap-3">
           {podeEditar && <MotorCard />}
-          <Vazio icone={Workflow} texto="Aqui aparecerão os fluxos de retorno: qual evento do WMS dispara, o que é montado e para onde é enviado." />
+          <FluxosTab onNavigate={onNavigate} />
         </TabsContent>
         <TabsContent value="execucoes" className="mt-0">
           <Vazio icone={Activity} texto="Aqui aparecerá cada envio ao ERP, com o caminho percorrido, a resposta e as opções de reprocessar ou descartar." />

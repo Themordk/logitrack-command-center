@@ -65,6 +65,9 @@ export const versoesFluxo = (fluxoId: string) =>
 export const restaurarVersao = (fluxoId: string, versao: number) =>
   rpc<FluxoCompleto>("integracao_retorno_restaurar_versao", { p_fluxo_id: fluxoId, p_versao: versao });
 
+export const listarProvedoresErp = () =>
+  rpc<{ id: string; nome: string; disponivel?: boolean; ordem?: number }[]>("integracao_listar_provedores");
+
 // ---- Documentos ----
 export const documentosRecentes = (params: {
   tenantId: string; empresaId: string; evento: string; filtros: Regra[]; combinador: Combinador;
