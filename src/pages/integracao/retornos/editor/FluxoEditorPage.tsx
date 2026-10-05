@@ -216,6 +216,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const [confirmarRestaurar, setConfirmarRestaurar] = useState(false);
   const [restaurando, setRestaurando] = useState(false);
   const visualizando = !!resultado || !!versaoVista;
+  const visualizandoRef = useRef(visualizando); visualizandoRef.current = visualizando;
   const execVisual = useMemo(() => (resultado ? montarExecucaoVisual(resultado) : null), [resultado]);
   const rfVisual = useMemo(() => {
     const def = resultado?.definicao ?? versaoVista?.definicao;
@@ -278,7 +279,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   type Estado = { nodes: FluxoNode[]; edges: FluxoEdge[] };
   /** Toda alteração da definição passa por aqui: histórico → nodes/edges → salvamento. */
   const aplicar = useCallback((acao: (atual: Estado) => Estado | null) => {
-    if (somenteLeitura) return;
+    if (somenteLeitura || visualizandoRef.current) return;
     const r = acao({ nodes: nodesRef.current, edges: edgesRef.current });
     if (!r) return;
     historico.registrar(instantaneo());
@@ -500,6 +501,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       if (emCampoDeTexto(e.target)) return;
       const mod = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
+      if (visualizandoRef.current) return;
       if (!somenteLeitura && !noAberto && !document.querySelector("[role='dialog'][data-state='open'], [role='alertdialog'][data-state='open']")) {
         if (mod && k === "z" && !e.shiftKey) { e.preventDefault(); desfazer(); return; }
         if (mod && ((k === "z" && e.shiftKey) || k === "y")) { e.preventDefault(); refazer(); return; }
