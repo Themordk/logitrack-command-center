@@ -62,7 +62,8 @@ function Caminho({ e }: { e: ExecucaoResumo }) {
   return (
     <div className="flex items-center gap-0.5">
       {e.caminho.map((c, i) => {
-        const nomeNo = (e.definicao?.nos as Array<{ id: string; nome?: string }> | undefined)?.find((n) => n.id === c.no_id)?.nome;
+        const definicao = (e as ExecucaoResumo & { definicao?: { nos?: Array<{ id: string; nome?: string }> } }).definicao;
+        const nomeNo = definicao?.nos?.find((n) => n.id === c.no_id)?.nome;
         return (
           <Tooltip key={`${c.no_id}-${i}`}>
             <TooltipTrigger asChild>
