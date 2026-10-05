@@ -51,7 +51,6 @@ export function EntradasPage() {
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
   const [filtroTipoEntrada, setFiltroTipoEntrada] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Limpa página ao mudar filtro
   const handleFiltroChange = useCallback(() => { setPage(1); }, []);
