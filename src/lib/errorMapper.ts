@@ -20,6 +20,7 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   RETORNO_DESTINO_SEM_SEGREDO: { title: "Falta o segredo da autenticação.", instruction: "Informe o token, chave ou senha." },
   RETORNO_DESTINO_NOME: { title: "Informe o nome do destino.", instruction: "" },
   RETORNO_DESTINO_JSON: { title: "Headers inválidos.", instruction: "Revise os headers." },
+  RETORNO_FLUXO_CONFLITO: { title: "Este fluxo foi alterado em outra aba ou por outra pessoa.", instruction: "Recarregue ou mantenha a sua versão." },
   RETORNO_FLUXO_NAO_ENCONTRADO: { title: "Fluxo não encontrado.", instruction: "Atualize a lista." },
   RETORNO_FLUXO_NAO_PUBLICADO: { title: "Este fluxo ainda não foi publicado.", instruction: "Publique antes de ativar ou executar." },
   RETORNO_FLUXO_ARQUIVADO: { title: "Fluxo arquivado.", instruction: "Desarquive para editar." },

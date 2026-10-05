@@ -115,6 +115,23 @@
 }
 
 @layer components {
+  .retorno-canvas {
+    --xy-background-color: hsl(var(--background));
+    --xy-background-pattern-color: hsl(var(--border));
+    --xy-edge-stroke: hsl(var(--muted-foreground));
+    --xy-edge-stroke-selected: hsl(var(--primary));
+    --xy-connectionline-stroke: hsl(var(--primary));
+    --xy-handle-background-color: hsl(var(--card));
+    --xy-handle-border-color: hsl(var(--border));
+    --xy-controls-button-background-color: hsl(var(--card));
+    --xy-controls-button-border-color: hsl(var(--border));
+    --xy-controls-button-color: hsl(var(--foreground));
+    --xy-minimap-background-color: hsl(var(--card));
+    --xy-minimap-mask-background-color: hsl(var(--background) / 0.7);
+    --xy-selection-background-color: hsl(var(--primary) / 0.08);
+    --xy-selection-border: 1px dashed hsl(var(--primary));
+  }
+
   /* Status badges */
   .badge-free {
     @apply bg-green-500/15 text-green-400 border border-green-500/30;
