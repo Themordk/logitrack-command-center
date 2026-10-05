@@ -2,6 +2,8 @@ import { createContext, useContext } from "react";
 import type { Contexto } from "../../retornos.types";
 
 export const MIME_CAMINHO = "text/x-retorno-caminho";
+/** Presente quando o caminho arrastado é uma lista (array). */
+export const MIME_LISTA = "text/x-retorno-lista";
 
 export interface PainelContextoValor {
   contexto: Contexto;
