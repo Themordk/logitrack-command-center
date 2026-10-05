@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye, Trash2 } from "lucide-react";
+import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye, Trash2, RefreshCcw } from "lucide-react";
 import { CadastroDocEntradaPage } from "./CadastroDocEntradaPage";
 import { DocEntradaDetalhePage } from "./DocEntradaDetalhePage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -44,6 +44,15 @@ export function EntradasPage() {
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
+  // Filtros
+  const [filtroNumero, setFiltroNumero] = useState("");
+  const [filtroParceiro, setFiltroParceiro] = useState("");
+  const [filtroDataInicio, setFiltroDataInicio] = useState("");
+  const [filtroDataFim, setFiltroDataFim] = useState("");
+
+  // Limpa página ao mudar filtro
+  const handleFiltroChange = useCallback(() => { setPage(1); }, []);
+
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -73,7 +82,7 @@ export function EntradasPage() {
 
 
   const listQuery = useQuery({
-    queryKey: ["entradas-lista", aba, tenantId, empresaId, armazemId, page],
+    queryKey: ["entradas-lista", aba, tenantId, empresaId, armazemId, page, filtroNumero, filtroParceiro, filtroDataInicio, filtroDataFim],
     queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
@@ -92,7 +101,14 @@ export function EntradasPage() {
         .eq("status", isExcluidos ? 99 : 0)
         .order(isExcluidos ? "excluido_em" : "data_emissao", { ascending: false })
         .range(from, to);
+
       if (armazemId) query = query.or(`armazem_id.eq.${armazemId},armazem_id.is.null`);
+
+      if (filtroNumero) query = query.ilike("numero_nota", `%${filtroNumero}%`);
+      if (filtroParceiro) query = query.ilike("parceiro.razaosocial", `%${filtroParceiro}%`);
+      if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
+      if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
+
       const { data, error, count } = await query;
       if (error) throw error;
 
@@ -221,6 +237,16 @@ export function EntradasPage() {
 
   const totalPages = Math.ceil(total / pageSize);
 
+  const clearFilters = () => {
+    setFiltroNumero("");
+    setFiltroParceiro("");
+    setFiltroDataInicio("");
+    setFiltroDataFim("");
+    setPage(1);
+  };
+
+  const hasFilters = filtroNumero || filtroParceiro || filtroDataInicio || filtroDataFim;
+
   if (showCadastro) {
     return <CadastroDocEntradaPage onBack={() => { setShowCadastro(false); fetchDocs(); }} />;
   }
@@ -240,6 +266,15 @@ export function EntradasPage() {
         <div className="flex items-center gap-2">
           {!isExcluidos && (
             <>
+              <button
+                onClick={fetchDocs}
+                disabled={loading}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+                title="Atualizar dados"
+              >
+                <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
+                Atualizar Dados
+              </button>
               <button
                 onClick={() => setShowCadastro(true)}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors"
@@ -284,6 +319,58 @@ export function EntradasPage() {
           </button>
         ))}
       </div>
+
+      {/* Filtros de busca */}
+      {!isExcluidos && (
+        <div className="flex flex-wrap items-end gap-3 p-4 rounded-lg border border-border bg-secondary/30">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">Nº Documento</label>
+            <input
+              type="text"
+              placeholder="Buscar por número..."
+              value={filtroNumero}
+              onChange={(e) => { setFiltroNumero(e.target.value); handleFiltroChange(); }}
+              className="h-9 w-44 px-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">Parceiro</label>
+            <input
+              type="text"
+              placeholder="Nome do parceiro..."
+              value={filtroParceiro}
+              onChange={(e) => { setFiltroParceiro(e.target.value); handleFiltroChange(); }}
+              className="h-9 w-52 px-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">Data Emissão (De)</label>
+            <input
+              type="date"
+              value={filtroDataInicio}
+              onChange={(e) => { setFiltroDataInicio(e.target.value); handleFiltroChange(); }}
+              className="h-9 w-40 px-3 rounded-lg border border-border bg-background text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">Data Emissão (Até)</label>
+            <input
+              type="date"
+              value={filtroDataFim}
+              onChange={(e) => { setFiltroDataFim(e.target.value); handleFiltroChange(); }}
+              className="h-9 w-40 px-3 rounded-lg border border-border bg-background text-sm text-foreground outline-none focus:border-primary"
+            />
+          </div>
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="h-9 px-3 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
 
@@ -373,7 +460,7 @@ export function EntradasPage() {
 
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-secondary/20">
           <span className="text-xs text-muted-foreground">
-            {total} documento{total === 1 ? "" : "s"}
+            {total} documento{total === 1 ? "" : "s"}{hasFilters ? ` (filtrado)` : ""}
           </span>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded hover:bg-secondary disabled:opacity-30"><ChevronLeft size={14} /></button>
