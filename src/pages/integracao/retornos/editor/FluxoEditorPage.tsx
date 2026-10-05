@@ -19,7 +19,7 @@ import { parseError } from "@/lib/errorMapper";
 import { retornosKeys } from "../retornosKeys";
 import { listarDestinos, obterFluxo } from "../retornosService";
 import { useCatalogoRetorno, usePermissaoRetorno } from "../useRetornos";
-import type { Aviso, Catalogo, Destino, FluxoCompleto, TipoNo } from "../retornos.types";
+import type { Aviso, Catalogo, Destino, DocumentoRecente, FluxoCompleto, TipoNo } from "../retornos.types";
 import { criarEdge, deRf, layoutAutomatico, paraRf, type FluxoEdge, type FluxoNode } from "./definicaoRf";
 import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { NodePalette, MIME_NO } from "./NodePalette";
@@ -30,7 +30,7 @@ import { useHistoricoFluxo, type Instantaneo } from "./useHistoricoFluxo";
 import { EditorContext, type EditorContextValor } from "./editorContext";
 import { EditorTopBar } from "./EditorTopBar";
 import { FlowCanvas } from "./FlowCanvas";
-import { NoConfigSheet } from "./NoConfigSheet";
+import { NodeConfigDialog } from "./NodeConfigDialog";
 import { useAutosaveFluxo } from "./useAutosaveFluxo";
 
 interface Props {
@@ -177,6 +177,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const [sairSemSalvar, setSairSemSalvar] = useState(false);
   const { fitView, screenToFlowPosition, deleteElements } = useReactFlow<FluxoNode, FluxoEdge>();
   const historico = useHistoricoFluxo();
+  const [amostra, setAmostra] = useState<DocumentoRecente | null>(null);
   const [menu, setMenu] = useState<MenuContexto | null>(null);
   const [adicionarEm, setAdicionarEm] = useState<{ x: number; y: number; de?: string; saida?: string } | null>(null);
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
@@ -499,6 +500,13 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     else setSairSemSalvar(true);
   };
 
+  const gatilhoNo = nodes.find((n) => ehGatilho(n.data.tipo));
+  const eventoAmostra = !gatilhoNo ? null : gatilhoNo.data.tipo === "gatilho.manual"
+    ? `manual.${(gatilhoNo.data.config.entidade as string) ?? "documento_saida"}`
+    : ((gatilhoNo.data.config.evento as string | null) ?? null);
+  // Trocar o evento descarta a amostra (ela é de outro evento).
+  useEffect(() => { setAmostra(null); }, [eventoAmostra]);
+
   const noSelecionado = noAberto ? nodes.find((n) => n.id === noAberto) ?? null : null;
 
   return (
@@ -609,13 +617,22 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         </>
       )}
 
-      <NoConfigSheet
+      <NodeConfigDialog
         no={noSelecionado}
+        nos={nodes}
         catalogo={catalogo}
+        destinos={destinos}
+        avisos={[...(fluxo.validacao_rascunho?.erros ?? []), ...(fluxo.validacao_rascunho?.avisos ?? [])].filter((a) => !a.no_id || a.no_id === noSelecionado?.id)}
+        evento={eventoAmostra}
+        tenantId={tenantId}
+        empresaId={empresaId}
         somenteLeitura={somenteLeitura}
+        amostra={amostra}
+        onDefinirAmostra={setAmostra}
         onFechar={() => setNoAberto(null)}
         onRenomear={(n) => noSelecionado && atualizarNo(noSelecionado.id, { nome: n || undefined })}
-        onAplicarConfig={(cfg) => noSelecionado && atualizarNo(noSelecionado.id, { config: cfg })}
+        onAlterar={(cfg, tipo) => noSelecionado && atualizarNo(noSelecionado.id, tipo ? { config: cfg, tipo } : { config: cfg })}
+        onAbrirNo={setNoAberto}
       />
 
       <AlertDialog open={auto.conflito}>
