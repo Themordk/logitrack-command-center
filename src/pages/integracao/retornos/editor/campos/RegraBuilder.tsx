@@ -9,16 +9,9 @@ import type { Catalogo, Combinador, Operador, Regra } from "../../retornos.types
 import { CaminhoInput } from "./CaminhoInput";
 import { usePainel } from "./painelContext";
 
-const SEM_VALOR: Operador[] = ["existe", "nao_existe"];
+import { SEM_VALOR } from "./regras";
 const LISTA: Operador[] = ["em", "nao_em"];
 const NUMERICO: Operador[] = ["maior", "maior_igual", "menor", "menor_igual"];
-
-export function descreverRegra(r: Regra, catalogo?: Catalogo): string {
-  const op = catalogo?.operadores.find((o) => o.codigo === r.operador)?.nome ?? r.operador;
-  if (SEM_VALOR.includes(r.operador)) return `${r.campo} ${op}`;
-  const v = Array.isArray(r.valor) ? r.valor.join(", ") : String(r.valor ?? "");
-  return `${r.campo} ${op} ${v}`;
-}
 
 function Chips({ valor, onChange, disabled }: { valor: string[]; onChange: (v: string[]) => void; disabled: boolean }) {
   const [txt, setTxt] = useState("");
