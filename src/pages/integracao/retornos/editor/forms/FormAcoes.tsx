@@ -249,7 +249,7 @@ export function ResultadoProvedor(p: FormNoProps) {
     <div className="flex flex-col gap-3">
       {semConexao && <Aviso cor="amber">{semConexao.mensagem}</Aviso>}
       {!res && <BlocoCodigo>Escolha a operação.</BlocoCodigo>}
-      {res && !res.ok && <Aviso cor="rose">{res.erro}</Aviso>}
+      {res && res.ok === false && <Aviso cor="rose">{res.erro}</Aviso>}
       {res?.ok && res.observacao && <p className="text-xs text-muted-foreground">{res.observacao}</p>}
       {res?.ok && res.chamadas.map((c, i) => (
         <div key={i}>
