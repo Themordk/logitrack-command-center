@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Bell, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,8 @@ import { BlocoCodigo, Campo, Secao } from "../campos/Campo";
 import { TemplateInput } from "../campos/TemplateInput";
 import { entidadeDoGatilho } from "../novoNo";
 import type { FormNoProps } from "./formTypes";
-import { CorpoPrevia } from "./FormPayload";
+import { payloadAnterior, previaOmie, previaRequisicao, type PreviaRequisicao } from "../previaRequisicao";
+import { usePreviaPayload } from "../usePreviaPayload";
 
 const HEADERS_PROIBIDOS = ["authorization", "x-api-key", "cookie", "proxy-authorization"];
 const METODOS: MetodoHttp[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -125,58 +126,69 @@ export function ParametrosHttp(p: FormNoProps) {
   );
 }
 
-function urlFinal(d: Destino | undefined, caminho: string, ctx: Record<string, unknown>) {
-  const base = (d?.url_base ?? "").replace(/\/+$/, "");
-  const c = renderTemplate(caminho, ctx);
-  let url = c ? `${base}${c.startsWith("/") || c.startsWith("?") ? "" : "/"}${c}` : base;
-  if (d?.auth_tipo === "api_key" && d.auth_config?.query) url += `${url.includes("?") ? "&" : "?"}${d.auth_config.query}=***`;
-  return url;
+function Aviso({ cor, children }: { cor: "amber" | "rose"; children: React.ReactNode }) {
+  const c = cor === "amber" ? "border-amber-500/30 bg-amber-500/10 text-amber-400" : "border-rose-500/30 bg-rose-500/10 text-rose-400";
+  return <p className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 text-xs", c)}><AlertTriangle size={13} className="shrink-0" aria-hidden /> {children}</p>;
 }
 
-function headersDestino(d: Destino | undefined): Record<string, string> {
-  const h: Record<string, string> = { ...(d?.headers ?? {}) };
-  if (!d) return h;
-  if (d.auth_tipo === "bearer" || d.auth_tipo === "basic") h.Authorization = "***";
-  if (d.auth_tipo === "api_key" && d.auth_config?.header) h[d.auth_config.header] = "***";
-  if (d.auth_tipo === "hmac" || d.modo === "webhook") { h["X-LogiTrack-Timestamp"] = "<timestamp>"; h["X-LogiTrack-Signature"] = "***"; }
-  return h;
+/** Requisição como o servidor monta (previaRequisicao), com o corpo do payload do caminho. */
+function useRequisicao(p: FormNoProps, tipo: "acao.http" | "acao.webhook") {
+  const d = destinoDe(p);
+  const corpoDe = p.config.corpo_de as string | undefined;
+  const anterior = useMemo(() => payloadAnterior(p.no.id, p.nos.map((n) => ({ id: n.id, tipo: n.data.tipo })), p.ligacoes), [p.no.id, p.nos, p.ligacoes]);
+  const noCorpo = p.nos.find((n) => n.id === (corpoDe ?? anterior.id));
+  const previa = usePreviaPayload(noCorpo?.data.config, p.contexto, p.tenantId, p.empresaId, p.fluxoId);
+  const [req, setReq] = useState<PreviaRequisicao | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const chave = JSON.stringify([p.config, d?.id, noCorpo ? previa.valor ?? null : "__sem"]);
+  useEffect(() => {
+    if (!d || (noCorpo && previa.calculando)) { if (!d) setReq(null); return; }
+    let vivo = true;
+    previaRequisicao({ tipo, noId: p.no.id, config: p.config, destino: d, contexto: p.contexto, corpoPayload: noCorpo ? previa.valor ?? null : undefined })
+      .then((r) => { if (vivo) { setReq(r); setErro(null); } })
+      .catch((e: unknown) => { if (vivo) setErro((e as { message?: string })?.message ?? "Falha ao montar a prévia"); });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave, p.contexto, previa.calculando]);
+  return { d, req, erro, noCorpo, ambiguo: !corpoDe && anterior.ambiguo, erroCorpo: noCorpo ? previa.erro : undefined };
+}
+
+function VisaoRequisicao({ p, r }: { p: FormNoProps; r: ReturnType<typeof useRequisicao> }) {
+  const { req } = r;
+  return (
+    <>
+      {!r.d && <p className="text-xs text-rose-400">Escolha um destino ativo desta empresa.</p>}
+      {r.erro && <Aviso cor="rose">{r.erro}</Aviso>}
+      {req?.bloqueio && <Aviso cor="rose">O servidor recusaria esta URL: {req.bloqueio}</Aviso>}
+      {r.ambiguo && <Aviso cor="amber">O corpo depende do caminho: há mais de um ‘Montar payload’ antes deste nó. Use ‘Corpo’ para escolher um.</Aviso>}
+      {req && (
+        <>
+          <BlocoCodigo><span className="font-semibold text-primary">{req.metodo}</span> {req.url}</BlocoCodigo>
+          <div>
+            <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Headers</p>
+            <BlocoCodigo>{Object.keys(req.headers).length ? Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`).join("\n") : "—"}</BlocoCodigo>
+          </div>
+          <div>
+            <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Corpo</p>
+            {r.erroCorpo ? <Aviso cor="rose">{r.erroCorpo}</Aviso> : <BlocoCodigo>{req.corpo === null ? "(sem corpo)" : JSON.stringify(req.corpo, null, 2)}</BlocoCodigo>}
+            {r.noCorpo && (
+              <p className="mt-1 text-[11px] text-muted-foreground">Calculado pelo nó{" "}
+                <button type="button" className="text-primary hover:underline" onClick={() => p.onAbrirNo(r.noCorpo!.id)}>{r.noCorpo.data.nome || r.noCorpo.id}</button>
+              </p>
+            )}
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 export function ResultadoHttp(p: FormNoProps) {
-  const d = destinoDe(p);
-  const metodo = (p.config.metodo as MetodoHttp) ?? d?.metodo ?? "POST";
-  const headers = { ...headersDestino(d) };
-  Object.entries((p.config.headers as Record<string, string>) ?? {}).forEach(([k, v]) => { headers[k] = renderTemplate(v, p.contexto); });
-  const payloads = p.nos.filter((n) => n.data.tipo === "dados.payload");
-  const corpoDe = p.config.corpo_de as string | undefined;
-  const noCorpo = corpoDe ? p.nos.find((n) => n.id === corpoDe) : payloads[payloads.length - 1];
-  const comCorpo = !["GET", "DELETE"].includes(metodo);
+  const r = useRequisicao(p, "acao.http");
   return (
     <div className="flex flex-col gap-3">
-      {!d && <p className="text-xs text-rose-400">Escolha um destino ativo desta empresa.</p>}
-      <BlocoCodigo><span className="font-semibold text-primary">{metodo}</span> {urlFinal(d, (p.config.caminho as string) ?? "", p.contexto)}</BlocoCodigo>
-      <div>
-        <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Headers</p>
-        <BlocoCodigo>{Object.keys(headers).length ? Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join("\n") : "—"}</BlocoCodigo>
-      </div>
-      {comCorpo && (
-        <div>
-          <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Corpo</p>
-          {noCorpo ? (
-            <div className="flex flex-col gap-1.5">
-              <CorpoPrevia config={noCorpo.data.config} contexto={p.contexto} tenantId={p.tenantId} empresaId={p.empresaId} fluxoId={p.fluxoId} rodape={false} />
-              <p className="text-[11px] text-muted-foreground">Calculado pelo nó{" "}
-                <button type="button" className="text-primary hover:underline" onClick={() => p.onAbrirNo(noCorpo.id)}>{noCorpo.data.nome || noCorpo.id}</button>
-                {!corpoDe && " (último payload montado)"}
-              </p>
-            </div>
-          ) : (
-            <p className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
-              <AlertTriangle size={13} aria-hidden /> {metodo} sem nenhum “Montar payload” no fluxo: o corpo irá vazio.
-            </p>
-          )}
-        </div>
-      )}
+      {r.d && !r.noCorpo && <Aviso cor="amber">Sem “Montar payload” antes deste nó: o servidor envia {"{}"} como corpo.</Aviso>}
+      <VisaoRequisicao p={p} r={r} />
     </div>
   );
 }
@@ -195,14 +207,11 @@ export function ParametrosWebhook(p: FormNoProps) {
 }
 
 export function ResultadoWebhook(p: FormNoProps) {
-  const d = destinoDe(p);
-  const envelope = { id: "<uuid da execução>", evento: p.contexto.evento ?? "<evento>", ocorrido_em: p.contexto.ocorrido_em_utc ?? "<iso>", tentativa: 1, dados: p.contexto };
+  const r = useRequisicao(p, "acao.webhook");
   return (
     <div className="flex flex-col gap-3">
-      {!d && <p className="text-xs text-rose-400">Escolha um destino ativo desta empresa.</p>}
-      <BlocoCodigo><span className="font-semibold text-primary">POST</span> {urlFinal(d, (p.config.caminho as string) ?? "", p.contexto)}</BlocoCodigo>
-      <BlocoCodigo>{"X-LogiTrack-Timestamp: <timestamp>\nX-LogiTrack-Signature: sha256=***"}</BlocoCodigo>
-      <BlocoCodigo>{JSON.stringify(envelope, null, 2)}</BlocoCodigo>
+      {r.req && !r.req.assinado && <Aviso cor="rose">Este destino não tem HMAC: o envelope iria sem assinatura.</Aviso>}
+      <VisaoRequisicao p={p} r={r} />
     </div>
   );
 }
@@ -233,24 +242,12 @@ export function ParametrosProvedor(p: FormNoProps) {
   );
 }
 
-export function ResultadoProvedor(p: FormNoProps) {
-  const op = p.catalogo?.operacoes_provedor.find((o) => o.operacao === p.config.operacao);
-  const codigo = obterCaminho(p.contexto, "documento.codigo_erp");
-  const semConexao = p.avisos.find((a) => a.codigo === "PROVEDOR_SEM_CONEXAO");
-  const chamada = { codigo_pedido: codigo ?? "<sem documento.codigo_erp>", ...((p.config.parametros as Record<string, string>) ?? {}) };
+export function ResultadoWebhook(p: FormNoProps) {
+  const r = useRequisicao(p, "acao.webhook");
   return (
     <div className="flex flex-col gap-3">
-      {semConexao && (
-        <p className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
-          <AlertTriangle size={13} aria-hidden /> {semConexao.mensagem}
-        </p>
-      )}
-      {!codigo && (
-        <p className="flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-400">
-          <AlertTriangle size={13} aria-hidden /> A amostra não tem documento.codigo_erp: a chamada ao ERP falharia.
-        </p>
-      )}
-      <BlocoCodigo>{op ? `${op.nome} (${op.operacao})\n${JSON.stringify(chamada, null, 2)}` : "Escolha a operação."}</BlocoCodigo>
+      {r.req && !r.req.assinado && <Aviso cor="rose">Este destino não tem HMAC: o envelope iria sem assinatura.</Aviso>}
+      <VisaoRequisicao p={p} r={r} />
     </div>
   );
 }
