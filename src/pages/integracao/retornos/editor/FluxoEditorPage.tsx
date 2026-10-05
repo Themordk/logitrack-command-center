@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useTenant } from "@/contexts/TenantContext";
+import { usePermissions } from "@/contexts/PermissionsContext";
 import { parseError } from "@/lib/errorMapper";
 import { retornosKeys } from "../retornosKeys";
 import { listarDestinos, obterFluxo } from "../retornosService";
@@ -47,9 +48,18 @@ function emCampoDeTexto(t: EventTarget | null) {
   return !!el.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']");
 }
 
+function enterValeNoCanvas(alvo: EventTarget | null) {
+  const el = alvo as HTMLElement | null;
+  if (el?.closest?.("button, a, [role='button'], [role='tab']")) return false;
+  if (document.querySelector("[role='dialog'][data-state='open'], [role='alertdialog'][data-state='open']")) return false;
+  const ativo = document.activeElement;
+  return !ativo || ativo === document.body || !!ativo.closest(".react-flow");
+}
+
 export function FluxoEditorPage({ onNavigate, fluxoId }: Props) {
   const { tenantId, empresaId, empresaVersion } = useTenant();
   const [recarga, setRecarga] = useState(0);
+  const { loading: permissoesCarregando } = usePermissions();
 
   // Troca de empresa com o editor aberto → volta para a lista.
   const empresaInicial = useRef({ empresaId, empresaVersion });
@@ -62,6 +72,7 @@ export function FluxoEditorPage({ onNavigate, fluxoId }: Props) {
     queryKey: retornosKeys.fluxo(fluxoId),
     queryFn: () => obterFluxo(fluxoId),
     staleTime: Infinity,
+    gcTime: 0,
     refetchOnWindowFocus: false,
   });
   const catalogoQ = useCatalogoRetorno();
@@ -75,7 +86,7 @@ export function FluxoEditorPage({ onNavigate, fluxoId }: Props) {
     return <div className="card-surface p-6 text-sm text-muted-foreground">Selecione uma empresa para continuar.</div>;
   }
 
-  if (fluxoQ.isLoading || catalogoQ.isLoading) {
+  if (permissoesCarregando || fluxoQ.isLoading || catalogoQ.isLoading) {
     return (
       <div className="flex flex-col flex-1 min-h-0 gap-3 overflow-hidden">
         <Skeleton className="h-12 w-full rounded-xl" />
@@ -139,7 +150,9 @@ interface ConteudoProps {
 function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaId, onNavigate, onRecarregar }: ConteudoProps) {
   const { podeEditar } = usePermissaoRetorno();
   const telaGrande = useTelaGrande();
-  const somenteLeitura = !podeEditar || inicial.status === "arquivado" || !telaGrande;
+  const podeSalvar = podeEditar && inicial.status !== "arquivado";
+  const podeInteragir = podeSalvar && telaGrande;
+  const somenteLeitura = !podeInteragir;
   const motivoLeitura = !podeEditar
     ? "Modo somente leitura — você pode ver, mas não alterar este fluxo."
     : inicial.status === "arquivado"
@@ -160,7 +173,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const nomeRef = useRef(nome); nomeRef.current = nome;
 
   const auto = useAutosaveFluxo({
-    tenantId, empresaId, inicial, habilitado: !somenteLeitura,
+    tenantId, empresaId, inicial, habilitado: podeSalvar,
     obterPayload: () => ({ nome: nomeRef.current, definicao: deRf(nodesRef.current, edgesRef.current) }),
   });
   const { agendar, salvarAgora } = auto;
@@ -168,7 +181,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
 
   const chaveAviso = `retorno-editor-aviso-rascunho-${inicial.id}`;
   const [avisoRascunho, setAvisoRascunho] = useState(
-    () => !somenteLeitura && (inicial.status === "publicado" || inicial.status === "pausado") && sessionStorage.getItem(chaveAviso) !== "1",
+    () => podeSalvar && (inicial.status === "publicado" || inicial.status === "pausado") && sessionStorage.getItem(chaveAviso) !== "1",
   );
 
   const ctx = useMemo<EditorContextValor>(() => {
@@ -184,11 +197,21 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     return { catalogo, destinos, errosPorNo: agrupar(v?.erros), avisosPorNo: agrupar(v?.avisos), desconectados, editavel: !somenteLeitura };
   }, [fluxo.validacao_rascunho, catalogo, destinos, somenteLeitura]);
 
-  const onBeforeDelete: OnBeforeDelete<FluxoNode, FluxoEdge> = useCallback(async ({ nodes: ns }) => {
+  // Tela encolheu com alteração pendente: grava antes de travar a edição.
+  useEffect(() => {
+    if (!telaGrande && podeSalvar && auto.temPendencia()) void salvarAgora();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [telaGrande]);
+
+  const onBeforeDelete: OnBeforeDelete<FluxoNode, FluxoEdge> = useCallback(async ({ nodes: ns, edges: es }) => {
     if (somenteLeitura) return false;
-    if (ns.some((n) => n.data.tipo.startsWith("gatilho."))) {
+    const gatilhos = new Set(ns.filter((n) => n.data.tipo.startsWith("gatilho.")).map((n) => n.id));
+    if (gatilhos.size) {
       toast.info("O gatilho não pode ser excluído.");
-      return false;
+      const outros = ns.filter((n) => !gatilhos.has(n.id));
+      const arestas = es.filter((e) => e.selected || (!gatilhos.has(e.source) && !gatilhos.has(e.target)));
+      if (!outros.length && !arestas.length) return false;
+      return { nodes: outros, edges: arestas };
     }
     return true;
   }, [somenteLeitura]);
@@ -220,18 +243,19 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (!somenteLeitura) void salvarAgora();
+        // Deixa o Sheet aplicar o JSON antes de gravar.
+        if (podeSalvar) setTimeout(() => { void salvarAgora(); }, 0);
         return;
       }
       if (emCampoDeTexto(e.target)) return;
-      if (e.key === "Enter" && !noAberto) {
+      if (e.key === "Enter" && !noAberto && !somenteLeitura && enterValeNoCanvas(e.target)) {
         const sel = nodesRef.current.filter((n) => n.selected);
         if (sel.length === 1) { e.preventDefault(); setNoAberto(sel[0].id); }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [somenteLeitura, salvarAgora, noAberto]);
+  }, [somenteLeitura, podeSalvar, salvarAgora, noAberto]);
 
   const atualizarNo = (id: string, patch: Partial<FluxoNode["data"]>) => {
     setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
@@ -258,6 +282,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           somenteLeitura={somenteLeitura}
           estado={auto.estado}
           voltando={voltando}
+          salvoEm={auto.salvoEm}
           onRenomear={(n) => { setNome(n); agendar(); }}
           onVoltar={() => { void voltar(); }}
           onExecucoes={() => onNavigate(`/config/integracao/retornos?aba=execucoes&fluxo=${inicial.id}`)}
