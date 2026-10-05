@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ReactFlowProvider, useEdgesState, useNodesState, useReactFlow,
+  applyNodeChanges, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow,
   type Connection, type IsValidConnection, type OnBeforeDelete, type OnConnectEnd,
+  type NodeChange,
 } from "@xyflow/react";
 import { AlertTriangle, ArrowLeft, ExternalLink, Eye, FlaskConical, History, Info, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
@@ -222,6 +223,14 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     const def = resultado?.definicao ?? versaoVista?.definicao;
     return def ? paraRf(def, catalogo) : null;
   }, [resultado, versaoVista, catalogo]);
+  const [nodesVisuais, setNodesVisuais] = useNodesState<FluxoNode>(rfVisual?.nodes ?? []);
+  useEffect(() => {
+    setNodesVisuais(rfVisual?.nodes ?? []);
+  }, [rfVisual, setNodesVisuais]);
+  const onNodesVisuaisChange = useCallback((changes: NodeChange<FluxoNode>[]) => {
+    const permitidas = changes.filter((change) => change.type === "dimensions" || change.type === "select");
+    if (permitidas.length) setNodesVisuais((atuais) => applyNodeChanges(permitidas, atuais));
+  }, [setNodesVisuais]);
 
   const chaveAviso = `retorno-editor-aviso-rascunho-${inicial.id}`;
   const [avisoRascunho, setAvisoRascunho] = useState(
@@ -693,11 +702,11 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         )}
         <FlowCanvas
           key={rfVisual ? `visual-${resultado?.id ?? versaoVista?.versao}` : "rascunho"}
-          nodes={rfVisual?.nodes ?? nodes}
+          nodes={rfVisual ? nodesVisuais : nodes}
           edges={rfVisual?.edges ?? edges}
           editavel={!somenteLeitura && !visualizando}
           validacao={fluxo.validacao_rascunho}
-          onNodesChange={rfVisual ? () => undefined : onNodesChange}
+          onNodesChange={rfVisual ? onNodesVisuaisChange : onNodesChange}
           onEdgesChange={rfVisual ? () => undefined : onEdgesChange}
           onNodeDragStop={agendar}
           onBeforeDelete={onBeforeDelete}
@@ -782,6 +791,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         evento={eventoAmostra}
         filtros={filtrosGatilho}
         combinador={combinadorGatilho}
+        catalogo={catalogo}
         amostra={amostra}
         temPublicada={fluxo.versao_publicada != null}
         podeEnviar={podeEditar}

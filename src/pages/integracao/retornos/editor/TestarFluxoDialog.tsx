@@ -15,8 +15,9 @@ import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 import { retornosKeys } from "../retornosKeys";
 import { documentosRecentes, executar, invokeDispatcher, obterExecucao } from "../retornosService";
-import type { Combinador, DocumentoRecente, ExecucaoDetalhe, Regra } from "../retornos.types";
+import type { Catalogo, Combinador, DocumentoRecente, ExecucaoDetalhe, Regra } from "../retornos.types";
 import { ehStatusFinal } from "./execucaoVisual";
+import { descreverRegra } from "./campos/regras";
 
 interface Props {
   aberto: boolean;
@@ -27,6 +28,7 @@ interface Props {
   evento: string | null;
   filtros: Regra[];
   combinador: Combinador;
+  catalogo?: Catalogo;
   amostra: DocumentoRecente | null;
   temPublicada: boolean;
   podeEnviar: boolean;
@@ -80,8 +82,14 @@ export function TestarFluxoDialog(p: Props) {
       if (versao === "rascunho" && !(await p.antesDeExecutar())) return;
       const r = await executar(p.fluxoId, doc.documento_id, modo, versao === "rascunho");
       if (r.status === "filtrado") {
-        let motivo = docInfo?.barrado_por ?? null;
-        try { const d = await obterExecucao(r.execucao_id); motivo = d.erro ?? motivo; } catch { /* sem detalhe */ }
+        const campoBarrado = docInfo?.barrado_por;
+        const regraBarrada = campoBarrado ? p.filtros.find((regra) => regra.campo === campoBarrado) : undefined;
+        let motivo = regraBarrada
+          ? `Barrado pela regra: ${descreverRegra(regraBarrada, p.catalogo)}`
+          : campoBarrado ? `Barrado pela regra: ${campoBarrado}` : null;
+        if (!campoBarrado) {
+          try { const d = await obterExecucao(r.execucao_id); motivo = d.erro; } catch { /* sem detalhe */ }
+        }
         setBarrado(motivo ?? "");
         return;
       }
