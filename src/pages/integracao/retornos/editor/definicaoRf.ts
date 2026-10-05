@@ -31,7 +31,7 @@ export function criarEdge(de: string, para: string, saida: string): FluxoEdge {
   };
 }
 
-function layoutAutomatico(def: Definicao): Map<string, { x: number; y: number }> {
+export function layoutAutomatico(def: Definicao): Map<string, { x: number; y: number }> {
   const prof = new Map<string, number>();
   const fila: string[] = [];
   def.nos.filter((n) => n.tipo.startsWith("gatilho.")).forEach((n) => { prof.set(n.id, 0); fila.push(n.id); });
