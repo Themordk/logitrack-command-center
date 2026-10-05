@@ -248,7 +248,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         return;
       }
       if (emCampoDeTexto(e.target)) return;
-      if (e.key === "Enter" && !noAberto && !somenteLeitura && enterValeNoCanvas(e.target)) {
+      if (e.key === "Enter" && !noAberto && enterValeNoCanvas(e.target)) {
         const sel = nodesRef.current.filter((n) => n.selected);
         if (sel.length === 1) { e.preventDefault(); setNoAberto(sel[0].id); }
       }
@@ -263,7 +263,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   };
 
   const voltar = async () => {
-    if (somenteLeitura || !auto.temPendencia()) { onNavigate(VOLTAR); return; }
+    if (!podeSalvar || !auto.temPendencia()) { onNavigate(VOLTAR); return; }
     setVoltando(true);
     const ok = await salvarAgora();
     setVoltando(false);
