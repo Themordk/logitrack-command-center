@@ -34,7 +34,7 @@ interface DocEntry {
 }
 
 export function EntradasPage() {
-  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, usuarioId, empresaVersion } = useTenant();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const pageSize = 20;
