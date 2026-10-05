@@ -22,6 +22,8 @@ interface DocSaida {
   numero_pedido: number;
   data_emissao: string;
   parceiro_id: string;
+  tipo_saida_id: string | null;
+  tipo_saida_descricao?: string;
   valor_pedido: number;
   parceiro_nome?: string;
   total_skus?: number;
@@ -82,8 +84,9 @@ export function SaidasPage() {
       let query = (supabase as any)
         .from("documento_saida")
         .select(
-          `id, numero_pedido, data_emissao, parceiro_id, valor_pedido, excluido_em, excluido_por,
+          `id, numero_pedido, data_emissao, parceiro_id, tipo_saida_id, valor_pedido, excluido_em, excluido_por,
            parceiro:parceiro_id ( razaosocial ),
+           tipo_saida:tipo_saida_id ( descricao ),
            itens:documento_saida_item ( count )`,
           { count: "exact" }
         )
@@ -94,7 +97,7 @@ export function SaidasPage() {
         .range(from, to);
 
       if (filtroNumero) query = query.eq("numero_pedido", filtroNumero);
-      if (filtroParceiro) query = query.ilike("parceiro.razaosocial", `%${filtroParceiro}%`);
+      if (filtroParceiro) query = query.eq("parceiro_id", filtroParceiro);
       if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
       if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
 
@@ -115,6 +118,8 @@ export function SaidasPage() {
         numero_pedido: doc.numero_pedido,
         data_emissao: doc.data_emissao,
         parceiro_id: doc.parceiro_id,
+        tipo_saida_id: doc.tipo_saida_id,
+        tipo_saida_descricao: doc.tipo_saida?.descricao || "—",
         valor_pedido: doc.valor_pedido,
         parceiro_nome: doc.parceiro?.razaosocial || "—",
         total_skus: doc.itens?.[0]?.count ?? 0,
@@ -132,8 +137,8 @@ export function SaidasPage() {
   const loading = listQuery.isLoading;
   const fetchDocs = useCallback(async () => {
     setIsRefreshing(true);
-    await listQuery.invalidateQueries();
-    setIsRefreshing(false);
+    await listQuery.refetch();
+    setTimeout(() => setIsRefreshing(false), 3000);
   }, [listQuery]);
 
   useEffect(() => {
@@ -336,6 +341,9 @@ export function SaidasPage() {
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Nº Pedido</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Data Emissão</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Parceiro</th>
+                  {!isExcluidos && (
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase bg-secondary">Tipo Saída</th>
+                  )}
                   <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase bg-secondary">SKUs</th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase bg-secondary">Valor</th>
                   {isExcluidos && (
@@ -361,6 +369,9 @@ export function SaidasPage() {
                     <td className="px-4 py-2.5 font-mono text-xs text-foreground">{doc.numero_pedido}</td>
                     <td className="px-4 py-2.5 text-muted-foreground text-xs">{formatDate(doc.data_emissao)}</td>
                     <td className="px-4 py-2.5 text-foreground">{doc.parceiro_nome}</td>
+                    {!isExcluidos && (
+                      <td className="px-4 py-2.5 text-foreground text-xs">{doc.tipo_saida_descricao}</td>
+                    )}
                     <td className="px-4 py-2.5 text-center text-muted-foreground">{doc.total_skus}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">{doc.valor_pedido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</td>
                     {isExcluidos && (
