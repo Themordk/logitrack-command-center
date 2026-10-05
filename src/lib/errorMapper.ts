@@ -15,6 +15,7 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   RETORNO_EMPRESA_INVALIDA: { title: "Empresa inválida para este tenant.", instruction: "Selecione outra empresa." },
   RETORNO_PARAMETROS: { title: "Empresa não selecionada.", instruction: "Selecione uma empresa." },
   RETORNO_DESTINO_NAO_ENCONTRADO: { title: "Destino não encontrado.", instruction: "Atualize a lista." },
+  RETORNO_DESTINO_WEBHOOK_HMAC: { title: "O webhook LogiTrack precisa da autenticação HMAC.", instruction: "Escolha HMAC e informe o segredo." },
   RETORNO_DESTINO_URL: { title: "URL inválida.", instruction: "Use https:// e um endereço público." },
   RETORNO_DESTINO_HEADER_SECRETO: { title: "Credencial em header não é permitida.", instruction: "Use o campo Autenticação." },
   RETORNO_DESTINO_SEM_SEGREDO: { title: "Falta o segredo da autenticação.", instruction: "Informe o token, chave ou senha." },

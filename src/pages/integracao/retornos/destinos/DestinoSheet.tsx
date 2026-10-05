@@ -77,7 +77,12 @@ export function DestinoSheet({ aberto, destino, podeEditar, onFechar, onSalvo }:
   }, [aberto, destino]);
 
   const ro = !podeEditar;
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => {
+    const n = { ...f, [k]: v };
+    if (n.modo === "webhook") n.auth_tipo = "hmac";
+    return n;
+  });
+  const webhook = form.modo === "webhook";
   const authTipos = catalogo?.auth_tipos?.length ? catalogo.auth_tipos : AUTH_PADRAO;
   const temSegredoSalvo = !!destino?.tem_segredo && !removerSegredo;
   const precisaSegredo = form.auth_tipo !== "nenhuma";
@@ -88,6 +93,7 @@ export function DestinoSheet({ aberto, destino, podeEditar, onFechar, onSalvo }:
     if (!/^https:\/\//i.test(form.url_base.trim())) e.url_base = "Use https://";
     if (form.auth_tipo === "api_key" && !form.apiKeyNome.trim()) e.apiKeyNome = "Informe o nome.";
     if (form.auth_tipo === "basic" && !form.usuario.trim()) e.usuario = "Informe o usuário.";
+    if (webhook && form.auth_tipo !== "hmac") e.segredo = "O webhook LogiTrack precisa da autenticação HMAC.";
     if (precisaSegredo && !segredo && !temSegredoSalvo) e.segredo = "Informe o token, chave ou senha.";
     form.headers.forEach((h, i) => {
       if (HEADERS_PROIBIDOS.includes(h.chave.trim().toLowerCase())) e[`h${i}`] = "Credenciais vão em Autenticação";
@@ -204,10 +210,11 @@ export function DestinoSheet({ aberto, destino, podeEditar, onFechar, onSalvo }:
           <Secao titulo="Autenticação">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="d-auth" className={lbl}>Tipo</label>
-              <Select value={form.auth_tipo} onValueChange={(v) => set("auth_tipo", v as AuthTipo)} disabled={ro}>
+              <Select value={form.auth_tipo} onValueChange={(v) => set("auth_tipo", v as AuthTipo)} disabled={ro || webhook}>
                 <SelectTrigger id="d-auth" className={inp}><SelectValue /></SelectTrigger>
                 <SelectContent>{authTipos.map((a) => <SelectItem key={a} value={a}>{AUTH_ROTULO[a] ?? a}</SelectItem>)}</SelectContent>
               </Select>
+              {webhook && <p className="text-xs text-muted-foreground">O webhook LogiTrack é sempre assinado com HMAC.</p>}
             </div>
 
             {form.auth_tipo === "api_key" && (

@@ -620,6 +620,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       <NodeConfigDialog
         no={noSelecionado}
         nos={nodes}
+        ligacoes={edges.map((e) => ({ de: e.source, para: e.target }))}
         catalogo={catalogo}
         destinos={destinos}
         avisos={[...(fluxo.validacao_rascunho?.erros ?? []), ...(fluxo.validacao_rascunho?.avisos ?? [])].filter((a) => !a.no_id || a.no_id === noSelecionado?.id)}

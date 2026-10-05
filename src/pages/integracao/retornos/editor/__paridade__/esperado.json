@@ -1,0 +1,217 @@
+{
+  "payload": {
+    "F1 JSONata + de-para do fluxo vence o da empresa": {
+      "pedido": "10000",
+      "status": "EXP_PARCIAL_FLUXO",
+      "cliente": "11295538702",
+      "itens": [
+        {
+          "sku": "01963.37",
+          "atendido": 2,
+          "cortado": 0
+        },
+        {
+          "sku": "01266.35",
+          "atendido": 1,
+          "cortado": 0
+        },
+        {
+          "sku": "009.516127",
+          "atendido": 0,
+          "cortado": 2
+        }
+      ]
+    },
+    "F5 mapeamento em lote": {
+      "quantidade": 1,
+      "origem": "LogiTrack",
+      "pedidos": [
+        {
+          "numero": "10000",
+          "status": "EXP_PARCIAL_FLUXO",
+          "itens": 3
+        }
+      ]
+    },
+    "$raiz dentro da lista": {
+      "itens": [
+        {
+          "pedido": "10000",
+          "sku": "01963.37"
+        },
+        {
+          "pedido": "10000",
+          "sku": "01266.35"
+        },
+        {
+          "pedido": "10000",
+          "sku": "009.516127"
+        }
+      ]
+    },
+    "payload sem modo = JSONata": {
+      "p": "10000"
+    },
+    "de-para sem correspondência mantém número": {
+      "q": 3
+    },
+    "de-para sem correspondência mantém booleano": {
+      "c": true
+    },
+    "$mapa no JSONata sem correspondência mantém número": {
+      "q": 3
+    },
+    "booleano 'sim'": {
+      "x": true
+    },
+    "booleano 'S'": {
+      "x": true
+    },
+    "booleano 'TRUE'": {
+      "x": true
+    },
+    "booleano 'não'": {
+      "x": false
+    },
+    "número '1,5'": {
+      "x": 1.5
+    },
+    "número vazio": {
+      "x": null
+    },
+    "número inválido": {
+      "x": null
+    },
+    "inteiro '7.9'": {
+      "x": 7
+    },
+    "texto de booleano": {
+      "x": "true"
+    },
+    "texto de número": {
+      "x": "2"
+    },
+    "lista sobre objeto vira []": {
+      "l": []
+    },
+    "caminho com espaço nas pontas": {
+      "n": "10000"
+    },
+    "caminho $raiz sozinho": {
+      "r": {
+        "itens": [
+          {
+            "id": "58fa",
+            "lotes": [],
+            "produto": {
+              "id": "7c15",
+              "sku": "01963.37",
+              "descricao": "ROL CENT 45MM",
+              "codigo_erp": "11221273616",
+              "codigo_erp_pedido": null
+            },
+            "unidade": null,
+            "codigo_erp": null,
+            "qtd_cortada": 0,
+            "qtd_atendida": 2,
+            "qtd_solicitada": 2,
+            "quantidade_erp": null,
+            "valor_unitario": 52.37
+          },
+          {
+            "id": "a0d5",
+            "lotes": [],
+            "produto": {
+              "id": "2bb8",
+              "sku": "01266.35",
+              "descricao": "KIT AMORT",
+              "codigo_erp": "11221273530",
+              "codigo_erp_pedido": null
+            },
+            "unidade": null,
+            "codigo_erp": null,
+            "qtd_cortada": 0,
+            "qtd_atendida": 1,
+            "qtd_solicitada": 1,
+            "quantidade_erp": null,
+            "valor_unitario": 47.93
+          },
+          {
+            "id": "f487",
+            "lotes": [],
+            "produto": {
+              "id": "dc0c",
+              "sku": "009.516127",
+              "descricao": "FAROL S/VG IVECO",
+              "codigo_erp": "11223785418",
+              "codigo_erp_pedido": null
+            },
+            "unidade": null,
+            "codigo_erp": null,
+            "qtd_cortada": 2,
+            "qtd_atendida": 0,
+            "qtd_solicitada": 2,
+            "quantidade_erp": null,
+            "valor_unitario": 75
+          }
+        ],
+        "evento": "saida.expedido",
+        "totais": {
+          "itens": 3,
+          "volumes": 0,
+          "qtd_cortada": 2,
+          "qtd_atendida": 3,
+          "qtd_solicitada": 5
+        },
+        "empresa": {
+          "id": "2f27",
+          "codigo": "CORE-FL01"
+        },
+        "parceiro": {
+          "codigo_erp": "11295538702",
+          "razao_social": "7LOG LOGISTICA EIRELI EPP"
+        },
+        "documento": {
+          "id": "f7d1",
+          "tipo": {
+            "descricao": "TRANSPORTADOR",
+            "codigo_erp": null
+          },
+          "valor": 452.67,
+          "numero": "10000",
+          "direcao": "saida",
+          "codigo_erp": null,
+          "observacao": "TESTANDO O SISTEMA",
+          "status_wms": 1,
+          "sistema_origem": "manual"
+        },
+        "tem_corte": true,
+        "evento_nome": "Saída · Expedido",
+        "ocorrido_em": "2026-10-05T15:16:09-03:00",
+        "versao_contexto": 1
+      }
+    },
+    "expressão vazia num campo vira null": {
+      "e": null
+    },
+    "objeto aninhado": {
+      "cab": {
+        "num": "10000",
+        "valor": "452.67"
+      }
+    }
+  },
+  "regras": {
+    "contém ignora maiúsculas": true,
+    "igual: campo nulo ≠ texto vazio": false,
+    "em: lista não é aparada": false,
+    "igual booleano": true,
+    "maior": true,
+    "existe em campo nulo": false,
+    "nao_em com campo ausente": true
+  },
+  "templates": [
+    "/pedidos/10000/TRANSPORTADOR?c={{a-b}}",
+    "|01963.37"
+  ]
+}

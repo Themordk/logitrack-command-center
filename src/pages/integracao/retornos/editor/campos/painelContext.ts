@@ -9,6 +9,7 @@ export interface PainelContextoValor {
   contexto: Contexto;
   caminhos: string[];
   somenteLeitura: boolean;
+  fluxoId?: string | null;
 }
 
 export const PainelContext = createContext<PainelContextoValor>({ contexto: {}, caminhos: [], somenteLeitura: true });

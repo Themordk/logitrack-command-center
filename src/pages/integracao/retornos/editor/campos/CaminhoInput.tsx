@@ -47,7 +47,7 @@ export function CaminhoInput({ value, onChange, placeholder = "ex.: documento.co
               const c = e.dataTransfer.getData(MIME_CAMINHO);
               if (c) { e.preventDefault(); onChange(c); }
             }}
-            className="h-9 rounded-lg bg-secondary/40 font-mono text-xs"
+            className="h-9 rounded-lg bg-secondary/40 font-mono text-xs leading-normal"
           />
         </div>
       </PopoverTrigger>

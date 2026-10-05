@@ -34,6 +34,7 @@
 `p_destino`: `{ id?, nome, modo: 'http'|'webhook', metodo, url_base, auth_tipo, auth_config, headers, timeout_ms, max_tentativas, limite_falhas, ativo, erp_provedor_id?, reativar? }`.
 - Sem exclusão: "remover" = `ativo:false`.
 - `modo: 'webhook'` sempre grava `metodo = 'POST'`, porque o envelope assinado precisa de corpo. Esconda o campo Método nesse modo.
+- `modo: 'webhook'` exige `auth_tipo: 'hmac'` (o envelope é sempre assinado). Outro tipo → `RETORNO_DESTINO_WEBHOOK_HMAC`. No formulário, trave a autenticação em HMAC nesse modo.
 - `p_segredo` vazio/null **mantém** o segredo atual. `p_remover_segredo:true` apaga.
 - Salvar um destino pausado o reativa (zera falhas), a não ser que `reativar:false`.
 - Regras do backend: `url_base` https e host público; headers não podem conter `Authorization`, `X-API-Key`, `Cookie`, `Proxy-Authorization`; `auth_tipo` ≠ `nenhuma` exige segredo.
@@ -189,7 +190,12 @@ type CampoMapeado = { campo: string; tipo?: 'caminho'|'fixo'|'expressao'|'lista'
 
 **Mapeamento:**
 - Dentro de `lista`, os caminhos são relativos ao item; `$raiz.` volta à raiz.
-- No JSONata, `$mapa(dominio, valor)` aplica o de-para, `$raiz` é o contexto e `$agora()` dá a data atual.
+- No JSONata, `$mapa(dominio, valor)` aplica o de-para, `$raiz` é o contexto, `$agora()` dá a data atual e `$formatar(valor, formato)` aplica o mesmo formato do mapeamento (use-o na conversão mapeamento → JSONata).
+- `modo` ausente = JSONata.
+- Formatos: `numero`/`inteiro` aceitam vírgula decimal; vazio ou inválido vira `null`. `booleano`: `true`, `1`, `sim`, `s` (sem diferenciar maiúsculas) = true; o resto = false. `texto` de objeto = JSON.
+- De-para sem correspondência devolve o valor como veio (número continua número). De-para e formato não se aplicam a `lista`/`objeto`.
+- Caminho com espaços nas pontas é aparado; `$raiz` sozinho devolve o contexto inteiro; `lista` sobre algo que não é lista vira `[]`; expressão vazia vira `null`.
+- **Prévia no front:** `src/pages/integracao/retornos/editor/motorPrevia.ts` é cópia fiel do `motor.ts` do servidor e não se edita à mão. O teste `motorPrevia.paridade.test.ts` compara com resultados gerados pelo servidor.
 
 ### 3.4 Validação
 ```ts
@@ -261,6 +267,7 @@ O errorMapper casa **por substring** e na ordem do objeto. Por isso, declare os 
 | RETORNO_DESTINO_URL | URL inválida. | Use https:// e um endereço público. |
 | RETORNO_DESTINO_HEADER_SECRETO | Credencial em header não é permitida. | Use o campo Autenticação. |
 | RETORNO_DESTINO_SEM_SEGREDO | Falta o segredo da autenticação. | Informe o token, chave ou senha. |
+| RETORNO_DESTINO_WEBHOOK_HMAC | O webhook LogiTrack precisa da autenticação HMAC. | Escolha HMAC e informe o segredo. |
 | RETORNO_DESTINO_NOME | Informe o nome do destino. | — |
 | RETORNO_DESTINO_JSON | Headers inválidos. | Revise os headers. |
 | RETORNO_FLUXO_NAO_ENCONTRADO | Fluxo não encontrado. | Atualize a lista. |

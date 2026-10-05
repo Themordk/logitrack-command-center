@@ -45,7 +45,7 @@ export function TemplateInput({ id, value, onChange, placeholder, multilinha, se
       if (c) { e.preventDefault(); inserir(c); }
     },
     list: sugestoes?.length && id ? `${id}-sug` : undefined,
-    className: "rounded-lg bg-secondary/40 font-mono text-xs pr-10",
+    className: "rounded-lg bg-secondary/40 font-mono text-xs leading-normal pr-10",
   };
   const previa = renderTemplate(value, contexto);
 
