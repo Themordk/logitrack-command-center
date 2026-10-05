@@ -290,7 +290,6 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       }
       return { nodes: nodes2, edges: edges2 };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aplicar, maxNos, catalogo]);
   const adicionarRef = useRef(adicionar); adicionarRef.current = adicionar;
 
@@ -339,7 +338,6 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       return { nodes: r.nodes, edges: r.edges };
     });
     if (substituida) toast.info("Ligação substituída.");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aplicar, catalogo]);
   const onConnectEnd: OnConnectEnd<FluxoNode> = useCallback((ev, st) => {
     if (st.isValid || !st.fromNode || !st.fromHandle || st.fromHandle.type !== "source") return;

@@ -5,15 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { GRUPO_NO_UI, TIPO_NO_UI } from "../retornosUi";
 import type { Catalogo, TipoNo } from "../retornos.types";
-import { ehGatilho, normalizarBusca } from "./novoNo";
-
-export function filtrarNos(catalogo: Catalogo | undefined, busca: string, semGatilhos: boolean) {
-  const q = normalizarBusca(busca.trim());
-  return (catalogo?.nos ?? []).filter((n) =>
-    (!semGatilhos || !ehGatilho(n.tipo)) &&
-    (!q || normalizarBusca(`${n.nome} ${n.descricao ?? ""}`).includes(q)),
-  );
-}
+import { filtrarNos } from "./novoNo";
 
 interface Props {
   open: boolean;

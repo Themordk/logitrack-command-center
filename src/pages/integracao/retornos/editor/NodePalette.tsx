@@ -6,8 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { GRUPO_NO_UI, TIPO_NO_UI } from "../retornosUi";
 import type { Catalogo, GrupoNo, TipoNo } from "../retornos.types";
-import { filtrarNos } from "./AdicionarNoPopover";
-import { ehGatilho } from "./novoNo";
+import { ehGatilho, filtrarNos } from "./novoNo";
 
 export const MIME_NO = "application/x-retorno-no";
 const ORDEM: GrupoNo[] = ["gatilho", "logica", "dados", "acao"];

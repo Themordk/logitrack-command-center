@@ -91,3 +91,12 @@ export function posicaoLivre(x: number, y: number, nodes: FluxoNode[]): { x: num
 export function normalizarBusca(s: string) {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
+
+export function filtrarNos(catalogo: Catalogo | undefined, busca: string, semGatilhos: boolean) {
+  const q = normalizarBusca(busca.trim());
+  return (catalogo?.nos ?? []).filter((n) =>
+    (!semGatilhos || !ehGatilho(n.tipo)) &&
+    (!q || normalizarBusca(`${n.nome} ${n.descricao ?? ""}`).includes(q)),
+  );
+}
+
