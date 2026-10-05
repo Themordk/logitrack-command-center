@@ -84,9 +84,8 @@ export function SaidasPage() {
       let query = (supabase as any)
         .from("documento_saida")
         .select(
-          `id, numero_pedido, data_emissao, parceiro_id, tipo_saida_id, valor_pedido, excluido_em, excluido_por,
+          `id, numero_pedido, data_emissao, parceiro_id, tipo_pedido_id, tipo_saida_id, valor_pedido, excluido_em, excluido_por,
            parceiro:parceiro_id ( razaosocial ),
-           tipo_saida:descricao,
            itens:documento_saida_item ( count )`,
           { count: "exact" }
         )
@@ -114,13 +113,24 @@ export function SaidasPage() {
         }
       }
 
+      // Busca descrições de tipo_saida (não tem FK direta, busca manual)
+      const tipoPedidoIds = Array.from(new Set((data || []).map((d: any) => d.tipo_pedido_id).filter(Boolean))) as string[];
+      const tipoSaidaMap = new Map<string, string>();
+      if (tipoPedidoIds.length > 0) {
+        const { data: tipoSaidas } = await (supabase as any)
+          .from("tipo_saida")
+          .select("id, descricao")
+          .in("id", tipoPedidoIds);
+        (tipoSaidas || []).forEach((ts: any) => tipoSaidaMap.set(ts.id, ts.descricao));
+      }
+
       const enriched: DocSaida[] = (data || []).map((doc: any) => ({
         id: doc.id,
         numero_pedido: doc.numero_pedido,
         data_emissao: doc.data_emissao,
         parceiro_id: doc.parceiro_id,
         tipo_saida_id: doc.tipo_saida_id,
-        tipo_saida_descricao: doc.tipo_saida?.descricao || "—",
+        tipo_saida_descricao: doc.tipo_pedido_id ? (tipoSaidaMap.get(doc.tipo_pedido_id) || "—") : "—",
         valor_pedido: doc.valor_pedido,
         parceiro_nome: doc.parceiro?.razaosocial || "—",
         total_skus: doc.itens?.[0]?.count ?? 0,
