@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, Check, CircleDot, Plus, RotateCcw, X } from "lucide-react";
 import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -21,8 +21,9 @@ const COR_ROTULO: Record<string, string> = {
 function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
   const {
     catalogo, destinos, errosPorNo, avisosPorNo, desconectados, editavel, saidasOcupadas, limiteAtingido,
-    renomeandoId, onAdicionarNoRamo, onConcluirRenomear,
+    renomeandoId, onAdicionarNoRamo, onConcluirRenomear, execucao, onAbrirPasso,
   } = useEditorContext();
+  const passo = execucao?.porNo.get(id);
   const [ramoAberto, setRamoAberto] = useState<string | null>(null);
   const ui = TIPO_NO_UI[data.tipo];
   const grupo = GRUPO_NO_UI[ui?.grupo ?? "acao"];
@@ -37,7 +38,10 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
   const mensagens = erros.length ? erros : avisos;
 
   return (
-    <div className={cn("flex w-40 flex-col items-center gap-1.5", desconectados.has(id) && "opacity-60")}>
+    <div
+      className={cn("flex w-40 flex-col items-center gap-1.5", !execucao && desconectados.has(id) && "opacity-60", execucao && !passo && "opacity-30")}
+      onClick={passo && onAbrirPasso ? () => onAbrirPasso(id) : undefined}
+    >
       <div
         aria-label={`${nome}, ${tipoNome}`}
         className={cn(
@@ -92,7 +96,8 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
             </div>
           );
         })}
-        {mensagens.length > 0 && (
+        {passo && <SeloPasso status={passo.status} tentativas={passo.tentativas} />}
+        {!execucao && mensagens.length > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -133,6 +138,28 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
         <span className="w-full truncate text-[11px] text-muted-foreground">{resumo}</span>
       </div>
     </div>
+  );
+}
+
+const SELO: Record<string, { icone: typeof Check; classe: string; rotulo: string }> = {
+  sucesso: { icone: Check, classe: "bg-emerald-500/15 text-emerald-400 border-emerald-500/40", rotulo: "Sucesso" },
+  erro: { icone: X, classe: "bg-rose-500/15 text-rose-400 border-rose-500/40", rotulo: "Erro" },
+  simulado: { icone: CircleDot, classe: "bg-sky-500/15 text-sky-400 border-sky-500/40", rotulo: "Simulado" },
+  retry: { icone: RotateCcw, classe: "bg-amber-500/15 text-amber-400 border-amber-500/40", rotulo: "Tentativa" },
+  filtrado: { icone: X, classe: "bg-zinc-500/15 text-zinc-400 border-zinc-500/40", rotulo: "Filtrado" },
+};
+
+function SeloPasso({ status, tentativas }: { status: string; tentativas: number }) {
+  const s = SELO[status] ?? SELO.simulado;
+  const I = s.icone;
+  return (
+    <span
+      aria-label={`${s.rotulo}${tentativas > 1 ? `, ${tentativas} tentativas` : ""}. Clique para ver o passo.`}
+      className={cn("absolute -right-2 -top-2 flex h-5 min-w-5 cursor-pointer items-center justify-center gap-0.5 rounded-full border px-1 text-[10px] font-semibold", s.classe)}
+    >
+      <I size={11} aria-hidden />
+      {tentativas > 1 && <span>{tentativas}</span>}
+    </span>
   );
 }
 

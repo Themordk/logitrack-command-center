@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { Aviso, Catalogo, Destino, TipoNo } from "../retornos.types";
+import type { ExecucaoVisual } from "./execucaoVisual";
 
 export interface EditorContextValor {
   catalogo?: Catalogo;
@@ -14,6 +15,9 @@ export interface EditorContextValor {
   renomeandoId: string | null;
   onAdicionarNoRamo?: (noId: string, saida: string, tipo: TipoNo) => void;
   onConcluirRenomear?: (noId: string, nome: string | null) => void;
+  /** Resultado de teste sobreposto ao canvas. */
+  execucao?: ExecucaoVisual | null;
+  onAbrirPasso?: (noId: string) => void;
 }
 
 export const EditorContext = createContext<EditorContextValor>({
