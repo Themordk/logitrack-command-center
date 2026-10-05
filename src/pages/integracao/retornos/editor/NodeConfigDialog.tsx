@@ -236,7 +236,7 @@ export function NodeConfigDialog(p: Props) {
           </ToggleGroup>
         </div>
 
-        <PainelContext.Provider value={{ contexto, caminhos, somenteLeitura: p.somenteLeitura }}>
+        <PainelContext.Provider value={{ contexto, caminhos, somenteLeitura: p.somenteLeitura, fluxoId: p.fluxoId }}>
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
             <ResizablePanel defaultSize={26} minSize={16} className="flex flex-col min-h-0">
               <div className="px-4 py-2.5 border-b border-border bg-secondary/30"><h3 className="text-sm font-semibold">Entrada</h3></div>

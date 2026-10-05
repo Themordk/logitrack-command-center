@@ -239,19 +239,21 @@ function LinhaCampo({ campo, onChange, onRemover, onArrastar, base, dominios, so
     else onChange({ ...base2, dominio: campo.dominio, formato: campo.formato });
   };
   const nomeAria = campo.campo || "novo campo";
+  const { fluxoId } = usePainel();
+  const semItens = !!campo.dominio && !dominios.includes(campo.dominio);
 
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-card/40 p-2">
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-nowrap items-center gap-1.5">
         <span draggable={!somenteLeitura} onDragStart={onArrastar} aria-label={`Arrastar ${nomeAria}`} role="button" tabIndex={-1}
-          className={cn("text-muted-foreground", !somenteLeitura && "cursor-grab")}><GripVertical size={14} /></span>
+          className={cn("shrink-0 text-muted-foreground", !somenteLeitura && "cursor-grab")}><GripVertical size={14} /></span>
         <Input aria-label="Nome do campo no ERP" value={campo.campo} disabled={somenteLeitura} placeholder="campo no ERP"
-          onChange={(e) => onChange({ ...campo, campo: e.target.value })} className="h-9 w-36 rounded-lg bg-secondary/40 font-mono text-xs" />
+          onChange={(e) => onChange({ ...campo, campo: e.target.value })} className="h-9 w-36 min-w-0 shrink rounded-lg bg-secondary/40 font-mono text-xs leading-normal" />
         <Select value={tipo} disabled={somenteLeitura} onValueChange={(v) => trocarTipo(v as Tipo)}>
-          <SelectTrigger aria-label={`Tipo de ${nomeAria}`} className="h-9 w-44 rounded-lg bg-secondary/40 text-xs"><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={`Tipo de ${nomeAria}`} className="h-9 w-44 min-w-0 shrink rounded-lg bg-secondary/40 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>{TIPOS.map((t) => <SelectItem key={t.v} value={t.v} className="text-xs">{t.r}</SelectItem>)}</SelectContent>
         </Select>
-        <div className="min-w-40 flex-1">
+        <div className="min-w-0 flex-1">
           {tipo === "caminho" || tipo === "lista" ? (
             <CaminhoInput aria-label={`Valor de ${nomeAria}`} value={valor} placeholder={tipo === "lista" ? "ex.: itens" : base ? "ex.: produto.sku" : "ex.: documento.numero"}
               onChange={(v) => onChange({ ...campo, valor: v })} />
@@ -260,12 +262,12 @@ function LinhaCampo({ campo, onChange, onRemover, onArrastar, base, dominios, so
           ) : (
             <Input aria-label={`Valor de ${nomeAria}`} value={valor} disabled={somenteLeitura}
               placeholder={tipo === "expressao" ? "expressão JSONata, ex.: evento" : "valor fixo"}
-              onChange={(e) => onChange({ ...campo, valor: e.target.value })} className="h-9 rounded-lg bg-secondary/40 font-mono text-xs" />
+              onChange={(e) => onChange({ ...campo, valor: e.target.value })} className="h-9 rounded-lg bg-secondary/40 font-mono text-xs leading-normal" />
           )}
         </div>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Remover ${nomeAria}`} disabled={somenteLeitura} onClick={onRemover}><Trash2 size={13} /></Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Remover ${nomeAria}`} disabled={somenteLeitura} onClick={onRemover}><Trash2 size={13} /></Button>
           </TooltipTrigger>
           <TooltipContent>Remover</TooltipContent>
         </Tooltip>
@@ -279,6 +281,7 @@ function LinhaCampo({ campo, onChange, onRemover, onArrastar, base, dominios, so
             <SelectContent>
               <SelectItem value={NADA} className="text-xs">—</SelectItem>
               {dominios.map((d) => <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>)}
+              {semItens && <SelectItem value={campo.dominio!} className="text-xs">{campo.dominio} (sem itens)</SelectItem>}
             </SelectContent>
           </Select>
           <span className="ml-2 text-[11px] uppercase tracking-wide text-muted-foreground">Formato</span>
@@ -288,6 +291,13 @@ function LinhaCampo({ campo, onChange, onRemover, onArrastar, base, dominios, so
             <SelectContent>{FORMATOS.map((f) => <SelectItem key={f.v} value={f.v} className="text-xs">{f.r}</SelectItem>)}</SelectContent>
           </Select>
         </div>
+      )}
+      {!composto && semItens && (
+        <p className="flex items-center gap-1.5 pl-6 text-[11px] text-amber-400">
+          Sem itens neste domínio: o valor vai sem tradução.
+          <a href={`#/config/integracao/retornos?aba=depara${fluxoId ? `&fluxo=${fluxoId}` : ""}`} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-1 text-primary hover:underline">Abrir de-para <ExternalLink size={11} aria-hidden /></a>
+        </p>
       )}
       {composto && (
         <div className="ml-3 flex flex-col gap-1.5 border-l-2 border-border pl-3">
