@@ -49,6 +49,7 @@ export function EntradasPage() {
   const [filtroParceiro, setFiltroParceiro] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Limpa página ao mudar filtro
   const handleFiltroChange = useCallback(() => { setPage(1); }, []);
@@ -145,7 +146,11 @@ export function EntradasPage() {
   const docs = listQuery.data?.rows ?? [];
   const total = listQuery.data?.count ?? 0;
   const loading = listQuery.isLoading;
-  const fetchDocs = useCallback(() => { listQuery.refetch(); }, [listQuery]);
+  const fetchDocs = useCallback(async () => {
+    setIsRefreshing(true);
+    await listQuery.invalidateQueries();
+    setIsRefreshing(false);
+  }, [listQuery]);
 
   useEffect(() => {
     if (listQuery.error) toast.error(`Erro: ${(listQuery.error as Error).message}`);
@@ -268,11 +273,11 @@ export function EntradasPage() {
             <>
               <button
                 onClick={fetchDocs}
-                disabled={loading}
+                disabled={isRefreshing}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
                 title="Atualizar dados"
               >
-                <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
+                <RefreshCcw size={14} className={isRefreshing ? "animate-spin" : ""} />
                 Atualizar Dados
               </button>
               <button

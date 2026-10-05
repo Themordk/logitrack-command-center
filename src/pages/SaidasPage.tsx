@@ -46,6 +46,7 @@ export function SaidasPage() {
   const [filtroParceiro, setFiltroParceiro] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleFiltroChange = useCallback(() => { setPage(1); }, []);
 
@@ -92,7 +93,7 @@ export function SaidasPage() {
         .order(isExcluidos ? "excluido_em" : "data_emissao", { ascending: false })
         .range(from, to);
 
-      if (filtroNumero) query = query.ilike("numero_pedido::text", `%${filtroNumero}%`);
+      if (filtroNumero) query = query.eq("numero_pedido", filtroNumero);
       if (filtroParceiro) query = query.ilike("parceiro.razaosocial", `%${filtroParceiro}%`);
       if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
       if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
@@ -129,7 +130,11 @@ export function SaidasPage() {
   const docs = listQuery.data?.rows ?? [];
   const total = listQuery.data?.count ?? 0;
   const loading = listQuery.isLoading;
-  const fetchDocs = useCallback(() => { listQuery.refetch(); }, [listQuery]);
+  const fetchDocs = useCallback(async () => {
+    setIsRefreshing(true);
+    await listQuery.invalidateQueries();
+    setIsRefreshing(false);
+  }, [listQuery]);
 
   useEffect(() => {
     if (listQuery.error) toast.error(`Erro: ${(listQuery.error as Error).message}`);
@@ -219,11 +224,11 @@ export function SaidasPage() {
             <>
               <button
                 onClick={fetchDocs}
-                disabled={loading}
+                disabled={isRefreshing}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
                 title="Atualizar dados"
               >
-                <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
+                <RefreshCcw size={14} className={isRefreshing ? "animate-spin" : ""} />
                 Atualizar Dados
               </button>
               <button onClick={() => setShowCadastro(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors">
@@ -268,6 +273,7 @@ export function SaidasPage() {
               value={filtroNumero}
               onChange={(e) => { setFiltroNumero(e.target.value); handleFiltroChange(); }}
               className="h-9 w-44 px-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
+              title="Busca exata pelo número do pedido"
             />
           </div>
           <div className="flex flex-col gap-1">
