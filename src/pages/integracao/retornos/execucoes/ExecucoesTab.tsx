@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDateTime, formatTime } from "@/utils/dateTime";
 import { cn } from "@/lib/utils";
+import { parseError } from "@/lib/errorMapper";
 import { relativeTime } from "../../StatusBar";
 import { StatusRetornoBadge } from "../components/StatusRetornoBadge";
 import { MODO_EXECUCAO_UI, STATUS_EXECUCAO_UI } from "../retornosUi";
@@ -154,7 +155,6 @@ export function ExecucoesTab({ params, onNavigate }: Props) {
       await reprocessarEExecutar(e.id, null);
       toast.success("Reprocessamento iniciado.");
     } catch (err) {
-      const { parseError } = await import("@/lib/errorMapper");
       toast.error(parseError(err, "reprocessar execução").title);
     }
     atualizarTudo();

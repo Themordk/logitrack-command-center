@@ -11,6 +11,7 @@ import { DestinosTab } from "./destinos/DestinosTab";
 import { DeparaTab } from "./depara/DeparaTab";
 import { MotorCard } from "./MotorCard";
 import { FluxosTab } from "./fluxos/FluxosTab";
+import { ExecucoesTab } from "./execucoes/ExecucoesTab";
 
 type Aba = "fluxos" | "execucoes" | "destinos" | "depara";
 const ABAS: Aba[] = ["fluxos", "execucoes", "destinos", "depara"];
@@ -134,7 +135,7 @@ function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void
           <FluxosTab onNavigate={onNavigate} />
         </TabsContent>
         <TabsContent value="execucoes" className="mt-0">
-          <Vazio icone={Activity} texto="Aqui aparecerá cada envio ao ERP, com o caminho percorrido, a resposta e as opções de reprocessar ou descartar." />
+          <ExecucoesTab params={params} onNavigate={onNavigate} />
         </TabsContent>
         <TabsContent value="destinos" className="mt-0">
           <DestinosTab params={params} />
