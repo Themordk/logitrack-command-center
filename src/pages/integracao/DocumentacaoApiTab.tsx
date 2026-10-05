@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, ChevronDown, Copy, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { parseError } from "@/lib/errorMapper";
+import { WebhooksDocSection } from "./WebhooksDocSection";
 
 interface DocumentacaoApiTabProps {
   tenantId: string;
@@ -111,6 +112,7 @@ export function DocumentacaoApiTab({ erpProvedorId }: DocumentacaoApiTabProps) {
   };
 
   return (
+    <div className="space-y-3">
     <div className="card-surface p-5 space-y-4">
       <div className="flex items-center gap-2">
         <BookOpen size={16} className="text-primary" />
@@ -255,6 +257,8 @@ export function DocumentacaoApiTab({ erpProvedorId }: DocumentacaoApiTabProps) {
           </div>
         ))
       )}
+    </div>
+    <WebhooksDocSection />
     </div>
   );
 }
