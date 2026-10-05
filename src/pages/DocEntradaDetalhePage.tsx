@@ -1,3 +1,4 @@
+import { RetornosDocumentoCard } from "@/pages/integracao/retornos/components/RetornosDocumentoCard";
 import { Fragment, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -335,6 +336,8 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <RetornosDocumentoCard entidade="documento_entrada" documentoId={documentoId} />
     </div>
   );
 }
