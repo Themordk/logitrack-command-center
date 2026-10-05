@@ -48,7 +48,7 @@ export function SaidasPage() {
   const [filtroParceiro, setFiltroParceiro] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [filtroTipoSaida, setFiltroTipoSaida] = useState("");
 
   const handleFiltroChange = useCallback(() => { setPage(1); }, []);
 
@@ -86,7 +86,7 @@ export function SaidasPage() {
         .select(
           `id, numero_pedido, data_emissao, parceiro_id, tipo_saida_id, valor_pedido, excluido_em, excluido_por,
            parceiro:parceiro_id ( razaosocial ),
-           tipo_saida:tipo_saida_id ( descricao ),
+           tipo_saida:descricao,
            itens:documento_saida_item ( count )`,
           { count: "exact" }
         )
@@ -100,6 +100,7 @@ export function SaidasPage() {
       if (filtroParceiro) query = query.eq("parceiro_id", filtroParceiro);
       if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
       if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
+      if (filtroTipoSaida) query = query.eq("tipo_saida_id", filtroTipoSaida);
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -136,9 +137,7 @@ export function SaidasPage() {
   const total = listQuery.data?.count ?? 0;
   const loading = listQuery.isLoading;
   const fetchDocs = useCallback(async () => {
-    setIsRefreshing(true);
     await listQuery.refetch();
-    setTimeout(() => setIsRefreshing(false), 3000);
   }, [listQuery]);
 
   useEffect(() => {
@@ -229,11 +228,11 @@ export function SaidasPage() {
             <>
               <button
                 onClick={fetchDocs}
-                disabled={isRefreshing}
+                disabled={listQuery.isFetching}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
                 title="Atualizar dados"
               >
-                <RefreshCcw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                <RefreshCcw size={14} className={listQuery.isFetching ? "animate-spin" : ""} />
                 Atualizar Dados
               </button>
               <button onClick={() => setShowCadastro(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors">
@@ -309,9 +308,24 @@ export function SaidasPage() {
               className="h-9 w-40 px-3 rounded-lg border border-border bg-background text-sm text-foreground outline-none focus:border-primary"
             />
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-muted-foreground uppercase">Tipo Saída</label>
+            <select
+              value={filtroTipoSaida}
+              onChange={(e) => { setFiltroTipoSaida(e.target.value); handleFiltroChange(); }}
+              className="h-9 w-44 px-3 rounded-lg border border-border bg-background text-sm text-foreground outline-none focus:border-primary"
+            >
+              <option value="">Todos</option>
+              {(listQuery.data?.rows ?? []).map((d: DocSaida) =>
+                d.tipo_saida_id ? (
+                  <option key={d.tipo_saida_id} value={d.tipo_saida_id}>{d.tipo_saida_descricao}</option>
+                ) : null
+              )}
+            </select>
+          </div>
           {hasFilters && (
             <button
-              onClick={clearFilters}
+              onClick={() => { clearFilters(); setFiltroTipoSaida(""); }}
               className="h-9 px-3 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
               Limpar filtros
