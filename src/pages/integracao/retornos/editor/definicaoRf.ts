@@ -65,7 +65,6 @@ export function paraRf(def: Definicao, _catalogo?: Catalogo): { nodes: FluxoNode
       type: "fluxo",
       position: { x: p.x ?? 0, y: p.y ?? 0 },
       data: { tipo, nome, config: (config ?? {}) as Record<string, unknown>, extra: extra as Record<string, unknown> },
-      deletable: !tipo.startsWith("gatilho."),
     };
   });
   const edges = ligacoes.map((l) => criarEdge(l.de, l.para, l.saida ?? "principal"));

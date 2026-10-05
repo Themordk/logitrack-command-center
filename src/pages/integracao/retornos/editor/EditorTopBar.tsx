@@ -17,10 +17,17 @@ interface Props {
   somenteLeitura: boolean;
   estado: EstadoSalvamento;
   voltando: boolean;
+  salvoEm: number | null;
   onRenomear: (nome: string) => void;
   onVoltar: () => void;
   onExecucoes: () => void;
   onTentarDeNovo: () => void;
+}
+
+function textoSalvo(salvoEm: number | null, updatedAt: string): string {
+  if (salvoEm != null) return relativeTime(new Date(salvoEm).toISOString());
+  const t = new Date(updatedAt).getTime();
+  return Number.isNaN(t) || t > Date.now() ? "agora" : relativeTime(updatedAt);
 }
 
 function EmBreve({ children }: { children: React.ReactNode }) {
@@ -32,7 +39,7 @@ function EmBreve({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function EditorTopBar({ nome, fluxo, somenteLeitura, estado, voltando, onRenomear, onVoltar, onExecucoes, onTentarDeNovo }: Props) {
+export function EditorTopBar({ nome, fluxo, somenteLeitura, estado, voltando, salvoEm, onRenomear, onVoltar, onExecucoes, onTentarDeNovo }: Props) {
   const [editando, setEditando] = useState(false);
   const [rascunho, setRascunho] = useState(nome);
   const [, setTick] = useState(0);
@@ -94,7 +101,7 @@ export function EditorTopBar({ nome, fluxo, somenteLeitura, estado, voltando, on
         {!somenteLeitura && (
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
             {estado === "salvando" && <><Loader2 size={13} className="animate-spin" aria-hidden /> Salvando…</>}
-            {estado === "salvo" && <>Salvo {relativeTime(fluxo.updated_at)}</>}
+            {(estado === "salvo" || estado === "ocioso") && <>Salvo {textoSalvo(salvoEm, fluxo.updated_at)}</>}
             {estado === "erro" && (
               <>
                 <span className="text-rose-400">Não salvo</span>
