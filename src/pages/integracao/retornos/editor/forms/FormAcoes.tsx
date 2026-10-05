@@ -242,12 +242,21 @@ export function ParametrosProvedor(p: FormNoProps) {
   );
 }
 
-export function ResultadoWebhook(p: FormNoProps) {
-  const r = useRequisicao(p, "acao.webhook");
+export function ResultadoProvedor(p: FormNoProps) {
+  const semConexao = p.avisos.find((a) => a.codigo === "PROVEDOR_SEM_CONEXAO");
+  const res = p.config.operacao ? previaOmie(p.config, p.contexto) : null;
   return (
     <div className="flex flex-col gap-3">
-      {r.req && !r.req.assinado && <Aviso cor="rose">Este destino não tem HMAC: o envelope iria sem assinatura.</Aviso>}
-      <VisaoRequisicao p={p} r={r} />
+      {semConexao && <Aviso cor="amber">{semConexao.mensagem}</Aviso>}
+      {!res && <BlocoCodigo>Escolha a operação.</BlocoCodigo>}
+      {res && !res.ok && <Aviso cor="rose">{res.erro}</Aviso>}
+      {res?.ok && res.observacao && <p className="text-xs text-muted-foreground">{res.observacao}</p>}
+      {res?.ok && res.chamadas.map((c, i) => (
+        <div key={i}>
+          <p className="mb-1 font-mono text-xs text-primary">{c.call} · {c.endpoint}</p>
+          <BlocoCodigo>{JSON.stringify(c.param, null, 2)}</BlocoCodigo>
+        </div>
+      ))}
     </div>
   );
 }
