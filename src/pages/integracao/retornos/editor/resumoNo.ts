@@ -35,8 +35,8 @@ export function resumoNo(
     case "logica.dividir_itens":
       return "Por item";
     case "dados.payload":
-      if (c.modo === "jsonata") return "JSONata";
-      return `Mapeamento · ${Array.isArray(c.campos) ? c.campos.length : 0} campos`;
+      if (c.modo === "mapeamento") return `Mapeamento · ${Array.isArray(c.campos) ? c.campos.length : 0} campos`;
+      return "JSONata";
     case "acao.http": {
       const d = destino(c.destino_id);
       return d ? `${String(c.metodo ?? "POST")} · ${d}` : "Escolha o destino";

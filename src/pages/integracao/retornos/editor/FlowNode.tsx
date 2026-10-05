@@ -56,8 +56,8 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
               />
               {saidas.length > 1 && (
                 <span
-                  className={cn("pointer-events-none absolute left-full ml-2 -translate-y-1/2 text-[10px]", COR_ROTULO[s] ?? "text-muted-foreground")}
-                  style={{ top }}
+                  className={cn("pointer-events-none absolute left-full z-10 ml-2 rounded-sm bg-background/90 px-1 text-[10px] leading-none", COR_ROTULO[s] ?? "text-muted-foreground")}
+                  style={{ top, transform: "translateY(-115%)" }}
                 >
                   {ROTULO_SAIDA[s] ?? s}
                 </span>

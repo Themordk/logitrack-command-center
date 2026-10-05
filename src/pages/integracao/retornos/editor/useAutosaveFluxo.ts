@@ -23,6 +23,7 @@ export function useAutosaveFluxo({ tenantId, empresaId, inicial, habilitado, obt
   const [ultimoSalvo, setUltimoSalvo] = useState<FluxoCompleto>(inicial);
   const [estado, setEstado] = useState<EstadoSalvamento>("ocioso");
   const [conflito, setConflito] = useState(false);
+  const [salvoEm, setSalvoEm] = useState<number | null>(null);
 
   const ultimoRef = useRef(inicial);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,6 +56,7 @@ export function useAutosaveFluxo({ tenantId, empresaId, inicial, habilitado, obt
         });
         ultimoRef.current = r;
         setUltimoSalvo(r);
+        setSalvoEm(Date.now());
         qc.setQueryData(retornosKeys.fluxo(f.id), r);
         void qc.invalidateQueries({ queryKey: ["retorno-fluxos"] });
         setEstado("salvo");
@@ -128,5 +130,5 @@ export function useAutosaveFluxo({ tenantId, empresaId, inicial, habilitado, obt
     limparTimer();
   }, [salvarAgora]);
 
-  return { ultimoSalvo, estado, conflito, agendar, salvarAgora, manterMinhaVersao, descartarConflito, temPendencia };
+  return { ultimoSalvo, salvoEm, estado, conflito, agendar, salvarAgora, manterMinhaVersao, descartarConflito, temPendencia };
 }
