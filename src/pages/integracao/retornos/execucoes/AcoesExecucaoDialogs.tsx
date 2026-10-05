@@ -35,7 +35,7 @@ export function ReprocessarDialog({ detalhe, catalogo, aberto, onFechar, onConcl
       toast.success("Reprocessamento iniciado.");
       onConcluido(r);
     } catch (e) {
-      toast.error(parseError(e, "reprocessar execução").titulo);
+      toast.error(parseError(e, "reprocessar execução").title);
     } finally { setSalvando(false); }
   };
 
@@ -86,7 +86,7 @@ export function DescartarDialog({ execucaoIds, aberto, onFechar, onConcluido }: 
       setProgresso((p) => p + 1);
     }
     setSalvando(false);
-    if (!varias && falhas) { toast.error(parseError(ultimoErro, "descartar execução").titulo); return; }
+    if (!varias && falhas) { toast.error(parseError(ultimoErro, "descartar execução").title); return; }
     if (varias) toast[falhas ? "warning" : "success"](`${ok} descartada(s)${falhas ? `, ${falhas} falhou(aram)` : ""}.`);
     else toast.success("Execução descartada.");
     setMotivo("");
