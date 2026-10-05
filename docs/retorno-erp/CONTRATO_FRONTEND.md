@@ -331,3 +331,9 @@ Erros da Edge Function (`supabase.functions.invoke`) chegam como `FunctionsHttpE
   - mais um campo do tipo `lista` sobre `itens`, com os subcampos `sku` (`produto.sku`), `codigo_erp` (`produto.codigo_erp`), `solicitado` (`qtd_solicitada`), `atendido` (`qtd_atendida`) e `cortado` (`qtd_cortada`).
   - Na entrada, os subcampos de quantidade passam a ser `qtd_esperada`, `qtd_conferida` e `qtd_divergente`.
 - **Personalizado**: JSONata vazio, com o contexto do documento escolhido ao lado.
+
+## Etapa 8 — Testar, Publicar, Ativo e Versões (frontend)
+- Testar: `TestarFluxoDialog` → `integracao_retorno_executar` → `invokeDispatcher({acao:"executar"})` → polling de `obter_execucao` (2 s, máx. 30 s). Resultado sobreposto no canvas usando `ExecucaoDetalhe.definicao`; passos em `PassoSheet`.
+- Publicar: salva rascunho pendente, `PublicarFluxoDialog` (avisos, `MOTOR_LEGADO_ATIVO` em destaque) → `publicar_fluxo(id, ativar)`.
+- Ativo: `ativar_fluxo`; pausar pede confirmação. Versões: `VersoesSheet` + visualização somente leitura + `restaurar_versao` (recarrega o canvas).
+- Link de execução: `/config/integracao/retornos?aba=execucoes&fluxo=<id>&execucao=<execucao_id>`.

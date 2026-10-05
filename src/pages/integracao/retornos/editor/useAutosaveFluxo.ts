@@ -113,6 +113,14 @@ export function useAutosaveFluxo({ tenantId, empresaId, inicial, habilitado, obt
     limparTimer();
   }, []);
 
+  /** Substitui o estado salvo (após publicar/ativar), sem salvar. */
+  const substituir = useCallback((f: FluxoCompleto) => {
+    ultimoRef.current = f;
+    setUltimoSalvo(f);
+    qc.setQueryData(retornosKeys.fluxo(f.id), f);
+    void qc.invalidateQueries({ queryKey: ["retorno-fluxos"] });
+  }, [qc]);
+
   const temPendencia = useCallback(() => pendenteRef.current || !!promessaRef.current, []);
 
   // beforeunload enquanto houver pendência
@@ -130,5 +138,5 @@ export function useAutosaveFluxo({ tenantId, empresaId, inicial, habilitado, obt
     limparTimer();
   }, [salvarAgora]);
 
-  return { ultimoSalvo, salvoEm, estado, conflito, agendar, salvarAgora, manterMinhaVersao, descartarConflito, temPendencia };
+  return { ultimoSalvo, salvoEm, estado, conflito, agendar, salvarAgora, manterMinhaVersao, descartarConflito, temPendencia, substituir };
 }

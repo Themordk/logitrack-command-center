@@ -5,14 +5,18 @@ import { corSaida, type FluxoEdge as FluxoEdgeT } from "./definicaoRf";
 import { useEditorContext } from "./editorContext";
 
 function FlowEdgeBase(props: EdgeProps<FluxoEdgeT>) {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, selected, markerEnd, sourceHandleId } = props;
-  const { editavel } = useEditorContext();
+  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, selected, markerEnd, sourceHandleId, source, target } = props;
+  const { editavel, execucao } = useEditorContext();
   const { deleteElements } = useReactFlow();
   const [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
-  const cor = selected ? "hsl(var(--primary))" : corSaida(sourceHandleId);
+  const percorrida = execucao?.arestas.has(`${source}:${sourceHandleId ?? "principal"}->${target}`) ?? false;
+  const cor = percorrida ? "hsl(var(--primary))" : selected ? "hsl(var(--primary))" : corSaida(sourceHandleId);
+  const estilo = execucao
+    ? { stroke: cor, strokeWidth: percorrida ? 3 : 1.25, opacity: percorrida ? 1 : 0.25 }
+    : { stroke: cor, strokeWidth: selected ? 2 : 1.5 };
   return (
     <>
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={{ stroke: cor, strokeWidth: selected ? 2 : 1.5 }} />
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={estilo} />
       {selected && editavel && (
         <EdgeLabelRenderer>
           <button

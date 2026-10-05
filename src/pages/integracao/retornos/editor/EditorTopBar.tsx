@@ -22,6 +22,16 @@ interface Props {
   onVoltar: () => void;
   onExecucoes: () => void;
   onTentarDeNovo: () => void;
+  podeEditar: boolean;
+  totalErros: number;
+  temAlteracoes: boolean;
+  bloqueado: boolean;
+  publicando: boolean;
+  alternandoAtivo: boolean;
+  onTestar: () => void;
+  onPublicar: () => void;
+  onVersoes: () => void;
+  onAlternarAtivo: (ativo: boolean) => void;
 }
 
 function textoSalvo(salvoEm: number | null, updatedAt: string): string {
@@ -30,16 +40,25 @@ function textoSalvo(salvoEm: number | null, updatedAt: string): string {
   return Number.isNaN(t) || t > Date.now() ? "agora" : relativeTime(updatedAt);
 }
 
-function EmBreve({ children }: { children: React.ReactNode }) {
+function ComDica({ dica, children }: { dica: string | null; children: React.ReactNode }) {
+  if (!dica) return <>{children}</>;
   return (
     <Tooltip>
       <TooltipTrigger asChild><span tabIndex={0} className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{children}</span></TooltipTrigger>
-      <TooltipContent>Disponível na próxima etapa</TooltipContent>
+      <TooltipContent className="text-xs">{dica}</TooltipContent>
     </Tooltip>
   );
 }
 
-export function EditorTopBar({ nome, fluxo, somenteLeitura, estado, voltando, salvoEm, onRenomear, onVoltar, onExecucoes, onTentarDeNovo }: Props) {
+export function EditorTopBar(props: Props) {
+  const { nome, fluxo, somenteLeitura, estado, voltando, salvoEm, onRenomear, onVoltar, onExecucoes, onTentarDeNovo } = props;
+  const nuncaPublicado = fluxo.versao_publicada == null;
+  const dicaAtivo = !props.podeEditar ? "Você não tem permissão para alterar" : nuncaPublicado ? "Publique antes de ativar" : null;
+  const dicaTestar = props.bloqueado ? "Feche a visualização atual" : props.totalErros > 0 ? "Corrija os problemas do fluxo" : null;
+  const dicaPublicar = !props.podeEditar ? "Você não tem permissão para publicar"
+    : props.bloqueado ? "Feche a visualização atual"
+    : props.totalErros > 0 ? "Corrija os problemas do fluxo"
+    : !props.temAlteracoes ? "Não há alterações para publicar" : null;
   const [editando, setEditando] = useState(false);
   const [rascunho, setRascunho] = useState(nome);
   const [, setTick] = useState(0);
@@ -122,14 +141,26 @@ export function EditorTopBar({ nome, fluxo, somenteLeitura, estado, voltando, sa
       </Tabs>
 
       <div className="flex shrink-0 items-center gap-2">
-        <EmBreve>
+        <ComDica dica={dicaAtivo}>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Switch checked={fluxo.ativo} disabled aria-label="Ativo" /> Ativo
+            {props.alternandoAtivo && <Loader2 size={13} className="animate-spin" aria-hidden />}
+            <Switch
+              checked={fluxo.ativo}
+              disabled={!!dicaAtivo || props.alternandoAtivo}
+              onCheckedChange={props.onAlternarAtivo}
+              aria-label="Ativo"
+            /> Ativo
           </label>
-        </EmBreve>
-        <EmBreve><Button variant="ghost" size="sm" disabled className="gap-1.5"><History size={14} /> Versões</Button></EmBreve>
-        <EmBreve><Button variant="outline" size="sm" disabled className="gap-1.5"><FlaskConical size={14} /> Testar</Button></EmBreve>
-        <EmBreve><Button size="sm" disabled className="gap-1.5"><Rocket size={14} /> Publicar</Button></EmBreve>
+        </ComDica>
+        <Button variant="ghost" size="sm" className="gap-1.5" onClick={props.onVersoes}><History size={14} /> Versões</Button>
+        <ComDica dica={dicaTestar}>
+          <Button variant="outline" size="sm" disabled={!!dicaTestar} className="gap-1.5" onClick={props.onTestar}><FlaskConical size={14} /> Testar</Button>
+        </ComDica>
+        <ComDica dica={dicaPublicar}>
+          <Button size="sm" disabled={!!dicaPublicar || props.publicando} className="gap-1.5" onClick={props.onPublicar}>
+            {props.publicando ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />} Publicar
+          </Button>
+        </ComDica>
       </div>
     </div>
   );
