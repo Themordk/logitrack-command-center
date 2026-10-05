@@ -1,7 +1,8 @@
 // Avaliação no cliente — só para PRÉ-VISUALIZAR. A fonte da verdade é o motor no backend.
 // Semântica: comparações como texto; "existe" = não vazio; "em"/"nao_em" com array ou lista
 // separada por vírgula; maior/menor numéricos; combinador "e"/"ou".
-import type { Combinador, Regra } from "../retornos.types";
+import jsonata from "jsonata";
+import type { CampoMapeado, Combinador, ConfigPayload, MapaItem, Regra } from "../retornos.types";
 
 export function obterCaminho(obj: unknown, caminho: string): unknown {
   if (!caminho) return undefined;
@@ -74,8 +75,6 @@ export function avaliarFiltros(regras: Regra[] | undefined, combinador: Combinad
 
 // ---------- Payload (prévia) ----------
 // Porte das regras do motor (criarMapa / avaliarCampos / montarPayload) conforme o contrato §3.3 e §6.
-import jsonata from "jsonata";
-import type { CampoMapeado, ConfigPayload, MapaItem } from "../retornos.types";
 
 export type FuncaoMapa = (dominio: string, valor: unknown) => unknown;
 
