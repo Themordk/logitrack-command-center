@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Loader2, FileText, ChevronLeft, ChevronRight, Truck, Plus, Eye, Trash2, RefreshCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { fetchOptions } from "@/hooks/useCrud";
+import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { CadastroDocSaidaPage } from "./CadastroDocSaidaPage";
 import { DocSaidaDetalhePage } from "./DocSaidaDetalhePage";
 import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
@@ -85,7 +86,7 @@ export function SaidasPage() {
         .from("documento_saida")
         .select(
           `id, numero_pedido, data_emissao, parceiro_id, tipo_pedido_id, valor_pedido, excluido_em, excluido_por,
-           parceiro:parceiro_id ( razaosocial ),
+           parceiro:parceiro_id${filtroParceiro ? "!inner" : ""} ( razaosocial ),
            itens:documento_saida_item ( count )`,
           { count: "exact" }
         )
@@ -96,7 +97,7 @@ export function SaidasPage() {
         .range(from, to);
 
       if (filtroNumero) query = query.eq("numero_pedido", filtroNumero);
-      if (filtroParceiro) query = query.eq("parceiro_id", filtroParceiro);
+      if (filtroParceiro) query = query.ilike("parceiro.razaosocial", `%${filtroParceiro}%`);
       if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
       if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
       if (filtroTipoSaida) query = query.eq("tipo_pedido_id", filtroTipoSaida);
@@ -146,9 +147,23 @@ export function SaidasPage() {
   const docs = listQuery.data?.rows ?? [];
   const total = listQuery.data?.count ?? 0;
   const loading = listQuery.isLoading;
+  const { refetch: refetchLista } = listQuery;
   const fetchDocs = useCallback(async () => {
-    await listQuery.refetch();
-  }, [listQuery]);
+    await refetchLista();
+  }, [refetchLista]);
+  const { refresh: atualizarDados, state: refreshState } = useRefreshCooldown(fetchDocs, 3000);
+
+  const tiposSaidaQuery = useQuery({
+    queryKey: ["saidas-tipos-saida", tenantId, empresaId, empresaVersion],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("tipo_saida").select("id, descricao")
+        .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao");
+      if (error) throw error;
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId && !!empresaId,
+  });
 
   useEffect(() => {
     if (listQuery.error) toast.error(`Erro: ${(listQuery.error as Error).message}`);
@@ -216,7 +231,7 @@ export function SaidasPage() {
     setPage(1);
   };
 
-  const hasFilters = filtroNumero || filtroParceiro || filtroDataInicio || filtroDataFim;
+  const hasFilters = filtroNumero || filtroParceiro || filtroDataInicio || filtroDataFim || filtroTipoSaida;
 
   if (showCadastro) {
     return <CadastroDocSaidaPage onBack={() => { setShowCadastro(false); fetchDocs(); }} />;
@@ -237,12 +252,12 @@ export function SaidasPage() {
           {!isExcluidos && (
             <>
               <button
-                onClick={fetchDocs}
-                disabled={listQuery.isFetching}
+                onClick={atualizarDados}
+                disabled={refreshState !== "idle"}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
                 title="Atualizar dados"
               >
-                <RefreshCcw size={14} className={listQuery.isFetching ? "animate-spin" : ""} />
+                <RefreshCcw size={14} className={refreshState === "loading" ? "animate-spin" : ""} />
                 Atualizar Dados
               </button>
               <button onClick={() => setShowCadastro(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors">
@@ -326,11 +341,9 @@ export function SaidasPage() {
               className="h-9 w-44 px-3 rounded-lg border border-border bg-background text-sm text-foreground outline-none focus:border-primary"
             >
               <option value="">Todos</option>
-              {(listQuery.data?.rows ?? []).map((d: DocSaida) =>
-                d.tipo_pedido_id ? (
-                  <option key={d.tipo_pedido_id} value={d.tipo_pedido_id}>{d.tipo_saida_descricao}</option>
-                ) : null
-              )}
+              {(tiposSaidaQuery.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>{t.descricao}</option>
+              ))}
             </select>
           </div>
           {hasFilters && (

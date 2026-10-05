@@ -10,6 +10,7 @@ import { CadastroDocEntradaPage } from "./CadastroDocEntradaPage";
 import { DocEntradaDetalhePage } from "./DocEntradaDetalhePage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
+import { useRefreshCooldown } from "@/hooks/useRefreshCooldown";
 import { ImportarNfeChaveModal } from "@/components/erp/ImportarNfeChaveModal";
 import { ExcluirDocumentosModal } from "@/components/documentos/ExcluirDocumentosModal";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
@@ -49,6 +50,7 @@ export function EntradasPage() {
   const [filtroParceiro, setFiltroParceiro] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [filtroTipoEntrada, setFiltroTipoEntrada] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Limpa página ao mudar filtro
@@ -83,7 +85,7 @@ export function EntradasPage() {
 
 
   const listQuery = useQuery({
-    queryKey: ["entradas-lista", aba, tenantId, empresaId, armazemId, page, filtroNumero, filtroParceiro, filtroDataInicio, filtroDataFim],
+    queryKey: ["entradas-lista", aba, tenantId, empresaId, armazemId, page, filtroNumero, filtroParceiro, filtroDataInicio, filtroDataFim, filtroTipoEntrada],
     queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
@@ -92,7 +94,7 @@ export function EntradasPage() {
         .select(
           `id, numero_nota, data_emissao, parceiro_id, tipo_entrada_id, valor_total_nota, qtd_volume,
            excluido_em, excluido_por,
-           parceiro:parceiro_id ( razaosocial ),
+           parceiro:parceiro_id${filtroParceiro ? "!inner" : ""} ( razaosocial ),
            tipo_entrada:tipo_entrada_id ( descricao ),
            itens:documento_entrada_item ( count )`,
           { count: "exact" }
@@ -109,6 +111,7 @@ export function EntradasPage() {
       if (filtroParceiro) query = query.ilike("parceiro.razaosocial", `%${filtroParceiro}%`);
       if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
       if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
+      if (filtroTipoEntrada) query = query.eq("tipo_entrada_id", filtroTipoEntrada);
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -146,11 +149,23 @@ export function EntradasPage() {
   const docs = listQuery.data?.rows ?? [];
   const total = listQuery.data?.count ?? 0;
   const loading = listQuery.isLoading;
+  const { refetch: refetchLista } = listQuery;
   const fetchDocs = useCallback(async () => {
-    setIsRefreshing(true);
-    await listQuery.invalidateQueries();
-    setIsRefreshing(false);
-  }, [listQuery]);
+    await refetchLista();
+  }, [refetchLista]);
+  const { refresh: atualizarDados, state: refreshState } = useRefreshCooldown(fetchDocs, 3000);
+
+  const tiposEntradaQuery = useQuery({
+    queryKey: ["entradas-tipos-entrada", tenantId, empresaId, empresaVersion],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("tipo_entrada").select("id, descricao")
+        .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao");
+      if (error) throw error;
+      return (data || []) as { id: string; descricao: string }[];
+    },
+    enabled: !!tenantId && !!empresaId,
+  });
 
   useEffect(() => {
     if (listQuery.error) toast.error(`Erro: ${(listQuery.error as Error).message}`);
@@ -247,10 +262,11 @@ export function EntradasPage() {
     setFiltroParceiro("");
     setFiltroDataInicio("");
     setFiltroDataFim("");
+    setFiltroTipoEntrada("");
     setPage(1);
   };
 
-  const hasFilters = filtroNumero || filtroParceiro || filtroDataInicio || filtroDataFim;
+  const hasFilters = filtroNumero || filtroParceiro || filtroDataInicio || filtroDataFim || filtroTipoEntrada;
 
   if (showCadastro) {
     return <CadastroDocEntradaPage onBack={() => { setShowCadastro(false); fetchDocs(); }} />;
@@ -272,12 +288,12 @@ export function EntradasPage() {
           {!isExcluidos && (
             <>
               <button
-                onClick={fetchDocs}
-                disabled={isRefreshing}
+                onClick={atualizarDados}
+                disabled={refreshState !== "idle"}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
                 title="Atualizar dados"
               >
-                <RefreshCcw size={14} className={isRefreshing ? "animate-spin" : ""} />
+                <RefreshCcw size={14} className={refreshState === "loading" ? "animate-spin" : ""} />
                 Atualizar Dados
               </button>
               <button
@@ -365,6 +381,20 @@ export function EntradasPage() {
               onChange={(e) => { setFiltroDataFim(e.target.value); handleFiltroChange(); }}
               className="h-9 w-40 px-3 rounded-lg border border-border bg-background text-sm text-foreground outline-none focus:border-primary"
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filtro-tipo-entrada" className="text-[11px] font-medium text-muted-foreground uppercase">Tipo Entrada</label>
+            <select
+              id="filtro-tipo-entrada"
+              value={filtroTipoEntrada}
+              onChange={(e) => { setFiltroTipoEntrada(e.target.value); handleFiltroChange(); }}
+              className="h-9 w-44 px-3 rounded-lg border border-border bg-background text-sm text-foreground outline-none focus:border-primary"
+            >
+              <option value="">Todos</option>
+              {(tiposEntradaQuery.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>{t.descricao}</option>
+              ))}
+            </select>
           </div>
           {hasFilters && (
             <button
