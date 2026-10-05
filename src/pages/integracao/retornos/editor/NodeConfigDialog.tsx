@@ -23,6 +23,7 @@ import { contextoLote } from "./avaliacao";
 import { ParametrosGatilho, ResultadoGatilho } from "./forms/FormGatilho";
 import { ParametrosAguardar, ParametrosCondicao, ResultadoAguardar, ResultadoCondicao } from "./forms/FormLogica";
 import type { FormNoProps } from "./forms/formTypes";
+import type { Ligacao } from "../retornos.types";
 import { nomeTipo } from "./resumoNo";
 
 const FORMS: Partial<Record<TipoNo, [ComponentType<FormNoProps>, ComponentType<FormNoProps>]>> = {
@@ -52,6 +53,7 @@ const CONTEXTO_VAZIO: Record<string, unknown> = {
 interface Props {
   no: FluxoNode | null;
   nos: FluxoNode[];
+  ligacoes: Ligacao[];
   catalogo?: Catalogo;
   destinos?: Destino[];
   avisos: Aviso[];
@@ -202,7 +204,7 @@ export function NodeConfigDialog(p: Props) {
   const Icone = ui?.icone;
   const descricao = no ? p.catalogo?.nos.find((n) => n.tipo === no.data.tipo)?.descricao : "";
   const formProps: FormNoProps | null = no ? {
-    no, config: no.data.config, alterar: p.onAlterar, catalogo: p.catalogo, destinos: p.destinos, nos: p.nos,
+    no, config: no.data.config, alterar: p.onAlterar, catalogo: p.catalogo, destinos: p.destinos, nos: p.nos, ligacoes: p.ligacoes,
     contexto, amostra: p.amostra, onDefinirAmostra: p.onDefinirAmostra, avisos: p.avisos,
     tenantId: p.tenantId, empresaId: p.empresaId, fluxoId: p.fluxoId, onAbrirNo: p.onAbrirNo, somenteLeitura: p.somenteLeitura,
   } : null;

@@ -1,4 +1,4 @@
-import type { Aviso, Catalogo, Destino, DocumentoRecente, TipoNo } from "../../retornos.types";
+import type { Aviso, Ligacao, Catalogo, Destino, DocumentoRecente, TipoNo } from "../../retornos.types";
 import type { FluxoNode } from "../definicaoRf";
 
 export interface FormNoProps {
@@ -9,6 +9,7 @@ export interface FormNoProps {
   catalogo?: Catalogo;
   destinos?: Destino[];
   nos: FluxoNode[];
+  ligacoes: Ligacao[];
   contexto: Record<string, unknown>;
   amostra: DocumentoRecente | null;
   onDefinirAmostra: (d: DocumentoRecente) => void;
