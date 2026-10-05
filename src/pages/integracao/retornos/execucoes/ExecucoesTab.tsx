@@ -61,14 +61,17 @@ function Caminho({ e }: { e: ExecucaoResumo }) {
   if (!e.caminho?.length) return <span className="text-muted-foreground">—</span>;
   return (
     <div className="flex items-center gap-0.5">
-      {e.caminho.map((c, i) => (
-        <Tooltip key={`${c.no_id}-${i}`}>
-          <TooltipTrigger asChild>
-            <span className={cn("inline-block h-2 w-2 rounded-full", COR_PONTO[c.status] ?? "bg-zinc-400")} aria-label={`${c.no_id}: ${c.status}`} />
-          </TooltipTrigger>
-          <TooltipContent className="text-xs">{c.no_id} · {c.status}{c.saida ? ` → ${c.saida}` : ""}</TooltipContent>
-        </Tooltip>
-      ))}
+      {e.caminho.map((c, i) => {
+        const nomeNo = (e.definicao?.nos as Array<{ id: string; nome?: string }> | undefined)?.find((n) => n.id === c.no_id)?.nome;
+        return (
+          <Tooltip key={`${c.no_id}-${i}`}>
+            <TooltipTrigger asChild>
+              <span className={cn("inline-block h-2 w-2 rounded-full", COR_PONTO[c.status] ?? "bg-zinc-400")} aria-label={`${c.no_id}: ${c.status}`} />
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">{nomeNo ?? c.no_id} · {c.status}{c.saida ? ` → ${c.saida}` : ""}</TooltipContent>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 }
@@ -159,6 +162,14 @@ export function ExecucoesTab({ params, onNavigate }: Props) {
     }
     atualizarTudo();
   };
+
+  // Limpa fluxo/execução da URL quando empresa muda
+  useEffect(() => {
+    if (params.get("fluxo") || params.get("execucao")) {
+      onNavigate(urlFiltros({ ...filtros, pagina: 1 }, null));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaVersion]);
 
   const reprocessarSelecionadas = async () => {
     const alvo = paraReprocessar;
@@ -378,7 +389,10 @@ export function ExecucoesTab({ params, onNavigate }: Props) {
                       <td className="px-3 py-2">
                         <div className="flex justify-end gap-0.5">
                           <BotaoIcone rotulo="Ver detalhe" icone={Eye} onClick={() => ir({ pagina: filtros.pagina }, e.id)} />
-                          {podeEditar && PODE_REPROCESSAR.includes(e.status) && (
+                          {e.status === "aguardando_retry" && podeEditar && (
+                            <BotaoIcone rotulo="Tentar agora" icone={RotateCcw} classe="text-amber-400" onClick={() => void reprocessarUma(e)} />
+                          )}
+                          {podeEditar && PODE_REPROCESSAR.includes(e.status) && e.status !== "aguardando_retry" && (
                             <BotaoIcone rotulo="Reprocessar" icone={RotateCcw} classe="text-sky-400" onClick={() => void reprocessarUma(e)} />
                           )}
                           {podeEditar && PODE_DESCARTAR.includes(e.status) && (
