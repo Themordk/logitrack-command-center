@@ -22,7 +22,7 @@ interface DocSaida {
   numero_pedido: number;
   data_emissao: string;
   parceiro_id: string;
-  tipo_saida_id: string | null;
+  tipo_pedido_id: string | null;
   tipo_saida_descricao?: string;
   valor_pedido: number;
   parceiro_nome?: string;
@@ -77,14 +77,14 @@ export function SaidasPage() {
 
 
   const listQuery = useQuery({
-    queryKey: ["saidas-lista", aba, tenantId, empresaId, page, filtroNumero, filtroParceiro, filtroDataInicio, filtroDataFim],
+    queryKey: ["saidas-lista", aba, tenantId, empresaId, page, filtroNumero, filtroParceiro, filtroDataInicio, filtroDataFim, filtroTipoSaida],
     queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       let query = (supabase as any)
         .from("documento_saida")
         .select(
-          `id, numero_pedido, data_emissao, parceiro_id, tipo_pedido_id, tipo_saida_id, valor_pedido, excluido_em, excluido_por,
+          `id, numero_pedido, data_emissao, parceiro_id, tipo_pedido_id, valor_pedido, excluido_em, excluido_por,
            parceiro:parceiro_id ( razaosocial ),
            itens:documento_saida_item ( count )`,
           { count: "exact" }
@@ -99,7 +99,7 @@ export function SaidasPage() {
       if (filtroParceiro) query = query.eq("parceiro_id", filtroParceiro);
       if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
       if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
-      if (filtroTipoSaida) query = query.eq("tipo_saida_id", filtroTipoSaida);
+      if (filtroTipoSaida) query = query.eq("tipo_pedido_id", filtroTipoSaida);
 
       const { data, error, count } = await query;
       if (error) throw error;
@@ -129,7 +129,7 @@ export function SaidasPage() {
         numero_pedido: doc.numero_pedido,
         data_emissao: doc.data_emissao,
         parceiro_id: doc.parceiro_id,
-        tipo_saida_id: doc.tipo_saida_id,
+        tipo_pedido_id: doc.tipo_pedido_id,
         tipo_saida_descricao: doc.tipo_pedido_id ? (tipoSaidaMap.get(doc.tipo_pedido_id) || "—") : "—",
         valor_pedido: doc.valor_pedido,
         parceiro_nome: doc.parceiro?.razaosocial || "—",
@@ -327,8 +327,8 @@ export function SaidasPage() {
             >
               <option value="">Todos</option>
               {(listQuery.data?.rows ?? []).map((d: DocSaida) =>
-                d.tipo_saida_id ? (
-                  <option key={d.tipo_saida_id} value={d.tipo_saida_id}>{d.tipo_saida_descricao}</option>
+                d.tipo_pedido_id ? (
+                  <option key={d.tipo_pedido_id} value={d.tipo_pedido_id}>{d.tipo_saida_descricao}</option>
                 ) : null
               )}
             </select>
