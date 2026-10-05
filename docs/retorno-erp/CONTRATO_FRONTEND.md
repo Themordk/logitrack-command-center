@@ -52,7 +52,7 @@
 |---|---|---|
 | `integracao_retorno_listar_fluxos` | `p_tenant_id, p_empresa_id, p_incluir_arquivados` | `FluxoResumo[]` (§3.3) |
 | `integracao_retorno_obter_fluxo` | `p_fluxo_id` | `FluxoCompleto` |
-| `integracao_retorno_salvar_fluxo` | `p_tenant_id, p_empresa_id, p_fluxo { id?, nome, descricao?, erp_provedor_id?, definicao }` | `FluxoCompleto` (cria se sem `id`; grava só o **rascunho**) |
+| `integracao_retorno_salvar_fluxo` | `p_tenant_id, p_empresa_id, p_fluxo { id?, nome, descricao?, erp_provedor_id?, definicao, updated_at_esperado? }` | `FluxoCompleto` (cria se sem `id`; grava só o **rascunho**). **Sempre envie `nome` e `definicao` completos**: sem `definicao` o rascunho vira vazio. Com `updated_at_esperado` (o `updated_at` da última resposta), recusa com `RETORNO_FLUXO_CONFLITO` se o fluxo mudou em outro lugar. |
 | `integracao_retorno_validar_fluxo` | `p_tenant_id, p_empresa_id, p_definicao` | `Validacao` (§3.4) |
 | `integracao_retorno_publicar_fluxo` | `p_fluxo_id, p_ativar boolean` | `FluxoCompleto & { validacao }` — valida, cria nova versão e copia rascunho → publicado |
 | `integracao_retorno_ativar_fluxo` | `p_fluxo_id, p_ativo` | `FluxoResumo` (exige versão publicada) |
@@ -269,6 +269,7 @@ O errorMapper casa **por substring** e na ordem do objeto. Por isso, declare os 
 | RETORNO_FLUXO_INVALIDO | O fluxo tem erros. | Corrija os itens marcados no canvas. |
 | RETORNO_FLUXO_NOME | Informe o nome do fluxo. | — |
 | RETORNO_FLUXO_GRANDE | Fluxo grande demais. | Reduza nós ou o payload. |
+| RETORNO_FLUXO_CONFLITO | Este fluxo foi alterado em outra aba ou por outra pessoa. | Recarregue ou mantenha a sua versão. |
 | RETORNO_FLUXO_DEFINICAO | Definição do fluxo inválida. | Recarregue o editor. |
 | RETORNO_MANUAL_RASCUNHO | Execução manual usa a versão publicada. | Use Testar ou Simular para o rascunho. |
 | RETORNO_DOCUMENTO_NAO_ENCONTRADO | Documento não encontrado nesta empresa. | Escolha outro documento. |

@@ -52,7 +52,7 @@ import { SubgruposPage } from "./pages/SubgruposPage";
 import { IntegracaoPage } from "./pages/IntegracaoPage";
 import { ProdutoPadroesPage } from "./pages/integracao/ProdutoPadroesPage";
 import { RetornosPage } from "./pages/integracao/retornos/RetornosPage";
-import { FluxoEditorPage } from "./pages/integracao/retornos/FluxoEditorPage";
+import { FluxoEditorPage } from "./pages/integracao/retornos/editor/FluxoEditorPage";
 import { TiposEntradaPage } from "./pages/TiposEntradaPage";
 import { TiposSaidaPage } from "./pages/TiposSaidaPage";
 import { SaidasPage } from "./pages/SaidasPage";

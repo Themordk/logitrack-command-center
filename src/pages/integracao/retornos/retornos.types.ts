@@ -202,6 +202,7 @@ export interface FluxoEntrada {
   descricao?: string | null;
   erp_provedor_id?: string | null;
   definicao: Definicao;
+  updated_at_esperado?: string;
 }
 
 export interface VersaoFluxo {
