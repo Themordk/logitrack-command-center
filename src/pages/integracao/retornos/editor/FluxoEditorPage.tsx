@@ -626,6 +626,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         evento={eventoAmostra}
         tenantId={tenantId}
         empresaId={empresaId}
+        fluxoId={fluxoId}
         somenteLeitura={somenteLeitura}
         amostra={amostra}
         onDefinirAmostra={setAmostra}

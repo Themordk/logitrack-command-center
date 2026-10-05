@@ -11,6 +11,7 @@ import { BlocoCodigo, Campo, Secao } from "../campos/Campo";
 import { TemplateInput } from "../campos/TemplateInput";
 import { entidadeDoGatilho } from "../novoNo";
 import type { FormNoProps } from "./formTypes";
+import { CorpoPrevia } from "./FormPayload";
 
 const HEADERS_PROIBIDOS = ["authorization", "x-api-key", "cookie", "proxy-authorization"];
 const METODOS: MetodoHttp[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -162,10 +163,13 @@ export function ResultadoHttp(p: FormNoProps) {
         <div>
           <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Corpo</p>
           {noCorpo ? (
-            <p className="text-xs">Gerado pelo nó{" "}
-              <button type="button" className="text-primary hover:underline" onClick={() => p.onAbrirNo(noCorpo.id)}>{noCorpo.data.nome || noCorpo.id}</button>
-              {!corpoDe && " (último payload montado)"}
-            </p>
+            <div className="flex flex-col gap-1.5">
+              <CorpoPrevia config={noCorpo.data.config} contexto={p.contexto} tenantId={p.tenantId} empresaId={p.empresaId} fluxoId={p.fluxoId} rodape={false} />
+              <p className="text-[11px] text-muted-foreground">Calculado pelo nó{" "}
+                <button type="button" className="text-primary hover:underline" onClick={() => p.onAbrirNo(noCorpo.id)}>{noCorpo.data.nome || noCorpo.id}</button>
+                {!corpoDe && " (último payload montado)"}
+              </p>
+            </div>
           ) : (
             <p className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
               <AlertTriangle size={13} aria-hidden /> {metodo} sem nenhum “Montar payload” no fluxo: o corpo irá vazio.
