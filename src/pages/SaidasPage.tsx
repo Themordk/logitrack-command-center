@@ -92,7 +92,7 @@ export function SaidasPage() {
         .order(isExcluidos ? "excluido_em" : "data_emissao", { ascending: false })
         .range(from, to);
 
-      if (filtroNumero) query = query.ilike("numero_pedido", `%${filtroNumero}%`);
+      if (filtroNumero) query = query.ilike("numero_pedido::text", `%${filtroNumero}%`);
       if (filtroParceiro) query = query.ilike("parceiro.razaosocial", `%${filtroParceiro}%`);
       if (filtroDataInicio) query = query.gte("data_emissao", filtroDataInicio);
       if (filtroDataFim) query = query.lte("data_emissao", filtroDataFim + "T23:59:59");
