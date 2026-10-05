@@ -1,6 +1,7 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
+import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { GRUPO_NO_UI, TIPO_NO_UI } from "../retornosUi";
@@ -18,7 +19,11 @@ const COR_ROTULO: Record<string, string> = {
 };
 
 function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
-  const { catalogo, destinos, errosPorNo, avisosPorNo, desconectados } = useEditorContext();
+  const {
+    catalogo, destinos, errosPorNo, avisosPorNo, desconectados, editavel, saidasOcupadas, limiteAtingido,
+    renomeandoId, onAdicionarNoRamo, onConcluirRenomear,
+  } = useEditorContext();
+  const [ramoAberto, setRamoAberto] = useState<string | null>(null);
   const ui = TIPO_NO_UI[data.tipo];
   const grupo = GRUPO_NO_UI[ui?.grupo ?? "acao"];
   const Icone = ui?.icone ?? AlertTriangle;
@@ -62,6 +67,28 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
                   {ROTULO_SAIDA[s] ?? s}
                 </span>
               )}
+              {selected && editavel && !saidasOcupadas.has(`${id}:${s}`) && onAdicionarNoRamo && (
+                <AdicionarNoPopover
+                  open={ramoAberto === s}
+                  onOpenChange={(v) => setRamoAberto(v ? s : null)}
+                  titulo={`Adicionar ao ramo ${ROTULO_SAIDA[s] ?? s}`}
+                  catalogo={catalogo}
+                  limiteAtingido={limiteAtingido}
+                  onEscolher={(tipo) => onAdicionarNoRamo(id, s, tipo)}
+                >
+                  <button
+                    type="button"
+                    aria-label={`Adicionar nó ao ramo ${ROTULO_SAIDA[s] ?? s}`}
+                    className={cn(
+                      "nodrag nopan absolute z-20 flex h-[18px] w-[18px] items-center justify-center rounded-full border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      COR_ROTULO[s] ?? "text-muted-foreground", COR_HANDLE[s]?.replace("!", "") ?? "border-border",
+                    )}
+                    style={{ top, left: "calc(100% + 28px)", transform: "translate(-50%, -50%)" }}
+                  >
+                    <Plus size={12} aria-hidden />
+                  </button>
+                </AdicionarNoPopover>
+              )}
             </div>
           );
         })}
@@ -86,7 +113,23 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
         )}
       </div>
       <div className="flex w-full max-w-[160px] flex-col items-center text-center">
-        <span className="w-full truncate text-xs font-semibold text-foreground">{nome}</span>
+        {renomeandoId === id && onConcluirRenomear ? (
+          <input
+            autoFocus
+            aria-label="Nome do nó"
+            defaultValue={data.nome ?? ""}
+            onFocus={(e) => e.currentTarget.select()}
+            onBlur={(e) => onConcluirRenomear(id, e.currentTarget.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") onConcluirRenomear(id, e.currentTarget.value);
+              if (e.key === "Escape") onConcluirRenomear(id, null);
+            }}
+            className="nodrag w-full rounded border border-primary bg-secondary/60 px-1 text-center text-xs font-semibold text-foreground focus:outline-none"
+          />
+        ) : (
+          <span className="w-full truncate text-xs font-semibold text-foreground">{nome}</span>
+        )}
         <span className="w-full truncate text-[11px] text-muted-foreground">{resumo}</span>
       </div>
     </div>

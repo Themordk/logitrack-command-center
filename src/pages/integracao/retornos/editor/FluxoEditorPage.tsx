@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ReactFlowProvider, useEdgesState, useNodesState, useReactFlow, type OnBeforeDelete } from "@xyflow/react";
+import {
+  ReactFlowProvider, useEdgesState, useNodesState, useReactFlow,
+  type Connection, type IsValidConnection, type OnBeforeDelete, type OnConnectEnd,
+} from "@xyflow/react";
 import { AlertTriangle, ArrowLeft, Eye, Info, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -16,8 +19,14 @@ import { parseError } from "@/lib/errorMapper";
 import { retornosKeys } from "../retornosKeys";
 import { listarDestinos, obterFluxo } from "../retornosService";
 import { useCatalogoRetorno, usePermissaoRetorno } from "../useRetornos";
-import type { Aviso, Catalogo, Destino, FluxoCompleto } from "../retornos.types";
-import { deRf, paraRf, type FluxoEdge, type FluxoNode } from "./definicaoRf";
+import type { Aviso, Catalogo, Destino, FluxoCompleto, TipoNo } from "../retornos.types";
+import { criarEdge, deRf, layoutAutomatico, paraRf, type FluxoEdge, type FluxoNode } from "./definicaoRf";
+import { AdicionarNoPopover } from "./AdicionarNoPopover";
+import { NodePalette, MIME_NO } from "./NodePalette";
+import { NoContextMenu, type MenuContexto } from "./NoContextMenu";
+import { alinhar, criarNo, ehGatilho, nomeUnico, posicaoLivre } from "./novoNo";
+import { motivoBloqueio, saidasDoTipo, saidasLivres } from "./regrasConexao";
+import { useHistoricoFluxo, type Instantaneo } from "./useHistoricoFluxo";
 import { EditorContext, type EditorContextValor } from "./editorContext";
 import { EditorTopBar } from "./EditorTopBar";
 import { FlowCanvas } from "./FlowCanvas";
@@ -166,7 +175,14 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const [noAberto, setNoAberto] = useState<string | null>(null);
   const [voltando, setVoltando] = useState(false);
   const [sairSemSalvar, setSairSemSalvar] = useState(false);
-  const { fitView } = useReactFlow();
+  const { fitView, screenToFlowPosition, deleteElements } = useReactFlow<FluxoNode, FluxoEdge>();
+  const historico = useHistoricoFluxo();
+  const [menu, setMenu] = useState<MenuContexto | null>(null);
+  const [adicionarEm, setAdicionarEm] = useState<{ x: number; y: number; de?: string; saida?: string } | null>(null);
+  const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
+  const renomeandoRef = useRef<string | null>(null); renomeandoRef.current = renomeandoId;
+  const maxNos = catalogo?.limites.max_nos ?? Infinity;
+  const limiteAtingido = nodes.length >= maxNos;
 
   const nodesRef = useRef(nodes); nodesRef.current = nodes;
   const edgesRef = useRef(edges); edgesRef.current = edges;
@@ -194,14 +210,216 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     const desconectados = new Set(
       [...(v?.erros ?? []), ...(v?.avisos ?? [])].filter((a) => a.codigo === "NO_DESCONECTADO" && a.no_id).map((a) => a.no_id as string),
     );
-    return { catalogo, destinos, errosPorNo: agrupar(v?.erros), avisosPorNo: agrupar(v?.avisos), desconectados, editavel: !somenteLeitura };
-  }, [fluxo.validacao_rascunho, catalogo, destinos, somenteLeitura]);
+    const saidasOcupadas = new Set(edges.map((e) => `${e.source}:${e.sourceHandle ?? "principal"}`));
+    return {
+      catalogo, destinos, errosPorNo: agrupar(v?.erros), avisosPorNo: agrupar(v?.avisos), desconectados, editavel: !somenteLeitura,
+      saidasOcupadas, limiteAtingido, renomeandoId,
+      onAdicionarNoRamo: (de, saida, tipo) => adicionarRef.current(tipo, { de, saida }),
+      onConcluirRenomear: (id, n) => concluirRenomearRef.current(id, n),
+    };
+  }, [fluxo.validacao_rascunho, catalogo, destinos, somenteLeitura, edges, limiteAtingido, renomeandoId]);
 
   // Tela encolheu com alteração pendente: grava antes de travar a edição.
   useEffect(() => {
     if (!telaGrande && podeSalvar && auto.temPendencia()) void salvarAgora();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [telaGrande]);
+
+  // ---------- Histórico e ação única de alteração ----------
+  const instantaneo = useCallback((): Instantaneo => ({
+    definicao: deRf(nodesRef.current, edgesRef.current),
+    selecionados: nodesRef.current.filter((n) => n.selected).map((n) => n.id),
+  }), []);
+
+  const restaurar = useCallback((s: Instantaneo | null) => {
+    if (!s) return;
+    const rf = paraRf(s.definicao, catalogo);
+    const sel = new Set(s.selecionados);
+    const ns = rf.nodes.map((n) => ({ ...n, selected: sel.has(n.id) }));
+    nodesRef.current = ns; edgesRef.current = rf.edges;
+    setNodes(ns); setEdges(rf.edges);
+    setNoAberto((a) => (a && ns.some((n) => n.id === a) ? a : null));
+    agendar();
+  }, [catalogo, setNodes, setEdges, agendar]);
+
+  const desfazer = useCallback(() => restaurar(historico.desfazer(instantaneo())), [historico, instantaneo, restaurar]);
+  const refazer = useCallback(() => restaurar(historico.refazer(instantaneo())), [historico, instantaneo, restaurar]);
+
+  type Estado = { nodes: FluxoNode[]; edges: FluxoEdge[] };
+  /** Toda alteração da definição passa por aqui: histórico → nodes/edges → salvamento. */
+  const aplicar = useCallback((acao: (atual: Estado) => Estado | null) => {
+    if (somenteLeitura) return;
+    const r = acao({ nodes: nodesRef.current, edges: edgesRef.current });
+    if (!r) return;
+    historico.registrar(instantaneo());
+    nodesRef.current = r.nodes; edgesRef.current = r.edges;
+    setNodes(r.nodes); setEdges(r.edges);
+    agendar();
+  }, [somenteLeitura, historico, instantaneo, setNodes, setEdges, agendar]);
+
+  /** Liga de→para substituindo a ligação que já ocupava a saída. */
+  const ligar = (ns: FluxoNode[], es: FluxoEdge[], de: string, saida: string, para: string) => {
+    const substituida = es.some((e) => e.source === de && (e.sourceHandle ?? "principal") === saida);
+    const edges2 = [...es.filter((e) => !(e.source === de && (e.sourceHandle ?? "principal") === saida)), criarEdge(de, para, saida)];
+    const origem = ns.find((n) => n.id === de);
+    const nodes2 = ns.map((n) =>
+      n.id === para && n.data.tipo === "acao.http" && origem?.data.tipo === "dados.payload" && !n.data.config.corpo_de
+        ? { ...n, data: { ...n.data, config: { ...n.data.config, corpo_de: de } } }
+        : n);
+    return { nodes: nodes2, edges: edges2, substituida };
+  };
+
+  const adicionar = useCallback((tipo: TipoNo, opts: { pos?: { x: number; y: number }; de?: string; saida?: string } = {}) => {
+    aplicar(({ nodes: ns, edges: es }) => {
+      if (ns.length >= maxNos) { toast.info(`Limite de ${maxNos} nós atingido.`); return null; }
+      if (ehGatilho(tipo) && ns.some((n) => ehGatilho(n.data.tipo))) { toast.info("O fluxo só pode ter um gatilho."); return null; }
+      const origem = opts.de ? ns.find((n) => n.id === opts.de) : undefined;
+      let pos = opts.pos;
+      if (!pos && origem) {
+        const saidas = saidasDoTipo(origem, catalogo);
+        const i = saidas.indexOf(opts.saida ?? "principal");
+        const dy = saidas.length === 2 ? (i === 0 ? -80 : 80) : 0;
+        pos = posicaoLivre(origem.position.x + 280, origem.position.y + dy, ns);
+      }
+      const novo = criarNo(tipo, pos ?? { x: 0, y: 0 }, ns, catalogo);
+      let nodes2 = [...ns.map((n) => (n.selected ? { ...n, selected: false } : n)), novo];
+      let edges2 = es.map((e) => (e.selected ? { ...e, selected: false } : e));
+      if (origem && opts.saida && !ehGatilho(tipo)) {
+        const r = ligar(nodes2, edges2, origem.id, opts.saida, novo.id);
+        nodes2 = r.nodes; edges2 = r.edges;
+      }
+      return { nodes: nodes2, edges: edges2 };
+    });
+  }, [aplicar, maxNos, catalogo]);
+  const adicionarRef = useRef(adicionar); adicionarRef.current = adicionar;
+
+  const centroVisivel = () => {
+    const el = document.querySelector(".retorno-canvas");
+    const r = el?.getBoundingClientRect();
+    const p = screenToFlowPosition(r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 });
+    return { x: alinhar(p.x - 80), y: alinhar(p.y - 32) };
+  };
+
+  const adicionarPelaPaleta = (tipo: TipoNo) => {
+    const sel = nodesRef.current.filter((n) => n.selected);
+    if (sel.length === 1 && !ehGatilho(tipo)) {
+      const livre = saidasLivres(sel[0], edgesRef.current, catalogo)[0];
+      const pos = posicaoLivre(sel[0].position.x + 280, sel[0].position.y, nodesRef.current);
+      adicionar(tipo, { pos, de: livre ? sel[0].id : undefined, saida: livre });
+    } else {
+      adicionar(tipo, { pos: posicaoLivre(centroVisivel().x, centroVisivel().y, nodesRef.current) });
+    }
+  };
+
+  const onDragOver = useCallback((e: DragEvent) => {
+    if (!e.dataTransfer.types.includes(MIME_NO)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+  const onDrop = useCallback((e: DragEvent) => {
+    const tipo = e.dataTransfer.getData(MIME_NO) as TipoNo;
+    if (!tipo) return;
+    e.preventDefault();
+    const p = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    adicionar(tipo, { pos: { x: alinhar(p.x - 80), y: alinhar(p.y - 32) } });
+  }, [screenToFlowPosition, adicionar]);
+
+  // ---------- Conexões ----------
+  const isValidConnection: IsValidConnection<FluxoEdge> = useCallback(
+    (c) => motivoBloqueio(c, nodesRef.current, edgesRef.current, catalogo) === null,
+    [catalogo],
+  );
+  const onConnect = useCallback((c: Connection) => {
+    let substituida = false;
+    aplicar(({ nodes: ns, edges: es }) => {
+      if (motivoBloqueio(c, ns, es, catalogo) !== null) return null;
+      const r = ligar(ns, es, c.source, c.sourceHandle ?? "principal", c.target);
+      substituida = r.substituida;
+      return { nodes: r.nodes, edges: r.edges };
+    });
+    if (substituida) toast.info("Ligação substituída.");
+  }, [aplicar, catalogo]);
+  const onConnectEnd: OnConnectEnd<FluxoNode> = useCallback((ev, st) => {
+    if (st.isValid || !st.fromNode || !st.fromHandle || st.fromHandle.type !== "source") return;
+    const saida = st.fromHandle.id ?? "principal";
+    const alvoNo = st.toNode ?? null;
+    const el = ev.target as HTMLElement | null;
+    if (alvoNo) {
+      const motivo = motivoBloqueio({ source: st.fromNode.id, target: alvoNo.id, sourceHandle: saida }, nodesRef.current, edgesRef.current, catalogo);
+      if (motivo) toast.info(motivo);
+      return;
+    }
+    if (el?.closest?.(".react-flow__node")) {
+      const id = el.closest(".react-flow__node")?.getAttribute("data-id");
+      const motivo = id ? motivoBloqueio({ source: st.fromNode.id, target: id, sourceHandle: saida }, nodesRef.current, edgesRef.current, catalogo) : null;
+      if (motivo) toast.info(motivo);
+      return;
+    }
+    const pt = "changedTouches" in ev ? ev.changedTouches[0] : ev;
+    setAdicionarEm({ x: pt.clientX, y: pt.clientY, de: st.fromNode.id, saida });
+  }, [catalogo]);
+
+  // ---------- Ações de nó ----------
+  const duplicar = useCallback((id: string) => {
+    aplicar(({ nodes: ns, edges: es }) => {
+      const o = ns.find((n) => n.id === id);
+      if (!o || ehGatilho(o.data.tipo) || ns.length >= maxNos) return null;
+      const base = criarNo(o.data.tipo, { x: o.position.x + 40, y: o.position.y + 40 }, ns, catalogo);
+      const copia: FluxoNode = {
+        ...base,
+        data: {
+          ...base.data,
+          nome: nomeUnico(`${o.data.nome || base.data.nome} (cópia)`, ns),
+          config: structuredClone(o.data.config),
+          extra: structuredClone(o.data.extra),
+        },
+      };
+      return { nodes: [...ns.map((n) => ({ ...n, selected: false })), copia], edges: es };
+    });
+  }, [aplicar, maxNos, catalogo]);
+
+  const desligarEntradas = useCallback((id: string) => {
+    aplicar(({ nodes: ns, edges: es }) => (es.some((e) => e.target === id) ? { nodes: ns, edges: es.filter((e) => e.target !== id) } : null));
+  }, [aplicar]);
+
+  const concluirRenomear = (id: string, novo: string | null) => {
+    if (renomeandoRef.current !== id) return;
+    renomeandoRef.current = null;
+    setRenomeandoId(null);
+    if (novo === null) return;
+    const t = novo.trim();
+    aplicar(({ nodes: ns, edges: es }) => {
+      const n = ns.find((x) => x.id === id);
+      if (!n || (n.data.nome ?? "") === t) return null;
+      return { nodes: ns.map((x) => (x.id === id ? { ...x, data: { ...x.data, nome: t || undefined } } : x)), edges: es };
+    });
+  };
+  const concluirRenomearRef = useRef(concluirRenomear); concluirRenomearRef.current = concluirRenomear;
+
+  const organizar = () => {
+    aplicar(({ nodes: ns, edges: es }) => {
+      const pos = layoutAutomatico(deRf(ns, es));
+      return { nodes: ns.map((n) => ({ ...n, position: pos.get(n.id) ?? n.position })), edges: es };
+    });
+    setTimeout(() => { void fitView({ padding: 0.2, maxZoom: 1, duration: 300 }); }, 0);
+  };
+
+  const onNodeContextMenu = useCallback((e: ReactMouseEvent, n: FluxoNode) => {
+    e.preventDefault();
+    setNodes((ns) => ns.map((x) => ({ ...x, selected: x.id === n.id })));
+    setMenu({ tipo: "no", x: e.clientX, y: e.clientY, noId: n.id, gatilho: ehGatilho(n.data.tipo) });
+  }, [setNodes]);
+  const onPaneContextMenu = useCallback((e: ReactMouseEvent | MouseEvent) => {
+    e.preventDefault();
+    setMenu({ tipo: "canvas", x: e.clientX, y: e.clientY });
+  }, []);
+
+  useEffect(() => {
+    if (!menu) return;
+    const fechar = () => setMenu(null);
+    window.addEventListener("wheel", fechar, { passive: true });
+    return () => window.removeEventListener("wheel", fechar);
+  }, [menu]);
 
   const onBeforeDelete: OnBeforeDelete<FluxoNode, FluxoEdge> = useCallback(async ({ nodes: ns, edges: es }) => {
     if (somenteLeitura) return false;
@@ -211,10 +429,12 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       const outros = ns.filter((n) => !gatilhos.has(n.id));
       const arestas = es.filter((e) => e.selected || (!gatilhos.has(e.source) && !gatilhos.has(e.target)));
       if (!outros.length && !arestas.length) return false;
+      historico.registrar(instantaneo());
       return { nodes: outros, edges: arestas };
     }
+    historico.registrar(instantaneo());
     return true;
-  }, [somenteLeitura]);
+  }, [somenteLeitura, historico, instantaneo]);
 
   const onDelete = useCallback(({ nodes: ns, edges: es }: { nodes: FluxoNode[]; edges: FluxoEdge[] }) => {
     if (ns.length) {
@@ -248,6 +468,15 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         return;
       }
       if (emCampoDeTexto(e.target)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const k = e.key.toLowerCase();
+      if (!somenteLeitura && !noAberto && !document.querySelector("[role='dialog'][data-state='open'], [role='alertdialog'][data-state='open']")) {
+        if (mod && k === "z" && !e.shiftKey) { e.preventDefault(); desfazer(); return; }
+        if (mod && ((k === "z" && e.shiftKey) || k === "y")) { e.preventDefault(); refazer(); return; }
+        const sel = nodesRef.current.filter((n) => n.selected);
+        if (mod && k === "d") { e.preventDefault(); if (sel.length === 1) duplicar(sel[0].id); return; }
+        if (e.key === "F2" && sel.length === 1) { e.preventDefault(); setRenomeandoId(sel[0].id); return; }
+      }
       if (e.key === "Enter" && !noAberto && enterValeNoCanvas(e.target)) {
         const sel = nodesRef.current.filter((n) => n.selected);
         if (sel.length === 1) { e.preventDefault(); setNoAberto(sel[0].id); }
@@ -255,11 +484,10 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [somenteLeitura, podeSalvar, salvarAgora, noAberto]);
+  }, [somenteLeitura, podeSalvar, salvarAgora, noAberto, desfazer, refazer, duplicar]);
 
   const atualizarNo = (id: string, patch: Partial<FluxoNode["data"]>) => {
-    setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
-    agendar();
+    aplicar(({ nodes: ns, edges: es }) => ({ nodes: ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)), edges: es }));
   };
 
   const voltar = async () => {
@@ -311,6 +539,15 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           </div>
         )}
 
+        <div className="flex flex-1 min-h-0 gap-3">
+        {!somenteLeitura && (
+          <NodePalette
+            catalogo={catalogo}
+            totalNos={nodes.length}
+            temGatilho={nodes.some((n) => ehGatilho(n.data.tipo))}
+            onAdicionar={adicionarPelaPaleta}
+          />
+        )}
         <FlowCanvas
           nodes={nodes}
           edges={edges}
@@ -323,8 +560,54 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           onDelete={onDelete}
           onAbrirNo={setNoAberto}
           onSelecionarNo={selecionarNo}
+          onNodeDragStart={() => historico.registrar(instantaneo())}
+          onConnect={onConnect}
+          isValidConnection={isValidConnection}
+          onConnectEnd={onConnectEnd}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          onNodeContextMenu={onNodeContextMenu}
+          onPaneContextMenu={onPaneContextMenu}
+          onMoveStart={() => setMenu(null)}
+          podeDesfazer={historico.podeDesfazer}
+          podeRefazer={historico.podeRefazer}
+          onDesfazer={desfazer}
+          onRefazer={refazer}
         />
+        </div>
       </div>
+
+      {!somenteLeitura && (
+        <>
+          <NoContextMenu
+            menu={menu}
+            limiteAtingido={limiteAtingido}
+            onFechar={() => setMenu(null)}
+            onAbrir={setNoAberto}
+            onRenomear={(id) => setTimeout(() => setRenomeandoId(id), 0)}
+            onDuplicar={duplicar}
+            onDesligarEntradas={desligarEntradas}
+            onExcluir={(id) => { void deleteElements({ nodes: [{ id }] }); }}
+            onAdicionarAqui={(x, y) => setTimeout(() => setAdicionarEm({ x, y }), 0)}
+            onOrganizar={organizar}
+            onAjustar={() => { void fitView({ padding: 0.2, maxZoom: 1, duration: 300 }); }}
+          />
+          <AdicionarNoPopover
+            open={!!adicionarEm}
+            onOpenChange={(v) => { if (!v) setAdicionarEm(null); }}
+            titulo={adicionarEm?.saida ? `Adicionar ao ramo ${({ verdadeiro: "sim", falso: "não" } as Record<string, string>)[adicionarEm.saida] ?? adicionarEm.saida}` : "Adicionar nó"}
+            catalogo={catalogo}
+            limiteAtingido={limiteAtingido}
+            onEscolher={(tipo) => {
+              if (!adicionarEm) return;
+              const p = screenToFlowPosition({ x: adicionarEm.x, y: adicionarEm.y });
+              adicionar(tipo, { pos: { x: alinhar(p.x), y: alinhar(p.y - 32) }, de: adicionarEm.de, saida: adicionarEm.saida });
+            }}
+          >
+            <span aria-hidden className="pointer-events-none fixed h-0 w-0" style={{ left: adicionarEm?.x ?? 0, top: adicionarEm?.y ?? 0 }} />
+          </AdicionarNoPopover>
+        </>
+      )}
 
       <NoConfigSheet
         no={noSelecionado}
