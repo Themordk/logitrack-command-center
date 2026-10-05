@@ -60,3 +60,57 @@ describe("avaliarFiltros", () => {
   it("combinador e", () => expect(avaliarFiltros([ok, falha], "e", ctx)).toBe(false));
   it("combinador ou", () => expect(avaliarFiltros([ok, falha], "ou", ctx)).toBe(true));
 });
+
+import { criarMapa, erroSintaxeJsonata, mapeamentoParaJsonata, montarPayload, presetSoStatus, presetStatusItens, contextoLote } from "./avaliacao";
+
+const doc = {
+  evento: "saida.expedido", ocorrido_em: "2026-10-01T14:32:00Z",
+  documento: { numero: "10000", codigo_erp: "PV-1" },
+  itens: [
+    { produto: { sku: "009.516127", codigo_erp: "P1" }, qtd_solicitada: 2, qtd_atendida: 0, qtd_cortada: 2 },
+    { produto: { sku: "SKU2", codigo_erp: "P2" }, qtd_solicitada: 5, qtd_atendida: 5, qtd_cortada: 0 },
+  ],
+};
+const mapa = criarMapa([
+  { id: "1", fluxo_id: null, dominio: "status", valor_wms: "saida.expedido", valor_erp: "EXPEDIDO" },
+  { id: "2", fluxo_id: "f", dominio: "status", valor_wms: "saida.expedido", valor_erp: "EXP_PARCIAL" },
+]);
+
+describe("presets de payload (§6)", () => {
+  it("só status aplica de-para do fluxo antes do da empresa", async () => {
+    const r = await montarPayload({ modo: "mapeamento", campos: presetSoStatus() }, doc, mapa);
+    expect(r).toEqual({ pedido: "10000", codigo_erp: "PV-1", status: "EXP_PARCIAL", data: "2026-10-01T14:32:00Z" });
+  });
+  it("status + itens de saída", async () => {
+    const r = (await montarPayload({ modo: "mapeamento", campos: presetStatusItens(false) }, doc, mapa)) as { itens: unknown[] };
+    expect(r.itens[0]).toEqual({ sku: "009.516127", codigo_erp: "P1", solicitado: 2, atendido: 0, cortado: 2 });
+    expect(r.itens).toHaveLength(2);
+  });
+  it("sem correspondência no de-para passa o valor original", async () => {
+    const r = (await montarPayload({ modo: "mapeamento", campos: presetSoStatus() }, { ...doc, evento: "x" }, mapa)) as { status: string };
+    expect(r.status).toBe("x");
+  });
+  it("$raiz, fixo e formatos", async () => {
+    const r = await montarPayload({ modo: "mapeamento", campos: [
+      { campo: "origem", tipo: "fixo", valor: "LogiTrack" },
+      { campo: "n", valor: "documento.numero", formato: "inteiro" },
+      { campo: "l", tipo: "lista", valor: "itens", campos: [{ campo: "pedido", valor: "$raiz.documento.numero" }] },
+    ] }, doc, mapa);
+    expect(r).toEqual({ origem: "LogiTrack", n: 10000, l: [{ pedido: "10000" }, { pedido: "10000" }] });
+  });
+  it("conversão para JSONata dá o mesmo resultado", async () => {
+    const campos = presetStatusItens(false);
+    const a = await montarPayload({ modo: "mapeamento", campos }, doc, mapa);
+    const b = await montarPayload({ modo: "jsonata", expressao: mapeamentoParaJsonata(campos) }, doc, mapa);
+    expect(b).toEqual(a);
+  });
+  it("lote", async () => {
+    const lote = contextoLote(doc);
+    const r = await montarPayload({ modo: "jsonata", expressao: '{"quantidade": quantidade, "origem": "LogiTrack", "pedidos": [documentos.documento.numero]}' }, lote, mapa);
+    expect(r).toEqual({ quantidade: 1, origem: "LogiTrack", pedidos: ["10000"] });
+  });
+  it("erro de sintaxe", () => {
+    expect(erroSintaxeJsonata("{ a: ")).toMatch(/posição/);
+    expect(erroSintaxeJsonata("documento.numero")).toBeNull();
+  });
+});

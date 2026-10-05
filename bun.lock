@@ -43,6 +43,7 @@
         "embla-carousel-react": "^8.6.0",
         "input-otp": "^1.4.2",
         "jsbarcode": "^3.12.3",
+        "jsonata": "2.0.5",
         "jspdf": "^4.2.1",
         "jspdf-autotable": "^5.0.8",
         "lucide-react": "^0.462.0",
@@ -1188,6 +1189,8 @@
     "json-stable-stringify-without-jsonify": ["json-stable-stringify-without-jsonify@1.0.1", "", {}, "sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw=="],
 
     "json5": ["json5@2.2.3", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/json5/-/json5-2.2.3.tgz", { "bin": { "json5": "lib/cli.js" } }, "sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg=="],
+
+    "jsonata": ["jsonata@2.0.5", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/jsonata/-/jsonata-2.0.5.tgz", {}, "sha512-wEse9+QLIIU5IaCgtJCPsFi/H4F3qcikWzF4bAELZiRz08ohfx3Q6CjDRf4ZPF5P/92RI3KIHtb7u3jqPaHXdQ=="],
 
     "jsonfile": ["jsonfile@6.2.1", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/jsonfile/-/jsonfile-6.2.1.tgz", { "dependencies": { "universalify": "^2.0.0" }, "optionalDependencies": { "graceful-fs": "^4.1.6" } }, "sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q=="],
 

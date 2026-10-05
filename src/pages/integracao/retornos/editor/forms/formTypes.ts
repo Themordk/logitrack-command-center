@@ -14,6 +14,7 @@ export interface FormNoProps {
   onDefinirAmostra: (d: DocumentoRecente) => void;
   avisos: Aviso[];
   tenantId: string;
+  fluxoId: string | null;
   empresaId: string;
   onAbrirNo: (id: string) => void;
   somenteLeitura: boolean;

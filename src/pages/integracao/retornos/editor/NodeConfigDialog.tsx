@@ -18,6 +18,8 @@ import { ContextoTree } from "./campos/ContextoTree";
 import { PainelContext, listarCaminhos } from "./campos/painelContext";
 import type { FluxoNode } from "./definicaoRf";
 import { ParametrosAtualizar, ParametrosHttp, ParametrosNotificar, ParametrosProvedor, ParametrosWebhook, ResultadoAtualizar, ResultadoHttp, ResultadoNotificar, ResultadoProvedor, ResultadoWebhook } from "./forms/FormAcoes";
+import { ParametrosPayload, ResultadoPayload } from "./forms/FormPayload";
+import { contextoLote } from "./avaliacao";
 import { ParametrosGatilho, ResultadoGatilho } from "./forms/FormGatilho";
 import { ParametrosAguardar, ParametrosCondicao, ResultadoAguardar, ResultadoCondicao } from "./forms/FormLogica";
 import type { FormNoProps } from "./forms/formTypes";
@@ -28,6 +30,7 @@ const FORMS: Partial<Record<TipoNo, [ComponentType<FormNoProps>, ComponentType<F
   "gatilho.manual": [ParametrosGatilho, ResultadoGatilho],
   "logica.condicao": [ParametrosCondicao, ResultadoCondicao],
   "logica.aguardar": [ParametrosAguardar, ResultadoAguardar],
+  "dados.payload": [ParametrosPayload, ResultadoPayload],
   "acao.http": [ParametrosHttp, ResultadoHttp],
   "acao.webhook": [ParametrosWebhook, ResultadoWebhook],
   "acao.provedor": [ParametrosProvedor, ResultadoProvedor],
@@ -55,6 +58,7 @@ interface Props {
   evento: string | null;
   tenantId: string;
   empresaId: string;
+  fluxoId: string;
   somenteLeitura: boolean;
   amostra: DocumentoRecente | null;
   onDefinirAmostra: (d: DocumentoRecente) => void;
@@ -156,7 +160,9 @@ export function NodeConfigDialog(p: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noId]);
 
-  const contexto = (p.amostra?.contexto as Record<string, unknown> | undefined) ?? CONTEXTO_VAZIO;
+  const agrupado = p.nos.some((n) => n.data.tipo === "gatilho.evento" && n.data.config.modo === "agrupado");
+  const contextoBase = (p.amostra?.contexto as Record<string, unknown> | undefined) ?? CONTEXTO_VAZIO;
+  const contexto = useMemo(() => (agrupado ? contextoLote(contextoBase) : contextoBase), [agrupado, contextoBase]);
   const caminhos = useMemo(() => listarCaminhos(contexto), [contexto]);
 
   const aplicarJson = (): boolean => {
@@ -198,7 +204,7 @@ export function NodeConfigDialog(p: Props) {
   const formProps: FormNoProps | null = no ? {
     no, config: no.data.config, alterar: p.onAlterar, catalogo: p.catalogo, destinos: p.destinos, nos: p.nos,
     contexto, amostra: p.amostra, onDefinirAmostra: p.onDefinirAmostra, avisos: p.avisos,
-    tenantId: p.tenantId, empresaId: p.empresaId, onAbrirNo: p.onAbrirNo, somenteLeitura: p.somenteLeitura,
+    tenantId: p.tenantId, empresaId: p.empresaId, fluxoId: p.fluxoId, onAbrirNo: p.onAbrirNo, somenteLeitura: p.somenteLeitura,
   } : null;
   const [Parametros, Resultado] = par ?? [null, null];
 
@@ -237,6 +243,7 @@ export function NodeConfigDialog(p: Props) {
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">Documento de amostra</span>
                   <SeletorAmostra evento={p.evento} tenantId={p.tenantId} empresaId={p.empresaId} amostra={p.amostra} onDefinir={p.onDefinirAmostra} />
                 </div>
+                {agrupado && <p className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 py-1.5 text-[11px] text-violet-400">Fluxo agrupado: a amostra simula um lote com 1 documento.</p>}
                 <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><FileSearch size={12} aria-hidden /> Clique copia o caminho; arraste para um campo.</p>
                 <ContextoTree contexto={contexto} />
               </div>

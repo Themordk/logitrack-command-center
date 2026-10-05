@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { MIME_CAMINHO } from "./painelContext";
+import { MIME_CAMINHO, MIME_LISTA } from "./painelContext";
 
 function tipoDe(v: unknown): string {
   if (v === null) return "nulo";
@@ -53,6 +53,11 @@ function Ramo({ chave, valor, caminho, nivel, abertoInicial }: { chave: string; 
         type="button"
         onClick={() => setAberto((a) => !a)}
         aria-expanded={aberto}
+        draggable={Array.isArray(valor)}
+        onDragStart={(e) => {
+          if (!Array.isArray(valor)) return;
+          e.dataTransfer.setData(MIME_CAMINHO, caminho); e.dataTransfer.setData(MIME_LISTA, "1"); e.dataTransfer.setData("text/plain", caminho);
+        }}
         className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         style={pad}
       >
