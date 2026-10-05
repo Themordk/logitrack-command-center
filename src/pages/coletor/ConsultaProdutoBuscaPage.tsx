@@ -107,26 +107,10 @@ export function ConsultaProdutoBuscaPage({ onNavigate }: Props) {
     return () => { cancelled = true; };
   }, [debounced, tenantId, empresaId]);
 
-  const handleSelect = async (produtoId: string) => {
+  const handleSelect = (produtoId: string) => {
     setError("");
-    try {
-      const { data: emb } = await (supabase as any)
-        .from("produto_embalagem")
-        .select("ean")
-        .eq("produto_id", produtoId)
-        .order("fator", { ascending: true })
-        .limit(1);
-
-      const ean = emb && emb.length > 0 ? emb[0].ean : null;
-      if (!ean) {
-        setError("Produto sem embalagem/EAN cadastrado.");
-        return;
-      }
-      sessionStorage.setItem("coletor_busca_ean", ean);
-      onNavigate("/coletor/consulta/produto");
-    } catch {
-      setError("Erro ao carregar embalagem do produto.");
-    }
+    sessionStorage.setItem("coletor_busca_produto_id", produtoId);
+    onNavigate("/coletor/consulta/produto");
   };
 
   const tooShort = term.trim().length > 0 && term.trim().length < 3;
