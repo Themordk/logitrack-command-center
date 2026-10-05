@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ReactFlowProvider, useEdgesState, useNodesState, useReactFlow,
   type Connection, type IsValidConnection, type OnBeforeDelete, type OnConnectEnd,
 } from "@xyflow/react";
-import { AlertTriangle, ArrowLeft, Eye, Info, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, Eye, FlaskConical, History, Info, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -17,9 +17,15 @@ import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { parseError } from "@/lib/errorMapper";
 import { retornosKeys } from "../retornosKeys";
-import { listarDestinos, obterFluxo } from "../retornosService";
+import { ativarFluxo, listarDestinos, obterFluxo, publicarFluxo, restaurarVersao } from "../retornosService";
 import { useCatalogoRetorno, usePermissaoRetorno } from "../useRetornos";
-import type { Aviso, Catalogo, Destino, DocumentoRecente, FluxoCompleto, TipoNo } from "../retornos.types";
+import type { Aviso, Catalogo, Combinador, Destino, DocumentoRecente, ExecucaoDetalhe, FluxoCompleto, Regra, TipoNo, VersaoFluxo } from "../retornos.types";
+import { StatusRetornoBadge } from "../components/StatusRetornoBadge";
+import { formatarDuracao, montarExecucaoVisual } from "./execucaoVisual";
+import { PassoSheet } from "./PassoSheet";
+import { PublicarFluxoDialog } from "./PublicarFluxoDialog";
+import { TestarFluxoDialog } from "./TestarFluxoDialog";
+import { VersoesSheet } from "./VersoesSheet";
 import { criarEdge, deRf, layoutAutomatico, paraRf, type FluxoEdge, type FluxoNode } from "./definicaoRf";
 import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { NodePalette, MIME_NO } from "./NodePalette";
@@ -196,6 +202,26 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const { agendar, salvarAgora } = auto;
   const fluxo = auto.ultimoSalvo;
 
+  // ---------- Etapa 8: testar, publicar, ativar, versões ----------
+  const qc = useQueryClient();
+  const [testarAberto, setTestarAberto] = useState(false);
+  const [resultado, setResultado] = useState<ExecucaoDetalhe | null>(null);
+  const [passoNo, setPassoNo] = useState<string | null>(null);
+  const [publicarAberto, setPublicarAberto] = useState(false);
+  const [publicando, setPublicando] = useState(false);
+  const [confirmarPausa, setConfirmarPausa] = useState(false);
+  const [alternandoAtivo, setAlternandoAtivo] = useState(false);
+  const [versoesAberto, setVersoesAberto] = useState(false);
+  const [versaoVista, setVersaoVista] = useState<VersaoFluxo | null>(null);
+  const [confirmarRestaurar, setConfirmarRestaurar] = useState(false);
+  const [restaurando, setRestaurando] = useState(false);
+  const visualizando = !!resultado || !!versaoVista;
+  const execVisual = useMemo(() => (resultado ? montarExecucaoVisual(resultado) : null), [resultado]);
+  const rfVisual = useMemo(() => {
+    const def = resultado?.definicao ?? versaoVista?.definicao;
+    return def ? paraRf(def, catalogo) : null;
+  }, [resultado, versaoVista, catalogo]);
+
   const chaveAviso = `retorno-editor-aviso-rascunho-${inicial.id}`;
   const [avisoRascunho, setAvisoRascunho] = useState(
     () => podeSalvar && (inicial.status === "publicado" || inicial.status === "pausado") && sessionStorage.getItem(chaveAviso) !== "1",
@@ -217,8 +243,11 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       saidasOcupadas, limiteAtingido, renomeandoId,
       onAdicionarNoRamo: (de, saida, tipo) => adicionarRef.current(tipo, { de, saida }),
       onConcluirRenomear: (id, n) => concluirRenomearRef.current(id, n),
+      ...(visualizando ? { editavel: false } : {}),
+      execucao: execVisual,
+      onAbrirPasso: resultado ? (id: string) => setPassoNo(id) : undefined,
     };
-  }, [fluxo.validacao_rascunho, catalogo, destinos, somenteLeitura, edges, limiteAtingido, renomeandoId]);
+  }, [fluxo.validacao_rascunho, catalogo, destinos, somenteLeitura, edges, limiteAtingido, renomeandoId, visualizando, execVisual, resultado]);
 
   // Tela encolheu com alteração pendente: grava antes de travar a edição.
   useEffect(() => {
@@ -508,6 +537,72 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   useEffect(() => { setAmostra(null); }, [eventoAmostra]);
 
   const noSelecionado = noAberto ? nodes.find((n) => n.id === noAberto) ?? null : null;
+  const totalErros = fluxo.validacao_rascunho?.erros?.length ?? 0;
+  const temAlteracoes = fluxo.versao_publicada == null || fluxo.alteracoes_nao_publicadas || auto.estado === "salvando" || auto.estado === "erro";
+  const salvarPendente = async () => (podeSalvar ? salvarAgora() : true);
+  const verExecucao = (id: string) => onNavigate(`/config/integracao/retornos?aba=execucoes&fluxo=${inicial.id}&execucao=${id}`);
+
+  const abrirPublicar = async () => {
+    if (!(await salvarPendente())) return;
+    setPublicarAberto(true);
+  };
+  const publicar = async (ativar: boolean) => {
+    setPublicando(true);
+    try {
+      const r = await publicarFluxo(inicial.id, ativar);
+      auto.substituir(r);
+      void qc.invalidateQueries({ queryKey: retornosKeys.versoes(inicial.id) });
+      setPublicarAberto(false);
+      toast.success(`Versão ${r.versao_publicada ?? ""} publicada`);
+    } catch (e) {
+      const pe = parseError(e, "Publicar fluxo");
+      toast.error(pe.title, { description: pe.instruction || undefined });
+      if (pe.errorCode === "RETORNO_FLUXO_INVALIDO") {
+        setPublicarAberto(false);
+        try { auto.substituir(await obterFluxo(inicial.id)); } catch { /* mantém validação atual */ }
+      }
+    } finally {
+      setPublicando(false);
+    }
+  };
+
+  const definirAtivo = async (ativo: boolean) => {
+    setAlternandoAtivo(true);
+    try {
+      const r = await ativarFluxo(inicial.id, ativo);
+      auto.substituir({ ...fluxo, ...r });
+      toast.success(ativo ? "Fluxo ativado." : "Fluxo pausado.");
+    } catch (e) {
+      const pe = parseError(e, ativo ? "Ativar fluxo" : "Pausar fluxo");
+      toast.error(pe.title, { description: pe.instruction || undefined });
+    } finally {
+      setAlternandoAtivo(false);
+      setConfirmarPausa(false);
+    }
+  };
+
+  const restaurarVista = async () => {
+    if (!versaoVista) return;
+    setRestaurando(true);
+    try {
+      if (!(await salvarPendente())) return;
+      const r = await restaurarVersao(inicial.id, versaoVista.versao);
+      qc.setQueryData(retornosKeys.fluxo(inicial.id), r);
+      toast.success(`v${versaoVista.versao} restaurada no rascunho.`);
+      setConfirmarRestaurar(false);
+      setVersaoVista(null);
+      await onRecarregar();
+    } catch (e) {
+      const pe = parseError(e, "Restaurar versão");
+      toast.error(pe.title, { description: pe.instruction || undefined });
+    } finally {
+      setRestaurando(false);
+    }
+  };
+
+  const gatilhoCfg = gatilhoNo?.data.config ?? {};
+  const filtrosGatilho = (((gatilhoCfg.filtros as Regra[]) ?? []).filter((r) => r.campo));
+  const combinadorGatilho = ((gatilhoCfg.combinador as Combinador) ?? "e");
 
   return (
     <EditorContext.Provider value={ctx}>
@@ -523,7 +618,45 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           onVoltar={() => { void voltar(); }}
           onExecucoes={() => onNavigate(`/config/integracao/retornos?aba=execucoes&fluxo=${inicial.id}`)}
           onTentarDeNovo={() => { agendar(); void salvarAgora(); }}
+          podeEditar={podeEditar}
+          totalErros={totalErros}
+          temAlteracoes={temAlteracoes}
+          bloqueado={visualizando}
+          publicando={publicando}
+          alternandoAtivo={alternandoAtivo}
+          onTestar={() => setTestarAberto(true)}
+          onPublicar={() => { void abrirPublicar(); }}
+          onVersoes={() => setVersoesAberto(true)}
+          onAlternarAtivo={(v) => { if (v) void definirAtivo(true); else setConfirmarPausa(true); }}
         />
+
+        {resultado && (
+          <div className="flex items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-foreground" aria-live="polite">
+            <FlaskConical size={13} className="text-sky-400" aria-hidden />
+            <span className="font-medium">Resultado do teste</span>
+            <StatusRetornoBadge tipo="execucao" status={resultado.status} />
+            <span className="text-muted-foreground">{formatarDuracao(resultado.duracao_ms)}</span>
+            {resultado.erro && <span className="truncate text-rose-400">{resultado.erro}</span>}
+            <span className="flex-1 text-muted-foreground">Clique num nó percorrido para ver o passo.</span>
+            <Button size="sm" variant="ghost" className="h-7 gap-1.5" onClick={() => verExecucao(resultado.id)}><ExternalLink size={13} /> Ver em Execuções</Button>
+            <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => { setResultado(null); setPassoNo(null); }}><X size={13} /> Fechar resultado</Button>
+          </div>
+        )}
+        {versaoVista && !resultado && (
+          <div className="flex items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs text-foreground">
+            <History size={13} className="text-violet-400" aria-hidden />
+            <span className="flex-1 font-medium">Visualizando v{versaoVista.versao} — somente leitura</span>
+            {podeSalvar && (
+              <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => setConfirmarRestaurar(true)}><RotateCcw size={13} /> Restaurar no rascunho</Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-7 gap-1.5" onClick={() => setVersaoVista(null)}><ArrowLeft size={13} /> Voltar ao rascunho</Button>
+          </div>
+        )}
+        {fluxo.ativo && fluxo.alteracoes_nao_publicadas && fluxo.versao_publicada != null && !avisoRascunho && !visualizando && (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
+            <Info size={13} aria-hidden /> A versão publicada (v{fluxo.versao_publicada}) continua rodando até você publicar.
+          </div>
+        )}
 
         {motivoLeitura && (
           <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-xs text-muted-foreground">
@@ -548,7 +681,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         )}
 
         <div className="flex flex-1 min-h-0 gap-3">
-        {!somenteLeitura && (
+        {!somenteLeitura && !visualizando && (
           <NodePalette
             catalogo={catalogo}
             totalNos={nodes.length}
@@ -557,16 +690,17 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           />
         )}
         <FlowCanvas
-          nodes={nodes}
-          edges={edges}
-          editavel={!somenteLeitura}
+          key={rfVisual ? `visual-${resultado?.id ?? versaoVista?.versao}` : "rascunho"}
+          nodes={rfVisual?.nodes ?? nodes}
+          edges={rfVisual?.edges ?? edges}
+          editavel={!somenteLeitura && !visualizando}
           validacao={fluxo.validacao_rascunho}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          onNodesChange={rfVisual ? () => undefined : onNodesChange}
+          onEdgesChange={rfVisual ? () => undefined : onEdgesChange}
           onNodeDragStop={agendar}
           onBeforeDelete={onBeforeDelete}
           onDelete={onDelete}
-          onAbrirNo={setNoAberto}
+          onAbrirNo={(id) => { if (resultado) setPassoNo(id); else if (!versaoVista) setNoAberto(id); }}
           onSelecionarNo={selecionarNo}
           onNodeDragStart={() => historico.registrar(instantaneo())}
           onConnect={onConnect}
@@ -585,7 +719,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         </div>
       </div>
 
-      {!somenteLeitura && (
+      {!somenteLeitura && !visualizando && (
         <>
           <NoContextMenu
             menu={menu}
@@ -636,6 +770,73 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         onAlterar={(cfg, tipo) => noSelecionado && atualizarNo(noSelecionado.id, tipo ? { config: cfg, tipo } : { config: cfg })}
         onAbrirNo={setNoAberto}
       />
+
+      <TestarFluxoDialog
+        aberto={testarAberto}
+        onFechar={() => setTestarAberto(false)}
+        fluxoId={inicial.id}
+        tenantId={tenantId}
+        empresaId={empresaId}
+        evento={eventoAmostra}
+        filtros={filtrosGatilho}
+        combinador={combinadorGatilho}
+        amostra={amostra}
+        temPublicada={fluxo.versao_publicada != null}
+        podeEnviar={podeEditar}
+        antesDeExecutar={salvarPendente}
+        onResultado={(d) => { setVersaoVista(null); setNoAberto(null); setResultado(d); setTestarAberto(false); }}
+      />
+      <PassoSheet
+        detalhe={resultado}
+        noId={passoNo}
+        catalogo={catalogo}
+        onFechar={() => setPassoNo(null)}
+        onVerExecucao={() => resultado && verExecucao(resultado.id)}
+      />
+      <PublicarFluxoDialog
+        aberto={publicarAberto}
+        fluxo={fluxo}
+        totalNos={nodes.length}
+        eventoNome={fluxo.evento_nome}
+        publicando={publicando}
+        onFechar={() => setPublicarAberto(false)}
+        onConfirmar={(a) => { void publicar(a); }}
+      />
+      <VersoesSheet
+        aberto={versoesAberto}
+        fluxoId={inicial.id}
+        selecionada={versaoVista?.versao ?? null}
+        onFechar={() => setVersoesAberto(false)}
+        onVisualizar={(v) => { setResultado(null); setNoAberto(null); setVersaoVista(v); setVersoesAberto(false); }}
+      />
+
+      <AlertDialog open={confirmarPausa} onOpenChange={(v) => { if (!alternandoAtivo) setConfirmarPausa(v); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pausar este fluxo?</AlertDialogTitle>
+            <AlertDialogDescription>Eventos que acontecerem com o fluxo pausado não serão enviados ao ERP.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={alternandoAtivo}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={alternandoAtivo} onClick={(e) => { e.preventDefault(); void definirAtivo(false); }}>Pausar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmarRestaurar} onOpenChange={(v) => { if (!restaurando) setConfirmarRestaurar(v); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restaurar v{versaoVista?.versao} no rascunho?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O rascunho atual será substituído pela v{versaoVista?.versao}. Nada é publicado até você clicar em Publicar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={restaurando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={restaurando} onClick={(e) => { e.preventDefault(); void restaurarVista(); }}>Restaurar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={auto.conflito}>
         <AlertDialogContent>
