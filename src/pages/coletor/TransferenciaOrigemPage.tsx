@@ -52,47 +52,47 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
       sessionStorage.setItem("transf_origem_id", data[0].id);
       sessionStorage.setItem("transf_origem_desc", data[0].descricao);
 
-      // If product is pre-loaded from Consulta, verify stock and skip product scan
+      // Produto pré-carregado da Consulta: chave principal é produtoId (EAN opcional)
       const consulta = fromConsultaRef.current;
-      if (consulta?.produtoId && consulta?.scannedEan) {
+      if (consulta?.produtoId) {
         try {
-          const { data: emb } = await (supabase as any)
-            .from("produto_embalagem")
-            .select("produto_id, fator, embalagem, produto:produto_id(sku, descricao)")
-            .eq("ean", consulta.scannedEan)
-            .limit(1);
-
-          if (emb && emb.length > 0) {
-            const { data: estoque } = await (supabase as any)
-              .from("estoque_geral")
+          const [{ data: prod }, { data: embs }, { data: estoque }] = await Promise.all([
+            (supabase as any).from("produto").select("sku, descricao").eq("id", consulta.produtoId).limit(1),
+            (supabase as any).from("produto_embalagem").select("fator, embalagem, ean")
+              .eq("produto_id", consulta.produtoId).order("fator", { ascending: true }),
+            (supabase as any).from("estoque_geral")
               .select("id, quantidade_disponivel, lote, data_validade, data_fabricacao")
-              .eq("produto_id", emb[0].produto_id)
+              .eq("produto_id", consulta.produtoId)
               .eq("endereco_id", data[0].id)
               .gt("quantidade_disponivel", 0)
-              .limit(1);
+              .limit(1),
+          ]);
+          const emb = (embs || [])[0];
 
-            if (estoque && estoque.length > 0) {
-              sessionStorage.removeItem("transf_hu_id");
-              sessionStorage.removeItem("transf_hu_codigo");
-              sessionStorage.setItem("transf_produto_id", emb[0].produto_id);
-              sessionStorage.setItem("transf_produto_sku", emb[0].produto?.sku || "");
-              sessionStorage.setItem("transf_produto_desc", emb[0].produto?.descricao || "");
-              sessionStorage.setItem("transf_saldo_disponivel", String(estoque[0].quantidade_disponivel));
-              sessionStorage.setItem("transf_lote", estoque[0].lote || "");
-              sessionStorage.setItem("transf_validade", estoque[0].data_validade || "");
-              sessionStorage.setItem("transf_fabricacao", estoque[0].data_fabricacao || "");
-              sessionStorage.setItem("transf_fator", String(emb[0].fator || 1));
-              sessionStorage.setItem("transf_embalagem", emb[0].embalagem || "UN");
-              onNavigate("/coletor/movimentos/transferencia/detalhe");
-              return;
-            }
+          if (estoque && estoque.length > 0) {
+            sessionStorage.removeItem("transf_hu_id");
+            sessionStorage.removeItem("transf_hu_codigo");
+            sessionStorage.setItem("transf_produto_id", consulta.produtoId);
+            sessionStorage.setItem("transf_produto_sku", prod?.[0]?.sku || "");
+            sessionStorage.setItem("transf_produto_desc", prod?.[0]?.descricao || "");
+            sessionStorage.setItem("transf_saldo_disponivel", String(estoque[0].quantidade_disponivel));
+            sessionStorage.setItem("transf_lote", estoque[0].lote || "");
+            sessionStorage.setItem("transf_validade", estoque[0].data_validade || "");
+            sessionStorage.setItem("transf_fabricacao", estoque[0].data_fabricacao || "");
+            sessionStorage.setItem("transf_fator", String(emb?.fator || 1));
+            sessionStorage.setItem("transf_embalagem", emb?.embalagem || "UN");
+            onNavigate("/coletor/movimentos/transferencia/detalhe");
+            return;
+          }
 
-            // Reescrever dados do produto para que TransferenciaProdutoPage faça auto-submit
+          if (consulta.scannedEan) {
             sessionStorage.setItem("transf_produto_ean", consulta.scannedEan);
             result.showWarning(`Produto ${consulta.produtoNome} sem saldo neste endereço. Escaneie outro produto.`);
             onNavigate("/coletor/movimentos/transferencia/produto");
-            return;
+          } else {
+            result.showWarning(`Produto ${consulta.produtoNome} sem saldo neste endereço. Escaneie outro endereço de origem.`);
           }
+          return;
         } catch (err) {
           result.showWarning("Erro ao verificar estoque. Escaneie o produto manualmente.");
         }

@@ -27,29 +27,57 @@ interface ConsultaProdutoData {
   produtoFatorCaixa: number;
   saldos: SaldoRow[];
   pickingMapeadoIds: string[];
+  ean: string | null;
 }
 
 export function ConsultaProdutoPage({ onNavigate }: Props) {
-  const [scanned, setScanned] = useState("");
+  const [query, setQuery] = useState<{ tipo: "ean" | "produto"; valor: string } | null>(null);
+  const scanned = query?.tipo === "ean" ? query.valor : "";
   const [notFound, setNotFound] = useState(false);
   const { isOnline } = useOffline();
 
   const fetchConsulta = useCallback(async (): Promise<ConsultaProdutoData> => {
-    // Find produto by EAN
-    const { data: emb } = await (supabase as any)
-      .from("produto_embalagem")
-      .select("produto_id, produto:produto_id(descricao, sku, url_imagem, fator_caixa)")
-      .eq("ean", scanned)
-      .limit(1);
-
-    if (!emb || emb.length === 0) {
-      throw new Error("PRODUTO_NAO_ENCONTRADO");
+    if (!query) throw new Error("PRODUTO_NAO_ENCONTRADO");
+    let prodId: string;
+    let prod: any;
+    let ean: string | null = null;
+    if (query.tipo === "ean") {
+      const { data: emb } = await (supabase as any)
+        .from("produto_embalagem")
+        .select("produto_id, produto:produto_id(descricao, sku, url_imagem, fator_caixa)")
+        .eq("ean", query.valor)
+        .limit(1);
+      if (!emb || emb.length === 0) throw new Error("PRODUTO_NAO_ENCONTRADO");
+      prodId = emb[0].produto_id;
+      prod = emb[0].produto;
+      ean = query.valor;
+    } else {
+      const tenantId = localStorage.getItem("core_tenant_id") || "";
+      const empresaId = localStorage.getItem("core_empresa_id") || "";
+      const { data: p } = await (supabase as any)
+        .from("produto")
+        .select("id, sku, descricao, url_imagem, fator_caixa")
+        .eq("id", query.valor)
+        .eq("tenant_id", tenantId)
+        .eq("empresa_id", empresaId)
+        .limit(1);
+      if (!p || p.length === 0) throw new Error("PRODUTO_NAO_ENCONTRADO");
+      prodId = p[0].id;
+      prod = p[0];
+      const { data: embs } = await (supabase as any)
+        .from("produto_embalagem")
+        .select("ean")
+        .eq("produto_id", prodId)
+        .not("ean", "is", null)
+        .neq("ean", "")
+        .order("fator", { ascending: true })
+        .limit(1);
+      ean = embs?.[0]?.ean ?? null;
     }
 
-    const prodId = emb[0].produto_id;
-    const produtoNome = `${emb[0].produto?.sku} - ${emb[0].produto?.descricao}`;
-    const produtoImg = emb[0].produto?.url_imagem ?? null;
-    const produtoFatorCaixa = Number(emb[0].produto?.fator_caixa) || 1;
+    const produtoNome = `${prod?.sku} - ${prod?.descricao}`;
+    const produtoImg = prod?.url_imagem ?? null;
+    const produtoFatorCaixa = Number(prod?.fator_caixa) || 1;
 
     // Fetch stock grouped by address
     // Sem FK entre endereco e tipo_estoque: resolvemos a descrição em consulta separada.
@@ -106,14 +134,14 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
       pickingMapeadoIds = (mapeados || []).map((m: any) => m.endereco_id);
     }
 
-    return { produtoId: prodId, produtoNome, produtoImg, produtoFatorCaixa, saldos, pickingMapeadoIds };
-  }, [scanned]);
+    return { produtoId: prodId, produtoNome, produtoImg, produtoFatorCaixa, saldos, pickingMapeadoIds, ean };
+  }, [query]);
 
   const { data, loading, isFromCache, error, refetch } = useOfflineCache<ConsultaProdutoData>(
-    `consulta_produto_${scanned}`,
+    `consulta_produto_${query?.tipo}_${query?.valor}`,
     fetchConsulta,
     60,
-    !!scanned,
+    !!query,
   );
 
   const produtoId = data?.produtoId ?? "";
@@ -125,11 +153,18 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
 
   const handleScan = (code: string) => {
     setNotFound(false);
-    setScanned(code);
+    setQuery({ tipo: "ean", valor: code });
   };
 
   // Auto-load product coming from the text search page
   useEffect(() => {
+    const idFromSearch = sessionStorage.getItem("coletor_busca_produto_id");
+    if (idFromSearch) {
+      sessionStorage.removeItem("coletor_busca_produto_id");
+      setNotFound(false);
+      setQuery({ tipo: "produto", valor: idFromSearch });
+      return;
+    }
     const eanFromSearch = sessionStorage.getItem("coletor_busca_ean");
     if (eanFromSearch) {
       sessionStorage.removeItem("coletor_busca_ean");
@@ -139,9 +174,10 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
   }, []);
 
 
-  const semConexaoESemCache = !!scanned && !loading && !data && !isOnline;
+  const produtoEan = data?.ean ?? null;
+  const semConexaoESemCache = !!query && !loading && !data && !isOnline;
   const errorMessage = error === "PRODUTO_NAO_ENCONTRADO"
-    ? "Produto não encontrado para este EAN."
+    ? (query?.tipo === "produto" ? "Produto não encontrado." : "Produto não encontrado para este EAN.")
     : error
       ? "Erro ao consultar."
       : "";
@@ -156,7 +192,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
     <ColetorLayout title="Consulta Produto" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
       <div className="flex items-stretch gap-2">
         <div className="flex-1 min-w-0">
-          <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={scanned} />
+          <ScanField label="Escanear EAN do Produto" onScan={handleScan} lastScanned={produtoEan || scanned} />
         </div>
         <button
           onClick={() => onNavigate("/coletor/consulta/produto/busca")}
@@ -199,6 +235,11 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
             <div className="flex-1">
               <span className="text-xs text-[hsl(213,31%,55%)]">Produto</span>
               <p className="text-sm font-bold text-white">{produtoNome}</p>
+              {produtoEan ? (
+                <p className="text-[11px] text-[hsl(213,31%,55%)] font-mono">EAN: {produtoEan}</p>
+              ) : (
+                <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">Sem EAN</span>
+              )}
               {produtoFatorCaixa > 1 && (
                 <p className="text-[11px] text-[hsl(217,91%,60%)] font-bold">Fator Cx: {produtoFatorCaixa} UN por CX</p>
               )}
@@ -224,7 +265,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
                   sessionStorage.setItem("mapear_from_consulta", JSON.stringify({
                     produtoId,
                     produtoNome,
-                    scannedEan: scanned,
+                    scannedEan: produtoEan,
                   }));
                   onNavigate("/coletor/consulta/mapear-picking");
                 }
@@ -241,7 +282,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
                   sessionStorage.setItem("transf_from_consulta", JSON.stringify({
                     produtoId,
                     produtoNome,
-                    scannedEan: scanned,
+                    scannedEan: produtoEan,
                   }));
                   onNavigate("/coletor/movimentos/transferencia/origem");
                 }
@@ -263,7 +304,7 @@ export function ConsultaProdutoPage({ onNavigate }: Props) {
         </div>
       )}
 
-      {!loading && scanned && data && saldos.length === 0 && !error && (
+      {!loading && query && data && saldos.length === 0 && !error && (
         <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Nenhum saldo encontrado.</div>
       )}
     </ColetorLayout>
