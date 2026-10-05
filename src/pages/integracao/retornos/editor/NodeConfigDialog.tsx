@@ -87,7 +87,7 @@ function SeletorAmostra({ evento, tenantId, empresaId, amostra, onDefinir }: {
     queryFn: () => documentosRecentes({ tenantId, empresaId, evento: evento as string, filtros: [], combinador: "e", limite: 20, busca: buscaExata }),
     enabled: !!evento && !!buscaExata,
   });
-  const docs = recentes.data ?? [];
+  const docs = useMemo(() => recentes.data ?? [], [recentes.data]);
 
   useEffect(() => { if (!amostra && docs[0]) onDefinir(docs[0]); }, [amostra, docs, onDefinir]);
 
