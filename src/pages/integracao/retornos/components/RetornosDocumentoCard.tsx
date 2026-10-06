@@ -170,7 +170,7 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
                 <td className="px-3 py-2 font-mono">{e.evento}</td>
                 <td className="px-3 py-2">{MODO_EXECUCAO_UI[e.modo] ?? e.modo}</td>
                 <td className="px-3 py-2"><StatusRetornoBadge tipo="execucao" status={e.status} /></td>
-                <td className={`px-3 py-2 truncate ${e.status === "filtrado" ? "text-muted-foreground" : "text-rose-400"}`}   title={e.erro ?? ""}>{e.erro ?? ""}</td>
+                <td className={`px-3 py-2 truncate ${e.status === "filtrado" ? "text-muted-foreground" : "text-rose-400"} max-w-[280px]`} title={e.erro ?? ""}>{e.erro ?? ""}</td>
               </tr>
             ))}
           </tbody>

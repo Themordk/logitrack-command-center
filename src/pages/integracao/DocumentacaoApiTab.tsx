@@ -61,7 +61,7 @@ export function DocumentacaoApiTab({ erpProvedorId }: DocumentacaoApiTabProps) {
     (async () => {
       setLoading(true);
       try {
-        const { data, error } = await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)("integracao_listar_api_docs", { p_grupo: null });
+        const { data, error } = await (supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)("integracao_listar_api_docs", { p_grupo: null });
         if (error) throw error;
         if (!alive) return;
         setDocs((data || []) as EndpointDoc[]);
