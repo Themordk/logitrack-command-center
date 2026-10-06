@@ -12,6 +12,10 @@ export const retornosKeys = {
   execucoes: (tenantId: Id, empresaId: Id, filtros: FiltrosExecucao, pagina: number) =>
     ["retorno-execucoes", tenantId, empresaId, filtros, pagina] as const,
   execucao: (execucaoId: Id) => ["retorno-execucao", execucaoId] as const,
+  execucoesDocumento: (tenantId: Id, empresaId: Id, entidade: string, documentoId: Id) =>
+    ["retorno-execucoes-documento", tenantId, empresaId, entidade, documentoId] as const,
+  contextoDocumento: (tenantId: Id, empresaId: Id, entidade: string, documentoId: Id) =>
+    ["retorno-contexto-documento", tenantId, empresaId, entidade, documentoId] as const,
   versoes: (fluxoId: Id) => ["retorno-versoes", fluxoId] as const,
   docsRecentes: (tenantId: Id, empresaId: Id, evento: string, filtrosHash: string, busca: string) =>
     ["retorno-docs-recentes", tenantId, empresaId, evento, filtrosHash, busca] as const,

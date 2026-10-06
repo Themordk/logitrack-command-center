@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 
@@ -733,8 +734,10 @@ export default function App() {
     return (
       <ErrorBoundary showDetails>
         <QueryClientProvider client={queryClient}>
+          <TooltipProvider delayDuration={200}>
           <TvRouter />
           <Toaster />
+          </TooltipProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     );
@@ -743,6 +746,7 @@ export default function App() {
   return (
     <ErrorBoundary showDetails>
       <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={200}>
         <TenantBootProvider>
           <TenantProvider>
             <PermissionsProvider>
@@ -754,6 +758,7 @@ export default function App() {
             </PermissionsProvider>
           </TenantProvider>
         </TenantBootProvider>
+        </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

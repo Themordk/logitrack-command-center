@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Eye, Filter, Layers, Loader2,
@@ -62,14 +62,12 @@ function Caminho({ e }: { e: ExecucaoResumo }) {
   return (
     <div className="flex items-center gap-0.5">
       {e.caminho.map((c, i) => {
-        const definicao = (e as ExecucaoResumo & { definicao?: { nos?: Array<{ id: string; nome?: string }> } }).definicao;
-        const nomeNo = definicao?.nos?.find((n) => n.id === c.no_id)?.nome;
         return (
           <Tooltip key={`${c.no_id}-${i}`}>
             <TooltipTrigger asChild>
               <span className={cn("inline-block h-2 w-2 rounded-full", COR_PONTO[c.status] ?? "bg-zinc-400")} aria-label={`${c.no_id}: ${c.status}`} />
             </TooltipTrigger>
-            <TooltipContent className="text-xs">{nomeNo ?? c.no_id} · {c.status}{c.saida ? ` → ${c.saida}` : ""}</TooltipContent>
+            <TooltipContent className="text-xs">{c.no_id} · {c.status}{c.saida ? ` → ${c.saida}` : ""}</TooltipContent>
           </Tooltip>
         );
       })}
@@ -165,9 +163,12 @@ export function ExecucoesTab({ params, onNavigate }: Props) {
   };
 
   // Limpa fluxo/execução da URL quando empresa muda
+  const empresaAnterior = useRef(empresaVersion);
   useEffect(() => {
+    if (empresaAnterior.current === empresaVersion) return;
+    empresaAnterior.current = empresaVersion;
     if (params.get("fluxo") || params.get("execucao")) {
-      onNavigate(urlFiltros({ ...filtros, pagina: 1 }, null));
+      onNavigate(urlFiltros({ ...filtros, fluxo: "", pagina: 1 }, null));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaVersion]);

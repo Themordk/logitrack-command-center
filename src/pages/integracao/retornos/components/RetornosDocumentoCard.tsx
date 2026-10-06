@@ -16,6 +16,8 @@ import { useCatalogoRetorno, usePermissaoRetorno } from "../useRetornos";
 import { StatusRetornoBadge } from "./StatusRetornoBadge";
 import { ExecucaoDetalheSheet } from "../execucoes/ExecucaoDetalheSheet";
 import { reprocessarEExecutar } from "../execucoes/AcoesExecucaoDialogs";
+import { retornosKeys } from "../retornosKeys";
+import { MODO_EXECUCAO_UI } from "../retornosUi";
 
 interface Props { entidade: EntidadeDocumento; documentoId: string }
 
@@ -38,14 +40,14 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
   const [enviando, setEnviando] = useState(false);
   const [reenviando, setReenviando] = useState(false);
 
-  const chave = ["retorno-execucoes-documento", tenantId, empresaId, entidade, documentoId] as const;
+  const chave = retornosKeys.execucoesDocumento(tenantId, empresaId, entidade, documentoId);
   const execs = useQuery({ queryKey: chave, queryFn: () => execucoesDocumento(tenantId, empresaId, entidade, documentoId), refetchInterval: 15_000 });
   const ctx = useQuery({
-    queryKey: ["retorno-contexto-documento", tenantId, empresaId, entidade, documentoId],
+    queryKey: retornosKeys.contextoDocumento(tenantId, empresaId, entidade, documentoId),
     queryFn: () => contextoDocumento(tenantId, empresaId, entidade, documentoId, null),
   });
   const fluxos = useQuery({
-    queryKey: ["retorno-fluxos", tenantId, empresaId, false],
+    queryKey: retornosKeys.fluxos(tenantId, empresaId, false),
     queryFn: () => listarFluxos(tenantId, empresaId, false),
     enabled: podeEditar,
   });
@@ -59,7 +61,11 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
 
   const lista = execs.data ?? [];
   const ultimaErro = lista[0]?.status === "erro" ? lista[0] : null;
-  const recarregar = () => qc.invalidateQueries({ queryKey: chave });
+  const recarregar = () => {
+    qc.invalidateQueries({ queryKey: chave });
+    qc.invalidateQueries({ queryKey: ["retorno-execucoes"] });
+  };
+  const numeroDoc = (ctx.data?.documento as { numero?: string | number | null } | undefined)?.numero;
 
   async function enviar(fluxoId: string) {
     setEnviando(true);
@@ -95,6 +101,7 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
           Integração: {statusIntegracao || "—"}
         </Badge>
         <div className="ml-auto flex gap-2">
+          <Button size="sm" variant="ghost" onClick={() => irPara(`/config/integracao/retornos?${new URLSearchParams({ aba: "execucoes", ...(numeroDoc != null ? { busca: String(numeroDoc) } : {}) }).toString()}`)}>Ver todas</Button>
           {ultimaErro && (
             <Button size="sm" variant="outline" disabled={!podeEditar || reenviando} onClick={() => reenviar(ultimaErro.id)}>
               {reenviando ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Reenviar
@@ -161,9 +168,9 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
                 <td className="px-3 py-2 whitespace-nowrap">{formatDateTime(e.created_at)}</td>
                 <td className="px-3 py-2 text-foreground">{e.fluxo_nome}{e.lote_execucao_id ? " (lote)" : ""}</td>
                 <td className="px-3 py-2 font-mono">{e.evento}</td>
-                <td className="px-3 py-2">{e.modo}</td>
+                <td className="px-3 py-2">{MODO_EXECUCAO_UI[e.modo] ?? e.modo}</td>
                 <td className="px-3 py-2"><StatusRetornoBadge tipo="execucao" status={e.status} /></td>
-                <td className="px-3 py-2 text-rose-400 truncate max-w-[280px]" title={e.erro ?? ""}>{e.erro ?? ""}</td>
+                <td className={`px-3 py-2 truncate ${e.status === "filtrado" ? "text-muted-foreground" : "text-rose-400"}`}   title={e.erro ?? ""}>{e.erro ?? ""}</td>
               </tr>
             ))}
           </tbody>

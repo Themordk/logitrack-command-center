@@ -6,11 +6,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusRetornoBadge } from "../components/StatusRetornoBadge";
 import { retornosKeys } from "../retornosKeys";
 import { listarFluxos } from "../retornosService";
+import { usePermissaoRetorno } from "../useRetornos";
 
 interface Props { erpProvedorId: string; onNavigate: (path: string) => void }
 
 /** Painel compacto, usado na página do provedor ERP, com os fluxos de retorno ligados a ele. */
-export function RetornosErpTab({ erpProvedorId, onNavigate }: Props) {
+export function RetornosErpTab(props: Props) {
+  const { podeVer } = usePermissaoRetorno();
+  if (!podeVer) return null;
+  return <Painel {...props} />;
+}
+
+function Painel({ erpProvedorId, onNavigate }: Props) {
   const { tenantId, empresaId, empresaVersion } = useTenant();
   const q = useQuery({
     queryKey: [...retornosKeys.fluxos(tenantId, empresaId, false), empresaVersion],
