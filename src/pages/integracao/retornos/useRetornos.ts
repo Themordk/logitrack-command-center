@@ -4,7 +4,7 @@ import { usePermissions } from "@/contexts/PermissionsContext";
 import { retornosKeys } from "./retornosKeys";
 import { obterCatalogo, obterConfig } from "./retornosService";
 
-export const MODULO_RETORNO = "web.config.integracao";
+export const MODULO_RETORNO = "web.config.integracao.retornos";
 
 export function useCatalogoRetorno() {
   return useQuery({

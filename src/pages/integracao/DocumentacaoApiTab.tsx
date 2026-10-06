@@ -61,11 +61,11 @@ export function DocumentacaoApiTab({ erpProvedorId }: DocumentacaoApiTabProps) {
     (async () => {
       setLoading(true);
       try {
-        const { data, error } = await (supabase as any).rpc("integracao_listar_api_docs", { p_grupo: null });
+        const { data, error } = await (supabase.rpc.bind(supabase) as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>)("integracao_listar_api_docs", { p_grupo: null });
         if (error) throw error;
         if (!alive) return;
         setDocs((data || []) as EndpointDoc[]);
-      } catch (e: any) {
+      } catch (e: unknown) {
         const p = parseError(e, "docs-api");
         toast.error(
           !p.errorCode && p.title === "Ocorreu um erro inesperado." ? "Erro ao carregar documentação." : p.title,

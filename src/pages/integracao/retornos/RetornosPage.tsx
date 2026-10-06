@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { relativeTime } from "../StatusBar";
-import { usePermissaoRetorno, useRetornoConfig } from "./useRetornos";
+import { MODULO_RETORNO, usePermissaoRetorno, useRetornoConfig } from "./useRetornos";
 import { DestinosTab } from "./destinos/DestinosTab";
 import { DeparaTab } from "./depara/DeparaTab";
 import { MotorCard } from "./MotorCard";
@@ -97,18 +97,20 @@ function Vazio({ icone: Icon, texto }: { icone: LucideIcon; texto: string }) {
 
 function Conteudo({ onNavigate, aba, params }: { onNavigate: (p: string) => void; aba: Aba; params: URLSearchParams }) {
   const { podeEditar } = usePermissaoRetorno();
+  const { can } = usePermissions();
+  const podeVerIntegracao = can("web.config.integracao", "READ");
 
   return (
     <TooltipProvider delayDuration={200}>
     <div className="flex flex-col flex-1 min-h-0 gap-3 animate-fade-in">
       <div className="flex flex-col gap-1">
-        <button
+        {podeVerIntegracao && <button
           type="button"
           onClick={() => onNavigate("/config/integracao")}
           className="self-start flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
         >
           <ArrowLeft size={12} /> Voltar para Integração ERP
-        </button>
+        </button>}
         <h1 className="text-xl font-bold text-foreground">Retornos ao ERP</h1>
         <p className="text-sm text-muted-foreground">
           Defina o que o WMS devolve ao ERP em cada etapa da operação e acompanhe cada envio.
@@ -159,7 +161,7 @@ export function RetornosPage({ onNavigate, params }: Props) {
   if (!empresaId) {
     return <div className="text-sm text-muted-foreground p-4">Selecione uma empresa para continuar.</div>;
   }
-  if (!loading && !can("web.config.integracao", "READ")) {
+  if (!loading && !can(MODULO_RETORNO, "READ")) {
     return <div className="text-sm text-muted-foreground p-4">Você não tem permissão para acessar esta tela.</div>;
   }
   return <Conteudo key={`${empresaId}-${empresaVersion}`} onNavigate={onNavigate} aba={abaAtual} params={parametros} />;

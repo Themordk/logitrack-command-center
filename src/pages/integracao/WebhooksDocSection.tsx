@@ -6,7 +6,7 @@ import { obterCatalogo } from "./retornos/retornosService";
 
 const ENVELOPE = `{
   "id": "uuid-da-execucao",
-  "evento": "documento_saida.expedido",
+  "evento": "saida.expedido",
   "ocorrido_em": "2026-10-05T17:55:00Z",
   "tentativa": 1,
   "dados": { "...": "payload montado pelo fluxo" }
@@ -119,6 +119,7 @@ export function WebhooksDocSection() {
             ))}
           </tbody>
         </table>
+        <p className="text-xs text-muted-foreground mt-2">Ao reprocessar, o LogiTrack reenvia com o mesmo X-LogiTrack-Execution-Id e Idempotency-Key.</p>
       </div>
 
       <div className="text-xs text-muted-foreground space-y-1">
