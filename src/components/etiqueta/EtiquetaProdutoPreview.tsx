@@ -26,6 +26,7 @@ export interface EtiquetaProdutoItem {
   sku: string;
   descricao: string;
   marca?: string | null;
+  referencia?: string | null;
   embalagem_id?: string;
   ean: string;
   embalagem?: string;

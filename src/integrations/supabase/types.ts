@@ -1286,6 +1286,9 @@ export type Database = {
           id: string
           id_externo: string | null
           motivo_exclusao_id: string | null
+          nf_consultada_em: string | null
+          nf_status_consulta: string | null
+          nf_tentativas: number
           numero_pedido: number
           observacao: string | null
           observacao_exclusao: string | null
@@ -1314,6 +1317,9 @@ export type Database = {
           id?: string
           id_externo?: string | null
           motivo_exclusao_id?: string | null
+          nf_consultada_em?: string | null
+          nf_status_consulta?: string | null
+          nf_tentativas?: number
           numero_pedido: number
           observacao?: string | null
           observacao_exclusao?: string | null
@@ -1342,6 +1348,9 @@ export type Database = {
           id?: string
           id_externo?: string | null
           motivo_exclusao_id?: string | null
+          nf_consultada_em?: string | null
+          nf_status_consulta?: string | null
+          nf_tentativas?: number
           numero_pedido?: number
           observacao?: string | null
           observacao_exclusao?: string | null
@@ -1471,6 +1480,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "documento_saida"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_item_doc"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_item_doc"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
           },
           {
             foreignKeyName: "fk_doc_saida_item_prod"
@@ -1604,6 +1627,142 @@ export type Database = {
           },
           {
             foreignKeyName: "fk_doc_saida_item_lote_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_saida_nf: {
+        Row: {
+          chave_nfe: string | null
+          created_at: string
+          data_cancelamento: string | null
+          data_emissao: string | null
+          data_saida: string | null
+          documento_saida_id: string
+          empresa_id: string
+          erp_provedor_id: string
+          finalidade: string | null
+          id: string
+          id_externo: string
+          id_pedido_externo: string | null
+          id_transportadora_externo: string | null
+          modalidade_frete: string | null
+          modelo: string | null
+          numero_nf: string
+          qtd_itens: number | null
+          serie: string | null
+          situacao: string
+          sync_erro: string | null
+          tenant_id: string
+          tentativas: number
+          tipo_ambiente: string | null
+          ultima_sincronizacao_em: string
+          updated_at: string
+          valor_frete: number | null
+          valor_produtos: number | null
+          valor_total_nf: number | null
+        }
+        Insert: {
+          chave_nfe?: string | null
+          created_at?: string
+          data_cancelamento?: string | null
+          data_emissao?: string | null
+          data_saida?: string | null
+          documento_saida_id: string
+          empresa_id: string
+          erp_provedor_id?: string
+          finalidade?: string | null
+          id?: string
+          id_externo: string
+          id_pedido_externo?: string | null
+          id_transportadora_externo?: string | null
+          modalidade_frete?: string | null
+          modelo?: string | null
+          numero_nf: string
+          qtd_itens?: number | null
+          serie?: string | null
+          situacao: string
+          sync_erro?: string | null
+          tenant_id: string
+          tentativas?: number
+          tipo_ambiente?: string | null
+          ultima_sincronizacao_em?: string
+          updated_at?: string
+          valor_frete?: number | null
+          valor_produtos?: number | null
+          valor_total_nf?: number | null
+        }
+        Update: {
+          chave_nfe?: string | null
+          created_at?: string
+          data_cancelamento?: string | null
+          data_emissao?: string | null
+          data_saida?: string | null
+          documento_saida_id?: string
+          empresa_id?: string
+          erp_provedor_id?: string
+          finalidade?: string | null
+          id?: string
+          id_externo?: string
+          id_pedido_externo?: string | null
+          id_transportadora_externo?: string | null
+          modalidade_frete?: string | null
+          modelo?: string | null
+          numero_nf?: string
+          qtd_itens?: number | null
+          serie?: string | null
+          situacao?: string
+          sync_erro?: string | null
+          tenant_id?: string
+          tentativas?: number
+          tipo_ambiente?: string | null
+          ultima_sincronizacao_em?: string
+          updated_at?: string
+          valor_frete?: number | null
+          valor_produtos?: number | null
+          valor_total_nf?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_saida_nf_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_nf_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_nf_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_nf_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_nf_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_nf_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
@@ -4245,6 +4404,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "documento_saida"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_doc"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "fk_onda_doc_doc"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
           },
           {
             foreignKeyName: "fk_onda_doc_onda"
@@ -7518,6 +7691,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "volume_expedicao_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
             foreignKeyName: "volume_expedicao_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
@@ -7634,6 +7821,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "documento_saida"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_log_pedido_saida_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "webhook_log_pedido_saida_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
           },
           {
             foreignKeyName: "webhook_log_pedido_saida_empresa_id_fkey"
@@ -7833,6 +8034,54 @@ export type Database = {
           },
           {
             foreignKeyName: "abastecimento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_documento_saida_nf_vigente: {
+        Row: {
+          chave_nfe: string | null
+          codigo_erp: string | null
+          documento_saida_id: string | null
+          empresa_id: string | null
+          id_transportadora_externo: string | null
+          modalidade_frete: string | null
+          modelo: string | null
+          nf_consultada_em: string | null
+          nf_data_cancelamento: string | null
+          nf_data_emissao: string | null
+          nf_data_saida: string | null
+          nf_id: string | null
+          nf_situacao: string | null
+          nf_status_consulta: string | null
+          numero_nf: string | null
+          numero_pedido: number | null
+          qtd_nfs: number | null
+          qtd_nfs_autorizadas: number | null
+          serie: string | null
+          tenant_id: string | null
+          valor_total_nf: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_doc_saida_empresa"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_doc_saida_tenant"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
@@ -8667,11 +8916,16 @@ export type Database = {
       }
       vw_movimento_saida_docs_vinculados: {
         Row: {
+          chave_nfe: string | null
           data_emissao: string | null
+          documento_saida_id: string | null
           movimento_saida_id: string | null
+          nf_situacao: string | null
+          numero_nf: string | null
           numero_pedido: number | null
           ordem: number | null
           parceiro: string | null
+          serie_nf: string | null
           tenant_id: string | null
           valor_pedido: number | null
         }
@@ -9159,6 +9413,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "volume_expedicao_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "volume_expedicao_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
             foreignKeyName: "volume_expedicao_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
@@ -9397,6 +9665,10 @@ export type Database = {
       cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: { Args: never; Returns: Json }
+      cron_liberar_separacao_automatica_bkp_20261008: {
+        Args: never
+        Returns: Json
+      }
       dados_etiqueta_endereco: {
         Args: { p_endereco_ids: string[] }
         Returns: Json
@@ -9685,6 +9957,16 @@ export type Database = {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: Json
       }
+      fn_cancelar_saida_por_nf_cancelada: {
+        Args: {
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_origem?: string
+          p_tenant_id: string
+          p_usuario_id?: string
+        }
+        Returns: Json
+      }
       fn_coletor_menu_badges: {
         Args: {
           p_armazem_id?: string
@@ -9747,6 +10029,15 @@ export type Database = {
           p_zona_atividade_id?: string
         }
         Returns: Json
+      }
+      fn_doc_saida_importacao_concluida: {
+        Args: {
+          p_codigo_erp: string
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: boolean
       }
       fn_etiqueta_num: {
         Args: { p_casas?: number; p_valor: number }
@@ -10279,6 +10570,20 @@ export type Database = {
         }
         Returns: Json
       }
+      gerar_onda_separacao_bkp_20261008: {
+        Args: {
+          p_box_id?: string
+          p_documentos?: string[]
+          p_empresa_id: string
+          p_modo?: string
+          p_prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
+          p_rota_id?: string
+          p_tenant_id: string
+          p_usuario_id: string
+          p_veiculo_id?: string
+        }
+        Returns: Json
+      }
       gerar_tarefas_armazenagem_c_divergencia: {
         Args: {
           p_motivo_ocorrencia: string
@@ -10498,6 +10803,23 @@ export type Database = {
               status: string
             }[]
           }
+      integracao_listar_pedidos_pendentes_nf: {
+        Args: {
+          p_dias_retroativos?: number
+          p_empresa_id: string
+          p_intervalo_min?: number
+          p_limite?: number
+          p_max_tentativas?: number
+          p_tenant_id: string
+        }
+        Returns: {
+          codigo_erp: string
+          documento_saida_id: string
+          nf_consultada_em: string
+          nf_tentativas: number
+          numero_pedido: number
+        }[]
+      }
       integracao_listar_provedores: {
         Args: never
         Returns: {
@@ -10538,6 +10860,16 @@ export type Database = {
         Args: {
           p_empresa_id: string
           p_erp_provedor_id: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_registrar_consulta_nf_pedido: {
+        Args: {
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_erro?: string
+          p_max_tentativas?: number
           p_tenant_id: string
         }
         Returns: string
@@ -10903,6 +11235,60 @@ export type Database = {
           p_validade: string
         }
         Returns: string
+      }
+      integracao_upsert_documento_saida_nf: {
+        Args: {
+          p_chave_nfe: string
+          p_data_cancelamento: string
+          p_data_emissao: string
+          p_data_saida: string
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_finalidade: string
+          p_id_externo: string
+          p_id_pedido_externo: string
+          p_id_transportadora_externo: string
+          p_modalidade_frete: string
+          p_modelo: string
+          p_numero_nf: string
+          p_qtd_itens: number
+          p_serie: string
+          p_situacao: string
+          p_sync_log_id?: string
+          p_tenant_id: string
+          p_tipo_ambiente: string
+          p_valor_frete: number
+          p_valor_produtos: number
+          p_valor_total_nf: number
+        }
+        Returns: Json
+      }
+      integracao_upsert_documento_saida_nf_bkp_20261008: {
+        Args: {
+          p_chave_nfe: string
+          p_data_cancelamento: string
+          p_data_emissao: string
+          p_data_saida: string
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_finalidade: string
+          p_id_externo: string
+          p_id_pedido_externo: string
+          p_id_transportadora_externo: string
+          p_modalidade_frete: string
+          p_modelo: string
+          p_numero_nf: string
+          p_qtd_itens: number
+          p_serie: string
+          p_situacao: string
+          p_sync_log_id?: string
+          p_tenant_id: string
+          p_tipo_ambiente: string
+          p_valor_frete: number
+          p_valor_produtos: number
+          p_valor_total_nf: number
+        }
+        Returns: Json
       }
       integracao_upsert_embalagem: {
         Args: {

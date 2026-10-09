@@ -64,6 +64,7 @@ function ProdutoDetailModal({
     sku: produto?.sku || "",
     descricao: produto?.descricao || "",
     marca: produto?.marca,
+    referencia: produto?.referencia,
     embalagem_id: e.id,
     ean: e.ean,
     embalagem: e.embalagem,
@@ -726,7 +727,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
     const ids = Array.from(selectedIds);
     const { data, error } = await (supabase as any)
       .from("produto_embalagem")
-      .select("id, produto_id, ean, embalagem, fator, altura, largura, comprimento, peso_bruto, peso_liquido, m3, produto:produto_id(sku, descricao, marca)")
+      .select("id, produto_id, ean, embalagem, fator, altura, largura, comprimento, peso_bruto, peso_liquido, m3, produto:produto_id(sku, descricao, marca, referencia)")
       .in("produto_id", ids)
       .eq("tenant_id", tenantId)
       .eq("ativo", true);
@@ -738,6 +739,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       sku: e.produto?.sku || "",
       descricao: e.produto?.descricao || "",
       marca: e.produto?.marca,
+      referencia: e.produto?.referencia,
       embalagem_id: e.id,
       ean: e.ean,
       embalagem: e.embalagem,
