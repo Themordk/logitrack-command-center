@@ -79,6 +79,7 @@ const DEFAULT_CAMPOS_BY_TIPO: Record<TipoEtiquetaConfig, CampoEtiqueta[]> = {
     { chave: "sku", label: "SKU", ativo: true, ordem: 1 },
     { chave: "descricao", label: "Descrição", ativo: true, ordem: 2 },
     { chave: "ean", label: "EAN", ativo: true, ordem: 3 },
+    { chave: "referencia", label: "Referência", ativo: false, ordem: 4 },
   ],
   VOLUME: [
     { chave: "codigo_volume", label: "Código", ativo: true, ordem: 1 },
