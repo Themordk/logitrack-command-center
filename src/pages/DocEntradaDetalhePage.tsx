@@ -11,6 +11,7 @@ import { formatDateTime, formatDate } from "@/utils/dateTime";
 interface Props {
   documentoId: string;
   onBack: () => void;
+  backLabel?: string;
 }
 
 interface Header {
@@ -65,7 +66,7 @@ function fmtMoney(v: number | null | undefined): string {
   return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
+export function DocEntradaDetalhePage({ documentoId, onBack, backLabel }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [header, setHeader] = useState<Header | null>(null);
@@ -187,7 +188,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
         <AlertTriangle className="text-destructive" size={40} />
         <p className="text-muted-foreground">{error || "Documento não encontrado."}</p>
         <Button variant="outline" size="sm" onClick={onBack}>
-          <ArrowLeft size={14} /> Voltar
+          <ArrowLeft size={14} /> {backLabel || "Voltar"}
         </Button>
       </div>
     );
@@ -202,7 +203,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack }: Props) {
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" onClick={onBack}>
-          <ArrowLeft size={14} /> Voltar
+          <ArrowLeft size={14} /> {backLabel || "Voltar"}
         </Button>
         <div>
           <h2 className="text-base font-semibold text-foreground">Detalhe do Documento de Entrada</h2>
