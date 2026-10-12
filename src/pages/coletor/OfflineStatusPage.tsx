@@ -169,6 +169,9 @@ export function OfflineStatusPage({ onNavigate }: Props) {
                         <span className="text-[11px] text-red-300 break-words">{a.errorMessage}</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        {a.definitiva ? (
+                          <span className="text-[11px] text-red-300 px-3">Falha definitiva — não será reenviada.</span>
+                        ) : (
                         <button
                           onClick={() => handleRetry(a.id)}
                           disabled={!isOnline}
@@ -176,6 +179,7 @@ export function OfflineStatusPage({ onNavigate }: Props) {
                         >
                           Tentar novamente
                         </button>
+                        )}
                         <button
                           onClick={() => handleDiscard(a.id)}
                           className="min-h-[48px] px-3 text-xs font-bold text-red-300"
