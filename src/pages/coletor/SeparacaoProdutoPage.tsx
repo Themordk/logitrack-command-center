@@ -281,6 +281,24 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
       const rpcResult = parseRpcResult(offlineResult.data);
       if (!rpcResult.sucesso) {
+        const codigo = rpcResult.codigo;
+        if (codigo === "TAREFA_CANCELADA" || codigo === "TAREFA_JA_CONCLUIDA") {
+          // Remove a tarefa da lista local para não reaparecer; ajusta o índice para avançar à seguinte
+          try {
+            const lista = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
+            const idxAtual = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
+            const filtrada = Array.isArray(lista) ? lista.filter((t: any) => t?.tarefa_id !== tarefa.tarefa_id) : [];
+            sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(filtrada));
+            sessionStorage.setItem("coletor_separacao_tarefa_idx", String(Math.max(idxAtual - 1, -1)));
+          } catch { /* sessionStorage indisponível */ }
+          result.showError(rpcResult, { context: "separacao", onClose: advanceToNext });
+          return;
+        }
+        if (codigo === "QUANTIDADE_EXCEDE_ITEM") {
+          const restante = Number((rpcResult.dados as { restante?: number } | undefined)?.restante ?? NaN);
+          result.showError(rpcResult, { context: "separacao", onClose: restante === 0 ? advanceToNext : undefined });
+          return;
+        }
         result.showError(rpcResult, { context: "separacao" });
         return;
       }
