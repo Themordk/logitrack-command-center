@@ -18,6 +18,9 @@ export interface OfflineSyncState {
   retryAction: (id: string) => Promise<void>;
 }
 
+/** Recusas do servidor que não adianta reenviar (coleta acima do pedido/saldo, tarefa encerrada). */
+const CODIGOS_FALHA_DEFINITIVA = new Set(["QUANTIDADE_EXCEDE_ITEM", "QUANTIDADE_EXCEDE_SALDO", "TAREFA_CANCELADA", "TAREFA_JA_CONCLUIDA"]);
+
 export function isNetworkError(err: any): boolean {
   const msg = String(err?.message ?? err ?? "").toLowerCase();
   return (
@@ -98,7 +101,8 @@ export function useOfflineSync(isOnline: boolean): OfflineSyncState {
           }
           const payload: any = typeof data === "string" ? safeParse(data) : data;
           if (payload && typeof payload === "object" && !Array.isArray(payload) && payload.sucesso === false) {
-            await OfflineStore.markActionFailed(item.id, payload.mensagem || "Ação rejeitada pelo servidor");
+            const definitiva = CODIGOS_FALHA_DEFINITIVA.has(String(payload.codigo || ""));
+            await OfflineStore.markActionFailed(item.id, payload.mensagem || "Ação rejeitada pelo servidor", definitiva);
             continue;
           }
           await OfflineStore.markActionSynced(item.id);

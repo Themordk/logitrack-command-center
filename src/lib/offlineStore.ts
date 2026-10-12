@@ -16,6 +16,8 @@ export interface PendingAction {
   status: PendingActionStatus;
   retryCount: number;
   errorMessage?: string;
+  /** Falha definitiva: o servidor recusou por regra de negócio; não deve ser reenviada. */
+  definitiva?: boolean;
   tenantId: string | null;
   empresaId: string | null;
   usuarioId: string | null;
@@ -154,12 +156,13 @@ export function markActionSynced(id: string): Promise<void> {
   return updateAction(id, { status: "synced", errorMessage: undefined });
 }
 
-export async function markActionFailed(id: string, error: string): Promise<void> {
+export async function markActionFailed(id: string, error: string, definitiva = false): Promise<void> {
   const all = await getAllActions();
   const current = all.find((a) => a.id === id);
   await updateAction(id, {
     status: "failed",
     errorMessage: error,
+    definitiva,
     retryCount: (current?.retryCount ?? 0) + 1,
   });
 }
