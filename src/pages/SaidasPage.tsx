@@ -68,9 +68,11 @@ export function SaidasPage() {
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   // Deep-link: /atividades/saidas?detalhe=<uuid> (ou documento_id=<uuid>) abre direto o detalhe
+  // Lido no mount e também em hashchange, pois o ImportarPedidoSaidaModal ("Ver documento")
+  // navega dentro da própria página sem remontá-la.
   const [origemDetalhe, setOrigemDetalhe] = useState<string | null>(null);
   const [ondaOrigem, setOndaOrigem] = useState<string | null>(null);
-  useEffect(() => {
+  const lerDeepLink = useCallback(() => {
     const detalheParam = getRouteParam("detalhe") || getRouteParam("documento_id");
     const origemParam = getRouteParam("origem");
     const ondaParam = getRouteParam("onda");
@@ -79,6 +81,11 @@ export function SaidasPage() {
     setOndaOrigem(ondaParam);
     ["detalhe", "documento_id", "origem", "onda"].forEach((p) => clearRouteParam(p));
   }, []);
+  useEffect(() => {
+    lerDeepLink();
+    window.addEventListener("hashchange", lerDeepLink);
+    return () => window.removeEventListener("hashchange", lerDeepLink);
+  }, [lerDeepLink]);
 
 
   const listQuery = useQuery({
