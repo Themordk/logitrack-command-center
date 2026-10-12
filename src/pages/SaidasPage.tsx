@@ -67,13 +67,17 @@ export function SaidasPage() {
 
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
-  // Deep-link: /atividades/saidas?detalhe=<uuid> abre direto o detalhe
+  // Deep-link: /atividades/saidas?detalhe=<uuid> (ou documento_id=<uuid>) abre direto o detalhe
+  const [origemDetalhe, setOrigemDetalhe] = useState<string | null>(null);
+  const [ondaOrigem, setOndaOrigem] = useState<string | null>(null);
   useEffect(() => {
-    const detalheParam = getRouteParam("detalhe");
-    if (detalheParam) {
-      setDetalheId(detalheParam);
-      clearRouteParam("detalhe");
-    }
+    const detalheParam = getRouteParam("detalhe") || getRouteParam("documento_id");
+    const origemParam = getRouteParam("origem");
+    const ondaParam = getRouteParam("onda");
+    if (detalheParam) setDetalheId(detalheParam);
+    setOrigemDetalhe(origemParam);
+    setOndaOrigem(ondaParam);
+    ["detalhe", "documento_id", "origem", "onda"].forEach((p) => clearRouteParam(p));
   }, []);
 
 
@@ -238,7 +242,21 @@ export function SaidasPage() {
   }
 
   if (detalheId) {
-    return <DocSaidaDetalhePage documentoId={detalheId} onBack={() => { setDetalheId(null); fetchDocs(); }} />;
+    const voltarParaOnda = origemDetalhe === "mov-saida" && !!ondaOrigem;
+    return (
+      <DocSaidaDetalhePage
+        documentoId={detalheId}
+        backLabel={origemDetalhe === "mov-saida" ? "Voltar para a onda" : undefined}
+        onBack={() => {
+          if (voltarParaOnda) {
+            window.location.hash = `#/atividades/mov-saida?onda=${ondaOrigem}`;
+            return;
+          }
+          setDetalheId(null);
+          fetchDocs();
+        }}
+      />
+    );
   }
 
   return (
