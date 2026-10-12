@@ -9617,7 +9617,47 @@ export type Database = {
             }
             Returns: Json
           }
+      conferencia_saida_confirmacao_bkp_20261012:
+        | {
+            Args: {
+              p_quantidade: number
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_modo_conferencia?: string
+              p_quantidade: number
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: Json
+          }
       cortar_item_separacao:
+        | {
+            Args: {
+              p_motivo_ocorrencia: string
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_motivo_ocorrencia: string
+              p_observacao?: string
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario: string
+            }
+            Returns: Json
+          }
+      cortar_item_separacao_bkp_20261012:
         | {
             Args: {
               p_motivo_ocorrencia: string
@@ -9664,8 +9704,15 @@ export type Database = {
       }
       cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
-      cron_liberar_separacao_automatica: { Args: never; Returns: Json }
+      cron_liberar_separacao_automatica: {
+        Args: { p_tenant_id?: string }
+        Returns: Json
+      }
       cron_liberar_separacao_automatica_bkp_20261008: {
+        Args: never
+        Returns: Json
+      }
+      cron_liberar_separacao_automatica_bkp_20261012: {
         Args: never
         Returns: Json
       }
@@ -11515,6 +11562,16 @@ export type Database = {
         }
         Returns: Json
       }
+      liberar_onda_separacao_bkp_20261012: {
+        Args: {
+          p_empresa_id: string
+          p_ignorar_shelf_life?: boolean
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       liberar_recebimento_erro_transporte: {
         Args: {
           p_motivo_ocorrencia_id: string
@@ -11615,6 +11672,7 @@ export type Database = {
           p_page?: number
           p_page_size?: number
           p_parceiro_codigo_erp?: string
+          p_sku?: string
           p_status?: string
           p_tenant_id: string
           p_tipo_saida_id?: string
@@ -11745,6 +11803,14 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      retirar_onda_separacao: {
+        Args: {
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
       }
       rpc_coletor_abastecimento_confirmar_coleta: {
         Args: {
@@ -12245,6 +12311,20 @@ export type Database = {
         Returns: Json
       }
       separacao_executar_coleta: {
+        Args: {
+          p_endereco_id: string
+          p_fabricacao: string
+          p_hu: string
+          p_lote: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+          p_validade: string
+        }
+        Returns: Json
+      }
+      separacao_executar_coleta_bkp_20261012: {
         Args: {
           p_endereco_id: string
           p_fabricacao: string
