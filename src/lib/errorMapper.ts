@@ -167,6 +167,23 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   },
 
   // === Separação / Conferência / Expedição ===
+  // ONDA_RETIRADA_SOMENTE_VIA_RPC também é reconhecido como prefixo de mensagem do Postgres (findBusinessError usa includes)
+  ONDA_RETIRADA_SOMENTE_VIA_RPC: {
+    title: "Esta onda só pode ser retirada pela ação Retirar da separação.",
+    instruction: "Atualize a página e use o menu da onda.",
+  },
+  ONDA_STATUS_INVALIDO: {
+    title: "A onda não está no status esperado para esta ação.",
+    instruction: "Atualize a lista e verifique o status da onda.",
+  },
+  ONDA_COM_SEPARACAO_INICIADA: {
+    title: "A onda já tem separação iniciada ou concluída.",
+    instruction: "Use corte ou limpeza de item para ajustar a separação.",
+  },
+  QUANTIDADE_EXCEDE_ITEM: {
+    title: "Quantidade acima do solicitado no pedido.",
+    instruction: "Separe no máximo o restante indicado.",
+  },
   ONDA_NAO_ENCONTRADA: {
     title: "Onda de separação não encontrada.",
     instruction: "Volte e selecione outra onda.",
