@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { formatDateTime, formatDate } from "@/utils/dateTime";
+import { formatDateTime } from "@/utils/dateTime";
 import { parseError } from "@/lib/errorMapper";
 import { cn } from "@/lib/utils";
 
@@ -181,5 +181,3 @@ export function DocSaidaNfTab({ documentoId, enabled }: { documentoId: string; e
   );
 }
 
-// formatDate exportado para evitar import não usado em futuras extensões
-void formatDate;

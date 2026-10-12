@@ -7,10 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, FileText, Package, Hash, Clock, User, AlertTriangle, MapPin, Truck } from "lucide-react";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DocSaidaNfTab } from "./DocSaidaNfTab";
 
 interface Props {
   documentoId: string;
   onBack: () => void;
+  backLabel?: string;
 }
 
 interface Header {
@@ -64,7 +67,8 @@ function fmtMoney(v: number | null | undefined): string {
   return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
+export function DocSaidaDetalhePage({ documentoId, onBack, backLabel }: Props) {
+  const [abaDetalhe, setAbaDetalhe] = useState("itens");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [header, setHeader] = useState<Header | null>(null);
@@ -186,7 +190,7 @@ export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
         <AlertTriangle className="text-destructive" size={40} />
         <p className="text-muted-foreground">{error || "Documento não encontrado."}</p>
         <Button variant="outline" size="sm" onClick={onBack}>
-          <ArrowLeft size={14} /> Voltar
+          <ArrowLeft size={14} /> {backLabel || "Voltar"}
         </Button>
       </div>
     );
@@ -201,7 +205,7 @@ export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" onClick={onBack}>
-          <ArrowLeft size={14} /> Voltar
+          <ArrowLeft size={14} /> {backLabel || "Voltar"}
         </Button>
         <div>
           <h2 className="text-base font-semibold text-foreground">Detalhe do Documento de Saída</h2>
@@ -257,15 +261,20 @@ export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
         </CardContent>
       </Card>
 
-      {/* Card 2: Itens */}
+      {/* Card 2: Abas Itens / Nota Fiscal */}
       <Card>
+        <Tabs value={abaDetalhe} onValueChange={setAbaDetalhe}>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Package size={16} className="text-primary" />
-            Itens do Documento ({items.length})
-          </CardTitle>
+          <TabsList className="bg-secondary border border-border self-start">
+            <TabsTrigger value="itens" className="gap-1.5"><Package size={14} /> Itens ({items.length})</TabsTrigger>
+            <TabsTrigger value="nf" className="gap-1.5"><FileText size={14} /> Nota Fiscal</TabsTrigger>
+          </TabsList>
         </CardHeader>
         <CardContent className="p-0">
+          <TabsContent value="nf" className="m-0">
+            <DocSaidaNfTab documentoId={documentoId} enabled={abaDetalhe === "nf"} />
+          </TabsContent>
+          <TabsContent value="itens" className="m-0">
           {items.length === 0 ? (
             <p className="text-sm text-muted-foreground p-6">Nenhum item encontrado.</p>
           ) : (
@@ -333,7 +342,9 @@ export function DocSaidaDetalhePage({ documentoId, onBack }: Props) {
               </tfoot>
             </table>
           )}
+          </TabsContent>
         </CardContent>
+        </Tabs>
       </Card>
 
       <RetornosDocumentoCard entidade="documento_saida" documentoId={documentoId} />
