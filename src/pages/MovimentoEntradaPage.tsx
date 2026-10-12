@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw, FileWarning } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw, FileWarning, Eye } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -151,6 +153,7 @@ interface DocVinculado {
   total_skus: number;
   valor_total_nota: number;
   qtd_volume: number | null;
+  documento_entrada_id: string | null;
 }
 
 export function MovimentoEntradaPage() {
@@ -189,6 +192,9 @@ export function MovimentoEntradaPage() {
   const [filterErp, setFilterErp] = useState<"" | "EXPORTADO" | "AGUARDANDO" | "SEM">("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterDocumento, setFilterDocumento] = useState("");
+  const [filterSku, setFilterSku] = useState("");
+  const [pendingMovId, setPendingMovId] = useState<string | null>(null);
+  const skuScrollRef = useRef<string | null>(null);
   const [filterTipoEntradaId, setFilterTipoEntradaId] = useState("");
   const [filterPlacaVeiculo, setFilterPlacaVeiculo] = useState("");
   const [filterBoxId, setFilterBoxId] = useState("");
@@ -200,13 +206,16 @@ export function MovimentoEntradaPage() {
 
   const debouncedNumero = useDebounce(filterNumero, 400);
   const debouncedDocumento = useDebounce(filterDocumento, 400);
+  const debouncedSku = useDebounce(filterSku, 400);
+  const skuFiltro = debouncedSku.trim().toLowerCase();
+  const isSkuHit = (sku: string | null | undefined) => !!skuFiltro && (sku || "").trim().toLowerCase() === skuFiltro;
   const debouncedPlaca = useDebounce(filterPlacaVeiculo, 400);
   const debouncedParceiroErp = useDebounce(filterParceiroCodigoErp, 400);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedNumero, debouncedDocumento, debouncedPlaca, debouncedParceiroErp, filterStatus, filterTipoEntradaId, filterBoxId, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
+  }, [debouncedNumero, debouncedDocumento, debouncedSku, debouncedPlaca, debouncedParceiroErp, filterStatus, filterTipoEntradaId, filterBoxId, filterDateFrom, filterDateTo, tenantId, empresaId, armazemId]);
 
   // Tipos de entrada e boxes para filtros
   const tiposEntradaQuery = useQuery({
@@ -251,6 +260,7 @@ export function MovimentoEntradaPage() {
       filterDateTo,
       debouncedNumero,
       debouncedDocumento,
+      debouncedSku,
       debouncedPlaca,
       debouncedParceiroErp,
       page,
@@ -268,6 +278,7 @@ export function MovimentoEntradaPage() {
         p_placa_veiculo: debouncedPlaca ? debouncedPlaca.toUpperCase() : null,
         p_box_id: filterBoxId || null,
         p_parceiro_codigo_erp: debouncedParceiroErp || null,
+        p_sku: debouncedSku.trim() || null,
         p_page: page,
         p_page_size: pageSize,
       });
@@ -433,6 +444,7 @@ export function MovimentoEntradaPage() {
         total_skus: Number(d.total_skus) || 0,
         valor_total_nota: d.valor_total_nota,
         qtd_volume: d.qtd_volume,
+        documento_entrada_id: d.documento_entrada_id ?? null,
       })));
     } catch (err: any) {
       toast.error(parseError(err, "movimento-entrada-page").title);
@@ -581,6 +593,53 @@ export function MovimentoEntradaPage() {
     }
   };
 
+  // Reabrir movimento vindo do detalhe do documento
+  useEffect(() => {
+    if (!tenantId) return;
+    const movParam = getRouteParam("movimento");
+    if (!movParam) return;
+    clearRouteParam("movimento");
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("movimento_entrada")
+        .select("id, numero_movimento, status, created_at")
+        .eq("id", movParam)
+        .maybeSingle();
+      if (!data) return;
+      if (data.numero_movimento != null) setFilterNumero(String(data.numero_movimento));
+      if (data.created_at) {
+        const dia = new Date(data.created_at).toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });
+        setFilterDateFrom(dia);
+        setFilterDateTo(dia);
+      }
+      setPendingMovId(data.id);
+    })();
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (!pendingMovId) return;
+    const mov = movements.find((m) => m.id === pendingMovId);
+    if (!mov) return;
+    setPendingMovId(null);
+    Promise.resolve(loadDetails(mov.id, mov.status)).then(() => setItemTab("informacoes"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingMovId, movements]);
+
+  // Rolar até a primeira linha com o SKU filtrado (uma vez por movimento/SKU/aba)
+  useEffect(() => {
+    if (!skuFiltro || !selectedMov || detailLoading) return;
+    const chave = `${selectedMov}|${skuFiltro}|${itemTab}`;
+    if (skuScrollRef.current === chave) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-tab-sku="${itemTab}"][data-sku-hit="true"]`);
+      if (el) {
+        el.scrollIntoView({ block: "center" });
+        skuScrollRef.current = chave;
+      }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [skuFiltro, selectedMov, itemTab, detailLoading, resumoItems, conferenciaItems, armazenagemItems]);
+
   const handleSearch = () => {
     setPage(1);
     fetchMovements();
@@ -613,6 +672,10 @@ export function MovimentoEntradaPage() {
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
           <input type="text" value={filterDocumento} onChange={(e) => setFilterDocumento(e.target.value)} placeholder="Nº NF" className={cn(inputClass, "w-24")} />
+        </div>
+        <div>
+          <label htmlFor="filtro-sku-movimento-entrada" className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">SKU</label>
+          <input id="filtro-sku-movimento-entrada" type="text" value={filterSku} onChange={(e) => setFilterSku(e.target.value)} placeholder="SKU" className={cn(inputClass, "w-24")} />
         </div>
         <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status</label>
@@ -679,7 +742,7 @@ export function MovimentoEntradaPage() {
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
             ) : filteredMovements.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-8">Nenhum movimento encontrado.</p>
+              <p className="text-xs text-muted-foreground text-center py-8 px-3">{debouncedSku.trim() ? `Nenhum movimento com o SKU ${debouncedSku.trim()} no período selecionado. Ajuste as datas para ampliar a busca.` : "Nenhum movimento encontrado."}</p>
             ) : (
               filteredMovements.map((mov) => {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
@@ -786,7 +849,7 @@ export function MovimentoEntradaPage() {
                         
                         const statusInfo = STATUS_ITEM_MAP[item.status_item_movimento] || { label: item.status_item_movimento || "—", class: "" };
                         return (
-                          <tr key={item.movimento_item_id} className={cn("border-b border-border/50 hover:bg-secondary/30", alerts.length > 0 && "bg-orange-500/5")}>
+                          <tr key={item.movimento_item_id} data-tab-sku="itens" data-sku-hit={isSkuHit(item.sku) ? "true" : undefined} className={cn("border-b border-border/50 hover:bg-secondary/30", alerts.length > 0 && "bg-orange-500/5", isSkuHit(item.sku) && "bg-primary/10")}>
                             <td className="px-3 py-2.5 text-center">
                               {alerts.length > 0 && (
                                 <Tooltip>
@@ -845,7 +908,7 @@ export function MovimentoEntradaPage() {
                     </thead>
                     <tbody>
                       {conferenciaItems.map((item, idx) => (
-                        <tr key={idx} className="border-b border-border/50 hover:bg-secondary/30">
+                        <tr key={idx} data-tab-sku="conferencia" data-sku-hit={isSkuHit(item.sku) ? "true" : undefined} className={cn("border-b border-border/50 hover:bg-secondary/30", isSkuHit(item.sku) && "bg-primary/10")}>
                           <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground">{item.operador || "—"}</td>
@@ -889,7 +952,7 @@ export function MovimentoEntradaPage() {
                     </thead>
                     <tbody>
                       {armazenagemItems.map((item, idx) => (
-                        <tr key={idx} className="border-b border-border/50 hover:bg-secondary/30">
+                        <tr key={idx} data-tab-sku="armazenagem" data-sku-hit={isSkuHit(item.sku) ? "true" : undefined} className={cn("border-b border-border/50 hover:bg-secondary/30", isSkuHit(item.sku) && "bg-primary/10")}>
                           <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao_sku}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground">{item.codigo_hu || "—"}</td>
@@ -1018,17 +1081,33 @@ export function MovimentoEntradaPage() {
                               <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
                               <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
                               <th className="px-2 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                              <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-12">Ações</th>
                             </tr>
                           </thead>
                           <tbody>
                             {docsVinculados.map((doc, idx) => (
-                              <tr key={idx} className="border-b border-border/50">
+                              <tr key={doc.documento_entrada_id || idx} className="border-b border-border/50">
                                 <td className="px-2 py-2 font-mono text-xs text-foreground">{doc.numero_nota}</td>
                                 <td className="px-2 py-2 text-xs text-foreground truncate max-w-[200px]">{doc.razaosocial}</td>
                                 <td className="px-2 py-2 text-center text-xs text-muted-foreground">{doc.total_skus}</td>
                                 <td className="px-2 py-2 text-center text-xs text-muted-foreground">{doc.qtd_volume ?? "—"}</td>
                                 <td className="px-2 py-2 text-right font-mono text-xs text-foreground">
                                   {Number(doc.valor_total_nota).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                </td>
+                                <td className="px-2 py-2 text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    title="Ver detalhes do documento de entrada"
+                                    aria-label="Ver detalhes do documento de entrada"
+                                    disabled={!doc.documento_entrada_id}
+                                    onClick={() => {
+                                      window.location.hash = `#/atividades/entradas?detalhe=${doc.documento_entrada_id}&origem=mov-entrada&movimento=${selectedMov}`;
+                                    }}
+                                  >
+                                    <Eye size={14} />
+                                  </Button>
                                 </td>
                               </tr>
                             ))}

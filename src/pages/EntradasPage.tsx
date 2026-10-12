@@ -74,12 +74,20 @@ export function EntradasPage() {
   useEffect(() => { setPage(1); }, [empresaId, armazemId]);
 
   // Deep-link: /atividades/entradas?detalhe=<uuid> abre direto o detalhe
+  const [origemDetalhe, setOrigemDetalhe] = useState<string | null>(null);
+  const [movimentoOrigem, setMovimentoOrigem] = useState<string | null>(null);
   useEffect(() => {
-    const detalheParam = getRouteParam("detalhe");
-    if (detalheParam) {
+    const lerDeepLink = () => {
+      const detalheParam = getRouteParam("detalhe") || getRouteParam("documento_id");
+      if (!detalheParam) return;
+      setOrigemDetalhe(getRouteParam("origem"));
+      setMovimentoOrigem(getRouteParam("movimento"));
       setDetalheId(detalheParam);
-      clearRouteParam("detalhe");
-    }
+      ["detalhe", "documento_id", "origem", "movimento"].forEach(clearRouteParam);
+    };
+    lerDeepLink();
+    window.addEventListener("hashchange", lerDeepLink);
+    return () => window.removeEventListener("hashchange", lerDeepLink);
   }, []);
 
 
@@ -272,7 +280,23 @@ export function EntradasPage() {
   }
 
   if (detalheId) {
-    return <DocEntradaDetalhePage documentoId={detalheId} onBack={() => { setDetalheId(null); fetchDocs(); }} />;
+    return <DocEntradaDetalhePage
+        documentoId={detalheId}
+        backLabel={origemDetalhe === "mov-entrada" ? "Voltar para o movimento" : undefined}
+        onBack={() => {
+          if (origemDetalhe === "mov-entrada" && movimentoOrigem) {
+            const mov = movimentoOrigem;
+            setOrigemDetalhe(null);
+            setMovimentoOrigem(null);
+            window.location.hash = `#/atividades/movimentos?movimento=${mov}`;
+            return;
+          }
+          setOrigemDetalhe(null);
+          setMovimentoOrigem(null);
+          setDetalheId(null);
+          fetchDocs();
+        }}
+      />;
   }
 
   return (
