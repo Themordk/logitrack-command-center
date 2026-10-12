@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star, UserCog } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star, UserCog, Eye } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -179,6 +184,14 @@ export function MovimentoSaidaPage() {
   const debouncedParceiroCodigoErp = useDebounce(filterParceiroCodigoErp, 400);
   const debouncedVendedor = useDebounce(filterVendedor, 400);
   const debouncedTransportador = useDebounce(filterTransportador, 400);
+  const [filterSku, setFilterSku] = useState("");
+  const debouncedSku = useDebounce(filterSku, 400);
+  const skuAtivo = debouncedSku.trim().toLowerCase();
+  const skuScrollRef = useRef<string | null>(null);
+  const [pendingOndaId, setPendingOndaId] = useState<string | null>(null);
+  const [liberandoId, setLiberandoId] = useState<string | null>(null);
+  const [retirandoId, setRetirandoId] = useState<string | null>(null);
+  const [retirarConfirm, setRetirarConfirm] = useState<{ id: string; numero: number } | null>(null);
 
   const [tabSeparacao, setTabSeparacao] = useState<any[]>([]);
   const [tabConferencia, setTabConferencia] = useState<any[]>([]);
@@ -225,7 +238,7 @@ export function MovimentoSaidaPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
+  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, debouncedSku, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
 
   // Tipo Saida options
   const tipoSaidaOptionsQuery = useQuery({
@@ -252,6 +265,7 @@ export function MovimentoSaidaPage() {
       filterDateTo,
       debouncedOnda,
       debouncedNumeroDocumento,
+      debouncedSku,
       filterTipoSaidaId,
       debouncedParceiroCodigoErp,
       debouncedVendedor,
@@ -271,6 +285,7 @@ export function MovimentoSaidaPage() {
         p_parceiro_codigo_erp: debouncedParceiroCodigoErp || null,
         p_vendedor: debouncedVendedor || null,
         p_transportador: debouncedTransportador || null,
+        p_sku: debouncedSku.trim() || null,
         p_page: page,
         p_page_size: pageSize,
       });
@@ -414,14 +429,49 @@ export function MovimentoSaidaPage() {
     loadTabData(mov.id);
   };
 
+  // Deep link de volta do detalhe do documento: ?onda=<movimento_saida_id>
+  useEffect(() => {
+    const ondaParam = getRouteParam("onda");
+    if (!ondaParam || !tenantId) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("movimento_saida")
+        .select("id, numero_onda, data_emissao")
+        .eq("id", ondaParam)
+        .maybeSingle();
+      clearRouteParam("onda");
+      if (!data) return;
+      if (data.numero_onda != null) setFilterOnda(String(data.numero_onda));
+      if (data.data_emissao) {
+        const dia = new Date(data.data_emissao).toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" });
+        setFilterDateFrom(dia);
+        setFilterDateTo(dia);
+      }
+      setPendingOndaId(data.id);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (!pendingOndaId) return;
+    const mov = movimentos.find((m) => m.id === pendingOndaId);
+    if (!mov) return;
+    setPendingOndaId(null);
+    selectMov(mov);
+    setActiveTab("info");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingOndaId, movimentos]);
+
 
   const handleLiberar = async (movId: string, ignorarShelfLife = false) => {
     setActionMenuId(null);
+    if (liberandoId) return;
     if (!usuarioId) {
       toast.error("Usuário não identificado na sessão. Faça login novamente.");
       return;
     }
     const mov = movimentos.find(m => m.id === movId);
+    setLiberandoId(movId);
     try {
       const { data, error } = await supabase.rpc("liberar_onda_separacao" as any, {
         p_movimento_saida_id: movId,
@@ -433,27 +483,32 @@ export function MovimentoSaidaPage() {
       if (error) throw error;
 
       // A RPC retorna jsonb — Supabase entrega como objeto diretamente
-      const result: LiberarResult = data as LiberarResult;
-
+      const result = data as LiberarResult & { codigo?: string; itens_ja_cobertos?: number };
 
       if (result.sucesso) {
         const pdv = result.pdv;
+        const cobertos = Number(result.itens_ja_cobertos || 0);
+        const sufixoCobertos = cobertos > 0 ? ` (${cobertos} item(ns) já estavam cobertos por tarefas existentes)` : "";
         if (pdv && pdv.total_itens_pdv > 0) {
           toast.success(
             `${result.mensagem || "Liberado para separação!"} — PDV: ${pdv.total_auto_separados} auto-separado(s)` +
             (pdv.total_parciais > 0 ? `, ${pdv.total_parciais} parcial(is)` : "") +
-            (pdv.total_sem_saldo > 0 ? `, ${pdv.total_sem_saldo} sem saldo` : ""),
+            (pdv.total_sem_saldo > 0 ? `, ${pdv.total_sem_saldo} sem saldo` : "") +
+            sufixoCobertos,
             { duration: 6000 }
           );
         } else {
-          toast.success(result.mensagem || "Liberado para separação!");
+          toast.success((result.mensagem || "Liberado para separação!") + sufixoCobertos);
         }
         fetchMovimentos();
         if (selectedId === movId) {
           const novoStatus = result.todas_separadas ? "SEPARADO" : "LIBERADO";
           setSelectedMov((prev) => prev ? { ...prev, status: novoStatus } : null);
         }
-      } else {
+      } else if (result.codigo === "ONDA_STATUS_INVALIDO" || result.codigo === "ONDA_NAO_ENCONTRADA") {
+        toast.error(result.mensagem || parseError(result, "liberar-onda").title);
+        fetchMovimentos();
+      } else if (result.ocorrencias?.length || result.tipo_ocorrencia) {
         setLiberarResult(result);
         setLiberarMovId(movId);
         setLiberarDialogOpen(true);
@@ -468,27 +523,51 @@ export function MovimentoSaidaPage() {
             fetchSaldoPulmao(pickingOcs, "ocorrencias");
           }
         }
+      } else {
+        toast.error(result.mensagem || parseError(result, "liberar-onda").title);
       }
     } catch (err: any) {
       toast.error(parseError(err, "movimento-saida-page").title);
+    } finally {
+      setLiberandoId(null);
     }
   };
 
   const handleRetirar = async (movId: string) => {
     setActionMenuId(null);
+    if (retirandoId) return;
+    if (!usuarioId) {
+      toast.error("Usuário não identificado na sessão. Faça login novamente.");
+      return;
+    }
+    setRetirandoId(movId);
     try {
-      const { error } = await (supabase as any)
-        .from("movimento_saida")
-        .update({ status: "CRIADA" })
-        .eq("id", movId);
-      if (error) throw error;
-      toast.success("Retirado da separação!");
-      fetchMovimentos();
-      if (selectedId === movId) {
-        setSelectedMov((prev) => prev ? { ...prev, status: "CRIADA" } : null);
+      const { data, error } = await (supabase as any).rpc("retirar_onda_separacao", {
+        p_tenant_id: tenantId,
+        p_movimento_saida_id: movId,
+        p_usuario_id: usuarioId,
+      });
+      if (error) {
+        toast.error(parseError(error, "retirar-onda").title);
+        return;
+      }
+      const result = (data || {}) as { sucesso?: boolean; codigo?: string; mensagem?: string };
+      if (result.sucesso) {
+        toast.success(result.mensagem || "Onda retirada da separação.");
+        setRetirarConfirm(null);
+        fetchMovimentos();
+        if (selectedId === movId) {
+          loadTabData(movId);
+          setSelectedMov((prev) => prev ? { ...prev, status: "CRIADA" } : null);
+        }
+      } else {
+        toast.error(result.mensagem || parseError(result, "retirar-onda").title);
+        setRetirarConfirm(null);
       }
     } catch (err: any) {
-      toast.error(parseError(err, "movimento-saida-page").title);
+      toast.error(parseError(err, "retirar-onda").title);
+    } finally {
+      setRetirandoId(null);
     }
   };
 
@@ -778,6 +857,10 @@ export function MovimentoSaidaPage() {
           <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
         </div>
         <div>
+          <label htmlFor="filtro-sku-onda" className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">SKU</label>
+          <input id="filtro-sku-onda" type="text" value={filterSku} onChange={(e) => setFilterSku(e.target.value)} placeholder="SKU" className={cn(inputClass, "w-24")} />
+        </div>
+        <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Tipo Saída</label>
           <select value={filterTipoSaidaId} onChange={(e) => setFilterTipoSaidaId(e.target.value)} className={cn(inputClass, "w-40")}>
             <option value="">Todos</option>
@@ -810,7 +893,11 @@ export function MovimentoSaidaPage() {
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
             ) : filteredMovimentos.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-8">Nenhuma onda encontrada.</p>
+              <p className="text-xs text-muted-foreground text-center py-8 px-3">
+                {debouncedSku.trim()
+                  ? `Nenhuma onda com o SKU ${debouncedSku.trim()} no período selecionado. Ajuste as datas para ampliar a busca.`
+                  : "Nenhuma onda encontrada."}
+              </p>
             ) : (
               filteredMovimentos.map((mov) => {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
@@ -836,14 +923,19 @@ export function MovimentoSaidaPage() {
                             <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-card shadow-elevated z-50 overflow-hidden animate-fade-in">
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleLiberar(mov.id); }}
-                                disabled={mov.status !== "CRIADA"}
+                                disabled={mov.status !== "CRIADA" || !!liberandoId}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
-                                <Unlock size={13} /> Liberar para separação
+                                {liberandoId === mov.id ? <Loader2 size={13} className="animate-spin" /> : <Unlock size={13} />} Liberar para separação
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleRetirar(mov.id); }}
-                                disabled={mov.status !== "LIBERADO" && mov.status !== "EM_PICKING"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionMenuId(null);
+                                  if (!usuarioId) { toast.error("Usuário não identificado na sessão. Faça login novamente."); return; }
+                                  setRetirarConfirm({ id: mov.id, numero: mov.numero_onda });
+                                }}
+                                disabled={(mov.status !== "LIBERADO" && mov.status !== "EM_PICKING") || !!retirandoId}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
                                 <Lock size={13} /> Retirar da separação
@@ -955,7 +1047,11 @@ export function MovimentoSaidaPage() {
                   </thead>
                   <tbody>
                     {tabItens.map((item: any, i: number) => (
-                      <tr key={item.movimento_item_id || i} className="border-b border-border/50">
+                      <tr
+                        key={item.movimento_item_id || i}
+                        ref={skuAtivo && String(item.sku ?? "").toLowerCase() === skuAtivo ? (el) => { if (el && skuScrollRef.current !== `${selectedId}:${skuAtivo}`) { skuScrollRef.current = `${selectedId}:${skuAtivo}`; el.scrollIntoView({ block: "center" }); } } : undefined}
+                        className={cn("border-b border-border/50", skuAtivo && String(item.sku ?? "").toLowerCase() === skuAtivo && "bg-primary/10")}
+                      >
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
                         <td className="px-3 py-2 text-xs text-foreground">{item.descricao}</td>
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.qtd_esperada)}</td>
@@ -1141,23 +1237,59 @@ export function MovimentoSaidaPage() {
                           <tr className="border-b border-border bg-secondary/30">
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Ordem</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nº Pedido</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nota Fiscal</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Data Emissão</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
                             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-12">Ações</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {tabDocs.map((doc: any, i: number) => (
-                            <tr key={i} className="border-b border-border/50">
+                          {tabDocs.map((doc: any, i: number) => {
+                            const nfTexto = doc.numero_nf ? (doc.serie_nf ? `${doc.numero_nf}/${doc.serie_nf}` : String(doc.numero_nf)) : null;
+                            const nfCell = (
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className="font-mono">{nfTexto ?? "—"}</span>
+                                {nfTexto && doc.nf_situacao && doc.nf_situacao !== "AUTORIZADA" && (
+                                  <Badge variant={doc.nf_situacao === "CANCELADA" ? "destructive" : "secondary"} className="text-[9px] px-1.5 py-0">
+                                    {doc.nf_situacao}
+                                  </Badge>
+                                )}
+                              </span>
+                            );
+                            return (
+                            <tr key={doc.documento_saida_id || i} className="border-b border-border/50">
                               <td className="px-3 py-2 text-xs text-foreground">{doc.ordem}</td>
                               <td className="px-3 py-2 font-mono text-xs text-foreground">{doc.numero_pedido}</td>
+                              <td className="px-3 py-2 text-xs text-foreground">
+                                {doc.chave_nfe ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild><span className="cursor-help">{nfCell}</span></TooltipTrigger>
+                                    <TooltipContent><span className="font-mono text-xs">{doc.chave_nfe}</span></TooltipContent>
+                                  </Tooltip>
+                                ) : nfCell}
+                              </td>
                               <td className="px-3 py-2 text-xs text-muted-foreground">{formatDate(doc.data_emissao)}</td>
                               <td className="px-3 py-2 text-xs text-foreground">{doc.parceiro}</td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-foreground">{doc.valor_pedido ? Number(doc.valor_pedido).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>
+                              <td className="px-3 py-1 text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  title="Ver detalhes do documento de saída"
+                                  aria-label="Ver detalhes do documento de saída"
+                                  disabled={!doc.documento_saida_id}
+                                  onClick={() => { window.location.hash = `#/atividades/saidas?detalhe=${doc.documento_saida_id}&origem=mov-saida&onda=${selectedMov?.id ?? selectedId}`; }}
+                                >
+                                  <Eye size={14} />
+                                </Button>
+                              </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                           {tabDocs.length === 0 && (
-                            <tr><td colSpan={5} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
+                            <tr><td colSpan={7} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -1169,6 +1301,28 @@ export function MovimentoSaidaPage() {
           )}
         </div>
       </div>
+
+      {/* Retirar confirm dialog */}
+      <AlertDialog open={!!retirarConfirm} onOpenChange={(v) => { if (!v && !retirandoId) setRetirarConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retirar onda #{retirarConfirm?.numero} da separação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As tarefas de separação pendentes desta onda serão canceladas e a onda voltará para CRIADA. Ondas com separação já iniciada não podem ser retiradas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!retirandoId}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!retirandoId}
+              onClick={(e) => { e.preventDefault(); if (retirarConfirm) handleRetirar(retirarConfirm.id); }}
+            >
+              {retirandoId ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+              Retirar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete confirm dialog */}
       <Dialog open={!!deleteConfirmId} onOpenChange={(v) => { if (!v) { setDeleteConfirmId(null); setCancelarResult(null); } }}>
