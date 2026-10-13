@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useErpProvedor, type EsquemaCampo } from "./useErpProvedor";
 import { parseError } from "@/lib/errorMapper";
 import { ApiKeySection } from "./ApiKeySection";
+import { RegrasRecebimentoApiSection } from "./RegrasRecebimentoApiSection";
 
 interface Props {
   erpId: string;
@@ -270,6 +271,7 @@ export function CredenciaisDinamicasTab({ erpId, tenantId, empresaId, onSaved }:
       </div>
 
       <ApiKeySection tenantId={tenantId} empresaId={empresaId} erpProvedorId={erpId} onChanged={onSaved} />
+      <RegrasRecebimentoApiSection tenantId={tenantId} empresaId={empresaId} erpProvedorId={erpId} onChanged={onSaved} />
     </div>
   );
 }
