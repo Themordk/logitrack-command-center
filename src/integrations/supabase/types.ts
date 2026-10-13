@@ -431,6 +431,24 @@ export type Database = {
           },
         ]
       }
+      bkp_funcao_remocao_documento: {
+        Row: {
+          definicao: string
+          funcao: string
+          salvo_em: string
+        }
+        Insert: {
+          definicao: string
+          funcao: string
+          salvo_em?: string
+        }
+        Update: {
+          definicao?: string
+          funcao?: string
+          salvo_em?: string
+        }
+        Relationships: []
+      }
       box: {
         Row: {
           armazem_id: string
@@ -3340,6 +3358,112 @@ export type Database = {
           },
         ]
       }
+      movimento_documento_remocao: {
+        Row: {
+          created_at: string
+          documento_id: string
+          empresa_id: string
+          hash_analise: string
+          id: string
+          impacto: Json
+          motivo_ocorrencia_id: string
+          movimento_id: string
+          numero_documento: string | null
+          numero_movimento: number | null
+          observacao: string | null
+          ocorrencia_id: string | null
+          removido_em: string
+          removido_por: string
+          status_movimento: string
+          status_movimento_final: string | null
+          tenant_id: string
+          tipo_movimento: string
+        }
+        Insert: {
+          created_at?: string
+          documento_id: string
+          empresa_id: string
+          hash_analise: string
+          id?: string
+          impacto: Json
+          motivo_ocorrencia_id: string
+          movimento_id: string
+          numero_documento?: string | null
+          numero_movimento?: number | null
+          observacao?: string | null
+          ocorrencia_id?: string | null
+          removido_em?: string
+          removido_por: string
+          status_movimento: string
+          status_movimento_final?: string | null
+          tenant_id: string
+          tipo_movimento: string
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string
+          empresa_id?: string
+          hash_analise?: string
+          id?: string
+          impacto?: Json
+          motivo_ocorrencia_id?: string
+          movimento_id?: string
+          numero_documento?: string | null
+          numero_movimento?: number | null
+          observacao?: string | null
+          ocorrencia_id?: string | null
+          removido_em?: string
+          removido_por?: string
+          status_movimento?: string
+          status_movimento_final?: string | null
+          tenant_id?: string
+          tipo_movimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimento_documento_remocao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_documento_remocao_motivo_ocorrencia_id_fkey"
+            columns: ["motivo_ocorrencia_id"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_documento_remocao_ocorrencia_id_fkey"
+            columns: ["ocorrencia_id"]
+            isOneToOne: false
+            referencedRelation: "ocorrencia_operacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_documento_remocao_removido_por_fkey"
+            columns: ["removido_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_documento_remocao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_documento_remocao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       movimento_entrada: {
         Row: {
           armazem_id: string
@@ -5856,6 +5980,7 @@ export type Database = {
           quantidade_executada3: number | null
           quantidade_executada4: number | null
           quantidade_requerida: number | null
+          remocao_documento_id: string | null
           status: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
           tipo_documento_origem: string | null
@@ -5887,6 +6012,7 @@ export type Database = {
           quantidade_executada3?: number | null
           quantidade_executada4?: number | null
           quantidade_requerida?: number | null
+          remocao_documento_id?: string | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
           tipo_documento_origem?: string | null
@@ -5918,6 +6044,7 @@ export type Database = {
           quantidade_executada3?: number | null
           quantidade_executada4?: number | null
           quantidade_requerida?: number | null
+          remocao_documento_id?: string | null
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id?: string
           tipo_documento_origem?: string | null
@@ -5993,6 +6120,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_remocao_documento_id_fkey"
+            columns: ["remocao_documento_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_documento_remocao"
             referencedColumns: ["id"]
           },
           {
@@ -8925,6 +9059,51 @@ export type Database = {
       }
     }
     Functions: {
+      _fn_remocao_doc_entrada_core: {
+        Args: {
+          p_documento_entrada_id: string
+          p_empresa_id: string
+          p_hash_analise: string
+          p_motivo_ocorrencia_id: string
+          p_movimento_entrada_id: string
+          p_observacao: string
+          p_simular: boolean
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      _fn_remocao_doc_operador_tarefa: {
+        Args: { p_tarefa_id: string }
+        Returns: Json
+      }
+      _fn_remocao_doc_ret: {
+        Args: {
+          p_codigo: string
+          p_dados?: Json
+          p_mensagem: string
+          p_sucesso: boolean
+        }
+        Returns: Json
+      }
+      _fn_remocao_doc_saida_core: {
+        Args: {
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_hash_analise: string
+          p_motivo_ocorrencia_id: string
+          p_movimento_saida_id: string
+          p_observacao: string
+          p_simular: boolean
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      _fn_remocao_doc_validar_usuario: {
+        Args: { p_tenant_id: string; p_tipo: string; p_usuario_id: string }
+        Returns: Json
+      }
       assert_tenant_access: {
         Args: { p_tenant_id: string }
         Returns: undefined
@@ -9991,6 +10170,52 @@ export type Database = {
           valor_total: number
         }[]
       }
+      fn_remocao_doc_entrada_analisar: {
+        Args: {
+          p_documento_entrada_id: string
+          p_empresa_id: string
+          p_movimento_entrada_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      fn_remocao_doc_saida_analisar: {
+        Args: {
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      fn_remover_doc_movimento_entrada: {
+        Args: {
+          p_documento_entrada_id: string
+          p_empresa_id: string
+          p_hash_analise: string
+          p_motivo_ocorrencia_id: string
+          p_movimento_entrada_id: string
+          p_observacao: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      fn_remover_doc_onda_carregamento: {
+        Args: {
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_hash_analise: string
+          p_motivo_ocorrencia_id: string
+          p_movimento_saida_id: string
+          p_observacao: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       fn_resolve_tenant_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -10000,6 +10225,7 @@ export type Database = {
           slug: string
         }[]
       }
+      fn_restaurar_bkp_remocao_documento: { Args: never; Returns: number }
       fn_seed_rbac_para_tenant: {
         Args: { p_tenant_id: string }
         Returns: undefined
@@ -12118,6 +12344,7 @@ export type Database = {
         | "SCAN_LOTE"
         | "CONFIRMACAO_LOTE"
         | "CONFERENCIA"
+        | "AJUSTE_REMOCAO_DOCUMENTO"
       enum_tipo_execucao_tarefa_movimento:
         | "Individual"
         | "Paralela"
@@ -12143,6 +12370,7 @@ export type Database = {
         | "OUTROS"
         | "EXCLUSAO_DOCUMENTO"
         | "CANCELAMENTO_DOCUMENTO"
+        | "REMOCAO_DOCUMENTO_MOVIMENTO"
       enum_tipo_operacao:
         | "RECEBIMENTO"
         | "ARMAZENAGEM"
@@ -12535,6 +12763,7 @@ export const Constants = {
         "SCAN_LOTE",
         "CONFIRMACAO_LOTE",
         "CONFERENCIA",
+        "AJUSTE_REMOCAO_DOCUMENTO",
       ],
       enum_tipo_execucao_tarefa_movimento: [
         "Individual",
@@ -12563,6 +12792,7 @@ export const Constants = {
         "OUTROS",
         "EXCLUSAO_DOCUMENTO",
         "CANCELAMENTO_DOCUMENTO",
+        "REMOCAO_DOCUMENTO_MOVIMENTO",
       ],
       enum_tipo_operacao: [
         "RECEBIMENTO",

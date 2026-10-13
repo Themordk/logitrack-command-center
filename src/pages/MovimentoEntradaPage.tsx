@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/contexts/PermissionsContext";
+import { RemoverDocumentoMovimentoModal } from "@/components/movimentos/RemoverDocumentoMovimentoModal";
+import { DocumentosRemovidosBloco } from "@/components/movimentos/DocumentosRemovidosBloco";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw, FileWarning, Eye } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw, FileWarning, Eye, Unlink } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -170,6 +173,10 @@ export function MovimentoEntradaPage() {
   const [armazenagemItems, setArmazenagemItems] = useState<ArmazenagemItem[]>([]);
   const [movimentoInfo, setMovimentoInfo] = useState<MovimentoInfo | null>(null);
   const [docsVinculados, setDocsVinculados] = useState<DocVinculado[]>([]);
+  const { can } = usePermissions();
+  const queryClient = useQueryClient();
+  const podeRemoverDoc = can("web.atividades.movimentos.remover-documento", "EXECUTE");
+  const [remocaoDoc, setRemocaoDoc] = useState<DocVinculado | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
   // Liberar erro transporte modal
@@ -1081,7 +1088,7 @@ export function MovimentoEntradaPage() {
                               <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
                               <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
                               <th className="px-2 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
-                              <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-12">Ações</th>
+                              <th className={cn("px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase", podeRemoverDoc ? "w-20" : "w-12")}>Ações</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1108,6 +1115,29 @@ export function MovimentoEntradaPage() {
                                   >
                                     <Eye size={14} />
                                   </Button>
+                                  {podeRemoverDoc && (() => {
+                                    const statusOk = ["GERADO", "LIBERADO", "ERRO_TRANSPORTADOR", "EM_CONFERENCIA", "CONFERIDO", "DIVERGENCIA"].includes(selectedMovStatus ?? "");
+                                    const motivo = !statusOk
+                                      ? "Só é possível remover até DIVERGÊNCIA (antes da armazenagem)"
+                                      : docsVinculados.length <= 1 ? "Único documento do movimento. Use Cancelar movimento" : null;
+                                    return (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="inline-flex">
+                                            <Button
+                                              variant="ghost" size="icon" className="h-8 w-8"
+                                              aria-label="Remover documento do movimento"
+                                              disabled={!!motivo || !doc.documento_entrada_id}
+                                              onClick={() => setRemocaoDoc(doc)}
+                                            >
+                                              <Unlink size={14} />
+                                            </Button>
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{motivo ?? "Remover documento do movimento"}</TooltipContent>
+                                      </Tooltip>
+                                    );
+                                  })()}
                                 </td>
                               </tr>
                             ))}
@@ -1115,6 +1145,7 @@ export function MovimentoEntradaPage() {
                         </table>
                       )}
                     </div>
+                    {selectedMov && <DocumentosRemovidosBloco tipo="ENTRADA" movimentoId={selectedMov} />}
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground text-center py-8">Informações não disponíveis.</p>
@@ -1124,6 +1155,22 @@ export function MovimentoEntradaPage() {
           )}
         </div>
       </div>
+
+      {remocaoDoc && selectedMov && remocaoDoc.documento_entrada_id && (
+        <RemoverDocumentoMovimentoModal
+          open={!!remocaoDoc}
+          onClose={() => setRemocaoDoc(null)}
+          tipo="entrada"
+          movimentoId={selectedMov}
+          empresaId={empresaId ?? ""}
+          documento={{ id: remocaoDoc.documento_entrada_id, numero: remocaoDoc.numero_nota, parceiro: remocaoDoc.razaosocial }}
+          onSuccess={(res) => {
+            loadDetails(selectedMov, res?.status_atual ?? selectedMovStatus ?? "");
+            ["movimentos-entrada-rpc", "movimento-entrada-itens-rpc", "movimentos-entrada-ops", "entradas-lista", "movimento-documento-remocao"].forEach((k) =>
+              queryClient.invalidateQueries({ queryKey: [k] }));
+          }}
+        />
+      )}
 
       {/* Modal Liberar com erro no transporte (unificado com registro de ocorrência) */}
       {erroMovId && (
