@@ -8,6 +8,9 @@ export interface ParsedError {
 }
 
 const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }> = {
+  INTEGRACAO_SEM_PERMISSAO: { title: "Você não tem permissão para alterar a integração.", instruction: "Peça acesso de edição em Integração ao administrador." },
+  INTEGRACAO_CONEXAO_NAO_ENCONTRADA: { title: "Integração ainda não configurada.", instruction: "Salve as credenciais do provedor antes de alterar esta regra." },
+  INTEGRACAO_PARAMETROS: { title: "Empresa não selecionada.", instruction: "Selecione uma empresa." },
   // === Motor de Retorno ao ERP (códigos mais longos antes dos prefixos) ===
   RETORNO_SEM_PERMISSAO: { title: "Você não tem permissão para alterar os retornos ao ERP.", instruction: "Peça acesso de edição em Integração ao administrador." },
   RETORNO_ACESSO_NEGADO: { title: "Acesso negado a esta empresa.", instruction: "Confira a empresa selecionada." },

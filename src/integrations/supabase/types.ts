@@ -10391,6 +10391,19 @@ export type Database = {
         }
         Returns: string
       }
+      integracao_get_regras_api: {
+        Args: {
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          atualizado_em: string
+          atualizado_por_nome: string
+          conexao_id: string
+          permitir_reenvio_cancelado: boolean
+        }[]
+      }
       integracao_get_sync_configs: {
         Args: {
           p_empresa_id?: string
@@ -10636,6 +10649,7 @@ export type Database = {
           credenciais: Json
           empresa_id: string
           erp_provedor_id: string
+          permitir_reenvio_cancelado: boolean
           tenant_id: string
         }[]
       }
@@ -10870,6 +10884,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      integracao_set_reenvio_cancelado: {
+        Args: {
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_permitir: boolean
+          p_tenant_id: string
+        }
+        Returns: boolean
+      }
       integracao_toggle_webhook: {
         Args: {
           p_ativo: boolean
@@ -10888,6 +10911,7 @@ export type Database = {
           p_empresa_id: string
           p_numero_nota: string
           p_parceiro_id: string
+          p_permitir_reenvio_cancelado?: boolean
           p_qtd_volume: number
           p_status: number
           p_tenant_id: string
@@ -10928,6 +10952,7 @@ export type Database = {
           p_numero_pedido: number
           p_observacao: string
           p_parceiro_id: string
+          p_permitir_reenvio_cancelado?: boolean
           p_rota_id: string
           p_status: number
           p_tenant_id: string
