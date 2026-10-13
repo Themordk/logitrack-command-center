@@ -45,9 +45,7 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
   const load = useCallback(async () => {
     if (!tenantId || !empresaId) return;
     const [cfgRes, logRes] = await Promise.all([
-      (supabase as any).rpc("integracao_get_sync_configs", {
-        p_modulo: null,
-        p_entidade: null,
+      (supabase as any).rpc("integracao_listar_sync_configs", {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
       }),
