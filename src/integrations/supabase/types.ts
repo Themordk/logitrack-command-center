@@ -10568,6 +10568,26 @@ export type Database = {
           tipo: string
         }[]
       }
+      integracao_listar_sync_configs: {
+        Args: {
+          p_empresa_id: string
+          p_entidade?: string
+          p_modulo?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          ativo: boolean
+          config_id: string
+          cursor_state: Json
+          direcao: string
+          entidade: string
+          estrategia: string
+          intervalo_minutos: number
+          modulo: string
+          proximo_sync_em: string
+          ultimo_sync_em: string
+        }[]
+      }
       integracao_log_sync: {
         Args: {
           p_atualizados?: number
