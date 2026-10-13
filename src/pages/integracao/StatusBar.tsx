@@ -28,9 +28,7 @@ export function StatusBar({ tenantId, empresaId, refreshKey, nomeProvedor }: Pro
           p_empresa_id: empresaId,
           p_erp_provedor_id: null,
         }),
-        (supabase as any).rpc("integracao_get_sync_configs", {
-          p_modulo: null,
-          p_entidade: null,
+        (supabase as any).rpc("integracao_listar_sync_configs", {
           p_tenant_id: tenantId,
           p_empresa_id: empresaId,
         }),
