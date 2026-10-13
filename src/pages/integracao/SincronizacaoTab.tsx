@@ -59,6 +59,9 @@ export function SincronizacaoTab({ tenantId, empresaId, onChanged }: Props) {
         p_offset: 0,
       }),
     ]);
+    if (cfgRes.error) {
+      toast.error(parseError(cfgRes.error, "sync-config").title);
+    }
     const cfgMap: Record<string, ConfigRow> = {};
     (cfgRes.data || []).forEach((c: any) => {
       cfgMap[key(c.modulo, c.entidade)] = {
