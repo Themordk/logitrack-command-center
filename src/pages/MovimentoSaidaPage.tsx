@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/contexts/PermissionsContext";
+import { RemoverDocumentoMovimentoModal } from "@/components/movimentos/RemoverDocumentoMovimentoModal";
+import { DocumentosRemovidosBloco } from "@/components/movimentos/DocumentosRemovidosBloco";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star, UserCog, Eye } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Package, MoreVertical, Search, AlertTriangle, X, Unlock, Lock, Ban, Eraser, Star, UserCog, Eye, Unlink } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -196,6 +199,10 @@ export function MovimentoSaidaPage() {
   const [tabSeparacao, setTabSeparacao] = useState<any[]>([]);
   const [tabConferencia, setTabConferencia] = useState<any[]>([]);
   const [tabDocs, setTabDocs] = useState<any[]>([]);
+  const { can: canRemover } = usePermissions();
+  const queryClientRemocao = useQueryClient();
+  const podeRemoverDoc = canRemover("web.atividades.mov-saida.remover-documento", "EXECUTE");
+  const [remocaoDoc, setRemocaoDoc] = useState<{ id: string; numero: string; parceiro?: string } | null>(null);
   const [tabLoading, setTabLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("itens");
 
@@ -1241,7 +1248,7 @@ export function MovimentoSaidaPage() {
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Data Emissão</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
                             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-12">Ações</th>
+                            <th className={cn("px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase", podeRemoverDoc ? "w-20" : "w-12")}>Ações</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1284,6 +1291,29 @@ export function MovimentoSaidaPage() {
                                 >
                                   <Eye size={14} />
                                 </Button>
+                                {podeRemoverDoc && (() => {
+                                  const statusOk = ["CRIADA", "LIBERADO", "EM_PICKING", "SEPARADO"].includes(selectedMov?.status ?? "");
+                                  const motivo = !statusOk
+                                    ? "Só é possível remover até SEPARADO (antes da conferência)"
+                                    : tabDocs.length <= 1 ? "Único pedido da onda. Use Cancelar onda" : null;
+                                  return (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="inline-flex">
+                                          <Button
+                                            variant="ghost" size="icon" className="h-8 w-8"
+                                            aria-label="Remover pedido da onda"
+                                            disabled={!!motivo || !doc.documento_saida_id}
+                                            onClick={() => setRemocaoDoc({ id: doc.documento_saida_id, numero: String(doc.numero_pedido), parceiro: doc.parceiro })}
+                                          >
+                                            <Unlink size={14} />
+                                          </Button>
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{motivo ?? "Remover pedido da onda"}</TooltipContent>
+                                    </Tooltip>
+                                  );
+                                })()}
                               </td>
                             </tr>
                             );
@@ -1294,6 +1324,23 @@ export function MovimentoSaidaPage() {
                         </tbody>
                       </table>
                     </div>
+                    {(selectedMov?.id ?? selectedId) && <DocumentosRemovidosBloco tipo="SAIDA" movimentoId={(selectedMov?.id ?? selectedId) as string} />}
+                    {remocaoDoc && (selectedMov?.id ?? selectedId) && (
+                      <RemoverDocumentoMovimentoModal
+                        open={!!remocaoDoc}
+                        onClose={() => setRemocaoDoc(null)}
+                        tipo="saida"
+                        movimentoId={(selectedMov?.id ?? selectedId) as string}
+                        empresaId={empresaId ?? ""}
+                        documento={remocaoDoc}
+                        onSuccess={() => {
+                          const id = (selectedMov?.id ?? selectedId) as string;
+                          loadTabData(id);
+                          ["ondas-carregamento-rpc", "onda-itens-rpc", "ondas-carregamento-ops", "saidas-lista", "movimento-documento-remocao"].forEach((q) =>
+                            queryClientRemocao.invalidateQueries({ queryKey: [q] }));
+                        }}
+                      />
+                    )}
                   </>
                 )}
               </TabsContent>
