@@ -104,7 +104,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const [cfgRes, regRes] = await Promise.all([
         (supabase as any)
           .from("armazem_config")
-          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg")
+          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg, lms_tempo_inatividade_tarefa_seg")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -128,6 +128,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setFaixaAtencao(cfg?.lms_faixa_atencao_pct ?? 70);
       setTempoTransitoMin(Math.round((cfg?.lms_tempo_transito_seg ?? 300) / 60));
       setTempoOciosoAlertaMin(Math.round((cfg?.lms_tempo_ocioso_alerta_seg ?? 900) / 60));
+      setTempoInatividadeTarefaMin(Math.round((cfg?.lms_tempo_inatividade_tarefa_seg ?? 1800) / 60));
 
       const reg = regRes.data;
       setRegra(reg ? { ...REGRA_DEFAULTS, ...reg } : { ...REGRA_DEFAULTS });
@@ -143,6 +144,10 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
 
   const handleSave = async () => {
     if (!armazem || !tenantId) return;
+    if (!(faixaExcelente > faixaBom && faixaBom > faixaAtencao)) {
+      toast.error("As faixas precisam estar em ordem decrescente: Excelente > Bom > Atenção.");
+      return;
+    }
     setSaving(true);
     try {
       // 1. Salvar armazem_config
@@ -159,6 +164,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         lms_faixa_atencao_pct: faixaAtencao,
         lms_tempo_transito_seg: tempoTransitoMin * 60,
         lms_tempo_ocioso_alerta_seg: tempoOciosoAlertaMin * 60,
+        lms_tempo_inatividade_tarefa_seg: tempoInatividadeTarefaMin * 60,
         ativo: true,
         updated_by: usuarioId,
       };
@@ -247,6 +253,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setFaixaAtencao(70);
       setTempoTransitoMin(5);
       setTempoOciosoAlertaMin(15);
+      setTempoInatividadeTarefaMin(30);
       setConfirmRemove(false);
       onClose();
       return true;
@@ -551,10 +558,37 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                           Alerta amarelo: {'>'} {tempoOciosoAlertaMin}min · Alerta vermelho (crítico): {'>'} {tempoOciosoAlertaMin * 2}min
                         </p>
                       </div>
+
+                      <Separator />
+
+                      <div>
+                        <Label className="text-sm font-medium flex items-center">
+                          Inatividade com tarefa atribuída
+                          <HelpTip text="Tempo máximo sem nenhuma ação no coletor enquanto o operador tem uma tarefa em andamento. Passado esse tempo, ele aparece como 'Ocioso c/ Tarefa' no painel de Operadores Ativos, com alerta pulsante para o supervisor. Use valores maiores em tarefas naturalmente longas (ex.: inventário, conferência de cargas grandes)." />
+                        </Label>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Tempo parado com tarefa em execução antes de sinalizar 'Ocioso c/ Tarefa'
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            type="number"
+                            min={5}
+                            max={240}
+                            value={tempoInatividadeTarefaMin}
+                            onChange={(e) => setTempoInatividadeTarefaMin(Math.max(5, Math.min(240, parseInt(e.target.value) || 5)))}
+                            className="w-24 h-9"
+                          />
+                          <span className="text-xs text-muted-foreground">minutos</span>
+                          <span className="text-[11px] text-muted-foreground/60">({tempoInatividadeTarefaMin * 60}s)</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Operador com tarefa e sem atividade há mais de {tempoInatividadeTarefaMin} min → Ocioso c/ Tarefa
+                        </p>
+                      </div>
                     </div>
 
                     <p className="text-xs text-muted-foreground mt-3">
-                      Padrão: Trânsito = 5min · Alerta ociosidade = 15min
+                      Padrão: Trânsito = 5min · Alerta ociosidade = 15min · Inatividade c/ tarefa = 30min
                     </p>
                   </div>
                 </section>
