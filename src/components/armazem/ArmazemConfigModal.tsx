@@ -95,6 +95,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   // Tempos LMS (armazenados em minutos no estado, convertidos para segundos ao salvar)
   const [tempoTransitoMin, setTempoTransitoMin] = useState(5);
   const [tempoOciosoAlertaMin, setTempoOciosoAlertaMin] = useState(15);
+  const [tempoInatividadeTarefaMin, setTempoInatividadeTarefaMin] = useState(30);
 
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
