@@ -9597,6 +9597,19 @@ export type Database = {
         Args: { p_login: string; p_tenant_id?: string }
         Returns: string
       }
+      fn_buscar_endereco_por_codigo: {
+        Args: {
+          p_armazem_id: string
+          p_limite?: number
+          p_tenant_id: string
+          p_termo: string
+        }
+        Returns: {
+          codigo_endereco: number
+          descricao: string
+          id: string
+        }[]
+      }
       fn_cancelar_documento_entrada: {
         Args: {
           p_codigo_erp?: string

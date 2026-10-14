@@ -36,6 +36,7 @@ export function EnderecoSearchInput({
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Endereco | null>(null);
   const debounceRef = useRef<number | null>(null);
+  const requestIdRef = useRef(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Hydrate chip from value
@@ -57,7 +58,7 @@ export function EnderecoSearchInput({
     return () => { cancelled = true; };
   }, [value]);
 
-  // Debounced search — codigo_endereco is numeric, so we fetch a window and filter client-side
+  // Debounced search
   useEffect(() => {
     if (disabled || !armazemId || !tenantId) return;
     const t = term.trim();
@@ -71,22 +72,22 @@ export function EnderecoSearchInput({
     }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(async () => {
+      const reqId = ++requestIdRef.current;
       setLoading(true);
-      const { data, error } = await (supabase as any)
-        .from("endereco")
-        .select("id, codigo_endereco, descricao")
-        .eq("armazem_id", armazemId)
-        .eq("tenant_id", tenantId)
-        .eq("ativo", true)
-        .order("codigo_endereco")
-        .limit(500);
+      const { data, error } = await (supabase as any).rpc("fn_buscar_endereco_por_codigo", {
+        p_tenant_id: tenantId,
+        p_armazem_id: armazemId,
+        p_termo: t,
+        p_limite: 20,
+      });
+      if (reqId !== requestIdRef.current) return;
       setLoading(false);
-      if (!error && data) {
-        const filtered = (data as any[])
-          .filter((r) => String(r.codigo_endereco ?? "").includes(t))
-          .slice(0, 20);
-        setResults(filtered as Endereco[]);
+      if (error) {
+        console.error("[EnderecoSearchInput] fn_buscar_endereco_por_codigo", error);
+        setResults([]);
+        return;
       }
+      setResults((data ?? []) as Endereco[]);
     }, 250);
   }, [term, armazemId, tenantId, disabled]);
 
