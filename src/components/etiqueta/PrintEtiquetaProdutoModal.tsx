@@ -402,31 +402,108 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
               </div>
             )}
 
-            {itemAtual && (
-              <div className="mt-3 flex items-center gap-3 bg-secondary/40 border border-border/60 rounded-lg px-3 py-2.5">
-                <Tag size={15} className="text-primary shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-mono font-semibold text-foreground truncate">
-                    {itemAtual.sku}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    {itemAtual.descricao}
+            {total > 0 && (
+              <div className="mt-3 bg-secondary/40 border border-border/60 rounded-lg">
+                <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Etiquetas a imprimir ({itensSelecionados.length} de {total})
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={marcarTodas}
+                      className="text-[11px] font-medium text-primary hover:underline"
+                    >
+                      Marcar todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={desmarcarTodas}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      Desmarcar todas
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {itemAtual.embalagem && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                      {itemAtual.embalagem}
-                    </span>
-                  )}
-                  {itemAtual.fator != null && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground border border-border">
-                      Fator {itemAtual.fator}
-                    </span>
-                  )}
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-secondary text-muted-foreground border border-border">
-                    {itemAtual.ean || "SEM EAN"}
-                  </span>
+
+                {tiposEmbalagem.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2">
+                    {tiposEmbalagem.map(([tipo, indices]) => {
+                      const ativo = indices.every((i) => selecionados.has(i));
+                      return (
+                        <button
+                          key={tipo}
+                          type="button"
+                          aria-pressed={ativo}
+                          onClick={() => alternarTipo(indices, !ativo)}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${
+                            ativo
+                              ? "bg-primary/15 text-primary border-primary/30"
+                              : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                          }`}
+                        >
+                          {tipo} ({indices.length})
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="max-h-[220px] overflow-y-auto border-t border-border/40">
+                  {items.map((item, idx) => {
+                    const marcado = selecionados.has(idx);
+                    const noPreview = idx === indicePreview;
+                    return (
+                      <div
+                        key={idx}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setIndicePreview(idx)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setIndicePreview(idx);
+                          }
+                        }}
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-l-2 transition-colors hover:bg-secondary/30 ${
+                          noPreview
+                            ? "border-primary/40 bg-primary/5"
+                            : "border-transparent"
+                        } ${marcado ? "" : "opacity-50"}`}
+                      >
+                        <Checkbox
+                          checked={marcado}
+                          onCheckedChange={(v) => alternarItem(idx, v === true)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`${item.sku} – ${item.embalagem || "sem embalagem"}`}
+                        />
+                        <Tag size={14} className="text-primary shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-mono font-semibold text-foreground truncate">
+                            {item.sku}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {item.descricao}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {item.embalagem && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                              {item.embalagem}
+                            </span>
+                          )}
+                          {item.fator != null && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground border border-border">
+                              Fator {item.fator}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-secondary text-muted-foreground border border-border">
+                            {item.ean || "SEM EAN"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
