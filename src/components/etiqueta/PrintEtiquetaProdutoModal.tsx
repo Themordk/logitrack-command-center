@@ -105,8 +105,9 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
       setIndicePreview(0);
       setZoomLevel("fit");
       setCopias(1);
+      setSelecionados(new Set(items.map((_, i) => i)));
     }
-  }, [open, items.length]);
+  }, [open, items]);
 
 
   const total = items.length;
