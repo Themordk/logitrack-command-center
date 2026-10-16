@@ -327,7 +327,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
                   Imprimir etiquetas de produto
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {total} {plural ? "etiquetas selecionadas" : "etiqueta selecionada"}
+                  {itensSelecionados.length}{" "}
+                  {itensSelecionados.length === 1 ? "etiqueta selecionada" : "etiquetas selecionadas"}
                   {selectedConfig && (
                     <>
                       <span className="mx-1.5">·</span>
