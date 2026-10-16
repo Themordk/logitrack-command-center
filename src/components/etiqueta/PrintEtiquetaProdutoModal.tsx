@@ -13,6 +13,7 @@ import {
   Tag,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ZplPreview } from "./ZplPreview";
 import { gerarZplTemplate } from "@/lib/zplGenerator";
 import { useTenant } from "@/contexts/TenantContext";
@@ -66,6 +67,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
   const [impressoraId, setImpressoraId] = useState<string | null>(null);
   const [temImpressoraOnline, setTemImpressoraOnline] = useState(true);
   const [copias, setCopias] = useState(1);
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
 
 
   useEffect(() => {
@@ -103,13 +105,51 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
       setIndicePreview(0);
       setZoomLevel("fit");
       setCopias(1);
+      setSelecionados(new Set(items.map((_, i) => i)));
     }
-  }, [open, items.length]);
+  }, [open, items]);
 
 
   const total = items.length;
-  const plural = total > 1;
   const itemAtual = items[Math.min(indicePreview, Math.max(total - 1, 0))];
+
+  const itensSelecionados = useMemo(
+    () => items.filter((_, i) => selecionados.has(i)),
+    [items, selecionados],
+  );
+
+  const tiposEmbalagem = useMemo(() => {
+    const mapa = new Map<string, number[]>();
+    items.forEach((it, i) => {
+      const tipo = String(it.embalagem || "").trim() || "SEM EMBALAGEM";
+      if (!mapa.has(tipo)) mapa.set(tipo, []);
+      mapa.get(tipo)!.push(i);
+    });
+    return Array.from(mapa.entries());
+  }, [items]);
+
+  const alternarItem = (idx: number, marcado: boolean) => {
+    setSelecionados((prev) => {
+      const novo = new Set(prev);
+      if (marcado) novo.add(idx);
+      else novo.delete(idx);
+      return novo;
+    });
+  };
+
+  const marcarTodas = () => setSelecionados(new Set(items.map((_, i) => i)));
+  const desmarcarTodas = () => setSelecionados(new Set());
+
+  const alternarTipo = (indices: number[], marcar: boolean) => {
+    setSelecionados((prev) => {
+      const novo = new Set(prev);
+      indices.forEach((i) => {
+        if (marcar) novo.add(i);
+        else novo.delete(i);
+      });
+      return novo;
+    });
+  };
 
   const zplDoTemplate = useMemo(() => {
     if (!selectedConfig) return "";
@@ -127,7 +167,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
   const semTemplates = !loadingConfig && templates.length === 0;
   const semZpl = !!selectedConfig && !zplDoTemplate;
 
-  const semEan = items.filter((it) => !String(it.ean || "").trim());
+  const semEan = itensSelecionados.filter((it) => !String(it.ean || "").trim());
 
   const handleEnviar = async () => {
     if (!armazemId) {
@@ -147,7 +187,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
     let avisoLote: string | null = null;
     let erroImpressora: string | null = null;
 
-    for (const item of items) {
+    for (const item of itensSelecionados) {
       try {
         const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
           p_armazem_id: armazemId,
@@ -287,7 +327,8 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
                   Imprimir etiquetas de produto
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {total} {plural ? "etiquetas selecionadas" : "etiqueta selecionada"}
+                  {itensSelecionados.length}{" "}
+                  {itensSelecionados.length === 1 ? "etiqueta selecionada" : "etiquetas selecionadas"}
                   {selectedConfig && (
                     <>
                       <span className="mx-1.5">·</span>
@@ -361,31 +402,108 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
               </div>
             )}
 
-            {itemAtual && (
-              <div className="mt-3 flex items-center gap-3 bg-secondary/40 border border-border/60 rounded-lg px-3 py-2.5">
-                <Tag size={15} className="text-primary shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-mono font-semibold text-foreground truncate">
-                    {itemAtual.sku}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    {itemAtual.descricao}
+            {total > 0 && (
+              <div className="mt-3 bg-secondary/40 border border-border/60 rounded-lg">
+                <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Etiquetas a imprimir ({itensSelecionados.length} de {total})
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={marcarTodas}
+                      className="text-[11px] font-medium text-primary hover:underline"
+                    >
+                      Marcar todas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={desmarcarTodas}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      Desmarcar todas
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {itemAtual.embalagem && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                      {itemAtual.embalagem}
-                    </span>
-                  )}
-                  {itemAtual.fator != null && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground border border-border">
-                      Fator {itemAtual.fator}
-                    </span>
-                  )}
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-secondary text-muted-foreground border border-border">
-                    {itemAtual.ean || "SEM EAN"}
-                  </span>
+
+                {tiposEmbalagem.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2">
+                    {tiposEmbalagem.map(([tipo, indices]) => {
+                      const ativo = indices.every((i) => selecionados.has(i));
+                      return (
+                        <button
+                          key={tipo}
+                          type="button"
+                          aria-pressed={ativo}
+                          onClick={() => alternarTipo(indices, !ativo)}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${
+                            ativo
+                              ? "bg-primary/15 text-primary border-primary/30"
+                              : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                          }`}
+                        >
+                          {tipo} ({indices.length})
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="max-h-[220px] overflow-y-auto border-t border-border/40">
+                  {items.map((item, idx) => {
+                    const marcado = selecionados.has(idx);
+                    const noPreview = idx === indicePreview;
+                    return (
+                      <div
+                        key={idx}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setIndicePreview(idx)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setIndicePreview(idx);
+                          }
+                        }}
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer border-l-2 transition-colors hover:bg-secondary/30 ${
+                          noPreview
+                            ? "border-primary/40 bg-primary/5"
+                            : "border-transparent"
+                        } ${marcado ? "" : "opacity-50"}`}
+                      >
+                        <Checkbox
+                          checked={marcado}
+                          onCheckedChange={(v) => alternarItem(idx, v === true)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`${item.sku} – ${item.embalagem || "sem embalagem"}`}
+                        />
+                        <Tag size={14} className="text-primary shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-mono font-semibold text-foreground truncate">
+                            {item.sku}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {item.descricao}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {item.embalagem && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                              {item.embalagem}
+                            </span>
+                          )}
+                          {item.fator != null && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground border border-border">
+                              Fator {item.fator}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-secondary text-muted-foreground border border-border">
+                            {item.ean || "SEM EAN"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -518,9 +636,21 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
           >
             Cancelar
           </button>
+          {itensSelecionados.length === 0 && (
+            <span className="text-xs text-muted-foreground mr-auto">
+              Selecione ao menos uma etiqueta
+            </span>
+          )}
           <button
             onClick={handleEnviar}
-            disabled={enviando || !temImpressoraOnline || loadingConfig || !selectedConfig || semTemplates}
+            disabled={
+              enviando ||
+              !temImpressoraOnline ||
+              loadingConfig ||
+              !selectedConfig ||
+              semTemplates ||
+              itensSelecionados.length === 0
+            }
             className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {enviando ? (
@@ -531,7 +661,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
             ) : (
               <>
                 <Send size={15} />
-                Enviar {total * copias} para fila
+                Enviar {itensSelecionados.length * copias} para fila
               </>
             )}
           </button>
