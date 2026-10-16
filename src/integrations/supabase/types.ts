@@ -523,6 +523,7 @@ export type Database = {
           excluido_em: string | null
           excluido_por: string | null
           id: string
+          id_alteracao: string | null
           motivo_exclusao_id: string | null
           numero_nota: string
           observacao_exclusao: string | null
@@ -550,6 +551,7 @@ export type Database = {
           excluido_em?: string | null
           excluido_por?: string | null
           id?: string
+          id_alteracao?: string | null
           motivo_exclusao_id?: string | null
           numero_nota: string
           observacao_exclusao?: string | null
@@ -577,6 +579,7 @@ export type Database = {
           excluido_em?: string | null
           excluido_por?: string | null
           id?: string
+          id_alteracao?: string | null
           motivo_exclusao_id?: string | null
           numero_nota?: string
           observacao_exclusao?: string | null
@@ -787,6 +790,7 @@ export type Database = {
           excluido_em: string | null
           excluido_por: string | null
           id: string
+          id_alteracao: string | null
           id_externo: string | null
           motivo_exclusao_id: string | null
           nf_consultada_em: string | null
@@ -818,6 +822,7 @@ export type Database = {
           excluido_em?: string | null
           excluido_por?: string | null
           id?: string
+          id_alteracao?: string | null
           id_externo?: string | null
           motivo_exclusao_id?: string | null
           nf_consultada_em?: string | null
@@ -849,6 +854,7 @@ export type Database = {
           excluido_em?: string | null
           excluido_por?: string | null
           id?: string
+          id_alteracao?: string | null
           id_externo?: string | null
           motivo_exclusao_id?: string | null
           nf_consultada_em?: string | null
@@ -10371,6 +10377,51 @@ export type Database = {
         }
         Returns: undefined
       }
+      integracao_criar_documento_entrada_alteracao: {
+        Args: {
+          p_chave_nfe: string
+          p_codigo_erp: string
+          p_conexao_id?: string
+          p_data_emissao: string
+          p_data_entrada: string
+          p_empresa_id: string
+          p_id_alteracao: string
+          p_numero_nota: string
+          p_parceiro_id: string
+          p_payload: Json
+          p_payload_hash: string
+          p_qtd_volume: number
+          p_request_id?: string
+          p_status: number
+          p_tenant_id: string
+          p_tipo_entrada_id: string
+          p_valor_total_nota: number
+          p_valor_total_prod: number
+        }
+        Returns: Json
+      }
+      integracao_criar_documento_saida_alteracao: {
+        Args: {
+          p_codigo_erp: string
+          p_conexao_id?: string
+          p_data_emissao: string
+          p_empresa_id: string
+          p_id_alteracao: string
+          p_numero_pedido: number
+          p_observacao: string
+          p_parceiro_id: string
+          p_payload: Json
+          p_payload_hash: string
+          p_request_id?: string
+          p_rota_id: string
+          p_status: number
+          p_tenant_id: string
+          p_tipo_pedido_id: string
+          p_transportador: string
+          p_valor_pedido: number
+        }
+        Returns: Json
+      }
       integracao_descartar_fila: {
         Args: {
           p_direcao?: string
@@ -10379,6 +10430,15 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: boolean
+      }
+      integracao_finalizar_alteracao: {
+        Args: {
+          p_alteracao_id: string
+          p_documentos_gerados?: Json
+          p_motivo?: string
+          p_situacao: string
+        }
+        Returns: undefined
       }
       integracao_get_credenciais: {
         Args: {
@@ -10452,6 +10512,15 @@ export type Database = {
           webhook_secret_display: string
           webhook_ultimo_uso_em: string
         }[]
+      }
+      integracao_listar_alteracoes: {
+        Args: {
+          p_codigo_erp: string
+          p_empresa_id: string
+          p_tenant_id: string
+          p_tipo: string
+        }
+        Returns: Json
       }
       integracao_listar_api_docs: {
         Args: { p_grupo?: string }
@@ -10631,6 +10700,21 @@ export type Database = {
           p_empresa_id: string
           p_erp_provedor_id: string
           p_tenant_id: string
+        }
+        Returns: string
+      }
+      integracao_registrar_alteracao_recusada: {
+        Args: {
+          p_codigo_erp: string
+          p_conexao_id?: string
+          p_empresa_id: string
+          p_id_alteracao: string
+          p_motivo: string
+          p_payload: Json
+          p_payload_hash: string
+          p_request_id?: string
+          p_tenant_id: string
+          p_tipo: string
         }
         Returns: string
       }
