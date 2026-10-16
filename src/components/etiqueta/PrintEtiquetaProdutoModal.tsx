@@ -636,9 +636,21 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
           >
             Cancelar
           </button>
+          {itensSelecionados.length === 0 && (
+            <span className="text-xs text-muted-foreground mr-auto">
+              Selecione ao menos uma etiqueta
+            </span>
+          )}
           <button
             onClick={handleEnviar}
-            disabled={enviando || !temImpressoraOnline || loadingConfig || !selectedConfig || semTemplates}
+            disabled={
+              enviando ||
+              !temImpressoraOnline ||
+              loadingConfig ||
+              !selectedConfig ||
+              semTemplates ||
+              itensSelecionados.length === 0
+            }
             className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {enviando ? (
@@ -649,7 +661,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
             ) : (
               <>
                 <Send size={15} />
-                Enviar {total * copias} para fila
+                Enviar {itensSelecionados.length * copias} para fila
               </>
             )}
           </button>
