@@ -167,7 +167,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
   const semTemplates = !loadingConfig && templates.length === 0;
   const semZpl = !!selectedConfig && !zplDoTemplate;
 
-  const semEan = items.filter((it) => !String(it.ean || "").trim());
+  const semEan = itensSelecionados.filter((it) => !String(it.ean || "").trim());
 
   const handleEnviar = async () => {
     if (!armazemId) {
@@ -187,7 +187,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
     let avisoLote: string | null = null;
     let erroImpressora: string | null = null;
 
-    for (const item of items) {
+    for (const item of itensSelecionados) {
       try {
         const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
           p_armazem_id: armazemId,
