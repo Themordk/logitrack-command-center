@@ -13,6 +13,7 @@ import {
   Tag,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ZplPreview } from "./ZplPreview";
 import { gerarZplTemplate } from "@/lib/zplGenerator";
 import { useTenant } from "@/contexts/TenantContext";
@@ -66,6 +67,7 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
   const [impressoraId, setImpressoraId] = useState<string | null>(null);
   const [temImpressoraOnline, setTemImpressoraOnline] = useState(true);
   const [copias, setCopias] = useState(1);
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
 
 
   useEffect(() => {
