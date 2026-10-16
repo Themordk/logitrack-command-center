@@ -111,8 +111,45 @@ export function PrintEtiquetaProdutoModal({ open, onClose, items, onNavigate }: 
 
 
   const total = items.length;
-  const plural = total > 1;
   const itemAtual = items[Math.min(indicePreview, Math.max(total - 1, 0))];
+
+  const itensSelecionados = useMemo(
+    () => items.filter((_, i) => selecionados.has(i)),
+    [items, selecionados],
+  );
+
+  const tiposEmbalagem = useMemo(() => {
+    const mapa = new Map<string, number[]>();
+    items.forEach((it, i) => {
+      const tipo = String(it.embalagem || "").trim() || "SEM EMBALAGEM";
+      if (!mapa.has(tipo)) mapa.set(tipo, []);
+      mapa.get(tipo)!.push(i);
+    });
+    return Array.from(mapa.entries());
+  }, [items]);
+
+  const alternarItem = (idx: number, marcado: boolean) => {
+    setSelecionados((prev) => {
+      const novo = new Set(prev);
+      if (marcado) novo.add(idx);
+      else novo.delete(idx);
+      return novo;
+    });
+  };
+
+  const marcarTodas = () => setSelecionados(new Set(items.map((_, i) => i)));
+  const desmarcarTodas = () => setSelecionados(new Set());
+
+  const alternarTipo = (indices: number[], marcar: boolean) => {
+    setSelecionados((prev) => {
+      const novo = new Set(prev);
+      indices.forEach((i) => {
+        if (marcar) novo.add(i);
+        else novo.delete(i);
+      });
+      return novo;
+    });
+  };
 
   const zplDoTemplate = useMemo(() => {
     if (!selectedConfig) return "";
