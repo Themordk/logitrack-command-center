@@ -1,4 +1,4 @@
-export type DestinoRecomendado = "PICKING" | "DIVIDIR" | "PULMAO" | "SEM_PICKING";
+export type DestinoRecomendado = "PICKING" | "DIVIDIR" | "PULMAO" | "SEM_PICKING" | "SEM_DESTINO";
 
 export type StatusPicking = "SEM_LIMITE" | "ABAIXO_MINIMO" | "NORMAL" | "CHEIO" | "ACIMA_MAXIMO";
 
@@ -21,13 +21,14 @@ export type DestinoArmazenagem = {
   tarefa: { tarefa_id: string; requerida: number; executada: number; restante: number } | null;
   quantidade: number;
   pickings: PickingDestino[];
-  pulmao: { saldo: number; enderecos: number };
+  pulmao: { saldo: number; enderecos: number; habilitado: boolean; enderecos_disponiveis: number };
   recomendacao: {
     destino: DestinoRecomendado;
     endereco_id: string | null;
     endereco: string | null;
     quantidade_picking: number;
     quantidade_pulmao: number;
+    quantidade_sem_destino: number;
     motivo: string;
   };
 };
