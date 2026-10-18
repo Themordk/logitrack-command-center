@@ -183,7 +183,7 @@ export function RoteiroSeparacaoPage() {
 
   const addOrdem = async (rua: number, ordem: string) => {
     if (!filtroArmazemId) { toast.error("Selecione um armazém."); return; }
-    const seq = ordens.length + 1;
+    const seq = Math.max(0, ...ordens.map((o) => Number(o.sequencia) || 0)) + 1;
     const { error } = await (supabase as any).from("ordem_expedicao").insert({
       tenant_id: tenantId, empresa_id: empresaId, armazem_id: filtroArmazemId,
       rua, ordem, sequencia: seq,
@@ -193,8 +193,16 @@ export function RoteiroSeparacaoPage() {
     fetchOrdens();
   };
 
+  const renumerarOrdens = async (lista: OrdemItem[]) => {
+    const ordenada = [...lista].sort((a, b) => (Number(a.sequencia) || 0) - (Number(b.sequencia) || 0));
+    await Promise.all(ordenada.map((item, i) =>
+      (supabase as any).from("ordem_expedicao").update({ sequencia: i + 1 }).eq("id", item.id)
+    ));
+  };
+
   const removeOrdem = async (id: string) => {
     await (supabase as any).from("ordem_expedicao").delete().eq("id", id);
+    await renumerarOrdens(ordens.filter((o) => o.id !== id));
     toast.success("Removido.");
     fetchOrdens();
   };
@@ -246,7 +254,10 @@ export function RoteiroSeparacaoPage() {
         .eq("tenant_id", tenantId).eq("armazem_id", armazem).in("id", ids);
       if (error) { toast.error(parseError(error, "roteiro-desmarcar-todos").title); return; }
       toast.success(`${ids.length} rua(s) removida(s).`);
-      if (sobra > 0) toast.info("Algumas ruas são de configuração geral (sem armazém) e não foram removidas.");
+      if (sobra > 0) {
+        toast.info("Algumas ruas são de configuração geral (sem armazém) e não foram removidas.");
+        await renumerarOrdens(ordens.filter((o) => !o.id || !ids.includes(o.id)));
+      }
       await fetchOrdens();
     } finally {
       bulkRef.current = false; setBulkSaving(null);
@@ -434,7 +445,7 @@ export function RoteiroSeparacaoPage() {
         {marcadas.map((item, idx) => (
           <div
             key={`m-${item.id}`}
-            draggable
+            draggable={!bulkSaving}
             onDragStart={() => handleDragStart("ordem", idx)}
             onDragOver={handleDragOver}
             onDrop={() => handleDropOrdem(idx)}
