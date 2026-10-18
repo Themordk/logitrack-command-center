@@ -1,8 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { toast } from "sonner";
-import { Loader2, GripVertical, Settings2 } from "lucide-react";
+import { Loader2, GripVertical, Settings2, CheckSquare, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,6 +41,7 @@ interface AgrupamentoItem {
 interface OrdemItem {
   id?: string;
   rua: number | null;
+  armazem_id?: string | null;
   ordem: string;
   sequencia: number;
 }
@@ -54,6 +60,10 @@ export function RoteiroSeparacaoPage() {
   const [activeSheet, setActiveSheet] = useState<"separacao" | "conferencia" | "ordem" | null>(null);
   const [filtroArmazemId, setFiltroArmazemId] = useState<string>("");
   const [armazemOptions, setArmazemOptions] = useState<{ value: string; label: string }[]>([]);
+
+  const [bulkSaving, setBulkSaving] = useState<"marcar" | "desmarcar" | null>(null);
+  const bulkRef = useRef(false);
+  const [confirmDesmarcar, setConfirmDesmarcar] = useState(false);
 
   // Drag state
   const [dragType, setDragType] = useState<"agrup" | "agrupConf" | "ordem" | null>(null);
@@ -187,6 +197,60 @@ export function RoteiroSeparacaoPage() {
     await (supabase as any).from("ordem_expedicao").delete().eq("id", id);
     toast.success("Removido.");
     fetchOrdens();
+  };
+
+  const marcadas = useMemo(
+    () => [...ordens].filter((o) => ruasDisponiveis.includes(Number(o.rua))).sort((a, b) => a.sequencia - b.sequencia),
+    [ordens, ruasDisponiveis],
+  );
+  const desmarcadas = useMemo(
+    () => ruasDisponiveis.filter((r) => !ordens.some((o) => Number(o.rua) === r)),
+    [ordens, ruasDisponiveis],
+  );
+
+  const handleMarcarTodos = async () => {
+    if (bulkRef.current) return;
+    const armazem = filtroArmazemId;
+    if (!armazem) { toast.error("Selecione um armazém."); return; }
+    if (desmarcadas.length === 0) return;
+    bulkRef.current = true; setBulkSaving("marcar");
+    try {
+      const proximaSeq = Math.max(0, ...ordens.map((o) => Number(o.sequencia) || 0)) + 1;
+      const linhas = desmarcadas.map((rua, i) => ({
+        tenant_id: tenantId, empresa_id: empresaId, armazem_id: armazem,
+        rua, ordem: "ASC", sequencia: proximaSeq + i,
+      }));
+      const { error } = await (supabase as any).from("ordem_expedicao").insert(linhas);
+      if (error) { toast.error(parseError(error, "roteiro-marcar-todos").title); return; }
+      toast.success(`${linhas.length} rua(s) adicionada(s).`);
+      await fetchOrdens();
+    } finally {
+      bulkRef.current = false; setBulkSaving(null);
+    }
+  };
+
+  const handleDesmarcarTodos = async () => {
+    if (bulkRef.current) return;
+    const armazem = filtroArmazemId;
+    if (!armazem) { toast.error("Selecione um armazém."); return; }
+    const ids = marcadas.filter((o) => o.id && o.armazem_id === armazem).map((o) => o.id as string);
+    const sobra = marcadas.length - ids.length;
+    setConfirmDesmarcar(false);
+    if (ids.length === 0) {
+      if (sobra > 0) toast.info("Algumas ruas são de configuração geral (sem armazém) e não foram removidas.");
+      return;
+    }
+    bulkRef.current = true; setBulkSaving("desmarcar");
+    try {
+      const { error } = await (supabase as any).from("ordem_expedicao").delete()
+        .eq("tenant_id", tenantId).eq("armazem_id", armazem).in("id", ids);
+      if (error) { toast.error(parseError(error, "roteiro-desmarcar-todos").title); return; }
+      toast.success(`${ids.length} rua(s) removida(s).`);
+      if (sobra > 0) toast.info("Algumas ruas são de configuração geral (sem armazém) e não foram removidas.");
+      await fetchOrdens();
+    } finally {
+      bulkRef.current = false; setBulkSaving(null);
+    }
   };
 
   // --- Drag & Drop ---
@@ -364,10 +428,6 @@ export function RoteiroSeparacaoPage() {
       );
     }
 
-    const marcadas = [...ordens]
-      .filter((o) => ruasDisponiveis.includes(Number(o.rua)))
-      .sort((a, b) => a.sequencia - b.sequencia);
-    const desmarcadas = ruasDisponiveis.filter((r) => !ordens.some((o) => Number(o.rua) === r));
 
     return (
       <>
@@ -383,6 +443,7 @@ export function RoteiroSeparacaoPage() {
             <GripVertical size={14} className="text-muted-foreground/50 flex-shrink-0" />
             <Checkbox
               checked
+              disabled={!!bulkSaving}
               onCheckedChange={(checked) => { if (!checked && item.id) removeOrdem(item.id); }}
             />
             <span className="text-sm text-foreground flex-1">Rua {item.rua}</span>
@@ -395,6 +456,7 @@ export function RoteiroSeparacaoPage() {
                   .eq("id", item.id);
                 fetchOrdens();
               }}
+              disabled={!!bulkSaving}
               className="h-8 px-2 rounded-md border border-border bg-secondary/40 text-xs text-foreground outline-none cursor-pointer"
             >
               <option value="ASC">Crescente ↑</option>
@@ -413,6 +475,7 @@ export function RoteiroSeparacaoPage() {
             <span className="w-[14px] flex-shrink-0" />
             <Checkbox
               checked={false}
+              disabled={!!bulkSaving}
               onCheckedChange={(checked) => { if (checked) addOrdem(r, "ASC"); }}
             />
             <span className="text-sm text-foreground flex-1">Rua {r}</span>
@@ -480,6 +543,25 @@ export function RoteiroSeparacaoPage() {
                 <option key={a.value} value={a.value}>{a.label}</option>
               ))}
             </select>
+            {filtroArmazemId && ruasDisponiveis.length > 0 && (
+              <div className="flex items-center justify-between gap-2 mt-3">
+                <span className="text-xs text-muted-foreground">
+                  {marcadas.length} de {ruasDisponiveis.length} ruas selecionadas
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-8 text-xs"
+                    disabled={!!bulkSaving || desmarcadas.length === 0} onClick={handleMarcarTodos}>
+                    {bulkSaving === "marcar" ? <Loader2 size={13} className="animate-spin" /> : <CheckSquare size={13} />}
+                    Marcar todos
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 text-xs"
+                    disabled={!!bulkSaving || marcadas.length === 0} onClick={() => setConfirmDesmarcar(true)}>
+                    {bulkSaving === "desmarcar" ? <Loader2 size={13} className="animate-spin" /> : <Square size={13} />}
+                    Desmarcar todos
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
             <div className="space-y-1">
@@ -488,6 +570,21 @@ export function RoteiroSeparacaoPage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={confirmDesmarcar} onOpenChange={setConfirmDesmarcar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desmarcar todas as ruas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remover as {marcadas.length} ruas do roteiro de separação deste armazém? A ordem de percurso configurada será perdida.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDesmarcarTodos}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
