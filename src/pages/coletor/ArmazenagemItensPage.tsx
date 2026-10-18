@@ -6,6 +6,7 @@ import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { Loader2, MapPin, CheckCircle, Archive, Database } from "lucide-react";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
+import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import * as OfflineStore from "@/lib/offlineStore";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
@@ -112,6 +113,9 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     sessionStorage.setItem("coletor_armazenagem_picking_sugerido", item.picking_endereco_desc || "");
     sessionStorage.setItem("coletor_armazenagem_varios_pickings", item.varios_pickings ? "S" : "N");
     sessionStorage.setItem("coletor_armazenagem_fator", String(item.fator_caixa || 1));
+    sessionStorage.setItem("coletor_armazenagem_qtd_requerida", String(item.quantidade_requerida ?? 0));
+    sessionStorage.setItem("coletor_armazenagem_qtd_executada", String(item.quantidade_executada ?? 0));
+    sessionStorage.setItem("coletor_armazenagem_movimento_item_id", item.movimento_entrada_item_id || "");
     const hu = huMap[item.tarefa_id];
     if (hu) {
       sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
@@ -149,6 +153,7 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={title} onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/movimentos">
+      <EtapaIndicador etapa={1} />
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" />

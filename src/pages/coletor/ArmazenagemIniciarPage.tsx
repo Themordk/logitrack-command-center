@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
@@ -7,8 +7,14 @@ import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOffline } from "@/contexts/OfflineContext";
-import { Loader2, AlertTriangle, MapPin, Database } from "lucide-react";
+import { Loader2, Database, Check, Lock, TrendingUp, Ban, CircleCheck, ChevronDown, ChevronUp, Info, WifiOff } from "lucide-react";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
+import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
+import { ProdutoHeader } from "@/components/coletor/ProdutoHeader";
+import { StickyFooter } from "@/components/coletor/StickyFooter";
+import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
+import { buscarDestinoArmazenagem } from "@/lib/armazenagemService";
+import type { DestinoArmazenagem, PickingDestino } from "@/types/armazenagem";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -28,24 +34,11 @@ interface TarefaResult {
   fator_caixa: number | null;
 }
 
-function ConvCaixa({ qtd, fator }: { qtd: number; fator: number }) {
-  if (!(fator > 1)) return null;
-  const cx = Math.floor(Number(qtd) / fator);
-  const resto = Number(qtd) % fator;
-  return (
-    <span className="block text-[10px] text-[hsl(217,91%,70%)] leading-tight">
-      = {cx} CX{resto > 0 ? ` + ${resto} UN` : ""}
-    </span>
-  );
-}
-
 export function ArmazenagemIniciarPage({ onNavigate }: Props) {
-  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  const { setFabVisivel } = useOcorrenciaColetorContext();
   useEffect(() => {
-    setFabVisivel(true);
-    setContexto({ etapa: "ARMAZENAGEM" });
-    return () => setFabVisivel(false);
-  }, [setFabVisivel, setContexto]);
+    setFabVisivel(false);
+  }, [setFabVisivel]);
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const { isOnline, cacheData, getCachedData } = useOffline();
@@ -61,8 +54,8 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       produto_id: pid,
       sku: sessionStorage.getItem("coletor_armazenagem_produto_sku") || "",
       descricao: desc,
-      qtd_conferida: 0,
-      qtd_armazenada: 0,
+      qtd_conferida: Number(sessionStorage.getItem("coletor_armazenagem_qtd_requerida") || "0"),
+      qtd_armazenada: Number(sessionStorage.getItem("coletor_armazenagem_qtd_executada") || "0"),
       qtd_a_armazenar: Number(sessionStorage.getItem("coletor_armazenagem_qtd_restante") || "0"),
       validade: sessionStorage.getItem("coletor_armazenagem_validade") || null,
       fabricacao: sessionStorage.getItem("coletor_armazenagem_fabricacao") || null,
@@ -80,6 +73,37 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const [eanConfirmado, setEanConfirmado] = useState(false);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
+  const [destino, setDestino] = useState<DestinoArmazenagem | null>(null);
+  const [destinoErro, setDestinoErro] = useState(false);
+  const [loadingDestino, setLoadingDestino] = useState(false);
+  const [escolha, setEscolha] = useState<"PICKING" | "PULMAO" | null>(null);
+  const [pickingSelId, setPickingSelId] = useState<string | null>(null);
+  const [verPickings, setVerPickings] = useState(false);
+
+  const carregarDestino = useCallback(async (produtoId: string, tarefaId: string | null) => {
+    setDestino(null);
+    setDestinoErro(false);
+    setEscolha(null);
+    setPickingSelId(null);
+    if (!navigator.onLine) { setDestinoErro(true); return; }
+    setLoadingDestino(true);
+    try {
+      const d = await buscarDestinoArmazenagem({ produtoId, tarefaId });
+      setDestino(d);
+      const r = d.recomendacao;
+      setEscolha(r.destino === "PICKING" || r.destino === "DIVIDIR" ? "PICKING" : "PULMAO");
+      setPickingSelId(r.endereco_id || d.pickings[0]?.endereco_id || null);
+    } catch {
+      setDestinoErro(true);
+    } finally {
+      setLoadingDestino(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (preloadedTarefa) carregarDestino(preloadedTarefa.produto_id, preloadedTarefa.tarefa_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buscarTarefaOnline = async (code: string): Promise<TarefaResult> => {
     if (!tenantId || !empresaId) throw new Error("Tenant/empresa não identificados");
@@ -217,6 +241,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
         }
         setTarefa(cached);
         setIsFromCache(true);
+        carregarDestino(cached.produto_id, cached.tarefa_id);
         setOverlay("success");
         setOverlayMsg(`Produto encontrado (cache): ${cached.descricao}`);
         return;
@@ -224,6 +249,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
       const row = await buscarTarefaOnline(code);
       setTarefa(row);
+      carregarDestino(row.produto_id, row.tarefa_id);
       await cacheData(cacheKey, row, 30).catch(() => {});
       setOverlay("success");
       setOverlayMsg(code.toUpperCase().startsWith("HU-") ? `HU ${code} → ${row.descricao}` : `Produto encontrado: ${row.descricao}`);
@@ -255,90 +281,192 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     if (!sessionStorage.getItem("coletor_armazenagem_hu")) {
       sessionStorage.removeItem("coletor_armazenagem_hu_codigo");
     }
+    const pk = escolha === "PICKING"
+      ? (destino?.pickings.find((p) => p.endereco_id === pickingSelId) || destino?.pickings[0] || null)
+      : null;
+    const recom = destino?.recomendacao;
+    const qtdSugerida = escolha === "PICKING" && recom?.destino === "DIVIDIR"
+      ? recom.quantidade_picking
+      : (destino?.quantidade ?? tarefa.qtd_a_armazenar);
+    sessionStorage.setItem("coletor_armazenagem_destino_tipo", escolha || "PULMAO");
+    sessionStorage.setItem("coletor_armazenagem_destino_endereco_id", pk?.endereco_id || "");
+    sessionStorage.setItem("coletor_armazenagem_destino_endereco_desc", pk?.endereco || "");
+    sessionStorage.setItem("coletor_armazenagem_qtd_sugerida", String(qtdSugerida || 0));
+    sessionStorage.setItem("coletor_armazenagem_recomendacao_destino", recom?.destino || "");
+    sessionStorage.setItem("coletor_armazenagem_recomendacao_endereco_id", recom?.endereco_id || "");
     onNavigate("/coletor/armazenagem/execucao");
   };
 
-  const variosPickings = tarefa?.varios_pickings === "S";
-  const fatorCaixa = Number(tarefa?.fator_caixa || 1);
+  const travado = !!preloadedTarefa && !eanConfirmado;
+  const fatorCaixa = Number(destino?.produto.fator_caixa || tarefa?.fator_caixa || 1);
+  const pickings = destino?.pickings ?? [];
+  const pickingAtual = pickings.find((p) => p.endereco_id === pickingSelId) || pickings[0] || null;
+  const rec = destino?.recomendacao;
+  const dataValida = (d: string | null | undefined) => !!d && !d.startsWith("1900-01-01");
+
+  const statusPicking = (p: PickingDestino) => {
+    if (!["LIVRE", "OCUPADO"].includes(p.situacao)) return { Icon: Lock, cor: "text-[hsl(213,31%,55%)]", txt: "bloqueado" };
+    if (p.status === "ACIMA_MAXIMO") return { Icon: TrendingUp, cor: "text-[#ef5350]", txt: "acima do máximo" };
+    if (p.status === "CHEIO") return { Icon: Ban, cor: "text-[#ef5350]", txt: "cheio" };
+    if (p.status === "SEM_LIMITE") return { Icon: CircleCheck, cor: "text-[#22C55E]", txt: "sem máximo" };
+    return { Icon: CircleCheck, cor: "text-[#22C55E]", txt: `cabe +${p.cabe ?? 0}` };
+  };
+
+  const opcaoCls = (sel: boolean) =>
+    `relative min-h-[76px] rounded-[10px] border-[1.5px] p-2 text-left flex flex-col gap-0.5 ${
+      sel ? "border-[hsl(217,91%,60%)] bg-[hsl(217,91%,50%)]/12" : "border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)]"
+    }`;
+
+  const ocorrenciaCtx = tarefa
+    ? { etapa: "ARMAZENAGEM" as const, produto_id: tarefa.produto_id, produto_descricao: tarefa.descricao, tarefa_id: tarefa.tarefa_id }
+    : undefined;
 
   return (
-    <ColetorLayout title="Confirmar Produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
+    <ColetorLayout title="Conferir produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
+      <EtapaIndicador etapa={2} />
 
-      <ScanField label={preloadedTarefa ? "Escanear EAN para confirmar produto" : "Escanear EAN ou HU"} lastScanned={lastScanned} onScan={handleScan} />
+      <div className="flex flex-col gap-2 -mt-1">
+        {tarefa && (
+          <ProdutoHeader
+            sku={tarefa.sku}
+            descricao={tarefa.descricao}
+            restante={tarefa.qtd_a_armazenar}
+            fatorCaixa={fatorCaixa}
+            linhas={2}
+            onOcorrencia={ocorrenciaCtx}
+          />
+        )}
 
-      {loading && (
-        <div className="flex justify-center py-6"><Loader2 size={28} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
-      )}
+        <ScanField
+          compact
+          confirmado={eanConfirmado || (!preloadedTarefa && !!tarefa)}
+          label={eanConfirmado ? "Produto conferido" : preloadedTarefa ? "Bipe o EAN do produto" : "Bipe o EAN ou HU"}
+          lastScanned={lastScanned}
+          onScan={handleScan}
+        />
 
-      {tarefa && !loading && (
-        <>
-          {isFromCache && (
-            <div className="flex justify-end">
-              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
-                <Database size={10} /> Cache
-              </span>
-            </div>
-          )}
-          <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-4 space-y-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="font-mono text-sm font-bold text-[hsl(213,31%,80%)]">{tarefa.sku}</span>
-            </div>
-            <p className="text-lg font-bold text-white leading-snug">{tarefa.descricao}</p>
+        {loading && (
+          <div className="flex justify-center py-2"><Loader2 size={22} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
+        )}
 
-            {(tarefa.lote || tarefa.validade || tarefa.fabricacao) && (
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[hsl(213,31%,55%)] border-t border-[hsl(222,35%,22%)] pt-2">
+        {tarefa && !loading && (
+          <>
+            {(tarefa.lote || dataValida(tarefa.fabricacao) || dataValida(tarefa.validade) || isFromCache) && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[hsl(213,31%,55%)]">
                 {tarefa.lote && <span>Lote: <b className="text-[hsl(213,31%,85%)]">{tarefa.lote}</b></span>}
-                {tarefa.fabricacao && <span>Fab: <b className="text-[hsl(213,31%,85%)]">{tarefa.fabricacao}</b></span>}
-                {tarefa.validade && <span>Val: <b className="text-[hsl(213,31%,85%)]">{tarefa.validade}</b></span>}
+                {dataValida(tarefa.fabricacao) && <span>Fab: <b className="text-[hsl(213,31%,85%)]">{tarefa.fabricacao}</b></span>}
+                {dataValida(tarefa.validade) && <span>Val: <b className="text-[hsl(213,31%,85%)]">{tarefa.validade}</b></span>}
+                {isFromCache && (
+                  <span className="flex items-center gap-1 text-[10px] text-yellow-400"><Database size={10} /> Cache</span>
+                )}
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="text-center">
-                <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">A armazenar</span>
-                <span className="text-xl font-bold text-white">{tarefa.qtd_conferida}</span>
-                <ConvCaixa qtd={tarefa.qtd_conferida} fator={fatorCaixa} />
-              </div>
-              <div className="text-center">
-                <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Armazenado</span>
-                <span className="text-xl font-bold text-[#22C55E]">{tarefa.qtd_armazenada}</span>
-                <ConvCaixa qtd={tarefa.qtd_armazenada} fator={fatorCaixa} />
-              </div>
-              <div className="text-center">
-                <span className="text-[11px] text-[hsl(213,31%,55%)] uppercase block">Restante</span>
-                <span className="text-xl font-bold text-[hsl(45,93%,47%)]">{tarefa.qtd_a_armazenar}</span>
-                <ConvCaixa qtd={tarefa.qtd_a_armazenar} fator={fatorCaixa} />
-              </div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(213,31%,55%)]">Para onde vai</span>
+
+            <div className={travado ? "opacity-35 pointer-events-none" : ""} aria-disabled={travado}>
+              {loadingDestino && !destino ? (
+                <div className="flex items-center gap-2 text-[12px] text-[hsl(213,31%,55%)] py-3">
+                  <Loader2 size={14} className="animate-spin" /> Carregando destino…
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" className={opcaoCls(escolha === "PICKING")} onClick={() => setEscolha("PICKING")} aria-pressed={escolha === "PICKING"}>
+                    {escolha === "PICKING" && <Check size={14} className="absolute top-1.5 right-1.5 text-[hsl(217,91%,65%)]" />}
+                    <span className="text-[10px] uppercase font-semibold text-[hsl(213,31%,65%)]">Picking</span>
+                    {destinoErro ? (
+                      <span className="text-[11px] text-[hsl(213,31%,55%)]">Bipe o endereço</span>
+                    ) : pickingAtual ? (
+                      <>
+                        <QtdEmCaixa qtd={Number(pickingAtual.saldo)} fatorCaixa={fatorCaixa} size="md" align="left" />
+                        <span className="text-[10px] text-[hsl(213,31%,55%)]">
+                          {pickingAtual.est_maximo == null ? "sem máximo" : `mín ${pickingAtual.est_minimo} · máx ${pickingAtual.est_maximo}`}
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-[hsl(280,70%,65%)] truncate">{pickingAtual.endereco}</span>
+                        {(() => { const s = statusPicking(pickingAtual); return (
+                          <span className={`flex items-center gap-1 text-[11px] font-semibold ${s.cor}`}><s.Icon size={12} /> {s.txt}</span>
+                        ); })()}
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-[hsl(45,93%,55%)]">Sem picking cadastrado</span>
+                    )}
+                  </button>
+
+                  <button type="button" className={opcaoCls(escolha === "PULMAO")} onClick={() => setEscolha("PULMAO")} aria-pressed={escolha === "PULMAO"}>
+                    {escolha === "PULMAO" && <Check size={14} className="absolute top-1.5 right-1.5 text-[hsl(217,91%,65%)]" />}
+                    <span className="text-[10px] uppercase font-semibold text-[hsl(213,31%,65%)]">Pulmão</span>
+                    {destino && !destinoErro ? (
+                      <>
+                        <QtdEmCaixa qtd={Number(destino.pulmao.saldo)} fatorCaixa={fatorCaixa} size="md" align="left" />
+                        <span className="text-[10px] text-[hsl(213,31%,55%)]">em {destino.pulmao.enderecos} endereço(s)</span>
+                        <span className="flex items-center gap-1 text-[11px] font-semibold text-[#22C55E]"><CircleCheck size={12} /> disponível</span>
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-[hsl(213,31%,55%)]">Bipe o endereço</span>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {pickings.length > 1 && (
+                <div className="mt-1">
+                  <button type="button" onClick={() => setVerPickings((v) => !v)} className="min-h-[32px] flex items-center gap-1 text-[12px] font-semibold text-[hsl(217,91%,65%)]">
+                    {verPickings ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Ver {pickings.length} pickings
+                  </button>
+                  {verPickings && (
+                    <div className="flex flex-col gap-1">
+                      {pickings.map((p) => {
+                        const s = statusPicking(p);
+                        const sel = pickingAtual?.endereco_id === p.endereco_id;
+                        return (
+                          <button
+                            key={p.endereco_id}
+                            type="button"
+                            onClick={() => { setPickingSelId(p.endereco_id); setEscolha("PICKING"); setVerPickings(false); }}
+                            className={`min-h-[40px] rounded-lg border px-2 flex items-center justify-between gap-2 text-[11px] ${sel ? "border-[hsl(217,91%,60%)] bg-[hsl(217,91%,50%)]/12" : "border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)]"}`}
+                          >
+                            <span className="font-mono font-bold text-[hsl(280,70%,65%)]">{p.endereco}</span>
+                            <span className="text-white">{p.saldo}</span>
+                            <span className="text-[hsl(213,31%,55%)]">{p.est_maximo == null ? "s/ máx" : `${p.est_minimo}/${p.est_maximo}`}</span>
+                            <span className={`flex items-center gap-1 ${s.cor}`}><s.Icon size={11} /> {s.txt}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {travado && (
+                <p className="text-[11px] text-center text-[hsl(213,31%,70%)] mt-1">Bipe o produto para liberar o destino</p>
+              )}
             </div>
 
-
-            {tarefa.enderecos_picking && (
-              <div className="flex items-center gap-1.5 border-t border-[hsl(222,35%,22%)] pt-2">
-                <MapPin size={14} className="text-[hsl(280,70%,55%)] shrink-0" />
-                <span className="text-xs text-[hsl(213,31%,80%)]">
-                  Picking: <b className="text-[hsl(280,70%,65%)]">{tarefa.enderecos_picking}</b>
+            {destinoErro ? (
+              <div className="flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/35 text-[hsl(45,93%,80%)]">
+                <WifiOff size={13} className="shrink-0" /> Sem conexão: escolha o destino
+              </div>
+            ) : rec && !travado ? (
+              <div className="flex items-start gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] bg-[hsl(217,91%,50%)]/12 border border-[hsl(217,91%,60%)]/35 text-[hsl(213,31%,85%)]">
+                <Info size={13} className="shrink-0 mt-0.5 text-[hsl(217,91%,65%)]" />
+                <span>
+                  {rec.motivo}
+                  {rec.destino === "DIVIDIR" && ` Picking recebe ${rec.quantidade_picking}; ${rec.quantidade_pulmao} vão para o pulmão.`}
                 </span>
               </div>
-            )}
+            ) : null}
+          </>
+        )}
+      </div>
 
-            {variosPickings && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1.5">
-                <AlertTriangle size={14} className="text-[hsl(45,93%,47%)] shrink-0" />
-                <span className="text-xs text-[hsl(45,93%,80%)]">Produto possui múltiplos endereços de picking</span>
-              </div>
-            )}
-          </div>
-
-          <ActionButton
-            onClick={handleConfirm}
-            variant="primary"
-            disabled={!!preloadedTarefa && !eanConfirmado}
-          >
-            CONFIRMAR E ARMAZENAR
+      {tarefa && !loading && (
+        <StickyFooter>
+          <ActionButton onClick={handleConfirm} variant="primary" disabled={travado || !escolha}>
+            {escolha === "PICKING" ? "SEGUIR PARA O PICKING" : escolha === "PULMAO" ? "SEGUIR PARA O PULMÃO" : "ESCOLHA O DESTINO"}
           </ActionButton>
-        </>
+        </StickyFooter>
       )}
     </ColetorLayout>
   );
