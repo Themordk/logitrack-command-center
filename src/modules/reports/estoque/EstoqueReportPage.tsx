@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { parseLocalizacao } from "../utils/parseInteiroOpcional";
+import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
