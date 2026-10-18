@@ -467,7 +467,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
                 </div>
               </div>
             ) : rec && !travado && rec.destino === "PICKING" && rec.quantidade_sem_destino > 0 ? (
-              <div className="flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs bg-status-busy/10 border border-status-busy/30 text-status-busy">
+              <div className="flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs bg-[hsl(var(--status-busy)/0.1)] border border-[hsl(var(--status-busy)/0.3)] text-[hsl(var(--status-busy))]">
                 <TriangleAlert size={14} className="shrink-0 mt-0.5" />
                 <p>Picking recebe {rec.quantidade_picking.toLocaleString("pt-BR")}. {rec.quantidade_sem_destino.toLocaleString("pt-BR")} ficam sem destino: registre uma ocorrência para o restante.</p>
               </div>
