@@ -3,8 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-const SUPABASE_URL = "https://dcpmykhxysvxnpgmlyli.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcG15a2h4eXN2eG5wZ21seWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MDc0MDcsImV4cCI6MjA4NzE4MzQwN30.5D9o4c4lEkUJPNeltBOAkCZQlPwEAl1o8t7ddInzkJY";
+// Produção é o padrão. Ambientes de homologação (previews da Vercel) sobrescrevem
+// via VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY.
+const SUPABASE_URL_PRODUCAO = "https://dcpmykhxysvxnpgmlyli.supabase.co";
+const SUPABASE_KEY_PRODUCAO = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcG15a2h4eXN2eG5wZ21seWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MDc0MDcsImV4cCI6MjA4NzE4MzQwN30.5D9o4c4lEkUJPNeltBOAkCZQlPwEAl1o8t7ddInzkJY";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL_PRODUCAO;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || SUPABASE_KEY_PRODUCAO;
+
+// URL e chave precisam ser do mesmo projeto; misturar as duas apontaria para o banco errado.
+if (!SUPABASE_PUBLISHABLE_KEY.includes(".") || (import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
+  console.error("[supabase] VITE_SUPABASE_URL definido sem VITE_SUPABASE_PUBLISHABLE_KEY correspondente.");
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
