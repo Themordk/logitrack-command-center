@@ -9735,6 +9735,35 @@ export type Database = {
         }
         Returns: boolean
       }
+      fn_endereco_valores_filtro: {
+        Args: {
+          p_armazem_id: string
+          p_tenant_id: string
+          p_zona_atividade_id?: string
+        }
+        Returns: Json
+      }
+      fn_enderecos_disponiveis_zona: {
+        Args: {
+          p_busca?: string
+          p_limite?: number
+          p_nivel?: number
+          p_offset?: number
+          p_predio?: number
+          p_rua?: number
+          p_tenant_id: string
+          p_zona_atividade_id: string
+        }
+        Returns: {
+          apto: number
+          descricao: string
+          id: string
+          nivel: number
+          predio: number
+          rua: number
+          total_count: number
+        }[]
+      }
       fn_etiqueta_num: {
         Args: { p_casas?: number; p_valor: number }
         Returns: string
@@ -10157,6 +10186,12 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: Json
+      }
+      fn_produto_marcas_distintas: {
+        Args: { p_empresa_id?: string; p_tenant_id: string }
+        Returns: {
+          marca: string
+        }[]
       }
       fn_provisionar_tenant_completo: {
         Args: { p_tenant_id: string }
