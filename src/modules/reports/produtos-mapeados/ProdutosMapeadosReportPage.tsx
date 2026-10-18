@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { ParceiroSearchInput } from "@/components/parceiro/ParceiroSearchInput";
 import { Filter, Search, X, ArrowLeft } from "lucide-react";
 import { nowDisplay } from "@/utils/dateTime";
 import { exportToExcel, exportToPdf, fmtNumberBR, type ExportColumn } from "../utils/exporters";
@@ -29,31 +30,15 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
   const [filterParceiroId, setFilterParceiroId] = useState("");
 
   const [marcas, setMarcas] = useState<string[]>([]);
-  const [parceiros, setParceiros] = useState<{ id: string; razaosocial: string }[]>([]);
+  const [filterParceiroNome, setFilterParceiroNome] = useState("");
 
   useEffect(() => {
     if (!tenantId || !empresaId) {
       setMarcas([]);
-      setParceiros([]);
       return;
     }
-    (supabase as any).from("produto").select("marca")
-      .eq("tenant_id", tenantId).eq("empresa_id", empresaId)
-      .not("marca", "is", null)
-      .limit(1000)
-      .then(({ data }: any) => {
-        const set = new Set<string>();
-        (data || []).forEach((p: any) => {
-          const m = (p.marca || "").trim();
-          if (m) set.add(m);
-        });
-        setMarcas(Array.from(set).sort((a, b) => a.localeCompare(b)));
-      });
-
-    (supabase as any).from("parceiro").select("id, razaosocial")
-      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true)
-      .order("razaosocial")
-      .then(({ data }: any) => setParceiros(data || []));
+    (supabase as any).rpc("fn_produto_marcas_distintas", { p_tenant_id: tenantId, p_empresa_id: empresaId })
+      .then(({ data }: any) => setMarcas((data || []).map((r: any) => r.marca)));
   }, [tenantId, empresaId, empresaVersion]);
 
   // Reset ao trocar empresa
@@ -110,7 +95,7 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
   const activeFilters: Record<string, string> = {};
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterMarca) activeFilters["Marca"] = filterMarca;
-  if (filterParceiroId) activeFilters["Parceiro"] = parceiros.find((p) => p.id === filterParceiroId)?.razaosocial || filterParceiroId;
+  if (filterParceiroId) activeFilters["Parceiro"] = filterParceiroNome || filterParceiroId;
 
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
@@ -180,12 +165,12 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Parceiro / Fornecedor</Label>
-                <Select value={filterParceiroId} onValueChange={setFilterParceiroId}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>
-                    {parceiros.map((p) => (<SelectItem key={p.id} value={p.id}>{p.razaosocial}</SelectItem>))}
-                  </SelectContent>
-                </Select>
+                <ParceiroSearchInput
+                  value={filterParceiroId || null}
+                  onChange={(id, parceiro) => { setFilterParceiroId(id ?? ""); setFilterParceiroNome(parceiro?.razaosocial ?? ""); }}
+                  tenantId={tenantId}
+                  empresaId={empresaId}
+                />
               </div>
             </div>
             <div className="flex items-center gap-2">

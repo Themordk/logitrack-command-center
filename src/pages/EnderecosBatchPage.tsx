@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { parseError } from "@/lib/errorMapper";
+import { fetchAllSelectRows } from "@/modules/reports/utils/fetchAllSelectRows";
 
 interface Props {
   onNavigate?: (path: string) => void;
@@ -204,14 +205,9 @@ export function EnderecosBatchPage({ onNavigate }: Props) {
     try {
       // 1. Check duplicates: fetch existing rua,predio,nivel,apto for this armazem
       const ruasUsadas = Array.from(new Set(combos.map((c) => c.rua)));
-      const { data: existing, error: existErr } = await (supabase as any)
-        .from("endereco")
-        .select("rua,predio,nivel,apto")
-        .eq("tenant_id", tenantId)
-        .eq("armazem_id", armazemId)
-        .in("rua", ruasUsadas);
-
-      if (existErr) throw existErr;
+      const existing = await fetchAllSelectRows("endereco", "rua,predio,nivel,apto", (q) =>
+        q.eq("tenant_id", tenantId).eq("armazem_id", armazemId).in("rua", ruasUsadas)
+          .order("rua").order("predio").order("nivel").order("apto"));
 
       const existingSet = new Set(
         (existing || []).map((e: any) => `${e.rua}|${e.predio}|${e.nivel}|${e.apto}`)

@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { ParceiroSearchInput } from "@/components/parceiro/ParceiroSearchInput";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
@@ -39,21 +40,16 @@ export function RecebimentoReportPage() {
   const [slaHoras, setSlaHoras] = useState<string>("24");
 
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
-  const [parceiros, setParceiros] = useState<{ id: string; razaosocial: string }[]>([]);
+  const [filterParceiroNome, setFilterParceiroNome] = useState("");
 
   useEffect(() => {
     if (!tenantId || !empresaId) {
-      setArmazens([]); setParceiros([]);
+      setArmazens([]);
       return;
     }
     supabase.from("armazem").select("id, descricao")
       .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
       .then(({ data }) => setArmazens(data || []));
-    (supabase as any).from("parceiro")
-      .select("id, razaosocial, tipo_parceiro")
-      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true)
-      .order("razaosocial").limit(500)
-      .then(({ data }: any) => setParceiros(data || []));
   }, [tenantId, empresaId, empresaVersion]);
 
   // Reset relatório ao trocar empresa
@@ -156,7 +152,7 @@ export function RecebimentoReportPage() {
   const activeFilters: Record<string, string> = {};
   activeFilters["SLA alvo"] = `${slaHoras}h`;
   if (filterArmazemId) activeFilters["Armazém"] = armazens.find((a) => a.id === filterArmazemId)?.descricao || filterArmazemId;
-  if (filterParceiroId) activeFilters["Fornecedor"] = parceiros.find((p) => p.id === filterParceiroId)?.razaosocial || filterParceiroId;
+  if (filterParceiroId) activeFilters["Fornecedor"] = filterParceiroNome || filterParceiroId;
   if (filterDataInicio) activeFilters["De"] = filterDataInicio;
   if (filterDataFim) activeFilters["Até"] = filterDataFim;
   if (filterStatusSla) activeFilters["Status"] = filterStatusSla;
@@ -238,10 +234,12 @@ export function RecebimentoReportPage() {
               </div>
               <div className="space-y-1.5 lg:col-span-2">
                 <Label className="text-xs">Fornecedor</Label>
-                <Select value={filterParceiroId} onValueChange={setFilterParceiroId}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>{parceiros.map((p) => <SelectItem key={p.id} value={p.id}>{p.razaosocial}</SelectItem>)}</SelectContent>
-                </Select>
+                <ParceiroSearchInput
+                  value={filterParceiroId || null}
+                  onChange={(id, parceiro) => { setFilterParceiroId(id ?? ""); setFilterParceiroNome(parceiro?.razaosocial ?? ""); }}
+                  tenantId={tenantId}
+                  empresaId={empresaId}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">De</Label>

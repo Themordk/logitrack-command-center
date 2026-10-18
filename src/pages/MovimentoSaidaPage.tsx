@@ -642,29 +642,12 @@ export function MovimentoSaidaPage() {
       const produtoIds = itens.map(i => i.produto_id).filter(Boolean) as string[];
       if (produtoIds.length === 0) return;
 
-      const { data: endPulmao } = await (supabase as any)
-        .from("endereco")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("tipo_endereco", "PULMAO");
-
-      const pulmaoIds = (endPulmao || []).map((e: any) => e.id);
-
-      if (pulmaoIds.length === 0) {
-        setLiberarResult(prev => {
-          if (!prev) return prev;
-          const update = (arr?: OcorrenciaItem[]) => arr?.map(i => ({ ...i, saldo_pulmao: 0 }));
-          return { ...prev, [target]: update(prev[target] as OcorrenciaItem[]) };
-        });
-        return;
-      }
-
       const { data: estoques } = await (supabase as any)
         .from("estoque_geral")
-        .select("produto_id, quantidade_disponivel")
+        .select("produto_id, quantidade_disponivel, endereco:endereco_id!inner(tipo_endereco)")
         .eq("tenant_id", tenantId)
         .in("produto_id", produtoIds)
-        .in("endereco_id", pulmaoIds)
+        .eq("endereco.tipo_endereco", "PULMAO")
         .gt("quantidade_disponivel", 0);
 
       const saldoMap: Record<string, number> = {};

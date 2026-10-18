@@ -48,22 +48,10 @@ export function ZonaEnderecosSheet({ zona, tenantId, armazemNome, onClose, onCou
   useEffect(() => {
     if (!zona || !tenantId) return;
     (async () => {
-      const { data } = await (supabase as any)
-        .from("endereco_zona_atividade")
-        .select("endereco!inner(rua, predio, nivel, apto)")
-        .eq("tenant_id", tenantId)
-        .eq("zona_atividade_id", zona.id)
-        .limit(5000);
-      const rua = new Set<number>(); const pred = new Set<number>(); const niv = new Set<number>(); const apt = new Set<number>();
-      (data || []).forEach((r: any) => {
-        const e = r.endereco; if (!e) return;
-        if (e.rua != null) rua.add(e.rua);
-        if (e.predio != null) pred.add(e.predio);
-        if (e.nivel != null) niv.add(e.nivel);
-        if (e.apto != null) apt.add(e.apto);
+      const { data } = await (supabase as any).rpc("fn_endereco_valores_filtro", {
+        p_tenant_id: tenantId, p_armazem_id: zona.armazem_id, p_zona_atividade_id: zona.id,
       });
-      const sort = (s: Set<number>) => Array.from(s).sort((a, b) => a - b);
-      setOpts({ rua: sort(rua), predio: sort(pred), nivel: sort(niv), apto: sort(apt) });
+      setOpts({ rua: data?.rua ?? [], predio: data?.predio ?? [], nivel: data?.nivel ?? [], apto: data?.apto ?? [] });
     })();
   }, [zona, tenantId]);
 
