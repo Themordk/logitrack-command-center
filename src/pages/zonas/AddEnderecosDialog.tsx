@@ -32,7 +32,6 @@ export function AddEnderecosDialog({ open, zona, tenantId, onClose, onAdded }: P
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [vinculadosIds, setVinculadosIds] = useState<string[]>([]);
   const [opts, setOpts] = useState<{ rua: number[]; predio: number[]; nivel: number[] }>({ rua: [], predio: [], nivel: [] });
 
   const debouncedSearch = useDebounce(search, 300);
@@ -44,41 +43,15 @@ export function AddEnderecosDialog({ open, zona, tenantId, onClose, onAdded }: P
     }
   }, [open]);
 
-  // Carrega IDs já vinculados (uma vez por abertura)
-  useEffect(() => {
-    if (!open || !zona || !tenantId) return;
-    (async () => {
-      const { data, error } = await (supabase as any)
-        .from("endereco_zona_atividade")
-        .select("endereco_id")
-        .eq("tenant_id", tenantId)
-        .eq("zona_atividade_id", zona.id)
-        .limit(50000);
-      if (error) { toast.error(parseError(error, "carregar vinculados").title); setVinculadosIds([]); return; }
-      setVinculadosIds((data || []).map((d: any) => d.endereco_id));
-    })();
-  }, [open, zona, tenantId]);
-
   // Opções de filtros (valores distintos do armazém da zona, excluindo já vinculados)
   useEffect(() => {
     if (!open || !zona || !tenantId) return;
     (async () => {
-      let q = (supabase as any)
-        .from("endereco")
-        .select("rua, predio, nivel")
-        .eq("tenant_id", tenantId)
-        .eq("armazem_id", zona.armazem_id)
-        .eq("ativo", true)
-        .limit(10000);
-      const { data } = await q;
-      const rua = new Set<number>(); const pred = new Set<number>(); const niv = new Set<number>();
-      (data || []).forEach((e: any) => {
-        if (e.rua != null) rua.add(e.rua);
-        if (e.predio != null) pred.add(e.predio);
-        if (e.nivel != null) niv.add(e.nivel);
+      const { data, error } = await (supabase as any).rpc("fn_endereco_valores_filtro", {
+        p_tenant_id: tenantId, p_armazem_id: zona.armazem_id, p_zona_atividade_id: null,
       });
-      const sort = (s: Set<number>) => Array.from(s).sort((a, b) => a - b);
-      setOpts({ rua: sort(rua), predio: sort(pred), nivel: sort(niv) });
+      if (error) { toast.error(parseError(error, "carregar filtros").title); return; }
+      setOpts({ rua: data?.rua ?? [], predio: data?.predio ?? [], nivel: data?.nivel ?? [] });
     })();
   }, [open, zona, tenantId]);
 
@@ -86,28 +59,19 @@ export function AddEnderecosDialog({ open, zona, tenantId, onClose, onAdded }: P
     if (!open || !zona || !tenantId) return;
     setLoading(true);
     try {
-      let q = (supabase as any)
-        .from("endereco")
-        .select("id, descricao, rua, predio, nivel, apto", { count: "exact" })
-        .eq("tenant_id", tenantId)
-        .eq("armazem_id", zona.armazem_id)
-        .eq("ativo", true);
-      if (vinculadosIds.length > 0) {
-        // PostgREST exige formato (a,b,c). Para listas longas, dividir em pedaços
-        // se ultrapassar o limite. Aqui mandamos direto até 50k.
-        q = q.not("id", "in", `(${vinculadosIds.join(",")})`);
-      }
-      if (debouncedSearch.trim()) q = q.ilike("descricao", `%${debouncedSearch.trim()}%`);
-      if (ruela !== "ALL") q = q.eq("rua", Number(ruela));
-      if (predio !== "ALL") q = q.eq("predio", Number(predio));
-      if (nivel !== "ALL") q = q.eq("nivel", Number(nivel));
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      q = q.order("descricao", { ascending: true }).range(from, to);
-      const { data: res, count, error } = await q;
+      const { data: res, error } = await (supabase as any).rpc("fn_enderecos_disponiveis_zona", {
+        p_tenant_id: tenantId,
+        p_zona_atividade_id: zona.id,
+        p_busca: debouncedSearch.trim() || null,
+        p_rua: ruela !== "ALL" ? Number(ruela) : null,
+        p_predio: predio !== "ALL" ? Number(predio) : null,
+        p_nivel: nivel !== "ALL" ? Number(nivel) : null,
+        p_offset: (page - 1) * PAGE_SIZE,
+        p_limite: PAGE_SIZE,
+      });
       if (error) throw error;
       setData(res || []);
-      setTotal(count || 0);
+      setTotal(Number(res?.[0]?.total_count ?? 0));
     } catch (e: any) {
       const parsed = parseError(e, "carregar disponiveis");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
@@ -115,7 +79,7 @@ export function AddEnderecosDialog({ open, zona, tenantId, onClose, onAdded }: P
     } finally {
       setLoading(false);
     }
-  }, [open, zona, tenantId, vinculadosIds, debouncedSearch, ruela, predio, nivel, page]);
+  }, [open, zona, tenantId, debouncedSearch, ruela, predio, nivel, page]);
 
   useEffect(() => { setPage(1); }, [debouncedSearch, ruela, predio, nivel]);
   useEffect(() => { fetchData(); }, [fetchData]);
