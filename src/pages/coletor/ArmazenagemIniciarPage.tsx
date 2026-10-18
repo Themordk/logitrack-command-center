@@ -7,14 +7,16 @@ import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOffline } from "@/contexts/OfflineContext";
-import { Loader2, Database, Check, Lock, TrendingUp, Ban, CircleCheck, ChevronDown, ChevronUp, Info, WifiOff } from "lucide-react";
+import { Loader2, Database, Check, Lock, TrendingUp, Ban, CircleCheck, ChevronDown, ChevronUp, Info, WifiOff, OctagonX, TriangleAlert } from "lucide-react";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import { ProdutoHeader } from "@/components/coletor/ProdutoHeader";
 import { StickyFooter } from "@/components/coletor/StickyFooter";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
-import { buscarDestinoArmazenagem } from "@/lib/armazenagemService";
+import { buscarDestinoArmazenagem, lerPulmaoHabilitado, guardarPulmaoHabilitado, preSelecionarDestino, quantidadeSugerida } from "@/lib/armazenagemService";
 import type { DestinoArmazenagem, PickingDestino } from "@/types/armazenagem";
+import { OcorrenciaBottomSheet } from "@/components/ocorrencia/OcorrenciaBottomSheet";
+import { Button } from "@/components/ui/button";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -41,6 +43,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   }, [setFabVisivel]);
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
+  const armazemId = localStorage.getItem("core_armazem_id");
   const { isOnline, cacheData, getCachedData } = useOffline();
   const result = useResultDialog({ coletorMode: true });
 
@@ -79,26 +82,32 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const [escolha, setEscolha] = useState<"PICKING" | "PULMAO" | null>(null);
   const [pickingSelId, setPickingSelId] = useState<string | null>(null);
   const [verPickings, setVerPickings] = useState(false);
+  const [pulmaoHabilitado, setPulmaoHabilitado] = useState(() => lerPulmaoHabilitado(armazemId));
+  const [ocorrenciaAberta, setOcorrenciaAberta] = useState(false);
 
   const carregarDestino = useCallback(async (produtoId: string, tarefaId: string | null) => {
     setDestino(null);
     setDestinoErro(false);
     setEscolha(null);
     setPickingSelId(null);
+    setPulmaoHabilitado(lerPulmaoHabilitado(armazemId));
     if (!navigator.onLine) { setDestinoErro(true); return; }
     setLoadingDestino(true);
     try {
       const d = await buscarDestinoArmazenagem({ produtoId, tarefaId });
       setDestino(d);
+      const habilitado = d.pulmao.habilitado !== false;
+      setPulmaoHabilitado(habilitado);
+      guardarPulmaoHabilitado(armazemId, habilitado);
       const r = d.recomendacao;
-      setEscolha(r.destino === "PICKING" || r.destino === "DIVIDIR" ? "PICKING" : "PULMAO");
+      setEscolha(preSelecionarDestino(r.destino, habilitado));
       setPickingSelId(r.endereco_id || d.pickings[0]?.endereco_id || null);
     } catch {
       setDestinoErro(true);
     } finally {
       setLoadingDestino(false);
     }
-  }, []);
+  }, [armazemId]);
 
   useEffect(() => {
     if (preloadedTarefa) carregarDestino(preloadedTarefa.produto_id, preloadedTarefa.tarefa_id);
@@ -261,7 +270,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   };
 
   const handleConfirm = () => {
-    if (!tarefa) return;
+    if (!tarefa || !escolha || destino?.recomendacao.destino === "SEM_DESTINO") return;
     sessionStorage.setItem("coletor_armazenagem_tarefa_id", tarefa.tarefa_id);
     sessionStorage.setItem("coletor_armazenagem_produto_id", tarefa.produto_id);
     sessionStorage.setItem("coletor_armazenagem_produto_desc", tarefa.descricao);
@@ -285,9 +294,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       ? (destino?.pickings.find((p) => p.endereco_id === pickingSelId) || destino?.pickings[0] || null)
       : null;
     const recom = destino?.recomendacao;
-    const qtdSugerida = escolha === "PICKING" && recom?.destino === "DIVIDIR"
-      ? recom.quantidade_picking
-      : (destino?.quantidade ?? tarefa.qtd_a_armazenar);
+    const qtdSugerida = quantidadeSugerida(destino, escolha, tarefa.qtd_a_armazenar);
     sessionStorage.setItem("coletor_armazenagem_destino_tipo", escolha || "PULMAO");
     sessionStorage.setItem("coletor_armazenagem_destino_endereco_id", pk?.endereco_id || "");
     sessionStorage.setItem("coletor_armazenagem_destino_endereco_desc", pk?.endereco || "");
@@ -302,6 +309,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const pickings = destino?.pickings ?? [];
   const pickingAtual = pickings.find((p) => p.endereco_id === pickingSelId) || pickings[0] || null;
   const rec = destino?.recomendacao;
+  const semDestino = rec?.destino === "SEM_DESTINO";
   const dataValida = (d: string | null | undefined) => !!d && !d.startsWith("1900-01-01");
 
   const statusPicking = (p: PickingDestino) => {
@@ -372,8 +380,8 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
                   <Loader2 size={14} className="animate-spin" /> Carregando destino…
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" className={opcaoCls(escolha === "PICKING")} onClick={() => setEscolha("PICKING")} aria-pressed={escolha === "PICKING"}>
+                <div className={`grid ${pulmaoHabilitado ? "grid-cols-2" : "grid-cols-1"} gap-2`}>
+                  <Button variant="ghost" type="button" disabled={travado || semDestino} className={`h-auto items-start whitespace-normal ${opcaoCls(escolha === "PICKING")}`} onClick={() => setEscolha("PICKING")} aria-pressed={escolha === "PICKING"}>
                     {escolha === "PICKING" && <Check size={14} className="absolute top-1.5 right-1.5 text-[hsl(217,91%,65%)]" />}
                     <span className="text-[10px] uppercase font-semibold text-[hsl(213,31%,65%)]">Picking</span>
                     {destinoErro ? (
@@ -385,16 +393,16 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
                           {pickingAtual.est_maximo == null ? "sem máximo" : `mín ${pickingAtual.est_minimo} · máx ${pickingAtual.est_maximo}`}
                         </span>
                         <span className="font-mono text-[11px] font-bold text-[hsl(280,70%,65%)] truncate">{pickingAtual.endereco}</span>
-                        {(() => { const s = statusPicking(pickingAtual); return (
+                        {(() => { const s = semDestino ? { Icon: OctagonX, cor: "text-destructive", txt: "sem destino" } : statusPicking(pickingAtual); return (
                           <span className={`flex items-center gap-1 text-[11px] font-semibold ${s.cor}`}><s.Icon size={12} /> {s.txt}</span>
                         ); })()}
                       </>
                     ) : (
-                      <span className="text-[11px] text-[hsl(45,93%,55%)]">Sem picking cadastrado</span>
+                      <span className={`text-[11px] ${semDestino ? "text-destructive" : "text-muted-foreground"}`}>{semDestino ? "Sem picking utilizável" : "Sem picking cadastrado"}</span>
                     )}
-                  </button>
+                  </Button>
 
-                  <button type="button" className={opcaoCls(escolha === "PULMAO")} onClick={() => setEscolha("PULMAO")} aria-pressed={escolha === "PULMAO"}>
+                  {pulmaoHabilitado && <Button variant="ghost" type="button" disabled={travado} className={`h-auto items-start whitespace-normal ${opcaoCls(escolha === "PULMAO")}`} onClick={() => setEscolha("PULMAO")} aria-pressed={escolha === "PULMAO"}>
                     {escolha === "PULMAO" && <Check size={14} className="absolute top-1.5 right-1.5 text-[hsl(217,91%,65%)]" />}
                     <span className="text-[10px] uppercase font-semibold text-[hsl(213,31%,65%)]">Pulmão</span>
                     {destino && !destinoErro ? (
@@ -406,7 +414,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
                     ) : (
                       <span className="text-[11px] text-[hsl(213,31%,55%)]">Bipe o endereço</span>
                     )}
-                  </button>
+                  </Button>}
                 </div>
               )}
 
@@ -424,6 +432,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
                           <button
                             key={p.endereco_id}
                             type="button"
+                            disabled={travado || semDestino}
                             onClick={() => { setPickingSelId(p.endereco_id); setEscolha("PICKING"); setVerPickings(false); }}
                             className={`min-h-[40px] rounded-lg border px-2 flex items-center justify-between gap-2 text-[11px] ${sel ? "border-[hsl(217,91%,60%)] bg-[hsl(217,91%,50%)]/12" : "border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)]"}`}
                           >
@@ -448,11 +457,25 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
               <div className="flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/35 text-[hsl(45,93%,80%)]">
                 <WifiOff size={13} className="shrink-0" /> Sem conexão: escolha o destino
               </div>
+            ) : rec && !travado && semDestino ? (
+              <div className="flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs bg-destructive/10 border border-destructive/30 text-destructive">
+                <OctagonX size={14} className="shrink-0 mt-0.5" />
+                <div className="min-w-0 space-y-1">
+                  <p>{rec.motivo}</p>
+                  <p>{rec.quantidade_sem_destino.toLocaleString("pt-BR")} UN sem destino</p>
+                  {fatorCaixa > 1 && <QtdEmCaixa qtd={rec.quantidade_sem_destino} fatorCaixa={fatorCaixa} size="sm" align="left" />}
+                </div>
+              </div>
+            ) : rec && !travado && rec.destino === "PICKING" && rec.quantidade_sem_destino > 0 ? (
+              <div className="flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-xs bg-status-busy/10 border border-status-busy/30 text-status-busy">
+                <TriangleAlert size={14} className="shrink-0 mt-0.5" />
+                <p>Picking recebe {rec.quantidade_picking.toLocaleString("pt-BR")}. {rec.quantidade_sem_destino.toLocaleString("pt-BR")} ficam sem destino: registre uma ocorrência para o restante.</p>
+              </div>
             ) : rec && !travado ? (
               <div className="flex items-start gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12px] bg-[hsl(217,91%,50%)]/12 border border-[hsl(217,91%,60%)]/35 text-[hsl(213,31%,85%)]">
                 <Info size={13} className="shrink-0 mt-0.5 text-[hsl(217,91%,65%)]" />
                 <span>
-                  {rec.motivo}
+                  {rec.destino === "SEM_PICKING" && !pulmaoHabilitado ? "Bipe um endereço de picking para cadastrá-lo" : rec.motivo}
                   {rec.destino === "DIVIDIR" && ` Picking recebe ${rec.quantidade_picking}; ${rec.quantidade_pulmao} vão para o pulmão.`}
                 </span>
               </div>
@@ -463,11 +486,12 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
       {tarefa && !loading && (
         <StickyFooter>
-          <ActionButton onClick={handleConfirm} variant="primary" disabled={travado || !escolha}>
-            {escolha === "PICKING" ? "SEGUIR PARA O PICKING" : escolha === "PULMAO" ? "SEGUIR PARA O PULMÃO" : "ESCOLHA O DESTINO"}
+          <ActionButton onClick={semDestino ? () => setOcorrenciaAberta(true) : handleConfirm} variant={semDestino ? "warning" : "primary"} disabled={travado || loadingDestino || (!semDestino && !escolha)}>
+            {semDestino ? "REGISTRAR OCORRÊNCIA" : escolha === "PICKING" ? "SEGUIR PARA O PICKING" : escolha === "PULMAO" ? "SEGUIR PARA O PULMÃO" : "ESCOLHA O DESTINO"}
           </ActionButton>
         </StickyFooter>
       )}
+      {ocorrenciaCtx && <OcorrenciaBottomSheet open={ocorrenciaAberta} onClose={() => setOcorrenciaAberta(false)} contexto={{ ...ocorrenciaCtx, quantidade_esperada: rec?.quantidade_sem_destino }} />}
     </ColetorLayout>
   );
 }

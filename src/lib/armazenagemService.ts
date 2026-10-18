@@ -1,5 +1,32 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { DestinoArmazenagem } from "@/types/armazenagem";
+import type { DestinoArmazenagem, DestinoRecomendado } from "@/types/armazenagem";
+
+export function lerPulmaoHabilitado(armazemId: string | null): boolean {
+  try {
+    return !armazemId || localStorage.getItem(`coletor_armazem_tem_pulmao_${armazemId}`) !== "N";
+  } catch {
+    return true;
+  }
+}
+
+export function guardarPulmaoHabilitado(armazemId: string | null, habilitado: boolean): void {
+  try {
+    if (armazemId) localStorage.setItem(`coletor_armazem_tem_pulmao_${armazemId}`, habilitado ? "S" : "N");
+  } catch { /* O destino online continua disponível mesmo sem armazenamento local. */ }
+}
+
+export function preSelecionarDestino(destino: DestinoRecomendado, pulmaoHabilitado: boolean): "PICKING" | "PULMAO" | null {
+  if (destino === "SEM_DESTINO") return null;
+  if (destino === "PICKING" || destino === "DIVIDIR" || (destino === "SEM_PICKING" && !pulmaoHabilitado)) return "PICKING";
+  return "PULMAO";
+}
+
+export function quantidadeSugerida(destino: DestinoArmazenagem | null, escolha: "PICKING" | "PULMAO", restante: number): number {
+  const rec = destino?.recomendacao;
+  return escolha === "PICKING" && rec && (rec.destino === "DIVIDIR" || (rec.destino === "PICKING" && rec.quantidade_sem_destino > 0))
+    ? rec.quantidade_picking
+    : (destino?.quantidade ?? restante);
+}
 
 type RpcFn = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
 const rpc = (supabase as unknown as { rpc: RpcFn }).rpc.bind(supabase);
