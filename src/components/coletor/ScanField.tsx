@@ -12,6 +12,10 @@ interface ScanFieldProps {
   onError?: () => void;
   /** Suppress virtual keyboard for hardware scanners */
   suppressKeyboard?: boolean;
+  /** Versão compacta (52px) em linha */
+  compact?: boolean;
+  /** Borda verde sólida (somente no modo compact) */
+  confirmado?: boolean;
 }
 
 export function ScanField({
@@ -21,6 +25,8 @@ export function ScanField({
   disabled,
   placeholder = "Aguardando leitura…",
   suppressKeyboard,
+  compact,
+  confirmado,
 }: ScanFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
@@ -70,6 +76,38 @@ export function ScanField({
       setIsReadOnly(true);
     }
   };
+
+  if (compact) {
+    return (
+      <div
+        className={`relative h-[52px] shrink-0 rounded-[10px] border-2 px-3 flex items-center gap-2.5 cursor-text bg-card ${
+          confirmado ? "border-solid border-[#22C55E]" : "border-dashed border-primary/40"
+        }`}
+        onClick={() => inputRef.current?.focus()}
+      >
+        <ScanLine size={22} className={confirmado ? "text-[#22C55E] shrink-0" : "text-primary shrink-0"} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-bold text-foreground leading-tight truncate">{label}</p>
+          <p className={`text-[10.5px] leading-tight truncate ${lastScanned ? "font-mono text-muted-foreground" : "text-muted-foreground/60"}`}>
+            {lastScanned || placeholder}
+          </p>
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          disabled={disabled}
+          readOnly={shouldSuppressKeyboard && isReadOnly}
+          aria-label={label}
+          className="absolute inset-0 opacity-0 w-full h-full cursor-text"
+          autoComplete="off"
+        />
+      </div>
+    );
+  }
 
   return (
     <div
