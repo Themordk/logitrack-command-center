@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 import { RegistrarOcorrenciaButton } from "@/components/ocorrencia/RegistrarOcorrenciaButton";
 import { parseError } from "@/lib/errorMapper";
+import { fetchAllSelectRows } from "@/modules/reports/utils/fetchAllSelectRows";
 import {
   STATUS_BADGE, STATUS_LABEL, PRIORIDADE_BADGE, PRIORIDADE_LABEL,
   CATEGORIA_BADGE, CATEGORIA_LABEL, ETAPA_LABEL, TIPO_LABEL, TIPO_DOC_LABEL,
@@ -77,13 +78,11 @@ export function OcorrenciasOperacionaisPage({ onNavigate }: Props) {
   const kpisQuery = useQuery({
     queryKey: ["ocorrencias-kpis", tenantId, empresaId],
     queryFn: async () => {
-      let q = (supabase as any)
-        .from("ocorrencia_operacional")
-        .select("status, criado_em, resolvido_em")
-        .eq("tenant_id", tenantId);
-      if (empresaId) q = q.eq("empresa_id", empresaId);
-      const { data, error } = await q.limit(5000);
-      if (error) throw error;
+      const data = await fetchAllSelectRows("ocorrencia_operacional", "status, criado_em, resolvido_em", (q) => {
+        let qq = q.eq("tenant_id", tenantId);
+        if (empresaId) qq = qq.eq("empresa_id", empresaId);
+        return qq.order("criado_em").order("id");
+      });
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       let abertas = 0, investigacao = 0, tratamento = 0, resolvidasHoje = 0;
