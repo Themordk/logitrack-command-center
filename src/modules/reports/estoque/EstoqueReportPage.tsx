@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { parseLocalizacao } from "../utils/parseInteiroOpcional";
 import { Switch } from "@/components/ui/switch";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,10 @@ export function EstoqueReportPage() {
   const [filterTipoEstoqueId, setFilterTipoEstoqueId] = useState("");
   const [filterSetorId, setFilterSetorId] = useState("");
   const [filterCodigoEndereco, setFilterCodigoEndereco] = useState("");
+  const [filterRua, setFilterRua] = useState("");
+  const [filterPredio, setFilterPredio] = useState("");
+  const [filterNivel, setFilterNivel] = useState("");
+  const [filterApto, setFilterApto] = useState("");
   const [filterGrupoId, setFilterGrupoId] = useState("");
   const [filterSubgrupoId, setFilterSubgrupoId] = useState("");
   const [filterMarca, setFilterMarca] = useState("");
@@ -121,6 +126,7 @@ export function EstoqueReportPage() {
     setFilterSubgrupoId("");
     setFilterMarca("");
     setFilterCodigoEndereco("");
+    setFilterRua(""); setFilterPredio(""); setFilterNivel(""); setFilterApto("");
     setFilterMultiLocalizacao(false);
     setFilterApenasComSaldo(true);
   }, [empresaId, empresaVersion]);
@@ -140,6 +146,11 @@ export function EstoqueReportPage() {
 
   const handleGenerate = async () => {
     if (!tenantId) return;
+    const loc = parseLocalizacao(
+      { rua: filterRua, predio: filterPredio, nivel: filterNivel, apto: filterApto },
+      (m) => toast.error(m),
+    );
+    if (!loc) return;
     setLoading(true);
     try {
       const codigoNum = filterCodigoEndereco.trim() ? Number(filterCodigoEndereco) : undefined;
@@ -158,6 +169,7 @@ export function EstoqueReportPage() {
         codigo_endereco: Number.isFinite(codigoNum) ? codigoNum : undefined,
         apenas_multi_localizacao: filterMultiLocalizacao || undefined,
         apenas_com_saldo: filterApenasComSaldo,
+        ...loc,
       };
       const results = await fetchEstoqueReport(filters);
       setData(results);
@@ -178,6 +190,7 @@ export function EstoqueReportPage() {
     setFilterTipoEstoqueId("");
     setFilterSetorId("");
     setFilterCodigoEndereco("");
+    setFilterRua(""); setFilterPredio(""); setFilterNivel(""); setFilterApto("");
     setFilterGrupoId("");
     setFilterSubgrupoId("");
     setFilterMarca("");
@@ -238,6 +251,10 @@ export function EstoqueReportPage() {
   if (filterGrupoId) activeFilters["Grupo"] = grupos.find(g => g.id === filterGrupoId)?.descricao || filterGrupoId;
   if (filterSubgrupoId) activeFilters["Subgrupo"] = subgrupos.find(s => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
   if (filterMarca) activeFilters["Marca"] = filterMarca;
+  if (filterRua.trim()) activeFilters["Rua"] = filterRua.trim();
+  if (filterPredio.trim()) activeFilters["Prédio"] = filterPredio.trim();
+  if (filterNivel.trim()) activeFilters["Nível"] = filterNivel.trim();
+  if (filterApto.trim()) activeFilters["Apto"] = filterApto.trim();
   if (filterMultiLocalizacao) activeFilters["Multi-localização"] = "Sim";
   if (filterApenasComSaldo) activeFilters["Saldo"] = "> 0";
 
@@ -386,7 +403,27 @@ export function EstoqueReportPage() {
                 <Label className="text-xs">EAN</Label>
                 <Input className="h-8 text-xs" placeholder="Buscar por EAN..." value={filterEan} onChange={e => setFilterEan(e.target.value)} />
               </div>
-              <div className="flex items-end">
+              {([
+                ["Rua", filterRua, setFilterRua, "Todas"],
+                ["Prédio", filterPredio, setFilterPredio, "Todos"],
+                ["Nível", filterNivel, setFilterNivel, "Todos"],
+                ["Apto", filterApto, setFilterApto, "Todos"],
+              ] as const).map(([label, val, set, ph]) => (
+                <div key={label} className="space-y-1.5">
+                  <Label className="text-xs" htmlFor={`estoque-filtro-${label}`}>{label}</Label>
+                  <Input
+                    id={`estoque-filtro-${label}`}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    className="h-8 text-xs"
+                    placeholder={ph}
+                    value={val}
+                    onChange={e => set(e.target.value)}
+                  />
+                </div>
+              ))}
+              <div className="flex items-end lg:col-start-1">
                 <label className="flex items-center gap-2 h-8 cursor-pointer select-none">
                   <Checkbox
                     checked={filterMultiLocalizacao}
