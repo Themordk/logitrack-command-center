@@ -268,6 +268,10 @@ export function useCrud<T extends Record<string, any>>({
     if (requiresArmazem && !armazemId) return [];
     if (requiresEmpresa && !empresaId) return [];
     try {
+      const PAGE = 1000;
+      const ids: string[] = [];
+      let from = 0;
+      while (true) {
       let query = (supabase as any).from(table).select("id");
       query = query.eq("tenant_id", safeTenantId);
       if (requiresEmpresa && empresaId) query = query.eq("empresa_id", empresaId);
@@ -285,10 +289,15 @@ export function useCrud<T extends Record<string, any>>({
       if (search) {
         query = query.or(buildSearchOrParts(table, search, searchFields).join(","));
       }
-      // Sem paginação — busca todos os IDs correspondentes aos filtros.
-      const { data: result, error } = await query.limit(100000);
+      // Paginação estável por id (PostgREST limita a 1000 linhas por consulta).
+      const { data: result, error } = await query.order("id").range(from, from + PAGE - 1);
       if (error) throw error;
-      return ((result as any[]) || []).map((r) => r.id);
+      const rows = (result as any[]) || [];
+      rows.forEach((r) => ids.push(r.id));
+      if (rows.length < PAGE) break;
+      from += PAGE;
+      }
+      return ids;
     } catch (err: any) {
       console.error(`Error fetching all ids for ${table}:`, err);
       const parsed = parseError(err, `selecionar todos em ${table}`);
