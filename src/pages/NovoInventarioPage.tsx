@@ -160,6 +160,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   });
 
   const debounceRef = useRef<any>(null);
+  const enderecoReqRef = useRef(0);
   const previewRef = useRef<any>(null);
 
   // Reset escopo ao trocar tipo
@@ -211,12 +212,24 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setEnderecoLoading(true);
-      let q = (supabase as any).from("endereco")
-        .select("id, codigo_endereco, descricao")
-        .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true)
-        .order("codigo_endereco").limit(50);
-      if (enderecoSearch) q = q.or(`codigo_endereco.ilike.%${enderecoSearch}%,descricao.ilike.%${enderecoSearch}%`);
-      const { data } = await q;
+      const reqId = ++enderecoReqRef.current;
+      const termo = enderecoSearch.trim();
+      let data: any[] | null = null;
+      if (termo && /^\d+$/.test(termo)) {
+        const res = await (supabase as any).rpc("fn_buscar_endereco_por_codigo", {
+          p_tenant_id: tenantId, p_armazem_id: armazemId, p_termo: termo, p_limite: 50,
+        });
+        data = res.data;
+      } else {
+        let q = (supabase as any).from("endereco")
+          .select("id, codigo_endereco, descricao")
+          .eq("tenant_id", tenantId).eq("armazem_id", armazemId).eq("ativo", true)
+          .order("codigo_endereco").limit(50);
+        if (termo) q = q.ilike("descricao", `%${termo}%`);
+        const res = await q;
+        data = res.data;
+      }
+      if (reqId !== enderecoReqRef.current) return;
       setEnderecoResults((data || []).map((e: any) => ({
         id: e.id,
         label: String(e.codigo_endereco ?? ""),

@@ -105,16 +105,11 @@ export function RoteiroSeparacaoPage() {
   const fetchRuasArmazem = useCallback(async () => {
     if (!tenantId || !filtroArmazemId) { setRuasDisponiveis([]); return; }
     setLoadingRuas(true);
-    const { data } = await (supabase as any)
-      .from("endereco")
-      .select("rua")
-      .eq("tenant_id", tenantId)
-      .eq("armazem_id", filtroArmazemId)
-      .not("rua", "is", null);
-    if (data) {
-      const ruas = [...new Set(data.map((d: any) => Number(d.rua)))].sort((a: number, b: number) => a - b) as number[];
-      setRuasDisponiveis(ruas);
-    }
+    const { data, error } = await (supabase as any).rpc("fn_endereco_valores_filtro", {
+      p_tenant_id: tenantId, p_armazem_id: filtroArmazemId, p_zona_atividade_id: null,
+    });
+    if (error) toast.error(parseError(error, "roteiro-ruas").title);
+    setRuasDisponiveis(error ? [] : ((data?.rua ?? []) as unknown[]).map(Number));
     setLoadingRuas(false);
   }, [tenantId, filtroArmazemId]);
 

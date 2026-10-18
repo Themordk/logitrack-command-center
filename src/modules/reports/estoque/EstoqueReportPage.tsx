@@ -96,18 +96,8 @@ export function EstoqueReportPage() {
       .then(({ data }: any) => setSubgrupos(data || []));
 
     // Marcas distintas do tenant/empresa
-    (supabase as any).from("produto").select("marca")
-      .eq("tenant_id", tenantId).eq("empresa_id", empresaId)
-      .not("marca", "is", null)
-      .limit(1000)
-      .then(({ data }: any) => {
-        const set = new Set<string>();
-        (data || []).forEach((p: any) => {
-          const m = (p.marca || "").trim();
-          if (m) set.add(m);
-        });
-        setMarcas(Array.from(set).sort((a, b) => a.localeCompare(b)));
-      });
+    (supabase as any).rpc("fn_produto_marcas_distintas", { p_tenant_id: tenantId, p_empresa_id: empresaId })
+      .then(({ data }: any) => setMarcas((data || []).map((r: any) => r.marca)));
 
     const armazemFiltro = filterArmazemId || armazemId;
     if (armazemFiltro) {
