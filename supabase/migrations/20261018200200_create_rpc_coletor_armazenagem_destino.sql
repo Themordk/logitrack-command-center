@@ -10,6 +10,9 @@
 --   cabe = est_maximo - SUM(estoque_geral.quantidade_disponivel) do produto
 --          no endereço (tenant + empresa). est_maximo nulo ou 0 = sem limite.
 -- Todas as quantidades em UNIDADES (o frontend converte para caixas).
+-- Sem endereço de pulmão utilizável no armazém (pulmao.habilitado = false), a
+-- recomendação nunca aponta para o pulmão: SEM_DESTINO quando nada cabe no picking,
+-- e quantidade_sem_destino quando só parte cabe.
 -- A recomendação é só orientação: a validação final continua no backend
 -- (rpc_validar_endereco_picking + finalizar_armazenagem).
 -- =====================================================================
@@ -42,6 +45,9 @@ DECLARE
   v_m_status    text;
   v_pulmao_sld  numeric;
   v_pulmao_end  integer;
+  v_pulmao_disp integer;
+  v_tem_pulmao  boolean;
+  v_qtd_sem_dest numeric := 0;
   v_destino     text;
   v_motivo      text;
   v_qtd_picking numeric := 0;
@@ -147,17 +153,44 @@ BEGIN
     AND e.armazem_id    = p_armazem_id
     AND e.tipo_endereco = 'PULMAO';
 
+  -- O armazém tem endereço de pulmão utilizável? (ativo, livre ou ocupado, em setor PULMAO)
+  SELECT COUNT(*) INTO v_pulmao_disp
+  FROM endereco e
+  JOIN setor s ON s.id = e.setor_id AND s.tenant_id = p_tenant_id
+  WHERE e.tenant_id     = p_tenant_id
+    AND e.armazem_id    = p_armazem_id
+    AND e.tipo_endereco = 'PULMAO'
+    AND e.ativo         = true
+    AND e.situacao IN ('LIVRE', 'OCUPADO')
+    AND s.tipo          = 'PULMAO';
+  v_tem_pulmao := v_pulmao_disp > 0;
+
   -- Recomendação
   IF NOT v_produto.usa_picking THEN
-    v_destino := 'PULMAO';  v_qtd_pulmao := v_qtd;
-    v_motivo  := 'Produto não usa picking.';
+    IF v_tem_pulmao THEN
+      v_destino := 'PULMAO';  v_qtd_pulmao := v_qtd;
+      v_motivo  := 'Produto não usa picking.';
+    ELSE
+      v_destino := 'SEM_DESTINO';  v_qtd_sem_dest := v_qtd;
+      v_motivo  := 'Produto não usa picking e o armazém não tem endereço de pulmão. Registre uma ocorrência.';
+    END IF;
   ELSIF v_m_id IS NULL THEN
     IF v_tem_picking THEN
-      v_destino := 'PULMAO';  v_qtd_pulmao := v_qtd;
-      v_motivo  := 'Picking do produto bloqueado.';
+      IF v_tem_pulmao THEN
+        v_destino := 'PULMAO';  v_qtd_pulmao := v_qtd;
+        v_motivo  := 'Picking do produto bloqueado.';
+      ELSE
+        v_destino := 'SEM_DESTINO';  v_qtd_sem_dest := v_qtd;
+        v_motivo  := 'Picking do produto bloqueado e o armazém não tem endereço de pulmão. Registre uma ocorrência.';
+      END IF;
     ELSE
-      v_destino := 'SEM_PICKING';  v_qtd_pulmao := v_qtd;
-      v_motivo  := 'Produto sem picking cadastrado.';
+      v_destino := 'SEM_PICKING';
+      IF v_tem_pulmao THEN
+        v_qtd_pulmao := v_qtd;
+        v_motivo  := 'Produto sem picking cadastrado.';
+      ELSE
+        v_motivo  := 'Produto sem picking cadastrado. Bipe um endereço de picking para cadastrá-lo.';
+      END IF;
     END IF;
   ELSIF v_m_cabe IS NULL OR v_m_cabe >= v_qtd THEN
     v_destino := 'PICKING';  v_qtd_picking := v_qtd;
@@ -165,13 +198,25 @@ BEGIN
                    THEN 'Picking sem máximo configurado.'
                    ELSE 'Cabe tudo no picking.' END;
   ELSIF v_m_cabe > 0 THEN
-    v_destino := 'DIVIDIR';
     v_qtd_picking := v_m_cabe;
-    v_qtd_pulmao  := v_qtd - v_m_cabe;
-    v_motivo  := 'Picking tem espaço só para parte. O restante vai para o pulmão.';
+    IF v_tem_pulmao THEN
+      v_destino := 'DIVIDIR';
+      v_qtd_pulmao := v_qtd - v_m_cabe;
+      v_motivo  := 'Picking tem espaço só para parte. O restante vai para o pulmão.';
+    ELSE
+      v_destino := 'PICKING';
+      v_qtd_sem_dest := v_qtd - v_m_cabe;
+      v_motivo  := 'Picking tem espaço só para parte e o armazém não tem pulmão. Registre uma ocorrência para o restante.';
+    END IF;
   ELSE
-    v_destino := 'PULMAO';  v_qtd_pulmao := v_qtd;
-    v_motivo  := CASE v_m_status WHEN 'ACIMA_MAXIMO' THEN 'Picking acima do máximo.' ELSE 'Picking cheio.' END;
+    IF v_tem_pulmao THEN
+      v_destino := 'PULMAO';  v_qtd_pulmao := v_qtd;
+      v_motivo  := CASE v_m_status WHEN 'ACIMA_MAXIMO' THEN 'Picking acima do máximo.' ELSE 'Picking cheio.' END;
+    ELSE
+      v_destino := 'SEM_DESTINO';  v_qtd_sem_dest := v_qtd;
+      v_motivo  := CASE v_m_status WHEN 'ACIMA_MAXIMO' THEN 'Picking acima do máximo' ELSE 'Picking cheio' END
+                   || ' e o armazém não tem endereço de pulmão. Registre uma ocorrência.';
+    END IF;
   END IF;
 
   RETURN jsonb_build_object(
@@ -185,13 +230,15 @@ BEGIN
       'executada', v_executada, 'restante', v_restante) END,
     'quantidade', v_qtd,
     'pickings', v_pickings,
-    'pulmao', jsonb_build_object('saldo', v_pulmao_sld, 'enderecos', v_pulmao_end),
+    'pulmao', jsonb_build_object('saldo', v_pulmao_sld, 'enderecos', v_pulmao_end,
+                                 'habilitado', v_tem_pulmao, 'enderecos_disponiveis', v_pulmao_disp),
     'recomendacao', jsonb_build_object(
       'destino', v_destino,
       'endereco_id', CASE WHEN v_destino IN ('PICKING', 'DIVIDIR') THEN v_m_id END,
       'endereco', CASE WHEN v_destino IN ('PICKING', 'DIVIDIR') THEN v_m_desc END,
       'quantidade_picking', v_qtd_picking,
       'quantidade_pulmao', v_qtd_pulmao,
+      'quantidade_sem_destino', v_qtd_sem_dest,
       'motivo', v_motivo)
   );
 END;
