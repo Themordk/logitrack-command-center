@@ -9,6 +9,11 @@ export interface MovimentacoesFilter {
   sku?: string;
   tipo_movimento?: number;
   usuario_id?: string;
+  armazem_id?: string;
+  rua?: number;
+  predio?: number;
+  nivel?: number;
+  apto?: number;
 }
 
 export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
@@ -21,6 +26,11 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
       p_data_fim: filters.data_fim,
       p_sku: filters.sku || null,
       p_tipo_mov: filters.tipo_movimento ?? null,
+      p_armazem_id: filters.armazem_id || null,
+      p_rua: filters.rua ?? null,
+      p_predio: filters.predio ?? null,
+      p_nivel: filters.nivel ?? null,
+      p_apto: filters.apto ?? null,
     },
   );
 
