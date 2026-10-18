@@ -4,9 +4,12 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
-import { Loader2, Archive, LayoutGrid, ArrowUp, MapPin, AlertTriangle, Star } from "lucide-react";
+import { Archive, MapPin, AlertTriangle, CircleCheck, Minus, Plus } from "lucide-react";
 import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
-import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/RegistrarOcorrenciaColetorButton";
+import type { OcorrenciaContexto } from "@/components/ocorrencia/RegistrarOcorrenciaModal";
+import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
+import { ProdutoHeader } from "@/components/coletor/ProdutoHeader";
+import { StickyFooter } from "@/components/coletor/StickyFooter";
 import { toast } from "sonner";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { getEnderecoFromCache, saveEnderecoToCache } from "@/lib/offlineEnderecoCache";
@@ -20,31 +23,28 @@ import { useFeedback } from "@/hooks/useFeedback";
 interface Props { onNavigate: (path: string) => void; }
 
 export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
-  const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
+  const { setFabVisivel } = useOcorrenciaColetorContext();
   useEffect(() => {
-    setFabVisivel(true);
-    return () => setFabVisivel(false);
+    setFabVisivel(false);
   }, [setFabVisivel]);
 
   const tenantId = localStorage.getItem("core_tenant_id");
-  const empresaId = localStorage.getItem("core_empresa_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
   const tarefaId = sessionStorage.getItem("coletor_armazenagem_tarefa_id") || "";
   const produtoId = sessionStorage.getItem("coletor_armazenagem_produto_id") || "";
   const produtoDesc = sessionStorage.getItem("coletor_armazenagem_produto_desc") || "";
   const produtoSku = sessionStorage.getItem("coletor_armazenagem_produto_sku") || "";
   const qtdRestante = Number(sessionStorage.getItem("coletor_armazenagem_qtd_restante") || "0");
-  const pickingSugerido = sessionStorage.getItem("coletor_armazenagem_picking_sugerido") || "";
   const variosPickings = sessionStorage.getItem("coletor_armazenagem_varios_pickings") === "S";
   const huCodigo = sessionStorage.getItem("coletor_armazenagem_hu_codigo") || "";
+  const destinoTipo = sessionStorage.getItem("coletor_armazenagem_destino_tipo") === "PICKING" ? "PICKING" : "PULMAO";
+  const destinoEndId = sessionStorage.getItem("coletor_armazenagem_destino_endereco_id") || "";
+  const destinoEndDesc = sessionStorage.getItem("coletor_armazenagem_destino_endereco_desc") || "";
+  const qtdSugerida = Number(sessionStorage.getItem("coletor_armazenagem_qtd_sugerida") || qtdRestante || 0);
+  const recDestino = sessionStorage.getItem("coletor_armazenagem_recomendacao_destino") || "";
+  const recEndId = sessionStorage.getItem("coletor_armazenagem_recomendacao_endereco_id") || "";
   const { execute: executeOffline, isOnline } = useOfflineAction();
   const result = useResultDialog({ coletorMode: true });
-
-  const [estoquePulmao, setEstoquePulmao] = useState(0);
-  const [estoquePicking, setEstoquePicking] = useState(0);
-  const [totalArmazenar, setTotalArmazenar] = useState(0);
-  const [totalArmazenado, setTotalArmazenado] = useState(0);
-  const [loadingStats, setLoadingStats] = useState(true);
 
   const [movimentoEntradaId, setMovimentoEntradaId] = useState<string | null>(null);
   const [documentoEntradaId, setDocumentoEntradaId] = useState<string | null>(null);
@@ -131,22 +131,18 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     },
   };
 
-  // Publica contexto rico para o FAB de ocorrência
-  useEffect(() => {
-    setContexto({
-      etapa: "ARMAZENAGEM",
-      produto_id: produtoId || undefined,
-      produto_descricao: produtoDesc || undefined,
-      tarefa_id: tarefaId || undefined,
-      endereco_id: enderecoId || undefined,
-      endereco_descricao: enderecoDesc || undefined,
-      documento_origem_id: movimentoEntradaId || undefined,
-      tipo_documento_origem: "MOVIMENTO_ENTRADA",
-      quantidade_esperada: Number(qtdRestante || 0),
-    });
-  }, [setContexto, produtoId, produtoDesc, tarefaId, enderecoId, enderecoDesc, movimentoEntradaId, qtdRestante]);
-  const [sugestoes, setSugestoes] = useState<any[]>([]);
-  const [loadingSugestao, setLoadingSugestao] = useState(false);
+  // Contexto rico para o ícone de ocorrência do ProdutoHeader
+  const ocorrenciaCtx: OcorrenciaContexto = {
+    etapa: "ARMAZENAGEM",
+    produto_id: produtoId || undefined,
+    produto_descricao: produtoDesc || undefined,
+    tarefa_id: tarefaId || undefined,
+    endereco_id: enderecoId || undefined,
+    endereco_descricao: enderecoDesc || undefined,
+    documento_origem_id: movimentoEntradaId || undefined,
+    tipo_documento_origem: "MOVIMENTO_ENTRADA",
+    quantidade_esperada: Number(qtdRestante || 0),
+  };
 
 
   const handleArmazenarParcial = () => {
@@ -197,80 +193,6 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     })();
   }, [tarefaId, tenantId, isOnline]);
 
-  // Fetch stats
-  useEffect(() => {
-    if (!tenantId || !empresaId) return;
-    (async () => {
-      setLoadingStats(true);
-      try {
-        const result = await executeOffline("rpc_coletor_armazenagem_execucao", {
-          p_tenant_id: tenantId,
-          p_empresa_id: empresaId,
-          p_produto_id: produtoId,
-        });
-        if (!result.success) throw result.data;
-        if (result.offline) {
-          // Offline: mantém os valores locais/últimos conhecidos, sem bloquear o operador.
-          return;
-        }
-        const data = result.data;
-        if (data && data.length > 0) {
-          setEstoquePulmao(Number(data[0].estoque_pulmao) || 0);
-          setEstoquePicking(Number(data[0].estoque_picking) || 0);
-          setTotalArmazenar(Number(data[0].total_a_armazenar) || 0);
-          setTotalArmazenado(Number(data[0].total_armazenado) || 0);
-        }
-      } catch (err: any) {
-        console.error(err);
-      } finally {
-        setLoadingStats(false);
-      }
-    })();
-  }, [tenantId, empresaId, produtoId]);
-
-  // Picking address comes from sessionStorage (returned by fn_buscar_dados_armazenagem)
-
-  // Buscar sugestões do motor de armazenagem
-  useEffect(() => {
-    const armazemId = localStorage.getItem("core_armazem_id");
-    if (!tenantId || !armazemId || !produtoId) return;
-    if (!isOnline) {
-      // Offline: pula sugestão do motor de armazenagem, será feita na sincronização.
-      setSugestoes([]);
-      return;
-    }
-    (async () => {
-      setLoadingSugestao(true);
-      try {
-        const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
-        const lote = sessionStorage.getItem("coletor_armazenagem_lote") || null;
-        const { data, error } = await (supabase as any).rpc("rpc_sugerir_endereco_picking", {
-          p_tenant_id: tenantId,
-          p_armazem_id: armazemId,
-          p_produto_id: produtoId,
-          p_lote: lote,
-          p_validade: validadeRaw && validadeRaw !== "1900-01-01" ? validadeRaw : null,
-          p_quantidade: qtdRestante || 1,
-          p_limite: 3,
-        });
-        if (error) throw error;
-        setSugestoes(data || []);
-      } catch (err) {
-        console.error("Erro ao buscar sugestão:", err);
-      } finally {
-        setLoadingSugestao(false);
-      }
-    })();
-  }, [tenantId, produtoId, qtdRestante]);
-
-  const handleSelecionarSugestao = (sug: any) => {
-    setEnderecoId(sug.endereco_id);
-    setEnderecoDesc(sug.descricao);
-    setEnderecoScan(sug.descricao);
-    setEnderecoTipo("PICKING");
-    setOverlay("success");
-    setOverlayMsg(`Endereço selecionado: ${sug.descricao}`);
-  };
 
   const handleScanEndereco = async (code: string) => {
     // Verificação pré-ação (fallback caso o Realtime falhe)
@@ -486,18 +408,17 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     // Log da sugestão (não crítico)
     try {
       const empresaIdLog = localStorage.getItem("core_empresa_id");
-      const sugestaoTop = sugestoes.length > 0 ? sugestoes[0] : null;
       await (supabase as any).from("log_sugestao_armazenagem").insert({
         tenant_id: tenantId,
         empresa_id: empresaIdLog,
         armazem_id: armazemId,
         produto_id: produtoId,
-        endereco_sugerido_id: sugestaoTop?.endereco_id || enderecoId,
+        endereco_sugerido_id: recEndId || destinoEndId || enderecoId,
         endereco_escolhido_id: enderecoId,
-        score: sugestaoTop?.score || 0,
-        tipo_sugestao: sugestaoTop?.tipo_sugestao || "FALLBACK",
-        motivo_sugestao: sugestaoTop?.motivo || "Escaneado manualmente",
-        aceita: sugestaoTop ? enderecoId === sugestaoTop.endereco_id : null,
+        score: 0,
+        tipo_sugestao: "RECOMENDACAO_DESTINO",
+        motivo_sugestao: recDestino || null,
+        aceita: recEndId ? enderecoId === recEndId : null,
         lote: lote || null,
         quantidade: Number(quantidade),
         usuario_id: usuarioId,
@@ -563,16 +484,23 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     }
   };
 
-  const stats = [
-    { icon: <Archive size={16} />, label: "Pulmão", value: estoquePulmao, color: "hsl(217,91%,50%)" },
-    { icon: <LayoutGrid size={16} />, label: "Picking", value: estoquePicking, color: "hsl(280,70%,55%)" },
-    { icon: <ArrowUp size={16} />, label: "A Armazenar", value: totalArmazenar, color: "hsl(45,93%,47%)" },
-  ];
+  const fatorCampo = Number(sessionStorage.getItem("coletor_armazenagem_fator") || "1") || 1;
+  const unidadeCampo = fatorCampo > 1 ? "CX" : "UN";
+  const qtdTudo = Math.floor(qtdSugerida / fatorCampo);
+  const qtdNum = Number(quantidade) || 0;
+
+  let avisoTipo = "";
+  if (enderecoId) {
+    if (destinoTipo === "PICKING" && enderecoTipo !== "PICKING") avisoTipo = "Você escolheu picking, mas leu um endereço de pulmão.";
+    else if (destinoTipo === "PULMAO" && enderecoTipo === "PICKING") avisoTipo = "Você escolheu pulmão, mas leu um endereço de picking.";
+    else if (destinoTipo === "PICKING" && destinoEndId && enderecoId !== destinoEndId) avisoTipo = "Endereço diferente do picking escolhido.";
+  }
 
   return (
-    <ColetorLayout title="Execução Armazenagem" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
+    <ColetorLayout title="Armazenar" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/iniciar">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
+      <EtapaIndicador etapa={3} />
 
       {cancelamento && (
         <CancelamentoOverlay
@@ -612,129 +540,119 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         </div>
       )}
 
+      <div className="flex flex-col gap-2 -mt-1">
+        <ProdutoHeader
+          sku={produtoSku}
+          descricao={produtoDesc}
+          restante={qtdRestante}
+          fatorCaixa={fatorCampo}
+          linhas={1}
+          onOcorrencia={ocorrenciaCtx}
+        />
 
-      {/* Stats */}
-      {loadingStats ? (
-        <div className="flex justify-center py-4"><Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2">
-          {stats.map((s) => (
-            <div key={s.label} className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-2 flex flex-col items-center gap-0.5">
-              <div style={{ color: s.color }}>{s.icon}</div>
-              <span className="text-lg font-bold text-white">{s.value}</span>
-              <span className="text-[10px] text-[hsl(213,31%,55%)] text-center">{s.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Product info + picking */}
-      <div className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 space-y-1">
-        {produtoSku && <p className="font-mono text-xs text-[hsl(213,31%,70%)]">{produtoSku}</p>}
-        <p className="text-base font-bold text-white">{produtoDesc}</p>
-        <p className="text-xs text-[hsl(213,31%,55%)]">Restante: <b className="text-[hsl(45,93%,47%)]">{qtdRestante}</b></p>
-        <div className="flex items-center gap-1.5 pt-1 border-t border-[hsl(222,35%,22%)] mt-1">
-          <MapPin size={14} className="text-[hsl(280,70%,55%)] shrink-0" />
-          {pickingSugerido ? (
-            <span className="text-xs text-[hsl(213,31%,80%)]">Picking: <b className="text-[hsl(280,70%,65%)]">{pickingSugerido}</b></span>
+        {/* Card de destino */}
+        <div className="rounded-[10px] border-[1.5px] border-[hsl(217,91%,60%)] bg-[hsl(217,91%,50%)]/10 px-2.5 py-2 text-center flex flex-col items-center gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(213,31%,70%)]">
+            Destino escolhido · {destinoTipo === "PICKING" ? "Picking" : "Pulmão"}
+          </span>
+          {enderecoId ? (
+            <>
+              <span className="font-mono text-[19px] font-bold text-white leading-tight">{enderecoDesc}</span>
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-[#22C55E]"><CircleCheck size={12} /> endereço lido ✓</span>
+            </>
           ) : (
-            <span className="text-xs text-[hsl(45,93%,47%)]">Sem picking cadastrado</span>
+            <span className={`font-mono font-bold leading-tight ${destinoTipo === "PICKING" && destinoEndDesc ? "text-[19px] text-[hsl(280,70%,70%)]" : "text-[14px] text-white"}`}>
+              {destinoTipo === "PICKING" ? (destinoEndDesc || "Bipe o endereço de picking") : "Bipe um endereço de pulmão"}
+            </span>
+          )}
+          {avisoTipo && (
+            <div className="w-full flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/12 border border-[hsl(45,93%,47%)]/35 px-2 py-1 text-left">
+              <AlertTriangle size={12} className="text-[hsl(45,93%,55%)] shrink-0" />
+              <span className="text-[11px] text-[hsl(45,93%,80%)]">{avisoTipo}</span>
+            </div>
+          )}
+          {(huCodigo || variosPickings) && (
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {huCodigo && (
+                <span className="flex items-center gap-1 rounded-md bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-1.5 py-0.5 text-[10px] font-mono font-bold text-[hsl(45,93%,80%)]">
+                  <Archive size={10} /> HU: {huCodigo}
+                </span>
+              )}
+              {variosPickings && (
+                <span className="flex items-center gap-1 rounded-md bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-1.5 py-0.5 text-[10px] text-[hsl(45,93%,80%)]">
+                  <AlertTriangle size={10} /> Múltiplos pickings
+                </span>
+              )}
+            </div>
           )}
         </div>
-        {variosPickings && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 mt-1">
-            <AlertTriangle size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
-            <span className="text-[11px] text-[hsl(45,93%,80%)]">Múltiplos endereços de picking</span>
-          </div>
-        )}
-        {huCodigo && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-[hsl(45,93%,47%)]/10 border border-[hsl(45,93%,47%)]/30 px-2 py-1 mt-1">
-            <Archive size={12} className="text-[hsl(45,93%,47%)] shrink-0" />
-            <span className="text-[11px] font-mono font-bold text-[hsl(45,93%,80%)]">HU: {huCodigo}</span>
-          </div>
-        )}
 
-        {/* Sugestões do motor de armazenagem */}
-        {loadingSugestao ? (
-          <div className="flex items-center gap-2 pt-2 border-t border-[hsl(222,35%,22%)] mt-1">
-            <Loader2 size={12} className="animate-spin text-[hsl(217,91%,60%)]" />
-            <span className="text-[11px] text-[hsl(213,31%,55%)]">Buscando endereço ideal...</span>
-          </div>
-        ) : sugestoes.length > 0 && (
-          <div className="pt-2 border-t border-[hsl(222,35%,22%)] mt-1 space-y-1">
-            <span className="text-[10px] uppercase text-[hsl(213,31%,55%)] font-semibold">Sugestões do sistema</span>
-            {sugestoes.map((sug, idx) => (
-              <button
-                key={sug.endereco_id}
-                onClick={() => handleSelecionarSugestao(sug)}
-                className={`w-full flex items-center justify-between rounded-lg px-2 py-1.5 border transition-colors ${
-                  enderecoId === sug.endereco_id
-                    ? "border-green-500/50 bg-green-500/10"
-                    : "border-[hsl(222,35%,22%)] bg-[hsl(222,35%,16%)] hover:border-green-500/30"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {idx === 0 && <Star size={11} className="text-yellow-400 shrink-0" />}
-                  <span className="text-xs font-mono font-bold text-white">{sug.descricao}</span>
-                  {sug.curva_acesso && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400">
-                      {sug.curva_acesso}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-[hsl(213,31%,55%)]">
-                  {sug.tipo_sugestao === "CONSOLIDACAO" ? "Consolidar" : sug.tipo_sugestao === "CURVA_MATCH" ? "Curva OK" : "Livre"}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Quantity */}
-      <div>
-        <label className="block text-sm font-semibold text-[hsl(213,31%,65%)] mb-1 uppercase">Quantidade a Armazenar</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          value={quantidade}
-          onChange={(e) => setQuantidade(e.target.value)}
-          placeholder="0"
-          className="w-full h-16 px-4 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] text-3xl font-bold text-white text-center outline-none focus:border-[hsl(217,91%,50%)] transition-colors"
+        <ScanField
+          compact
+          confirmado={!!enderecoId}
+          label="Bipe o endereço destino"
+          lastScanned={enderecoDesc || enderecoScan}
+          onScan={handleScanEndereco}
+          placeholder="Leia o código do endereço"
         />
+
+        {/* Quantidade */}
+        <div className="flex items-center justify-between">
+          <label htmlFor="qtd-armazenar" className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(213,31%,55%)]">Quantidade</label>
+          {qtdTudo > 0 && (
+            <button
+              type="button"
+              onClick={() => setQuantidade(String(qtdTudo))}
+              className="min-h-[32px] px-2 rounded-md text-[12px] font-semibold text-[hsl(217,91%,65%)] border border-[hsl(217,91%,60%)]/35"
+            >
+              Tudo ({qtdTudo})
+            </button>
+          )}
+        </div>
+        <div className="flex items-start gap-2">
+          <button
+            type="button"
+            aria-label="Diminuir quantidade"
+            onClick={() => setQuantidade(String(Math.max(0, qtdNum - 1)))}
+            className="w-[52px] h-[52px] shrink-0 rounded-[10px] bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white flex items-center justify-center active:bg-[hsl(222,35%,16%)]"
+          >
+            <Minus size={20} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <input
+              id="qtd-armazenar"
+              type="number"
+              inputMode="numeric"
+              value={quantidade}
+              onChange={(e) => setQuantidade(e.target.value)}
+              placeholder="0"
+              className="w-full h-[52px] px-2 rounded-[10px] border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] text-2xl font-bold text-white text-center outline-none focus:border-[hsl(217,91%,50%)]"
+            />
+            <p className="text-center text-[11px] text-[hsl(213,31%,60%)] leading-tight mt-0.5">
+              {unidadeCampo}{fatorCampo > 1 && qtdNum > 0 ? ` = ${qtdNum * fatorCampo} UN` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Aumentar quantidade"
+            onClick={() => setQuantidade(String(qtdNum + 1))}
+            className="w-[52px] h-[52px] shrink-0 rounded-[10px] bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white flex items-center justify-center active:bg-[hsl(222,35%,16%)]"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
       </div>
 
-      {/* Scan address */}
-      <ScanField
-        label="Escanear Endereço Destino"
-        lastScanned={enderecoDesc || enderecoScan}
-        onScan={handleScanEndereco}
-        placeholder="Leia o código do endereço"
-      />
-
-      {/* Confirm */}
-      <ActionButton
-        onClick={handleConfirm}
-        disabled={!quantidade || Number(quantidade) <= 0 || !enderecoId || !movimentoEntradaId}
-        loading={saving}
-        variant="success"
-      >
-        CONFIRMAR ARMAZENAGEM
-      </ActionButton>
-
-      <RegistrarOcorrenciaColetorButton
-        contexto={{
-          etapa: "ARMAZENAGEM",
-          produto_id: produtoId || undefined,
-          produto_descricao: produtoDesc,
-          tarefa_id: tarefaId,
-          endereco_id: enderecoId || undefined,
-          endereco_descricao: enderecoDesc || undefined,
-          documento_origem_id: movimentoEntradaId || undefined,
-          tipo_documento_origem: "MOVIMENTO_ENTRADA",
-          quantidade_esperada: Number(qtdRestante || 0),
-        }}
-      />
+      <StickyFooter>
+        <ActionButton
+          onClick={handleConfirm}
+          disabled={!quantidade || Number(quantidade) <= 0 || !enderecoId || !movimentoEntradaId}
+          loading={saving}
+          variant="success"
+        >
+          CONFIRMAR ARMAZENAGEM
+        </ActionButton>
+      </StickyFooter>
 
       {/* Modal de capacidade excedida */}
       {showCapModal && capInfo && (
