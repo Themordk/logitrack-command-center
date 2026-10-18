@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Filter, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { parseLocalizacao } from "../utils/parseInteiroOpcional";
 import { formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
 import {
   exportToExcel,
@@ -48,11 +50,31 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   const [filterSku, setFilterSku] = useState("");
   const [filterTipoMov, setFilterTipoMov] = useState("");
 
+  const [filterArmazemId, setFilterArmazemId] = useState("");
+  const [filterRua, setFilterRua] = useState("");
+  const [filterPredio, setFilterPredio] = useState("");
+  const [filterNivel, setFilterNivel] = useState("");
+  const [filterApto, setFilterApto] = useState("");
+  const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
+
+  const limparLocalizacao = () => {
+    setFilterArmazemId("");
+    setFilterRua(""); setFilterPredio(""); setFilterNivel(""); setFilterApto("");
+  };
+
+  useEffect(() => {
+    if (!tenantId || !empresaId) { setArmazens([]); return; }
+    supabase.from("armazem").select("id, descricao")
+      .eq("tenant_id", tenantId).eq("empresa_id", empresaId).eq("ativo", true).order("descricao")
+      .then(({ data }) => setArmazens(data || []));
+  }, [tenantId, empresaId, empresaVersion]);
+
   // Reset relatório ao trocar empresa
   useEffect(() => {
     setData([]);
     setGenerated(false);
     setGeneratedAt("");
+    limparLocalizacao();
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
@@ -61,6 +83,11 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       toast.error("Data início e fim são obrigatórias.");
       return;
     }
+    const loc = parseLocalizacao(
+      { rua: filterRua, predio: filterPredio, nivel: filterNivel, apto: filterApto },
+      (m) => toast.error(m),
+    );
+    if (!loc) return;
     setLoading(true);
     try {
       const filters: MovimentacoesFilter = {
@@ -70,6 +97,8 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
         empresa_id: empresaId || undefined,
         sku: filterSku || undefined,
         tipo_movimento: filterTipoMov ? Number(filterTipoMov) : undefined,
+        armazem_id: filterArmazemId || undefined,
+        ...loc,
       };
       const results = await fetchMovimentacoesReport(filters);
       setData(results);
@@ -86,6 +115,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   const handleClear = () => {
     setFilterSku("");
     setFilterTipoMov("");
+    limparLocalizacao();
   };
 
   const columns: ReportColumn[] = [
@@ -175,6 +205,13 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   activeFilters["Período"] = `${formatDate(dataInicio)} a ${formatDate(dataFim)}`;
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterTipoMov) activeFilters["Tipo"] = getTipoMovimentoLabel(Number(filterTipoMov));
+  if (filterArmazemId) activeFilters["Armazém"] = armazens.find(a => a.id === filterArmazemId)?.descricao || "—";
+  if (filterRua.trim()) activeFilters["Rua"] = filterRua.trim();
+  if (filterPredio.trim()) activeFilters["Prédio"] = filterPredio.trim();
+  if (filterNivel.trim()) activeFilters["Nível"] = filterNivel.trim();
+  if (filterApto.trim()) activeFilters["Apto"] = filterApto.trim();
+  const temLocalizacao = !!filterArmazemId ||
+    [filterRua, filterPredio, filterNivel, filterApto].some((v) => v.trim() !== "");
 
   const exportColumns: ExportColumn[] = [
     { key: "criado_em", label: "Data/Hora", format: (r) => fmtDateTimeBR(r.criado_em) },
@@ -236,7 +273,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
         </button>
         {showFilters && (
           <div className="border-t border-border p-4 space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Data Início *</Label>
                 <Input type="date" className="h-8 text-xs" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
@@ -266,7 +303,43 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Armazém</Label>
+                <Select value={filterArmazemId} onValueChange={setFilterArmazemId}>
+                  <SelectTrigger className="h-8 text-xs" aria-label="Armazém">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {armazens.map(a => (<SelectItem key={a.id} value={a.id}>{a.descricao}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {([
+                ["Rua", filterRua, setFilterRua, "Todas"],
+                ["Prédio", filterPredio, setFilterPredio, "Todos"],
+                ["Nível", filterNivel, setFilterNivel, "Todos"],
+                ["Apto", filterApto, setFilterApto, "Todos"],
+              ] as const).map(([label, val, set, ph]) => (
+                <div key={label} className="space-y-1.5">
+                  <Label className="text-xs" htmlFor={`mov-filtro-${label}`}>{label}</Label>
+                  <Input
+                    id={`mov-filtro-${label}`}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    className="h-8 text-xs"
+                    placeholder={ph}
+                    value={val}
+                    onChange={e => set(e.target.value)}
+                  />
+                </div>
+              ))}
             </div>
+            {temLocalizacao && (
+              <p className="text-[11px] text-muted-foreground">
+                Localização filtra pela origem ou pelo destino da movimentação.
+              </p>
+            )}
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={handleGenerate} disabled={loading}>
                 <Search size={14} />
