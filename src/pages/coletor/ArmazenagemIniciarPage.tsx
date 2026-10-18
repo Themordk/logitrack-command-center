@@ -335,7 +335,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
             restante={tarefa.qtd_a_armazenar}
             fatorCaixa={fatorCaixa}
             linhas={2}
-            onOcorrencia={ocorrenciaCtx as never}
+            onOcorrencia={ocorrenciaCtx}
           />
         )}
 
