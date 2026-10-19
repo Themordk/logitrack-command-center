@@ -11747,6 +11747,17 @@ export type Database = {
           total_armazenado: number
         }[]
       }
+      rpc_coletor_armazenagem_destino: {
+        Args: {
+          p_armazem_id: string
+          p_empresa_id: string
+          p_produto_id: string
+          p_quantidade?: number
+          p_tarefa_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       rpc_coletor_armazenagem_execucao: {
         Args: {
           p_empresa_id: string
