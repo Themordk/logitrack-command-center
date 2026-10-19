@@ -536,6 +536,7 @@ export type Database = {
           tipo_entrada_id: string
           valor_total_nota: number
           valor_total_produtos: number
+          vendedor: string | null
         }
         Insert: {
           armazem_id?: string | null
@@ -564,6 +565,7 @@ export type Database = {
           tipo_entrada_id: string
           valor_total_nota: number
           valor_total_produtos: number
+          vendedor?: string | null
         }
         Update: {
           armazem_id?: string | null
@@ -592,6 +594,7 @@ export type Database = {
           tipo_entrada_id?: string
           valor_total_nota?: number
           valor_total_produtos?: number
+          vendedor?: string | null
         }
         Relationships: [
           {
@@ -10433,6 +10436,7 @@ export type Database = {
           p_tipo_entrada_id: string
           p_valor_total_nota: number
           p_valor_total_prod: number
+          p_vendedor?: string
         }
         Returns: Json
       }
@@ -10455,6 +10459,7 @@ export type Database = {
           p_tipo_pedido_id: string
           p_transportador: string
           p_valor_pedido: number
+          p_vendedor?: string
         }
         Returns: Json
       }
@@ -11071,6 +11076,7 @@ export type Database = {
           p_tipo_entrada_id: string
           p_valor_total_nota: number
           p_valor_total_prod: number
+          p_vendedor?: string
         }
         Returns: string
       }
@@ -11112,6 +11118,7 @@ export type Database = {
           p_tipo_pedido_id: string
           p_transportador: string
           p_valor_pedido: number
+          p_vendedor?: string
         }
         Returns: string
       }
@@ -12128,12 +12135,15 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: {
+          atribuida_ao_usuario: boolean
           exibe_parceiro: boolean
           movimento_saida_id: string
           numero_onda: number
+          operador_nome: string
           parceiro_nome: string
           pedidos: string
           prioridade: string
+          qtd_operadores: number
           status: string
           tipo_venda: string
         }[]
