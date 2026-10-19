@@ -17,6 +17,10 @@ export interface EstoqueFilter {
   marca?: string;
   apenas_multi_localizacao?: boolean;
   apenas_com_saldo?: boolean;
+  rua?: number;
+  predio?: number;
+  nivel?: number;
+  apto?: number;
 }
 
 const intersect = (a: string[] | null, b: string[]): string[] => {
@@ -68,28 +72,15 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
     }
   }
 
-  // ===== B. Resolver endereco_id server-side =====
-  let enderecoIds: string[] | null = null;
+  // ===== B. Filtros de endereço direto no embed (!inner) — evita lista de IDs na URL =====
   const hasEnderecoFilter =
     !!filters.armazem_id || !!filters.tipo_endereco ||
     !!filters.tipo_estoque_id || !!filters.setor_id ||
-    (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null);
+    filters.codigo_endereco != null ||
+    filters.rua != null || filters.predio != null ||
+    filters.nivel != null || filters.apto != null;
 
-  if (hasEnderecoFilter) {
-    const ends = await fetchAllSelectRows<any>("endereco", "id", (q) => {
-      q = q.eq("tenant_id", filters.tenant_id);
-      if (filters.armazem_id) q = q.eq("armazem_id", filters.armazem_id);
-      if (filters.tipo_endereco) q = q.eq("tipo_endereco", filters.tipo_endereco);
-      if (filters.tipo_estoque_id) q = q.eq("tipo_estoque_id", filters.tipo_estoque_id);
-      if (filters.setor_id) q = q.eq("setor_id", filters.setor_id);
-      if (filters.codigo_endereco !== undefined && filters.codigo_endereco !== null) {
-        q = q.eq("codigo_endereco", filters.codigo_endereco);
-      }
-      return q;
-    });
-    enderecoIds = ends.map((e: any) => e.id);
-    if (enderecoIds.length === 0) return [];
-  }
+  const enderecoEmbed = hasEnderecoFilter ? "endereco:endereco_id!inner" : "endereco:endereco_id";
 
   // ===== C. Query principal =====
   const query = fetchAllSelectRows<any>(
@@ -112,13 +103,17 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
         subgrupo_id,
         parceiro_id
       ),
-      endereco:endereco_id (
+      ${enderecoEmbed} (
         codigo_endereco,
         descricao,
         tipo_endereco,
         armazem_id,
         setor_id,
-        tipo_estoque_id
+        tipo_estoque_id,
+        rua,
+        predio,
+        nivel,
+        apto
       )
     `,
     (q) => {
@@ -127,7 +122,15 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
         .order("atualizado_em", { ascending: false });
       if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
       if (produtoIds) q = q.in("produto_id", produtoIds);
-      if (enderecoIds) q = q.in("endereco_id", enderecoIds);
+      if (filters.armazem_id) q = q.eq("endereco.armazem_id", filters.armazem_id);
+      if (filters.tipo_endereco) q = q.eq("endereco.tipo_endereco", filters.tipo_endereco);
+      if (filters.tipo_estoque_id) q = q.eq("endereco.tipo_estoque_id", filters.tipo_estoque_id);
+      if (filters.setor_id) q = q.eq("endereco.setor_id", filters.setor_id);
+      if (filters.codigo_endereco != null) q = q.eq("endereco.codigo_endereco", filters.codigo_endereco);
+      if (filters.rua != null) q = q.eq("endereco.rua", filters.rua);
+      if (filters.predio != null) q = q.eq("endereco.predio", filters.predio);
+      if (filters.nivel != null) q = q.eq("endereco.nivel", filters.nivel);
+      if (filters.apto != null) q = q.eq("endereco.apto", filters.apto);
       return q;
     },
   );
