@@ -5,7 +5,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, Database, Ban, Building2 } from "lucide-react";
+import { Loader2, Database, Ban, Building2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { FilterListButton } from "@/components/coletor/FilterListButton";
@@ -26,6 +26,9 @@ interface OndaResumo {
   status: string;
   exibe_parceiro?: boolean;
   parceiro_nome?: string | null;
+  atribuida_ao_usuario?: boolean;
+  operador_nome?: string | null;
+  qtd_operadores?: number;
 }
 
 export function SeparacaoIniciarPage({ onNavigate }: Props) {
@@ -264,6 +267,8 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                     ? "bg-[hsl(222,40%,12%)] border-red-500/30"
                     : selectedId === onda.movimento_saida_id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
+                    : onda.atribuida_ao_usuario === true
+                    ? "bg-[hsl(222,40%,12%)] border-emerald-500/40"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
               >
@@ -281,6 +286,15 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                 <div className="text-xs text-[hsl(213,31%,55%)]">
                   Pedidos: <span className="font-bold text-[hsl(213,31%,91%)]">{onda.pedidos}</span>
                 </div>
+                {onda.operador_nome && (
+                  <div className={`flex items-center gap-1.5 text-xs min-w-0 ${onda.atribuida_ao_usuario === true ? "text-emerald-400" : "text-[hsl(213,31%,55%)]"}`}>
+                    <UserRound size={12} className="shrink-0" />
+                    <span className="truncate" title={onda.operador_nome}>
+                      {onda.atribuida_ao_usuario === true ? "Com você: " : "Com: "}
+                      <span className={`font-bold ${onda.atribuida_ao_usuario === true ? "" : "text-[hsl(213,31%,91%)]"}`}>{onda.operador_nome}</span>
+                    </span>
+                  </div>
+                )}
                 {onda.exibe_parceiro === true && onda.parceiro_nome && (
                   <div className="flex items-center gap-1.5 text-xs text-[hsl(213,31%,55%)] min-w-0">
                     <Building2 size={12} className="shrink-0" />
