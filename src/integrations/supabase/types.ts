@@ -11839,9 +11839,14 @@ export type Database = {
       }
       rpc_historico_movimento_com_saldo: {
         Args: {
+          p_apto?: number
+          p_armazem_id?: string
           p_data_fim: string
           p_data_inicio: string
           p_empresa_id: string
+          p_nivel?: number
+          p_predio?: number
+          p_rua?: number
           p_sku?: string
           p_tenant_id: string
           p_tipo_mov?: number
