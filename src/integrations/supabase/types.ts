@@ -8506,8 +8506,8 @@ export type Database = {
           parceiro: string | null
           serie_nf: string | null
           tenant_id: string | null
-          vendedor: string | null
           valor_pedido: number | null
+          vendedor: string | null
         }
         Relationships: [
           {
