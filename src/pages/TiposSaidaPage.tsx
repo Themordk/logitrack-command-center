@@ -5,6 +5,8 @@ import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { PADRAO_EXIBICAO_COLETOR } from "@/lib/exibicaoColetor";
 import { Save, Loader2 } from "lucide-react";
 
 export function TiposSaidaPage() {
@@ -38,7 +40,17 @@ export function TiposSaidaPage() {
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
     { key: "conferencia_checkout", label: "Conferência Checkout", type: "custom", render: (row) => boolBadge(row.conferencia_checkout) },
     { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
-    { key: "exibe_parceiro_separacao", label: "Exibe Parceiro", type: "custom", render: (row) => boolBadge(row.exibe_parceiro_separacao) },
+    { key: "exibe_parceiro_separacao", label: "Coletor", type: "custom", render: (row) => {
+      const opcoes = [
+        { ativo: row.exibe_parceiro_separacao, label: "Parc. Sep." },
+        { ativo: row.exibe_vendedor_separacao, label: "Vend. Sep." },
+        { ativo: row.exibe_parceiro_conferencia, label: "Parc. Conf." },
+        { ativo: row.exibe_vendedor_conferencia, label: "Vend. Conf." },
+      ].filter(({ ativo }) => ativo === true);
+      return opcoes.length ? <div className="flex flex-wrap gap-1">
+        {opcoes.map(({ label }) => <Badge key={label} variant="outline" className="text-[10px] bg-secondary text-foreground">{label}</Badge>)}
+      </div> : "—";
+    } },
     { key: "gera_mov_automatico", label: "Gera Mov. Automático", type: "custom", render: (row) => boolBadge(row.gera_mov_automatico) },
     { key: "libera_mov_automatico", label: "Libera Mov. Automático", type: "custom", render: (row) => boolBadge(row.libera_mov_automatico) },
     { key: "conferencia_cega", label: "Conf. Cega", type: "custom", render: (row) => boolBadge(row.conferencia_cega) },
@@ -56,10 +68,10 @@ export function TiposSaidaPage() {
 
   const openModal = (item: any | null) => {
     setEditItem(item);
-    setForm(item ? { ...item } : {
+    setForm(item ? { ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
-      separa_pulmao: false, exibe_parceiro_separacao: true, gera_volume_etapa: "CONFERÊNCIA",
+      separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
       gera_abastecimento_automatico: false,
       reserva_separacao_movimento: true, reserva_conferencia_movimento: true,
@@ -73,7 +85,7 @@ export function TiposSaidaPage() {
   const handleSave = async () => {
     if (!form.descricao) return;
     setSaving(true);
-    const payload: any = { ...form, empresa_id: empresaId };
+    const payload: any = { ...PADRAO_EXIBICAO_COLETOR, ...form, empresa_id: empresaId };
     if (!payload.realiza_conferencia) {
       payload.conferencia_checkout = false;
       payload.conferencia_cega = false;
@@ -176,13 +188,6 @@ export function TiposSaidaPage() {
                   <Switch checked={!!form.separa_pulmao} onCheckedChange={(v) => set("separa_pulmao", v)} />
                   <label className="text-sm text-foreground">Separa pulmão</label>
                 </div>
-                <div className="flex items-start gap-3">
-                  <Switch checked={!!form.exibe_parceiro_separacao} onCheckedChange={(v) => set("exibe_parceiro_separacao", v)} />
-                  <div>
-                    <label className="text-sm text-foreground">Exibir parceiro na separação</label>
-                    <p className="text-xs text-muted-foreground">Mostra o nome do cliente para o operador ao escolher a onda no coletor.</p>
-                  </div>
-                </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>
                   <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
@@ -190,6 +195,31 @@ export function TiposSaidaPage() {
                   </select>
                 </div>
               </div>
+            </div>
+
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Informações exibidas no coletor</p>
+              <p className="text-xs text-muted-foreground">Escolha o que o operador vê ao escolher a onda no coletor.</p>
+              <div className="grid grid-cols-3 items-center gap-x-2 gap-y-3">
+                <div />
+                <span className="text-xs text-muted-foreground uppercase text-center">Separação</span>
+                <span className={`text-xs text-muted-foreground uppercase text-center ${!form.realiza_conferencia ? "opacity-50" : ""}`}>Conferência</span>
+                {([
+                  ["Parceiro", "exibe_parceiro_separacao", "exibe_parceiro_conferencia"],
+                  ["Vendedor", "exibe_vendedor_separacao", "exibe_vendedor_conferencia"],
+                ] as const).map(([label, separacao, conferencia]) => (
+                  <div key={label} className="contents">
+                    <span className="text-sm text-foreground">{label}</span>
+                    <div className="flex justify-center">
+                      <Switch aria-label={`Exibir ${label.toLowerCase()} na separação`} checked={!!form[separacao]} onCheckedChange={(v) => set(separacao, v)} />
+                    </div>
+                    <div className={`flex justify-center ${!form.realiza_conferencia ? "opacity-50" : ""}`}>
+                      <Switch aria-label={`Exibir ${label.toLowerCase()} na conferência`} checked={!!form[conferencia]} onCheckedChange={(v) => set(conferencia, v)} disabled={!form.realiza_conferencia} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Em ondas com pedidos de tipos diferentes, a informação só aparece se todos os tipos permitirem.</p>
             </div>
 
             {/* ── Reserva de tarefas ── */}

@@ -4,7 +4,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, Database } from "lucide-react";
+import { Loader2, Database, Building2, BadgeDollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { FilterListButton } from "@/components/coletor/FilterListButton";
@@ -13,6 +13,7 @@ import { useOndasFilter } from "@/hooks/useOndasFilter";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
+import { deveExibirNomeColetor } from "@/lib/exibicaoColetor";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -24,6 +25,10 @@ interface OndaResumo {
   tipo_venda: string;
   prioridade: string;
   status: string;
+  exibe_parceiro?: boolean;
+  parceiro_nome?: string | null;
+  exibe_vendedor?: boolean;
+  vendedor_nome?: string | null;
 }
 
 export function ConferenciaIniciarPage({ onNavigate }: Props) {
@@ -228,6 +233,22 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
                 <div className="text-xs text-[hsl(213,31%,55%)]">
                   Pedidos: <span className="font-bold text-[hsl(213,31%,91%)]">{onda.pedidos}</span>
                 </div>
+                {deveExibirNomeColetor(onda.exibe_parceiro, onda.parceiro_nome) && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                    <Building2 size={12} className="shrink-0" />
+                    <span className="truncate" title={onda.parceiro_nome ?? undefined}>
+                      Parceiro: <span className="font-bold text-foreground">{onda.parceiro_nome}</span>
+                    </span>
+                  </div>
+                )}
+                {deveExibirNomeColetor(onda.exibe_vendedor, onda.vendedor_nome) && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                    <BadgeDollarSign size={12} className="shrink-0" />
+                    <span className="truncate" title={onda.vendedor_nome ?? undefined}>
+                      Vendedor: <span className="font-bold text-foreground">{onda.vendedor_nome}</span>
+                    </span>
+                  </div>
+                )}
                 <div className="text-xs text-[hsl(213,31%,45%)]">
                   Tipo: <span className="font-medium text-[hsl(213,31%,70%)]">{onda.tipo_venda}</span>
                 </div>
