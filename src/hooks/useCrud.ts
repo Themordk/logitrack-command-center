@@ -77,7 +77,8 @@ function buildSearchOrParts(
   search: string,
   searchFields?: string[],
 ): string[] {
-  const textFields = searchFields ? [...searchFields] : ["descricao"];
+  const SEM_DESCRICAO = new Set(["hu", "vw_volume_expedicao_lista"]);
+  const textFields = searchFields ? [...searchFields] : (SEM_DESCRICAO.has(table) ? [] : ["descricao"]);
   if (searchFields) return textFields.map((f) => `${f}.ilike.%${search}%`);
   // Extras por tabela (apenas quando não houver campos customizados)
   if (table === "hu") textFields.push("codigo_hu");
