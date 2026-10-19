@@ -7,7 +7,7 @@ import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 
 export function EmpresasPage() {
   const { tenantId } = useTenant();
-  const crud = useCrud({ table: "empresa", tenantId, orderBy: "razaosocial" });
+  const crud = useCrud({ table: "empresa", tenantId, orderBy: "razaosocial", searchFields: ["razaosocial", "cnpj", "codigo"] });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);

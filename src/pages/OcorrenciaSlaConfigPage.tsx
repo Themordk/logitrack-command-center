@@ -78,8 +78,6 @@ export function OcorrenciaSlaConfigPage() {
         columns={columns}
         data={crud.data}
         loading={crud.loading}
-        search={crud.search}
-        onSearchChange={crud.setSearch}
         page={crud.page}
         totalPages={crud.totalPages}
         total={crud.total}
@@ -89,7 +87,6 @@ export function OcorrenciaSlaConfigPage() {
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo SLA"
-        searchPlaceholder="Buscar SLA..."
       />
       <CrudModal
         open={modalOpen}
