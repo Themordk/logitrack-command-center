@@ -8,4 +8,5 @@
 - [x] Adicionar grade de opções no Tipo de Saída.
 - [x] Aplicar opções nas listas de Separação e Conferência.
 - [ ] Atualizar tipos gerados: arquivo protegido pela plataforma; não alterar banco.
-- [ ] Executar testes e verificar acesso às telas.
+- [x] Executar testes: 7 passaram; build OK.
+- [ ] Validar telas com usuário conectado: Supabase externo sem sessão de teste disponível.
