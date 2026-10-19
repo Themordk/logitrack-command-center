@@ -15,6 +15,7 @@ export function UsuariosPage() {
     table: "usuario",
     tenantId,
     orderBy: "nome",
+    searchFields: ["nome", "login", "email", "codigo_erp"],
     select: "*, usuario_perfil(perfil_id, perfil(nome))",
   });
   const [modalOpen, setModalOpen] = useState(false);
@@ -186,7 +187,7 @@ export function UsuariosPage() {
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Usuário"
-        searchPlaceholder="Buscar por nome..."
+        searchPlaceholder="Buscar por nome, login ou e-mail..."
         extraRowActions={(row) => (
           <button
             onClick={() => setResetConfirm(row)}

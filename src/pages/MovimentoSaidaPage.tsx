@@ -1230,6 +1230,7 @@ export function MovimentoSaidaPage() {
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Nota Fiscal</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Data Emissão</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Vendedor</th>
                             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
                             <th className={cn("px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase", podeRemoverDoc ? "w-20" : "w-12")}>Ações</th>
                           </tr>
@@ -1261,6 +1262,9 @@ export function MovimentoSaidaPage() {
                               </td>
                               <td className="px-3 py-2 text-xs text-muted-foreground">{formatDate(doc.data_emissao)}</td>
                               <td className="px-3 py-2 text-xs text-foreground">{doc.parceiro}</td>
+                              <td className="px-3 py-2 text-xs text-foreground max-w-[180px] truncate" title={doc.vendedor ?? undefined}>
+                                {doc.vendedor || "—"}
+                              </td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-foreground">{doc.valor_pedido ? Number(doc.valor_pedido).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>
                               <td className="px-3 py-1 text-center">
                                 <Button
@@ -1302,7 +1306,7 @@ export function MovimentoSaidaPage() {
                             );
                           })}
                           {tabDocs.length === 0 && (
-                            <tr><td colSpan={7} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
+                            <tr><td colSpan={8} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
                           )}
                         </tbody>
                       </table>

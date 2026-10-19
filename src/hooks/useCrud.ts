@@ -77,7 +77,8 @@ function buildSearchOrParts(
   search: string,
   searchFields?: string[],
 ): string[] {
-  const textFields = searchFields ? [...searchFields] : ["descricao"];
+  const SEM_DESCRICAO = new Set(["hu", "vw_volume_expedicao_lista"]);
+  const textFields = searchFields ? [...searchFields] : (SEM_DESCRICAO.has(table) ? [] : ["descricao"]);
   if (searchFields) return textFields.map((f) => `${f}.ilike.%${search}%`);
   // Extras por tabela (apenas quando não houver campos customizados)
   if (table === "hu") textFields.push("codigo_hu");
@@ -175,7 +176,8 @@ export function useCrud<T extends Record<string, any>>({
       });
 
       if (search) {
-        query = query.or(buildSearchOrParts(table, search, searchFields).join(","));
+        const orParts = buildSearchOrParts(table, search, searchFields);
+        if (orParts.length > 0) query = query.or(orParts.join(","));
       }
 
 
@@ -287,7 +289,8 @@ export function useCrud<T extends Record<string, any>>({
         query = query.eq(key, val);
       });
       if (search) {
-        query = query.or(buildSearchOrParts(table, search, searchFields).join(","));
+        const orParts = buildSearchOrParts(table, search, searchFields);
+        if (orParts.length > 0) query = query.or(orParts.join(","));
       }
       // Paginação estável por id (PostgREST limita a 1000 linhas por consulta).
       const { data: result, error } = await query.order("id").range(from, from + PAGE - 1);
