@@ -5,7 +5,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, Database, Ban, Building2, UserRound } from "lucide-react";
+import { Loader2, Database, Ban, Building2, UserRound, BadgeDollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { FilterListButton } from "@/components/coletor/FilterListButton";
@@ -14,6 +14,7 @@ import { useOndasFilter } from "@/hooks/useOndasFilter";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
+import { deveExibirNomeColetor } from "@/lib/exibicaoColetor";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -26,6 +27,8 @@ interface OndaResumo {
   status: string;
   exibe_parceiro?: boolean;
   parceiro_nome?: string | null;
+  exibe_vendedor?: boolean;
+  vendedor_nome?: string | null;
   atribuida_ao_usuario?: boolean;
   operador_nome?: string | null;
   qtd_operadores?: number;
@@ -300,6 +303,14 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                     <Building2 size={12} className="shrink-0" />
                     <span className="truncate" title={onda.parceiro_nome}>
                       Parceiro: <span className="font-bold text-[hsl(213,31%,91%)]">{onda.parceiro_nome}</span>
+                    </span>
+                  </div>
+                )}
+                {deveExibirNomeColetor(onda.exibe_vendedor, onda.vendedor_nome) && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                    <BadgeDollarSign size={12} className="shrink-0" />
+                    <span className="truncate" title={onda.vendedor_nome ?? undefined}>
+                      Vendedor: <span className="font-bold text-foreground">{onda.vendedor_nome}</span>
                     </span>
                   </div>
                 )}
