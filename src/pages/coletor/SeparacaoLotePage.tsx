@@ -9,6 +9,8 @@ import { parseError } from "@/lib/errorMapper";
 import { useOffline } from "@/contexts/OfflineContext";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { TarjaPendenciaPicking } from "@/components/coletor/TarjaPendenciaPicking";
+import { situacaoTarefa } from "@/lib/pendenciasPickingService";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -51,6 +53,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
 
   const loadLotes = async (t: any) => {
     setLoading(true);
+    if (situacaoTarefa(t) !== "OK") { setLotes([]); setLoading(false); return; }
 
     // Offline: usar os dados de lote que já vieram na tarefa
     if (!isOnline) {
@@ -155,6 +158,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
   };
 
   const handleConfirmar = () => {
+    if (situacaoTarefa(tarefa) !== "OK") { onNavigate("/coletor/separacao/endereco"); return; }
     if (selectedIdx === null) {
       result.showWarning("Selecione um lote para continuar.");
       return;
@@ -180,6 +184,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/endereco">
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
+        <TarjaPendenciaPicking situacao={situacaoTarefa(tarefa)} saldoPulmao={Number(tarefa.saldo_pulmao || 0)} abastecimentoPendente={tarefa.abastecimento_pendente} />
         {/* Produto info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-1">
           <div className="flex items-center gap-2 mb-1">
@@ -251,6 +256,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
         </ActionButton>
       </div>
 
+      <ResultDialog {...result.dialogProps} />
     </ColetorLayout>
   );
 }

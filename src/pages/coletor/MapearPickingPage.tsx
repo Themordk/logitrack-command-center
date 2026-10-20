@@ -4,12 +4,17 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { Loader2, CheckCircle, Package, Trash2 } from "lucide-react";
+import { ActionButton } from "@/components/coletor/ActionButton";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 type Step = "scan_endereco" | "scan_produto" | "form" | "done";
 
 export function MapearPickingPage({ onNavigate }: Props) {
+  const { can, loading: permissoesCarregando } = usePermissions();
+  const podeMapear = !permissoesCarregando && can("coletor.consulta", "READ");
   const tenantId = localStorage.getItem("core_tenant_id");
   const armazemId = localStorage.getItem("core_armazem_id");
   const empresaId = localStorage.getItem("core_empresa_id");
@@ -36,17 +41,22 @@ export function MapearPickingPage({ onNavigate }: Props) {
   // Produtos já mapeados no endereço escaneado
   const [produtosMapeados, setProdutosMapeados] = useState<any[]>([]);
   const [pendingDelete, setPendingDelete] = useState<any | null>(null);
+  const [voltarPara, setVoltarPara] = useState<string | null>(null);
+  const [tarefasVinculadas, setTarefasVinculadas] = useState(0);
 
   // Check if coming from Consulta Produto with pre-loaded product
   useEffect(() => {
-    const fromConsulta = sessionStorage.getItem("mapear_from_consulta");
+    const fromSeparacao = sessionStorage.getItem("mapear_from_separacao");
+    const fromConsulta = fromSeparacao || sessionStorage.getItem("mapear_from_consulta");
     if (fromConsulta) {
       sessionStorage.removeItem("mapear_from_consulta");
+      sessionStorage.removeItem("mapear_from_separacao");
       try {
         const parsed = JSON.parse(fromConsulta);
         if (parsed.produtoId && parsed.produtoNome) {
           setProdutoId(parsed.produtoId);
           setProdutoNome(parsed.produtoNome);
+          if (fromSeparacao) setVoltarPara(parsed.voltarPara || "/coletor/separacao/endereco");
         }
       } catch { /* ignore parse errors */ }
     }
@@ -138,6 +148,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
   };
 
   const handleSubmit = async () => {
+    if (!podeMapear) return;
     if (!estMinimo || !estMaximo) {
       setError("Preencha estoque mínimo e máximo.");
       return;
@@ -158,15 +169,18 @@ export function MapearPickingPage({ onNavigate }: Props) {
 
       if (rpcError) throw rpcError;
 
-      if (data && !data.sucesso) {
+      const resposta = parseRpcResult(data);
+      if (!resposta.sucesso) {
         // Produto já mapeado — mostrar mensagem amigável com endereço atual
-        setError(data.mensagem);
+        setError(resposta.mensagem);
         return;
       }
 
+      const vinculos = typeof data === "object" && data ? data.tarefas_vinculadas : undefined;
+      setTarefasVinculadas(Number(vinculos ?? resposta.dados?.tarefas_vinculadas ?? 0));
       setStep("done");
-    } catch (err: any) {
-      setError(err.message || "Erro ao salvar.");
+    } catch (err: unknown) {
+      setError(parseError(err, "mapear-picking").title);
     } finally {
       setSubmitting(false);
     }
@@ -282,7 +296,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
             </div>
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !podeMapear}
               className="w-full h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 transition-all"
             >
               {submitting && <Loader2 size={16} className="animate-spin" />}
@@ -296,10 +310,11 @@ export function MapearPickingPage({ onNavigate }: Props) {
         <div className="flex flex-col items-center justify-center py-12 gap-4">
           <CheckCircle size={48} className="text-[hsl(142,76%,36%)]" />
           <p className="text-lg font-bold text-white">Picking mapeado!</p>
+          {tarefasVinculadas > 0 && <p className="text-sm text-foreground text-center">{tarefasVinculadas.toLocaleString("pt-BR")} tarefa(s) de separação liberada(s) para este endereço</p>}
           <p className="text-sm text-[hsl(213,31%,55%)] text-center">{produtoNome}<br />→ {enderecoDesc}</p>
 
           {/* Botão primário: mapear outro produto no MESMO endereço */}
-          <button
+          {voltarPara ? <ActionButton onClick={() => { sessionStorage.setItem("coletor_separacao_recarregar", "1"); onNavigate(voltarPara); }}>Voltar à separação</ActionButton> : <button
             onClick={() => {
               setProdutoId(""); setProdutoNome(""); setScannedEan("");
               setEstMinimo(""); setEstMaximo(""); setTipoPicking("FRACIONADO");
@@ -309,7 +324,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
             className="w-full h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white font-bold text-sm active:scale-[0.98] transition-all"
           >
             Mapear outro produto
-          </button>
+          </button>}
 
           {/* Botão secundário: trocar endereço (reseta tudo) */}
           <button

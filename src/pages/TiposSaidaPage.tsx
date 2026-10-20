@@ -40,6 +40,7 @@ export function TiposSaidaPage() {
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
     { key: "conferencia_checkout", label: "Conferência Checkout", type: "custom", render: (row) => boolBadge(row.conferencia_checkout) },
     { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
+    { key: "libera_sem_saldo_picking", label: "Libera s/ Saldo Pick.", type: "custom", render: (row) => boolBadge(row.libera_sem_saldo_picking) },
     { key: "exibe_parceiro_separacao", label: "Coletor", type: "custom", render: (row) => {
       const opcoes = [
         { ativo: row.exibe_parceiro_separacao, label: "Parc. Sep." },
@@ -68,12 +69,13 @@ export function TiposSaidaPage() {
 
   const openModal = (item: any | null) => {
     setEditItem(item);
-    setForm(item ? { ...PADRAO_EXIBICAO_COLETOR, ...item } : {
+    setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
       gera_abastecimento_automatico: false,
+      libera_sem_saldo_picking: false,
       reserva_separacao_movimento: true, reserva_conferencia_movimento: true,
       ativo: true,
     });
@@ -187,6 +189,14 @@ export function TiposSaidaPage() {
                 <div className="flex items-center gap-3">
                   <Switch checked={!!form.separa_pulmao} onCheckedChange={(v) => set("separa_pulmao", v)} />
                   <label className="text-sm text-foreground">Separa pulmão</label>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Switch id="libera-sem-saldo-picking" checked={!!form.libera_sem_saldo_picking} onCheckedChange={(v) => set("libera_sem_saldo_picking", v)} />
+                    <label htmlFor="libera-sem-saldo-picking" className="text-sm text-foreground">Libera sem saldo no picking</label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Libera a onda mesmo com item zerado no picking ou sem picking mapeado. O item aparece no coletor com aviso e só pode ser coletado após abastecimento/mapeamento, ou cortado.</p>
+                  {form.libera_sem_saldo_picking && form.gera_abastecimento_automatico && <p className="text-xs text-muted-foreground">O abastecimento do pulmão para o picking será gerado automaticamente na liberação.</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>

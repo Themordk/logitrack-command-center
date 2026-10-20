@@ -14,6 +14,8 @@ import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { useOffline } from "@/contexts/OfflineContext";
 import { getEanFromCache, saveEanToCache, type EanCacheEntry } from "@/lib/offlineEanCache";
+import { situacaoTarefa } from "@/lib/pendenciasPickingService";
+import { TarjaPendenciaPicking } from "@/components/coletor/TarjaPendenciaPicking";
 
 
 
@@ -158,6 +160,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
   const handleScanEan = async (code: string) => {
     if (!tarefa) return;
+    if (situacaoTarefa(tarefa) !== "OK") { onNavigate("/coletor/separacao/endereco"); return; }
     setEanScanned(code);
     setEmbalagemInfo(null);
     setEanConfirmado(false);
@@ -224,6 +227,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
   const handleConfirmar = async () => {
     if (!tarefa || !quantidade || !usuarioId) return;
+    if (situacaoTarefa(tarefa) !== "OK") { onNavigate("/coletor/separacao/endereco"); return; }
     const qtd = Number(quantidade);
     if (isNaN(qtd) || qtd <= 0) {
       result.showWarning("Informe uma quantidade válida.");
@@ -282,6 +286,18 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       const rpcResult = parseRpcResult(offlineResult.data);
       if (!rpcResult.sucesso) {
         const codigo = rpcResult.codigo;
+        if (codigo === "AGUARDANDO_ABASTECIMENTO" || codigo === "PICKING_NAO_MAPEADO") {
+          const saldoPulmao = Number(rpcResult.dados?.saldo_pulmao || 0);
+          const lista = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]") as Array<{ tarefa_id: string }>;
+          const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
+          if (codigo === "AGUARDANDO_ABASTECIMENTO") sessionStorage.setItem("coletor_separacao_tarefa_idx", String(lista.length ? (idx + 1) % lista.length : 0));
+          sessionStorage.setItem("coletor_separacao_recarregar", "1");
+          result.showWarning(codigo === "PICKING_NAO_MAPEADO" ? "Produto sem picking mapeado" : rpcResult.mensagem, {
+            instruction: codigo === "PICKING_NAO_MAPEADO" ? "Mapeie um endereço de picking para liberar a coleta." : saldoPulmao > 0 ? `Pulmão tem ${saldoPulmao.toLocaleString("pt-BR")} un. Aguarde o abastecimento ou pule o item.` : "Sem saldo no pulmão. Registre o corte ou avise a supervisão.",
+            onClose: () => onNavigate("/coletor/separacao/endereco"),
+          });
+          return;
+        }
         if (codigo === "TAREFA_CANCELADA" || codigo === "TAREFA_JA_CONCLUIDA") {
           // Remove a tarefa da lista local para não reaparecer; ajusta o índice para avançar à seguinte
           try {
@@ -457,7 +473,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
     const keyProx =
       proxima?.endereco_alternativo_id || proxima?.endereco_id || proxima?.endereco || null;
 
-    if (keyAtual && keyProx && keyAtual === keyProx) {
+    if (keyAtual && keyProx && keyAtual === keyProx && situacaoTarefa(proxima) === "OK") {
       sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(proxima));
       setTarefa(proxima);
       setQtdSeparada(Number(proxima.separado || 0));
@@ -582,6 +598,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath={backPath}>
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
+        <TarjaPendenciaPicking situacao={situacaoTarefa(tarefa)} saldoPulmao={Number(tarefa.saldo_pulmao || 0)} abastecimentoPendente={tarefa.abastecimento_pendente} />
         {/* Product info */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
           <div className="flex items-center justify-between mb-1">
@@ -629,7 +646,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         </div>
 
         {/* EAN Scan */}
-        <ScanField label="Escanear EAN do Produto" lastScanned={eanScanned} onScan={handleScanEan} placeholder="Escaneie o código de barras" />
+        {situacaoTarefa(tarefa) === "OK" ? <ScanField label="Escanear EAN do Produto" lastScanned={eanScanned} onScan={handleScanEan} placeholder="Escaneie o código de barras" /> : <ActionButton onClick={() => onNavigate("/coletor/separacao/endereco")}>Voltar para atualizar tarefa</ActionButton>}
 
         {/* Embalagem info stat - always visible after scan */}
         {embalagemInfo && (
@@ -648,6 +665,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           <label className="text-xs text-[hsl(213,31%,55%)] block mb-2">Quantidade Coletada</label>
           <input
             type="number"
+            disabled={situacaoTarefa(tarefa) !== "OK"}
             value={quantidade}
             onChange={(e) => setQuantidade(e.target.value)}
             placeholder="0"
@@ -660,7 +678,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
       <div className="shrink-0 space-y-2">
         <ActionButton
           onClick={handleConfirmar}
-          disabled={!quantidade || confirming || !eanConfirmado}
+          disabled={!quantidade || confirming || !eanConfirmado || situacaoTarefa(tarefa) !== "OK"}
           loading={confirming}
           variant="success"
         >

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { OfflineStore, type PendingAction } from "@/lib/offlineStore";
+import { parseError } from "@/lib/errorMapper";
 
 export interface SyncProgress {
   current: number;
@@ -102,7 +103,9 @@ export function useOfflineSync(isOnline: boolean): OfflineSyncState {
           const payload: any = typeof data === "string" ? safeParse(data) : data;
           if (payload && typeof payload === "object" && !Array.isArray(payload) && payload.sucesso === false) {
             const definitiva = CODIGOS_FALHA_DEFINITIVA.has(String(payload.codigo || ""));
-            await OfflineStore.markActionFailed(item.id, payload.mensagem || "Ação rejeitada pelo servidor", definitiva);
+            const pendenciaPicking = payload.codigo === "AGUARDANDO_ABASTECIMENTO" || payload.codigo === "PICKING_NAO_MAPEADO";
+            const aviso = pendenciaPicking ? parseError(payload, "sincronizacao-separacao") : null;
+            await OfflineStore.markActionFailed(item.id, aviso ? `${aviso.title} ${aviso.instruction}` : payload.mensagem || "Ação rejeitada pelo servidor", definitiva);
             continue;
           }
           await OfflineStore.markActionSynced(item.id);
