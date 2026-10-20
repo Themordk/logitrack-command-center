@@ -12,19 +12,24 @@ import { formatDate } from "@/utils/dateTime";
 import { useOffline } from "@/contexts/OfflineContext";
 import { useCancelamentoRealtime } from "@/hooks/useCancelamentoRealtime";
 import { useFeedback } from "@/hooks/useFeedback";
+import { TarjaPendenciaPicking } from "@/components/coletor/TarjaPendenciaPicking";
+import { ordenarTarefasPicking, recarregarTarefasPicking, situacaoTarefa } from "@/lib/pendenciasPickingService";
+import type { CamposPendenciaPicking } from "@/lib/pendenciasPicking.types";
+import { usePermissions } from "@/contexts/PermissionsContext";
+import { Button } from "@/components/ui/button";
 
 
 
 interface Props { onNavigate: (path: string) => void; }
 
-interface Tarefa {
+interface Tarefa extends CamposPendenciaPicking {
   tarefa_id: string;
   produto_id?: string;
   sku?: string;
   produto?: string;
   referencia?: string;
   endereco?: string;
-  endereco_id?: string;
+  endereco_id?: string | null;
   setor?: string;
   armazem?: string;
   quantidade_requerida: number;
@@ -59,6 +64,9 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
   const result = useResultDialog({ coletorMode: true });
   const { isOnline } = useOffline();
+  const { can, loading: permissoesCarregando } = usePermissions();
+  const podeMapear = !permissoesCarregando && can("coletor.consulta", "READ");
+  const [recarregando, setRecarregando] = useState(false);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
 
@@ -80,14 +88,19 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     const raw = sessionStorage.getItem("coletor_separacao_tarefas");
     const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx") || "0");
     if (raw) {
-      const parsed = JSON.parse(raw) as Tarefa[];
-      parsed.sort((a, b) => (a.ordem_tarefa || 0) - (b.ordem_tarefa || 0));
+      const lista = JSON.parse(raw) as Tarefa[];
+      const idAtual = lista[idx]?.tarefa_id;
+      const parsed = ordenarTarefasPicking(lista);
 
       // Enrich tarefas with produto_id if missing (lookup by sku)
       enrichTarefas(parsed).then((enriched) => {
         setTarefas(enriched);
-        setCurrentIdx(idx);
+        setCurrentIdx(Math.max(0, enriched.findIndex(t => t.tarefa_id === idAtual)));
       });
+      if (sessionStorage.getItem("coletor_separacao_recarregar") === "1") {
+        sessionStorage.removeItem("coletor_separacao_recarregar");
+        void recarregar(idAtual);
+      }
     }
   }, []);
 
@@ -134,9 +147,48 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const requerLote = (tc?: string) => !!tc && ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tc);
 
   const tarefa = tarefas[currentIdx];
+  const situacao = tarefa ? situacaoTarefa(tarefa) : "OK";
+  const pendente = situacao !== "OK";
+  const recarregar = async (tarefaId?: string) => {
+    const tenant = localStorage.getItem("core_tenant_id");
+    const empresa = localStorage.getItem("core_empresa_id");
+    if (!isOnline || !tenant || !empresa || !movimentoSaidaId || !usuarioIdAtual) {
+      result.showWarning("Sem conexão: aguarde para atualizar as pendências.");
+      return;
+    }
+    setRecarregando(true);
+    try {
+      const novas = await recarregarTarefasPicking<Tarefa>(tenant, empresa, movimentoSaidaId, usuarioIdAtual);
+      const idx = Math.max(0, novas.findIndex(t => t.tarefa_id === tarefaId));
+      setTarefas(novas); setCurrentIdx(idx); setLastScanned("");
+      sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(novas));
+      sessionStorage.setItem("coletor_separacao_tarefa_idx", String(idx));
+    } catch (erro: unknown) { result.showError(erro, { context: "separacao-pendencias" }); }
+    finally { setRecarregando(false); }
+  };
+  const mapearPicking = () => {
+    if (!tarefa?.produto_id) return;
+    if (!podeMapear) {
+      result.showWarning("Peça à supervisão para mapear o picking deste produto."); return;
+    }
+    sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(tarefa));
+    sessionStorage.setItem("coletor_separacao_tarefa_idx", String(currentIdx));
+    sessionStorage.setItem("mapear_from_separacao", JSON.stringify({ produtoId: tarefa.produto_id, produtoNome: `${tarefa.sku || ""} - ${tarefa.produto || ""}`, voltarPara: "/coletor/separacao/endereco" }));
+    onNavigate("/coletor/consulta/mapear-picking");
+  };
+  const registrarCorte = () => {
+    if (!tarefa) return;
+    sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(tarefa));
+    sessionStorage.setItem("coletor_separacao_tarefa_idx", String(currentIdx));
+    onNavigate("/coletor/separacao/ocorrencias");
+  };
 
   const handleScan = async (code: string) => {
     if (!tarefa) return;
+    if (!tarefa.endereco_id || pendente) {
+      result.showWarning(!tarefa.endereco_id ? "Produto sem picking mapeado." : "Endereço sem saldo deste produto.", { instruction: "Atualize a tarefa após o abastecimento ou mapeamento." });
+      return;
+    }
     setLastScanned(code);
 
     try {
@@ -295,6 +347,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     if (!selectedEnderecoAlt || !tarefa) return;
     const endAlt = outrosEnderecos.find((e) => e.endereco_id === selectedEnderecoAlt);
     if (!endAlt) return;
+    if (pendente) { void recarregar(tarefa.tarefa_id); return; }
 
     const updatedTarefa = {
       ...tarefa,
@@ -348,7 +401,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     const atual = tarefa?.endereco || "";
     if (atual) seen.add(atual);
     for (let i = currentIdx + 1; i < tarefas.length && proximos.length < 2; i++) {
-      const end = tarefas[i]?.endereco || "—";
+      const end = tarefas[i]?.endereco || "s/ picking";
       if (!seen.has(end)) {
         seen.add(end);
         proximos.push({ endereco: end, idx: i + 1 });
@@ -399,6 +452,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
         {/* Product preview card */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-3 opacity-90">
+          <TarjaPendenciaPicking situacao={situacao} saldoPulmao={Number(tarefa.saldo_pulmao || 0)} abastecimentoPendente={tarefa.abastecimento_pendente} />
           <div className="flex items-center gap-2">
             <Package size={18} className="text-[hsl(217,91%,60%)]" />
             <span className="text-sm font-bold text-[hsl(213,31%,91%)]">Produto a coletar</span>
@@ -429,9 +483,9 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           <div className="text-xs text-[hsl(213,31%,91%)] leading-snug">{tarefa.produto || "—"}</div>
 
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
+            <div className={`rounded-xl p-2 text-center ${pendente ? "border-2 border-destructive bg-destructive/10" : "bg-card border border-border"}`}>
               <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Saldo</div>
-              <div className="text-base font-bold text-[hsl(217,91%,60%)]">{tarefa.saldo_endereco ?? 0}</div>
+              <div className={`text-base font-bold ${pendente ? "text-destructive" : "text-primary"}`}>{Number(tarefa.saldo_endereco || 0).toLocaleString("pt-BR")}</div>
             </div>
             <div className="bg-[hsl(222,40%,12%)] rounded-xl border border-[hsl(222,35%,22%)] p-2 text-center">
               <div className="text-[10px] uppercase text-[hsl(213,31%,45%)]">Requerida</div>
@@ -483,6 +537,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
                     <MapPinned size={16} className="text-[hsl(217,91%,60%)]" />
                     Outros Endereços do Produto
                   </button>
+                  {pendente && <>
+                    {!tarefa.endereco_id && <Button variant="ghost" className="w-full justify-start" onClick={mapearPicking}>Mapear picking</Button>}
+                    <Button variant="ghost" className="w-full justify-start" onClick={registrarCorte}>Registrar corte</Button>
+                  </>}
                 </div>
               )}
             </div>
@@ -491,17 +549,18 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           <div className="text-xs text-[hsl(213,31%,55%)]">Setor: <span className="font-bold text-[hsl(213,31%,91%)]">{tarefa.setor || "—"}</span></div>
           {/* Highlighted address */}
           <div className="mt-2 py-3 px-4 bg-[hsl(217,91%,50%)]/10 rounded-xl border border-[hsl(217,91%,50%)]/30 text-center">
-            <p className="text-2xl font-black text-white tracking-wide font-mono">{tarefa.endereco || "—"}</p>
+            <p className={tarefa.endereco_id ? "text-2xl font-black text-foreground tracking-wide font-mono" : "text-lg font-bold text-destructive"}>{tarefa.endereco_id ? tarefa.endereco || "—" : "Endereço não definido"}</p>
           </div>
         </div>
 
         {/* Scan field */}
-        <ScanField
+        {!tarefa.endereco_id ? <ActionButton onClick={mapearPicking}>Mapear picking</ActionButton> : pendente ? <ActionButton onClick={() => recarregar(tarefa.tarefa_id)} loading={recarregando}>Atualizar tarefa</ActionButton> : <ScanField
           label="Confirmar Endereço"
           lastScanned={lastScanned}
           onScan={handleScan}
           placeholder="Escaneie o endereço para confirmar"
-        />
+        />}
+        {!tarefa.endereco_id && <Button variant="outline" onClick={() => recarregar(tarefa.tarefa_id)} disabled={recarregando}>Atualizar tarefa</Button>}
 
         {/* Próximos endereços */}
         {proximosEnderecos.length > 0 && (
@@ -510,7 +569,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
             <span>Próximos:</span>
             {proximosEnderecos.map((p, i) => (
               <span key={`${p.endereco}-${p.idx}`} className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-md bg-[hsl(222,35%,15%)] text-[hsl(213,31%,55%)] font-mono text-[10px]">{p.endereco}</span>
+                <span className={`px-2 py-0.5 rounded-md font-mono text-[10px] ${p.endereco === "s/ picking" ? "bg-destructive/15 text-destructive" : "bg-secondary text-muted-foreground"}`}>{p.endereco}</span>
                 {i < proximosEnderecos.length - 1 && <span className="text-[hsl(213,31%,30%)]">→</span>}
               </span>
             ))}
@@ -522,7 +581,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       {/* Sticky skip button */}
       <div className="shrink-0">
         <ActionButton onClick={handlePular} variant="secondary">
-          <SkipForward size={18} /> Pular Endereço
+          <SkipForward size={18} /> {pendente ? "Pular (voltar depois)" : "Pular Endereço"}
         </ActionButton>
       </div>
 
