@@ -153,7 +153,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const tarefa = tarefas[currentIdx];
   const situacao = tarefa ? situacaoTarefa(tarefa) : "OK";
   const pendente = situacao !== "OK";
-  const recarregar = async (tarefaId?: string) => {
+  const recarregar = async (tarefaId?: string, aviso?: "atualizar" | "alternativo") => {
     const tenant = localStorage.getItem("core_tenant_id");
     const empresa = localStorage.getItem("core_empresa_id");
     if (!isOnline || !tenant || !empresa || !movimentoSaidaId || !usuarioIdAtual) {
@@ -167,18 +167,19 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       setTarefas(novas); setCurrentIdx(idx); setLastScanned("");
       sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(novas));
       sessionStorage.setItem("coletor_separacao_tarefa_idx", String(idx));
+      const atual = novas.find(t => t.tarefa_id === tarefaId);
+      if (aviso && atual) {
+        if (situacaoTarefa(atual) === "OK") {
+          setShowOutrosEnderecos(false);
+          toast.success(`Tarefa liberada: coletar em ${atual.endereco}`);
+        } else if (aviso === "alternativo") {
+          result.showWarning("Este endereço não pode ser usado para esta separação.", { instruction: "O tipo de saída não permite separar deste endereço. Pule o item ou registre o corte." });
+        } else {
+          result.showWarning("Ainda sem saldo para este produto.", { instruction: Number(atual.saldo_pulmao ?? 0) > 0 ? "Aguarde o abastecimento ou pule o item." : "Pule o item, registre o corte ou avise a supervisão." });
+        }
+      }
     } catch (erro: unknown) { result.showError(erro, { context: "separacao-pendencias" }); }
     finally { setRecarregando(false); }
-  };
-  const mapearPicking = () => {
-    if (!tarefa?.produto_id) return;
-    if (!podeMapear) {
-      result.showWarning("Peça à supervisão para mapear o picking deste produto."); return;
-    }
-    sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(tarefa));
-    sessionStorage.setItem("coletor_separacao_tarefa_idx", String(currentIdx));
-    sessionStorage.setItem("mapear_from_separacao", JSON.stringify({ produtoId: tarefa.produto_id, produtoNome: `${tarefa.sku || ""} - ${tarefa.produto || ""}`, voltarPara: "/coletor/separacao/endereco" }));
-    onNavigate("/coletor/consulta/mapear-picking");
   };
   const registrarCorte = () => {
     if (!tarefa) return;
@@ -351,7 +352,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     if (!selectedEnderecoAlt || !tarefa) return;
     const endAlt = outrosEnderecos.find((e) => e.endereco_id === selectedEnderecoAlt);
     if (!endAlt) return;
-    if (pendente) { void recarregar(tarefa.tarefa_id); return; }
+    if (pendente) { void recarregar(tarefa.tarefa_id, "alternativo"); return; }
 
     const updatedTarefa = {
       ...tarefa,
@@ -542,10 +543,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
                     <MapPinned size={16} className="text-[hsl(217,91%,60%)]" />
                     Outros Endereços do Produto
                   </button>
-                  {pendente && <>
-                    {!tarefa.endereco_id && <Button variant="ghost" className="w-full justify-start" onClick={mapearPicking}>Mapear picking</Button>}
-                    <Button variant="ghost" className="w-full justify-start" onClick={registrarCorte}>Registrar corte</Button>
-                  </>}
+                  {pendente && <Button variant="ghost" className="w-full justify-start" onClick={registrarCorte}>Registrar corte</Button>}
                 </div>
               )}
             </div>
@@ -559,13 +557,12 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
         </div>
 
         {/* Scan field */}
-        {!tarefa.endereco_id ? <ActionButton onClick={mapearPicking}>Mapear picking</ActionButton> : pendente ? <ActionButton onClick={() => recarregar(tarefa.tarefa_id)} loading={recarregando}>Atualizar tarefa</ActionButton> : <ScanField
+        {pendente ? <ActionButton onClick={() => recarregar(tarefa.tarefa_id, "atualizar")} loading={recarregando}>Atualizar tarefa</ActionButton> : <ScanField
           label="Confirmar Endereço"
           lastScanned={lastScanned}
           onScan={handleScan}
           placeholder="Escaneie o endereço para confirmar"
         />}
-        {!tarefa.endereco_id && <Button variant="outline" onClick={() => recarregar(tarefa.tarefa_id)} disabled={recarregando}>Atualizar tarefa</Button>}
 
         {/* Próximos endereços */}
         {proximosEnderecos.length > 0 && (
