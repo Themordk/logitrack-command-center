@@ -16,12 +16,12 @@ async function clicar(texto: RegExp) {
 }
 import { SeparacaoEnderecoPage } from "@/pages/coletor/SeparacaoEnderecoPage";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn(), navegar: vi.fn(), podeMapear: true, aviso: vi.fn() }));
+const mocks = vi.hoisted(() => ({ rpc: vi.fn(), navegar: vi.fn(), aviso: vi.fn() }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc } }));
 vi.mock("@/components/coletor/ColetorLayout", () => ({ ColetorLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 vi.mock("@/components/coletor/ScanField", () => ({ ScanField: ({ onScan }: { onScan: (s: string) => void }) => <input aria-label="scan" onChange={e => onScan(e.target.value)} /> }));
 vi.mock("@/contexts/OfflineContext", () => ({ useOffline: () => ({ isOnline: true }) }));
-vi.mock("@/contexts/PermissionsContext", () => ({ usePermissions: () => ({ can: () => mocks.podeMapear, loading: false }) }));
 vi.mock("@/hooks/useCancelamentoRealtime", () => ({ useCancelamentoRealtime: () => ({ notificacoes: [], dismissNotificacao: vi.fn() }) }));
 vi.mock("@/hooks/useFeedback", () => ({ useFeedback: () => ({ error: vi.fn() }) }));
 vi.mock("@/hooks/useResultDialog", () => ({ useResultDialog: () => ({ showWarning: mocks.aviso, showError: vi.fn(), dialogProps: {} }) }));
@@ -31,19 +31,35 @@ const tarefa = { tarefa_id: "sem-picking", produto_id: "produto", tipo_controle:
 describe("separação com pendências", () => {
   beforeEach(() => {
     sessionStorage.clear(); localStorage.clear(); mocks.rpc.mockReset(); mocks.navegar.mockReset();
-    mocks.podeMapear = true; mocks.aviso.mockReset();
+    mocks.aviso.mockReset();
     localStorage.setItem("core_tenant_id", "tenant"); localStorage.setItem("core_empresa_id", "empresa"); localStorage.setItem("core_usuario_id", "usuario");
     sessionStorage.setItem("coletor_separacao_movimento_id", "onda");
     sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify([tarefa]));
   });
   afterEach(() => { act(() => raiz?.unmount()); container?.remove(); });
-  it("não confirma endereço inexistente e leva produto preenchido ao mapeamento", async () => {
+  it("tarefa sem endereço mostra só Atualizar tarefa", async () => {
     await montar();
     expect(container.querySelector("input[aria-label=scan]")).toBeNull();
-    await clicar(/Mapear picking/);
-    expect(mocks.rpc).not.toHaveBeenCalled();
-    expect(JSON.parse(sessionStorage.getItem("mapear_from_separacao") || "{}").produtoId).toBe("produto");
-    expect(mocks.navegar).toHaveBeenCalledWith("/coletor/consulta/mapear-picking");
+    const botoes = Array.from(container.querySelectorAll("button")).map(b => b.textContent || "");
+    expect(botoes.some(t => /Mapear picking/.test(t))).toBe(false);
+    expect(botoes.filter(t => /Atualizar tarefa/.test(t))).toHaveLength(1);
+  });
+  it("Atualizar tarefa liberada mostra o scan e mantém a tarefa", async () => {
+    const lista = [tarefa, { ...tarefa, tarefa_id: "outra", ordem_tarefa: 2 }];
+    sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(lista));
+    mocks.rpc.mockResolvedValue({ error: null, data: [{ ...tarefa, tarefa_id: "outra", situacao_saldo: "SEM_PICKING_MAPEADO" }, { ...tarefa, endereco_id: "picking", endereco: "R01", situacao_saldo: "OK" }] });
+    await montar();
+    await clicar(/Atualizar tarefa/);
+    expect(container.querySelector("input[aria-label=scan]")).not.toBeNull();
+    const idx = Number(sessionStorage.getItem("coletor_separacao_tarefa_idx"));
+    expect(JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]")[idx].tarefa_id).toBe("sem-picking");
+    expect(mocks.aviso).not.toHaveBeenCalled();
+  });
+  it("Atualizar tarefa ainda pendente avisa", async () => {
+    mocks.rpc.mockResolvedValue({ error: null, data: [tarefa] });
+    await montar();
+    await clicar(/Atualizar tarefa/);
+    expect(mocks.aviso).toHaveBeenCalledWith("Ainda sem saldo para este produto.", expect.anything());
   });
   it("pula sem excluir a tarefa pendente", async () => {
     const lista = [tarefa, { ...tarefa, tarefa_id: "outra", ordem_tarefa: 2 }];
@@ -52,14 +68,6 @@ describe("separação com pendências", () => {
     await clicar(/Pular/);
     expect(sessionStorage.getItem("coletor_separacao_tarefa_idx")).toBe("1");
     expect(JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]")).toHaveLength(2);
-  });
-  it("sem acesso às consultas não abre o mapeamento", async () => {
-    mocks.podeMapear = false;
-    await montar();
-    await clicar(/Mapear picking/);
-    expect(mocks.navegar).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem("mapear_from_separacao")).toBeNull();
-    expect(mocks.aviso).toHaveBeenCalled();
   });
   it("retorno do mapeamento recarrega mantendo o id da tarefa após reordenar", async () => {
     sessionStorage.setItem("coletor_separacao_recarregar", "1");
