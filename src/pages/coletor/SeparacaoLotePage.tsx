@@ -256,6 +256,7 @@ export function SeparacaoLotePage({ onNavigate }: Props) {
         </ActionButton>
       </div>
 
+      <ResultDialog {...result.dialogProps} />
     </ColetorLayout>
   );
 }

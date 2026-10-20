@@ -92,14 +92,15 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       const idAtual = lista[idx]?.tarefa_id;
       const parsed = ordenarTarefasPicking(lista);
 
-      // Enrich tarefas with produto_id if missing (lookup by sku)
-      enrichTarefas(parsed).then((enriched) => {
-        setTarefas(enriched);
-        setCurrentIdx(Math.max(0, enriched.findIndex(t => t.tarefa_id === idAtual)));
-      });
       if (sessionStorage.getItem("coletor_separacao_recarregar") === "1") {
         sessionStorage.removeItem("coletor_separacao_recarregar");
         void recarregar(idAtual);
+      } else {
+        // Não deixar o cache antigo sobrescrever a resposta recarregada.
+        enrichTarefas(parsed).then((enriched) => {
+          setTarefas(enriched);
+          setCurrentIdx(Math.max(0, enriched.findIndex(t => t.tarefa_id === idAtual)));
+        });
       }
     }
   }, []);

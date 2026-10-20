@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ordenarTarefasPicking, quantidadeAbastecimento, situacaoTarefa } from "../pendenciasPickingService";
+import { parseError } from "../errorMapper";
 describe("pendências de picking", () => {
   it("sem endereço exige mapeamento offline", () => expect(situacaoTarefa({ endereco_id: null })).toBe("SEM_PICKING_MAPEADO"));
   it("picking zerado aguarda abastecimento", () => expect(situacaoTarefa({ endereco_id: "p", saldo_endereco: 0 })).toBe("SEM_SALDO_PICKING"));
@@ -9,4 +10,9 @@ describe("pendências de picking", () => {
     expect(tarefas.map(t => t.tarefa_id)).toEqual(["ok1", "ok2", "pendente"]);
   });
   it("abastece no máximo o saldo da origem ou o faltante", () => { expect(quantidadeAbastecimento(10, 8)).toBe(8); expect(quantidadeAbastecimento(2, 8)).toBe(2); });
+  it.each(["AGUARDANDO_ABASTECIMENTO", "PICKING_NAO_MAPEADO", "LIBERADA_COM_AVISOS", "VALIDACAO_BLOQUEOU"])("%s é recusa de negócio, não erro de sistema", codigo => {
+    const erro = parseError({ sucesso: false, codigo, mensagem: "" });
+    expect(erro.type).toBe("business");
+    expect(erro.errorCode).toBe(codigo);
+  });
 });
