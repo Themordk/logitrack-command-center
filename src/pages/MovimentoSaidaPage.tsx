@@ -24,6 +24,9 @@ import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
+import { ChipPendenciaPicking } from "@/components/movimentos/ChipPendenciaPicking";
+import { listarPendenciasPicking, quantidadeAbastecimento } from "@/lib/pendenciasPickingService";
+import type { AvisoLiberacao } from "@/lib/pendenciasPicking.types";
 
 interface OndaCarregamentoListItem {
   id: string;
@@ -118,6 +121,9 @@ interface OcorrenciaItem {
   qtd_esperada?: number;
   saldo_picking?: number;
   endereco_picking?: string;
+  endereco_picking_id?: string | null;
+  qtd_faltante?: number;
+  abastecimento_id?: string | null;
   saldo_pulmao?: number;
   enderecos_bloqueados?: Array<{
     endereco_id: string;
@@ -140,6 +146,10 @@ interface OcorrenciaItem {
 
 interface LiberarResult {
   sucesso: boolean;
+  codigo?: string;
+  avisos?: AvisoLiberacao[];
+  libera_sem_saldo_picking?: boolean;
+  itens_ja_cobertos?: number;
   mensagem: string;
   tipo_ocorrencia?: string;
   itens?: OcorrenciaItem[];
@@ -160,12 +170,13 @@ interface MotivoOcorrencia {
 }
 
 const normalizeOccurrenceType = (tipo?: string | null) => (tipo || "").trim().toUpperCase();
-const isSaldoInsuficientePicking = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SALDO_PICKING_INSUFICIENTE";
+const isSaldoInsuficientePicking = (tipo?: string | null) => ["SALDO_PICKING_INSUFICIENTE", "SEM_SALDO_PICKING"].includes(normalizeOccurrenceType(tipo));
+const isSemPickingMapeado = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SEM_PICKING_MAPEADO";
 const isEnderecoBloqueado = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "ESTOQUE_ENDERECO_BLOQUEADO";
 const isShelfLifeInsuficiente = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SHELF_LIFE_INSUFICIENTE";
 
 export function MovimentoSaidaPage() {
-  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, usuarioId, empresaVersion } = useTenant();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedMov, setSelectedMov] = useState<MovSaida | null>(null);
   const [page, setPage] = useState(1);
@@ -307,6 +318,24 @@ export function MovimentoSaidaPage() {
   const total = listRows[0]?.total_registros ?? 0;
   const loading = listQuery.isLoading;
   const movIdsKey = useMemo(() => listRows.map((r) => r.id).join(","), [listRows]);
+  const ondasPendentesIds = useMemo(() => [...new Set([
+    ...listRows.filter(r => ["LIBERADO", "EM_PICKING"].includes(r.status)).map(r => r.id),
+    ...(selectedMov && ["LIBERADO", "EM_PICKING"].includes(selectedMov.status) ? [selectedMov.id] : []),
+  ])].sort(), [listRows, selectedMov]);
+  const pendenciasQuery = useQuery({
+    queryKey: ["onda-pendencias-picking", tenantId, empresaId, empresaVersion, ondasPendentesIds],
+    queryFn: () => tenantId ? listarPendenciasPicking(tenantId, ondasPendentesIds) : Promise.resolve([]),
+    enabled: !!tenantId && !!empresaId && ondasPendentesIds.length > 0,
+    staleTime: 30_000,
+  });
+  const pendencias = pendenciasQuery.data || [];
+  const [abastecimentosGerados, setAbastecimentosGerados] = useState<Set<string>>(new Set());
+  const abrirDialogAvisos = (resultado: LiberarResult, movId: string) => {
+    setLiberarResult(resultado); setLiberarMovId(movId); setLiberarDialogOpen(true);
+  };
+  const abrirPickingProduto = (produtoId: string) => {
+    window.location.hash = `#/dados-mestres/produtos?produto=${encodeURIComponent(produtoId)}&aba=picking`;
+  };
 
   const opsQuery = useQuery({
     queryKey: ["ondas-carregamento-ops", tenantId, movIdsKey],
@@ -387,10 +416,11 @@ export function MovimentoSaidaPage() {
   }, [movimentos, filterErp]);
 
   const fetchMovimentos = useCallback(() => {
+    void queryClientRemocao.invalidateQueries({ queryKey: ["onda-pendencias-picking"] });
     listQuery.refetch();
     opsQuery.refetch();
     tipoSaidaMapQuery.refetch();
-  }, [listQuery, opsQuery, tipoSaidaMapQuery]);
+  }, [listQuery, opsQuery, tipoSaidaMapQuery, queryClientRemocao]);
 
   // Items tab via RPC (lazy)
   const itemsQuery = useQuery({
@@ -490,13 +520,16 @@ export function MovimentoSaidaPage() {
       if (error) throw error;
 
       // A RPC retorna jsonb — Supabase entrega como objeto diretamente
-      const result = data as LiberarResult & { codigo?: string; itens_ja_cobertos?: number };
+      const result = parseRpcResult(data) as LiberarResult;
 
       if (result.sucesso) {
         const pdv = result.pdv;
         const cobertos = Number(result.itens_ja_cobertos || 0);
         const sufixoCobertos = cobertos > 0 ? ` (${cobertos} item(ns) já estavam cobertos por tarefas existentes)` : "";
-        if (pdv && pdv.total_itens_pdv > 0) {
+        if (result.codigo === "LIBERADA_COM_AVISOS" && result.avisos?.length) {
+          const sufixoPdv = pdv && pdv.total_itens_pdv > 0 ? ` — PDV: ${pdv.total_auto_separados} auto-separado(s), ${pdv.total_parciais} parcial(is), ${pdv.total_sem_saldo} sem saldo` : "";
+          toast.warning(`Onda #${mov?.numero_onda || ""} liberada · ${result.avisos.length} item(ns) com pendência de picking/saldo${sufixoPdv}${sufixoCobertos}`, { duration: 8000, action: { label: "Ver itens", onClick: () => abrirDialogAvisos(result, movId) } });
+        } else if (pdv && pdv.total_itens_pdv > 0) {
           toast.success(
             `${result.mensagem || "Liberado para separação!"} — PDV: ${pdv.total_auto_separados} auto-separado(s)` +
             (pdv.total_parciais > 0 ? `, ${pdv.total_parciais} parcial(is)` : "") +
@@ -670,19 +703,31 @@ export function MovimentoSaidaPage() {
     }
   };
 
-  const handleAbastecimentoItem = async (item: OcorrenciaItem) => {
-    if (!liberarMovId || !tenantId || !item.produto_id) return;
+  const handleAbastecimentoItem = async (item: OcorrenciaItem | AvisoLiberacao) => {
+    if (!liberarMovId || !tenantId || !item.produto_id || abastItemLoading) return;
+    const destino = item.endereco_picking_id;
+    const armazemAtual = armazemId || localStorage.getItem("core_armazem_id");
+    if (!destino || !armazemAtual) { toast.warning(!destino ? "Produto sem picking mapeado" : "Selecione um armazém."); return; }
     setAbastItemLoading(item.produto_id);
     try {
-      const armazemId = localStorage.getItem("core_armazem_id") || "";
+      const { data: origens, error: erroOrigem } = await supabase.from("estoque_geral")
+        .select("endereco_id, quantidade_disponivel, endereco:endereco_id!inner(tipo_endereco, situacao, armazem_id)")
+        .eq("tenant_id", tenantId).eq("empresa_id", empresaId || "").eq("produto_id", item.produto_id)
+        .eq("endereco.tipo_endereco", "PULMAO").eq("endereco.armazem_id", armazemAtual)
+        .in("endereco.situacao", ["LIVRE", "OCUPADO"]).gt("quantidade_disponivel", 0)
+        .order("data_validade", { ascending: true, nullsFirst: false }).order("atualizado_em", { ascending: true }).order("id").limit(1);
+      if (erroOrigem) throw erroOrigem;
+      const origem = origens?.[0];
+      const quantidade = quantidadeAbastecimento(Number(item.qtd_faltante ?? Math.max(0, Number(item.qtd_esperada || 0) - Number(item.saldo_picking || 0))), Number(origem?.quantidade_disponivel || 0));
+      if (!origem?.endereco_id || quantidade <= 0) { toast.warning("Sem saldo disponível no pulmão deste armazém."); return; }
       const { data, error } = await supabase.rpc("fn_gerar_abastecimento" as any, {
         p_tenant_id: tenantId,
         p_empresa_id: empresaId,
-        p_armazem_id: armazemId,
-        p_tipo: "PREVENTIVO",
+        p_armazem_id: armazemAtual,
+        p_tipo: "CORRETIVO",
         p_usuario_id: usuarioId,
         p_simular: false,
-        p_itens: [{ produto_id: item.produto_id, endereco_picking: item.endereco_picking }],
+        p_itens: [{ produto_id: item.produto_id, origem: origem.endereco_id, destino, quantidade }],
       });
       if (error) throw error;
       if (!data?.sucesso) {
@@ -690,6 +735,8 @@ export function MovimentoSaidaPage() {
         return;
       }
       toast.success(data.mensagem || "Abastecimento gerado para o item!");
+      setAbastecimentosGerados(prev => new Set(prev).add(`${liberarMovId}:${item.produto_id}`));
+      void queryClientRemocao.invalidateQueries({ queryKey: ["onda-pendencias-picking"] });
       // Refresh saldo
       if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens, "itens");
       if (liberarResult?.ocorrencias) {
@@ -902,6 +949,7 @@ export function MovimentoSaidaPage() {
                       <div className="flex items-center gap-1">
                         {hasErp && <ErpStatusBadge status={mov.status} tipo="saida" compact />}
                         <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
+                        {pendencias.some(p => p.movimento_saida_id === mov.id) && <span className="text-[10px] px-1 py-0.5 rounded border border-destructive/30 bg-destructive/15 text-destructive">{pendencias.filter(p => p.movimento_saida_id === mov.id).length} sem saldo</span>}
                         <div className="relative">
                           <button
                             onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === mov.id ? null : mov.id); }}
@@ -1064,6 +1112,7 @@ export function MovimentoSaidaPage() {
                               "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
                             )}>{item.status}</span>
                           ) : "—"}
+                          {pendencias.filter(p => p.movimento_saida_item_id === item.movimento_item_id || p.movimento_saida_item_id === item.id).map(p => <Tooltip key={p.tarefa_id}><TooltipTrigger asChild><span className="inline-flex ml-1"><ChipPendenciaPicking situacao={p.situacao_saldo} /></span></TooltipTrigger><TooltipContent>{p.endereco || "Sem picking"} · Pulmão: {Number(p.saldo_pulmao).toLocaleString("pt-BR")} un{p.abastecimento_pendente ? " · abastecimento em andamento" : ""}</TooltipContent></Tooltip>)}
                         </td>
                         <td className="px-3 py-2 text-center relative">
                           <button
@@ -1398,17 +1447,22 @@ export function MovimentoSaidaPage() {
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-auto">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-destructive/15 flex items-center justify-center">
-                <AlertTriangle size={20} className="text-destructive" />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${liberarResult?.sucesso ? "bg-[hsl(var(--status-busy))]/15" : "bg-destructive/15"}`}>
+                <AlertTriangle size={20} className={liberarResult?.sucesso ? "text-[hsl(var(--status-busy))]" : "text-destructive"} />
               </div>
               <div>
-                <DialogTitle>Não foi possível liberar</DialogTitle>
+                <DialogTitle>{liberarResult?.sucesso ? "Onda liberada com pendências" : "Não foi possível liberar"}</DialogTitle>
                 <DialogDescription className="mt-1">
                   {liberarResult?.mensagem}
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
+
+          {liberarResult?.sucesso && liberarResult.avisos?.length && <div className="overflow-x-auto border border-border rounded-lg"><table className="w-full text-xs"><thead className="bg-secondary/40"><tr>{["SKU", "Tipo", "Descrição", "Endereço picking", "Faltante", "Saldo pulmão", "Ação"].map(coluna => <th key={coluna} className="px-3 py-2 text-left">{coluna}</th>)}</tr></thead><tbody>{liberarResult.avisos.map((aviso, idx) => <tr key={`${aviso.produto_id}-${idx}`} className="border-t border-border/40">
+            <td className="px-3 py-2 font-mono">{aviso.sku}</td><td className="px-3 py-2"><ChipPendenciaPicking situacao={aviso.tipo} /></td><td className="px-3 py-2">{aviso.descricao}</td><td className="px-3 py-2">{aviso.endereco_picking || "—"}</td><td className="px-3 py-2 text-destructive">{Number(aviso.qtd_faltante).toLocaleString("pt-BR")}</td><td className="px-3 py-2">{Number(aviso.saldo_pulmao).toLocaleString("pt-BR")}</td>
+            <td className="px-3 py-2">{isSemPickingMapeado(aviso.tipo) ? aviso.tarefa_sem_endereco ? <Button size="sm" variant="outline" disabled={!canRemover("web.dados-mestres.produtos", "READ")} onClick={() => abrirPickingProduto(aviso.produto_id)}>Mapear picking</Button> : "Tarefa no endereço com saldo" : aviso.abastecimento_id || abastecimentosGerados.has(`${liberarMovId}:${aviso.produto_id}`) ? <span className="text-[hsl(var(--status-free))]">Abastecimento gerado</span> : aviso.saldo_pulmao > 0 ? <Tooltip><TooltipTrigger asChild><span><Button size="sm" variant="outline" disabled={!aviso.endereco_picking_id || !!abastItemLoading} onClick={() => handleAbastecimentoItem(aviso)}>{abastItemLoading === aviso.produto_id ? <Loader2 size={14} className="animate-spin" /> : "Abastecer"}</Button></span></TooltipTrigger><TooltipContent>{aviso.endereco_picking_id ? "Abastecer picking" : "Produto sem picking mapeado"}</TooltipContent></Tooltip> : <span className="text-destructive">Sem saldo no pulmão</span>}</td>
+          </tr>)}</tbody></table></div>}
 
           {/* Ocorrências list from new JSON format */}
           {liberarResult?.ocorrencias && liberarResult.ocorrencias.length > 0 && (() => {
@@ -1666,6 +1720,7 @@ export function MovimentoSaidaPage() {
             </div>
           )}
 
+          {!liberarResult?.sucesso && liberarResult?.libera_sem_saldo_picking === false && liberarResult.ocorrencias?.some(oc => ["SEM_ESTOQUE_DISPONIVEL", "PICKING_INVALIDO"].includes(normalizeOccurrenceType(oc.tipo))) && <p className="text-xs text-muted-foreground">Para liberar mesmo assim, ative <strong>Libera sem saldo no picking</strong> no Tipo de Saída.{canRemover("web.dados-mestres.tipos-saida", "READ") && <Button variant="link" size="sm" onClick={() => { window.location.hash = "#/dados-mestres/tipos-saida"; }}>Tipos de Saída</Button>}</p>}
           {/* Footer com ação de override de shelf life */}
           {liberarResult?.ocorrencias &&
            liberarResult.ocorrencias.length > 0 &&

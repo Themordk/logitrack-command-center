@@ -19,6 +19,7 @@ import { parseError } from "@/lib/errorMapper";
 import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 import { useRegrasPadraoProduto, PadraoCampoIndicador } from "@/pages/integracao/PadraoCampoIndicador";
 import { CAMPOS_PADRAO_PRODUTO } from "@/pages/integracao/produtoPadroes.types";
+import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
 
 const TIPO_PICKING_OPTIONS = [
   { value: "MASTER", label: "Master" },
@@ -31,7 +32,7 @@ const formatTipoPicking = (v?: string) =>
 // ─── Produto Detail Modal with Tabs ────────────────────────────────
 function ProdutoDetailModal({
   open, onClose, produto, tenantId, armazemId, empresaId, usuarioId, onSaved,
-  grupoOptions, subgrupoOptions, parceiroOptions, onNavigate,
+  grupoOptions, subgrupoOptions, parceiroOptions, onNavigate, abaInicial = "cadastro",
 }: {
   open: boolean; onClose: () => void; produto: any | null;
   tenantId: string; armazemId: string | null; empresaId: string | null;
@@ -41,6 +42,7 @@ function ProdutoDetailModal({
   subgrupoOptions: { value: string; label: string }[];
   parceiroOptions: { value: string; label: string }[];
   onNavigate?: (path: string) => void;
+  abaInicial?: string;
 }) {
   const [tab, setTab] = useState("cadastro");
   const [form, setForm] = useState<Record<string, any>>({});
@@ -94,7 +96,7 @@ function ProdutoDetailModal({
 
   useEffect(() => {
     if (open) {
-      setTab("cadastro");
+      setTab(abaInicial);
       if (produto) {
         setForm({ ...produto });
       } else {
@@ -110,7 +112,7 @@ function ProdutoDetailModal({
       }
       setErrors({});
     }
-  }, [open, produto]);
+  }, [open, produto, abaInicial]);
 
   // Load embalagens when tab changes
   useEffect(() => {
@@ -696,6 +698,26 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
+  const [abaInicial, setAbaInicial] = useState("cadastro");
+  useEffect(() => {
+    let cancelado = false;
+    const lerProduto = async () => {
+      const produtoId = getRouteParam("produto");
+      if (!produtoId || !tenantId || !empresaId) return;
+      const aba = getRouteParam("aba");
+      try {
+        const { data, error } = await supabase.from("produto").select("*").eq("id", produtoId).eq("tenant_id", tenantId).eq("empresa_id", empresaId).maybeSingle();
+        if (error) throw error;
+        if (cancelado) return;
+        if (!data) { toast.warning("Produto não encontrado nesta empresa."); return; }
+        setAbaInicial(aba === "picking" ? "picking" : "cadastro"); setEditItem(data); setModalOpen(true);
+        clearRouteParam("produto"); clearRouteParam("aba");
+      } catch (erro: unknown) { if (!cancelado) toast.error(parseError(erro, "produto-picking").title); }
+    };
+    void lerProduto();
+    window.addEventListener("hashchange", lerProduto);
+    return () => { cancelado = true; window.removeEventListener("hashchange", lerProduto); };
+  }, [tenantId, empresaId, empresaVersion]);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
@@ -904,7 +926,8 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       {tenantId && (
         <ProdutoDetailModal
           open={modalOpen}
-          onClose={() => setModalOpen(false)}
+          onClose={() => { setModalOpen(false); setAbaInicial("cadastro"); }}
+          abaInicial={abaInicial}
           produto={editItem}
           tenantId={tenantId}
           armazemId={armazemId}
