@@ -5,13 +5,16 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { Loader2, CheckCircle, Package, Trash2 } from "lucide-react";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { parseRpcResult } from "@/lib/errorMapper";
+import { parseError, parseRpcResult } from "@/lib/errorMapper";
+import { usePermissions } from "@/contexts/PermissionsContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
 type Step = "scan_endereco" | "scan_produto" | "form" | "done";
 
 export function MapearPickingPage({ onNavigate }: Props) {
+  const { can, loading: permissoesCarregando } = usePermissions();
+  const podeMapear = !permissoesCarregando && can("coletor.consulta", "READ");
   const tenantId = localStorage.getItem("core_tenant_id");
   const armazemId = localStorage.getItem("core_armazem_id");
   const empresaId = localStorage.getItem("core_empresa_id");
@@ -145,6 +148,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
   };
 
   const handleSubmit = async () => {
+    if (!podeMapear) return;
     if (!estMinimo || !estMaximo) {
       setError("Preencha estoque mínimo e máximo.");
       return;
@@ -175,8 +179,8 @@ export function MapearPickingPage({ onNavigate }: Props) {
       const vinculos = typeof data === "object" && data ? data.tarefas_vinculadas : undefined;
       setTarefasVinculadas(Number(vinculos ?? resposta.dados?.tarefas_vinculadas ?? 0));
       setStep("done");
-    } catch (err: any) {
-      setError(err.message || "Erro ao salvar.");
+    } catch (err: unknown) {
+      setError(parseError(err, "mapear-picking").title);
     } finally {
       setSubmitting(false);
     }
@@ -292,7 +296,7 @@ export function MapearPickingPage({ onNavigate }: Props) {
             </div>
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !podeMapear}
               className="w-full h-12 rounded-xl bg-[hsl(217,91%,50%)] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 transition-all"
             >
               {submitting && <Loader2 size={16} className="animate-spin" />}

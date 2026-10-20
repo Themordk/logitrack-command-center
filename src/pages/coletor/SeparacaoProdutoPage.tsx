@@ -646,7 +646,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
         </div>
 
         {/* EAN Scan */}
-        <ScanField label="Escanear EAN do Produto" lastScanned={eanScanned} onScan={handleScanEan} placeholder="Escaneie o código de barras" />
+        {situacaoTarefa(tarefa) === "OK" ? <ScanField label="Escanear EAN do Produto" lastScanned={eanScanned} onScan={handleScanEan} placeholder="Escaneie o código de barras" /> : <ActionButton onClick={() => onNavigate("/coletor/separacao/endereco")}>Voltar para atualizar tarefa</ActionButton>}
 
         {/* Embalagem info stat - always visible after scan */}
         {embalagemInfo && (

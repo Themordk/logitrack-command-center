@@ -98,8 +98,11 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
       } else {
         // Não deixar o cache antigo sobrescrever a resposta recarregada.
         enrichTarefas(parsed).then((enriched) => {
+          const idxAtual = Math.max(0, enriched.findIndex(t => t.tarefa_id === idAtual));
           setTarefas(enriched);
-          setCurrentIdx(Math.max(0, enriched.findIndex(t => t.tarefa_id === idAtual)));
+          setCurrentIdx(idxAtual);
+          sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(enriched));
+          sessionStorage.setItem("coletor_separacao_tarefa_idx", String(idxAtual));
         });
       }
     }
@@ -367,9 +370,10 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
     return (
       <ColetorLayout title={`Separação #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/separacao/iniciar">
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <p className="text-sm text-[hsl(213,31%,55%)]">Nenhuma tarefa pendente.</p>
+          <p className="text-sm text-muted-foreground">{recarregando ? "Carregando…" : "Nenhuma tarefa pendente."}</p>
           <ActionButton onClick={() => onNavigate("/coletor/separacao/iniciar")}>Voltar</ActionButton>
         </div>
+        <ResultDialog {...result.dialogProps} />
       </ColetorLayout>
     );
   }
