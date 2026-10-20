@@ -939,6 +939,136 @@ export type Database = {
           },
         ]
       }
+      documento_saida_cancelamento: {
+        Row: {
+          codigo_erp: string | null
+          codigo_recusa: string | null
+          conexao_id: string | null
+          created_at: string
+          documento_saida_id: string
+          empresa_id: string
+          endereco_cancelamento_id: string | null
+          estagio: string | null
+          id: string
+          id_alteracao: string | null
+          idempotency_key: string | null
+          impacto: Json
+          mensagem: string | null
+          motivo_ocorrencia_id: string | null
+          motivo_texto: string | null
+          movimento_saida_id: string | null
+          numero_onda: number | null
+          numero_pedido: number | null
+          ocorrencia_id: string | null
+          origem: string
+          remocao_id: string | null
+          request_id: string | null
+          resposta: Json | null
+          resultado: string
+          retirada_concluida_em: string | null
+          solicitado_por: string | null
+          status_documento_antes: number | null
+          status_onda_antes: string | null
+          status_onda_depois: string | null
+          status_retirada: string
+          tenant_id: string
+          tipo_onda: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          codigo_erp?: string | null
+          codigo_recusa?: string | null
+          conexao_id?: string | null
+          created_at?: string
+          documento_saida_id: string
+          empresa_id: string
+          endereco_cancelamento_id?: string | null
+          estagio?: string | null
+          id?: string
+          id_alteracao?: string | null
+          idempotency_key?: string | null
+          impacto?: Json
+          mensagem?: string | null
+          motivo_ocorrencia_id?: string | null
+          motivo_texto?: string | null
+          movimento_saida_id?: string | null
+          numero_onda?: number | null
+          numero_pedido?: number | null
+          ocorrencia_id?: string | null
+          origem?: string
+          remocao_id?: string | null
+          request_id?: string | null
+          resposta?: Json | null
+          resultado: string
+          retirada_concluida_em?: string | null
+          solicitado_por?: string | null
+          status_documento_antes?: number | null
+          status_onda_antes?: string | null
+          status_onda_depois?: string | null
+          status_retirada?: string
+          tenant_id: string
+          tipo_onda?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          codigo_erp?: string | null
+          codigo_recusa?: string | null
+          conexao_id?: string | null
+          created_at?: string
+          documento_saida_id?: string
+          empresa_id?: string
+          endereco_cancelamento_id?: string | null
+          estagio?: string | null
+          id?: string
+          id_alteracao?: string | null
+          idempotency_key?: string | null
+          impacto?: Json
+          mensagem?: string | null
+          motivo_ocorrencia_id?: string | null
+          motivo_texto?: string | null
+          movimento_saida_id?: string | null
+          numero_onda?: number | null
+          numero_pedido?: number | null
+          ocorrencia_id?: string | null
+          origem?: string
+          remocao_id?: string | null
+          request_id?: string | null
+          resposta?: Json | null
+          resultado?: string
+          retirada_concluida_em?: string | null
+          solicitado_por?: string | null
+          status_documento_antes?: number | null
+          status_onda_antes?: string | null
+          status_onda_depois?: string | null
+          status_retirada?: string
+          tenant_id?: string
+          tipo_onda?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_saida_cancelamento_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_cancelamento_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_cancelamento_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
+          },
+        ]
+      }
       documento_saida_item: {
         Row: {
           codigo_erp: string | null
@@ -4886,6 +5016,9 @@ export type Database = {
           codigo_erp_omie: string | null
           contato: string | null
           dias_shelf: number | null
+          eh_cliente: boolean
+          eh_fornecedor: boolean
+          eh_transportador: boolean
           email: string | null
           empresa_id: string
           endereco: string
@@ -4909,6 +5042,9 @@ export type Database = {
           codigo_erp_omie?: string | null
           contato?: string | null
           dias_shelf?: number | null
+          eh_cliente?: boolean
+          eh_fornecedor?: boolean
+          eh_transportador?: boolean
           email?: string | null
           empresa_id: string
           endereco: string
@@ -4932,6 +5068,9 @@ export type Database = {
           codigo_erp_omie?: string | null
           contato?: string | null
           dias_shelf?: number | null
+          eh_cliente?: boolean
+          eh_fornecedor?: boolean
+          eh_transportador?: boolean
           email?: string | null
           empresa_id?: string
           endereco?: string
@@ -4972,6 +5111,59 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parceiro_codigo_erp: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo_erp: string
+          criado_em: string
+          empresa_id: string
+          id: string
+          origem: string
+          parceiro_id: string
+          tenant_id: string
+          tipo_parceiro:
+            | Database["public"]["Enums"]["enum_tipo_parceiro"]
+            | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_erp: string
+          criado_em?: string
+          empresa_id: string
+          id?: string
+          origem?: string
+          parceiro_id: string
+          tenant_id: string
+          tipo_parceiro?:
+            | Database["public"]["Enums"]["enum_tipo_parceiro"]
+            | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo_erp?: string
+          criado_em?: string
+          empresa_id?: string
+          id?: string
+          origem?: string
+          parceiro_id?: string
+          tenant_id?: string
+          tipo_parceiro?:
+            | Database["public"]["Enums"]["enum_tipo_parceiro"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parceiro_codigo_erp_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiro"
             referencedColumns: ["id"]
           },
         ]
@@ -5967,6 +6159,7 @@ export type Database = {
         Row: {
           armazem_id: string | null
           auto_separacao: boolean
+          cancelamento_documento_id: string | null
           concluido_em: string | null
           contagem_inventario: number | null
           criado_em: string
@@ -5977,6 +6170,7 @@ export type Database = {
           id_local_destino: string | null
           id_local_origem: string | null
           motivo_ocorrencia: string | null
+          motivo_pendencia: string | null
           ordem_tarefa: number | null
           percentual_execucao: number | null
           prioridade_tarefa:
@@ -5990,6 +6184,7 @@ export type Database = {
           quantidade_executada4: number | null
           quantidade_requerida: number | null
           remocao_documento_id: string | null
+          sem_saldo_na_liberacao: boolean
           status: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
           tipo_documento_origem: string | null
@@ -5999,6 +6194,7 @@ export type Database = {
         Insert: {
           armazem_id?: string | null
           auto_separacao?: boolean
+          cancelamento_documento_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
           criado_em?: string
@@ -6009,6 +6205,7 @@ export type Database = {
           id_local_destino?: string | null
           id_local_origem?: string | null
           motivo_ocorrencia?: string | null
+          motivo_pendencia?: string | null
           ordem_tarefa?: number | null
           percentual_execucao?: number | null
           prioridade_tarefa?:
@@ -6022,6 +6219,7 @@ export type Database = {
           quantidade_executada4?: number | null
           quantidade_requerida?: number | null
           remocao_documento_id?: string | null
+          sem_saldo_na_liberacao?: boolean
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id: string
           tipo_documento_origem?: string | null
@@ -6031,6 +6229,7 @@ export type Database = {
         Update: {
           armazem_id?: string | null
           auto_separacao?: boolean
+          cancelamento_documento_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
           criado_em?: string
@@ -6041,6 +6240,7 @@ export type Database = {
           id_local_destino?: string | null
           id_local_origem?: string | null
           motivo_ocorrencia?: string | null
+          motivo_pendencia?: string | null
           ordem_tarefa?: number | null
           percentual_execucao?: number | null
           prioridade_tarefa?:
@@ -6054,6 +6254,7 @@ export type Database = {
           quantidade_executada4?: number | null
           quantidade_requerida?: number | null
           remocao_documento_id?: string | null
+          sem_saldo_na_liberacao?: boolean
           status?: Database["public"]["Enums"]["enum_status_tarefa"]
           tenant_id?: string
           tipo_documento_origem?: string | null
@@ -6066,6 +6267,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_cancelamento_documento_id_fkey"
+            columns: ["cancelamento_documento_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida_cancelamento"
             referencedColumns: ["id"]
           },
           {
@@ -6728,12 +6936,16 @@ export type Database = {
           conferencia_checkout: boolean
           descricao: string
           empresa_id: string
+          exibe_parceiro_conferencia: boolean
           exibe_parceiro_separacao: boolean
+          exibe_vendedor_conferencia: boolean
+          exibe_vendedor_separacao: boolean
           gera_abastecimento_automatico: boolean
           gera_mov_automatico: boolean
           gera_volume_etapa: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id: string
           libera_mov_automatico: boolean
+          libera_sem_saldo_picking: boolean
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
           reserva_conferencia_movimento: boolean
@@ -6748,12 +6960,16 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao: string
           empresa_id: string
+          exibe_parceiro_conferencia?: boolean
           exibe_parceiro_separacao?: boolean
+          exibe_vendedor_conferencia?: boolean
+          exibe_vendedor_separacao?: boolean
           gera_abastecimento_automatico?: boolean
           gera_mov_automatico?: boolean
           gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id?: string
           libera_mov_automatico?: boolean
+          libera_sem_saldo_picking?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
@@ -6768,12 +6984,16 @@ export type Database = {
           conferencia_checkout?: boolean
           descricao?: string
           empresa_id?: string
+          exibe_parceiro_conferencia?: boolean
           exibe_parceiro_separacao?: boolean
+          exibe_vendedor_conferencia?: boolean
+          exibe_vendedor_separacao?: boolean
           gera_abastecimento_automatico?: boolean
           gera_mov_automatico?: boolean
           gera_volume_etapa?: Database["public"]["Enums"]["enum_momento_geracao_volume"]
           id?: string
           libera_mov_automatico?: boolean
+          libera_sem_saldo_picking?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
@@ -7669,6 +7889,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vw_documento_sem_item: {
+        Row: {
+          codigo_erp: string | null
+          data_emissao: string | null
+          documento_id: string | null
+          empresa_id: string | null
+          id_alteracao: string | null
+          numero: string | null
+          sistema_origem: string | null
+          status: number | null
+          tenant_id: string | null
+          tipo: string | null
+        }
+        Relationships: []
       }
       vw_endereco_listagem: {
         Row: {
@@ -9069,6 +9304,22 @@ export type Database = {
       }
     }
     Functions: {
+      _fn_cancel_saida_motivo: {
+        Args: { p_tenant_id: string }
+        Returns: string
+      }
+      _fn_cancelar_onda_com_estorno: {
+        Args: {
+          p_armazem_id: string
+          p_cancelamento_id: string
+          p_empresa_id: string
+          p_endereco_cancel_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       _fn_remocao_doc_entrada_core: {
         Args: {
           p_documento_entrada_id: string
@@ -9097,6 +9348,20 @@ export type Database = {
         Returns: Json
       }
       _fn_remocao_doc_saida_core: {
+        Args: {
+          p_documento_saida_id: string
+          p_empresa_id: string
+          p_hash_analise: string
+          p_motivo_ocorrencia_id: string
+          p_movimento_saida_id: string
+          p_observacao: string
+          p_simular: boolean
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      _fn_remocao_doc_saida_core_bkp_20261020: {
         Args: {
           p_documento_saida_id: string
           p_empresa_id: string
@@ -9201,12 +9466,16 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: {
+          exibe_parceiro: boolean
+          exibe_vendedor: boolean
           movimento_saida_id: string
           numero_onda: number
+          parceiro_nome: string
           pedidos: string
           prioridade: string
           status: string
           tipo_venda: string
+          vendedor_nome: string
         }[]
       }
       conferencia_buscar_tarefas: {
@@ -9632,6 +9901,22 @@ export type Database = {
         Returns: Json
       }
       fn_cancelar_documento_saida: {
+        Args: {
+          p_codigo_erp?: string
+          p_conexao_id?: string
+          p_documento_saida_id?: string
+          p_empresa_id: string
+          p_idempotency_key?: string
+          p_motivo?: string
+          p_request_id?: string
+          p_solicitado_por?: string
+          p_solicitante?: string
+          p_tenant_id: string
+          p_usuario_id?: string
+        }
+        Returns: Json
+      }
+      fn_cancelar_documento_saida_bkp_20261020: {
         Args: {
           p_codigo_erp?: string
           p_documento_saida_id?: string
@@ -10201,6 +10486,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: Json
       }
+      fn_realocar_tarefas_pendentes_picking: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: number
+      }
       fn_relatorio_documentos_cancelados: {
         Args: {
           p_data_fim: string
@@ -10322,6 +10611,14 @@ export type Database = {
         Returns: boolean
       }
       fn_usuario_tenant: { Args: never; Returns: string }
+      fn_vincular_tarefas_pendentes_picking: {
+        Args: {
+          p_endereco_id: string
+          p_produto_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       gerar_movimento_entrada: {
         Args: {
           p_armazem_id?: string
@@ -10554,6 +10851,36 @@ export type Database = {
           webhook_ultimo_uso_em: string
         }[]
       }
+      integracao_gravar_documento_entrada: {
+        Args: {
+          p_cabecalho: Json
+          p_conexao_id?: string
+          p_empresa_id: string
+          p_id_alteracao?: string
+          p_itens: Json
+          p_payload?: Json
+          p_payload_hash?: string
+          p_permitir_reenvio_cancelado?: boolean
+          p_request_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_gravar_documento_saida: {
+        Args: {
+          p_cabecalho: Json
+          p_conexao_id?: string
+          p_empresa_id: string
+          p_id_alteracao?: string
+          p_itens: Json
+          p_payload?: Json
+          p_payload_hash?: string
+          p_permitir_reenvio_cancelado?: boolean
+          p_request_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       integracao_listar_alteracoes: {
         Args: {
           p_codigo_erp: string
@@ -10785,6 +11112,10 @@ export type Database = {
       integracao_resetar_cursor: {
         Args: { p_empresa_id: string; p_entidade: string; p_tenant_id: string }
         Returns: undefined
+      }
+      integracao_resolver_parceiro: {
+        Args: { p_codigo_erp: string; p_tenant_id: string }
+        Returns: string
       }
       integracao_resolver_tipo_cfop: {
         Args: {
@@ -11434,6 +11765,16 @@ export type Database = {
         }
         Returns: Json
       }
+      liberar_onda_separacao_bkp_20261020: {
+        Args: {
+          p_empresa_id: string
+          p_ignorar_shelf_life?: boolean
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       liberar_recebimento_erro_transporte: {
         Args: {
           p_motivo_ocorrencia_id: string
@@ -11897,6 +12238,38 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_mapear_picking_bkp_20261020: {
+        Args: {
+          p_armazem_id: string
+          p_empresa_id: string
+          p_endereco_id: string
+          p_est_maximo: number
+          p_est_minimo: number
+          p_produto_id: string
+          p_tenant_id: string
+          p_tipo_picking: Database["public"]["Enums"]["enum_tipo_picking"]
+        }
+        Returns: Json
+      }
+      rpc_onda_pendencias_picking: {
+        Args: { p_movimento_saida_ids: string[]; p_tenant_id: string }
+        Returns: {
+          abastecimento_pendente: boolean
+          endereco: string
+          endereco_id: string
+          motivo_pendencia: string
+          movimento_saida_id: string
+          movimento_saida_item_id: string
+          produto: string
+          produto_id: string
+          quantidade_pendente: number
+          saldo_endereco: number
+          saldo_pulmao: number
+          situacao_saldo: string
+          sku: string
+          tarefa_id: string
+        }[]
+      }
       rpc_painel_tv_operacional: { Args: { p_tv_token: string }; Returns: Json }
       rpc_painel_tv_vendas: { Args: { p_tv_token: string }; Returns: Json }
       rpc_produto_regra_padrao_aplicar: {
@@ -12137,6 +12510,7 @@ export type Database = {
         Returns: {
           atribuida_ao_usuario: boolean
           exibe_parceiro: boolean
+          exibe_vendedor: boolean
           movimento_saida_id: string
           numero_onda: number
           operador_nome: string
@@ -12146,6 +12520,7 @@ export type Database = {
           qtd_operadores: number
           status: string
           tipo_venda: string
+          vendedor_nome: string
         }[]
       }
       separacao_buscar_ondas_bkp_20261002: {
@@ -12163,7 +12538,91 @@ export type Database = {
           tipo_venda: string
         }[]
       }
+      separacao_buscar_ondas_bkp_20261020: {
+        Args: {
+          p_empresa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          atribuida_ao_usuario: boolean
+          exibe_parceiro: boolean
+          exibe_vendedor: boolean
+          movimento_saida_id: string
+          numero_onda: number
+          operador_nome: string
+          parceiro_nome: string
+          pedidos: string
+          prioridade: string
+          qtd_operadores: number
+          status: string
+          tipo_venda: string
+          vendedor_nome: string
+        }[]
+      }
       separacao_buscar_tarefas:
+        | {
+            Args: {
+              p_armazem_id: string
+              p_empresa_id: string
+              p_movimento_saida_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: {
+              abastecimento_pendente: boolean
+              armazem: string
+              descricao: string
+              endereco: string
+              endereco_id: string
+              fator_caixa: number
+              id: string
+              motivo_pendencia: string
+              ordem_tarefa: number
+              produto_id: string
+              quantidade_requerida: number
+              saldo_endereco: number
+              saldo_pulmao: number
+              sem_saldo_na_liberacao: boolean
+              separado: number
+              setor: string
+              situacao_saldo: string
+              sku: string
+              status: string
+              tipo_endereco: string
+            }[]
+          }
+        | {
+            Args: {
+              p_empresa_id: string
+              p_movimento_saida_id: string
+              p_tenant_id: string
+              p_usuario_id: string
+            }
+            Returns: {
+              abastecimento_pendente: boolean
+              armazem: string
+              endereco: string
+              endereco_id: string
+              fator_caixa: number
+              motivo_pendencia: string
+              ordem_tarefa: number
+              produto: string
+              produto_id: string
+              quantidade_requerida: number
+              saldo_endereco: number
+              saldo_pulmao: number
+              sem_saldo_na_liberacao: boolean
+              separado: number
+              setor: string
+              situacao_saldo: string
+              sku: string
+              status: string
+              tarefa_id: string
+              tipo_endereco: string
+            }[]
+          }
+      separacao_buscar_tarefas_bkp_20261020:
         | {
             Args: {
               p_armazem_id: string
@@ -12237,6 +12696,15 @@ export type Database = {
         }
         Returns: Json
       }
+      separacao_confirmar_entrega_cancelamento_bkp_20261020: {
+        Args: {
+          p_endereco_destino_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       separacao_executar_coleta: {
         Args: {
           p_endereco_id: string
@@ -12252,6 +12720,20 @@ export type Database = {
         Returns: Json
       }
       separacao_executar_coleta_bkp_20261012: {
+        Args: {
+          p_endereco_id: string
+          p_fabricacao: string
+          p_hu: string
+          p_lote: string
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+          p_validade: string
+        }
+        Returns: Json
+      }
+      separacao_executar_coleta_bkp_20261020: {
         Args: {
           p_endereco_id: string
           p_fabricacao: string
@@ -12286,6 +12768,14 @@ export type Database = {
         Returns: Json
       }
       separacao_verificar_itens_cancelados: {
+        Args: {
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      separacao_verificar_itens_cancelados_bkp_20261020: {
         Args: {
           p_movimento_saida_id: string
           p_tenant_id: string
