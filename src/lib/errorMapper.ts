@@ -9,7 +9,7 @@ export interface ParsedError {
 
 const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }> = {
   AGUARDANDO_ABASTECIMENTO: { title: "Endereço sem saldo deste produto.", instruction: "Aguarde o abastecimento, pule o item ou registre o corte." },
-  PICKING_NAO_MAPEADO: { title: "Produto sem picking mapeado.", instruction: "Mapeie um endereço de picking para liberar a coleta." },
+  PICKING_NAO_MAPEADO: { title: "Produto sem picking mapeado.", instruction: "Toque em Atualizar tarefa ou pule o item. O mapeamento é feito pela supervisão." },
   LIBERADA_COM_AVISOS: { title: "Onda liberada com pendências de picking/saldo.", instruction: "Confira os itens marcados em vermelho." },
   VALIDACAO_BLOQUEOU: { title: "Validações impediram a liberação da onda.", instruction: "Veja as ocorrências listadas." },
   INTEGRACAO_SEM_PERMISSAO: { title: "Você não tem permissão para alterar a integração.", instruction: "Peça acesso de edição em Integração ao administrador." },

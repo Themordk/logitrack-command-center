@@ -15,7 +15,6 @@ import { useFeedback } from "@/hooks/useFeedback";
 import { TarjaPendenciaPicking } from "@/components/coletor/TarjaPendenciaPicking";
 import { ordenarTarefasPicking, recarregarTarefasPicking, situacaoTarefa } from "@/lib/pendenciasPickingService";
 import type { CamposPendenciaPicking } from "@/lib/pendenciasPicking.types";
-import { usePermissions } from "@/contexts/PermissionsContext";
 import { Button } from "@/components/ui/button";
 
 
@@ -64,8 +63,6 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
   const result = useResultDialog({ coletorMode: true });
   const { isOnline } = useOffline();
-  const { can, loading: permissoesCarregando } = usePermissions();
-  const podeMapear = !permissoesCarregando && can("coletor.consulta", "READ");
   const [recarregando, setRecarregando] = useState(false);
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
@@ -191,7 +188,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const handleScan = async (code: string) => {
     if (!tarefa) return;
     if (!tarefa.endereco_id || pendente) {
-      result.showWarning(!tarefa.endereco_id ? "Produto sem picking mapeado." : "Endereço sem saldo deste produto.", { instruction: "Atualize a tarefa após o abastecimento ou mapeamento." });
+      result.showWarning(!tarefa.endereco_id ? "Produto sem picking mapeado." : "Endereço sem saldo deste produto.", { instruction: "Toque em Atualizar tarefa ou pule o item." });
       return;
     }
     setLastScanned(code);

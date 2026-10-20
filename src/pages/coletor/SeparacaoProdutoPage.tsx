@@ -160,7 +160,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
 
   const handleScanEan = async (code: string) => {
     if (!tarefa) return;
-    if (situacaoTarefa(tarefa) !== "OK") { onNavigate("/coletor/separacao/endereco"); return; }
+    if (situacaoTarefa(tarefa) !== "OK") { result.showWarning("Este item está sem saldo no endereço.", { instruction: "Volte e toque em Atualizar tarefa.", onClose: () => onNavigate("/coletor/separacao/endereco") }); return; }
     setEanScanned(code);
     setEmbalagemInfo(null);
     setEanConfirmado(false);
@@ -293,7 +293,7 @@ export function SeparacaoProdutoPage({ onNavigate }: Props) {
           if (codigo === "AGUARDANDO_ABASTECIMENTO") sessionStorage.setItem("coletor_separacao_tarefa_idx", String(lista.length ? (idx + 1) % lista.length : 0));
           sessionStorage.setItem("coletor_separacao_recarregar", "1");
           result.showWarning(codigo === "PICKING_NAO_MAPEADO" ? "Produto sem picking mapeado" : rpcResult.mensagem, {
-            instruction: codigo === "PICKING_NAO_MAPEADO" ? "Mapeie um endereço de picking para liberar a coleta." : saldoPulmao > 0 ? `Pulmão tem ${saldoPulmao.toLocaleString("pt-BR")} un. Aguarde o abastecimento ou pule o item.` : "Sem saldo no pulmão. Registre o corte ou avise a supervisão.",
+            instruction: codigo === "PICKING_NAO_MAPEADO" ? "Volte e toque em Atualizar tarefa, ou pule o item." : saldoPulmao > 0 ? `Pulmão tem ${saldoPulmao.toLocaleString("pt-BR")} un. Aguarde o abastecimento ou pule o item.` : "Sem saldo no pulmão. Registre o corte ou avise a supervisão.",
             onClose: () => onNavigate("/coletor/separacao/endereco"),
           });
           return;
