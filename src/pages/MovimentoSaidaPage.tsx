@@ -718,7 +718,8 @@ export function MovimentoSaidaPage() {
         .order("data_validade", { ascending: true, nullsFirst: false }).order("atualizado_em", { ascending: true }).order("id").limit(1);
       if (erroOrigem) throw erroOrigem;
       const origem = origens?.[0];
-      const quantidade = quantidadeAbastecimento(Number(item.qtd_faltante ?? Math.max(0, Number(item.qtd_esperada || 0) - Number(item.saldo_picking || 0))), Number(origem?.quantidade_disponivel || 0));
+      const faltante = item.qtd_faltante ?? ("qtd_esperada" in item ? Math.max(0, Number(item.qtd_esperada || 0) - Number(item.saldo_picking || 0)) : 0);
+      const quantidade = quantidadeAbastecimento(Number(faltante), Number(origem?.quantidade_disponivel || 0));
       if (!origem?.endereco_id || quantidade <= 0) { toast.warning("Sem saldo disponível no pulmão deste armazém."); return; }
       const { data, error } = await supabase.rpc("fn_gerar_abastecimento" as any, {
         p_tenant_id: tenantId,
@@ -1525,14 +1526,14 @@ export function MovimentoSaidaPage() {
                             </td>
                             <td className="px-3 py-2 text-center">
                               {isSaldoInsuficientePicking(oc.tipo) && !loadingSaldoPulmao && oc.saldo_pulmao !== undefined && (
-                                oc.saldo_pulmao > 0 ? (
-                                  <button
+                                abastecimentosGerados.has(`${liberarMovId}:${oc.produto_id}`) ? <span className="text-[hsl(var(--status-free))]">Abastecimento gerado</span> : oc.saldo_pulmao > 0 ? (
+                                  <Tooltip><TooltipTrigger asChild><span><Button variant="outline" size="sm"
                                     onClick={() => handleAbastecimentoItem(oc)}
-                                    disabled={abastItemLoading === oc.produto_id}
+                                    disabled={!!abastItemLoading || !oc.endereco_picking_id}
                                     className="px-2 py-1 rounded text-[11px] font-medium bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors disabled:opacity-50"
                                   >
                                     {abastItemLoading === oc.produto_id ? <Loader2 size={12} className="animate-spin inline" /> : "Abastecer"}
-                                  </button>
+                                  </Button></span></TooltipTrigger><TooltipContent>{oc.endereco_picking_id ? "Abastecer picking" : "Produto sem picking mapeado"}</TooltipContent></Tooltip>
                                 ) : (
                                   <button
                                     onClick={() => handleOpenCorte(oc)}
@@ -1673,14 +1674,14 @@ export function MovimentoSaidaPage() {
                           </td>
                           <td className="px-3 py-2 text-center">
                             {!loadingSaldoPulmao && item.saldo_pulmao !== undefined && (
-                              item.saldo_pulmao > 0 ? (
-                                <button
+                              abastecimentosGerados.has(`${liberarMovId}:${item.produto_id}`) ? <span className="text-[hsl(var(--status-free))]">Abastecimento gerado</span> : item.saldo_pulmao > 0 ? (
+                                <Tooltip><TooltipTrigger asChild><span><Button variant="outline" size="sm"
                                   onClick={() => handleAbastecimentoItem(item)}
-                                  disabled={abastItemLoading === item.produto_id}
+                                  disabled={!!abastItemLoading || !item.endereco_picking_id}
                                   className="px-2 py-1 rounded text-[11px] font-medium bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors disabled:opacity-50"
                                 >
                                   {abastItemLoading === item.produto_id ? <Loader2 size={12} className="animate-spin inline" /> : "Abastecer"}
-                                </button>
+                                </Button></span></TooltipTrigger><TooltipContent>{item.endereco_picking_id ? "Abastecer picking" : "Produto sem picking mapeado"}</TooltipContent></Tooltip>
                               ) : (
                                 <button
                                   onClick={() => handleOpenCorte(item)}
