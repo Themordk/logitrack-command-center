@@ -1,5 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+let raiz: Root | undefined;
+let container: HTMLDivElement;
+async function montar() {
+  container = document.createElement("div"); document.body.append(container);
+  raiz = createRoot(container);
+  await act(async () => { raiz?.render(<SeparacaoEnderecoPage onNavigate={mocks.navegar} />); });
+}
+async function clicar(texto: RegExp) {
+  const botao = Array.from(container.querySelectorAll("button")).find(b => texto.test(b.textContent || ""));
+  if (!botao) throw new Error("Ação não encontrada");
+  await act(async () => { botao.click(); });
+}
 import { SeparacaoEnderecoPage } from "@/pages/coletor/SeparacaoEnderecoPage";
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), navegar: vi.fn() }));
@@ -21,11 +34,11 @@ describe("separação com pendências", () => {
     sessionStorage.setItem("coletor_separacao_movimento_id", "onda");
     sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify([tarefa]));
   });
-  afterEach(cleanup);
+  afterEach(() => { act(() => raiz?.unmount()); container?.remove(); });
   it("não confirma endereço inexistente e leva produto preenchido ao mapeamento", async () => {
-    const tela = render(<SeparacaoEnderecoPage onNavigate={mocks.navegar} />);
-    await waitFor(() => expect(tela.queryByLabelText("scan")).toBeNull());
-    fireEvent.click(await tela.findByRole("button", { name: "Mapear picking" }));
+    await montar();
+    expect(container.querySelector("input[aria-label=scan]")).toBeNull();
+    await clicar(/Mapear picking/);
     expect(mocks.rpc).not.toHaveBeenCalled();
     expect(JSON.parse(sessionStorage.getItem("mapear_from_separacao") || "{}").produtoId).toBe("produto");
     expect(mocks.navegar).toHaveBeenCalledWith("/coletor/consulta/mapear-picking");
@@ -33,8 +46,8 @@ describe("separação com pendências", () => {
   it("pula sem excluir a tarefa pendente", async () => {
     const lista = [tarefa, { ...tarefa, tarefa_id: "outra", ordem_tarefa: 2 }];
     sessionStorage.setItem("coletor_separacao_tarefas", JSON.stringify(lista));
-    const tela = render(<SeparacaoEnderecoPage onNavigate={mocks.navegar} />);
-    fireEvent.click(await tela.findByRole("button", { name: /Pular/ }));
+    await montar();
+    await clicar(/Pular/);
     expect(sessionStorage.getItem("coletor_separacao_tarefa_idx")).toBe("1");
     expect(JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]")).toHaveLength(2);
   });
@@ -42,8 +55,8 @@ describe("separação com pendências", () => {
     sessionStorage.setItem("coletor_separacao_recarregar", "1");
     const atualizada = { ...tarefa, endereco_id: "picking", endereco: "R01", situacao_saldo: "SEM_SALDO_PICKING" };
     mocks.rpc.mockResolvedValue({ error: null, data: [{ ...atualizada, tarefa_id: "ok", situacao_saldo: "OK" }, atualizada] });
-    render(<SeparacaoEnderecoPage onNavigate={mocks.navegar} />);
-    await waitFor(() => expect(sessionStorage.getItem("coletor_separacao_tarefa_idx")).toBe("1"));
+    await montar();
+    expect(sessionStorage.getItem("coletor_separacao_tarefa_idx")).toBe("1");
     expect(mocks.rpc).toHaveBeenCalledWith("separacao_buscar_tarefas", { p_tenant_id: "tenant", p_empresa_id: "empresa", p_movimento_saida_id: "onda", p_usuario_id: "usuario" });
     expect(sessionStorage.getItem("coletor_separacao_recarregar")).toBeNull();
     expect(JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]")[1].endereco_id).toBe("picking");
