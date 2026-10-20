@@ -805,6 +805,7 @@ export function MovimentoSaidaPage() {
       if (updateError) throw updateError;
 
       toast.success("Item cortado com sucesso!");
+      void queryClientRemocao.invalidateQueries({ queryKey: ["onda-pendencias-picking"] });
       setCorteItem(null);
       // Remove item from list
       setLiberarResult(prev => {

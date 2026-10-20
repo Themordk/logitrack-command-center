@@ -1,9 +1,9 @@
 # Ajustes de destino da armazenagem
 
 ## Liberação sem saldo no picking
-- [ ] Configuração, avisos e abastecimento/mapeamento nas ondas.
-- [ ] Orientação de pendências e retorno do mapeamento no coletor.
-- [ ] Contratos locais, testes e conferência do resultado.
+- [x] Configuração, avisos e abastecimento/mapeamento nas ondas.
+- [x] Orientação de pendências e retorno do mapeamento no coletor.
+- [x] Contratos locais e testes de regras/fluxo (20 passaram); compilação conferida.
 - [ ] Validar com usuário conectado: sessão indisponível no Supabase externo.
 
 - [x] Atualizar o contrato de destino e a opção Pulmão com memória offline.
