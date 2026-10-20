@@ -10486,6 +10486,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: Json
       }
+      fn_realocar_tarefas_pendentes_picking: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: number
+      }
       fn_relatorio_documentos_cancelados: {
         Args: {
           p_data_fim: string
