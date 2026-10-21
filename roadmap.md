@@ -1,5 +1,11 @@
 # Ajustes de destino da armazenagem
 
+## Recebimento do coletor (RPC + filtro)
+- [x] Trocar fonte para RPC recebimento_buscar_movimentos (sem N+1), cache v2.
+- [x] Card enriquecido: tipo, chips de prioridade/devolução/crossdocking, NF, itens, placa, conferente.
+- [x] Filtro local (tipo/movimento/NF/parceiro sem acento) com persistência em sessão; 4 testes passaram.
+- [ ] Validar com usuário conectado: sessão indisponível no Supabase externo.
+
 ## Liberação sem saldo no picking
 - [x] Configuração, avisos e abastecimento/mapeamento nas ondas.
 - [x] Orientação de pendências e retorno do mapeamento no coletor.
