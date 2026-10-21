@@ -20,6 +20,7 @@ import { ProdutoImagemThumb } from "@/components/produto/ProdutoImagemThumb";
 import { useRegrasPadraoProduto, PadraoCampoIndicador } from "@/pages/integracao/PadraoCampoIndicador";
 import { CAMPOS_PADRAO_PRODUTO } from "@/pages/integracao/produtoPadroes.types";
 import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 const TIPO_PICKING_OPTIONS = [
   { value: "MASTER", label: "Master" },
@@ -811,7 +812,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       ),
     },
     { key: "sku", label: "SKU", type: "mono" },
-    { key: "descricao", label: "Descrição" },
+    { key: "descricao", label: "Descrição", render: (r) => <DescricaoCell text={r.descricao} /> },
     { key: "referencia", label: "Referência" },
     { key: "marca", label: "Marca" },
     { key: "tipo_controle", label: "Controle" },

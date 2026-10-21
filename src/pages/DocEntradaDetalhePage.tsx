@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, FileText, Package, Hash, Clock, MapPin, AlertTriangle, User, Truck } from "lucide-react";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 interface Props {
   documentoId: string;
@@ -287,7 +288,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack, backLabel }: Props)
                   <Fragment key={it.id}>
                     <tr className="border-b border-border/50">
                       <td className="px-4 py-2.5 font-mono text-xs text-foreground">{it.produto_sku}</td>
-                      <td className="px-4 py-2.5 text-foreground">{it.produto_descricao}</td>
+                      <td className="px-4 py-2.5 text-foreground"><DescricaoCell text={it.produto_descricao} /></td>
                       <td className="px-4 py-2.5 text-right font-mono text-foreground">{Number(it.quantidade).toLocaleString("pt-BR")}</td>
                       <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{fmtMoney(it.valor_unidade)}</td>
                       <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmtMoney(it.valor_total)}</td>

@@ -27,14 +27,26 @@ const stamp = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
 };
 
+/** Largura máxima (em caracteres) de uma coluna no Excel; o conteúdo continua completo na célula. */
+export const EXCEL_MAX_COL_WCH = 60;
+
+export function calcExcelColWidths(headers: string[], body: string[][]): { wch: number }[] {
+  return headers.map((label, i) => {
+    let max = label.length;
+    for (const r of body) {
+      const len = (r[i] || "").length;
+      if (len > max) max = len;
+    }
+    return { wch: Math.min(max, EXCEL_MAX_COL_WCH) + 2 };
+  });
+}
+
 export function exportToExcel(filename: string, columns: ExportColumn[], rows: any[]) {
   const headers = columns.map((c) => c.label);
   const body = rows.map((row) => columns.map((c) => safeFormat(c, row)));
   const aoa = [headers, ...body];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = columns.map((c, i) => ({
-    wch: Math.max(c.label.length, ...body.map((r) => (r[i] || "").length)) + 2,
-  }));
+  ws["!cols"] = calcExcelColWidths(headers, body);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Relatório");
   XLSX.writeFile(wb, `${filename}_${stamp()}.xlsx`);

@@ -6,6 +6,7 @@ import { Loader2, CheckCircle2, AlertTriangle, Clock, Package } from "lucide-rea
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { parseError } from "@/lib/errorMapper";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 interface Props {
   open: boolean;
@@ -318,7 +319,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
                       {grupos.conferidos.map((it) => (
                         <tr key={it.id} className="border-t border-border/60">
                           <td className="px-3 py-2 font-mono text-foreground">{it.produto?.sku ?? "—"}</td>
-                          <td className="px-3 py-2 text-foreground truncate max-w-[260px]">{it.produto?.descricao ?? "—"}</td>
+                          <td className="px-3 py-2 text-foreground"><DescricaoCell text={it.produto?.descricao} minWidth={180} maxWidth={260} /></td>
                           <td className="px-3 py-2 text-right font-mono">{it.qtd_esperada}</td>
                           <td className="px-3 py-2 text-right font-mono text-green-400">{it.qtd_conferida}</td>
                           <td className="px-3 py-2">
@@ -358,7 +359,7 @@ export function LiberarArmazenagemModal({ open, onClose, movimentoEntradaId, onS
                         return (
                           <tr key={it.id} className="border-t border-border/60">
                             <td className="px-3 py-2 font-mono text-foreground">{it.produto?.sku ?? "—"}</td>
-                            <td className="px-3 py-2 text-foreground truncate max-w-[240px]">{it.produto?.descricao ?? "—"}</td>
+                            <td className="px-3 py-2 text-foreground"><DescricaoCell text={it.produto?.descricao} minWidth={180} maxWidth={240} /></td>
                             <td className="px-3 py-2 text-right font-mono">{it.qtd_esperada}</td>
                             <td className="px-3 py-2 text-right font-mono">{it.qtd_conferida}</td>
                             <td className="px-3 py-2 text-right font-mono text-red-400">{diff}</td>

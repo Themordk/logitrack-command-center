@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseError } from "@/lib/errorMapper";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
 
@@ -154,7 +155,7 @@ export function AbastecimentoDetalhePage({ onNavigate, abastecimentoId }: Props)
               {tarefas.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-mono text-xs">{t.sku}</TableCell>
-                  <TableCell className="text-sm truncate max-w-[200px]">{t.descricao}</TableCell>
+                  <TableCell className="text-sm"><DescricaoCell text={t.descricao} /></TableCell>
                   <TableCell className="text-right text-sm font-mono">{t.quantidade_requerida}</TableCell>
                   <TableCell className="text-right text-sm font-mono">{t.quantidade_executada}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{t.endereco_origem}</TableCell>

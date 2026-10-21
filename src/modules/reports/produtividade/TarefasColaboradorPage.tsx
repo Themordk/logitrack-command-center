@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle, Package, Clock, Zap, ChevronUp, ChevronDown, ChevronsUpDown, Loader2 } from "lucide-react";
 import { ReportHeader } from "../components/ReportHeader";
+import { DESCRICAO_PDF_WIDTH_MM } from "../components/reportColumns";
+import { DescricaoCell } from "@/components/DescricaoCell";
 import {
   fetchTarefasColaborador,
   type TarefaColaboradorRow,
@@ -48,11 +50,6 @@ function formatDuracao(seg: number | null | undefined): string {
   const s = Math.floor(seg % 60);
   if (h > 0) return `${h}h ${m}min`;
   return `${m}min ${s}s`;
-}
-
-function truncar(s: string | null | undefined, n: number): string {
-  if (!s) return "—";
-  return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
 function slugify(s: string): string {
@@ -207,7 +204,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
     { key: "tipo_tarefa_categoria", label: "Categoria", format: (r) => r.tipo_tarefa_categoria || "" },
     { key: "tarefa_id", label: "ID Tarefa", format: (r) => (r.tarefa_id || "").slice(0, 8) },
     { key: "produto_sku", label: "SKU", format: (r) => r.produto_sku || "" },
-    { key: "produto_descricao", label: "Produto", format: (r) => r.produto_descricao || "" },
+    { key: "produto_descricao", label: "Produto", format: (r) => r.produto_descricao || "", width: DESCRICAO_PDF_WIDTH_MM },
     { key: "quantidade_requerida", label: "Qtd Req.", align: "right", format: (r) => fmtNumberBR(r.quantidade_requerida) },
     { key: "quantidade_executada", label: "Qtd Exec.", align: "right", format: (r) => fmtNumberBR(r.quantidade_executada) },
     { key: "quantidade_cortada", label: "Qtd Cort.", align: "right", format: (r) => fmtNumberBR(r.quantidade_cortada) },
@@ -376,7 +373,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
                         <td className="px-3 py-2 text-muted-foreground">{r.tipo_tarefa_categoria || "—"}</td>
                         <td className="px-3 py-2 font-mono text-muted-foreground">{(r.tarefa_id || "").slice(0, 8)}</td>
                         <td className="px-3 py-2 font-mono text-foreground">{r.produto_sku || "—"}</td>
-                        <td className="px-3 py-2 text-foreground" title={r.produto_descricao || undefined}>{truncar(r.produto_descricao, 40)}</td>
+                        <td className="px-3 py-2 text-foreground align-top"><DescricaoCell text={r.produto_descricao} /></td>
                         <td className="px-3 py-2 text-right font-mono">{fmtNumberBR(r.quantidade_requerida)}</td>
                         <td className="px-3 py-2 text-right font-mono">{fmtNumberBR(r.quantidade_executada)}</td>
                         <td className={`px-3 py-2 text-right font-mono ${cortadaAlerta ? "text-red-400 font-semibold" : ""}`}>{fmtNumberBR(r.quantidade_cortada)}</td>

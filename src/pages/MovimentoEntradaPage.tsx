@@ -23,6 +23,7 @@ import { LiberarErroTransporteModal } from "@/components/movimento-entrada/Liber
 import { parseError } from "@/lib/errorMapper";
 import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 interface MovimentoEntradaListItem {
   id: string;
@@ -872,7 +873,7 @@ export function MovimentoEntradaPage() {
                               )}
                             </td>
                             <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
-                            <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[200px]">{item.descricao}</td>
+                            <td className="px-3 py-2.5 text-xs text-foreground"><DescricaoCell text={item.descricao} /></td>
                             <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_esperada}</td>
                             <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_conferida}</td>
                             <td className="px-3 py-2.5 text-right text-foreground">{item.qtd_armazenada ?? "—"}</td>
@@ -917,7 +918,7 @@ export function MovimentoEntradaPage() {
                       {conferenciaItems.map((item, idx) => (
                         <tr key={idx} data-tab-sku="conferencia" data-sku-hit={isSkuHit(item.sku) ? "true" : undefined} className={cn("border-b border-border/50 hover:bg-secondary/30", isSkuHit(item.sku) && "bg-primary/10")}>
                           <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
-                          <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao}</td>
+                          <td className="px-3 py-2.5 text-xs text-foreground"><DescricaoCell text={item.descricao} minWidth={180} maxWidth={280} /></td>
                           <td className="px-3 py-2.5 text-xs text-foreground">{item.operador || "—"}</td>
                           <td className="px-3 py-2.5 text-right text-foreground">{item.quantidade_executada ?? "—"}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground">{item.codigo_hu || "—"}</td>

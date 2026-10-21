@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, colTextoLongo, exportColDescricao } from "../components/reportColumns";
 import {
   fetchProdutosMapeados,
   type ProdutosMapeadosFilter,
@@ -83,9 +84,9 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "110px", render: (v) => <span className="font-mono text-foreground">{v}</span> },
     { key: "referencia", label: "Referência", width: "120px", render: (v) => <span className="font-mono text-[10px]">{v || "—"}</span> },
-    { key: "descricao", label: "Descrição", width: "280px", render: (v) => <span className="truncate block max-w-[280px]" title={v}>{v}</span> },
+    colDescricaoProduto(),
     { key: "marca", label: "Marca", width: "110px", render: (v) => v || "—" },
-    { key: "parceiro_nome", label: "Parceiro", width: "180px", render: (v) => <span className="truncate block max-w-[180px]" title={v}>{v || "—"}</span> },
+    colTextoLongo({ key: "parceiro_nome", label: "Parceiro", minWidth: 180, maxWidth: 260 }),
     { key: "endereco_descricao", label: "Endereço Picking", width: "160px" },
     { key: "est_minimo", label: "Est. Mínimo", width: "100px", align: "right", render: (v) => Number(v).toLocaleString("pt-BR") },
     { key: "est_maximo", label: "Est. Máximo", width: "100px", align: "right", render: (v) => Number(v).toLocaleString("pt-BR") },
@@ -100,7 +101,7 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
     { key: "referencia", label: "Referência" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "marca", label: "Marca" },
     { key: "parceiro_nome", label: "Parceiro" },
     { key: "endereco_descricao", label: "Endereço Picking" },

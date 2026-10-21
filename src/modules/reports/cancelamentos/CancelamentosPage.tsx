@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import {
   fetchCancelamentos,
   fetchTiposTarefa,
@@ -144,7 +145,7 @@ export function CancelamentosPage() {
     },
     { key: "tipo_tarefa", label: "Tipo Tarefa", width: "120px" },
     { key: "sku", label: "SKU", width: "110px" },
-    { key: "descricao", label: "Produto", width: "260px" },
+    colDescricaoProduto({ label: "Produto" }),
     {
       key: "qtd_requerida",
       label: "Qtd. Requerida",
@@ -193,7 +194,7 @@ export function CancelamentosPage() {
     },
     { key: "tipo_tarefa", label: "Tipo Tarefa" },
     { key: "sku", label: "SKU" },
-    { key: "descricao", label: "Produto" },
+    exportColDescricao("descricao", "Produto"),
     {
       key: "qtd_requerida",
       label: "Qtd. Requerida",

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colTextoLongo } from "../components/reportColumns";
 import {
   fetchDocumentosCancelados,
   type DocumentoCanceladoRow,
@@ -132,7 +133,7 @@ export function DocumentosCanceladosPage() {
       width: "130px",
       render: (v) => formatDate(v),
     },
-    { key: "parceiro_nome", label: "Parceiro", width: "220px" },
+    colTextoLongo({ key: "parceiro_nome", label: "Parceiro", minWidth: 180, maxWidth: 260 }),
     { key: "tipo_doc_descricao", label: "Tipo Doc.", width: "130px" },
     {
       key: "valor_total",

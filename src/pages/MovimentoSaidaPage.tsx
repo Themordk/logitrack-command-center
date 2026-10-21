@@ -27,6 +27,7 @@ import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 import { ChipPendenciaPicking } from "@/components/movimentos/ChipPendenciaPicking";
 import { listarPendenciasPicking, quantidadeAbastecimento } from "@/lib/pendenciasPickingService";
 import type { AvisoLiberacao } from "@/lib/pendenciasPicking.types";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 interface OndaCarregamentoListItem {
   id: string;
@@ -1093,7 +1094,7 @@ export function MovimentoSaidaPage() {
                         className={cn("border-b border-border/50", skuAtivo && String(item.sku ?? "").toLowerCase() === skuAtivo && "bg-primary/10")}
                       >
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
-                        <td className="px-3 py-2 text-xs text-foreground">{item.descricao}</td>
+                        <td className="px-3 py-2 text-xs text-foreground"><DescricaoCell text={item.descricao} /></td>
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.qtd_esperada)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_separada || 0)}</td>
                         <td className="px-3 py-2 text-right text-muted-foreground">{Number(item.qtd_conferida || 0)}</td>
@@ -1166,7 +1167,7 @@ export function MovimentoSaidaPage() {
                     {tabSeparacao.map((item: any, i: number) => (
                       <tr key={item.tarefa_execucao_id || i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
-                        <td className="px-3 py-2 text-xs text-foreground">{item.descricao}</td>
+                        <td className="px-3 py-2 text-xs text-foreground"><DescricaoCell text={item.descricao} /></td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">
                           {item.auto_separacao ? (
                             <span className="text-[10px] px-2 py-0.5 rounded-full border bg-purple-500/15 text-purple-400 border-purple-500/30">
@@ -1658,7 +1659,7 @@ export function MovimentoSaidaPage() {
                   {liberarResult.itens.map((item, i) => (
                     <tr key={i} className="border-b border-border/50">
                       <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku || "—"}</td>
-                      <td className="px-3 py-2 text-xs text-foreground">{item.descricao || "—"}</td>
+                      <td className="px-3 py-2 text-xs text-foreground"><DescricaoCell text={item.descricao} /></td>
                       {isSaldoInsuficientePicking(liberarResult.tipo_ocorrencia) && (
                         <>
                           <td className="px-3 py-2 text-right text-foreground">{item.qtd_esperada ?? "—"}</td>

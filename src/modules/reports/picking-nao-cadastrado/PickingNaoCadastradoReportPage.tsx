@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import {
   fetchPickingNaoCadastrado,
   type PickingNaoCadastradoRow,
@@ -55,7 +56,7 @@ export function PickingNaoCadastradoReportPage({ onNavigate }: { onNavigate?: (p
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "110px", render: (v) => <span className="font-mono text-foreground">{v}</span> },
     { key: "referencia", label: "Referência", width: "120px", render: (v) => <span className="font-mono text-[10px]">{v || "—"}</span> },
-    { key: "descricao", label: "Descrição", width: "320px", render: (v) => <span className="truncate block max-w-[320px]" title={v}>{v}</span> },
+    colDescricaoProduto(),
     { key: "numero_movimento", label: "Movimento", width: "100px", align: "center", render: (v) => <span className="font-mono text-foreground">#{v ?? "—"}</span> },
     { key: "created_at", label: "Data Criação", width: "130px", render: (v) => <span className="text-[10px]">{formatDateTimeShort(v)}</span> },
   ];
@@ -63,7 +64,7 @@ export function PickingNaoCadastradoReportPage({ onNavigate }: { onNavigate?: (p
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
     { key: "referencia", label: "Referência" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "numero_movimento", label: "Movimento", format: (r) => r.numero_movimento != null ? `#${r.numero_movimento}` : "" },
     { key: "created_at", label: "Data Criação", format: (r) => fmtDateTimeBR(r.created_at) },
   ];

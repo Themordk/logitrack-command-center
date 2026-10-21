@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import { fetchEstoqueReport, type EstoqueFilter } from "./estoque.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -206,7 +207,7 @@ export function EstoqueReportPage() {
 
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "100px" },
-    { key: "descricao", label: "Descrição", width: "200px" },
+    colDescricaoProduto(),
     { key: "marca", label: "Marca", width: "110px", render: (v) => v || "—" },
     { key: "lote", label: "Lote", width: "100px" },
     {
@@ -262,7 +263,7 @@ export function EstoqueReportPage() {
   // Export columns (texto puro)
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "marca", label: "Marca" },
     { key: "lote", label: "Lote" },
     { key: "data_validade", label: "Validade", format: (r) => fmtDateBR(r.data_validade) },
