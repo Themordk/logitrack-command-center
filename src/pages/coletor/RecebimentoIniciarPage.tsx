@@ -5,6 +5,9 @@ import { ActionButton } from "@/components/coletor/ActionButton";
 import { Loader2, Database } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
+import { FilterListButton } from "@/components/coletor/FilterListButton";
+import { FiltroRecebimentoSheet } from "@/components/coletor/FiltroRecebimentoSheet";
+import { useRecebimentoFilter } from "@/hooks/useRecebimentoFilter";
 import { parseError } from "@/lib/errorMapper";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
@@ -18,10 +21,26 @@ interface MovimentoResumo {
   id: string;
   numero_movimento: number;
   status: string;
-  parceiro: string;
-  box: string;
-  confirma_volume?: boolean;
-  total_volume_conferido?: number | null;
+  tipo_entrada_id: string | null;
+  tipo_entrada: string | null;
+  prioridade: "URGENTE" | "ALTA" | "NORMAL" | "BAIXA";
+  devolucao: boolean;
+  crossdocking: boolean;
+  parceiro: string | null;
+  parceiro_busca: string | null;
+  notas: string | null;
+  qtd_documentos: number;
+  box: string | null;
+  placa_veiculo: string | null;
+  confirma_volume: boolean;
+  total_volume: number | null;
+  total_volume_conferido: number | null;
+  qtd_itens: number;
+  qtd_itens_pendentes: number;
+  conferencia_iniciada_em: string | null;
+  conferente_nome: string | null;
+  iniciado_pelo_usuario: boolean;
+  created_at: string | null;
 }
 
 export function RecebimentoIniciarPage({ onNavigate }: Props) {
@@ -34,38 +53,43 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
   const result = useResultDialog({ coletorMode: true });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [filtroOpen, setFiltroOpen] = useState(false);
   const tenantId = localStorage.getItem("core_tenant_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
 
   const fetchMovimentos = useCallback(async (): Promise<MovimentoResumo[]> => {
-    const { data, error } = await (supabase as any)
-      .from("v_recebimento_iniciar")
-      .select("*");
+    const empresaId = localStorage.getItem("core_empresa_id");
+    if (!tenantId || !empresaId) {
+      throw new Error("Empresa não identificada.");
+    }
+    const { data, error } = await (supabase as any).rpc("recebimento_buscar_movimentos", {
+      p_tenant_id: tenantId,
+      p_empresa_id: empresaId,
+      p_usuario_id: usuarioId,
+      p_armazem_id: null,
+    });
     if (error) throw error;
-
-    const enriched = await Promise.all(
-      (data || []).map(async (m: any) => {
-        const { data: movData } = await (supabase as any)
-          .from("movimento_entrada")
-          .select("confirma_volume, total_volume_conferido")
-          .eq("id", m.id)
-          .maybeSingle();
-        return { ...m, confirma_volume: movData?.confirma_volume ?? false, total_volume_conferido: movData?.total_volume_conferido ?? null };
-      })
-    );
-
-    return enriched;
-  }, []);
+    return (data ?? []) as MovimentoResumo[];
+  }, [tenantId, usuarioId]);
 
   const { data, loading, isFromCache, error, refetch } = useOfflineCache<MovimentoResumo[]>(
-    "recebimento_movimentos_iniciar",
+    "recebimento_movimentos_iniciar_v2",
     fetchMovimentos,
     30,
   );
   const movimentos = data ?? [];
 
+  const { filters, setFilters, clear, activeCount, apply } =
+    useRecebimentoFilter("coletor_filtro_recebimento_iniciar");
+  const movimentosFiltrados = apply(movimentos);
+  const tiposEntrada = [...new Set(movimentos.map((m) => (m.tipo_entrada || "").trim()).filter(Boolean))].sort();
+
   useEffect(() => {
-    if (error) result.showWarning("Erro ao carregar movimentos.");
+    if (selectedId && !movimentosFiltrados.some((m) => m.id === selectedId)) setSelectedId(null);
+  }, [selectedId, movimentosFiltrados]);
+
+  useEffect(() => {
+    if (error) result.showWarning(error === "Empresa não identificada." ? error : "Erro ao carregar movimentos.");
   }, [error]);
 
   const loadMovimentos = refetch;
@@ -122,7 +146,6 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
       }
     } catch (err: any) {
       const parsed = parseError(err, "recebimento-iniciar");
-      const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
       result.showParsedError(parsed);
     } finally {
       setConfirming(false);
@@ -133,8 +156,12 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     if (s === "LIBERADO") return "text-[#22C55E]";
     if (s === "EM_CONFERENCIA") return "text-[hsl(217,91%,60%)]";
     if (s === "DIVERGENCIA") return "text-[#F59E0B]";
+    if (s === "ARMAZENAGEM_PARCIAL") return "text-[#A78BFA]";
     return "text-[hsl(213,31%,55%)]";
   };
+
+  const statusLabel = (s: string) =>
+    s === "ARMAZENAGEM_PARCIAL" ? "ARMAZ. PARCIAL" : s?.replace(/_/g, " ");
 
   return (
     <ColetorLayout title="Selecionar Movimento" onNavigate={onNavigate} showBack backPath="/coletor/recebimento">
@@ -149,7 +176,10 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
               </span>
             )}
           </div>
-          <RefreshListButton onRefresh={loadMovimentos} />
+          <div className="flex items-center gap-3 shrink-0">
+            <FilterListButton onClick={() => setFiltroOpen(true)} activeCount={activeCount} />
+            <RefreshListButton onRefresh={loadMovimentos} />
+          </div>
         </div>
         {loading ? (
           <div className="flex-1 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" /></div>
@@ -157,10 +187,21 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <span className="text-lg text-[hsl(213,31%,55%)]">Nenhum movimento disponível</span>
           </div>
+        ) : movimentosFiltrados.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <p className="text-sm text-[hsl(213,31%,55%)]">Nenhum movimento corresponde aos filtros.</p>
+            <button
+              type="button"
+              onClick={clear}
+              className="h-9 px-4 rounded-xl border border-amber-500/40 text-xs font-medium text-amber-400 active:scale-95 transition-all"
+            >
+              Limpar filtros
+            </button>
+          </div>
         ) : (
           <>
             <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
-              {movimentos.map((m) => (
+              {movimentosFiltrados.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setSelectedId(m.id === selectedId ? null : m.id)}
@@ -172,12 +213,63 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono font-bold text-lg text-white">#{m.numero_movimento}</span>
-                    <span className={`text-xs font-bold uppercase ${statusColor(m.status)}`}>{m.status?.replace(/_/g, " ")}</span>
+                    <span className={`text-xs font-bold uppercase ${statusColor(m.status)}`}>{statusLabel(m.status)}</span>
                   </div>
+
+                  {(m.tipo_entrada || m.prioridade === "URGENTE" || m.prioridade === "ALTA" || m.devolucao || m.crossdocking) && (
+                    <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                      {m.tipo_entrada && (
+                        <span className="text-xs text-[hsl(213,31%,70%)] truncate min-w-0">{m.tipo_entrada}</span>
+                      )}
+                      {m.prioridade === "URGENTE" && (
+                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30">Urgente</span>
+                      )}
+                      {m.prioridade === "ALTA" && (
+                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">Alta</span>
+                      )}
+                      {m.devolucao && (
+                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#A78BFA]/15 text-[#A78BFA] border border-[#A78BFA]/30">Devolução</span>
+                      )}
+                      {m.crossdocking && (
+                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#22D3EE]/15 text-[#22D3EE] border border-[#22D3EE]/30">Crossdocking</span>
+                      )}
+                    </div>
+                  )}
+
                   <p className="text-sm text-[hsl(213,31%,70%)] truncate">{m.parceiro || "—"}</p>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-[hsl(213,31%,50%)]">
+
+                  {m.notas && (
+                    <p className="text-xs text-[hsl(213,31%,55%)] truncate mt-0.5">
+                      NF: {m.notas}
+                      {m.qtd_documentos > 1 && <span> (+{m.qtd_documentos} docs)</span>}
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-[hsl(213,31%,50%)] flex-wrap">
                     <span>Box: {m.box || "—"}</span>
+                    <span>·</span>
+                    <span>Itens: {m.qtd_itens_pendentes}/{m.qtd_itens} pend.</span>
+                    {m.total_volume != null && (
+                      <>
+                        <span>·</span>
+                        <span>Vol: {m.total_volume}</span>
+                      </>
+                    )}
+                    {m.placa_veiculo && (
+                      <>
+                        <span>·</span>
+                        <span>Placa: {m.placa_veiculo}</span>
+                      </>
+                    )}
                   </div>
+
+                  {m.status === "EM_CONFERENCIA" && m.conferente_nome && (
+                    <p className={`text-xs mt-1 ${m.iniciado_pelo_usuario ? "text-[hsl(217,91%,60%)]" : "text-[hsl(213,31%,55%)]"}`}>
+                      {m.iniciado_pelo_usuario
+                        ? "Você iniciou esta conferência"
+                        : `Em conferência por ${m.conferente_nome}`}
+                    </p>
+                  )}
                 </button>
               ))}
             </div>
@@ -195,6 +287,15 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
           </>
         )}
       </div>
+
+      <FiltroRecebimentoSheet
+        open={filtroOpen}
+        onClose={() => setFiltroOpen(false)}
+        filters={filters}
+        tiposEntrada={tiposEntrada}
+        onApply={setFilters}
+        onClear={clear}
+      />
     </ColetorLayout>
   );
 }
