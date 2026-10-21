@@ -11922,6 +11922,39 @@ export type Database = {
         Args: { p_tarefa_execucao_id: string }
         Returns: undefined
       }
+      recebimento_buscar_movimentos: {
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id: string
+          p_tenant_id: string
+          p_usuario_id?: string
+        }
+        Returns: {
+          box: string
+          conferencia_iniciada_em: string
+          conferente_nome: string
+          confirma_volume: boolean
+          created_at: string
+          crossdocking: boolean
+          devolucao: boolean
+          id: string
+          iniciado_pelo_usuario: boolean
+          notas: string
+          numero_movimento: number
+          parceiro: string
+          parceiro_busca: string
+          placa_veiculo: string
+          prioridade: string
+          qtd_documentos: number
+          qtd_itens: number
+          qtd_itens_pendentes: number
+          status: string
+          tipo_entrada: string
+          tipo_entrada_id: string
+          total_volume: number
+          total_volume_conferido: number
+        }[]
+      }
       regenerar_chave_api_agent: { Args: { p_agent_id: string }; Returns: Json }
       registrar_heartbeat_agent: {
         Args: {
@@ -12154,19 +12187,33 @@ export type Database = {
         }[]
       }
       rpc_coletor_armazenagem_listar_movimentos: {
-        Args: { p_empresa_id: string; p_tenant_id: string }
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
         Returns: {
           box_descricao: string
           created_at: string
+          crossdocking: boolean
+          devolucao: boolean
           itens_armazenados: number
           itens_pendentes: number
           movimento_entrada_id: string
+          notas: string
           numero_movimento: number
+          parceiro: string
+          parceiro_busca: string
           parceiro_nome: string
           percentual_concluido: number
+          placa_veiculo: string
+          prioridade: string
+          qtd_documentos: number
           qtd_total_executada: number
           qtd_total_requerida: number
           status_movimento: string
+          tipo_entrada: string
+          tipo_entrada_id: string
           total_itens: number
         }[]
       }
