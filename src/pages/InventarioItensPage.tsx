@@ -14,6 +14,7 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 interface Props {
   onNavigate: (path: string) => void;
@@ -347,7 +348,7 @@ export function InventarioItensPage({ onNavigate, inventarioId, numeroInventario
                       <tr key={`${item.sku}-${idx}`} className={cn("border-b border-border/50 hover:bg-secondary/30 transition-colors", idx % 2 !== 0 && "bg-secondary/10")}>
                         <td className="px-3 py-2 text-sm font-mono font-semibold text-primary">{item.sku || "—"}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground">{item.referencia || "—"}</td>
-                        <td className="px-3 py-2 text-sm text-muted-foreground max-w-[200px] truncate">{item.descricao || "—"}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground"><DescricaoCell text={item.descricao} /></td>
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.rua ?? "—"}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.predio ?? "—"}</td>
                         <td className="px-3 py-2 text-sm text-muted-foreground text-right">{item.nivel ?? "—"}</td>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import { fetchValidadeLoteReport, type ValidadeLoteFilter, type ValidadeLoteRow } from "./validadeLote.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,7 +122,7 @@ export function ValidadeLoteReportPage() {
 
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "100px" },
-    { key: "descricao", label: "Descrição", width: "240px" },
+    colDescricaoProduto(),
     { key: "lote", label: "Lote", width: "100px" },
     { key: "data_fabricacao", label: "Fabricação", width: "100px", render: (v) => formatDate(v) },
     {
@@ -173,7 +174,7 @@ export function ValidadeLoteReportPage() {
 
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "lote", label: "Lote" },
     { key: "data_fabricacao", label: "Fabricação", format: (r) => fmtDateBR(r.data_fabricacao) },
     { key: "data_validade", label: "Validade", format: (r) => fmtDateBR(r.data_validade) },

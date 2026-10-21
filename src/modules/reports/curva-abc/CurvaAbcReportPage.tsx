@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import { fetchCurvaAbcReport, type CurvaAbcFilter, type CurvaAbcRow } from "./curvaAbc.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,7 +118,7 @@ export function CurvaAbcReportPage() {
 
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "100px" },
-    { key: "descricao", label: "Descrição", width: "240px" },
+    colDescricaoProduto(),
     { key: "marca", label: "Marca", width: "120px" },
     { key: "qtd_saida", label: "Qtd. Saída", align: "right", width: "100px", render: (v) => fmtNum(v) },
     { key: "participacao", label: "% Particip.", align: "right", width: "90px", render: (v) => fmtPct(v) },
@@ -148,7 +149,7 @@ export function CurvaAbcReportPage() {
 
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "marca", label: "Marca" },
     { key: "qtd_saida", label: "Qtd. Saída", align: "right", format: (r) => fmtNum(r.qtd_saida) },
     { key: "participacao", label: "% Particip.", align: "right", format: (r) => fmtPct(r.participacao) },

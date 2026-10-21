@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import { fetchBaixoGiroReport, type BaixoGiroFilter, type BaixoGiroRow } from "./baixoGiro.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,7 +111,7 @@ export function BaixoGiroReportPage() {
 
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "100px" },
-    { key: "descricao", label: "Descrição", width: "240px" },
+    colDescricaoProduto(),
     { key: "marca", label: "Marca", width: "120px" },
     { key: "saldo", label: "Saldo", align: "right", width: "100px", render: (v) => fmtNum(v) },
     { key: "preco_custo", label: "Custo Unit.", align: "right", width: "110px", render: (v) => fmtBRL(v) },
@@ -151,7 +152,7 @@ export function BaixoGiroReportPage() {
 
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "marca", label: "Marca" },
     { key: "saldo", label: "Saldo", align: "right", format: (r) => fmtNum(r.saldo) },
     { key: "preco_custo", label: "Custo Unit.", align: "right", format: (r) => fmtBRL(r.preco_custo) },

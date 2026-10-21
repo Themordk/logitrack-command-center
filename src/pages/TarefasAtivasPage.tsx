@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatarTempoEspera } from "@/pages/dashboard/dashboard.service";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 const sb = supabase as any;
 const REFRESH_INTERVAL = 30_000;
@@ -223,7 +224,7 @@ export function TarefasAtivasPage({ onNavigate }: { onNavigate: (p: string) => v
                     <td className="px-4 py-3">{t.operador_nome || <span className="text-muted-foreground">—</span>}</td>
                     <td className="px-4 py-3 max-w-[280px]">
                       {t.produto_sku && <div className="font-semibold text-foreground">{t.produto_sku}</div>}
-                      <div className="text-[11px] text-muted-foreground truncate" title={t.produto_descricao || ""}>{t.produto_descricao || "—"}</div>
+                      <DescricaoCell text={t.produto_descricao} minWidth={0} maxWidth={280} className="text-[11px] text-muted-foreground" />
                     </td>
                     <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">
                       {[t.endereco_origem, t.endereco_destino].filter(Boolean).join(" → ") || "—"}
@@ -281,7 +282,7 @@ export function TarefasAtivasPage({ onNavigate }: { onNavigate: (p: string) => v
                       <td className="px-4 py-3">{t.operador_nome || <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-4 py-3 max-w-[280px]">
                         {t.produto_sku && <div className="font-semibold text-foreground">{t.produto_sku}</div>}
-                        <div className="text-[11px] text-muted-foreground truncate" title={t.produto_descricao || ""}>{t.produto_descricao || "—"}</div>
+                        <DescricaoCell text={t.produto_descricao} minWidth={0} maxWidth={280} className="text-[11px] text-muted-foreground" />
                       </td>
                       <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">
                         {[t.endereco_origem, t.endereco_destino].filter(Boolean).join(" → ") || "—"}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import { fetchCortesReport, fetchMotivosOcorrencia, type CortesFilter, type CorteRow } from "./cortes.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,7 +90,7 @@ export function CortesReportPage() {
   const columns: ReportColumn[] = [
     { key: "numero_onda", label: "Nº Onda", width: "100px" },
     { key: "sku", label: "SKU", width: "100px" },
-    { key: "descricao", label: "Descrição", width: "220px" },
+    colDescricaoProduto(),
     {
       key: "qtde_cortada", label: "Qtd Cortada", align: "right", width: "100px",
       render: (v) => Number(v).toLocaleString("pt-BR"),
@@ -127,7 +128,7 @@ export function CortesReportPage() {
   const exportColumns: ExportColumn[] = [
     { key: "numero_onda", label: "Nº Onda" },
     { key: "sku", label: "SKU" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "qtde_cortada", label: "Qtd Cortada", align: "right", format: (r) => fmtNumberBR(r.qtde_cortada) },
     { key: "preco_custo", label: "Preço Custo", align: "right", format: (r) => fmtBRL(r.preco_custo) },
     { key: "custo_total_item", label: "Custo Total", align: "right", format: (r) => fmtBRL(r.custo_total_item) },

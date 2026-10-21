@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, ArrowUpDown, Check } from "lucide-react";
 import { parseError } from "@/lib/errorMapper";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 interface SimItem {
   produto_id: string;
@@ -349,8 +350,8 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs whitespace-nowrap">{item.sku}</TableCell>
-                    <TableCell className="text-sm truncate max-w-[200px]" title={item.descricao}>
-                      {item.descricao}
+                    <TableCell className="text-sm">
+                      <DescricaoCell text={item.descricao} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {item.endereco_origem_desc}

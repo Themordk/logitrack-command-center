@@ -10,6 +10,7 @@ import { ArrowLeft, FileText, Package, Hash, Clock, User, AlertTriangle, MapPin,
 import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DocSaidaNfTab } from "./DocSaidaNfTab";
+import { DescricaoCell } from "@/components/DescricaoCell";
 
 interface Props {
   documentoId: string;
@@ -294,7 +295,7 @@ export function DocSaidaDetalhePage({ documentoId, onBack, backLabel }: Props) {
                   <Fragment key={it.id}>
                     <tr className="border-b border-border/50">
                       <td className="px-4 py-2.5 font-mono text-xs text-foreground">{it.produto_sku}</td>
-                      <td className="px-4 py-2.5 text-foreground">{it.produto_descricao}</td>
+                      <td className="px-4 py-2.5 text-foreground"><DescricaoCell text={it.produto_descricao} /></td>
                       <td className="px-4 py-2.5 text-right font-mono text-foreground">{Number(it.quantidade).toLocaleString("pt-BR")}</td>
                       <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{fmtMoney(it.valor_unit)}</td>
                       <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmtMoney(it.valor_total)}</td>

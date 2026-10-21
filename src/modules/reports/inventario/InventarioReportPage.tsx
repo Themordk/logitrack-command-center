@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
+import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
 import {
   fetchInventarioReport,
   fetchInventariosLookup,
@@ -144,7 +145,7 @@ export function InventarioReportPage() {
   const columns: ReportColumn[] = [
     { key: "numero_inventario", label: "Inventário", width: "90px", render: (v) => <span className="font-mono text-foreground">#{v}</span> },
     { key: "sku", label: "SKU", width: "110px", render: (v) => <span className="font-mono font-semibold">{v}</span> },
-    { key: "descricao", label: "Descrição", width: "220px", render: (v) => <span className="truncate block max-w-[220px]" title={v}>{v}</span> },
+    colDescricaoProduto(),
     { key: "endereco", label: "Endereço", width: "150px", render: (v) => <span className="font-mono text-[10px]">{v}</span> },
     { key: "lote", label: "Lote", width: "70px", align: "center" },
     { key: "qtd_sistemica", label: "Qtd. Sist.", align: "right", width: "90px", render: (v) => fmtNum(v) },
@@ -210,7 +211,7 @@ export function InventarioReportPage() {
   const exportColumns: ExportColumn[] = [
     { key: "numero_inventario", label: "Inventário", format: (r) => `#${r.numero_inventario}` },
     { key: "sku", label: "SKU" },
-    { key: "descricao", label: "Descrição" },
+    exportColDescricao(),
     { key: "endereco", label: "Endereço" },
     { key: "lote", label: "Lote" },
     { key: "qtd_sistemica", label: "Qtd. Sist.", align: "right", format: (r) => fmtNumberBR(r.qtd_sistemica) },
