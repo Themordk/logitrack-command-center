@@ -98,4 +98,32 @@ describe("useRecebimentoFilter", () => {
     });
     expect(sessionStorage.getItem(KEY)).toBeNull();
   });
+
+  it("filtra lista no formato da armazenagem por parceiro e NF", async () => {
+    const armazenagem = [
+      { movimento_entrada_id: "a", numero_movimento: 10, tipo_entrada: "COMPRA", parceiro: "PADRE CÍCERO", parceiro_busca: "padre cícero", notas: "5555" },
+      { movimento_entrada_id: "b", numero_movimento: 11, tipo_entrada: "COMPRA", parceiro: "OUTRO", parceiro_busca: "outro", notas: "7777" },
+    ];
+    await definir({ ...EMPTY_RECEBIMENTO_FILTERS, parceiro: "cicero" });
+    expect(atual.apply(armazenagem).map((m) => m.movimento_entrada_id)).toEqual(["a"]);
+    await definir({ ...EMPTY_RECEBIMENTO_FILTERS, numeroDocumento: "777" });
+    expect(atual.apply(armazenagem).map((m) => m.movimento_entrada_id)).toEqual(["b"]);
+  });
+});
+
+describe("MovimentoEntradaChips", () => {
+  it("mostra Urgente e não renderiza nada sem dados", async () => {
+    const { MovimentoEntradaChips } = await import("@/components/coletor/MovimentoEntradaChips");
+    const el = document.createElement("div");
+    const r = createRoot(el);
+    await act(async () => {
+      r.render(<MovimentoEntradaChips tipoEntrada={null} prioridade="URGENTE" devolucao={false} crossdocking={false} />);
+    });
+    expect(el.textContent).toContain("Urgente");
+    await act(async () => {
+      r.render(<MovimentoEntradaChips tipoEntrada={null} prioridade="NORMAL" devolucao={false} crossdocking={false} />);
+    });
+    expect(el.innerHTML).toBe("");
+    await act(async () => r.unmount());
+  });
 });
