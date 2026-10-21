@@ -13,6 +13,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
+import { MovimentoEntradaChips } from "@/components/coletor/MovimentoEntradaChips";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -216,25 +217,12 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
                     <span className={`text-xs font-bold uppercase ${statusColor(m.status)}`}>{statusLabel(m.status)}</span>
                   </div>
 
-                  {(m.tipo_entrada || m.prioridade === "URGENTE" || m.prioridade === "ALTA" || m.devolucao || m.crossdocking) && (
-                    <div className="flex items-center gap-1.5 mb-1 min-w-0">
-                      {m.tipo_entrada && (
-                        <span className="text-xs text-[hsl(213,31%,70%)] truncate min-w-0">{m.tipo_entrada}</span>
-                      )}
-                      {m.prioridade === "URGENTE" && (
-                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30">Urgente</span>
-                      )}
-                      {m.prioridade === "ALTA" && (
-                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">Alta</span>
-                      )}
-                      {m.devolucao && (
-                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#A78BFA]/15 text-[#A78BFA] border border-[#A78BFA]/30">Devolução</span>
-                      )}
-                      {m.crossdocking && (
-                        <span className="shrink-0 text-[10px] uppercase rounded-full px-2 py-0.5 bg-[#22D3EE]/15 text-[#22D3EE] border border-[#22D3EE]/30">Crossdocking</span>
-                      )}
-                    </div>
-                  )}
+                  <MovimentoEntradaChips
+                    tipoEntrada={m.tipo_entrada}
+                    prioridade={m.prioridade}
+                    devolucao={m.devolucao}
+                    crossdocking={m.crossdocking}
+                  />
 
                   <p className="text-sm text-[hsl(213,31%,70%)] truncate">{m.parceiro || "—"}</p>
 
