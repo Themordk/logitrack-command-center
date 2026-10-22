@@ -356,7 +356,7 @@ function EditorJsonata({ valor, onChange, somenteLeitura }: { valor: string; onC
       <div className="flex flex-col gap-1.5">
         <span className="text-xs uppercase tracking-wide text-muted-foreground">Variáveis (clique para inserir)</span>
         <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto">
-          {[...variaveis, ...caminhos.slice(0, 60)].map((v) => (
+          {[...variaveis, ...caminhos.filter((c) => c.startsWith("saidas.")).slice(0, 30), ...caminhos.filter((c) => !c.startsWith("saidas.")).slice(0, 60)].map((v) => (
             <button key={v} type="button" disabled={somenteLeitura} onClick={() => inserir(v)}
               className="rounded border border-border bg-secondary/40 px-1.5 py-0.5 font-mono text-[11px] text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50">
               {v}

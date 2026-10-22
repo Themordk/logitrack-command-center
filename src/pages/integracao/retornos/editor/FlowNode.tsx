@@ -39,7 +39,7 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
 
   return (
     <div
-      className={cn("flex w-40 flex-col items-center gap-1.5", !execucao && desconectados.has(id) && "opacity-60", execucao && !passo && "opacity-30")}
+      className={cn("group flex w-40 flex-col items-center gap-1.5", !execucao && desconectados.has(id) && "opacity-60", execucao && !passo && "opacity-30")}
       onClick={passo && onAbrirPasso ? () => onAbrirPasso(id) : undefined}
     >
       <div
@@ -136,6 +136,9 @@ function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
           <span className="w-full truncate text-xs font-semibold text-foreground">{nome}</span>
         )}
         <span className="w-full truncate text-[11px] text-muted-foreground">{resumo}</span>
+        {!execucao && (
+          <span className={cn("w-full truncate font-mono text-[10px] text-muted-foreground", selected ? "block" : "hidden group-hover:block")}>{id}</span>
+        )}
       </div>
     </div>
   );

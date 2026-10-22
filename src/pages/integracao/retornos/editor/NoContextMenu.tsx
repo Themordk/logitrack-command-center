@@ -1,4 +1,5 @@
-import { Copy, LayoutGrid, Maximize, PencilLine, Plus, Settings2, Trash2, Unlink } from "lucide-react";
+import { toast } from "sonner";
+import { Copy, Hash, LayoutGrid, Maximize, PencilLine, Plus, Settings2, Trash2, Unlink } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -31,6 +32,7 @@ export function NoContextMenu({ menu, limiteAtingido, onFechar, ...a }: Props) {
         {menu?.tipo === "no" && (
           <>
             <DropdownMenuItem onSelect={() => a.onAbrir(menu.noId)}><Settings2 size={14} /> Abrir configuração<DropdownMenuShortcut>Enter</DropdownMenuShortcut></DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => { void navigator.clipboard?.writeText(menu.noId); toast.info(`ID copiado: ${menu.noId}`); }}><Hash size={14} /> Copiar ID</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => a.onRenomear(menu.noId)}><PencilLine size={14} /> Renomear<DropdownMenuShortcut>F2</DropdownMenuShortcut></DropdownMenuItem>
             {!menu.gatilho && (
               <DropdownMenuItem disabled={limiteAtingido} onSelect={() => a.onDuplicar(menu.noId)}><Copy size={14} /> Duplicar<DropdownMenuShortcut>Ctrl+D</DropdownMenuShortcut></DropdownMenuItem>
