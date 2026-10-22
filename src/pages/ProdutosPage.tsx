@@ -1,7 +1,33 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { fetchOptions } from "@/hooks/useCrud";
+import { useProdutoListagem } from "@/hooks/useProdutoListagem";
+import {
+  fetchAllProdutoListagem,
+  stripListagemFields,
+  type ProdutoListagemFilters,
+} from "@/modules/produtos/produtoListagem.service";
+import { SearchableSelectFilter } from "@/components/filters/SearchableSelectFilter";
+import { ParceiroSearchInput } from "@/components/parceiro/ParceiroSearchInput";
+import { ExportActions } from "@/modules/reports/components/ExportActions";
+import {
+  exportToExcel,
+  exportToPdf,
+  printPdf,
+  type ExportColumn,
+} from "@/modules/reports/utils/exporters";
+import { nowDisplay } from "@/utils/dateTime";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
@@ -173,6 +199,10 @@ function ProdutoDetailModal({
     delete cleanData.id;
     delete cleanData.tenant_id;
     delete cleanData.tem_ean;
+    delete cleanData.parceiro_nome;
+    delete cleanData.grupo_descricao;
+    delete cleanData.subgrupo_descricao;
+    delete cleanData.total_count;
     // Ensure empresa_id
     cleanData.empresa_id = empresaId;
     // Number conversions
@@ -674,28 +704,39 @@ function ProdutoDetailModal({
 
 // ─── Main Produtos Page ────────────────────────────────────────────
 export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
-  const { tenantId, empresaId, armazemId, empresaVersion, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion, usuarioId, usuarioNome } = useTenant();
   const [filterSemEan, setFilterSemEan] = useState(false);
   const [filterSku, setFilterSku] = useState("");
   const [filterDescricao, setFilterDescricao] = useState("");
   const [filterReferencia, setFilterReferencia] = useState("");
+  const [filterEan, setFilterEan] = useState("");
+  const [eanAplicado, setEanAplicado] = useState("");
+  const [filterParceiroId, setFilterParceiroId] = useState<string | null>(null);
+  const [filterParceiroNome, setFilterParceiroNome] = useState("");
+  const [filterGrupoId, setFilterGrupoId] = useState<string | null>(null);
+  const [filterSubgrupoId, setFilterSubgrupoId] = useState<string | null>(null);
+  const [filterMarca, setFilterMarca] = useState<string | null>(null);
   const debSku = useDebounce(filterSku, 400);
   const debDescricao = useDebounce(filterDescricao, 400);
   const debReferencia = useDebounce(filterReferencia, 400);
-  const crudFilters = useMemo(() => {
-    const f: Record<string, any> = filterSemEan ? { tem_ean: false } : {};
-    if (debSku.trim()) f.sku = { ilike: debSku.trim() };
-    if (debDescricao.trim()) f.descricao = { ilike: debDescricao.trim() };
-    if (debReferencia.trim()) f.referencia = { ilike: debReferencia.trim() };
-    return f;
-  }, [filterSemEan, debSku, debDescricao, debReferencia]);
-  const crud = useCrud({
-    table: "vw_produto_listagem",
-    writeTable: "produto",
-    tenantId,
-    orderBy: "descricao",
-    filters: crudFilters,
-  });
+  const debEan = useDebounce(filterEan, 400);
+  useEffect(() => { setEanAplicado(debEan); }, [debEan]);
+  const eanFiltro = useMemo(() => {
+    const t = eanAplicado.replace(/\s+/g, "");
+    return t.length >= 3 ? t : "";
+  }, [eanAplicado]);
+  const filters = useMemo<ProdutoListagemFilters>(() => ({
+    sku: debSku,
+    descricao: debDescricao,
+    referencia: debReferencia,
+    ean: eanFiltro,
+    parceiroId: filterParceiroId,
+    grupoId: filterGrupoId,
+    subgrupoId: filterSubgrupoId,
+    marca: filterMarca,
+    semEan: filterSemEan,
+  }), [debSku, debDescricao, debReferencia, eanFiltro, filterParceiroId, filterGrupoId, filterSubgrupoId, filterMarca, filterSemEan]);
+  const lista = useProdutoListagem({ filters, pageSize: 15 });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
@@ -724,6 +765,12 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
+  const [subgrupoFiltroOptions, setSubgrupoFiltroOptions] = useState<{ value: string; label: string; grupoId: string | null }[]>([]);
+  const [marcaOptions, setMarcaOptions] = useState<{ value: string; label: string }[]>([]);
+  const [exportLoading, setExportLoading] = useState<"pdf" | "excel" | "print" | null>(null);
+  const [confirmExcelOpen, setConfirmExcelOpen] = useState(false);
+  const [confirmPdfOpen, setConfirmPdfOpen] = useState(false);
+  const [pdfAcao, setPdfAcao] = useState<"pdf" | "print">("pdf");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [listPrintOpen, setListPrintOpen] = useState(false);
   const [listPrintItems, setListPrintItems] = useState<EtiquetaProdutoItem[]>([]);
@@ -742,7 +789,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         .eq("tem_ean", false);
       if (!error) setTotalSemEan(count ?? 0);
     })();
-  }, [tenantId, empresaId, empresaVersion, crud.total]);
+  }, [tenantId, empresaId, empresaVersion, lista.total]);
 
 
   const handleImprimirSelecionados = async () => {
@@ -776,18 +823,206 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
     setListPrintOpen(true);
   };
 
+  // Troca de empresa: limpa todos os filtros e recarrega as opções
   useEffect(() => {
+    setFilterSku("");
+    setFilterDescricao("");
+    setFilterReferencia("");
+    setFilterEan("");
+    setEanAplicado("");
+    setFilterParceiroId(null);
+    setFilterParceiroNome("");
+    setFilterGrupoId(null);
+    setFilterSubgrupoId(null);
+    setFilterMarca(null);
     if (tenantId && empresaId) {
       const f = { empresa_id: empresaId };
       fetchOptions("grupo_produto", tenantId, "descricao", f).then(setGrupoOptions);
       fetchOptions("subgrupo_produto", tenantId, "descricao", f).then(setSubgrupoOptions);
       fetchOptions("parceiro", tenantId, "razaosocial", f).then(setParceiroOptions);
+      (async () => {
+        const { data } = await (supabase as any)
+          .from("subgrupo_produto")
+          .select("id, descricao, grupo_id")
+          .eq("tenant_id", tenantId)
+          .eq("empresa_id", empresaId)
+          .eq("ativo", true)
+          .order("descricao");
+        setSubgrupoFiltroOptions(
+          (data || []).map((s: any) => ({ value: s.id, label: s.descricao, grupoId: s.grupo_id })),
+        );
+      })();
+      (async () => {
+        const { data } = await (supabase as any).rpc("fn_produto_marcas_distintas", {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+        });
+        setMarcaOptions((data || []).map((m: any) => ({ value: m.marca, label: m.marca })));
+      })();
     } else {
       setGrupoOptions([]);
       setSubgrupoOptions([]);
       setParceiroOptions([]);
+      setSubgrupoFiltroOptions([]);
+      setMarcaOptions([]);
     }
   }, [tenantId, empresaId, empresaVersion]);
+
+  const handleGrupoChange = (id: string | null) => {
+    setFilterGrupoId(id);
+    if (filterSubgrupoId) {
+      const sg = subgrupoFiltroOptions.find((o) => o.value === filterSubgrupoId);
+      if (sg && sg.grupoId !== id) setFilterSubgrupoId(null);
+    }
+  };
+
+  const subgrupoOptionsFiltradas = useMemo(
+    () =>
+      filterGrupoId
+        ? subgrupoFiltroOptions.filter((o) => o.grupoId === filterGrupoId)
+        : subgrupoFiltroOptions,
+    [subgrupoFiltroOptions, filterGrupoId],
+  );
+
+  const algumFiltro =
+    !!filterSku || !!filterDescricao || !!filterReferencia || !!filterEan ||
+    !!filterParceiroId || !!filterGrupoId || !!filterSubgrupoId || !!filterMarca;
+
+  const limparFiltros = () => {
+    setFilterSku("");
+    setFilterDescricao("");
+    setFilterReferencia("");
+    setFilterEan("");
+    setEanAplicado("");
+    setFilterParceiroId(null);
+    setFilterParceiroNome("");
+    setFilterGrupoId(null);
+    setFilterSubgrupoId(null);
+    setFilterMarca(null);
+  };
+
+  const removerProduto = async (id: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from("produto").update({ ativo: false })
+        .eq("id", id).eq("tenant_id", tenantId);
+      if (error) throw error;
+      toast.success("Registro removido com sucesso!");
+      await lista.refresh();
+      return true;
+    } catch (err) {
+      const parsed = parseError(err, "excluir produto");
+      toast.error(parsed.title, { description: parsed.technicalMessage });
+      throw err;
+    }
+  };
+
+  // ── Exportação ──
+  const exportColumns: ExportColumn[] = [
+    { key: "sku", label: "SKU" },
+    { key: "descricao", label: "Descrição" },
+    { key: "referencia", label: "Referência" },
+    { key: "marca", label: "Marca" },
+    { key: "parceiro_nome", label: "Parceiro" },
+    { key: "grupo_descricao", label: "Grupo" },
+    { key: "subgrupo_descricao", label: "Subgrupo" },
+    { key: "tipo_controle", label: "Controle" },
+    { key: "tipo_separacao", label: "Separação" },
+    { key: "ativo", label: "Status", format: (r) => (r.ativo ? "Ativo" : "Inativo") },
+  ];
+
+  const filtrosAtivosPdf = useMemo(() => {
+    const f: Record<string, string> = {};
+    if (debSku.trim()) f["SKU"] = debSku.trim();
+    if (debDescricao.trim()) f["Descrição"] = debDescricao.trim();
+    if (debReferencia.trim()) f["Referência"] = debReferencia.trim();
+    if (eanFiltro) f["EAN"] = eanFiltro;
+    if (filterParceiroNome) f["Parceiro"] = filterParceiroNome;
+    const g = grupoOptions.find((o) => o.value === filterGrupoId);
+    if (g) f["Grupo"] = g.label;
+    const sg = subgrupoFiltroOptions.find((o) => o.value === filterSubgrupoId);
+    if (sg) f["Subgrupo"] = sg.label;
+    if (filterMarca) f["Marca"] = filterMarca;
+    if (filterSemEan) f["Sem código de barras"] = "Sim";
+    return f;
+  }, [debSku, debDescricao, debReferencia, eanFiltro, filterParceiroNome, filterGrupoId, filterSubgrupoId, filterMarca, filterSemEan, grupoOptions, subgrupoFiltroOptions]);
+
+  const buscarTodosParaExportar = async (maxRows?: number) => {
+    const toastId = "export-produtos";
+    toast.loading("Exportando produtos…", { id: toastId });
+    try {
+      const resultado = await fetchAllProdutoListagem({
+        tenantId,
+        empresaId,
+        filters,
+        maxRows,
+        onProgress: (carregados, tot) =>
+          toast.loading(
+            `Exportando produtos… ${carregados.toLocaleString("pt-BR")} de ${tot.toLocaleString("pt-BR")}`,
+            { id: toastId },
+          ),
+      });
+      return { ...resultado, toastId };
+    } catch (err) {
+      toast.error(parseError(err, "exportar produtos").title, { id: toastId });
+      throw err;
+    }
+  };
+
+  const executarExportExcel = async () => {
+    setExportLoading("excel");
+    try {
+      const { rows, toastId } = await buscarTodosParaExportar();
+      exportToExcel("produtos", exportColumns, rows);
+      toast.success(`Excel gerado com ${rows.length.toLocaleString("pt-BR")} produtos`, { id: toastId });
+    } catch {
+      // toast de erro já exibido
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (lista.total > 10000) setConfirmExcelOpen(true);
+    else void executarExportExcel();
+  };
+
+  const executarExportPdf = async (modo: "pdf" | "print") => {
+    const cortou = lista.total > 5000;
+    setExportLoading(modo);
+    try {
+      const { rows, total, toastId } = await buscarTodosParaExportar(cortou ? 5000 : undefined);
+      const meta = {
+        title: "Cadastro de Produtos",
+        generatedAt: nowDisplay(),
+        usuario: usuarioNome ?? undefined,
+        total,
+        filters: cortou
+          ? {
+              ...filtrosAtivosPdf,
+              "Observação": `PDF com 5.000 de ${total.toLocaleString("pt-BR")} registros — use o Excel para a lista completa`,
+            }
+          : filtrosAtivosPdf,
+      };
+      if (modo === "pdf") exportToPdf("produtos", exportColumns, rows, meta);
+      else printPdf("produtos", exportColumns, rows, meta);
+      if (cortou) {
+        toast.warning(`PDF gerado com 5.000 de ${total.toLocaleString("pt-BR")} produtos (limite do PDF)`, { id: toastId });
+      } else {
+        toast.success(modo === "pdf" ? "PDF gerado" : "PDF enviado para impressão", { id: toastId });
+      }
+    } catch {
+      // toast de erro já exibido
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const handleExportPdf = (modo: "pdf" | "print") => {
+    setPdfAcao(modo);
+    if (lista.total > 5000) setConfirmPdfOpen(true);
+    else void executarExportPdf(modo);
+  };
 
   const columns: ColumnSpec[] = [
     {
@@ -815,6 +1050,12 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
     { key: "descricao", label: "Descrição", render: (r) => <DescricaoCell text={r.descricao} /> },
     { key: "referencia", label: "Referência" },
     { key: "marca", label: "Marca" },
+    {
+      key: "parceiro_nome", label: "Parceiro",
+      render: (r) => r.parceiro_nome ? (
+        <span className="block truncate max-w-[220px]" title={r.parceiro_nome}>{r.parceiro_nome}</span>
+      ) : "—",
+    },
     { key: "tipo_controle", label: "Controle" },
     { key: "tipo_separacao", label: "Separação" },
     { key: "ativo", label: "Status", type: "badge" },
@@ -825,15 +1066,15 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       <CrudTable
         title="Produtos"
         columns={columns}
-        data={crud.data}
-        loading={crud.loading}
-        page={crud.page}
-        totalPages={crud.totalPages}
-        total={crud.total}
-        pageSize={crud.pageSize}
-        onPageChange={crud.setPage}
+        data={lista.data}
+        loading={lista.loading}
+        page={lista.page}
+        totalPages={lista.totalPages}
+        total={lista.total}
+        pageSize={lista.pageSize}
+        onPageChange={lista.setPage}
         onNew={() => { setEditItem(null); setModalOpen(true); }}
-        onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
+        onEdit={(row) => { setEditItem(stripListagemFields(row)); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
         extraFilters={
@@ -841,28 +1082,74 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
             <input
               type="text"
               value={filterSku}
-              onChange={(e) => { setFilterSku(e.target.value); crud.setPage(1); }}
+              onChange={(e) => setFilterSku(e.target.value)}
               placeholder="SKU..."
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-32"
             />
             <input
               type="text"
               value={filterDescricao}
-              onChange={(e) => { setFilterDescricao(e.target.value); crud.setPage(1); }}
+              onChange={(e) => setFilterDescricao(e.target.value)}
               placeholder="Descrição..."
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-40"
             />
             <input
               type="text"
               value={filterReferencia}
-              onChange={(e) => { setFilterReferencia(e.target.value); crud.setPage(1); }}
+              onChange={(e) => setFilterReferencia(e.target.value)}
               placeholder="Referência..."
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-36"
             />
-            {(filterSku || filterDescricao || filterReferencia) && (
+            <input
+              type="text"
+              inputMode="numeric"
+              value={filterEan}
+              onChange={(e) => setFilterEan(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") setEanAplicado(filterEan); }}
+              placeholder="EAN..."
+              title={filterEan.trim().length > 0 && filterEan.trim().length < 3 ? "Digite ao menos 3 dígitos" : undefined}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-40"
+            />
+            <div className="w-56">
+              <ParceiroSearchInput
+                value={filterParceiroId}
+                onChange={(id, parceiro) => {
+                  setFilterParceiroId(id);
+                  setFilterParceiroNome(parceiro?.razaosocial ?? "");
+                }}
+                tenantId={tenantId}
+                empresaId={empresaId}
+                placeholder="Parceiro..."
+              />
+            </div>
+            <SearchableSelectFilter
+              value={filterGrupoId}
+              onChange={handleGrupoChange}
+              options={grupoOptions}
+              placeholder="Grupo..."
+              emptyLabel="Todos os grupos"
+              className="w-48"
+            />
+            <SearchableSelectFilter
+              value={filterSubgrupoId}
+              onChange={setFilterSubgrupoId}
+              options={subgrupoOptionsFiltradas}
+              placeholder="Subgrupo..."
+              emptyLabel="Todos os subgrupos"
+              className="w-48"
+            />
+            <SearchableSelectFilter
+              value={filterMarca}
+              onChange={setFilterMarca}
+              options={marcaOptions}
+              placeholder="Marca..."
+              emptyLabel="Todas as marcas"
+              className="w-44"
+            />
+            {algumFiltro && (
               <button
                 type="button"
-                onClick={() => { setFilterSku(""); setFilterDescricao(""); setFilterReferencia(""); crud.setPage(1); }}
+                onClick={limparFiltros}
                 className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 Limpar filtros
@@ -871,7 +1158,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
             {totalSemEan !== null && totalSemEan > 0 && (
               <button
                 type="button"
-                onClick={() => { setFilterSemEan((v) => !v); crud.setPage(1); }}
+                onClick={() => setFilterSemEan((v) => !v)}
                 title={filterSemEan ? "Mostrando apenas produtos sem código de barras — clique para limpar" : "Filtrar produtos sem código de barras"}
                 className={
                   "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border " +
@@ -889,6 +1176,14 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         }
         headerActions={
           <div className="flex items-center gap-2">
+            <ExportActions
+              onExportPdf={() => handleExportPdf("pdf")}
+              onExportExcel={handleExportExcel}
+              onPrint={() => handleExportPdf("print")}
+              disabled={lista.total === 0}
+              loading={exportLoading}
+              disabledTitle="Nenhum produto para exportar"
+            />
             {selectedIds.size > 0 && (
               <button
                 onClick={handleImprimirSelecionados}
@@ -908,7 +1203,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       <ImportarDoERPModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
-        onSuccess={() => crud.refresh()}
+        onSuccess={() => lista.refresh()}
         config={{
           titulo: "Importar Produto do ERP",
           labelCampo: "código do produto (SKU)",
@@ -934,7 +1229,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
           armazemId={armazemId}
           empresaId={empresaId}
           usuarioId={usuarioId}
-          onSaved={crud.refresh}
+          onSaved={lista.refresh}
           grupoOptions={grupoOptions}
           subgrupoOptions={subgrupoOptions}
           parceiroOptions={parceiroOptions}
@@ -944,7 +1239,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       <DeleteConfirmDialog
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}
-        onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
+        onConfirm={async () => deleteItem ? removerProduto(deleteItem.id) : false}
       />
       <PrintEtiquetaProdutoModal
         open={listPrintOpen}
@@ -952,6 +1247,44 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         items={listPrintItems}
         onNavigate={onNavigate}
       />
+
+      <AlertDialog open={confirmExcelOpen} onOpenChange={setConfirmExcelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Exportar Excel</AlertDialogTitle>
+            <AlertDialogDescription>
+              Serão exportados <strong>{lista.total.toLocaleString("pt-BR")}</strong> produtos.
+              Isso pode levar alguns segundos. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void executarExportExcel()}>Exportar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmPdfOpen} onOpenChange={setConfirmPdfOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>PDF limitado a 5.000 linhas</AlertDialogTitle>
+            <AlertDialogDescription>
+              O filtro atual tem <strong>{lista.total.toLocaleString("pt-BR")}</strong> produtos.
+              O PDF incluirá apenas os <strong>5.000 primeiros</strong> (ordenados por descrição).
+              Para a lista completa, use <strong>Exportar Excel</strong> ou refine os filtros.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmPdfOpen(false); handleExportExcel(); }}>
+              Exportar Excel
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => void executarExportPdf(pdfAcao)}>
+              Gerar PDF com 5.000
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

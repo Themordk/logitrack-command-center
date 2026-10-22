@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
 
 export interface ExportColumn {
   key: string;
@@ -60,12 +61,11 @@ export interface PdfMeta {
   filters?: Record<string, string>;
 }
 
-export function exportToPdf(
-  filename: string,
+function buildPdfDoc(
   columns: ExportColumn[],
   rows: any[],
   meta: PdfMeta,
-) {
+): jsPDF {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -129,7 +129,37 @@ export function exportToPdf(
     },
   });
 
+  return doc;
+}
+
+export function exportToPdf(
+  filename: string,
+  columns: ExportColumn[],
+  rows: any[],
+  meta: PdfMeta,
+) {
+  const doc = buildPdfDoc(columns, rows, meta);
   doc.save(`${filename}_${stamp()}.pdf`);
+}
+
+/**
+ * Gera o mesmo PDF do exportToPdf e abre a janela de impressão numa nova aba.
+ * Se o navegador bloquear o pop-up, baixa o arquivo como fallback.
+ */
+export function printPdf(
+  filename: string,
+  columns: ExportColumn[],
+  rows: any[],
+  meta: PdfMeta,
+) {
+  const doc = buildPdfDoc(columns, rows, meta);
+  doc.autoPrint();
+  const url = doc.output("bloburl");
+  const win = window.open(url, "_blank");
+  if (!win) {
+    doc.save(`${filename}_${stamp()}.pdf`);
+    toast.info("Pop-up bloqueado — o PDF foi baixado para impressão");
+  }
 }
 
 // ===== Helpers =====

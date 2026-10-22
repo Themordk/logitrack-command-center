@@ -1,6 +1,6 @@
 import { useTenant } from "@/contexts/TenantContext";
-import { FileText, Printer, FileSpreadsheet, FileDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
+import { ExportActions } from "./ExportActions";
 
 interface ReportHeaderProps {
   title: string;
@@ -40,38 +40,12 @@ export function ReportHeader({
             {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExportPdf}
-            disabled={exportDisabled || !onExportPdf}
-            title={onExportPdf ? "Exportar PDF" : "Gere o relatório primeiro"}
-          >
-            <FileDown size={14} />
-            <span className="hidden sm:inline">Exportar PDF</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExportExcel}
-            disabled={exportDisabled || !onExportExcel}
-            title={onExportExcel ? "Exportar Excel" : "Gere o relatório primeiro"}
-          >
-            <FileSpreadsheet size={14} />
-            <span className="hidden sm:inline">Exportar Excel</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPrint}
-            disabled={exportDisabled || !onPrint}
-            title={onPrint ? "Imprimir" : "Gere o relatório primeiro"}
-          >
-            <Printer size={14} />
-            <span className="hidden sm:inline">Imprimir</span>
-          </Button>
-        </div>
+        <ExportActions
+          onExportPdf={onExportPdf}
+          onExportExcel={onExportExcel}
+          onPrint={onPrint}
+          disabled={exportDisabled}
+        />
       </div>
 
       {/* Info bar */}
