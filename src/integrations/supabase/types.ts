@@ -10476,6 +10476,15 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_produto_grupos_filtro: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          codigo_erp: string
+          descricao: string
+          id: string
+          qtd_produtos: number
+        }[]
+      }
       fn_produto_marcas_distintas: {
         Args: { p_empresa_id?: string; p_tenant_id: string }
         Returns: {
