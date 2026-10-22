@@ -1176,6 +1176,14 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         }
         headerActions={
           <div className="flex items-center gap-2">
+            <ExportActions
+              onExportPdf={() => handleExportPdf("pdf")}
+              onExportExcel={handleExportExcel}
+              onPrint={() => handleExportPdf("print")}
+              disabled={lista.total === 0}
+              loading={exportLoading}
+              disabledTitle="Nenhum produto para exportar"
+            />
             {selectedIds.size > 0 && (
               <button
                 onClick={handleImprimirSelecionados}
@@ -1195,7 +1203,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       <ImportarDoERPModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
-        onSuccess={() => crud.refresh()}
+        onSuccess={() => lista.refresh()}
         config={{
           titulo: "Importar Produto do ERP",
           labelCampo: "código do produto (SKU)",
@@ -1221,7 +1229,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
           armazemId={armazemId}
           empresaId={empresaId}
           usuarioId={usuarioId}
-          onSaved={crud.refresh}
+          onSaved={lista.refresh}
           grupoOptions={grupoOptions}
           subgrupoOptions={subgrupoOptions}
           parceiroOptions={parceiroOptions}
@@ -1231,7 +1239,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       <DeleteConfirmDialog
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}
-        onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
+        onConfirm={async () => deleteItem ? removerProduto(deleteItem.id) : false}
       />
       <PrintEtiquetaProdutoModal
         open={listPrintOpen}
@@ -1239,6 +1247,44 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         items={listPrintItems}
         onNavigate={onNavigate}
       />
+
+      <AlertDialog open={confirmExcelOpen} onOpenChange={setConfirmExcelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Exportar Excel</AlertDialogTitle>
+            <AlertDialogDescription>
+              Serão exportados <strong>{lista.total.toLocaleString("pt-BR")}</strong> produtos.
+              Isso pode levar alguns segundos. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void executarExportExcel()}>Exportar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmPdfOpen} onOpenChange={setConfirmPdfOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>PDF limitado a 5.000 linhas</AlertDialogTitle>
+            <AlertDialogDescription>
+              O filtro atual tem <strong>{lista.total.toLocaleString("pt-BR")}</strong> produtos.
+              O PDF incluirá apenas os <strong>5.000 primeiros</strong> (ordenados por descrição).
+              Para a lista completa, use <strong>Exportar Excel</strong> ou refine os filtros.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmPdfOpen(false); handleExportExcel(); }}>
+              Exportar Excel
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => void executarExportPdf(pdfAcao)}>
+              Gerar PDF com 5.000
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
