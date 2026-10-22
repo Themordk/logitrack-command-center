@@ -1066,15 +1066,15 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       <CrudTable
         title="Produtos"
         columns={columns}
-        data={crud.data}
-        loading={crud.loading}
-        page={crud.page}
-        totalPages={crud.totalPages}
-        total={crud.total}
-        pageSize={crud.pageSize}
-        onPageChange={crud.setPage}
+        data={lista.data}
+        loading={lista.loading}
+        page={lista.page}
+        totalPages={lista.totalPages}
+        total={lista.total}
+        pageSize={lista.pageSize}
+        onPageChange={lista.setPage}
         onNew={() => { setEditItem(null); setModalOpen(true); }}
-        onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
+        onEdit={(row) => { setEditItem(stripListagemFields(row)); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
         newLabel="Novo Produto"
         extraFilters={
@@ -1082,28 +1082,74 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
             <input
               type="text"
               value={filterSku}
-              onChange={(e) => { setFilterSku(e.target.value); crud.setPage(1); }}
+              onChange={(e) => setFilterSku(e.target.value)}
               placeholder="SKU..."
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-32"
             />
             <input
               type="text"
               value={filterDescricao}
-              onChange={(e) => { setFilterDescricao(e.target.value); crud.setPage(1); }}
+              onChange={(e) => setFilterDescricao(e.target.value)}
               placeholder="Descrição..."
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-40"
             />
             <input
               type="text"
               value={filterReferencia}
-              onChange={(e) => { setFilterReferencia(e.target.value); crud.setPage(1); }}
+              onChange={(e) => setFilterReferencia(e.target.value)}
               placeholder="Referência..."
               className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-36"
             />
-            {(filterSku || filterDescricao || filterReferencia) && (
+            <input
+              type="text"
+              inputMode="numeric"
+              value={filterEan}
+              onChange={(e) => setFilterEan(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") setEanAplicado(filterEan); }}
+              placeholder="EAN..."
+              title={filterEan.trim().length > 0 && filterEan.trim().length < 3 ? "Digite ao menos 3 dígitos" : undefined}
+              className="bg-secondary text-foreground text-sm rounded-lg px-3 py-2 outline-none border border-transparent focus:border-primary/40 w-40"
+            />
+            <div className="w-56">
+              <ParceiroSearchInput
+                value={filterParceiroId}
+                onChange={(id, parceiro) => {
+                  setFilterParceiroId(id);
+                  setFilterParceiroNome(parceiro?.razaosocial ?? "");
+                }}
+                tenantId={tenantId}
+                empresaId={empresaId}
+                placeholder="Parceiro..."
+              />
+            </div>
+            <SearchableSelectFilter
+              value={filterGrupoId}
+              onChange={handleGrupoChange}
+              options={grupoOptions}
+              placeholder="Grupo..."
+              emptyLabel="Todos os grupos"
+              className="w-48"
+            />
+            <SearchableSelectFilter
+              value={filterSubgrupoId}
+              onChange={setFilterSubgrupoId}
+              options={subgrupoOptionsFiltradas}
+              placeholder="Subgrupo..."
+              emptyLabel="Todos os subgrupos"
+              className="w-48"
+            />
+            <SearchableSelectFilter
+              value={filterMarca}
+              onChange={setFilterMarca}
+              options={marcaOptions}
+              placeholder="Marca..."
+              emptyLabel="Todas as marcas"
+              className="w-44"
+            />
+            {algumFiltro && (
               <button
                 type="button"
-                onClick={() => { setFilterSku(""); setFilterDescricao(""); setFilterReferencia(""); crud.setPage(1); }}
+                onClick={limparFiltros}
                 className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 Limpar filtros
@@ -1112,7 +1158,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
             {totalSemEan !== null && totalSemEan > 0 && (
               <button
                 type="button"
-                onClick={() => { setFilterSemEan((v) => !v); crud.setPage(1); }}
+                onClick={() => setFilterSemEan((v) => !v)}
                 title={filterSemEan ? "Mostrando apenas produtos sem código de barras — clique para limpar" : "Filtrar produtos sem código de barras"}
                 className={
                   "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border " +
