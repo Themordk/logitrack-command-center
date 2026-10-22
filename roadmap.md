@@ -1,10 +1,10 @@
 # Ajustes de destino da armazenagem
 
 ## Revisão de Produtos
-- [ ] Abrir impressão no clique e fechar a aba em erro ou lista vazia.
-- [ ] Grupos vinculados pela RPC, opções únicas e filtro desabilitado quando vazio.
-- [ ] Evitar consulta duplicada ao mudar filtros e desabilitar exportação durante carregamento.
-- [ ] Executar testes dos ajustes.
+- [x] Abrir impressão no clique e fechar a aba em erro ou lista vazia; aba reservada e PDF conferidos no Chrome.
+- [x] Grupos vinculados pela RPC, opções únicas e filtro desabilitado quando vazio.
+- [x] Evitar consulta duplicada ao mudar filtros e desabilitar exportação durante carregamento.
+- [x] Executar testes dos ajustes: 9 passaram; build OK.
 - [ ] Validar com usuário conectado: sessão indisponível no Supabase externo.
 
 ## Recebimento do coletor (RPC + filtro)
