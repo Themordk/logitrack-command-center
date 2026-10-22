@@ -29,19 +29,20 @@ export function useProdutoListagem({ filters, pageSize = 15 }: UseProdutoListage
   const filtersKey = JSON.stringify(filters);
   const prevKeyRef = useRef(filtersKey);
 
-  // Filtros mudaram: volta para a página 1
-  useEffect(() => {
-    if (prevKeyRef.current !== filtersKey) {
-      prevKeyRef.current = filtersKey;
-      setPage(1);
-    }
-  }, [filtersKey]);
-
   const carregar = useCallback(async () => {
     const req = ++reqRef.current;
+    if (prevKeyRef.current !== filtersKey) {
+      prevKeyRef.current = filtersKey;
+      if (page !== 1) {
+        setLoading(true);
+        setPage(1);
+        return;
+      }
+    }
     if (!tenantId || !empresaId) {
       setData([]);
       setTotal(0);
+      setLoading(false);
       return;
     }
     setLoading(true);

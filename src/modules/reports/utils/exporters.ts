@@ -151,15 +151,29 @@ export function printPdf(
   columns: ExportColumn[],
   rows: any[],
   meta: PdfMeta,
+  targetWindow?: Window | null,
 ) {
   const doc = buildPdfDoc(columns, rows, meta);
   doc.autoPrint();
-  const url = doc.output("bloburl");
-  const win = window.open(url, "_blank");
+  const url = doc.output("bloburl") as unknown as string;
+  const win = targetWindow && !targetWindow.closed ? targetWindow : window.open(url, "_blank");
+  if (win && win === targetWindow) win.location.href = url;
   if (!win) {
     doc.save(`${filename}_${stamp()}.pdf`);
     toast.info("Pop-up bloqueado — o PDF foi baixado para impressão");
   }
+}
+
+/** Reserva a aba dentro do clique, antes de buscar os dados para impressão. */
+export function abrirJanelaImpressao(): Window | null {
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.title = "Gerando PDF…";
+    win.document.body.style.fontFamily = "sans-serif";
+    win.document.body.style.padding = "24px";
+    win.document.body.textContent = "Gerando PDF para impressão… aguarde.";
+  }
+  return win;
 }
 
 // ===== Helpers =====
