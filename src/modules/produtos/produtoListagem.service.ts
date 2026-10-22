@@ -57,6 +57,42 @@ const clean = (v?: string | null): string | null => {
   return t ? t : null;
 };
 
+export interface GrupoFiltroRow {
+  id: string;
+  descricao: string;
+  codigo_erp: string | null;
+  qtd_produtos: number;
+}
+
+export interface GrupoFiltroOption {
+  value: string;
+  label: string;
+  descricao: string;
+  description: string;
+}
+
+export function montarGrupoFiltroOptions(grupos: GrupoFiltroRow[]): GrupoFiltroOption[] {
+  const contagens = new Map<string, number>();
+  for (const grupo of grupos) contagens.set(grupo.descricao, (contagens.get(grupo.descricao) ?? 0) + 1);
+  return grupos.map((grupo) => ({
+    value: grupo.id,
+    label: (contagens.get(grupo.descricao) ?? 0) > 1
+      ? `${grupo.descricao} (${grupo.codigo_erp ?? "sem código"})`
+      : grupo.descricao,
+    descricao: grupo.descricao,
+    description: `${Number(grupo.qtd_produtos).toLocaleString("pt-BR")} produtos`,
+  }));
+}
+
+export async function fetchProdutoGruposFiltro(tenantId: string, empresaId: string): Promise<GrupoFiltroOption[]> {
+  const { data, error } = await supabase.rpc("fn_produto_grupos_filtro", {
+    p_tenant_id: tenantId,
+    p_empresa_id: empresaId,
+  });
+  if (error) throw error;
+  return montarGrupoFiltroOptions(data ?? []);
+}
+
 function buildParams(
   tenantId: string,
   empresaId: string,

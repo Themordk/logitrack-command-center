@@ -5,7 +5,9 @@ import { fetchOptions } from "@/hooks/useCrud";
 import { useProdutoListagem } from "@/hooks/useProdutoListagem";
 import {
   fetchAllProdutoListagem,
+  fetchProdutoGruposFiltro,
   stripListagemFields,
+  type GrupoFiltroOption,
   type ProdutoListagemFilters,
 } from "@/modules/produtos/produtoListagem.service";
 import { SearchableSelectFilter } from "@/components/filters/SearchableSelectFilter";
@@ -15,6 +17,7 @@ import {
   exportToExcel,
   exportToPdf,
   printPdf,
+  abrirJanelaImpressao,
   type ExportColumn,
 } from "@/modules/reports/utils/exporters";
 import { nowDisplay } from "@/utils/dateTime";
@@ -763,6 +766,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
+  const [grupoFiltroOptions, setGrupoFiltroOptions] = useState<GrupoFiltroOption[]>([]);
   const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
   const [subgrupoFiltroOptions, setSubgrupoFiltroOptions] = useState<{ value: string; label: string; grupoId: string | null }[]>([]);
@@ -825,6 +829,8 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
 
   // Troca de empresa: limpa todos os filtros e recarrega as opções
   useEffect(() => {
+    let cancelado = false;
+    setGrupoFiltroOptions([]);
     setFilterSku("");
     setFilterDescricao("");
     setFilterReferencia("");
@@ -840,6 +846,11 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       fetchOptions("grupo_produto", tenantId, "descricao", f).then(setGrupoOptions);
       fetchOptions("subgrupo_produto", tenantId, "descricao", f).then(setSubgrupoOptions);
       fetchOptions("parceiro", tenantId, "razaosocial", f).then(setParceiroOptions);
+      void fetchProdutoGruposFiltro(tenantId, empresaId)
+        .then((opcoes) => { if (!cancelado) setGrupoFiltroOptions(opcoes); })
+        .catch((erro: unknown) => {
+          if (!cancelado) toast.error(parseError(erro, "carregar grupos de produtos").title);
+        });
       (async () => {
         const { data } = await (supabase as any)
           .from("subgrupo_produto")
@@ -866,6 +877,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
       setSubgrupoFiltroOptions([]);
       setMarcaOptions([]);
     }
+    return () => { cancelado = true; };
   }, [tenantId, empresaId, empresaVersion]);
 
   const handleGrupoChange = (id: string | null) => {
@@ -938,14 +950,14 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
     if (debReferencia.trim()) f["Referência"] = debReferencia.trim();
     if (eanFiltro) f["EAN"] = eanFiltro;
     if (filterParceiroNome) f["Parceiro"] = filterParceiroNome;
-    const g = grupoOptions.find((o) => o.value === filterGrupoId);
-    if (g) f["Grupo"] = g.label;
+    const g = grupoFiltroOptions.find((o) => o.value === filterGrupoId);
+    if (g) f["Grupo"] = g.descricao;
     const sg = subgrupoFiltroOptions.find((o) => o.value === filterSubgrupoId);
     if (sg) f["Subgrupo"] = sg.label;
     if (filterMarca) f["Marca"] = filterMarca;
     if (filterSemEan) f["Sem código de barras"] = "Sim";
     return f;
-  }, [debSku, debDescricao, debReferencia, eanFiltro, filterParceiroNome, filterGrupoId, filterSubgrupoId, filterMarca, filterSemEan, grupoOptions, subgrupoFiltroOptions]);
+  }, [debSku, debDescricao, debReferencia, eanFiltro, filterParceiroNome, filterGrupoId, filterSubgrupoId, filterMarca, filterSemEan, grupoFiltroOptions, subgrupoFiltroOptions]);
 
   const buscarTodosParaExportar = async (maxRows?: number) => {
     const toastId = "export-produtos";
@@ -987,11 +999,16 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
     else void executarExportExcel();
   };
 
-  const executarExportPdf = async (modo: "pdf" | "print") => {
+  const executarExportPdf = async (modo: "pdf" | "print", janela?: Window | null) => {
     const cortou = lista.total > 5000;
     setExportLoading(modo);
     try {
       const { rows, total, toastId } = await buscarTodosParaExportar(cortou ? 5000 : undefined);
+      if (modo === "print" && rows.length === 0) {
+        janela?.close();
+        toast.info("Nenhum produto para imprimir", { id: toastId });
+        return;
+      }
       const meta = {
         title: "Cadastro de Produtos",
         generatedAt: nowDisplay(),
@@ -1005,13 +1022,14 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
           : filtrosAtivosPdf,
       };
       if (modo === "pdf") exportToPdf("produtos", exportColumns, rows, meta);
-      else printPdf("produtos", exportColumns, rows, meta);
+      else printPdf("produtos", exportColumns, rows, meta, janela);
       if (cortou) {
         toast.warning(`PDF gerado com 5.000 de ${total.toLocaleString("pt-BR")} produtos (limite do PDF)`, { id: toastId });
       } else {
         toast.success(modo === "pdf" ? "PDF gerado" : "PDF enviado para impressão", { id: toastId });
       }
     } catch {
+      janela?.close();
       // toast de erro já exibido
     } finally {
       setExportLoading(null);
@@ -1021,7 +1039,10 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
   const handleExportPdf = (modo: "pdf" | "print") => {
     setPdfAcao(modo);
     if (lista.total > 5000) setConfirmPdfOpen(true);
-    else void executarExportPdf(modo);
+    else {
+      const janela = modo === "print" ? abrirJanelaImpressao() : null;
+      void executarExportPdf(modo, janela);
+    }
   };
 
   const columns: ColumnSpec[] = [
@@ -1125,8 +1146,10 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
             <SearchableSelectFilter
               value={filterGrupoId}
               onChange={handleGrupoChange}
-              options={grupoOptions}
-              placeholder="Grupo..."
+              options={grupoFiltroOptions}
+              placeholder={grupoFiltroOptions.length ? "Grupo..." : "Sem grupos vinculados"}
+              disabled={grupoFiltroOptions.length === 0}
+              title={grupoFiltroOptions.length ? undefined : "Nenhum produto desta empresa tem grupo vinculado"}
               emptyLabel="Todos os grupos"
               className="w-48"
             />
@@ -1180,7 +1203,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
               onExportPdf={() => handleExportPdf("pdf")}
               onExportExcel={handleExportExcel}
               onPrint={() => handleExportPdf("print")}
-              disabled={lista.total === 0}
+              disabled={lista.total === 0 || lista.loading}
               loading={exportLoading}
               disabledTitle="Nenhum produto para exportar"
             />
@@ -1279,7 +1302,10 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
             <AlertDialogAction onClick={() => { setConfirmPdfOpen(false); handleExportExcel(); }}>
               Exportar Excel
             </AlertDialogAction>
-            <AlertDialogAction onClick={() => void executarExportPdf(pdfAcao)}>
+            <AlertDialogAction onClick={() => {
+              const janela = pdfAcao === "print" ? abrirJanelaImpressao() : null;
+              void executarExportPdf(pdfAcao, janela);
+            }}>
               Gerar PDF com 5.000
             </AlertDialogAction>
           </AlertDialogFooter>
