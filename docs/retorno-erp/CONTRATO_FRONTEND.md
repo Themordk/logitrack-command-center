@@ -186,7 +186,17 @@ type CampoMapeado = { campo: string; tipo?: 'caminho'|'fixo'|'expressao'|'lista'
 - Funcionam em `caminho`, headers, `titulo`, `mensagem` e `status_integracao`.
 - Exemplos: `{{documento.numero}}`, `{{documento.codigo_erp}}`.
 - `erro.mensagem` e `erro.http_status` existem depois de um ramo `erro`.
-- `saidas.<idDoNó>.corpo` traz a resposta de um nó HTTP anterior.
+- O que cada tipo de nó grava em `saidas[<id>]` (disponível para os nós seguintes como `saidas.<idDoNó>…`):
+
+| tipo | conteúdo de `saidas.<id>` | quando |
+|---|---|---|
+| `dados.payload` | o JSON montado (direto, sem envelope) | sempre |
+| `acao.http` / `acao.webhook` | `{ status: number, corpo: <json da resposta ou texto> }` | só quando sai por **sucesso** |
+| `acao.provedor` | JSON de resposta do ERP (Omie) | só quando sai por **sucesso** |
+| demais tipos | nada | — |
+
+- `saidas` também vale em regras de Condição, caminhos do mapeamento e JSONata do Montar payload.
+- O servidor não envia HTTP/webhook se uma variável do path da URL (antes do `?`) ficar vazia: o nó sai por `erro`.
 
 **Mapeamento:**
 - Dentro de `lista`, os caminhos são relativos ao item; `$raiz.` volta à raiz.
@@ -201,15 +211,16 @@ type CampoMapeado = { campo: string; tipo?: 'caminho'|'fixo'|'expressao'|'lista'
 ```ts
 type Validacao = { valido: boolean; erros: Aviso[]; avisos: Aviso[];
   gatilho: { id; tipo; evento; entidade; modo: 'imediato'|'agrupado'|'manual'; agrupamento } | null };
-type Aviso = { codigo: string; mensagem: string /* pt-BR, exibir como veio */; no_id?: string };
+type Aviso = { codigo: string; mensagem: string /* pt-BR, exibir como veio */; no_id?: string; ref?: string /* id referenciado (REFERENCIA_*) */ };
 ```
 
 - **Erros:**
   - estrutura: `FLUXO_VAZIO`, `LIMITE_NOS`, `NO_SEM_ID`, `NO_ID_DUPLICADO`, `NO_TIPO_INVALIDO`, `NO_INDISPONIVEL`;
   - gatilho: `GATILHO_UNICO`, `GATILHO_EVENTO_INVALIDO`, `GATILHO_MODO_INVALIDO`, `AGRUPAMENTO_INVALIDO`, `GATILHO_ENTIDADE_INVALIDA`;
   - configuração dos nós: `REGRA_INVALIDA`, `CONDICAO_SEM_REGRA`, `AGUARDAR_INVALIDO`, `PAYLOAD_INVALIDO`, `DESTINO_INVALIDO`, `METODO_INVALIDO`, `CORPO_DE_INVALIDO`, `PROVEDOR_OPERACAO_INVALIDA`, `PROVEDOR_ENTIDADE_INCOMPATIVEL`, `NOTIFICAR_SEM_TITULO`;
-  - ligações: `LIGACAO_INVALIDA`, `LIGACAO_PARA_GATILHO`, `SAIDA_INVALIDA`, `SAIDA_DUPLICADA`, `CICLO`.
-- **Avisos:** `NO_DESCONECTADO`, `GATILHO_SEM_SAIDA`, `PROVEDOR_SEM_CONEXAO`, `MOTOR_LEGADO_ATIVO`, `HTTP_SEM_PAYLOAD`.
+  - ligações: `LIGACAO_INVALIDA`, `LIGACAO_PARA_GATILHO`, `SAIDA_INVALIDA`, `SAIDA_DUPLICADA`, `CICLO`;
+  - referências: `REFERENCIA_INVALIDA` (`saidas.<ref>` aponta para nó inexistente, o próprio nó, nó sem saída ou que não vem antes; traz `ref`).
+- **Avisos:** `NO_DESCONECTADO`, `GATILHO_SEM_SAIDA`, `PROVEDOR_SEM_CONEXAO`, `MOTOR_LEGADO_ATIVO`, `HTTP_SEM_PAYLOAD`, `REFERENCIA_RAMO_ERRO` (nó só alcançado pelo ramo erro do referenciado), `REFERENCIA_CONDICIONAL` (há caminho até o nó sem passar pelo referenciado) — ambos com `ref`.
 
 ### 3.5 Execução
 ```ts
