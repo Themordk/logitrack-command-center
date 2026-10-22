@@ -765,6 +765,12 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
   const [grupoOptions, setGrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [subgrupoOptions, setSubgrupoOptions] = useState<{ value: string; label: string }[]>([]);
   const [parceiroOptions, setParceiroOptions] = useState<{ value: string; label: string }[]>([]);
+  const [subgrupoFiltroOptions, setSubgrupoFiltroOptions] = useState<{ value: string; label: string; grupoId: string | null }[]>([]);
+  const [marcaOptions, setMarcaOptions] = useState<{ value: string; label: string }[]>([]);
+  const [exportLoading, setExportLoading] = useState<"pdf" | "excel" | "print" | null>(null);
+  const [confirmExcelOpen, setConfirmExcelOpen] = useState(false);
+  const [confirmPdfOpen, setConfirmPdfOpen] = useState(false);
+  const [pdfAcao, setPdfAcao] = useState<"pdf" | "print">("pdf");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [listPrintOpen, setListPrintOpen] = useState(false);
   const [listPrintItems, setListPrintItems] = useState<EtiquetaProdutoItem[]>([]);
@@ -783,7 +789,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         .eq("tem_ean", false);
       if (!error) setTotalSemEan(count ?? 0);
     })();
-  }, [tenantId, empresaId, empresaVersion, crud.total]);
+  }, [tenantId, empresaId, empresaVersion, lista.total]);
 
 
   const handleImprimirSelecionados = async () => {
@@ -817,18 +823,206 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
     setListPrintOpen(true);
   };
 
+  // Troca de empresa: limpa todos os filtros e recarrega as opções
   useEffect(() => {
+    setFilterSku("");
+    setFilterDescricao("");
+    setFilterReferencia("");
+    setFilterEan("");
+    setEanAplicado("");
+    setFilterParceiroId(null);
+    setFilterParceiroNome("");
+    setFilterGrupoId(null);
+    setFilterSubgrupoId(null);
+    setFilterMarca(null);
     if (tenantId && empresaId) {
       const f = { empresa_id: empresaId };
       fetchOptions("grupo_produto", tenantId, "descricao", f).then(setGrupoOptions);
       fetchOptions("subgrupo_produto", tenantId, "descricao", f).then(setSubgrupoOptions);
       fetchOptions("parceiro", tenantId, "razaosocial", f).then(setParceiroOptions);
+      (async () => {
+        const { data } = await (supabase as any)
+          .from("subgrupo_produto")
+          .select("id, descricao, grupo_id")
+          .eq("tenant_id", tenantId)
+          .eq("empresa_id", empresaId)
+          .eq("ativo", true)
+          .order("descricao");
+        setSubgrupoFiltroOptions(
+          (data || []).map((s: any) => ({ value: s.id, label: s.descricao, grupoId: s.grupo_id })),
+        );
+      })();
+      (async () => {
+        const { data } = await (supabase as any).rpc("fn_produto_marcas_distintas", {
+          p_tenant_id: tenantId,
+          p_empresa_id: empresaId,
+        });
+        setMarcaOptions((data || []).map((m: any) => ({ value: m.marca, label: m.marca })));
+      })();
     } else {
       setGrupoOptions([]);
       setSubgrupoOptions([]);
       setParceiroOptions([]);
+      setSubgrupoFiltroOptions([]);
+      setMarcaOptions([]);
     }
   }, [tenantId, empresaId, empresaVersion]);
+
+  const handleGrupoChange = (id: string | null) => {
+    setFilterGrupoId(id);
+    if (filterSubgrupoId) {
+      const sg = subgrupoFiltroOptions.find((o) => o.value === filterSubgrupoId);
+      if (sg && sg.grupoId !== id) setFilterSubgrupoId(null);
+    }
+  };
+
+  const subgrupoOptionsFiltradas = useMemo(
+    () =>
+      filterGrupoId
+        ? subgrupoFiltroOptions.filter((o) => o.grupoId === filterGrupoId)
+        : subgrupoFiltroOptions,
+    [subgrupoFiltroOptions, filterGrupoId],
+  );
+
+  const algumFiltro =
+    !!filterSku || !!filterDescricao || !!filterReferencia || !!filterEan ||
+    !!filterParceiroId || !!filterGrupoId || !!filterSubgrupoId || !!filterMarca;
+
+  const limparFiltros = () => {
+    setFilterSku("");
+    setFilterDescricao("");
+    setFilterReferencia("");
+    setFilterEan("");
+    setEanAplicado("");
+    setFilterParceiroId(null);
+    setFilterParceiroNome("");
+    setFilterGrupoId(null);
+    setFilterSubgrupoId(null);
+    setFilterMarca(null);
+  };
+
+  const removerProduto = async (id: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from("produto").update({ ativo: false })
+        .eq("id", id).eq("tenant_id", tenantId);
+      if (error) throw error;
+      toast.success("Registro removido com sucesso!");
+      await lista.refresh();
+      return true;
+    } catch (err) {
+      const parsed = parseError(err, "excluir produto");
+      toast.error(parsed.title, { description: parsed.technicalMessage });
+      throw err;
+    }
+  };
+
+  // ── Exportação ──
+  const exportColumns: ExportColumn[] = [
+    { key: "sku", label: "SKU" },
+    { key: "descricao", label: "Descrição" },
+    { key: "referencia", label: "Referência" },
+    { key: "marca", label: "Marca" },
+    { key: "parceiro_nome", label: "Parceiro" },
+    { key: "grupo_descricao", label: "Grupo" },
+    { key: "subgrupo_descricao", label: "Subgrupo" },
+    { key: "tipo_controle", label: "Controle" },
+    { key: "tipo_separacao", label: "Separação" },
+    { key: "ativo", label: "Status", format: (r) => (r.ativo ? "Ativo" : "Inativo") },
+  ];
+
+  const filtrosAtivosPdf = useMemo(() => {
+    const f: Record<string, string> = {};
+    if (debSku.trim()) f["SKU"] = debSku.trim();
+    if (debDescricao.trim()) f["Descrição"] = debDescricao.trim();
+    if (debReferencia.trim()) f["Referência"] = debReferencia.trim();
+    if (eanFiltro) f["EAN"] = eanFiltro;
+    if (filterParceiroNome) f["Parceiro"] = filterParceiroNome;
+    const g = grupoOptions.find((o) => o.value === filterGrupoId);
+    if (g) f["Grupo"] = g.label;
+    const sg = subgrupoFiltroOptions.find((o) => o.value === filterSubgrupoId);
+    if (sg) f["Subgrupo"] = sg.label;
+    if (filterMarca) f["Marca"] = filterMarca;
+    if (filterSemEan) f["Sem código de barras"] = "Sim";
+    return f;
+  }, [debSku, debDescricao, debReferencia, eanFiltro, filterParceiroNome, filterGrupoId, filterSubgrupoId, filterMarca, filterSemEan, grupoOptions, subgrupoFiltroOptions]);
+
+  const buscarTodosParaExportar = async (maxRows?: number) => {
+    const toastId = "export-produtos";
+    toast.loading("Exportando produtos…", { id: toastId });
+    try {
+      const resultado = await fetchAllProdutoListagem({
+        tenantId,
+        empresaId,
+        filters,
+        maxRows,
+        onProgress: (carregados, tot) =>
+          toast.loading(
+            `Exportando produtos… ${carregados.toLocaleString("pt-BR")} de ${tot.toLocaleString("pt-BR")}`,
+            { id: toastId },
+          ),
+      });
+      return { ...resultado, toastId };
+    } catch (err) {
+      toast.error(parseError(err, "exportar produtos").title, { id: toastId });
+      throw err;
+    }
+  };
+
+  const executarExportExcel = async () => {
+    setExportLoading("excel");
+    try {
+      const { rows, toastId } = await buscarTodosParaExportar();
+      exportToExcel("produtos", exportColumns, rows);
+      toast.success(`Excel gerado com ${rows.length.toLocaleString("pt-BR")} produtos`, { id: toastId });
+    } catch {
+      // toast de erro já exibido
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (lista.total > 10000) setConfirmExcelOpen(true);
+    else void executarExportExcel();
+  };
+
+  const executarExportPdf = async (modo: "pdf" | "print") => {
+    const cortou = lista.total > 5000;
+    setExportLoading(modo);
+    try {
+      const { rows, total, toastId } = await buscarTodosParaExportar(cortou ? 5000 : undefined);
+      const meta = {
+        title: "Cadastro de Produtos",
+        generatedAt: nowDisplay(),
+        usuario: usuarioNome ?? undefined,
+        total,
+        filters: cortou
+          ? {
+              ...filtrosAtivosPdf,
+              "Observação": `PDF com 5.000 de ${total.toLocaleString("pt-BR")} registros — use o Excel para a lista completa`,
+            }
+          : filtrosAtivosPdf,
+      };
+      if (modo === "pdf") exportToPdf("produtos", exportColumns, rows, meta);
+      else printPdf("produtos", exportColumns, rows, meta);
+      if (cortou) {
+        toast.warning(`PDF gerado com 5.000 de ${total.toLocaleString("pt-BR")} produtos (limite do PDF)`, { id: toastId });
+      } else {
+        toast.success(modo === "pdf" ? "PDF gerado" : "PDF enviado para impressão", { id: toastId });
+      }
+    } catch {
+      // toast de erro já exibido
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const handleExportPdf = (modo: "pdf" | "print") => {
+    setPdfAcao(modo);
+    if (lista.total > 5000) setConfirmPdfOpen(true);
+    else void executarExportPdf(modo);
+  };
 
   const columns: ColumnSpec[] = [
     {
