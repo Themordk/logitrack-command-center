@@ -1,7 +1,33 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useCrud, fetchOptions } from "@/hooks/useCrud";
+import { fetchOptions } from "@/hooks/useCrud";
+import { useProdutoListagem } from "@/hooks/useProdutoListagem";
+import {
+  fetchAllProdutoListagem,
+  stripListagemFields,
+  type ProdutoListagemFilters,
+} from "@/modules/produtos/produtoListagem.service";
+import { SearchableSelectFilter } from "@/components/filters/SearchableSelectFilter";
+import { ParceiroSearchInput } from "@/components/parceiro/ParceiroSearchInput";
+import { ExportActions } from "@/modules/reports/components/ExportActions";
+import {
+  exportToExcel,
+  exportToPdf,
+  printPdf,
+  type ExportColumn,
+} from "@/modules/reports/utils/exporters";
+import { nowDisplay } from "@/utils/dateTime";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
@@ -173,6 +199,10 @@ function ProdutoDetailModal({
     delete cleanData.id;
     delete cleanData.tenant_id;
     delete cleanData.tem_ean;
+    delete cleanData.parceiro_nome;
+    delete cleanData.grupo_descricao;
+    delete cleanData.subgrupo_descricao;
+    delete cleanData.total_count;
     // Ensure empresa_id
     cleanData.empresa_id = empresaId;
     // Number conversions
