@@ -57,7 +57,7 @@ export function TemplateInput({ id, value, onChange, placeholder, multilinha, se
         ? g.caminhos
         : g.caminhos.filter((c) => c.caminho.toLowerCase().includes(q) || relativo(g, c.caminho).toLowerCase().includes(q));
       return { g, itens };
-    }).filter((x) => x.itens.length);
+    }).filter((x) => x.itens.length || (!q && x.g.aviso));
   }, [gruposOrdenados, busca]);
 
   const semAnteriores = !grupos.some((g) => g.id);
