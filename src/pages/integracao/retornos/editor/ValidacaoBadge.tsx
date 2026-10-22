@@ -23,9 +23,16 @@ function Item({ a, tipo, nomeDoNo, onSelecionarNo }: { a: Aviso; tipo: "erro" | 
       </span>
     </>
   );
-  if (!a.no_id) return <li className="flex gap-2 px-2 py-1.5 text-xs">{conteudo}</li>;
+  const refExiste = !!a.ref && nomeDoNo(a.ref) !== undefined;
+  const verRef = refExiste ? (
+    <button type="button" onClick={() => onSelecionarNo(a.ref as string)}
+      className="ml-7 mb-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-primary hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      Ver nó {a.ref}
+    </button>
+  ) : null;
+  if (!a.no_id) return <li className="flex flex-col px-2 py-1.5 text-xs"><span className="flex gap-2">{conteudo}</span>{verRef}</li>;
   return (
-    <li>
+    <li className="flex flex-col">
       <button
         type="button"
         onClick={() => onSelecionarNo(a.no_id as string)}
@@ -33,6 +40,7 @@ function Item({ a, tipo, nomeDoNo, onSelecionarNo }: { a: Aviso; tipo: "erro" | 
       >
         {conteudo}
       </button>
+      {verRef}
     </li>
   );
 }

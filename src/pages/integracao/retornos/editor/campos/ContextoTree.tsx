@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { MIME_CAMINHO, MIME_LISTA } from "./painelContext";
+import { MIME_CAMINHO, MIME_LISTA, usePainel } from "./painelContext";
 
 function tipoDe(v: unknown): string {
   if (v === null) return "nulo";
@@ -21,6 +21,7 @@ function valorCurto(v: unknown): string {
 
 function Ramo({ chave, valor, caminho, nivel, abertoInicial }: { chave: string; valor: unknown; caminho: string; nivel: number; abertoInicial: boolean }) {
   const [aberto, setAberto] = useState(abertoInicial);
+  const { somenteLeitura } = usePainel();
   const composto = valor !== null && typeof valor === "object";
   const pad = { paddingLeft: nivel * 12 };
 
@@ -30,7 +31,7 @@ function Ramo({ chave, valor, caminho, nivel, abertoInicial }: { chave: string; 
         <TooltipTrigger asChild>
           <button
             type="button"
-            draggable
+            draggable={!somenteLeitura}
             onDragStart={(e) => { e.dataTransfer.setData(MIME_CAMINHO, caminho); e.dataTransfer.setData("text/plain", caminho); }}
             onClick={() => { void navigator.clipboard?.writeText(caminho); toast.info(`Caminho copiado: ${caminho}`); }}
             className="flex w-full items-baseline gap-1.5 rounded px-1 py-0.5 text-left hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-grab"
@@ -53,7 +54,7 @@ function Ramo({ chave, valor, caminho, nivel, abertoInicial }: { chave: string; 
         type="button"
         onClick={() => setAberto((a) => !a)}
         aria-expanded={aberto}
-        draggable={Array.isArray(valor)}
+        draggable={Array.isArray(valor) && !somenteLeitura}
         onDragStart={(e) => {
           if (!Array.isArray(valor)) return;
           e.dataTransfer.setData(MIME_CAMINHO, caminho); e.dataTransfer.setData(MIME_LISTA, "1"); e.dataTransfer.setData("text/plain", caminho);
@@ -79,10 +80,14 @@ function Ramo({ chave, valor, caminho, nivel, abertoInicial }: { chave: string; 
   );
 }
 
-export function ContextoTree({ contexto }: { contexto: Record<string, unknown> }) {
+export function ContextoTree({ contexto, prefixo = "", rotulo = "Contexto do documento de amostra" }: { contexto: unknown; prefixo?: string; rotulo?: string }) {
+  if (contexto === null || typeof contexto !== "object") {
+    return <p className="font-mono text-xs text-muted-foreground">{prefixo || "valor"} = {valorCurto(contexto)}</p>;
+  }
+  const entradas = Array.isArray(contexto) ? contexto.map((v, i) => [String(i), v] as const) : Object.entries(contexto as Record<string, unknown>);
   return (
-    <div className="font-mono text-xs" role="tree" aria-label="Contexto do documento de amostra">
-      {Object.entries(contexto).map(([k, v]) => <Ramo key={k} chave={k} valor={v} caminho={k} nivel={0} abertoInicial={false} />)}
+    <div className="font-mono text-xs" role="tree" aria-label={rotulo}>
+      {entradas.map(([k, v]) => <Ramo key={k} chave={k} valor={v} caminho={prefixo ? `${prefixo}.${k}` : k} nivel={0} abertoInicial={false} />)}
     </div>
   );
 }

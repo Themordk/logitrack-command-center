@@ -31,6 +31,7 @@ import { criarEdge, deRf, layoutAutomatico, paraRf, type FluxoEdge, type FluxoNo
 import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { NodePalette, MIME_NO } from "./NodePalette";
 import { NoContextMenu, type MenuContexto } from "./NoContextMenu";
+import { dependentesDe, geraSaida } from "./saidasAnteriores";
 import { alinhar, criarNo, ehGatilho, nomeUnico, posicaoLivre } from "./novoNo";
 import { motivoBloqueio, saidasDoTipo, saidasLivres } from "./regrasConexao";
 import { useHistoricoFluxo, type Instantaneo } from "./useHistoricoFluxo";
@@ -211,6 +212,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const [publicarAberto, setPublicarAberto] = useState(false);
   const [publicando, setPublicando] = useState(false);
   const [confirmarPausa, setConfirmarPausa] = useState(false);
+  const [confirmarExclusao, setConfirmarExclusao] = useState<{ textos: string[]; resolver: (ok: boolean) => void } | null>(null);
   const [alternandoAtivo, setAlternandoAtivo] = useState(false);
   const [versoesAberto, setVersoesAberto] = useState(false);
   const [versaoVista, setVersaoVista] = useState<VersaoFluxo | null>(null);
@@ -414,6 +416,9 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           extra: structuredClone(o.data.extra),
         },
       };
+      if (geraSaida(o.data.tipo)) {
+        setTimeout(() => toast.info(`Cópia criada com o ID ${copia.id}. Referências {{saidas.${o.id}…}} continuam apontando para o original.`), 0);
+      }
       return { nodes: [...ns.map((n) => ({ ...n, selected: false })), copia], edges: es };
     });
   }, [aplicar, maxNos, catalogo]);
@@ -463,6 +468,19 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
 
   const onBeforeDelete: OnBeforeDelete<FluxoNode, FluxoEdge> = useCallback(async ({ nodes: ns, edges: es }) => {
     if (somenteLeitura) return false;
+    const excluindo = new Set(ns.map((n) => n.id));
+    const restantes = nodes.filter((n) => !excluindo.has(n.id));
+    const textos = ns.filter((n) => !n.data.tipo.startsWith("gatilho.")).flatMap((n) => {
+      const deps = dependentesDe(n.id, restantes);
+      return deps.length
+        ? [`${n.data.nome || n.id} (${n.id}) é referenciado em {{saidas.${n.id}…}} por: ${deps.map((d) => d.nome).join(", ")}.`]
+        : [];
+    });
+    if (textos.length) {
+      const ok = await new Promise<boolean>((resolver) => setConfirmarExclusao({ textos, resolver }));
+      setConfirmarExclusao(null);
+      if (!ok) return false;
+    }
     const gatilhos = new Set(ns.filter((n) => n.data.tipo.startsWith("gatilho.")).map((n) => n.id));
     if (gatilhos.size) {
       toast.info("O gatilho não pode ser excluído.");
@@ -474,7 +492,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     }
     historico.registrar(instantaneo());
     return true;
-  }, [somenteLeitura, historico, instantaneo]);
+  }, [somenteLeitura, historico, instantaneo, nodes]);
 
   const onDelete = useCallback(({ nodes: ns, edges: es }: { nodes: FluxoNode[]; edges: FluxoEdge[] }) => {
     if (ns.length) {
@@ -547,6 +565,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   // Trocar o evento descarta a amostra (ela é de outro evento).
   useEffect(() => { setAmostra(null); }, [eventoAmostra]);
 
+  const ligacoesDialogo = useMemo(() => edges.map((e) => ({ de: e.source, para: e.target, saida: e.sourceHandle ?? "principal" })), [edges]);
   const noSelecionado = noAberto ? nodes.find((n) => n.id === noAberto) ?? null : null;
   const totalErros = fluxo.validacao_rascunho?.erros?.length ?? 0;
   const temAlteracoes = fluxo.versao_publicada == null || fluxo.alteracoes_nao_publicadas || auto.estado === "salvando" || auto.estado === "erro";
@@ -765,7 +784,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       <NodeConfigDialog
         no={noSelecionado}
         nos={nodes}
-        ligacoes={edges.map((e) => ({ de: e.source, para: e.target }))}
+        ligacoes={ligacoesDialogo}
         catalogo={catalogo}
         destinos={destinos}
         avisos={[...(fluxo.validacao_rascunho?.erros ?? []), ...(fluxo.validacao_rascunho?.avisos ?? [])].filter((a) => !a.no_id || a.no_id === noSelecionado?.id)}
@@ -821,6 +840,24 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         onFechar={() => setVersoesAberto(false)}
         onVisualizar={(v) => { setResultado(null); setNoAberto(null); setVersaoVista(v); setVersoesAberto(false); }}
       />
+
+      <AlertDialog open={!!confirmarExclusao} onOpenChange={(v) => { if (!v) confirmarExclusao?.resolver(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Este nó é usado por outros nós</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="flex flex-col gap-2">
+                {confirmarExclusao?.textos.map((t) => <p key={t}>{t}</p>)}
+                <p>Se excluir, esses valores ficarão vazios e a validação vai acusar erro.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => confirmarExclusao?.resolver(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmarExclusao?.resolver(true)}>Excluir mesmo assim</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmarPausa} onOpenChange={(v) => { if (!alternandoAtivo) setConfirmarPausa(v); }}>
         <AlertDialogContent>

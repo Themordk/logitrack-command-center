@@ -43,6 +43,8 @@ export interface PreviaRequisicao {
   /** Motivo pelo qual o servidor recusaria a URL (http, IP interno…), ou null. */
   bloqueio: string | null;
   assinado: boolean;
+  /** Variáveis do caminho da URL que ficam vazias: o servidor recusaria o envio. */
+  variaveisVazias: string[];
 }
 
 /**
@@ -65,6 +67,10 @@ export async function previaRequisicao(p: {
   });
   const m = Motor.mascararRequisicao(req, d) as { metodo: string; url: string; headers: Record<string, string>; corpo: string | null };
   const perm = Motor.urlPermitida(req.url);
+  const variaveisVazias: string[] = [];
+  for (const v of [...Motor.variaveisVaziasNoCaminho(p.destino.url_base, p.contexto), ...Motor.variaveisVaziasNoCaminho(String(p.config.caminho ?? ""), p.contexto)]) {
+    if (!variaveisVazias.includes(v)) variaveisVazias.push(v);
+  }
   return {
     metodo: m.metodo,
     url: m.url,
@@ -72,6 +78,7 @@ export async function previaRequisicao(p: {
     corpo: m.corpo === null ? null : Motor.lerJsonSeguro(m.corpo),
     bloqueio: perm.ok ? null : perm.motivo ?? "URL recusada",
     assinado: "X-LogiTrack-Signature" in req.headers,
+    variaveisVazias,
   };
 }
 

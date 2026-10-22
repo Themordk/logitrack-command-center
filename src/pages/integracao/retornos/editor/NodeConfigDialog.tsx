@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronsUpDown, FileSearch, Loader2, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsUpDown, Copy, ExternalLink, FileSearch, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,9 @@ import { retornosKeys } from "../retornosKeys";
 import { documentosRecentes } from "../retornosService";
 import type { Aviso, Catalogo, Destino, DocumentoRecente, TipoNo } from "../retornos.types";
 import { ContextoTree } from "./campos/ContextoTree";
-import { PainelContext, listarCaminhos } from "./campos/painelContext";
+import { PainelContext, avisoReferencia, listarCaminhos, type GrupoCaminhos } from "./campos/painelContext";
+import { obterCaminho } from "./motorPrevia";
+import { useSaidasAnteriores, type SaidaAnterior } from "./useSaidasAnteriores";
 import type { FluxoNode } from "./definicaoRf";
 import { ParametrosAtualizar, ParametrosHttp, ParametrosNotificar, ParametrosProvedor, ParametrosWebhook, ResultadoAtualizar, ResultadoHttp, ResultadoNotificar, ResultadoProvedor, ResultadoWebhook } from "./forms/FormAcoes";
 import { ParametrosPayload, ResultadoPayload } from "./forms/FormPayload";
@@ -144,6 +148,95 @@ function SeletorAmostra({ evento, tenantId, empresaId, amostra, onDefinir }: {
   );
 }
 
+function copiar(texto: string, mensagem: string) {
+  void navigator.clipboard?.writeText(texto);
+  toast.info(mensagem);
+}
+
+function ChipId({ id }: { id: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex items-center gap-1 rounded border border-border bg-secondary/40 py-0.5 pl-1.5 pr-0.5 font-mono text-[11px] text-muted-foreground">
+          ID: {id}
+          <button type="button" aria-label="Copiar ID do nó" onClick={() => copiar(id, `ID copiado: ${id}`)}
+            className="rounded p-0.5 hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Copy size={12} aria-hidden />
+          </button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs text-xs">Use em {`{{saidas.${id}.campo}}`} para ler a saída deste nó nos nós seguintes.</TooltipContent>
+    </Tooltip>
+  );
+}
+
+const SELO_ORIGEM: Record<SaidaAnterior["origem"], { rotulo: string; classe: string }> = {
+  previa: { rotulo: "prévia", classe: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  ultima_execucao: { rotulo: "última execução", classe: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
+  modelo: { rotulo: "exemplo", classe: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30" },
+};
+
+function BlocoSaida({ a, abertoInicial, nosDoFluxo, onAbrirNo, calculando }: {
+  a: SaidaAnterior; abertoInicial: boolean; nosDoFluxo: { id: string; nome: string }[]; onAbrirNo: (id: string) => void; calculando: boolean;
+}) {
+  const [aberto, setAberto] = useState(abertoInicial);
+  const ui = TIPO_NO_UI[a.tipo as TipoNo];
+  const Icone = ui?.icone;
+  const selo = SELO_ORIGEM[a.origem];
+  const alerta = avisoReferencia(a.id, [a], nosDoFluxo);
+  return (
+    <div className="rounded-lg border border-border bg-secondary/20">
+      <div className="flex items-center gap-1.5 px-2 py-1.5">
+        <button type="button" onClick={() => setAberto((v) => !v)} aria-expanded={aberto} aria-label={aberto ? `Recolher ${a.nome}` : `Expandir ${a.nome}`}
+          className="rounded p-0.5 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {aberto ? <ChevronDown size={13} aria-hidden /> : <ChevronRight size={13} aria-hidden />}
+        </button>
+        {Icone && <Icone size={13} className={cn("shrink-0", GRUPO_NO_UI[ui.grupo].icone)} aria-hidden />}
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{a.nome}</span>
+        {!a.soPeloErro && <span className={cn("shrink-0 rounded-full border px-1.5 text-[10px]", selo.classe)}>{selo.rotulo}</span>}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button type="button" size="icon" variant="ghost" aria-label={`Abrir nó ${a.nome}`} className="h-6 w-6" onClick={() => onAbrirNo(a.id)}>
+              <ExternalLink size={13} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">Abrir nó</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="flex flex-col gap-1 px-2 pb-2">
+        <button type="button" onClick={() => copiar(`saidas.${a.id}`, `Caminho copiado: saidas.${a.id}`)}
+          className="self-start rounded bg-secondary px-1 font-mono text-[10px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          aria-label={`Copiar saidas.${a.id}`}>
+          {a.id}
+        </button>
+        {alerta && <p className={cn("text-[11px]", alerta.cor === "rose" ? "text-rose-400" : "text-amber-400")}>{alerta.texto}</p>}
+        {aberto && !a.soPeloErro && (
+          calculando && a.valor === undefined ? <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 size={12} className="animate-spin" aria-hidden /> Calculando…</p>
+            : a.erro ? <p className="text-xs text-rose-400">{a.erro}</p>
+              : <ContextoTree contexto={a.valor} prefixo={`saidas.${a.id}`} rotulo={`Saída de ${a.nome}`} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SaidasAnterioresPainel({ lista, calculando, nosDoFluxo, onAbrirNo }: {
+  lista: SaidaAnterior[]; calculando: boolean; nosDoFluxo: { id: string; nome: string }[]; onAbrirNo: (id: string) => void;
+}) {
+  const ordenada = [...lista].reverse();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+        Saídas dos nós anteriores {calculando && <Loader2 size={12} className="animate-spin" aria-label="Calculando" />}
+      </span>
+      {!ordenada.length && <p className="text-xs text-muted-foreground">Nenhum nó antes deste gera saída.</p>}
+      {ordenada.map((a, i) => (
+        <BlocoSaida key={a.id} a={a} abertoInicial={i === 0} nosDoFluxo={nosDoFluxo} onAbrirNo={onAbrirNo} calculando={calculando} />
+      ))}
+    </div>
+  );
+}
+
 export function NodeConfigDialog(p: Props) {
   const { no } = p;
   const [nome, setNome] = useState("");
@@ -165,7 +258,36 @@ export function NodeConfigDialog(p: Props) {
   const agrupado = p.nos.some((n) => n.data.tipo === "gatilho.evento" && n.data.config.modo === "agrupado");
   const contextoBase = (p.amostra?.contexto as Record<string, unknown> | undefined) ?? CONTEXTO_VAZIO;
   const contexto = useMemo(() => (agrupado ? contextoLote(contextoBase) : contextoBase), [agrupado, contextoBase]);
-  const caminhos = useMemo(() => listarCaminhos(contexto), [contexto]);
+  const anteriores = useSaidasAnteriores({
+    noId: noId ?? null, nos: p.nos, ligacoes: p.ligacoes, contexto, tenantId: p.tenantId, empresaId: p.empresaId,
+    fluxoId: p.fluxoId, amostra: p.amostra,
+  });
+  const { saidas, lista } = anteriores;
+  const contextoComSaidas = useMemo(() => ({ ...contexto, saidas }), [contexto, saidas]);
+  const grupos = useMemo<GrupoCaminhos[]>(() => {
+    const gs: GrupoCaminhos[] = lista.map((a) => {
+      const base = `saidas.${a.id}`;
+      let cs: string[] = [];
+      if (!a.soPeloErro) {
+        cs = listarCaminhos(a.valor, base);
+        if (a.tipo === "acao.http" || a.tipo === "acao.webhook") {
+          for (const c of [`${base}.status`, `${base}.corpo`]) if (!cs.includes(c)) cs.unshift(c);
+          cs = cs.filter((c) => c !== base);
+        }
+      }
+      const aviso = a.soPeloErro ? "Vazio neste ramo (só pelo erro)"
+        : a.condicional ? "Pode estar vazio: nem todo caminho passa por este nó"
+          : a.origem === "modelo" ? "Exemplo — rode Testar para ver a resposta real" : undefined;
+      return { chave: a.id, titulo: a.nome, id: a.id, tipo: a.tipo, aviso, caminhos: cs.map((c) => ({ caminho: c, valor: obterCaminho(contextoComSaidas, c) })) };
+    });
+    gs.push({ chave: "documento", titulo: "Documento", caminhos: listarCaminhos(contexto).map((c) => ({ caminho: c, valor: obterCaminho(contexto, c) })) });
+    return gs;
+  }, [lista, contexto, contextoComSaidas]);
+  const caminhos = useMemo(() => {
+    const doSaidas = grupos.filter((g) => g.id).flatMap((g) => g.caminhos.map((c) => c.caminho));
+    return [...doSaidas, ...listarCaminhos(contexto)];
+  }, [grupos, contexto]);
+  const nosDoFluxo = useMemo(() => p.nos.map((n) => ({ id: n.id, nome: n.data.nome || n.id, tipo: n.data.tipo })), [p.nos]);
 
   const aplicarJson = (): boolean => {
     if (p.somenteLeitura || !no) return true;
@@ -205,7 +327,7 @@ export function NodeConfigDialog(p: Props) {
   const descricao = no ? p.catalogo?.nos.find((n) => n.tipo === no.data.tipo)?.descricao : "";
   const formProps: FormNoProps | null = no ? {
     no, config: no.data.config, alterar: p.onAlterar, catalogo: p.catalogo, destinos: p.destinos, nos: p.nos, ligacoes: p.ligacoes,
-    contexto, amostra: p.amostra, onDefinirAmostra: p.onDefinirAmostra, avisos: p.avisos,
+    contexto: contextoComSaidas, amostra: p.amostra, onDefinirAmostra: p.onDefinirAmostra, avisos: p.avisos,
     tenantId: p.tenantId, empresaId: p.empresaId, fluxoId: p.fluxoId, onAbrirNo: p.onAbrirNo, somenteLeitura: p.somenteLeitura,
   } : null;
   const [Parametros, Resultado] = par ?? [null, null];
@@ -228,7 +350,10 @@ export function NodeConfigDialog(p: Props) {
               onKeyDown={(e) => { if (e.key === "Enter") confirmarNome(); }}
               className="rounded bg-transparent px-1 text-base font-semibold text-foreground hover:bg-secondary/40 focus:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <DialogDescription className="px-1 text-xs">{no ? nomeTipo(no.data.tipo, p.catalogo) : ""} · {descricao}</DialogDescription>
+            <div className="flex flex-wrap items-center gap-2 px-1">
+              <DialogDescription className="text-xs">{no ? nomeTipo(no.data.tipo, p.catalogo) : ""} · {descricao}</DialogDescription>
+              {no && <ChipId id={no.id} />}
+            </div>
           </div>
           <ToggleGroup type="single" value={modo} onValueChange={trocarModo} className="rounded-lg border border-border bg-secondary p-0.5">
             <ToggleGroupItem value="form" disabled={!par} className="h-7 px-3 text-xs" aria-label="Formulário">Formulário</ToggleGroupItem>
@@ -236,7 +361,7 @@ export function NodeConfigDialog(p: Props) {
           </ToggleGroup>
         </div>
 
-        <PainelContext.Provider value={{ contexto, caminhos, somenteLeitura: p.somenteLeitura, fluxoId: p.fluxoId }}>
+        <PainelContext.Provider value={{ contexto: contextoComSaidas, caminhos, somenteLeitura: p.somenteLeitura, fluxoId: p.fluxoId, grupos, anteriores: lista, nosDoFluxo }}>
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
             <ResizablePanel defaultSize={26} minSize={16} className="flex flex-col min-h-0">
               <div className="px-4 py-2.5 border-b border-border bg-secondary/30"><h3 className="text-sm font-semibold">Entrada</h3></div>
@@ -247,6 +372,8 @@ export function NodeConfigDialog(p: Props) {
                 </div>
                 {agrupado && <p className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 py-1.5 text-[11px] text-violet-400">Fluxo agrupado: a amostra simula um lote com 1 documento.</p>}
                 <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><FileSearch size={12} aria-hidden /> Clique copia o caminho; arraste para um campo.</p>
+                <SaidasAnterioresPainel lista={lista} calculando={anteriores.calculando} nosDoFluxo={nosDoFluxo} onAbrirNo={p.onAbrirNo} />
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">Documento</span>
                 <ContextoTree contexto={contexto} />
               </div>
             </ResizablePanel>

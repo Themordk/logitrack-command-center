@@ -117,7 +117,11 @@ export function ParametrosHttp(p: FormNoProps) {
           <SelectTrigger id="http-corpo" className="h-10 rounded-lg bg-secondary/40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ULTIMO}>Último payload montado</SelectItem>
-            {payloads.map((n) => <SelectItem key={n.id} value={n.id}>{n.data.nome || n.id}</SelectItem>)}
+            {payloads.map((n) => (
+              <SelectItem key={n.id} value={n.id}>
+                {n.data.nome || n.id} <span className="font-mono text-muted-foreground">· {n.id}</span>
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </Campo>
@@ -157,6 +161,11 @@ function VisaoRequisicao({ p, r }: { p: FormNoProps; r: ReturnType<typeof useReq
   const { req } = r;
   return (
     <>
+      {req && req.variaveisVazias.length > 0 && (
+        <Aviso cor="rose">
+          O servidor não enviaria esta requisição: variável vazia no caminho da URL — {req.variaveisVazias.map((v) => `{{${v}}}`).join(", ")}. Confira se o nó de origem vem antes deste no fluxo.
+        </Aviso>
+      )}
       {!r.d && <p className="text-xs text-rose-400">Escolha um destino ativo desta empresa.</p>}
       {r.erro && <Aviso cor="rose">{r.erro}</Aviso>}
       {req?.bloqueio && <Aviso cor="rose">O servidor recusaria esta URL: {req.bloqueio}</Aviso>}

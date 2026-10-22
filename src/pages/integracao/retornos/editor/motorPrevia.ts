@@ -1,6 +1,6 @@
 // =============================================================================
 // CÓPIA FIEL do motor do servidor: supabase/functions/retorno-dispatcher/motor.ts
-// (Edge Function retorno-dispatcher v3, 05/10/2026). Só muda o import do jsonata.
+// (Edge Function retorno-dispatcher v4). Só muda o import do jsonata.
 // NÃO edite à mão. Regra nova ou correção: muda primeiro no motor.ts do servidor e copia para cá.
 // O teste motorPrevia.paridade.test.ts compara a prévia com resultados gerados pelo servidor.
 // =============================================================================
@@ -79,6 +79,20 @@ export function renderTemplate(tpl: string, ctx: unknown, codificar = false): st
     const v = comoTexto(obterCaminho(ctx, caminho)) ?? "";
     return codificar ? encodeURIComponent(v) : v;
   });
+}
+
+/**
+ * Variáveis {{caminho}} do trecho de PATH (antes do "?") que ficam vazias no contexto.
+ * Query string pode ficar vazia. Usado para não enviar requisição com URL incompleta.
+ */
+export function variaveisVaziasNoCaminho(tpl: string, ctx: unknown): string[] {
+  const caminho = String(tpl ?? "").split("?")[0];
+  const vazias: string[] = [];
+  for (const m of caminho.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)) {
+    const v = comoTexto(obterCaminho(ctx, m[1]));
+    if ((v ?? "").trim() === "" && !vazias.includes(m[1])) vazias.push(m[1]);
+  }
+  return vazias;
 }
 
 // ---------------------------------------------------------------------------
