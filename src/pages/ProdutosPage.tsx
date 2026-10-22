@@ -1050,6 +1050,12 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
     { key: "descricao", label: "Descrição", render: (r) => <DescricaoCell text={r.descricao} /> },
     { key: "referencia", label: "Referência" },
     { key: "marca", label: "Marca" },
+    {
+      key: "parceiro_nome", label: "Parceiro",
+      render: (r) => r.parceiro_nome ? (
+        <span className="block truncate max-w-[220px]" title={r.parceiro_nome}>{r.parceiro_nome}</span>
+      ) : "—",
+    },
     { key: "tipo_controle", label: "Controle" },
     { key: "tipo_separacao", label: "Separação" },
     { key: "ativo", label: "Status", type: "badge" },
