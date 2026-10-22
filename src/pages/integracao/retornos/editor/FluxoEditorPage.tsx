@@ -547,6 +547,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   // Trocar o evento descarta a amostra (ela é de outro evento).
   useEffect(() => { setAmostra(null); }, [eventoAmostra]);
 
+  const ligacoesDialogo = useMemo(() => edges.map((e) => ({ de: e.source, para: e.target, saida: e.sourceHandle ?? "principal" })), [edges]);
   const noSelecionado = noAberto ? nodes.find((n) => n.id === noAberto) ?? null : null;
   const totalErros = fluxo.validacao_rascunho?.erros?.length ?? 0;
   const temAlteracoes = fluxo.versao_publicada == null || fluxo.alteracoes_nao_publicadas || auto.estado === "salvando" || auto.estado === "erro";
@@ -765,7 +766,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       <NodeConfigDialog
         no={noSelecionado}
         nos={nodes}
-        ligacoes={edges.map((e) => ({ de: e.source, para: e.target }))}
+        ligacoes={ligacoesDialogo}
         catalogo={catalogo}
         destinos={destinos}
         avisos={[...(fluxo.validacao_rascunho?.erros ?? []), ...(fluxo.validacao_rascunho?.avisos ?? [])].filter((a) => !a.no_id || a.no_id === noSelecionado?.id)}

@@ -41,10 +41,13 @@ export function useSaidasAnteriores(p: Params): { saidas: Record<string, unknown
   });
   const saidasExecucao = execQ.data;
 
-  const anteriores = useMemo(
+  const anterioresCalc = useMemo(
     () => (p.noId ? nosAnteriores(p.noId, p.nos.map((n) => ({ id: n.id, tipo: n.data.tipo, nome: n.data.nome })), p.ligacoes) : []),
     [p.noId, p.nos, p.ligacoes],
   );
+  const chaveAnteriores = JSON.stringify(anterioresCalc);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const anteriores = useMemo(() => anterioresCalc, [chaveAnteriores]);
   const configs = useMemo(
     () => JSON.stringify(anteriores.map((a) => p.nos.find((n) => n.id === a.id)?.data.config ?? null)),
     [anteriores, p.nos],
