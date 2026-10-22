@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { retornosKeys } from "../retornosKeys";
-import { listarMapa } from "../retornosService";
+import { useEffect, useState } from "react";
 import type { MapaItem } from "../retornos.types";
 import { criarMapa, montarPayload } from "./avaliacao";
+import { useMapaRetorno } from "./useMapaRetorno";
 
 export interface PreviaPayload {
   valor?: unknown;
@@ -16,12 +14,7 @@ export interface PreviaPayload {
 export function usePreviaPayload(
   config: Record<string, unknown> | undefined, contexto: unknown, tenantId: string, empresaId: string, fluxoId: string | null,
 ): PreviaPayload {
-  const mapaQ = useQuery({
-    queryKey: retornosKeys.mapa(tenantId, empresaId, fluxoId),
-    queryFn: () => listarMapa(tenantId, empresaId, fluxoId),
-    enabled: !!tenantId && !!empresaId,
-  });
-  const mapa = useMemo(() => mapaQ.data ?? [], [mapaQ.data]);
+  const mapa = useMapaRetorno(tenantId, empresaId, fluxoId);
   const [res, setRes] = useState<{ valor?: unknown; erro?: string }>({});
   const [calculando, setCalculando] = useState(false);
   const chave = JSON.stringify(config ?? null);
