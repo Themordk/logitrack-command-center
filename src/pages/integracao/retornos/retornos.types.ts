@@ -157,7 +157,7 @@ export interface Ligacao { de: string; para: string; saida?: string }
 
 export interface Definicao { versao_schema: 1; nos: No[]; ligacoes: Ligacao[] }
 
-export interface Aviso { codigo: string; mensagem: string; no_id?: string }
+export interface Aviso { codigo: string; mensagem: string; no_id?: string; /** Id do nó referenciado (REFERENCIA_*). */ ref?: string }
 
 export interface Validacao {
   valido: boolean;

@@ -56,3 +56,12 @@ describe("prévia das ações = servidor", () => {
     expect(payloadAnterior("p0", nos, lig)).toEqual({ id: null, ambiguo: false });
   });
 });
+
+describe("variáveis vazias no caminho da URL", () => {
+  it("acusa saidas ausente no path e ignora a query string", async () => {
+    const a = await previaRequisicao({ tipo: "acao.http", noId: "h", config: { caminho: "/x/{{saidas.x.id}}" }, destino: destino(), contexto: ctx, corpoPayload: undefined });
+    expect(a.variaveisVazias).toEqual(["saidas.x.id"]);
+    const b = await previaRequisicao({ tipo: "acao.http", noId: "h", config: { caminho: "/x?q={{documento.inexistente}}" }, destino: destino(), contexto: ctx, corpoPayload: undefined });
+    expect(b.variaveisVazias).toEqual([]);
+  });
+});
