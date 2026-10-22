@@ -704,28 +704,39 @@ function ProdutoDetailModal({
 
 // ─── Main Produtos Page ────────────────────────────────────────────
 export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
-  const { tenantId, empresaId, armazemId, empresaVersion, usuarioId } = useTenant();
+  const { tenantId, empresaId, armazemId, empresaVersion, usuarioId, usuarioNome } = useTenant();
   const [filterSemEan, setFilterSemEan] = useState(false);
   const [filterSku, setFilterSku] = useState("");
   const [filterDescricao, setFilterDescricao] = useState("");
   const [filterReferencia, setFilterReferencia] = useState("");
+  const [filterEan, setFilterEan] = useState("");
+  const [eanAplicado, setEanAplicado] = useState("");
+  const [filterParceiroId, setFilterParceiroId] = useState<string | null>(null);
+  const [filterParceiroNome, setFilterParceiroNome] = useState("");
+  const [filterGrupoId, setFilterGrupoId] = useState<string | null>(null);
+  const [filterSubgrupoId, setFilterSubgrupoId] = useState<string | null>(null);
+  const [filterMarca, setFilterMarca] = useState<string | null>(null);
   const debSku = useDebounce(filterSku, 400);
   const debDescricao = useDebounce(filterDescricao, 400);
   const debReferencia = useDebounce(filterReferencia, 400);
-  const crudFilters = useMemo(() => {
-    const f: Record<string, any> = filterSemEan ? { tem_ean: false } : {};
-    if (debSku.trim()) f.sku = { ilike: debSku.trim() };
-    if (debDescricao.trim()) f.descricao = { ilike: debDescricao.trim() };
-    if (debReferencia.trim()) f.referencia = { ilike: debReferencia.trim() };
-    return f;
-  }, [filterSemEan, debSku, debDescricao, debReferencia]);
-  const crud = useCrud({
-    table: "vw_produto_listagem",
-    writeTable: "produto",
-    tenantId,
-    orderBy: "descricao",
-    filters: crudFilters,
-  });
+  const debEan = useDebounce(filterEan, 400);
+  useEffect(() => { setEanAplicado(debEan); }, [debEan]);
+  const eanFiltro = useMemo(() => {
+    const t = eanAplicado.replace(/\s+/g, "");
+    return t.length >= 3 ? t : "";
+  }, [eanAplicado]);
+  const filters = useMemo<ProdutoListagemFilters>(() => ({
+    sku: debSku,
+    descricao: debDescricao,
+    referencia: debReferencia,
+    ean: eanFiltro,
+    parceiroId: filterParceiroId,
+    grupoId: filterGrupoId,
+    subgrupoId: filterSubgrupoId,
+    marca: filterMarca,
+    semEan: filterSemEan,
+  }), [debSku, debDescricao, debReferencia, eanFiltro, filterParceiroId, filterGrupoId, filterSubgrupoId, filterMarca, filterSemEan]);
+  const lista = useProdutoListagem({ filters, pageSize: 15 });
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
