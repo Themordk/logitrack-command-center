@@ -1,5 +1,12 @@
 # Ajustes de destino da armazenagem
 
+## Revisão de Produtos
+- [x] Abrir impressão no clique e fechar a aba em erro ou lista vazia; aba reservada e PDF conferidos no Chrome.
+- [x] Grupos vinculados pela RPC, opções únicas e filtro desabilitado quando vazio.
+- [x] Evitar consulta duplicada ao mudar filtros e desabilitar exportação durante carregamento.
+- [x] Executar testes dos ajustes: 9 passaram; build OK.
+- [ ] Validar com usuário conectado: sessão indisponível no Supabase externo.
+
 ## Recebimento do coletor (RPC + filtro)
 - [x] Trocar fonte para RPC recebimento_buscar_movimentos (sem N+1), cache v2.
 - [x] Card enriquecido: tipo, chips de prioridade/devolução/crossdocking, NF, itens, placa, conferente.
