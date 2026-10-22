@@ -10769,6 +10769,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      integracao_expurgar_api_erro: { Args: never; Returns: Json }
       integracao_finalizar_alteracao: {
         Args: {
           p_alteracao_id: string
@@ -11095,6 +11096,19 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      integracao_registrar_erro_api: {
+        Args: {
+          p_conexao_id: string
+          p_empresa_id: string
+          p_registro: Json
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_registrar_erro_autenticacao: {
+        Args: { p_registro: Json }
+        Returns: Json
       }
       integracao_reprocessar_fila: {
         Args: {
