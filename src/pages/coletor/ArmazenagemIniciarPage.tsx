@@ -13,7 +13,7 @@ import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import { ProdutoHeader } from "@/components/coletor/ProdutoHeader";
 import { StickyFooter } from "@/components/coletor/StickyFooter";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
-import { buscarDestinoArmazenagem, lerPulmaoHabilitado, guardarPulmaoHabilitado, preSelecionarDestino, quantidadeSugerida } from "@/lib/armazenagemService";
+import { buscarDestinoArmazenagem, lerPulmaoHabilitado, guardarPulmaoHabilitado, preSelecionarDestino, quantidadeSugerida, lerEanConfirmado, limparEanConfirmado } from "@/lib/armazenagemService";
 import type { DestinoArmazenagem, PickingDestino } from "@/types/armazenagem";
 import { OcorrenciaBottomSheet } from "@/components/ocorrencia/OcorrenciaBottomSheet";
 import { Button } from "@/components/ui/button";
@@ -69,11 +69,14 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     } as TarefaResult;
   })();
 
-  const [lastScanned, setLastScanned] = useState("");
+  // EAN já conferido pelo bipe na lista de itens: a tela abre com o destino liberado.
+  const [conferidoNaLista] = useState(() => lerEanConfirmado(preloadedTarefa?.tarefa_id));
+  useEffect(() => { limparEanConfirmado(); }, []);
+  const [lastScanned, setLastScanned] = useState(conferidoNaLista?.codigo ?? "");
   const [loading, setLoading] = useState(false);
   const [tarefa, setTarefa] = useState<TarefaResult | null>(preloadedTarefa);
   const [isFromCache, setIsFromCache] = useState(false);
-  const [eanConfirmado, setEanConfirmado] = useState(false);
+  const [eanConfirmado, setEanConfirmado] = useState(!!conferidoNaLista);
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState("");
   const [destino, setDestino] = useState<DestinoArmazenagem | null>(null);
