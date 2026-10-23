@@ -28,6 +28,8 @@ import { ChipPendenciaPicking } from "@/components/movimentos/ChipPendenciaPicki
 import { listarPendenciasPicking, quantidadeAbastecimento } from "@/lib/pendenciasPickingService";
 import type { AvisoLiberacao } from "@/lib/pendenciasPicking.types";
 import { DescricaoCell } from "@/components/DescricaoCell";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortableTh } from "@/components/tabela/SortableTh";
 
 interface OndaCarregamentoListItem {
   id: string;
@@ -439,6 +441,11 @@ export function MovimentoSaidaPage() {
   });
 
   const tabItens = itemsQuery.data ?? [];
+  const sortItens = useTableSort(tabItens, "sku", undefined, selectedId);
+  const sortSep = useTableSort(tabSeparacao, "sku", {
+    operador: (r: { auto_separacao?: boolean; operador?: string | null }) => (r.auto_separacao ? "Auto PDV" : r.operador),
+  }, selectedId);
+  const sortConf = useTableSort(tabConferencia, "sku", undefined, selectedId);
 
   const loadTabData = useCallback(async (movId: string) => {
     setTabLoading(true);
@@ -1076,18 +1083,18 @@ export function MovimentoSaidaPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30 sticky top-0">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Separada</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Cortada</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
+                      <SortableTh label="SKU" sortKey="sku" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Descrição" sortKey="descricao" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Esperada" sortKey="qtd_esperada" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="right" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Separada" sortKey="qtd_separada" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="right" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Conferida" sortKey="qtd_conferida" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="right" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Cortada" sortKey="qtd_cortada" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="right" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Status" sortKey="status" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
                       <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase w-10">Opções</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tabItens.map((item: any, i: number) => (
+                    {sortItens.sortedRows.map((item: any, i: number) => (
                       <tr
                         key={item.movimento_item_id || i}
                         ref={skuAtivo && String(item.sku ?? "").toLowerCase() === skuAtivo ? (el) => { if (el && skuScrollRef.current !== `${selectedId}:${skuAtivo}`) { skuScrollRef.current = `${selectedId}:${skuAtivo}`; el.scrollIntoView({ block: "center" }); } } : undefined}
@@ -1154,17 +1161,17 @@ export function MovimentoSaidaPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30 sticky top-0">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Operador</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Qtd</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Lote</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Concluído</th>
+                      <SortableTh label="SKU" sortKey="sku" activeKey={sortSep.sortKey} dir={sortSep.sortDir} onSort={sortSep.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Descrição" sortKey="descricao" activeKey={sortSep.sortKey} dir={sortSep.sortDir} onSort={sortSep.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Operador" sortKey="operador" activeKey={sortSep.sortKey} dir={sortSep.sortDir} onSort={sortSep.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Qtd" sortKey="quantidade_executada" activeKey={sortSep.sortKey} dir={sortSep.sortDir} onSort={sortSep.toggleSort} align="right" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Lote" sortKey="lote" activeKey={sortSep.sortKey} dir={sortSep.sortDir} onSort={sortSep.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Status" sortKey="status" activeKey={sortSep.sortKey} dir={sortSep.sortDir} onSort={sortSep.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Concluído" sortKey="concluido_em" activeKey={sortSep.sortKey} dir={sortSep.sortDir} onSort={sortSep.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
                     </tr>
                   </thead>
                   <tbody>
-                    {tabSeparacao.map((item: any, i: number) => (
+                    {sortSep.sortedRows.map((item: any, i: number) => (
                       <tr key={item.tarefa_execucao_id || i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
                         <td className="px-3 py-2 text-xs text-foreground"><DescricaoCell text={item.descricao} /></td>
@@ -1194,18 +1201,18 @@ export function MovimentoSaidaPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30 sticky top-0">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Qtd</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Lote</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Operador</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Endereço</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Concluído</th>
+                      <SortableTh label="SKU" sortKey="sku" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Descrição" sortKey="descricao_sku" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Qtd" sortKey="quantidade_executada" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="right" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Lote" sortKey="lote" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Operador" sortKey="login" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Endereço" sortKey="endereco" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
+                      <SortableTh label="Concluído" sortKey="concluido_em" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2 text-xs font-medium text-muted-foreground" />
                     </tr>
                   </thead>
                   <tbody>
-                    {tabConferencia.map((item: any, i: number) => (
-                      <tr key={i} className="border-b border-border/50">
+                    {sortConf.sortedRows.map((item: any, i: number) => (
+                      <tr key={item.tarefa_execucao_id || i} className="border-b border-border/50">
                         <td className="px-3 py-2 font-mono text-xs text-foreground">{item.sku}</td>
                         <td className="px-3 py-2 text-xs text-foreground">{item.descricao_sku}</td>
                         <td className="px-3 py-2 text-right text-foreground">{Number(item.quantidade_executada)}</td>
