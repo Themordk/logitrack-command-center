@@ -28,6 +28,7 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
         setFromConsulta(parsed);
       } catch { /* ignore */ }
     }
+    return () => { sessionStorage.removeItem("transf_picking_desc"); };
   }, []);
 
   const handleScan = async (code: string) => {

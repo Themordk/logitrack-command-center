@@ -3,7 +3,7 @@
 ## Picking na transferência do coletor
 - [x] Consultar RPC exclusiva e mostrar orientação nos detalhes e destino, sem alterar validações.
 - [x] Limpar orientação ao reiniciar e concluir o fluxo.
-- [ ] Testar conversão, prioridade, excesso informativo, ausência de picking e erro.
+- [x] Testar conversão, prioridade, excesso informativo, ausência de picking e erro: 9 testes aprovados; build OK.
 - [ ] Validar com usuário conectado: Supabase externo sem sessão disponível.
 
 ## Revisão de Produtos
