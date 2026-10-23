@@ -1,10 +1,23 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
-import { Loader2, MapPin, CheckCircle, Archive, Database } from "lucide-react";
+import { Loader2, MapPin, CheckCircle, Archive, Database, X } from "lucide-react";
+import { ScanField } from "@/components/coletor/ScanField";
+import { StatusOverlay, type OverlayType } from "@/components/coletor/StatusOverlay";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { useFeedback } from "@/hooks/useFeedback";
+import {
+  embalagensDoProduto,
+  limparEanConfirmado,
+  montarEanMap,
+  registrarEanConfirmado,
+  resolverLeituraArmazenagem,
+  type EanMapArmazenagem,
+} from "@/lib/armazenagemService";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import * as OfflineStore from "@/lib/offlineStore";
@@ -44,6 +57,19 @@ interface ItemArmazenagem {
 interface ItensPayload {
   itens: ItemArmazenagem[];
   huMap: Record<string, HUInfo>;
+  /** EANs das embalagens dos produtos do movimento — permite bipar também offline. */
+  eanMap?: EanMapArmazenagem;
+}
+
+/** Conferência feita pelo bipe na lista, repassada à tela /iniciar. */
+interface ConferenciaLista { codigo: string; fator: number; }
+
+/** Seleção de várias tarefas do mesmo código lido: o operador toca na correta. */
+interface SelecaoLeitura {
+  codigo: string;
+  tipo: "EAN" | "HU";
+  tarefaIds: string[];
+  fatorPorProduto: Record<string, number>;
 }
 
 export function ArmazenagemItensPage({ onNavigate }: Props) {
@@ -59,7 +85,7 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
   const movimentoNumero = sessionStorage.getItem("coletor_armazenagem_movimento_numero") || "";
 
   const fetchItens = useCallback(async (): Promise<ItensPayload> => {
-    if (!tenantId || !empresaId || !movimentoId) return { itens: [], huMap: {} };
+    if (!tenantId || !empresaId || !movimentoId) return { itens: [], huMap: {}, eanMap: {} };
     const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_itens_movimento" as any, {
       p_tenant_id: tenantId,
       p_empresa_id: empresaId,
@@ -88,7 +114,18 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
         }
       });
     }
-    return { itens: rows, huMap: map };
+
+    let eanMap: EanMapArmazenagem = {};
+    const produtoIds = Array.from(new Set(rows.map(i => i.produto_id).filter(Boolean)));
+    if (produtoIds.length > 0) {
+      const { data: embData, error: embErr } = await supabase
+        .from("produto_embalagem")
+        .select("produto_id, ean, fator, ativo")
+        .in("produto_id", produtoIds);
+      // Falha ao ler EANs não impede a lista: o bipe avisa e o toque no card segue funcionando.
+      if (!embErr) eanMap = montarEanMap(embData || []);
+    }
+    return { itens: rows, huMap: map, eanMap };
   }, [tenantId, empresaId, movimentoId]);
 
   const { data, loading, isFromCache, refetch } = useOfflineCache<ItensPayload>(
@@ -100,8 +137,27 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
 
   const itens = useMemo(() => data?.itens ?? [], [data]);
   const huMap = useMemo(() => data?.huMap ?? {}, [data]);
+  const eanMap = useMemo(() => data?.eanMap ?? {}, [data]);
 
-  const handleSelectItem = (item: ItemArmazenagem) => {
+  const result = useResultDialog({ coletorMode: true });
+  const feedback = useFeedback();
+  const [lastScanned, setLastScanned] = useState("");
+  const [overlay, setOverlay] = useState<OverlayType>(null);
+  const [overlayMsg, setOverlayMsg] = useState("");
+  const [selecao, setSelecao] = useState<SelecaoLeitura | null>(null);
+  const [pendente, setPendente] = useState<{ item: ItemArmazenagem; conferencia: ConferenciaLista | null } | null>(null);
+
+  // Se a lista mudar (refresh) e as tarefas da seleção sumirem, desfaz o filtro.
+  const itensSelecao = useMemo(
+    () => (selecao ? itens.filter(i => selecao.tarefaIds.includes(i.tarefa_id)) : []),
+    [itens, selecao],
+  );
+  useEffect(() => {
+    if (selecao && itensSelecao.length === 0) setSelecao(null);
+  }, [selecao, itensSelecao.length]);
+  const itensVisiveis = selecao && itensSelecao.length > 0 ? itensSelecao : itens;
+
+  const handleSelectItem = (item: ItemArmazenagem, conferencia: ConferenciaLista | null = null) => {
     sessionStorage.setItem("coletor_armazenagem_tarefa_id", item.tarefa_id);
     sessionStorage.setItem("coletor_armazenagem_produto_id", item.produto_id);
     sessionStorage.setItem("coletor_armazenagem_produto_desc", item.descricao);
@@ -112,7 +168,10 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     sessionStorage.setItem("coletor_armazenagem_fabricacao", item.fabricacao || "");
     sessionStorage.setItem("coletor_armazenagem_picking_sugerido", item.picking_endereco_desc || "");
     sessionStorage.setItem("coletor_armazenagem_varios_pickings", item.varios_pickings ? "S" : "N");
-    sessionStorage.setItem("coletor_armazenagem_fator", String(item.fator_caixa || 1));
+    // Com EAN conferido na lista, vale o fator da embalagem lida (mesma regra da tela /iniciar).
+    sessionStorage.setItem("coletor_armazenagem_fator", String(conferencia?.fator || item.fator_caixa || 1));
+    if (conferencia) registrarEanConfirmado(item.tarefa_id, conferencia.codigo);
+    else limparEanConfirmado();
     sessionStorage.setItem("coletor_armazenagem_qtd_requerida", String(item.quantidade_requerida ?? 0));
     sessionStorage.setItem("coletor_armazenagem_qtd_executada", String(item.quantidade_executada ?? 0));
     sessionStorage.setItem("coletor_armazenagem_movimento_item_id", item.movimento_entrada_item_id || "");
@@ -125,6 +184,79 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
       sessionStorage.removeItem("coletor_armazenagem_hu_codigo");
     }
     onNavigate("/coletor/armazenagem/iniciar");
+  };
+
+  const conferenciaDaSelecao = (item: ItemArmazenagem): ConferenciaLista | null =>
+    selecao?.tipo === "EAN"
+      ? { codigo: selecao.codigo, fator: selecao.fatorPorProduto[item.produto_id] || 1 }
+      : null;
+
+  const handleTapItem = (item: ItemArmazenagem) => handleSelectItem(item, conferenciaDaSelecao(item));
+
+  /** O mapa local só tem EANs deste movimento; online, confere se o EAN existe em outro produto. */
+  const eanCadastradoForaDaLista = async (codigo: string): Promise<boolean> => {
+    if (!navigator.onLine || !codigo) return false;
+    try {
+      const { data: emb, error } = await supabase
+        .from("produto_embalagem")
+        .select("produto_id")
+        .eq("ean", codigo)
+        .limit(1);
+      return !error && Array.isArray(emb) && emb.length > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleScan = async (code: string) => {
+    setLastScanned(code);
+    const r = resolverLeituraArmazenagem(code, itens, eanMap, huMap);
+
+    if (r.tipo === "NAO_ENCONTRADO" || r.tipo === "FORA_DO_MOVIMENTO") {
+      feedback.error();
+      setSelecao(null);
+      const foraDoMovimento = r.tipo === "FORA_DO_MOVIMENTO" || (await eanCadastradoForaDaLista(r.codigo));
+      if (foraDoMovimento) {
+        result.showWarning(`Produto não pertence ao Movimento #${movimentoNumero}`, {
+          details: `Código lido: ${code}\nEste produto não tem armazenagem pendente neste movimento.`,
+          instruction: "Confira se está com o produto certo ou volte e escolha o movimento correto.",
+        });
+      } else {
+        result.showWarning("EAN não encontrado neste movimento", {
+          details: `Código lido: ${code}`,
+          instruction: "Bipe o código de barras da embalagem (EAN). SKU e referência não são aceitos.",
+        });
+      }
+      return;
+    }
+
+    const encontrados = itens.filter(i => r.tarefaIds.includes(i.tarefa_id));
+    const fatorPorProduto = r.tipo === "EAN" ? r.fatorPorProduto : {};
+
+    if (encontrados.length === 1) {
+      const item = encontrados[0];
+      setSelecao(null);
+      setPendente({
+        item,
+        conferencia: r.tipo === "EAN" ? { codigo: r.codigo, fator: fatorPorProduto[item.produto_id] || 1 } : null,
+      });
+      setOverlay("success");
+      setOverlayMsg(r.tipo === "EAN" ? `Produto confirmado: ${item.descricao}` : `HU ${r.codigo} → ${item.descricao}`);
+      return;
+    }
+
+    setSelecao({ codigo: r.codigo, tipo: r.tipo, tarefaIds: r.tarefaIds, fatorPorProduto });
+    setOverlay("warning");
+    setOverlayMsg(`${encontrados.length} tarefas para este código. Toque na correta.`);
+  };
+
+  const handleOverlayDone = () => {
+    setOverlay(null);
+    if (pendente) {
+      const { item, conferencia } = pendente;
+      setPendente(null);
+      handleSelectItem(item, conferencia);
+    }
   };
 
   useEffect(() => {
@@ -146,6 +278,8 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
         fator_caixa: item.fator_caixa,
       };
       OfflineStore.cacheData(`armazenagem_tarefa_${item.sku}`, cacheEntry, 120).catch(() => {});
+      const embs = embalagensDoProduto(data.eanMap ?? {}, item.produto_id);
+      if (embs.length > 0) OfflineStore.cacheData(`ean_emb_produto_${item.produto_id}`, embs, 480).catch(() => {});
     }
   }, [data]);
 
@@ -153,7 +287,18 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={title} onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/movimentos">
+      <StatusOverlay type={overlay} message={overlayMsg} onDone={handleOverlayDone} />
+      <ResultDialog {...result.dialogProps} />
       <EtapaIndicador etapa={1} />
+      {!loading && itens.length > 0 && (
+        <ScanField
+          compact
+          label="Bipe o EAN do produto ou a HU"
+          lastScanned={lastScanned}
+          onScan={handleScan}
+          disabled={!!pendente}
+        />
+      )}
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" />
@@ -170,7 +315,9 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <p className="text-xs text-[hsl(213,31%,55%)]">{itens.length} item(ns) pendente(s)</p>
+              <p className="text-xs text-[hsl(213,31%,55%)]">
+                {selecao ? `${itensVisiveis.length} de ${itens.length} item(ns)` : `${itens.length} item(ns) pendente(s)`}
+              </p>
               {isFromCache && (
                 <span className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
                   <Database size={10} /> Cache
@@ -180,11 +327,30 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
             <RefreshListButton onRefresh={refetch} />
           </div>
 
-          {itens.map((item) => (
+          {selecao && (
+            <div
+              role="status"
+              className="flex items-center justify-between gap-2 rounded-[10px] px-2.5 py-1.5 text-[12px] bg-[hsl(217,91%,50%)]/12 border border-[hsl(217,91%,60%)]/35 text-[hsl(213,31%,85%)]"
+            >
+              <span className="min-w-0">
+                <b className="font-mono">{selecao.codigo}</b>: {itensVisiveis.length} tarefas. Toque na correta (lote/HU).
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelecao(null)}
+                className="shrink-0 min-h-[32px] flex items-center gap-1 font-semibold text-[hsl(217,91%,65%)]"
+              >
+                <X size={14} /> Limpar
+              </button>
+            </div>
+          )}
+
+          {itensVisiveis.map((item) => (
             <div
               key={item.tarefa_id}
-              onClick={() => handleSelectItem(item)}
-              className="rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3 space-y-2 active:bg-[hsl(222,35%,16%)] active:scale-[0.98] transition-all cursor-pointer"
+              data-testid="item-armazenagem"
+              onClick={() => handleTapItem(item)}
+              className={`rounded-xl bg-[hsl(222,40%,12%)] border ${selecao ? "border-[hsl(217,91%,60%)] ring-1 ring-[hsl(217,91%,60%)]/40" : "border-[hsl(222,35%,22%)]"} p-3 space-y-2 active:bg-[hsl(222,35%,16%)] active:scale-[0.98] transition-all cursor-pointer`}
             >
               {/* Linha 1: Endereço de picking */}
               <div className="flex items-center justify-between">
