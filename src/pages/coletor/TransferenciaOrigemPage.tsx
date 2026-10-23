@@ -18,6 +18,7 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
   const fromConsultaRef = useRef<{ produtoId: string; produtoNome: string; scannedEan: string } | null>(null);
 
   useEffect(() => {
+    sessionStorage.removeItem("transf_picking_desc");
     const raw = sessionStorage.getItem("transf_from_consulta");
     if (raw) {
       sessionStorage.removeItem("transf_from_consulta");
@@ -27,6 +28,7 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
         setFromConsulta(parsed);
       } catch { /* ignore */ }
     }
+    return () => { sessionStorage.removeItem("transf_picking_desc"); };
   }, []);
 
   const handleScan = async (code: string) => {

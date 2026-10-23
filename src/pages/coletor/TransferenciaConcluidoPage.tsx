@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { CheckCircle } from "lucide-react";
@@ -11,10 +12,12 @@ export function TransferenciaConcluidoPage({ onNavigate }: Props) {
   const desc = sessionStorage.getItem("transf_produto_desc") || "";
   const quantidade = sessionStorage.getItem("transf_quantidade") || "0";
 
+  useEffect(() => { sessionStorage.removeItem("transf_picking_desc"); }, []);
+
   const handleNew = () => {
     // Clear transfer data
     ["transf_origem_id", "transf_origem_desc", "transf_produto_id", "transf_produto_sku", "transf_produto_desc",
-     "transf_saldo_disponivel", "transf_lote", "transf_validade", "transf_fabricacao", "transf_quantidade", "transf_destino_desc"]
+     "transf_saldo_disponivel", "transf_lote", "transf_validade", "transf_fabricacao", "transf_quantidade", "transf_destino_desc", "transf_picking_desc"]
       .forEach(k => sessionStorage.removeItem(k));
     onNavigate("/coletor/movimentos/transferencia/origem");
   };

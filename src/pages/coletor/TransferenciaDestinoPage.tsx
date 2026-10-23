@@ -6,7 +6,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -19,6 +19,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
   const usuarioId = localStorage.getItem("core_usuario_id") || "";
   const origemId = sessionStorage.getItem("transf_origem_id") || "";
   const origemDesc = sessionStorage.getItem("transf_origem_desc") || "";
+  const pickingDesc = sessionStorage.getItem("transf_picking_desc") || "";
   const produtoId = sessionStorage.getItem("transf_produto_id") || "";
   const sku = sessionStorage.getItem("transf_produto_sku") || "";
   const quantidade = Number(sessionStorage.getItem("transf_quantidade") || "0");
@@ -152,6 +153,10 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
         </div>
       </div>
 
+      {pickingDesc && <p className="flex items-start gap-1.5 text-xs text-muted-foreground min-w-0">
+        <MapPin size={15} className="shrink-0 text-[hsl(var(--status-free))]" />
+        <span>Picking do produto: <strong className="font-mono text-foreground break-all">{pickingDesc}</strong></span>
+      </p>}
       <ScanField label="Escanear Endereço Destino" onScan={handleScan} lastScanned={scanned} disabled={loading || offlineBlocked} />
       {loading && <div className="flex justify-center py-4"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={28} /></div>}
     </ColetorLayout>
