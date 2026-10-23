@@ -14,6 +14,11 @@ import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 import { MovimentoEntradaChips } from "@/components/coletor/MovimentoEntradaChips";
+import {
+  armazenagemEmParalelo,
+  recebimentoStatusColor,
+  recebimentoStatusLabel,
+} from "@/lib/recebimentoStatus";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -104,14 +109,17 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     }
     setConfirming(true);
     try {
-      // Marca início da conferência no movimento
+      // Marca início da conferência no movimento — só na primeira vez.
+      // Um segundo conferente (ou a recontagem com armazenagem em paralelo)
+      // não sobrescreve quem iniciou nem quando.
       const { error: updErr } = await (supabase as any)
         .from("movimento_entrada")
         .update({
           conferencia_iniciada_em: new Date().toISOString(),
           conferencia_iniciada_por: usuarioId,
         })
-        .eq("id", selectedId);
+        .eq("id", selectedId)
+        .is("conferencia_iniciada_em", null);
 
       if (updErr) throw updErr;
 
@@ -152,17 +160,6 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
       setConfirming(false);
     }
   };
-
-  const statusColor = (s: string) => {
-    if (s === "LIBERADO") return "text-[#22C55E]";
-    if (s === "EM_CONFERENCIA") return "text-[hsl(217,91%,60%)]";
-    if (s === "DIVERGENCIA") return "text-[#F59E0B]";
-    if (s === "ARMAZENAGEM_PARCIAL") return "text-[#A78BFA]";
-    return "text-[hsl(213,31%,55%)]";
-  };
-
-  const statusLabel = (s: string) =>
-    s === "ARMAZENAGEM_PARCIAL" ? "ARMAZ. PARCIAL" : s?.replace(/_/g, " ");
 
   return (
     <ColetorLayout title="Selecionar Movimento" onNavigate={onNavigate} showBack backPath="/coletor/recebimento">
@@ -214,7 +211,7 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-mono font-bold text-lg text-white">#{m.numero_movimento}</span>
-                    <span className={`text-xs font-bold uppercase ${statusColor(m.status)}`}>{statusLabel(m.status)}</span>
+                    <span className={`text-xs font-bold uppercase ${recebimentoStatusColor(m.status)}`}>{recebimentoStatusLabel(m.status)}</span>
                   </div>
 
                   <MovimentoEntradaChips
@@ -256,6 +253,12 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
                       {m.iniciado_pelo_usuario
                         ? "Você iniciou esta conferência"
                         : `Em conferência por ${m.conferente_nome}`}
+                    </p>
+                  )}
+
+                  {armazenagemEmParalelo(m.status) && (
+                    <p className="text-xs mt-1 text-[#A78BFA]">
+                      Armazenagem em andamento — conferência dos itens pendentes liberada
                     </p>
                   )}
                 </button>
