@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
 
 export interface ExportColumn {
   key: string;
@@ -60,12 +61,11 @@ export interface PdfMeta {
   filters?: Record<string, string>;
 }
 
-export function exportToPdf(
-  filename: string,
+function buildPdfDoc(
   columns: ExportColumn[],
   rows: any[],
   meta: PdfMeta,
-) {
+): jsPDF {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -129,7 +129,51 @@ export function exportToPdf(
     },
   });
 
+  return doc;
+}
+
+export function exportToPdf(
+  filename: string,
+  columns: ExportColumn[],
+  rows: any[],
+  meta: PdfMeta,
+) {
+  const doc = buildPdfDoc(columns, rows, meta);
   doc.save(`${filename}_${stamp()}.pdf`);
+}
+
+/**
+ * Gera o mesmo PDF do exportToPdf e abre a janela de impressão numa nova aba.
+ * Se o navegador bloquear o pop-up, baixa o arquivo como fallback.
+ */
+export function printPdf(
+  filename: string,
+  columns: ExportColumn[],
+  rows: any[],
+  meta: PdfMeta,
+  targetWindow?: Window | null,
+) {
+  const doc = buildPdfDoc(columns, rows, meta);
+  doc.autoPrint();
+  const url = doc.output("bloburl") as unknown as string;
+  const win = targetWindow && !targetWindow.closed ? targetWindow : window.open(url, "_blank");
+  if (win && win === targetWindow) win.location.href = url;
+  if (!win) {
+    doc.save(`${filename}_${stamp()}.pdf`);
+    toast.info("Pop-up bloqueado — o PDF foi baixado para impressão");
+  }
+}
+
+/** Reserva a aba dentro do clique, antes de buscar os dados para impressão. */
+export function abrirJanelaImpressao(): Window | null {
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.title = "Gerando PDF…";
+    win.document.body.style.fontFamily = "sans-serif";
+    win.document.body.style.padding = "24px";
+    win.document.body.textContent = "Gerando PDF para impressão… aguarde.";
+  }
+  return win;
 }
 
 // ===== Helpers =====

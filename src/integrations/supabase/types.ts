@@ -10476,6 +10476,15 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_produto_grupos_filtro: {
+        Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: {
+          codigo_erp: string
+          descricao: string
+          id: string
+          qtd_produtos: number
+        }[]
+      }
       fn_produto_marcas_distintas: {
         Args: { p_empresa_id?: string; p_tenant_id: string }
         Returns: {
@@ -12333,6 +12342,62 @@ export type Database = {
       }
       rpc_painel_tv_operacional: { Args: { p_tv_token: string }; Returns: Json }
       rpc_painel_tv_vendas: { Args: { p_tv_token: string }; Returns: Json }
+      rpc_produto_listagem: {
+        Args: {
+          p_com_total?: boolean
+          p_descricao?: string
+          p_ean?: string
+          p_empresa_id: string
+          p_grupo_id?: string
+          p_limit?: number
+          p_marca?: string
+          p_offset?: number
+          p_parceiro_id?: string
+          p_referencia?: string
+          p_sem_ean?: boolean
+          p_sku?: string
+          p_subgrupo_id?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          ativo: boolean
+          camada: number
+          codigo_erp: string
+          curva_acesso: Database["public"]["Enums"]["enum_curva"]
+          curva_venda: Database["public"]["Enums"]["enum_curva"]
+          descricao: string
+          dias_shelf: number
+          empresa_id: string
+          fator_caixa: number
+          foto: string
+          grupo_descricao: string
+          grupo_id: string
+          id: string
+          lastro: number
+          marca: string
+          parceiro_id: string
+          parceiro_nome: string
+          peso_bruto: number
+          peso_liquido: number
+          peso_variavel: boolean
+          preco_custo: number
+          referencia: string
+          shelf_devolucao: number
+          shelf_entrada: number
+          sku: string
+          subgrupo_descricao: string
+          subgrupo_id: string
+          tem_ean: boolean
+          tenant_id: string
+          tipo_controle: Database["public"]["Enums"]["enum_tipo_controle"]
+          tipo_separacao: Database["public"]["Enums"]["enum_tipo_separacao"]
+          tolerancia: number
+          total_count: number
+          url_imagem: string
+          usa_picking: boolean
+          varios_pickings: boolean
+        }[]
+      }
       rpc_produto_regra_padrao_aplicar: {
         Args: { p_empresa_id: string; p_simular?: boolean }
         Returns: Json
