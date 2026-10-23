@@ -24,6 +24,8 @@ import { parseError } from "@/lib/errorMapper";
 import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 import { DescricaoCell } from "@/components/DescricaoCell";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortableTh } from "@/components/tabela/SortableTh";
 
 interface MovimentoEntradaListItem {
   id: string;
@@ -217,6 +219,11 @@ export function MovimentoEntradaPage() {
   const debouncedSku = useDebounce(filterSku, 400);
   const skuFiltro = debouncedSku.trim().toLowerCase();
   const isSkuHit = (sku: string | null | undefined) => !!skuFiltro && (sku || "").trim().toLowerCase() === skuFiltro;
+  const sortItens = useTableSort(resumoItems, "sku", {
+    status_item_movimento: (r: ResumoItem) => STATUS_ITEM_MAP[r.status_item_movimento]?.label ?? r.status_item_movimento,
+  }, selectedMov);
+  const sortConf = useTableSort(conferenciaItems, "sku", undefined, selectedMov);
+  const sortArmz = useTableSort(armazenagemItems, "sku", undefined, selectedMov);
   const debouncedPlaca = useDebounce(filterPlacaVeiculo, 400);
   const debouncedParceiroErp = useDebounce(filterParceiroCodigoErp, 400);
 
@@ -841,16 +848,16 @@ export function MovimentoEntradaPage() {
                     <thead>
                       <tr className="border-b border-border bg-secondary/30 sticky top-0">
                         <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase w-8"></th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Esperada</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Conferida</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Armazenada</th>
-                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Status</th>
+                        <SortableTh label="SKU" sortKey="sku" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Descrição" sortKey="descricao" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Esperada" sortKey="qtd_esperada" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="right" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Conferida" sortKey="qtd_conferida" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="right" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Armazenada" sortKey="qtd_armazenada" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="right" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Status" sortKey="status_item_movimento" activeKey={sortItens.sortKey} dir={sortItens.sortDir} onSort={sortItens.toggleSort} align="center" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
                       </tr>
                     </thead>
                     <tbody>
-                      {resumoItems.map((item) => {
+                      {sortItens.sortedRows.map((item) => {
                         const alerts: string[] = [];
                         if (item.sem_picking) alerts.push("Sem endereço de picking cadastrado");
                         if (item.sem_ean) alerts.push("Sem código de barras cadastrado");
@@ -900,22 +907,22 @@ export function MovimentoEntradaPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-secondary/30 sticky top-0">
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Operador</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Qtd</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">HU</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Lote</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Fabricação</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Validade</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Série</th>
-                        <th className="px-3 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase">Status</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Início</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Término</th>
+                        <SortableTh label="SKU" sortKey="sku" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Descrição" sortKey="descricao" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Operador" sortKey="operador" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Qtd" sortKey="quantidade_executada" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="right" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="HU" sortKey="codigo_hu" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Lote" sortKey="lote" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Fabricação" sortKey="fabricacao" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Validade" sortKey="validade" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Série" sortKey="serie" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Status" sortKey="status" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="center" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Início" sortKey="iniciado_em" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Término" sortKey="concluido_em" activeKey={sortConf.sortKey} dir={sortConf.sortDir} onSort={sortConf.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
                       </tr>
                     </thead>
                     <tbody>
-                      {conferenciaItems.map((item, idx) => (
+                      {sortConf.sortedRows.map((item, idx) => (
                         <tr key={idx} data-tab-sku="conferencia" data-sku-hit={isSkuHit(item.sku) ? "true" : undefined} className={cn("border-b border-border/50 hover:bg-secondary/30", isSkuHit(item.sku) && "bg-primary/10")}>
                           <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground"><DescricaoCell text={item.descricao} minWidth={180} maxWidth={280} /></td>
@@ -949,17 +956,17 @@ export function MovimentoEntradaPage() {
                   <table className="w-full text-sm">
                     <thead>
                      <tr className="border-b border-border bg-secondary/30 sticky top-0">
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">SKU</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Descrição</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">HU</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Endereço Destino</th>
-                        <th className="px-3 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase">Quantidade</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Operador</th>
-                        <th className="px-3 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase">Data Execução</th>
+                        <SortableTh label="SKU" sortKey="sku" activeKey={sortArmz.sortKey} dir={sortArmz.sortDir} onSort={sortArmz.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Descrição" sortKey="descricao_sku" activeKey={sortArmz.sortKey} dir={sortArmz.sortDir} onSort={sortArmz.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="HU" sortKey="codigo_hu" activeKey={sortArmz.sortKey} dir={sortArmz.sortDir} onSort={sortArmz.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Endereço Destino" sortKey="endereco" activeKey={sortArmz.sortKey} dir={sortArmz.sortDir} onSort={sortArmz.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Quantidade" sortKey="quantidade_executada" activeKey={sortArmz.sortKey} dir={sortArmz.sortDir} onSort={sortArmz.toggleSort} align="right" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Operador" sortKey="login" activeKey={sortArmz.sortKey} dir={sortArmz.sortDir} onSort={sortArmz.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
+                        <SortableTh label="Data Execução" sortKey="concluido_em" activeKey={sortArmz.sortKey} dir={sortArmz.sortDir} onSort={sortArmz.toggleSort} align="left" className="px-3 py-2.5 text-xs font-medium text-muted-foreground" />
                       </tr>
                     </thead>
                     <tbody>
-                      {armazenagemItems.map((item, idx) => (
+                      {sortArmz.sortedRows.map((item, idx) => (
                         <tr key={idx} data-tab-sku="armazenagem" data-sku-hit={isSkuHit(item.sku) ? "true" : undefined} className={cn("border-b border-border/50 hover:bg-secondary/30", isSkuHit(item.sku) && "bg-primary/10")}>
                           <td className="px-3 py-2.5 font-mono text-xs text-foreground">{item.sku}</td>
                           <td className="px-3 py-2.5 text-xs text-foreground truncate max-w-[150px]">{item.descricao_sku}</td>
