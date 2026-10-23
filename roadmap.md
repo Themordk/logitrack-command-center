@@ -1,5 +1,11 @@
 # Ajustes de destino da armazenagem
 
+## Picking na transferência do coletor
+- [x] Consultar RPC exclusiva e mostrar orientação nos detalhes e destino, sem alterar validações.
+- [x] Limpar orientação ao reiniciar e concluir o fluxo.
+- [ ] Testar conversão, prioridade, excesso informativo, ausência de picking e erro.
+- [ ] Validar com usuário conectado: Supabase externo sem sessão disponível.
+
 ## Revisão de Produtos
 - [x] Abrir impressão no clique e fechar a aba em erro ou lista vazia; aba reservada e PDF conferidos no Chrome.
 - [x] Grupos vinculados pela RPC, opções únicas e filtro desabilitado quando vazio.
