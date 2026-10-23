@@ -6,3 +6,4 @@
 - Product group filter options come from the dedicated RPC through the product listing service, while product editing keeps the complete group catalogue; this avoids empty filter groups without restricting registration.
 - Asynchronous product printing reserves its window in the click handler and passes it to the shared PDF exporter; this preserves browser popup authorization.
 - Storage item-list scans accept only packaging EANs (or an HU to locate the task); resolution and the EAN handoff to the start step go through armazenagemService helpers, so the start step only skips its own EAN check for the same task.
+- Receiving movement status shown in the collector comes from recebimentoStatus helpers; storage statuses (LIB_ARMAZENAGEM / ARMAZENAGEM_PARCIAL) stay in the conference list while items are pending and are flagged as storage in parallel, since the backend never moves them back to EM_CONFERENCIA.
