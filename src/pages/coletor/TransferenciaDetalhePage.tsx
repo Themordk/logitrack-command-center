@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Package, Box as BoxIcon } from "lucide-react";
+import { Package, Box as BoxIcon, TriangleAlert } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TransferenciaPickingCard } from "@/components/coletor/TransferenciaPickingCard";
+import { buscarPickingsTransferencia, ordenarPickingsTransferencia, excessoPicking } from "@/lib/transferenciaService";
+import type { PickingTransferencia } from "@/types/transferencia";
 
 interface Props { onNavigate: (path: string) => void; }
 
 export function TransferenciaDetalhePage({ onNavigate }: Props) {
+  const produtoId = sessionStorage.getItem("transf_produto_id") || "";
+  const origemId = sessionStorage.getItem("transf_origem_id") || "";
   const origemDesc = sessionStorage.getItem("transf_origem_desc") || "";
   const sku = sessionStorage.getItem("transf_produto_sku") || "";
   const desc = sessionStorage.getItem("transf_produto_desc") || "";
@@ -17,12 +23,32 @@ export function TransferenciaDetalhePage({ onNavigate }: Props) {
 
   const [quantidade, setQuantidade] = useState("");
   const [error, setError] = useState("");
+  const [pickings, setPickings] = useState<PickingTransferencia[]>([]);
+  const [carregandoPickings, setCarregandoPickings] = useState(Boolean(produtoId && origemId));
+
+  useEffect(() => {
+    let ativo = true;
+    setPickings([]);
+    sessionStorage.removeItem("transf_picking_desc");
+    setCarregandoPickings(Boolean(produtoId && origemId));
+    if (!produtoId || !origemId) return;
+    void buscarPickingsTransferencia({ produtoId, origemId }).then(resposta => {
+      if (!ativo) return;
+      const lista = ordenarPickingsTransferencia(resposta.pickings);
+      setPickings(lista);
+      if (lista[0]) sessionStorage.setItem("transf_picking_desc", lista[0].endereco);
+    }).catch(erro => {
+      if (ativo) console.warn("Não foi possível carregar os pickings da transferência.", erro);
+    }).finally(() => { if (ativo) setCarregandoPickings(false); });
+    return () => { ativo = false; };
+  }, [produtoId, origemId]);
 
   const saldoNaEmb = fator > 1 ? Math.floor(saldoUN / fator) : saldoUN;
   const saldoResto = fator > 1 ? saldoUN % fator : 0;
 
   const qtyNum = parseFloat(quantidade) || 0;
   const qtyUN = qtyNum * fator;
+  const excesso = excessoPicking(pickings[0], qtyUN);
 
   const handleConfirm = () => {
     if (!qtyNum || qtyNum <= 0) {
@@ -102,6 +128,9 @@ export function TransferenciaDetalhePage({ onNavigate }: Props) {
           )}
         </div>
 
+        {carregandoPickings && <Skeleton className="h-16 w-full mb-3 rounded-lg" />}
+        <TransferenciaPickingCard key={`${produtoId}_${origemId}`} pickings={pickings} fator={fator} embalagem={embalagem} />
+
         {/* Input com label dinâmico */}
         <label className="text-xs text-[hsl(213,31%,75%)] font-semibold mb-1 block">
           Quantidade em {embalagem}
@@ -119,6 +148,9 @@ export function TransferenciaDetalhePage({ onNavigate }: Props) {
           <p className="text-center text-xs text-[hsl(217,91%,70%)] mt-1">= {qtyUN} UN</p>
         )}
         {error && <p className="text-red-400 text-xs mt-1 text-center">{error}</p>}
+        {excesso > 0 && <p role="status" className="flex items-start justify-center gap-1.5 text-xs mt-2 text-[hsl(var(--status-busy))]">
+          <TriangleAlert size={15} className="shrink-0" /> Excede o máximo do picking em {excesso.toLocaleString("pt-BR")} UN
+        </p>}
       </div>
 
       <ActionButton onClick={handleConfirm} disabled={!quantidade}>Confirmar e Escanear Destino</ActionButton>
