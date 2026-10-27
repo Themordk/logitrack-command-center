@@ -13,8 +13,8 @@ import { useOffline } from "@/contexts/OfflineContext";
 import { useCancelamentoRealtime } from "@/hooks/useCancelamentoRealtime";
 import { useFeedback } from "@/hooks/useFeedback";
 import { TarjaPendenciaPicking } from "@/components/coletor/TarjaPendenciaPicking";
-import { ordenarTarefasPicking, recarregarTarefasPicking, situacaoTarefa } from "@/lib/pendenciasPickingService";
-import type { CamposPendenciaPicking } from "@/lib/pendenciasPicking.types";
+import { listarEnderecosAlternativos, ordenarTarefasPicking, recarregarTarefasPicking, situacaoTarefa, trocarEnderecoTarefa } from "@/lib/pendenciasPickingService";
+import type { CamposPendenciaPicking, EnderecoAlternativoPicking } from "@/lib/pendenciasPicking.types";
 import { Button } from "@/components/ui/button";
 
 
@@ -44,23 +44,16 @@ interface Tarefa extends CamposPendenciaPicking {
   [key: string]: any;
 }
 
-interface EnderecoAlternativo {
-  endereco_id: string;
-  endereco_descricao: string;
-  quantidade_disponivel: number;
-  lote: string;
-  setor?: string;
-}
-
 export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [lastScanned, setLastScanned] = useState("");
   const [showOptions, setShowOptions] = useState(false);
   const [showOutrosEnderecos, setShowOutrosEnderecos] = useState(false);
-  const [outrosEnderecos, setOutrosEnderecos] = useState<EnderecoAlternativo[]>([]);
+  const [outrosEnderecos, setOutrosEnderecos] = useState<EnderecoAlternativoPicking[]>([]);
   const [loadingEnderecos, setLoadingEnderecos] = useState(false);
   const [selectedEnderecoAlt, setSelectedEnderecoAlt] = useState<string | null>(null);
+  const [trocandoEndereco, setTrocandoEndereco] = useState(false);
   const result = useResultDialog({ coletorMode: true });
   const { isOnline } = useOffline();
   const [recarregando, setRecarregando] = useState(false);
@@ -170,7 +163,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           setShowOutrosEnderecos(false);
           toast.success(`Tarefa liberada: coletar em ${atual.endereco}`);
         } else if (aviso === "alternativo") {
-          result.showWarning("Este endereço não pode ser usado para esta separação.", { instruction: "O tipo de saída não permite separar deste endereço. Pule o item ou registre o corte." });
+          result.showWarning("O endereço escolhido ficou sem saldo.", { instruction: "Abra Outros Endereços e escolha outro, pule o item ou registre o corte." });
         } else {
           result.showWarning("Ainda sem saldo para este produto.", { instruction: Number(atual.saldo_pulmao ?? 0) > 0 ? "Aguarde o abastecimento ou pule o item." : "Pule o item, registre o corte ou avise a supervisão." });
         }
@@ -269,99 +262,58 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
 
   const loadOutrosEnderecos = async () => {
     if (!tarefa) return;
-    
-    let produtoId = tarefa.produto_id;
-    
-    // If produto_id is missing, look it up by sku
-    if (!produtoId && tarefa.sku) {
-      try {
-        const { data } = await (supabase as any)
-          .from("produto")
-          .select("id")
-          .eq("sku", tarefa.sku)
-          .limit(1);
-        if (data && data.length > 0) {
-          produtoId = data[0].id;
-          // Update tarefa with produto_id
-          const updated = { ...tarefa, produto_id: produtoId };
-          const newTarefas = [...tarefas];
-          newTarefas[currentIdx] = updated;
-          setTarefas(newTarefas);
-        }
-      } catch {
-        result.showWarning("Erro ao buscar produto.");
-        return;
-      }
-    }
-
-    if (!produtoId) {
-      result.showWarning("Produto não identificado.");
+    const tenant = localStorage.getItem("core_tenant_id");
+    if (!isOnline || !tenant) {
+      result.showWarning("Sem conexão: não é possível trocar o endereço agora.");
       return;
     }
 
+    setSelectedEnderecoAlt(null);
     setLoadingEnderecos(true);
     setShowOutrosEnderecos(true);
     setShowOptions(false);
     try {
-      const { data, error } = await (supabase as any)
-        .from("estoque_geral")
-        .select("id, endereco_id, quantidade_disponivel, lote")
-        .eq("produto_id", produtoId)
-        .gt("quantidade_disponivel", 0)
-        .limit(50);
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        setOutrosEnderecos([]);
-        setLoadingEnderecos(false);
-        return;
-      }
-
-      // Get endereco descriptions
-      const endIds = [...new Set(data.map((d: any) => d.endereco_id).filter(Boolean))];
-      const { data: endData } = await (supabase as any)
-        .from("endereco")
-        .select("id, descricao, setor_id")
-        .in("id", endIds);
-
-      const endMap: Record<string, any> = {};
-      (endData || []).forEach((e: any) => { endMap[e.id] = e; });
-
-      const lista: EnderecoAlternativo[] = data
-        .filter((d: any) => d.endereco_id)
-        .map((d: any) => ({
-          endereco_id: d.endereco_id,
-          endereco_descricao: endMap[d.endereco_id]?.descricao || d.endereco_id,
-          quantidade_disponivel: d.quantidade_disponivel,
-          lote: d.lote || "—",
-        }));
-
-      setOutrosEnderecos(lista);
-    } catch (err: any) {
-      const parsed = parseError(err, "separacao-endereco");
-      result.showParsedError(parsed);
+      // A lista vem do backend com a mesma regra que a troca valida (tipo de saída, bloqueio, segregação).
+      setOutrosEnderecos(await listarEnderecosAlternativos(tenant, tarefa.tarefa_id));
+    } catch (err: unknown) {
+      setOutrosEnderecos([]);
+      result.showParsedError(parseError(err, "separacao-endereco"));
     } finally {
       setLoadingEnderecos(false);
     }
   };
 
-  const handleConfirmarEnderecoAlt = () => {
-    if (!selectedEnderecoAlt || !tarefa) return;
-    const endAlt = outrosEnderecos.find((e) => e.endereco_id === selectedEnderecoAlt);
-    if (!endAlt) return;
-    if (pendente) { void recarregar(tarefa.tarefa_id, "alternativo"); return; }
-
-    const updatedTarefa = {
-      ...tarefa,
-      endereco_alternativo_id: selectedEnderecoAlt,
-      endereco_alternativo_desc: endAlt.endereco_descricao,
-    };
-    sessionStorage.setItem("coletor_separacao_tarefa_idx", String(currentIdx));
-    sessionStorage.setItem("coletor_separacao_tarefa_atual", JSON.stringify(updatedTarefa));
-    sessionStorage.removeItem("coletor_separacao_lote_selecionado");
-    toast.success(`Endereço alternativo selecionado: ${endAlt.endereco_descricao}`);
+  const fecharOutrosEnderecos = () => {
     setShowOutrosEnderecos(false);
-    onNavigate(requerLote(tarefa.tipo_controle) ? "/coletor/separacao/lote" : "/coletor/separacao/produto");
+    setSelectedEnderecoAlt(null);
+  };
+
+  const handleConfirmarEnderecoAlt = async () => {
+    if (!selectedEnderecoAlt || !tarefa || trocandoEndereco) return;
+    const tenant = localStorage.getItem("core_tenant_id");
+    if (!isOnline || !tenant || !usuarioIdAtual) {
+      result.showWarning("Sem conexão: não é possível trocar o endereço agora.");
+      return;
+    }
+
+    setTrocandoEndereco(true);
+    try {
+      // Grava a escolha do operador no backend: a tarefa passa a apontar para este endereço.
+      const rpcResult = await trocarEnderecoTarefa(tenant, tarefa.tarefa_id, selectedEnderecoAlt, usuarioIdAtual);
+      if (!rpcResult.sucesso) {
+        feedback.error();
+        result.showError(rpcResult, { context: "separacao-endereco" });
+        return;
+      }
+      fecharOutrosEnderecos();
+      sessionStorage.removeItem("coletor_separacao_lote_selecionado");
+      // Recarrega para trazer o novo endereço, saldo e ordem; o operador ainda escaneia o endereço novo.
+      await recarregar(tarefa.tarefa_id, "alternativo");
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao-endereco" });
+    } finally {
+      setTrocandoEndereco(false);
+    }
   };
 
   if (!tarefa) {
@@ -527,6 +479,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
             <div className="relative">
               <button
                 onClick={() => setShowOptions(!showOptions)}
+                aria-label="Mais opções"
                 className="p-2 rounded-lg hover:bg-[hsl(222,35%,20%)] transition-colors"
               >
                 <MoreVertical size={18} className="text-[hsl(213,31%,55%)]" />
@@ -600,34 +553,47 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
                 <Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" />
               </div>
             ) : outrosEnderecos.length === 0 ? (
-              <p className="text-sm text-[hsl(213,31%,45%)] text-center py-4">Nenhum endereço com saldo encontrado.</p>
+              <p className="text-sm text-[hsl(213,31%,45%)] text-center py-4">Nenhum outro endereço disponível para esta separação.</p>
             ) : (
               <div className="flex flex-col gap-2 overflow-auto flex-1">
-                {outrosEnderecos.map((end) => (
-                  <button
-                    key={`${end.endereco_id}-${end.lote}`}
-                    onClick={() => setSelectedEnderecoAlt(end.endereco_id === selectedEnderecoAlt ? null : end.endereco_id)}
-                    className={`flex flex-col gap-1 p-3 rounded-xl border transition-all text-left ${
-                      selectedEnderecoAlt === end.endereco_id
-                        ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
-                        : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
-                    }`}
-                  >
-                    <span className="text-sm font-bold text-white font-mono">{end.endereco_descricao}</span>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-[hsl(213,31%,55%)]">Saldo: <span className="font-bold text-[hsl(142,71%,45%)]">{end.quantidade_disponivel}</span></span>
-                      <span className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)]">{end.lote}</span></span>
-                    </div>
-                  </button>
-                ))}
+                {outrosEnderecos.map((end) => {
+                  const selecionado = selectedEnderecoAlt === end.endereco_id;
+                  return (
+                    <button
+                      key={end.endereco_id}
+                      type="button"
+                      disabled={!end.atende_total || trocandoEndereco}
+                      aria-pressed={selecionado}
+                      onClick={() => setSelectedEnderecoAlt(selecionado ? null : end.endereco_id)}
+                      className={`flex flex-col gap-1 p-3 rounded-xl border transition-all text-left disabled:opacity-50 ${
+                        selecionado
+                          ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
+                          : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white font-mono">{end.endereco}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-secondary text-muted-foreground">
+                          {end.tipo_endereco === "PULMAO" ? "Pulmão" : "Picking"}
+                        </span>
+                      </span>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <span className="text-xs text-[hsl(213,31%,55%)]">Saldo: <span className="font-bold text-[hsl(142,71%,45%)]">{end.saldo}</span></span>
+                        <span className="text-xs text-[hsl(213,31%,55%)]">Lote: <span className="font-bold text-[hsl(213,31%,91%)]">{end.lote || "—"}</span></span>
+                        {end.data_validade && <span className="text-xs text-[hsl(213,31%,55%)]">Val.: <span className="font-bold text-[hsl(213,31%,91%)]">{formatDate(end.data_validade)}</span></span>}
+                      </div>
+                      {!end.atende_total && <span className="text-xs text-destructive">Saldo não atende a quantidade da tarefa</span>}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
             <div className="flex gap-2">
-              <ActionButton onClick={() => { setShowOutrosEnderecos(false); setSelectedEnderecoAlt(null); }} variant="secondary">
+              <ActionButton onClick={fecharOutrosEnderecos} variant="secondary" disabled={trocandoEndereco}>
                 Cancelar
               </ActionButton>
-              <ActionButton onClick={handleConfirmarEnderecoAlt} disabled={!selectedEnderecoAlt}>
+              <ActionButton onClick={handleConfirmarEnderecoAlt} disabled={!selectedEnderecoAlt || trocandoEndereco} loading={trocandoEndereco}>
                 Confirmar
               </ActionButton>
             </div>

@@ -22,6 +22,17 @@ export interface AvisoLiberacao {
   tarefa_sem_endereco: boolean;
   abastecimento_id: string | null;
 }
+/** Linha de separacao_listar_enderecos_alternativos: só endereços que a troca aceita. */
+export interface EnderecoAlternativoPicking {
+  endereco_id: string;
+  endereco: string;
+  tipo_endereco: "PICKING" | "PULMAO" | string;
+  saldo: number;
+  lote: string | null;
+  data_validade: string | null;
+  atende_total: boolean;
+  picking_mapeado: boolean;
+}
 export interface PendenciaPicking {
   movimento_saida_id: string;
   movimento_saida_item_id: string;
