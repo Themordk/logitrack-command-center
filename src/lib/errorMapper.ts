@@ -321,6 +321,38 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "Endereço escaneado não corresponde ao esperado.",
     instruction: "Verifique o endereço e escaneie novamente.",
   },
+  ENDERECO_IGUAL: {
+    title: "A tarefa já está neste endereço.",
+    instruction: "Escolha outro endereço ou feche a lista.",
+  },
+  TAREFA_PARCIALMENTE_SEPARADA: {
+    title: "Item já parcialmente separado.",
+    instruction: "Finalize a coleta ou registre o corte do restante antes de trocar o endereço.",
+  },
+  TAREFA_NAO_ATRIBUIDA_USUARIO: {
+    title: "Esta tarefa não está atribuída a você.",
+    instruction: "Volte para a lista de separações e atualize.",
+  },
+  ENDERECO_BLOQUEADO: {
+    title: "Endereço bloqueado.",
+    instruction: "Escolha outro endereço ou procure a supervisão.",
+  },
+  ENDERECO_SEGREGADO: {
+    title: "Endereço de avaria ou quarentena.",
+    instruction: "Não é permitido separar deste endereço. Escolha outro.",
+  },
+  ENDERECO_OUTRO_ARMAZEM: {
+    title: "Endereço de outro armazém.",
+    instruction: "Escolha um endereço do armazém desta separação.",
+  },
+  ENDERECO_TIPO_NAO_PERMITIDO: {
+    title: "Este endereço não pode ser usado para esta separação.",
+    instruction: "O tipo de saída não permite separar deste endereço. Escolha outro, pule o item ou registre o corte.",
+  },
+  PICKING_COM_SALDO_DISPONIVEL: {
+    title: "Há saldo no picking deste produto.",
+    instruction: "Separe pelo endereço de picking em vez do pulmão.",
+  },
 
   // === Abastecimento ===
   ENDERECO_ORIGEM_INVALIDO: {

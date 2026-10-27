@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { CamposPendenciaPicking, PendenciaPicking, SituacaoSaldo } from "./pendenciasPicking.types";
+import type { CamposPendenciaPicking, EnderecoAlternativoPicking, PendenciaPicking, SituacaoSaldo } from "./pendenciasPicking.types";
+import { parseRpcResult, type RpcResult } from "./errorMapper";
 
 const rpc = supabase.rpc.bind(supabase) as unknown as (nome: string, parametros: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
 export function situacaoTarefa(tarefa: CamposPendenciaPicking): SituacaoSaldo {
@@ -26,4 +27,19 @@ export async function recarregarTarefasPicking<T extends CamposPendenciaPicking 
   const linhas = typeof data === "string" ? JSON.parse(data) : data;
   if (!Array.isArray(linhas)) throw linhas;
   return ordenarTarefasPicking(linhas as T[]);
+}
+/** Endereços para onde a tarefa pode ser trocada (mesma regra que separacao_trocar_endereco valida). */
+export async function listarEnderecosAlternativos(tenantId: string, tarefaId: string): Promise<EnderecoAlternativoPicking[]> {
+  const { data, error } = await rpc("separacao_listar_enderecos_alternativos", { p_tenant_id: tenantId, p_tarefa_id: tarefaId });
+  if (error) throw error;
+  const linhas = typeof data === "string" ? JSON.parse(data) : data;
+  if (!Array.isArray(linhas)) return [];
+  return linhas.map((l: EnderecoAlternativoPicking) => ({ ...l, saldo: Number(l.saldo ?? 0) }));
+}
+
+/** Grava no backend o endereço escolhido pelo operador. A tarefa passa a apontar para ele. */
+export async function trocarEnderecoTarefa(tenantId: string, tarefaId: string, enderecoId: string, usuarioId: string): Promise<RpcResult> {
+  const { data, error } = await rpc("separacao_trocar_endereco", { p_tenant_id: tenantId, p_tarefa_id: tarefaId, p_endereco_id: enderecoId, p_usuario_id: usuarioId });
+  if (error) throw error;
+  return parseRpcResult(data);
 }
