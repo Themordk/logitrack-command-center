@@ -77,3 +77,19 @@ describe("configuração", () => {
     expect(isErroToken(null)).toBe(false);
   });
 });
+
+describe("melhor separador", () => {
+  it("exibe primeiro e último nome", async () => {
+    const { nomeExibicao } = await import("../painelTvOperacional.utils");
+    expect(nomeExibicao("Izaias Feitosa")).toBe("Izaias Feitosa");
+    expect(nomeExibicao("Maria  da Silva Souza ")).toBe("Maria Souza");
+    expect(nomeExibicao("admin")).toBe("admin");
+  });
+  it("gera iniciais do avatar", async () => {
+    const { iniciais } = await import("../painelTvOperacional.utils");
+    expect(iniciais("Izaias Feitosa")).toBe("IF");
+    expect(iniciais("Maria da Silva Souza")).toBe("MS");
+    expect(iniciais("admin")).toBe("AD");
+    expect(iniciais("")).toBe("?");
+  });
+});

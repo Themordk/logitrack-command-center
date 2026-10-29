@@ -43,7 +43,29 @@ export interface OperacionalData {
     unidades: number;
     pedidos: number;
   };
+  melhor_separador: MelhorSeparador | null;
   limites: LimitesPainel;
+}
+
+export interface MelhorSeparador {
+  nome: string;
+  tarefas: number;
+  unidades: number;
+}
+
+/** "Maria da Silva Souza" -> "Maria Souza" (primeiro + último nome). */
+export function nomeExibicao(nome: string): string {
+  const partes = (nome || "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length <= 1) return partes[0] ?? "";
+  return `${partes[0]} ${partes[partes.length - 1]}`;
+}
+
+/** Iniciais para o avatar: "Maria Souza" -> "MS", "admin" -> "AD". */
+export function iniciais(nome: string): string {
+  const partes = (nome || "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
 /** Nível do indicador conforme os limites do armazém (valores >= limite disparam). */

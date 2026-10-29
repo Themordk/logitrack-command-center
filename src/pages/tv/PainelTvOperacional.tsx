@@ -9,9 +9,12 @@ import {
   type OperacionalData,
   decidirAlertaSonoro,
   formatDuracao,
+  iniciais,
   intervaloAtualizacaoMs,
   isErroToken,
   nivelAlerta,
+  nomeExibicao,
+  type MelhorSeparador,
 } from "./painelTvOperacional.utils";
 import { audioLiberado, liberarAudio, tocarCarrilhao } from "./tvAlertaSonoro";
 
@@ -40,7 +43,7 @@ const ETAPA = {
   aguardando: "#F59E0B",
   separacao: "#3B82F6",
   conferencia: "#A855F7",
-  embarque: "#22C55E",
+  destaque: "#FFC400",
   tempo: "#64748B",
   cortes: "#EF4444",
   expedidos: "#06B6D4",
@@ -215,6 +218,130 @@ function CardIndicador({ rotulo, subrotulo, valor, nivel = "normal", corEtapa, d
       <div style={{ minHeight: "3.2vh", fontSize: "2.6vh", fontWeight: 600, color: CORES.rotulo, textAlign: "right" }}>
         {detalhe}
       </div>
+    </div>
+  );
+}
+
+function CardMelhorSeparador({
+  separador,
+  desatualizado,
+}: {
+  separador: MelhorSeparador | null;
+  desatualizado: boolean;
+}) {
+  const cor = desatualizado ? CORES.apagado : CORES.atencao;
+  return (
+    <div
+      data-testid="card-melhor-separador"
+      style={{
+        position: "relative",
+        background: CORES.fundoCard,
+        border: `1px solid ${CORES.bordaCard}`,
+        borderRadius: "1.4vh",
+        padding: "2vh 1.4vw 1.6vh",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        minWidth: 0,
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "0.7vh", background: ETAPA.destaque }} />
+      <div
+        style={{
+          fontSize: "2.6vh",
+          lineHeight: 1.15,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: CORES.rotulo,
+        }}
+      >
+        Melhor separador
+      </div>
+      <div style={{ fontSize: "2.1vh", fontWeight: 500, color: CORES.apagado, marginTop: "0.4vh" }}>
+        mais separações concluídas hoje
+      </div>
+
+      {separador ? (
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.8vh",
+          }}
+        >
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div
+              data-testid="tv-avatar"
+              style={{
+                width: "min(12vh, 8vw)",
+                height: "min(12vh, 8vw)",
+                borderRadius: "50%",
+                border: `0.6vh solid ${cor}`,
+                background: "linear-gradient(135deg, #1D4ED8, #7C3AED)",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "min(5vh, 3.2vw)",
+                fontWeight: 800,
+                letterSpacing: "0.02em",
+                opacity: desatualizado ? 0.5 : 1,
+              }}
+            >
+              {iniciais(separador.nome)}
+            </div>
+            <div
+              aria-hidden
+              style={{ position: "absolute", top: "-1.8vh", right: "-2vh", fontSize: "4.4vh", lineHeight: 1 }}
+            >
+              🏆
+            </div>
+          </div>
+          <div
+            data-testid="tv-melhor-nome"
+            style={{
+              maxWidth: "100%",
+              fontSize: "3.8vh",
+              fontWeight: 800,
+              color: desatualizado ? CORES.apagado : CORES.numero,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              textTransform: "capitalize",
+            }}
+          >
+            {nomeExibicao(separador.nome)}
+          </div>
+          <div
+            data-testid="tv-melhor-placar"
+            style={{ fontSize: "2.8vh", fontWeight: 700, color: cor, fontVariantNumeric: "tabular-nums" }}
+          >
+            {separador.tarefas} {separador.tarefas === 1 ? "tarefa" : "tarefas"} ·{" "}
+            {Number(separador.unidades).toLocaleString("pt-BR")} un
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            fontSize: "2.8vh",
+            fontWeight: 600,
+            color: CORES.apagado,
+          }}
+        >
+          Aguardando a primeira separação do dia
+        </div>
+      )}
     </div>
   );
 }
@@ -419,6 +546,7 @@ export function PainelTvOperacional() {
       armazem={data?.armazem}
       empresaLogo={data?.empresa_logo ?? null}
       headerExtra={headerExtra}
+      fullHeight
     >
       <style>{ESTILOS_GLOBAIS}</style>
 
@@ -524,11 +652,11 @@ export function PainelTvOperacional() {
           desatualizado={desatualizado}
         />
         <CardIndicador
-          testId="card-pronto-embarque"
-          rotulo="Pronto para embarque"
-          valor={String(c?.pronto_embarque ?? 0)}
-          nivel={nivelAlerta(c?.pronto_embarque ?? 0, lim.pronto_embarque)}
-          corEtapa={ETAPA.embarque}
+          testId="card-expedidos"
+          rotulo="Expedidos hoje"
+          subrotulo="pedidos concluídos"
+          valor={String(c?.expedidos_hoje ?? 0)}
+          corEtapa={ETAPA.expedidos}
           desatualizado={desatualizado}
         />
 
@@ -565,14 +693,7 @@ export function PainelTvOperacional() {
             (cortes?.pedidos ?? 0) === 1 ? "pedido" : "pedidos"
           }`}
         />
-        <CardIndicador
-          testId="card-expedidos"
-          rotulo="Expedidos hoje"
-          subrotulo="pedidos concluídos"
-          valor={String(c?.expedidos_hoje ?? 0)}
-          corEtapa={ETAPA.expedidos}
-          desatualizado={desatualizado}
-        />
+        <CardMelhorSeparador separador={data?.melhor_separador ?? null} desatualizado={desatualizado} />
       </div>
     </TvShell>
   );

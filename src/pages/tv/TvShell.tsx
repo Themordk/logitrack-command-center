@@ -10,6 +10,8 @@ interface TvShellProps {
   refreshInterval?: number;
   /** Conteúdo extra no canto direito do cabeçalho (substitui a contagem regressiva). */
   headerExtra?: React.ReactNode;
+  /** Trava a página na altura da tela (sem rolagem), para painéis em grade. */
+  fullHeight?: boolean;
   children: React.ReactNode;
 }
 
@@ -21,6 +23,7 @@ export function TvShell({
   refreshCountdown,
   refreshInterval,
   headerExtra,
+  fullHeight,
   children,
 }: TvShellProps) {
   const [now, setNow] = useState(() => new Date());
@@ -37,6 +40,7 @@ export function TvShell({
     <div
       style={{
         minHeight: "100vh",
+        ...(fullHeight ? { height: "100vh", overflow: "hidden" } : {}),
         background: "#060b18",
         color: "#f8fafc",
         fontFamily: "Inter, -apple-system, sans-serif",
