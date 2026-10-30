@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TvShell } from "./TvShell";
 import { TvTokenGate, useTvToken } from "./TvTokenGate";
 import {
+  lerParametroHash,
   type LimiteIndicador,
   type NivelAlerta,
   type OperacionalData,
@@ -16,7 +17,16 @@ import {
   nomeExibicao,
   type MelhorSeparador,
 } from "./painelTvOperacional.utils";
-import { audioLiberado, liberarAudio, tocarCarrilhao } from "./tvAlertaSonoro";
+import {
+  MODELOS_SOM,
+  NIVEL_SOM_PADRAO,
+  type NivelSom,
+  audioLiberado,
+  liberarAudio,
+  modeloSom,
+  nivelSomValido,
+  tocarAlerta,
+} from "./tvAlertaSonoro";
 
 const REFRESH_MS = intervaloAtualizacaoMs();
 /** Dados mais velhos que isso são tratados como desatualizados (5 leituras perdidas, mínimo 15 s). */
@@ -26,6 +36,7 @@ const INTERVALO_MIN_SOM_MS = 20_000;
 /** Tempo que a etiqueta "+N NOVOS" fica visível no cartão. */
 const DESTAQUE_NOVOS_MS = 10_000;
 const SOM_STORAGE_KEY = "core_tv_som";
+const SOM_NIVEL_STORAGE_KEY = "core_tv_som_nivel";
 
 const CORES = {
   fundoCard: "#0d1420",
@@ -63,6 +74,175 @@ function salvarSomPreferido(ligado: boolean) {
   } catch {
     /* sem storage: mantém só em memória */
   }
+}
+
+/** Nível do som: `?som=N` na URL (para TVs em kiosk) > escolha salva na TV > padrão. */
+function lerNivelSom(): NivelSom {
+  const daUrl = nivelSomValido(lerParametroHash("som"));
+  if (daUrl) return daUrl;
+  try {
+    return nivelSomValido(localStorage.getItem(SOM_NIVEL_STORAGE_KEY)) ?? NIVEL_SOM_PADRAO;
+  } catch {
+    return NIVEL_SOM_PADRAO;
+  }
+}
+
+function salvarNivelSom(nivel: NivelSom) {
+  try {
+    localStorage.setItem(SOM_NIVEL_STORAGE_KEY, String(nivel));
+  } catch {
+    /* sem storage: mantém só em memória */
+  }
+}
+
+function BarrasIntensidade({ nivel, cor }: { nivel: number; cor: string }) {
+  return (
+    <span aria-hidden style={{ display: "inline-flex", alignItems: "flex-end", gap: 3, height: 22 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span
+          key={i}
+          style={{
+            width: 6,
+            height: 6 + i * 3.2,
+            borderRadius: 2,
+            background: i <= nivel ? cor : "#334155",
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
+const COR_NIVEL_SOM = ["#94A3B8", "#22C55E", "#FFC400", "#FF8A00", "#FF3B30"];
+
+function SeletorSom({
+  somLigado,
+  nivel,
+  onEscolher,
+  onDesligar,
+  onFechar,
+}: {
+  somLigado: boolean;
+  nivel: NivelSom;
+  onEscolher: (n: NivelSom) => void;
+  onDesligar: () => void;
+  onFechar: () => void;
+}) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onFechar();
+    };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onFechar]);
+
+  const opcao = (ativo: boolean): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    width: "100%",
+    textAlign: "left",
+    padding: "12px 16px",
+    borderRadius: 10,
+    border: ativo ? "2px solid #3B82F6" : `1px solid ${CORES.bordaCard}`,
+    background: ativo ? "#172554" : "#0B1220",
+    color: CORES.numero,
+    cursor: "pointer",
+  });
+
+  return (
+    <div
+      data-testid="tv-seletor-som"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Escolher som do alerta"
+      onClick={onFechar}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(2,6,23,0.75)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "min(560px, 92vw)",
+          background: CORES.fundoCard,
+          border: `1px solid ${CORES.bordaCard}`,
+          borderRadius: 16,
+          padding: 24,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        <div style={{ fontSize: 22, fontWeight: 800, color: CORES.numero }}>Som do alerta de novos pedidos</div>
+        <div style={{ fontSize: 14, color: CORES.rotulo, marginBottom: 6 }}>
+          Do mais leve (1) ao mais chamativo (5). Ao escolher, o som toca para você ouvir.
+        </div>
+        {MODELOS_SOM.map((m) => {
+          const ativo = somLigado && m.nivel === nivel;
+          return (
+            <button
+              key={m.nivel}
+              type="button"
+              data-testid={`tv-som-opcao-${m.nivel}`}
+              aria-pressed={ativo}
+              onClick={() => onEscolher(m.nivel)}
+              style={opcao(ativo)}
+            >
+              <BarrasIntensidade nivel={m.nivel} cor={COR_NIVEL_SOM[m.nivel - 1]} />
+              <span style={{ flex: 1 }}>
+                <span style={{ display: "block", fontSize: 18, fontWeight: 800 }}>
+                  {m.nivel} · {m.nome}
+                </span>
+                <span style={{ display: "block", fontSize: 13, color: CORES.rotulo }}>{m.descricao}</span>
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: ativo ? "#93C5FD" : CORES.apagado }}>
+                {ativo ? "EM USO" : "▶ OUVIR"}
+              </span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          data-testid="tv-som-desligar"
+          aria-pressed={!somLigado}
+          onClick={onDesligar}
+          style={opcao(!somLigado)}
+        >
+          <span style={{ fontSize: 20 }}>🔕</span>
+          <span style={{ flex: 1, fontSize: 18, fontWeight: 800 }}>Sem som</span>
+          {!somLigado && <span style={{ fontSize: 13, fontWeight: 700, color: "#93C5FD" }}>EM USO</span>}
+        </button>
+        <button
+          type="button"
+          data-testid="tv-som-fechar"
+          onClick={onFechar}
+          style={{
+            marginTop: 6,
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "none",
+            background: "#1D4ED8",
+            color: "#FFFFFF",
+            fontSize: 16,
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          Pronto
+        </button>
+        <div style={{ fontSize: 12, color: CORES.apagado, textAlign: "center" }}>
+          O volume final também depende do volume da TV ou da caixa de som.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** Mantém a tela da TV acesa enquanto a página estiver visível. */
@@ -361,6 +541,8 @@ export function PainelTvOperacional() {
   const [agora, setAgora] = useState(() => Date.now());
   const [somLigado, setSomLigado] = useState(lerSomPreferido);
   const [audioOk, setAudioOk] = useState(() => audioLiberado());
+  const [nivelSom, setNivelSom] = useState<NivelSom>(lerNivelSom);
+  const [seletorAberto, setSeletorAberto] = useState(false);
   const [novos, setNovos] = useState<{ qtd: number; ate: number } | null>(null);
 
   const idsAnteriores = useRef<string[] | null>(null);
@@ -420,9 +602,11 @@ export function PainelTvOperacional() {
       }));
     }
     if (decisao.tocar && somLigado) {
-      if (tocarCarrilhao()) ultimoSom.current = agoraMs;
+      if (tocarAlerta(nivelSom)) ultimoSom.current = agoraMs;
       else setAudioOk(false);
     }
+    // nivelSom fica fora das dependências: trocar o som não deve reprocessar a leitura
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, somLigado]);
 
   const ativarSom = useCallback(async () => {
@@ -432,14 +616,22 @@ export function PainelTvOperacional() {
     salvarSomPreferido(true);
   }, []);
 
-  const alternarSom = useCallback(async () => {
-    if (!somLigado) {
-      await ativarSom();
-      return;
-    }
+  const escolherSom = useCallback(async (nivel: NivelSom) => {
+    const ok = await liberarAudio();
+    setAudioOk(ok);
+    setNivelSom(nivel);
+    salvarNivelSom(nivel);
+    setSomLigado(true);
+    salvarSomPreferido(true);
+    if (ok) tocarAlerta(nivel);
+  }, []);
+
+  const desligarSom = useCallback(() => {
     setSomLigado(false);
     salvarSomPreferido(false);
-  }, [somLigado, ativarSom]);
+  }, []);
+
+  const fecharSeletor = useCallback(() => setSeletorAberto(false), []);
 
   // Qualquer clique/tecla na TV também libera o áudio.
   useEffect(() => {
@@ -513,10 +705,10 @@ export function PainelTvOperacional() {
         </span>
         <button
           type="button"
-          onClick={alternarSom}
+          onClick={() => setSeletorAberto(true)}
           data-testid="tv-som"
-          aria-label={somLigado && audioOk ? "Desligar som do painel" : "Ligar som do painel"}
-          title={somLigado && audioOk ? "Som ligado" : "Som desligado"}
+          aria-label="Escolher som do alerta"
+          title={somLigado && audioOk ? `Som: ${modeloSom(nivelSom).nome}` : "Som desligado"}
           style={{
             background: "transparent",
             border: `1px solid ${CORES.bordaCard}`,
@@ -528,7 +720,7 @@ export function PainelTvOperacional() {
             cursor: "pointer",
           }}
         >
-          {somLigado && audioOk ? "🔔 SOM" : "🔕 MUDO"}
+          {somLigado && audioOk ? `🔔 SOM ${nivelSom}` : "🔕 MUDO"}
         </button>
       </div>
       {header && (
@@ -549,6 +741,16 @@ export function PainelTvOperacional() {
       fullHeight
     >
       <style>{ESTILOS_GLOBAIS}</style>
+
+      {seletorAberto && (
+        <SeletorSom
+          somLigado={somLigado}
+          nivel={nivelSom}
+          onEscolher={escolherSom}
+          onDesligar={desligarSom}
+          onFechar={fecharSeletor}
+        />
+      )}
 
       {desatualizado && (
         <div
