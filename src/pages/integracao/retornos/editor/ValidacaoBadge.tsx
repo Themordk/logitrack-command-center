@@ -10,15 +10,24 @@ interface Props {
   onSelecionarNo: (id: string) => void;
 }
 
+/** Títulos amigáveis para códigos globais do servidor (a mensagem dinâmica vem no próprio aviso). */
+const TITULO_CODIGO: Record<string, string> = {
+  LIMITE_NOS: "Limite de nós",
+  LIMITE_LIGACOES: "Limite de ligações",
+  CICLO: "Ciclo no fluxo",
+};
+
 function Item({ a, tipo, nomeDoNo, onSelecionarNo }: { a: Aviso; tipo: "erro" | "aviso" } & Pick<Props, "nomeDoNo" | "onSelecionarNo">) {
   const Icone = tipo === "erro" ? XCircle : AlertTriangle;
   const cor = tipo === "erro" ? "text-rose-400" : "text-amber-400";
   const nome = a.no_id ? nomeDoNo(a.no_id) : undefined;
+  const tituloCodigo = TITULO_CODIGO[a.codigo];
   const conteudo = (
     <>
       <Icone size={13} className={cn("mt-0.5 shrink-0", cor)} aria-hidden />
       <span className="flex flex-col text-left">
         {nome && <span className="font-semibold text-foreground">{nome}</span>}
+        {!nome && tituloCodigo && <span className="font-semibold text-foreground">{tituloCodigo}</span>}
         <span className="text-muted-foreground">{a.mensagem}</span>
       </span>
     </>

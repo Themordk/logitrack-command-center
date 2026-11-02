@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { relativeTime } from "../../StatusBar";
 import { StatusRetornoBadge } from "../components/StatusRetornoBadge";
 import type { FluxoCompleto } from "../retornos.types";
@@ -24,6 +25,8 @@ interface Props {
   onTentarDeNovo: () => void;
   podeEditar: boolean;
   totalErros: number;
+  totalNos: number;
+  maxNos: number;
   temAlteracoes: boolean;
   bloqueado: boolean;
   publicando: boolean;
@@ -114,6 +117,17 @@ export function EditorTopBar(props: Props) {
           </button>
         )}
         <StatusRetornoBadge tipo="fluxo" status={fluxo.status} />
+        {props.maxNos > 0 && (
+          <span
+            aria-label={`${props.totalNos} de ${props.maxNos} nós usados`}
+            className={cn(
+              "shrink-0 font-mono text-[11px]",
+              props.totalNos >= props.maxNos ? "text-rose-400" : props.totalNos >= props.maxNos * 0.9 ? "text-amber-400" : "text-muted-foreground",
+            )}
+          >
+            {props.totalNos}/{props.maxNos} nós
+          </span>
+        )}
         {fluxo.alteracoes_nao_publicadas && fluxo.versao_publicada != null && (
           <Badge variant="outline" className="shrink-0 bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]">Alterações não publicadas</Badge>
         )}

@@ -14,15 +14,21 @@ const ORDEM: GrupoNo[] = ["gatilho", "logica", "dados", "acao"];
 interface Props {
   catalogo?: Catalogo;
   totalNos: number;
+  totalLigacoes: number;
   temGatilho: boolean;
   onAdicionar: (tipo: TipoNo) => void;
 }
 
-export function NodePalette({ catalogo, totalNos, temGatilho, onAdicionar }: Props) {
+export function NodePalette({ catalogo, totalNos, totalLigacoes, temGatilho, onAdicionar }: Props) {
   const [busca, setBusca] = useState("");
   const max = catalogo?.limites.max_nos ?? 0;
+  const maxLig = catalogo?.limites.max_ligacoes ?? max * 2;
   const limite = max > 0 && totalNos >= max;
+  const limiteLig = maxLig > 0 && totalLigacoes >= maxLig;
   const lista = useMemo(() => filtrarNos(catalogo, busca, false), [catalogo, busca]);
+
+  const corContador = (atual: number, limiteMax: number, noLimite: boolean) =>
+    noLimite ? "text-rose-400 bg-rose-500/10" : limiteMax > 0 && atual >= limiteMax * 0.9 ? "text-amber-400 bg-amber-500/10" : "text-muted-foreground";
 
   return (
     <aside aria-label="Paleta de nós" className="card-surface flex w-[220px] shrink-0 flex-col min-h-0 overflow-hidden">
@@ -73,8 +79,9 @@ export function NodePalette({ catalogo, totalNos, temGatilho, onAdicionar }: Pro
           );
         })}
       </div>
-      <div className={cn("border-t border-border px-3 py-2 text-xs", limite ? "text-amber-400 bg-amber-500/10" : "text-muted-foreground")}>
-        {totalNos} nós de {max}
+      <div className={cn("flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs", corContador(totalNos, max, limite))}>
+        <span className="font-mono">{totalNos}/{max} nós</span>
+        <span className={cn("font-mono", corContador(totalLigacoes, maxLig, limiteLig))}>{totalLigacoes}/{maxLig} ligações</span>
       </div>
     </aside>
   );
