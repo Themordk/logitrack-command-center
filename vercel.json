@@ -1,0 +1,27 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "developers.corelogitrack.com.br" }],
+      "destination": "/developers/index.html"
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "developers.corelogitrack.com.br" }],
+      "destination": "/developers/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/developers/openapi.json",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "public, max-age=300" }
+      ]
+    },
+    {
+      "source": "/developers/portal-dados.json",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300" }]
+    }
+  ]
+}

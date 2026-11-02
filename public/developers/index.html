@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CORE LogiTrack Developers</title>
+<meta name="description" content="Documentação da API de integração do CORE LogiTrack: autenticação, endpoints, limites, erros e webhooks.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-18 0 243.35 243.35'%3E%3Cpath fill='%234e7fff' d='M118.78 53.31L89.59 36.45L0 88.17L0 191.62L89.59 243.35L179.18 191.62L179.18 155.71L162.78 172.11L162.78 182.16L89.59 224.41L16.4 182.16L16.4 97.64L89.59 55.39L106.78 65.31Z'/%3E%3Cpath fill='%234e7fff' d='M49.87 192.12L190.64 51.35L185.89 46.6L207.29 46.6L207.29 68L202.42 63.13L64.8 200.74Z'/%3E%3Cpath fill='%239bb8ff' d='M24.5 159.04L177.92 5.62L172.29 0L193.69 0L193.69 21.4L189.57 17.27L27.58 179.26L24.5 177.48Z'/%3E%3Cpath fill='%234e7fff' d='M86.64 213.35L189.79 110.2L184.84 105.25L206.24 105.25L206.24 126.65L201.44 121.85L133.69 189.6L89.59 215.06Z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Identidade CORE LogiTrack (Signage / Instagram / WMS): navy profundo com grade técnica, azul #4e7fff,
+   Manrope nos títulos e no wordmark, Inter no texto corrido, JetBrains Mono em rótulos e código.
+   Escuro é o padrão da marca; o tema claro segue o lockup "light" do Signage. */
+:root {
+  --deep: #060b17;
+  --bg: #0b1223;
+  --surface: #111c37;
+  --surface-2: #172446;
+  --ink: #e6ecf7;
+  --ink-2: #b2bed6;
+  --ink-3: #8a96b4;
+  --line: rgba(138, 150, 180, .18);
+  --line-2: rgba(138, 150, 180, .30);
+  --blue: #4e7fff;
+  --blue-soft: #9bb8ff;
+  --blue-wash: rgba(78, 127, 255, .14);
+  --accent: #ff8c32;
+  --logo-navy: #1F3764; --logo-blue: #477DF2; --logo-end: #4A80F8;
+  --get: #4ade80; --post: #9bb8ff; --patch: #fbbf24; --del: #f87171;
+  --code-bg: #060b17; --code-fg: #dbe4f5;
+  --grid: rgba(138, 150, 180, .06);
+  --glow: rgba(44, 116, 179, .30);
+  --display: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --nav-w: 256px;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --deep: #e9eef8; --bg: #f5f7fc; --surface: #ffffff; --surface-2: #eef2fa;
+  --ink: #17233f; --ink-2: #3c4a68; --ink-3: #56627e;
+  --line: rgba(23, 35, 63, .12); --line-2: rgba(23, 35, 63, .22);
+  --blue: #2f5fe0; --blue-soft: #2f5fe0; --blue-wash: rgba(59, 110, 245, .10); --accent: #c25e0c;
+  --get: #15803d; --post: #2f5fe0; --patch: #a16207; --del: #b91c1c;
+  --code-bg: #0b1223; --code-fg: #dbe4f5;
+  --grid: rgba(23, 35, 63, .05); --glow: rgba(59, 110, 245, .12);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html { background: var(--deep); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--body); -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--deep); }
+a { color: var(--blue-soft); }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+code, pre, .mono { font-family: var(--mono); font-size: .87em; }
+
+/* Barra superior: lockup da marca */
+.topo { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--deep) 92%, transparent); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.lockup { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; }
+.lockup svg { display: block; flex-shrink: 0; }
+.wordmark { font: 800 19px/1 var(--display); letter-spacing: -.02em; white-space: nowrap; }
+.wordmark .core { color: var(--ink); }
+.wordmark .logi { color: var(--blue); }
+.selo { font: 600 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--ink-3); padding-left: 12px; border-left: 1px solid var(--line-2); }
+.topo .esp { flex: 1; }
+.pill { font: 500 12px/1 var(--mono); padding: 6px 9px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-2); white-space: nowrap; }
+.pill.ok::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--get); margin-right: 7px; vertical-align: 1px; }
+.icone-bt, .menu-bt { background: none; border: 1px solid var(--line-2); color: var(--ink-2); border-radius: 8px; min-height: 36px; padding: 6px 10px; font: 500 13px var(--body); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.icone-bt:hover, .menu-bt:hover { color: var(--ink); border-color: var(--blue); }
+.menu-bt { display: none; }
+
+.casca { display: grid; grid-template-columns: var(--nav-w) minmax(0, 1fr); min-height: calc(100vh - 62px); }
+nav.lado { background: var(--deep); border-right: 1px solid var(--line); padding: 22px 12px 40px max(12px, env(safe-area-inset-left, 0px)); position: sticky; top: calc(env(safe-area-inset-top, 0px) + 61px); align-self: start; height: calc(100vh - 61px); overflow: auto; }
+nav.lado h4 { font: 600 10.5px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); margin: 20px 10px 6px; }
+nav.lado h4:first-child { margin-top: 0; }
+nav.lado button { display: block; width: 100%; text-align: left; background: none; border: 0; color: var(--ink-2); font: 500 14px/1.3 var(--body); padding: 8px 10px; border-radius: 7px; cursor: pointer; min-height: 36px; }
+nav.lado button:hover { background: var(--blue-wash); color: var(--ink); }
+nav.lado button[aria-current="page"] { background: var(--blue-wash); color: var(--ink); font-weight: 600; box-shadow: inset 2px 0 0 var(--blue); }
+
+main { min-width: 0; overflow-x: clip; padding-block: 32px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 861px) { main { padding-inline: 40px; } }
+.leitura { max-width: 780px; }
+.leitura.larga { max-width: 1060px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 800; text-wrap: balance; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); }
+h1 { font-size: 34px; margin: 0 0 10px; }
+h2 { font-size: 22px; margin: 36px 0 10px; font-weight: 700; }
+h3 { font-size: 17px; margin: 24px 0 8px; font-weight: 700; }
+.kicker { font: 600 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--blue-soft); margin: 0 0 14px; display: flex; align-items: center; gap: 10px; }
+.kicker::before { content: ""; width: 18px; height: 2px; background: var(--accent); }
+.lead { color: var(--ink-2); font-size: 16.5px; margin: 0 0 24px; max-width: 62ch; }
+.leitura p, .leitura li { max-width: 68ch; }
+
+/* Capa da página inicial: a grade técnica e o brilho da marca */
+.capa { position: relative; margin: -32px 0 28px; padding: 40px 0 30px; isolation: isolate; }
+.capa::before { content: ""; position: absolute; inset: 0 -100vw 0 -40px; z-index: -1; border-bottom: 1px solid var(--line);
+  background-image: radial-gradient(520px 320px at 78% 30%, var(--glow), transparent 72%), linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px; }
+@media (max-width: 860px) { .capa::before { inset: 0 -100vw 0 -16px; } }
+.capa h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.06; letter-spacing: -.03em; max-width: 18ch; }
+.capa h1 em { font-style: normal; color: var(--blue); }
+
+.md pre, pre.bloco { background: var(--code-bg); color: var(--code-fg); padding: 14px 16px; border-radius: 10px; border: 1px solid var(--line); overflow-x: auto; line-height: 1.55; }
+.md :not(pre) > code, .leitura p code, td code { background: var(--blue-wash); color: var(--ink); padding: 1px 6px; border-radius: 5px; }
+.md blockquote { margin: 16px 0; padding: 10px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-2); }
+.md blockquote::before { content: "NOTA"; display: block; font: 600 10.5px var(--mono); letter-spacing: .18em; color: var(--accent); margin-bottom: 4px; }
+.tabela { overflow-x: auto; margin: 12px 0 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+@media (max-width: 640px) { .tabela table { min-width: 600px; } }
+th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.md table { border: 1px solid var(--line); }
+
+.passos { display: grid; gap: 14px; margin: 20px 0 8px; }
+.passo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+.passo h3 { margin: 0 0 6px; display: flex; gap: 12px; align-items: center; }
+.passo h3 .n { font: 600 12px/1 var(--mono); color: var(--blue-soft); border: 1px solid var(--line-2); border-radius: 6px; padding: 5px 7px; }
+.passo p { margin: 0 0 12px; color: var(--ink-2); }
+.linha-url { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 10px 9px 12px; }
+.linha-url code { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
+.copiar { font: 600 13px var(--body); background: var(--blue); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; min-height: 36px; cursor: pointer; }
+.copiar:hover { filter: brightness(1.1); }
+.met { font: 600 11px/1 var(--mono); padding: 5px 7px; border-radius: 5px; border: 1px solid currentColor; }
+.met.GET { color: var(--get); } .met.POST { color: var(--post); } .met.PATCH { color: var(--patch); }
+.http { font: 500 12px var(--mono); padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line-2); color: var(--ink-2); white-space: nowrap; }
+.chip { display: inline-block; font: 500 12.5px var(--mono); padding: 4px 9px; border-radius: 6px; background: var(--blue-wash); color: var(--ink); border: 1px solid var(--line); margin: 3px 5px 3px 0; }
+
+#referencia-host { min-height: 70vh; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+.versao-item { border-left: 2px solid var(--line-2); padding: 0 0 20px 18px; position: relative; }
+.versao-item::before { content: ""; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg); border: 2px solid var(--blue); }
+.versao-item:first-child::before { background: var(--accent); border-color: var(--accent); }
+.versao-item h3 { margin: 0 0 3px; font-size: 16px; }
+.versao-item .quando { font: 12px var(--mono); color: var(--ink-3); }
+.versao-item p { color: var(--ink-2); }
+
+.rodape { border-top: 1px solid var(--line); margin-top: 56px; padding-top: 18px; display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center; font: 500 12px var(--mono); letter-spacing: .06em; color: var(--ink-3); }
+.rodape .lema { text-transform: uppercase; letter-spacing: .18em; }
+
+@media (max-width: 860px) {
+  .casca { grid-template-columns: minmax(0, 1fr); }
+  nav.lado { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+  nav.lado.fechado { display: none; }
+  .menu-bt { display: inline-flex; }
+  .selo, .pill.gw { display: none; }
+  h1 { font-size: 27px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<header class="topo">
+  <button class="menu-bt" id="menu-bt" aria-expanded="false" aria-controls="nav">Seções</button>
+  <a class="lockup" href="#" id="marca" aria-label="CORE LogiTrack Developers, início">
+    <svg width="29" height="34" viewBox="0 0 207.29 243.35" aria-hidden="true" focusable="false">
+      <defs><linearGradient id="lg-marca" gradientUnits="userSpaceOnUse" x1="86.64" y1="213.35" x2="206.24" y2="105.25"><stop offset="0" stop-color="#1F3764"/><stop offset="1" stop-color="#4A80F8"/></linearGradient></defs>
+      <path class="lg-hex" fill="#1F3764" d="M118.78 53.31L89.59 36.45L0.00 88.17L0.00 191.62L89.59 243.35L179.18 191.62L179.18 155.71L162.78 172.11L162.78 182.16L89.59 224.41L16.40 182.16L16.40 97.64L89.59 55.39L106.78 65.31Z"/>
+      <path class="lg-hex" fill="#1F3764" d="M49.87 192.12L190.64 51.35L185.89 46.60L207.29 46.60L207.29 68.00L202.42 63.13L64.80 200.74Z"/>
+      <path fill="#477DF2" d="M24.50 159.04L177.92 5.62L172.29 0.00L193.69 0.00L193.69 21.40L189.57 17.27L27.58 179.26L24.50 177.48Z"/>
+      <path fill="url(#lg-marca)" d="M86.64 213.35L189.79 110.20L184.84 105.25L206.24 105.25L206.24 126.65L201.44 121.85L133.69 189.60L89.59 215.06Z"/>
+    </svg>
+    <span class="wordmark"><span class="core">CORE</span> <span class="logi">LogiTrack</span></span>
+  </a>
+  <span class="selo">Developers</span>
+  <span class="esp"></span>
+  <span class="pill ok" id="versao-api">API v1.12.0</span>
+  <span class="pill gw">Gateway 1.21</span>
+  <button class="icone-bt" id="tema-bt" type="button" aria-label="Alternar tema claro e escuro">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+    <span id="tema-rotulo">Claro</span>
+  </button>
+</header>
+
+<div class="casca">
+  <nav class="lado fechado" id="nav" aria-label="Seções do portal"></nav>
+  <main id="conteudo"></main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.73.1/dist/browser/standalone.js"></script>
+<script id="dados" type="application/json"></script>
+<script type="module">
+// Dados do portal servidos ao lado da página (openapi.json também fica público para download)
+try {
+  const [spec, resto] = await Promise.all([fetch('openapi.json').then(r => r.json()), fetch('portal-dados.json').then(r => r.json())]);
+  document.getElementById('dados').textContent = JSON.stringify(Object.assign({ spec }, resto));
+} catch (e) {
+  document.getElementById('conteudo').innerHTML = '<div class="leitura"><h1>Não foi possível carregar a documentação</h1><p class="lead">Recarregue a página. Se persistir, baixe a especificação em <a href="openapi.json">openapi.json</a>.</p></div>';
+  throw e;
+}
+(function () {
+  const D = JSON.parse(document.getElementById('dados').textContent);
+  const BASE = D.spec.servers[0].url;
+  const el = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstElementChild; };
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const md = (s) => (window.marked ? marked.parse(s || '') : '<pre>' + esc(s) + '</pre>');
+
+  const SECOES = [
+    { grupo: 'Começar', itens: [['inicio', 'Primeira integração'], ...D.guias.filter(g => g.secao === 'guias' && g.slug !== 'quickstart').map(g => ['guia-' + g.slug, g.titulo])] },
+    { grupo: 'Regras da API', itens: [['limites', 'Limites e lotes'], ['erros', 'Códigos de erro'], ['valores', 'Valores aceitos'], ...D.guias.filter(g => g.secao === 'referencia' && !['limites', 'webhooks'].includes(g.slug)).map(g => ['guia-' + g.slug, g.titulo])] },
+    { grupo: 'Referência', itens: [['referencia', 'Endpoints (OpenAPI)']] },
+    { grupo: 'Retornos', itens: [['webhooks', 'Eventos e webhooks']] },
+    { grupo: 'Versões', itens: [['changelog', 'Histórico de versões']] },
+  ];
+  const nav = document.getElementById('nav');
+  SECOES.forEach(s => {
+    nav.appendChild(el(`<h4>${esc(s.grupo)}</h4>`));
+    s.itens.forEach(([id, rot]) => { const b = el(`<button type="button" data-v="${id}">${esc(rot)}</button>`); b.onclick = () => ir(id); nav.appendChild(b); });
+  });
+  document.getElementById('menu-bt').onclick = (ev) => { const f = nav.classList.toggle('fechado'); ev.currentTarget.setAttribute('aria-expanded', String(!f)); };
+
+  const main = document.getElementById('conteudo');
+  const RODAPE = `<footer class="rodape"><span>CORE LogiTrack · API v${esc(D.spec.info.version)}</span><span>Atualizado em 28/10/2026</span><span class="esp" style="flex:1"></span><span class="lema">Transformando operações em resultados reais</span></footer>`;
+  document.getElementById('marca').onclick = (ev) => { ev.preventDefault(); ir('inicio'); };
+
+  // Tema: escuro é o padrão da marca; a escolha do visitante fica salva neste navegador.
+  const raiz = document.documentElement, temaBt = document.getElementById('tema-bt'), temaRot = document.getElementById('tema-rotulo');
+  let tema = 'dark';
+  try { tema = localStorage.getItem('portal-tema') || 'dark'; } catch {}
+  function aplicarTema(t) {
+    tema = t; raiz.setAttribute('data-theme', t); temaRot.textContent = t === 'dark' ? 'Claro' : 'Escuro';
+    try { localStorage.setItem('portal-tema', t); } catch {}
+  }
+  aplicarTema(tema);
+  temaBt.onclick = () => { aplicarTema(tema === 'dark' ? 'light' : 'dark'); const atual = main.querySelector('#referencia-host'); if (atual) ir('referencia'); };
+  let scalarMontado = false;
+  const views = {
+    inicio() {
+      const prod = D.exemplos.produto, ped = D.exemplos.pedido;
+      return `<div class="leitura">
+        <section class="capa">
+          <p class="kicker">API de integração · REST + webhooks</p>
+          <h1>Conecte seu ERP ao <em>CORE LogiTrack</em>.</h1>
+          <p class="lead">Seu ERP envia cadastros, notas e pedidos ao WMS por esta API. O WMS devolve o andamento da operação por webhooks. Três chamadas bastam para validar a conexão.</p>
+        </section>
+        <div class="linha-url"><span class="met GET">URL</span><code id="url-base">${esc(BASE)}</code><button class="copiar" data-copia="url-base" type="button">Copiar</button></div>
+        <div class="passos">
+          <div class="passo"><h3><span class="n">1</span>Verifique a disponibilidade</h3><p>Não precisa de chave. Resposta esperada: <code>"status": "operational"</code>.</p>
+            <pre class="bloco">curl ${esc(BASE)}/health</pre></div>
+          <div class="passo"><h3><span class="n">2</span>Cadastre um produto</h3><p>Envie a chave no header <code>x-api-key</code>. O <code>codigo_erp</code> é a chave de upsert: reenviar atualiza, nunca duplica.</p>
+            <pre class="bloco">curl -X POST ${esc(BASE)}/master-data/produtos \\
+  -H "x-api-key: SUA_CHAVE" -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: $(uuidgen)" \\
+  -d '${esc(JSON.stringify(prod, null, 2))}'</pre></div>
+          <div class="passo"><h3><span class="n">3</span>Envie um pedido de saída</h3><p>Cabeçalho e itens vão numa chamada só. Se algum item for inválido, nada é gravado e a resposta lista todos os problemas.</p>
+            <pre class="bloco">curl -X POST ${esc(BASE)}/movements/documentos-saida \\
+  -H "x-api-key: SUA_CHAVE" -H "Content-Type: application/json" \\
+  -d '${esc(JSON.stringify(ped, null, 2))}'</pre></div>
+        </div>
+        <h2>Ordem dos envios</h2>
+        <p>Os movimentos referenciam cadastros pelo <code>codigo_erp</code>. Envie nesta ordem: parceiros, grupos e subgrupos, produtos, tipos de entrada e saída, rotas, e só então notas e pedidos.</p>
+        <h2>Toda resposta traz</h2>
+        <div class="tabela"><table><thead><tr><th>Header</th><th>Para que serve</th></tr></thead><tbody>
+          <tr><td><code>X-Request-Id</code></td><td>Identifica a chamada. Informe ao suporte quando algo falhar.</td></tr>
+          <tr><td><code>X-RateLimit-Limit</code> · <code>Remaining</code> · <code>Reset</code></td><td>Seu limite por minuto, quanto resta e quando o contador zera.</td></tr>
+          <tr><td><code>Retry-After</code></td><td>Em 409 e 429: segundos para tentar de novo.</td></tr>
+        </tbody></table></div>
+      </div>`;
+    },
+    limites() {
+      return `<div class="leitura"><h1>Limites e lotes</h1>
+        <p class="lead">Limites por requisição e por minuto. O limite da sua chave vem sempre no header <code>X-RateLimit-Limit</code>.</p>
+        <div class="tabela"><table><thead><tr><th>Recurso</th><th>Limite</th><th>Onde</th></tr></thead><tbody>
+        ${D.limites.map(l => `<tr><td>${esc(l[0])}</td><td class="num"><strong>${esc(l[1])}</strong></td><td>${esc(l[2])}</td></tr>`).join('')}
+        </tbody></table></div>
+        <h2>Paginação</h2>
+        <p>Toda listagem aceita <code>limit</code>, <code>cursor</code> e <code>updated_since</code>. Repita a chamada com <code>cursor=&lt;next_cursor&gt;</code> até <code>has_more</code> ser <code>false</code>. Para sincronizar só o que mudou, guarde a data da última leitura e envie em <code>updated_since</code>.</p>
+        <pre class="bloco">GET /master-data/produtos?limit=500&amp;updated_since=2026-10-28T00:00:00Z
+
+"metadata": { "paginacao": { "limit": 500, "has_more": true, "next_cursor": "eyJ1Ijoi…" } }</pre>
+        <h2>Ao receber 429</h2>
+        <p>Aguarde os segundos indicados em <code>Retry-After</code> e repita. Use lotes (<code>/batch</code>) e envie só registros alterados no ERP para ficar longe do limite.</p></div>`;
+    },
+    erros() {
+      return `<div class="leitura larga"><h1>Códigos de erro</h1>
+        <p class="lead">Todo erro vem no envelope <code>{ success: false, error: { code, message, details? } }</code>. Decida a ação pelo <code>code</code>, não pela mensagem.</p>
+        <div class="tabela"><table><thead><tr><th>Código</th><th>HTTP</th><th>Quando acontece</th><th>O que fazer</th></tr></thead><tbody>
+        ${D.erros.map(e => `<tr><td><code>${esc(e.codigo)}</code></td><td><span class="http">${esc(e.http)}</span></td><td>${esc(e.descricao)}</td><td>${esc(e.acao)}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    },
+    valores() {
+      return `<div class="leitura"><h1>Valores aceitos</h1>
+        <p class="lead">Campos de lista fechada. Envie exatamente estes valores, em maiúsculas; qualquer outro é recusado.</p>
+        ${Object.entries(D.enums).map(([k, vs]) => `<h2><code>${esc(k)}</code></h2><div>${vs.map(v => `<span class="chip">${esc(v)}</span>`).join('')}</div>`).join('')}
+      </div>`;
+    },
+    webhooks() {
+      const g = D.guias.find(x => x.slug === 'webhooks');
+      return `<div class="leitura larga"><h1>Eventos e webhooks</h1>
+        <p class="lead">O WMS avisa seu sistema quando a operação avança. Cada evento é configurado por fluxo no módulo de Retornos.</p>
+        <div class="tabela"><table><thead><tr><th>Evento</th><th>Nome</th><th>Quando dispara</th></tr></thead><tbody>
+        ${D.eventos.map(e => `<tr><td><code>${esc(e.codigo)}</code></td><td>${esc(e.nome)}</td><td>${esc(e.descricao)}</td></tr>`).join('')}
+        </tbody></table></div>
+        ${g ? `<div class="md">${md(g.conteudo)}</div>` : ''}</div>`;
+    },
+    changelog() {
+      return `<div class="leitura"><h1>Histórico de versões</h1><p class="lead">Mudanças na API, da mais recente para a mais antiga.</p>
+        <div>${D.changelog.map(c => `<div class="versao-item"><h3>${esc(c.versao)} · ${esc(c.descricao)}</h3><div class="quando">${esc(c.data)} · ${esc(c.tipo)}</div>${c.detalhes ? `<p>${esc(c.detalhes)}</p>` : ''}</div>`).join('')}</div></div>`;
+    },
+    referencia() { return `<div class="leitura larga" style="max-width:none"><p class="kicker">Referência</p><h1>Endpoints</h1><p class="lead">Gerado do OpenAPI 3.1. Cada endpoint mostra campos, exemplos, respostas e erros.</p><div id="referencia-host"></div></div>`; },
+  };
+  D.guias.forEach(g => { views['guia-' + g.slug] = () => `<div class="leitura"><h1>${esc(g.titulo)}</h1>${g.subtitulo ? `<p class="lead">${esc(g.subtitulo)}</p>` : ''}<div class="md">${md(g.conteudo)}</div></div>`; });
+
+  const SCALAR_CSS = `.scalar-app{--scalar-font:"Inter",system-ui,sans-serif;--scalar-font-code:"JetBrains Mono",monospace;--scalar-radius:8px;--scalar-radius-lg:12px}
+.dark-mode{--scalar-background-1:#0b1223;--scalar-background-2:#111c37;--scalar-background-3:#172446;--scalar-background-accent:rgba(78,127,255,.14);--scalar-color-1:#e6ecf7;--scalar-color-2:#b2bed6;--scalar-color-3:#8a96b4;--scalar-color-accent:#4e7fff;--scalar-border-color:rgba(138,150,180,.18);--scalar-color-green:#4ade80;--scalar-color-blue:#9bb8ff;--scalar-color-orange:#ff8c32;--scalar-color-yellow:#fbbf24;--scalar-color-red:#f87171;--scalar-color-purple:#c4b5fd;--scalar-button-1:#4e7fff;--scalar-button-1-color:#fff}
+.light-mode{--scalar-background-1:#f5f7fc;--scalar-background-2:#ffffff;--scalar-background-3:#eef2fa;--scalar-background-accent:rgba(59,110,245,.10);--scalar-color-1:#17233f;--scalar-color-2:#3c4a68;--scalar-color-3:#56627e;--scalar-color-accent:#2f5fe0;--scalar-border-color:rgba(23,35,63,.12);--scalar-color-green:#15803d;--scalar-color-blue:#2f5fe0;--scalar-color-orange:#c25e0c;--scalar-color-yellow:#a16207;--scalar-color-red:#b91c1c;--scalar-button-1:#2f5fe0;--scalar-button-1-color:#fff}
+.scalar-app h1,.scalar-app h2,.scalar-app h3{font-family:"Manrope",system-ui,sans-serif;letter-spacing:-.02em}`;
+  function ir(id) {
+    if (!views[id]) id = 'inicio';
+    main.innerHTML = views[id]() + RODAPE;
+    nav.querySelectorAll('button').forEach(b => { if (b.dataset.v === id) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    main.querySelectorAll('.md table').forEach(t => { const w = document.createElement('div'); w.className = 'tabela'; t.replaceWith(w); w.appendChild(t); });
+    main.querySelectorAll('[data-copia]').forEach(b => b.onclick = async () => {
+      const alvo = document.getElementById(b.dataset.copia);
+      try { await navigator.clipboard.writeText(alvo.textContent); b.textContent = 'Copiado'; }
+      catch { const r = document.createRange(); r.selectNodeContents(alvo); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Selecionado'; }
+      setTimeout(() => b.textContent = 'Copiar', 1600);
+    });
+    if (id === 'referencia' && window.Scalar && Scalar.createApiReference) {
+      Scalar.createApiReference('#referencia-host', { content: D.spec, withDefaultFonts: false, hideClientButton: true, hideDownloadButton: true, hideDarkModeToggle: true, showDeveloperTools: 'never', layout: 'modern', forceDarkModeState: tema, darkMode: tema === 'dark', customCss: SCALAR_CSS });
+    }
+    try { localStorage.setItem('portal-secao', id); } catch {}
+    if (innerWidth <= 860) { nav.classList.add('fechado'); document.getElementById('menu-bt').setAttribute('aria-expanded', 'false'); }
+    window.scrollTo(0, 0);
+  }
+  let inicial = 'inicio';
+  try { inicial = localStorage.getItem('portal-secao') || 'inicio'; } catch {}
+  ir(inicial);
+})();
+</script>
+</body>
+</html>
