@@ -85,12 +85,13 @@ export function useAutosaveFluxo({ tenantId, empresaId, inicial, habilitado, obt
     try { return await p; } finally { promessaRef.current = null; }
   }, [tenantId, empresaId, qc]);
 
-  const agendar = useCallback(() => {
+  /** Marca como sujo e agenda o salvamento. `atrasoMs` maior para mudanças só de posição. */
+  const agendar = useCallback((atrasoMs: number = DEBOUNCE_MS) => {
     if (!habilitadoRef.current) return;
     pendenteRef.current = true;
     if (pausadoRef.current) return;
     limparTimer();
-    timerRef.current = setTimeout(() => { void salvarAgora(); }, DEBOUNCE_MS);
+    timerRef.current = setTimeout(() => { void salvarAgora(); }, atrasoMs);
   }, [salvarAgora]);
 
   const manterMinhaVersao = useCallback(async () => {

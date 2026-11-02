@@ -24,7 +24,7 @@ export interface Catalogo {
   operadores: { codigo: Operador; nome: string }[];
   operacoes_provedor: { provedor: "omie"; operacao: string; entidade: string; nome: string; parametros: Record<string, string> }[];
   auth_tipos: AuthTipo[];
-  limites: { max_nos: number; timeout_ms_max: number; max_tentativas: number };
+  limites: { max_nos: number; max_ligacoes?: number; timeout_ms_max: number; max_tentativas: number };
 }
 
 export type StatusExecucao =
