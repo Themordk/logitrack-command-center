@@ -4,7 +4,7 @@ import { listarExecucoes, obterExecucao } from "../retornosService";
 import type { DocumentoRecente, Ligacao } from "../retornos.types";
 import { criarMapa, montarPayload } from "./avaliacao";
 import type { FluxoNode } from "./definicaoRf";
-import { nosAnteriores, type NoAnterior } from "./saidasAnteriores";
+import { nosAnteriores, type IndiceGrafo, type NoAnterior } from "./saidasAnteriores";
 import { useMapaRetorno } from "./useMapaRetorno";
 
 export interface SaidaAnterior extends NoAnterior {
@@ -18,6 +18,8 @@ interface Params {
   contexto: Record<string, unknown>;
   tenantId: string; empresaId: string; fluxoId: string | null;
   amostra: DocumentoRecente | null;
+  /** Índice do grafo memoizado pela página do editor (evita recalcular a cada nó aberto). */
+  indice?: IndiceGrafo;
 }
 
 /** Saídas dos nós que vêm antes de `noId`, calculadas como o servidor faria (prévia, última execução ou modelo). */
@@ -42,8 +44,8 @@ export function useSaidasAnteriores(p: Params): { saidas: Record<string, unknown
   const saidasExecucao = execQ.data;
 
   const anterioresCalc = useMemo(
-    () => (p.noId ? nosAnteriores(p.noId, p.nos.map((n) => ({ id: n.id, tipo: n.data.tipo, nome: n.data.nome })), p.ligacoes) : []),
-    [p.noId, p.nos, p.ligacoes],
+    () => (p.noId ? nosAnteriores(p.noId, p.nos.map((n) => ({ id: n.id, tipo: n.data.tipo, nome: n.data.nome })), p.ligacoes, p.indice) : []),
+    [p.noId, p.nos, p.ligacoes, p.indice],
   );
   const chaveAnteriores = JSON.stringify(anterioresCalc);
   // eslint-disable-next-line react-hooks/exhaustive-deps

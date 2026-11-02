@@ -27,6 +27,9 @@ const MOD = mac ? "⌘" : "Ctrl+";
 const nodeTypes = { fluxo: FlowNode };
 const edgeTypes = { fluxo: FlowEdge };
 
+/** Acima desta quantidade de nós o minimapa passa a aparecer (não é limite do fluxo). */
+const MOSTRAR_MINIMAPA_ACIMA_DE = 20;
+
 const COR_GRUPO_MINIMAPA: Record<GrupoNo, string> = {
   gatilho: "hsl(var(--primary))",
   logica: "rgb(245 158 11)",
@@ -101,15 +104,18 @@ export function FlowCanvas(p: Props) {
         panOnDrag
         selectionKeyCode="Shift"
         zoomOnDoubleClick={false}
+        onlyRenderVisibleElements
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <Controls showInteractive={false} position="bottom-left" />
-        <MiniMap
-          pannable
-          zoomable
-          position="bottom-right"
-          nodeColor={(n) => COR_GRUPO_MINIMAPA[TIPO_NO_UI[(n as FluxoNode).data.tipo]?.grupo ?? "acao"]}
-        />
+        {p.nodes.length > MOSTRAR_MINIMAPA_ACIMA_DE && (
+          <MiniMap
+            pannable
+            zoomable
+            position="bottom-right"
+            nodeColor={(n) => COR_GRUPO_MINIMAPA[TIPO_NO_UI[(n as FluxoNode).data.tipo]?.grupo ?? "acao"]}
+          />
+        )}
         {p.editavel && (
           <Panel position="top-left" className="flex gap-1 rounded-lg border border-border bg-card/90 p-1">
             <Tooltip>
