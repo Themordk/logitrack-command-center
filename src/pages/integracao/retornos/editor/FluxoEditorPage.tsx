@@ -576,6 +576,8 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   useEffect(() => { setAmostra(null); }, [eventoAmostra]);
 
   const ligacoesDialogo = useMemo(() => edges.map((e) => ({ de: e.source, para: e.target, saida: e.sourceHandle ?? "principal" })), [edges]);
+  const nosMin = useMemo(() => nodes.map((n) => ({ id: n.id, tipo: n.data.tipo, nome: n.data.nome })), [nodes]);
+  const indiceGrafo = useMemo(() => indexarGrafo(nosMin, ligacoesDialogo), [nosMin, ligacoesDialogo]);
   const noSelecionado = noAberto ? nodes.find((n) => n.id === noAberto) ?? null : null;
   const totalErros = fluxo.validacao_rascunho?.erros?.length ?? 0;
   const temAlteracoes = fluxo.versao_publicada == null || fluxo.alteracoes_nao_publicadas || auto.estado === "salvando" || auto.estado === "erro";
@@ -645,7 +647,8 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const combinadorGatilho = ((gatilhoCfg.combinador as Combinador) ?? "e");
 
   return (
-    <EditorContext.Provider value={ctx}>
+    <EditorEstaticoContext.Provider value={ctxEstatico}>
+    <EditorDinamicoContext.Provider value={ctxDinamico}>
       <div className="flex flex-col flex-1 min-h-0 gap-3 overflow-hidden">
         <EditorTopBar
           nome={nome}
@@ -660,6 +663,8 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           onTentarDeNovo={() => { agendar(); void salvarAgora(); }}
           podeEditar={podeEditar}
           totalErros={totalErros}
+          totalNos={nodes.length}
+          maxNos={maxNos}
           temAlteracoes={temAlteracoes}
           bloqueado={visualizando}
           publicando={publicando}
@@ -725,6 +730,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           <NodePalette
             catalogo={catalogo}
             totalNos={nodes.length}
+            totalLigacoes={edges.length}
             temGatilho={nodes.some((n) => ehGatilho(n.data.tipo))}
             onAdicionar={adicionarPelaPaleta}
           />
@@ -737,7 +743,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           validacao={fluxo.validacao_rascunho}
           onNodesChange={rfVisual ? onNodesVisuaisChange : onNodesChange}
           onEdgesChange={rfVisual ? () => undefined : onEdgesChange}
-          onNodeDragStop={agendar}
+          onNodeDragStop={() => agendar(3000)}
           onBeforeDelete={onBeforeDelete}
           onDelete={onDelete}
           onAbrirNo={(id) => { if (resultado) setPassoNo(id); else if (!versaoVista) setNoAberto(id); }}
@@ -804,6 +810,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         fluxoId={inicial.id}
         somenteLeitura={somenteLeitura}
         amostra={amostra}
+        indiceGrafo={indiceGrafo}
         onDefinirAmostra={setAmostra}
         onFechar={() => setNoAberto(null)}
         onRenomear={(n) => noSelecionado && atualizarNo(noSelecionado.id, { nome: n || undefined })}
@@ -922,6 +929,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </EditorContext.Provider>
+    </EditorDinamicoContext.Provider>
+    </EditorEstaticoContext.Provider>
   );
 }
