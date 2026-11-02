@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dependentesDe, nosAnteriores, referenciasSaidas } from "./saidasAnteriores";
+import { dependentesDe, indexarGrafo, nosAnteriores, referenciasSaidas } from "./saidasAnteriores";
+import { grafoDiamante42, grafoLinear40 } from "./__paridade__/casos";
 import type { Ligacao } from "../retornos.types";
 
 const ids = (l: { id: string }[]) => l.map((x) => x.id);
@@ -55,6 +56,30 @@ describe("nosAnteriores", () => {
     const lig: Ligacao[] = [{ de: "g", para: "c" }, { de: "c", para: "p", saida: "verdadeiro" }, { de: "c", para: "h", saida: "falso" }, { de: "p", para: "h" }];
     const r = nosAnteriores("h", nos, lig);
     expect(r).toEqual([{ id: "p", tipo: "dados.payload", nome: "p", condicional: true, soPeloErro: false }]);
+  });
+});
+
+describe("grafos grandes (até 40 nós)", () => {
+  it("cadeia linear de 40 nós: o último enxerga a saída do produtor no nó 2", () => {
+    const { nos, ligacoes } = grafoLinear40();
+    expect(nos).toHaveLength(40);
+    const r = nosAnteriores("http", nos, ligacoes);
+    expect(r).toHaveLength(38);
+    expect(r[0].id).toBe("p1");
+    expect(r.every((x) => !x.condicional && !x.soPeloErro)).toBe(true);
+  });
+
+  it("diamante com 14 condições e 42 nós: nosAnteriores de todos os nós em menos de 20 ms", () => {
+    const { nos, ligacoes } = grafoDiamante42();
+    expect(nos).toHaveLength(42);
+    const indice = indexarGrafo(nos, ligacoes);
+    const t0 = performance.now();
+    for (const n of nos) nosAnteriores(n.id, nos, ligacoes, indice);
+    const duracao = performance.now() - t0;
+    expect(duracao).toBeLessThan(20);
+    const r = nosAnteriores("fim", nos, ligacoes, indice);
+    expect(r).toHaveLength(26);
+    expect(r.every((x) => x.condicional && !x.soPeloErro)).toBe(true);
   });
 });
 
