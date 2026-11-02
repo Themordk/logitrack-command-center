@@ -316,8 +316,12 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
 
   const adicionar = useCallback((tipo: TipoNo, opts: { pos?: { x: number; y: number }; de?: string; saida?: string } = {}) => {
     aplicar(({ nodes: ns, edges: es }) => {
+      if (maxNos <= 0) { toast.info("Catálogo ainda não carregado. Tente novamente em instantes."); return null; }
       if (ns.length >= maxNos) { toast.info(`Limite de ${maxNos} nós atingido.`); return null; }
       if (ehGatilho(tipo) && ns.some((n) => ehGatilho(n.data.tipo))) { toast.info("O fluxo só pode ter um gatilho."); return null; }
+      const vaiLigar = !!opts.de && !!opts.saida && !ehGatilho(tipo);
+      const substituiLigacao = vaiLigar && es.some((e) => e.source === opts.de && (e.sourceHandle ?? "principal") === opts.saida);
+      if (vaiLigar && !substituiLigacao && es.length >= maxLigacoes) { toast.info(`Limite de ${maxLigacoes} ligações atingido.`); return null; }
       const origem = opts.de ? ns.find((n) => n.id === opts.de) : undefined;
       let pos = opts.pos;
       if (!pos && origem) {
@@ -335,7 +339,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       }
       return { nodes: nodes2, edges: edges2 };
     });
-  }, [aplicar, maxNos, catalogo]);
+  }, [aplicar, maxNos, maxLigacoes, catalogo]);
   const adicionarRef = useRef(adicionar); adicionarRef.current = adicionar;
 
   const centroVisivel = () => {
@@ -378,12 +382,15 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     let substituida = false;
     aplicar(({ nodes: ns, edges: es }) => {
       if (motivoBloqueio(c, ns, es, catalogo) !== null) return null;
-      const r = ligar(ns, es, c.source, c.sourceHandle ?? "principal", c.target);
+      const saida = c.sourceHandle ?? "principal";
+      const substitui = es.some((e) => e.source === c.source && (e.sourceHandle ?? "principal") === saida);
+      if (!substitui && es.length >= maxLigacoes) { toast.info(`Limite de ${maxLigacoes} ligações atingido.`); return null; }
+      const r = ligar(ns, es, c.source, saida, c.target);
       substituida = r.substituida;
       return { nodes: r.nodes, edges: r.edges };
     });
     if (substituida) toast.info("Ligação substituída.");
-  }, [aplicar, catalogo]);
+  }, [aplicar, catalogo, maxLigacoes]);
   const onConnectEnd: OnConnectEnd<FluxoNode> = useCallback((ev, st) => {
     if (st.isValid || !st.fromNode || !st.fromHandle || st.fromHandle.type !== "source") return;
     const saida = st.fromHandle.id ?? "principal";
