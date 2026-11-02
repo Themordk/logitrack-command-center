@@ -40,3 +40,37 @@ export const casosRegra: { nome: string; regra: { campo: string; operador: strin
   { nome: "nao_em com campo ausente", regra: { campo: "documento.inexistente", operador: "nao_em", valor: "a,b" } },
 ];
 export const casosTemplate = ["/pedidos/{{documento.numero}}/{{ documento.tipo.descricao }}?c={{a-b}}", "{{documento.inexistente}}|{{itens.0.produto.sku}}"];
+
+// Grafos de estresse usados nos testes de saidasAnteriores (paridade de validação com o servidor;
+// os resultados esperados do servidor serão anexados ao esperado.json pela equipe de backend).
+export interface GrafoCaso {
+  nos: { id: string; tipo: string }[];
+  ligacoes: { de: string; para: string; saida?: string }[];
+}
+
+/** Cadeia linear de 40 nós: gatilho → 38 payloads → requisição. */
+export function grafoLinear40(): GrafoCaso {
+  const nos = [{ id: "g", tipo: "gatilho.evento" }];
+  for (let i = 1; i <= 38; i++) nos.push({ id: `p${i}`, tipo: "dados.payload" });
+  nos.push({ id: "http", tipo: "acao.http" });
+  const ligacoes: GrafoCaso["ligacoes"] = [];
+  for (let i = 0; i < nos.length - 1; i++) ligacoes.push({ de: nos[i].id, para: nos[i + 1].id });
+  return { nos, ligacoes };
+}
+
+/** 14 condições em série, cada ramo verdadeiro/falso reconverge na próxima: 42 nós. */
+export function grafoDiamante42(): GrafoCaso {
+  const nos = [{ id: "g", tipo: "gatilho.evento" }];
+  for (let i = 1; i <= 14; i++) nos.push({ id: `c${i}`, tipo: "logica.condicao" });
+  for (let i = 1; i <= 13; i++) nos.push({ id: `a${i}`, tipo: "dados.payload" }, { id: `b${i}`, tipo: "dados.payload" });
+  nos.push({ id: "fim", tipo: "acao.http" });
+  const ligacoes: GrafoCaso["ligacoes"] = [{ de: "g", para: "c1" }];
+  for (let i = 1; i <= 13; i++) {
+    ligacoes.push(
+      { de: `c${i}`, para: `a${i}`, saida: "verdadeiro" }, { de: `c${i}`, para: `b${i}`, saida: "falso" },
+      { de: `a${i}`, para: `c${i + 1}` }, { de: `b${i}`, para: `c${i + 1}` },
+    );
+  }
+  ligacoes.push({ de: "c14", para: "fim", saida: "verdadeiro" }, { de: "c14", para: "fim", saida: "falso" });
+  return { nos, ligacoes };
+}

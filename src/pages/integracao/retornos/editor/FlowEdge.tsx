@@ -2,11 +2,12 @@ import { memo } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, useReactFlow, type EdgeProps } from "@xyflow/react";
 import { X } from "lucide-react";
 import { corSaida, type FluxoEdge as FluxoEdgeT } from "./definicaoRf";
-import { useEditorContext } from "./editorContext";
+import { useEditorDinamico, useEditorEstatico } from "./editorContext";
 
 function FlowEdgeBase(props: EdgeProps<FluxoEdgeT>) {
   const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, selected, markerEnd, sourceHandleId, source, target } = props;
-  const { editavel, execucao } = useEditorContext();
+  const { editavel } = useEditorEstatico();
+  const { execucao } = useEditorDinamico();
   const { deleteElements } = useReactFlow();
   const [path, lx, ly] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   const percorrida = execucao?.arestas.has(`${source}:${sourceHandleId ?? "principal"}->${target}`) ?? false;

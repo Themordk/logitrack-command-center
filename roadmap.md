@@ -35,3 +35,12 @@
 - [ ] Atualizar tipos gerados: arquivo protegido pela plataforma; não alterar banco.
 - [x] Executar testes: 7 passaram; build OK.
 - [ ] Validar telas com usuário conectado: Supabase externo sem sessão de teste disponível.
+## Editor de fluxos: limite 40 nós / 80 ligações
+- [x] Limites só do catálogo (max_nos, max_ligacoes com fallback max_nos*2; sem catálogo = 0, adição bloqueada).
+- [x] indexarGrafo memoizado (adjacência, ordem, caches de alcance); sem teto de profundidade; O(N+E).
+- [x] Contextos do editor separados (estático/dinâmico); canvas só renderiza nós visíveis; minimapa acima de 20 nós.
+- [x] Autosave: arraste salva só no fim, posições com espera de 3s.
+- [x] Contadores de nós/ligações na paleta e na barra; códigos LIMITE_NOS/LIMITE_LIGACOES/CICLO reconhecidos.
+- [x] Testes: cadeia de 40 nós, diamante de 42 nós (<20 ms), limites na paleta; 75 passaram; tipos e build OK.
+- [ ] esperado.json dos grafos de estresse: aguarda JSON da nova validação do servidor (equipe de backend).
+- [ ] Validar com usuário conectado: sessão indisponível no Supabase externo.

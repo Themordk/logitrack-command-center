@@ -1,13 +1,11 @@
 // Saídas de nós anteriores (saidas.<id>) — mesma semântica de integracao.fn_retorno_validar_definicao.
-// Funções puras, sem React.
+// Funções puras, sem React. Toda travessia usa conjunto de visitados: custo O(N + E), sem teto de profundidade.
 import type { Ligacao } from "../retornos.types";
 
 export type { Ligacao };
 
 export const TIPOS_COM_SAIDA = ["dados.payload", "acao.http", "acao.webhook", "acao.provedor"] as const;
 export const geraSaida = (tipo: string) => (TIPOS_COM_SAIDA as readonly string[]).includes(tipo);
-
-const PROFUNDIDADE_MAX = 25;
 
 export interface NoMin { id: string; tipo: string; nome?: string }
 
@@ -21,62 +19,100 @@ export interface NoAnterior {
 
 const saidaDe = (l: Ligacao) => l.saida ?? "principal";
 
-/** `alvo` alcançável a partir dos nós `inicio` (profundidade limitada), opcionalmente evitando um nó. */
-function alcanca(inicio: string[], alvo: string, ligacoes: Ligacao[], evitar?: string): boolean {
-  let fronteira = inicio.filter((i) => i !== evitar);
-  const vistos = new Set(fronteira);
-  for (let prof = 0; fronteira.length && prof <= PROFUNDIDADE_MAX; prof++) {
-    if (fronteira.includes(alvo)) return true;
-    const prox: string[] = [];
-    for (const atual of fronteira) {
-      for (const l of ligacoes) {
-        if (l.de === atual && l.para !== evitar && !vistos.has(l.para)) { vistos.add(l.para); prox.push(l.para); }
-      }
-    }
-    fronteira = prox;
-  }
-  return false;
+export interface IndiceGrafo {
+  /** Lista de adjacência: id → saídas [{para, saida}]. */
+  adj: Map<string, { para: string; saida: string }[]>;
+  /** Ordem de execução (BFS a partir do gatilho; empate pela ordem de `nos`). */
+  ordem: Map<string, number>;
+  /** Nós alcançáveis a partir das saídas de `id` — "semErro" ignora o ramo erro, "soErro" usa só ele. Com cache. */
+  descendentes(id: string, modo: "semErro" | "soErro"): Set<string>;
+  /** Nós alcançáveis a partir de `inicio`, opcionalmente sem passar por `evitar`. Com cache. */
+  alcancaveis(inicio: string[], evitar?: string): Set<string>;
 }
 
-/** Ordem de execução: BFS a partir do gatilho; empate pela ordem de `nos`. */
-function ordemTopologica(nos: NoMin[], ligacoes: Ligacao[]): Map<string, number> {
-  const ordem = new Map<string, number>();
-  let fronteira = nos.filter((n) => n.tipo.startsWith("gatilho.")).map((n) => n.id);
-  const indice = new Map(nos.map((n, i) => [n.id, i]));
-  let pos = 0;
-  const vistos = new Set(fronteira);
-  while (fronteira.length) {
-    fronteira.sort((a, b) => (indice.get(a) ?? 0) - (indice.get(b) ?? 0));
-    for (const id of fronteira) ordem.set(id, pos++);
-    const prox: string[] = [];
-    for (const atual of fronteira) {
-      for (const l of ligacoes) if (l.de === atual && !vistos.has(l.para)) { vistos.add(l.para); prox.push(l.para); }
-    }
-    fronteira = prox;
+/** Monta uma vez os mapas do grafo (adjacência, ordem topológica e caches de alcance). */
+export function indexarGrafo(nos: NoMin[], ligacoes: Ligacao[]): IndiceGrafo {
+  const adj = new Map<string, { para: string; saida: string }[]>();
+  for (const l of ligacoes) {
+    const lista = adj.get(l.de) ?? [];
+    lista.push({ para: l.para, saida: saidaDe(l) });
+    adj.set(l.de, lista);
   }
-  return ordem;
+
+  const ordem = new Map<string, number>();
+  const indiceNo = new Map(nos.map((n, i) => [n.id, i]));
+  {
+    let fronteira = nos.filter((n) => n.tipo.startsWith("gatilho.")).map((n) => n.id);
+    const vistos = new Set(fronteira);
+    let pos = 0;
+    while (fronteira.length) {
+      fronteira.sort((a, b) => (indiceNo.get(a) ?? 0) - (indiceNo.get(b) ?? 0));
+      for (const id of fronteira) ordem.set(id, pos++);
+      const prox: string[] = [];
+      for (const atual of fronteira) {
+        for (const l of adj.get(atual) ?? []) if (!vistos.has(l.para)) { vistos.add(l.para); prox.push(l.para); }
+      }
+      fronteira = prox;
+    }
+  }
+
+  const bfs = (inicio: string[], evitar?: string): Set<string> => {
+    const vistos = new Set(inicio.filter((i) => i !== evitar));
+    let fronteira = [...vistos];
+    while (fronteira.length) {
+      const prox: string[] = [];
+      for (const atual of fronteira) {
+        for (const l of adj.get(atual) ?? []) {
+          if (l.para !== evitar && !vistos.has(l.para)) { vistos.add(l.para); prox.push(l.para); }
+        }
+      }
+      fronteira = prox;
+    }
+    return vistos;
+  };
+
+  const cacheDesc = new Map<string, Set<string>>();
+  const cacheAlc = new Map<string, Set<string>>();
+  return {
+    adj,
+    ordem,
+    descendentes(id, modo) {
+      const chave = `${id}|${modo}`;
+      let r = cacheDesc.get(chave);
+      if (!r) {
+        const inicio = (adj.get(id) ?? [])
+          .filter((l) => (modo === "soErro" ? l.saida === "erro" : l.saida !== "erro"))
+          .map((l) => l.para);
+        r = bfs(inicio);
+        cacheDesc.set(chave, r);
+      }
+      return r;
+    },
+    alcancaveis(inicio, evitar) {
+      const chave = `${[...inicio].sort().join(",")}|${evitar ?? ""}`;
+      let r = cacheAlc.get(chave);
+      if (!r) { r = bfs(inicio, evitar); cacheAlc.set(chave, r); }
+      return r;
+    },
+  };
 }
 
 /** Nós que geram saída e vêm ANTES de `noId`, em ordem de execução (topológica a partir do gatilho). */
-export function nosAnteriores(noId: string, nos: NoMin[], ligacoes: Ligacao[]): NoAnterior[] {
+export function nosAnteriores(noId: string, nos: NoMin[], ligacoes: Ligacao[], indice: IndiceGrafo = indexarGrafo(nos, ligacoes)): NoAnterior[] {
   const gatilhos = nos.filter((n) => n.tipo.startsWith("gatilho.")).map((n) => n.id);
   const resultado: NoAnterior[] = [];
   for (const x of nos) {
     if (x.id === noId || !geraSaida(x.tipo)) continue;
-    const saindo = ligacoes.filter((l) => l.de === x.id);
-    const normais = saindo.filter((l) => saidaDe(l) !== "erro").map((l) => l.para);
-    const pelaErro = saindo.filter((l) => saidaDe(l) === "erro").map((l) => l.para);
     let soPeloErro: boolean;
-    if (alcanca(normais, noId, ligacoes)) soPeloErro = false;
-    else if (alcanca(pelaErro, noId, ligacoes)) soPeloErro = true;
+    if (indice.descendentes(x.id, "semErro").has(noId)) soPeloErro = false;
+    else if (indice.descendentes(x.id, "soErro").has(noId)) soPeloErro = true;
     else continue;
-    const condicional = alcanca(gatilhos, noId, ligacoes, x.id);
+    const condicional = indice.alcancaveis(gatilhos, x.id).has(noId);
     resultado.push({ id: x.id, tipo: x.tipo, nome: x.nome || x.id, condicional, soPeloErro });
   }
-  const ordem = ordemTopologica(nos, ligacoes);
-  const indice = new Map(nos.map((n, i) => [n.id, i]));
-  const chave = (id: string) => ordem.get(id) ?? Number.MAX_SAFE_INTEGER;
-  return resultado.sort((a, b) => chave(a.id) - chave(b.id) || (indice.get(a.id) ?? 0) - (indice.get(b.id) ?? 0));
+  const indiceNo = new Map(nos.map((n, i) => [n.id, i]));
+  const chave = (id: string) => indice.ordem.get(id) ?? Number.MAX_SAFE_INTEGER;
+  return resultado.sort((a, b) => chave(a.id) - chave(b.id) || (indiceNo.get(a.id) ?? 0) - (indiceNo.get(b.id) ?? 0));
 }
 
 /** Ids referenciados em `saidas.<id>` dentro de qualquer string (template, caminho, JSONata, regra). */

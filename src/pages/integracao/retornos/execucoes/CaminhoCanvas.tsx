@@ -5,7 +5,7 @@ import type { Catalogo, ExecucaoDetalhe } from "../retornos.types";
 import { paraRf, type FluxoEdge, type FluxoNode } from "../editor/definicaoRf";
 import { FlowNode } from "../editor/FlowNode";
 import { FlowEdge } from "../editor/FlowEdge";
-import { EditorContext, type EditorContextValor } from "../editor/editorContext";
+import { EditorDinamicoContext, EditorEstaticoContext, type EditorDinamicoValor, type EditorEstaticoValor } from "../editor/editorContext";
 import { montarExecucaoVisual } from "../editor/execucaoVisual";
 
 const nodeTypes = { fluxo: FlowNode };
@@ -24,13 +24,17 @@ export function CaminhoCanvas({ detalhe, catalogo, onAbrirPasso }: Props) {
     if (ok.length) setNodes((n) => applyNodeChanges(ok, n));
   }, [setNodes]);
 
-  const ctx = useMemo<EditorContextValor>(() => ({
-    catalogo, errosPorNo: new Map(), avisosPorNo: new Map(), desconectados: new Set(), editavel: false,
-    saidasOcupadas: new Set(), limiteAtingido: false, renomeandoId: null, execucao, onAbrirPasso,
-  }), [catalogo, execucao, onAbrirPasso]);
+  const ctxEstatico = useMemo<EditorEstaticoValor>(() => ({
+    catalogo, editavel: false, limiteAtingido: false, renomeandoId: null,
+  }), [catalogo]);
+  const ctxDinamico = useMemo<EditorDinamicoValor>(() => ({
+    errosPorNo: new Map(), avisosPorNo: new Map(), desconectados: new Set(),
+    saidasOcupadas: new Set(), execucao, onAbrirPasso,
+  }), [execucao, onAbrirPasso]);
 
   return (
-    <EditorContext.Provider value={ctx}>
+    <EditorEstaticoContext.Provider value={ctxEstatico}>
+    <EditorDinamicoContext.Provider value={ctxDinamico}>
       <div className="h-[280px] rounded-lg border border-border overflow-hidden retorno-canvas">
         <ReactFlow<FluxoNode, FluxoEdge>
           colorMode="dark"
@@ -52,6 +56,7 @@ export function CaminhoCanvas({ detalhe, catalogo, onAbrirPasso }: Props) {
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         </ReactFlow>
       </div>
-    </EditorContext.Provider>
+    </EditorDinamicoContext.Provider>
+    </EditorEstaticoContext.Provider>
   );
 }
