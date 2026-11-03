@@ -98,6 +98,7 @@ export type Database = {
       agrupamento_conferencia: {
         Row: {
           created_at: string
+          created_by: string | null
           empresa_id: string | null
           id: string
           sequencia: number | null
@@ -108,6 +109,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           empresa_id?: string | null
           id?: string
           sequencia?: number | null
@@ -118,6 +120,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           empresa_id?: string | null
           id?: string
           sequencia?: number | null
@@ -148,11 +151,19 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_agrupamento_conferencia_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       agrupamento_separacao: {
         Row: {
           created_at: string
+          created_by: string | null
           empresa_id: string | null
           id: string
           sequencia: number | null
@@ -163,6 +174,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           empresa_id?: string | null
           id?: string
           sequencia?: number | null
@@ -173,6 +185,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           empresa_id?: string | null
           id?: string
           sequencia?: number | null
@@ -203,6 +216,13 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_agrupamento_separacao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       armazem: {
@@ -211,9 +231,12 @@ export type Database = {
           capacidade: number | null
           cidade: string | null
           codigo_erp: string
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string
           id: string
+          painel_tv_limites: Json
           tenant_id: string
           tv_token: string
           uf: string | null
@@ -223,9 +246,12 @@ export type Database = {
           capacidade?: number | null
           cidade?: string | null
           codigo_erp: string
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id: string
           id?: string
+          painel_tv_limites?: Json
           tenant_id: string
           tv_token?: string
           uf?: string | null
@@ -235,9 +261,12 @@ export type Database = {
           capacidade?: number | null
           cidade?: string | null
           codigo_erp?: string
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string
           id?: string
+          painel_tv_limites?: Json
           tenant_id?: string
           tv_token?: string
           uf?: string | null
@@ -264,6 +293,13 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_armazem_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       armazem_config: {
@@ -277,6 +313,7 @@ export type Database = {
           endereco_avaria_id: string | null
           endereco_cancelamento_id: string | null
           endereco_quarentena_id: string | null
+          gerar_tarefa_retirada: boolean
           id: string
           lms_faixa_atencao_pct: number
           lms_faixa_bom_pct: number
@@ -284,6 +321,7 @@ export type Database = {
           lms_tempo_inatividade_tarefa_seg: number
           lms_tempo_ocioso_alerta_seg: number
           lms_tempo_transito_seg: number
+          prazo_endereco_cancelamento_horas: number
           tenant_id: string
           updated_at: string
           updated_by: string | null
@@ -298,6 +336,7 @@ export type Database = {
           endereco_avaria_id?: string | null
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
+          gerar_tarefa_retirada?: boolean
           id?: string
           lms_faixa_atencao_pct?: number
           lms_faixa_bom_pct?: number
@@ -305,6 +344,7 @@ export type Database = {
           lms_tempo_inatividade_tarefa_seg?: number
           lms_tempo_ocioso_alerta_seg?: number
           lms_tempo_transito_seg?: number
+          prazo_endereco_cancelamento_horas?: number
           tenant_id: string
           updated_at?: string
           updated_by?: string | null
@@ -319,6 +359,7 @@ export type Database = {
           endereco_avaria_id?: string | null
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
+          gerar_tarefa_retirada?: boolean
           id?: string
           lms_faixa_atencao_pct?: number
           lms_faixa_bom_pct?: number
@@ -326,6 +367,7 @@ export type Database = {
           lms_tempo_inatividade_tarefa_seg?: number
           lms_tempo_ocioso_alerta_seg?: number
           lms_tempo_transito_seg?: number
+          prazo_endereco_cancelamento_horas?: number
           tenant_id?: string
           updated_at?: string
           updated_by?: string | null
@@ -453,6 +495,8 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          created_at: string | null
+          created_by: string | null
           descricao: string
           id: string
           tenant_id: string
@@ -462,6 +506,8 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           id?: string
           tenant_id: string
@@ -471,6 +517,8 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           id?: string
           tenant_id?: string
@@ -506,6 +554,13 @@ export type Database = {
             referencedRelation: "tipo_box"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_box_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_entrada: {
@@ -517,6 +572,7 @@ export type Database = {
           chave_nfe: string | null
           codigo_erp: string | null
           created_at: string | null
+          created_by: string | null
           data_emissao: string
           data_entrada: string
           empresa_id: string
@@ -534,6 +590,7 @@ export type Database = {
           status_integracao: string | null
           tenant_id: string
           tipo_entrada_id: string
+          updated_at: string
           valor_total_nota: number
           valor_total_produtos: number
           vendedor: string | null
@@ -546,6 +603,7 @@ export type Database = {
           chave_nfe?: string | null
           codigo_erp?: string | null
           created_at?: string | null
+          created_by?: string | null
           data_emissao: string
           data_entrada: string
           empresa_id: string
@@ -563,6 +621,7 @@ export type Database = {
           status_integracao?: string | null
           tenant_id: string
           tipo_entrada_id: string
+          updated_at?: string
           valor_total_nota: number
           valor_total_produtos: number
           vendedor?: string | null
@@ -575,6 +634,7 @@ export type Database = {
           chave_nfe?: string | null
           codigo_erp?: string | null
           created_at?: string | null
+          created_by?: string | null
           data_emissao?: string
           data_entrada?: string
           empresa_id?: string
@@ -592,6 +652,7 @@ export type Database = {
           status_integracao?: string | null
           tenant_id?: string
           tipo_entrada_id?: string
+          updated_at?: string
           valor_total_nota?: number
           valor_total_produtos?: number
           vendedor?: string | null
@@ -653,10 +714,19 @@ export type Database = {
             referencedRelation: "tipo_entrada"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_documento_entrada_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_entrada_item: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           documento_entrada_id: string
           id: string
           produto_id: string
@@ -666,6 +736,8 @@ export type Database = {
           valor_unidade: number
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           documento_entrada_id: string
           id?: string
           produto_id: string
@@ -675,6 +747,8 @@ export type Database = {
           valor_unidade: number
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           documento_entrada_id?: string
           id?: string
           produto_id?: string
@@ -726,10 +800,19 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_documento_entrada_item_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_entrada_item_lote: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           documento_entrada_item_id: string
           fabricacao: string
           id: string
@@ -740,6 +823,8 @@ export type Database = {
           validade: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           documento_entrada_item_id: string
           fabricacao: string
           id?: string
@@ -750,6 +835,8 @@ export type Database = {
           validade: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           documento_entrada_item_id?: string
           fabricacao?: string
           id?: string
@@ -781,6 +868,13 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_documento_entrada_item_lote_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_saida: {
@@ -788,6 +882,8 @@ export type Database = {
           cancelamento_origem: string | null
           cancelamento_solicitado_em: string | null
           codigo_erp: string | null
+          created_at: string | null
+          created_by: string | null
           data_emissao: string
           empresa_id: string
           excluido_em: string | null
@@ -813,6 +909,7 @@ export type Database = {
           tentativas_processamento: number | null
           tipo_pedido_id: string
           transportador: string | null
+          updated_at: string
           valor_pedido: number
           vendedor: string | null
         }
@@ -820,6 +917,8 @@ export type Database = {
           cancelamento_origem?: string | null
           cancelamento_solicitado_em?: string | null
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           data_emissao: string
           empresa_id: string
           excluido_em?: string | null
@@ -845,6 +944,7 @@ export type Database = {
           tentativas_processamento?: number | null
           tipo_pedido_id: string
           transportador?: string | null
+          updated_at?: string
           valor_pedido: number
           vendedor?: string | null
         }
@@ -852,6 +952,8 @@ export type Database = {
           cancelamento_origem?: string | null
           cancelamento_solicitado_em?: string | null
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           data_emissao?: string
           empresa_id?: string
           excluido_em?: string | null
@@ -877,6 +979,7 @@ export type Database = {
           tentativas_processamento?: number | null
           tipo_pedido_id?: string
           transportador?: string | null
+          updated_at?: string
           valor_pedido?: number
           vendedor?: string | null
         }
@@ -936,6 +1039,209 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tipo_saida"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_documento_saida_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_saida_alteracao: {
+        Row: {
+          codigo_erp: string | null
+          created_at: string
+          documento_entrada_gerado_id: string | null
+          documento_entrada_id: string | null
+          documento_saida_gerado_id: string | null
+          documentos_saida: string[]
+          empresa_id: string
+          erro: string | null
+          id: string
+          id_alteracao: string | null
+          modo: string
+          numero_vinculo: string | null
+          origem: string
+          payload_hash: string | null
+          pedido: Json | null
+          processado_em: string | null
+          request_id: string | null
+          resumo: Json
+          situacao: string
+          tenant_id: string
+          tentativas: number
+          updated_at: string
+        }
+        Insert: {
+          codigo_erp?: string | null
+          created_at?: string
+          documento_entrada_gerado_id?: string | null
+          documento_entrada_id?: string | null
+          documento_saida_gerado_id?: string | null
+          documentos_saida?: string[]
+          empresa_id: string
+          erro?: string | null
+          id?: string
+          id_alteracao?: string | null
+          modo: string
+          numero_vinculo?: string | null
+          origem?: string
+          payload_hash?: string | null
+          pedido?: Json | null
+          processado_em?: string | null
+          request_id?: string | null
+          resumo?: Json
+          situacao: string
+          tenant_id: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Update: {
+          codigo_erp?: string | null
+          created_at?: string
+          documento_entrada_gerado_id?: string | null
+          documento_entrada_id?: string | null
+          documento_saida_gerado_id?: string | null
+          documentos_saida?: string[]
+          empresa_id?: string
+          erro?: string | null
+          id?: string
+          id_alteracao?: string | null
+          modo?: string
+          numero_vinculo?: string | null
+          origem?: string
+          payload_hash?: string | null
+          pedido?: Json | null
+          processado_em?: string | null
+          request_id?: string | null
+          resumo?: Json
+          situacao?: string
+          tenant_id?: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_gerado_id_fkey"
+            columns: ["documento_entrada_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_gerado_id_fkey"
+            columns: ["documento_entrada_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_docs_vinculados"
+            referencedColumns: ["documento_entrada_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_id_fkey"
+            columns: ["documento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_id_fkey"
+            columns: ["documento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_docs_vinculados"
+            referencedColumns: ["documento_entrada_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_saida_gerado_id_fkey"
+            columns: ["documento_saida_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_saida_gerado_id_fkey"
+            columns: ["documento_saida_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_saida_gerado_id_fkey"
+            columns: ["documento_saida_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
+          },
+        ]
+      }
+      documento_saida_alteracao_item: {
+        Row: {
+          acao: string
+          alteracao_id: string
+          created_at: string
+          detalhe: Json
+          documento_saida_id: string | null
+          estagio: string | null
+          id: string
+          movimento_saida_item_id: string | null
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+        }
+        Insert: {
+          acao: string
+          alteracao_id: string
+          created_at?: string
+          detalhe?: Json
+          documento_saida_id?: string | null
+          estagio?: string | null
+          id?: string
+          movimento_saida_item_id?: string | null
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+        }
+        Update: {
+          acao?: string
+          alteracao_id?: string
+          created_at?: string
+          detalhe?: Json
+          documento_saida_id?: string | null
+          estagio?: string | null
+          id?: string
+          movimento_saida_item_id?: string | null
+          produto_id?: string
+          quantidade?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_saida_alteracao_item_alteracao_id_fkey"
+            columns: ["alteracao_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida_alteracao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_item_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_item_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_item_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
           },
         ]
       }
@@ -1073,6 +1379,8 @@ export type Database = {
         Row: {
           codigo_erp: string | null
           codigo_erp_produto: string | null
+          created_at: string | null
+          created_by: string | null
           documento_saida_id: string
           id: string
           produto_id: string
@@ -1088,6 +1396,8 @@ export type Database = {
         Insert: {
           codigo_erp?: string | null
           codigo_erp_produto?: string | null
+          created_at?: string | null
+          created_by?: string | null
           documento_saida_id: string
           id?: string
           produto_id: string
@@ -1103,6 +1413,8 @@ export type Database = {
         Update: {
           codigo_erp?: string | null
           codigo_erp_produto?: string | null
+          created_at?: string | null
+          created_by?: string | null
           documento_saida_id?: string
           id?: string
           produto_id?: string
@@ -1165,10 +1477,19 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_documento_saida_item_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_saida_item_lote: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           documento_saida_item_id: string
           fabricacao: string
           id: string
@@ -1179,6 +1500,8 @@ export type Database = {
           validade: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           documento_saida_item_id: string
           fabricacao: string
           id?: string
@@ -1189,6 +1512,8 @@ export type Database = {
           validade: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           documento_saida_item_id?: string
           fabricacao?: string
           id?: string
@@ -1220,12 +1545,20 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_documento_saida_item_lote_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documento_saida_nf: {
         Row: {
           chave_nfe: string | null
           created_at: string
+          created_by: string | null
           data_cancelamento: string | null
           data_emissao: string | null
           data_saida: string | null
@@ -1256,6 +1589,7 @@ export type Database = {
         Insert: {
           chave_nfe?: string | null
           created_at?: string
+          created_by?: string | null
           data_cancelamento?: string | null
           data_emissao?: string | null
           data_saida?: string | null
@@ -1286,6 +1620,7 @@ export type Database = {
         Update: {
           chave_nfe?: string | null
           created_at?: string
+          created_by?: string | null
           data_cancelamento?: string | null
           data_emissao?: string | null
           data_saida?: string | null
@@ -1356,6 +1691,13 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_documento_saida_nf_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       empresa: {
@@ -1363,6 +1705,8 @@ export type Database = {
           ativo: boolean
           cnpj: string
           codigo: string | null
+          created_at: string | null
+          created_by: string | null
           id: string
           razaosocial: string
           tenant_id: string
@@ -1372,6 +1716,8 @@ export type Database = {
           ativo?: boolean
           cnpj: string
           codigo?: string | null
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           razaosocial: string
           tenant_id: string
@@ -1381,6 +1727,8 @@ export type Database = {
           ativo?: boolean
           cnpj?: string
           codigo?: string | null
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           razaosocial?: string
           tenant_id?: string
@@ -1401,6 +1749,13 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_empresa_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       endereco: {
@@ -1412,6 +1767,8 @@ export type Database = {
           capacidade_unidades: number | null
           codigo_endereco: number | null
           comprimento: number | null
+          created_at: string | null
+          created_by: string | null
           curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
           empresa_id: string | null
@@ -1441,6 +1798,8 @@ export type Database = {
           capacidade_unidades?: number | null
           codigo_endereco?: number | null
           comprimento?: number | null
+          created_at?: string | null
+          created_by?: string | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
           empresa_id?: string | null
@@ -1470,6 +1829,8 @@ export type Database = {
           capacidade_unidades?: number | null
           codigo_endereco?: number | null
           comprimento?: number | null
+          created_at?: string | null
+          created_by?: string | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           descricao?: string
           empresa_id?: string | null
@@ -1520,11 +1881,19 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_endereco_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       endereco_zona_atividade: {
         Row: {
           created_at: string
+          created_by: string | null
           endereco_id: string
           id: string
           tenant_id: string
@@ -1532,6 +1901,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           endereco_id: string
           id?: string
           tenant_id: string
@@ -1539,6 +1909,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           endereco_id?: string
           id?: string
           tenant_id?: string
@@ -1578,6 +1949,13 @@ export type Database = {
             columns: ["zona_atividade_id"]
             isOneToOne: false
             referencedRelation: "zona_atividade"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_endereco_zona_atividade_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -1646,6 +2024,8 @@ export type Database = {
       estoque_geral: {
         Row: {
           atualizado_em: string | null
+          created_at: string | null
+          created_by: string | null
           data_fabricacao: string
           data_validade: string
           empresa_id: string
@@ -1662,6 +2042,8 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string | null
+          created_at?: string | null
+          created_by?: string | null
           data_fabricacao?: string
           data_validade?: string
           empresa_id: string
@@ -1678,6 +2060,8 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string | null
+          created_at?: string | null
+          created_by?: string | null
           data_fabricacao?: string
           data_validade?: string
           empresa_id?: string
@@ -1733,6 +2117,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_estoque_geral_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
         ]
@@ -2079,6 +2470,13 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_etiqueta_template_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       fila_impressao: {
@@ -2088,6 +2486,7 @@ export type Database = {
           cancelado_por: string | null
           comando_gerado: string | null
           criado_em: string
+          criado_por: string | null
           dados: Json
           documento_origem_id: string | null
           empresa_id: string
@@ -2113,6 +2512,7 @@ export type Database = {
           cancelado_por?: string | null
           comando_gerado?: string | null
           criado_em?: string
+          criado_por?: string | null
           dados: Json
           documento_origem_id?: string | null
           empresa_id: string
@@ -2138,6 +2538,7 @@ export type Database = {
           cancelado_por?: string | null
           comando_gerado?: string | null
           criado_em?: string
+          criado_por?: string | null
           dados?: Json
           documento_origem_id?: string | null
           empresa_id?: string
@@ -2228,34 +2629,57 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_fila_impressao_criado_por"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       grupo_produto: {
         Row: {
           ativo: boolean
           codigo_erp: string | null
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string
           id: string
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id: string
           id?: string
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string
           id?: string
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_grupo_produto_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "grupo_produto_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -2910,21 +3334,34 @@ export type Database = {
       }
       inventario_tipo_tarefa: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           tenant_id: string
           tipo_execucao: Database["public"]["Enums"]["enum_execucao_inventario"]
           tipo_tarefa_id: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           tenant_id: string
           tipo_execucao: Database["public"]["Enums"]["enum_execucao_inventario"]
           tipo_tarefa_id: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           tenant_id?: string
           tipo_execucao?: Database["public"]["Enums"]["enum_execucao_inventario"]
           tipo_tarefa_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_inventario_tipo_tarefa_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventario_tipo_tarefa_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -3365,6 +3802,8 @@ export type Database = {
           ambiente: Database["public"]["Enums"]["enum_ambiente_modulo"]
           ativo: boolean
           codigo: string
+          created_at: string | null
+          created_by: string | null
           descricao: string
           id: string
           tenant_id: string | null
@@ -3373,6 +3812,8 @@ export type Database = {
           ambiente?: Database["public"]["Enums"]["enum_ambiente_modulo"]
           ativo?: boolean
           codigo: string
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           id?: string
           tenant_id?: string | null
@@ -3381,11 +3822,20 @@ export type Database = {
           ambiente?: Database["public"]["Enums"]["enum_ambiente_modulo"]
           ativo?: boolean
           codigo?: string
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           id?: string
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_modulo_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "modulo_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -3410,6 +3860,8 @@ export type Database = {
           categoria_padrao:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
@@ -3431,6 +3883,8 @@ export type Database = {
           categoria_padrao?:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id?: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
@@ -3452,6 +3906,8 @@ export type Database = {
           categoria_padrao?:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string | null
           etapa_ocorrencia?: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
@@ -3467,6 +3923,13 @@ export type Database = {
             | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_motivo_ocorrencia_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "motivo_ocorrencia_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -3500,6 +3963,7 @@ export type Database = {
       movimento_documento_remocao: {
         Row: {
           created_at: string
+          created_by: string | null
           documento_id: string
           empresa_id: string
           hash_analise: string
@@ -3520,6 +3984,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           documento_id: string
           empresa_id: string
           hash_analise: string
@@ -3540,6 +4005,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           documento_id?: string
           empresa_id?: string
           hash_analise?: string
@@ -3559,6 +4025,13 @@ export type Database = {
           tipo_movimento?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_movimento_documento_remocao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "movimento_documento_remocao_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -3687,6 +4160,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_movimento_entrada_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimento_entrada_armazem_id_fkey"
             columns: ["armazem_id"]
             isOneToOne: false
@@ -3760,24 +4240,37 @@ export type Database = {
       }
       movimento_entrada_documento: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           documento_entrada_id: string
           id: string
           movimento_entrada_id: string
           tenant_id: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           documento_entrada_id: string
           id?: string
           movimento_entrada_id: string
           tenant_id: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           documento_entrada_id?: string
           id?: string
           movimento_entrada_id?: string
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_movimento_entrada_documento_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "movimento_entrada_documento_documento_entrada_id_fkey"
             columns: ["documento_entrada_id"]
@@ -3852,6 +4345,8 @@ export type Database = {
       }
       movimento_entrada_item: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           id: string
           movimento_entrada_id: string
           produto_id: string
@@ -3863,6 +4358,8 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           movimento_entrada_id: string
           produto_id: string
@@ -3874,6 +4371,8 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           movimento_entrada_id?: string
           produto_id?: string
@@ -3885,6 +4384,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_movimento_entrada_item_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "movimento_entrada_item_movimento_entrada_id_fkey"
             columns: ["movimento_entrada_id"]
@@ -3961,6 +4467,8 @@ export type Database = {
         Row: {
           box_id: string | null
           chave_agrupamento: string
+          created_at: string | null
+          created_by: string | null
           data_emissao: string
           destino_carga: string | null
           empresa_id: string
@@ -3983,6 +4491,8 @@ export type Database = {
         Insert: {
           box_id?: string | null
           chave_agrupamento: string
+          created_at?: string | null
+          created_by?: string | null
           data_emissao: string
           destino_carga?: string | null
           empresa_id: string
@@ -4005,6 +4515,8 @@ export type Database = {
         Update: {
           box_id?: string | null
           chave_agrupamento?: string
+          created_at?: string | null
+          created_by?: string | null
           data_emissao?: string
           destino_carga?: string | null
           empresa_id?: string
@@ -4025,6 +4537,13 @@ export type Database = {
           veiculo_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_movimento_saida_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_onda_box"
             columns: ["box_id"]
@@ -4078,6 +4597,8 @@ export type Database = {
       }
       movimento_saida_documento: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           documento_saida_id: string
           id: string
           movimento_saida_id: string
@@ -4085,6 +4606,8 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           documento_saida_id: string
           id?: string
           movimento_saida_id: string
@@ -4092,6 +4615,8 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           documento_saida_id?: string
           id?: string
           movimento_saida_id?: string
@@ -4099,6 +4624,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_movimento_saida_documento_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_onda_doc_doc"
             columns: ["documento_saida_id"]
@@ -4209,6 +4741,8 @@ export type Database = {
       movimento_saida_item: {
         Row: {
           autorizado_em: string | null
+          created_at: string | null
+          created_by: string | null
           id: string
           motivo_ocorrencia: string | null
           movimento_saida_id: string
@@ -4225,6 +4759,8 @@ export type Database = {
         }
         Insert: {
           autorizado_em?: string | null
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           motivo_ocorrencia?: string | null
           movimento_saida_id: string
@@ -4241,6 +4777,8 @@ export type Database = {
         }
         Update: {
           autorizado_em?: string | null
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           motivo_ocorrencia?: string | null
           movimento_saida_id?: string
@@ -4256,6 +4794,13 @@ export type Database = {
           valor_unit?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_movimento_saida_item_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_onda_item_onda"
             columns: ["movimento_saida_id"]
@@ -4947,6 +5492,7 @@ export type Database = {
         Row: {
           armazem_id: string | null
           created_at: string
+          created_by: string | null
           empresa_id: string | null
           id: string
           ordem: string | null
@@ -4957,6 +5503,7 @@ export type Database = {
         Insert: {
           armazem_id?: string | null
           created_at?: string
+          created_by?: string | null
           empresa_id?: string | null
           id?: string
           ordem?: string | null
@@ -4967,6 +5514,7 @@ export type Database = {
         Update: {
           armazem_id?: string | null
           created_at?: string
+          created_by?: string | null
           empresa_id?: string | null
           id?: string
           ordem?: string | null
@@ -4975,6 +5523,13 @@ export type Database = {
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_ordem_expedicao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ordem_expedicao_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -5015,6 +5570,8 @@ export type Database = {
           codigo_erp: string | null
           codigo_erp_omie: string | null
           contato: string | null
+          created_at: string | null
+          created_by: string | null
           dias_shelf: number | null
           eh_cliente: boolean
           eh_fornecedor: boolean
@@ -5031,6 +5588,7 @@ export type Database = {
           telefone: string | null
           tenant_id: string
           tipo_parceiro: Database["public"]["Enums"]["enum_tipo_parceiro"]
+          updated_at: string
         }
         Insert: {
           ativo?: boolean
@@ -5041,6 +5599,8 @@ export type Database = {
           codigo_erp?: string | null
           codigo_erp_omie?: string | null
           contato?: string | null
+          created_at?: string | null
+          created_by?: string | null
           dias_shelf?: number | null
           eh_cliente?: boolean
           eh_fornecedor?: boolean
@@ -5057,6 +5617,7 @@ export type Database = {
           telefone?: string | null
           tenant_id: string
           tipo_parceiro: Database["public"]["Enums"]["enum_tipo_parceiro"]
+          updated_at?: string
         }
         Update: {
           ativo?: boolean
@@ -5067,6 +5628,8 @@ export type Database = {
           codigo_erp?: string | null
           codigo_erp_omie?: string | null
           contato?: string | null
+          created_at?: string | null
+          created_by?: string | null
           dias_shelf?: number | null
           eh_cliente?: boolean
           eh_fornecedor?: boolean
@@ -5083,8 +5646,16 @@ export type Database = {
           telefone?: string | null
           tenant_id?: string
           tipo_parceiro?: Database["public"]["Enums"]["enum_tipo_parceiro"]
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_parceiro_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "parceiro_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -5171,6 +5742,8 @@ export type Database = {
       perfil: {
         Row: {
           ativo: boolean
+          created_at: string | null
+          created_by: string | null
           descricao: string | null
           id: string
           nome: string
@@ -5179,6 +5752,8 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string | null
           id?: string
           nome: string
@@ -5187,6 +5762,8 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string | null
           id?: string
           nome?: string
@@ -5194,6 +5771,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_perfil_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "perfil_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -5212,24 +5796,37 @@ export type Database = {
       }
       perfil_permissao: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           id: string
           perfil_id: string
           permissao_id: string
           tenant_id: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           perfil_id: string
           permissao_id: string
           tenant_id: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           perfil_id?: string
           permissao_id?: string
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_perfil_permissao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "perfil_permissao_perfil_id_fkey"
             columns: ["perfil_id"]
@@ -5263,6 +5860,8 @@ export type Database = {
       permissao: {
         Row: {
           acao: Database["public"]["Enums"]["enum_acao_permissao"]
+          created_at: string | null
+          created_by: string | null
           descricao: string | null
           id: string
           modulo_id: string
@@ -5270,6 +5869,8 @@ export type Database = {
         }
         Insert: {
           acao: Database["public"]["Enums"]["enum_acao_permissao"]
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string | null
           id?: string
           modulo_id: string
@@ -5277,12 +5878,21 @@ export type Database = {
         }
         Update: {
           acao?: Database["public"]["Enums"]["enum_acao_permissao"]
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string | null
           id?: string
           modulo_id?: string
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_permissao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "permissao_modulo_id_fkey"
             columns: ["modulo_id"]
@@ -5310,6 +5920,8 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          created_at: string | null
+          created_by: string | null
           empresa_id: string
           endereco_id: string
           est_maximo: number
@@ -5322,6 +5934,8 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           empresa_id: string
           endereco_id: string
           est_maximo: number
@@ -5334,6 +5948,8 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           empresa_id?: string
           endereco_id?: string
           est_maximo?: number
@@ -5344,6 +5960,13 @@ export type Database = {
           tipo_picking?: Database["public"]["Enums"]["enum_tipo_picking"]
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_picking_produto_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "picking_produto_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -5538,6 +6161,8 @@ export type Database = {
           ativo: boolean
           camada: number | null
           codigo_erp: string | null
+          created_at: string | null
+          created_by: string | null
           curva_acesso: Database["public"]["Enums"]["enum_curva"] | null
           curva_venda: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
@@ -5573,6 +6198,8 @@ export type Database = {
           ativo?: boolean
           camada?: number | null
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           curva_venda?: Database["public"]["Enums"]["enum_curva"] | null
           descricao: string
@@ -5608,6 +6235,8 @@ export type Database = {
           ativo?: boolean
           camada?: number | null
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           curva_acesso?: Database["public"]["Enums"]["enum_curva"] | null
           curva_venda?: Database["public"]["Enums"]["enum_curva"] | null
           descricao?: string
@@ -5640,6 +6269,13 @@ export type Database = {
           varios_pickings?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_produto_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "produto_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -5697,6 +6333,8 @@ export type Database = {
           ativo: boolean
           codigo_erp: string | null
           comprimento: number | null
+          created_at: string | null
+          created_by: string | null
           ean: string
           embalagem: string
           empresa_id: string
@@ -5714,6 +6352,8 @@ export type Database = {
           ativo?: boolean
           codigo_erp?: string | null
           comprimento?: number | null
+          created_at?: string | null
+          created_by?: string | null
           ean: string
           embalagem: string
           empresa_id: string
@@ -5731,6 +6371,8 @@ export type Database = {
           ativo?: boolean
           codigo_erp?: string | null
           comprimento?: number | null
+          created_at?: string | null
+          created_by?: string | null
           ean?: string
           embalagem?: string
           empresa_id?: string
@@ -5744,6 +6386,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_produto_embalagem_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "produto_embalagem_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -5883,30 +6532,46 @@ export type Database = {
           armazem_id: string
           ativo: boolean
           codigo_erp: string | null
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string | null
           id: string
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           armazem_id: string
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id?: string | null
           id?: string
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           armazem_id?: string
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string | null
           id?: string
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_rotas_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rotas_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -5940,6 +6605,7 @@ export type Database = {
       sequencia: {
         Row: {
           created_at: string
+          created_by: string | null
           endereco: number | null
           hu: number | null
           id: number
@@ -5947,6 +6613,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           endereco?: number | null
           hu?: number | null
           id?: number
@@ -5954,12 +6621,20 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           endereco?: number | null
           hu?: number | null
           id?: number
           tenant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_sequencia_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sequencia_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -5994,6 +6669,8 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          created_at: string | null
+          created_by: string | null
           descricao: string
           id: string
           tenant_id: string
@@ -6002,6 +6679,8 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           id?: string
           tenant_id: string
@@ -6010,12 +6689,21 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           id?: string
           tenant_id?: string
           tipo?: Database["public"]["Enums"]["enum_tipo_setor"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_setor_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "setor_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -6043,31 +6731,47 @@ export type Database = {
         Row: {
           ativo: boolean
           codigo_erp: string | null
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string
           grupo_id: string
           id: string
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id: string
           grupo_id: string
           id?: string
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string
           grupo_id?: string
           id?: string
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_subgrupo_produto_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "subgrupo_produto_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -6139,6 +6843,13 @@ export type Database = {
           titulo?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_support_chamado_criado_por"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "support_chamado_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -6379,6 +7090,8 @@ export type Database = {
       tarefa_atribuicao: {
         Row: {
           atribuido_em: string
+          created_at: string | null
+          created_by: string | null
           empresa_id: string
           id: string
           liberado_em: string | null
@@ -6393,6 +7106,8 @@ export type Database = {
         }
         Insert: {
           atribuido_em?: string
+          created_at?: string | null
+          created_by?: string | null
           empresa_id: string
           id?: string
           liberado_em?: string | null
@@ -6407,6 +7122,8 @@ export type Database = {
         }
         Update: {
           atribuido_em?: string
+          created_at?: string | null
+          created_by?: string | null
           empresa_id?: string
           id?: string
           liberado_em?: string | null
@@ -6420,6 +7137,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tarefa_atribuicao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_tarefa_atribuicao_tarefa"
             columns: ["tarefa_id"]
@@ -6453,7 +7177,9 @@ export type Database = {
       tarefa_evento_execucao: {
         Row: {
           carga_util: Json | null
-          execucao_tarefa_id: string
+          created_at: string | null
+          created_by: string | null
+          execucao_tarefa_id: string | null
           id: number
           tarefa_id: string | null
           tenant_id: string
@@ -6462,7 +7188,9 @@ export type Database = {
         }
         Insert: {
           carga_util?: Json | null
-          execucao_tarefa_id: string
+          created_at?: string | null
+          created_by?: string | null
+          execucao_tarefa_id?: string | null
           id?: number
           tarefa_id?: string | null
           tenant_id: string
@@ -6471,7 +7199,9 @@ export type Database = {
         }
         Update: {
           carga_util?: Json | null
-          execucao_tarefa_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          execucao_tarefa_id?: string | null
           id?: number
           tarefa_id?: string | null
           tenant_id?: string
@@ -6526,6 +7256,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_tarefa_evento_execucao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
           {
@@ -6754,6 +7491,8 @@ export type Database = {
         Row: {
           armazem_id: string | null
           ativo: boolean
+          created_at: string | null
+          created_by: string | null
           descricao: string
           id: string
           tenant_id: string | null
@@ -6762,6 +7501,8 @@ export type Database = {
         Insert: {
           armazem_id?: string | null
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           id?: string
           tenant_id?: string | null
@@ -6770,12 +7511,21 @@ export type Database = {
         Update: {
           armazem_id?: string | null
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           id?: string
           tenant_id?: string | null
           tipo?: Database["public"]["Enums"]["enum_tipo_box"]
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tipo_box_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tipo_box_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -6804,50 +7554,82 @@ export type Database = {
           armazenagem_automatica: boolean
           ativo: boolean
           codigo_erp: string | null
+          created_at: string | null
+          created_by: string | null
           descricao: string
           devolucao: boolean
           empresa_id: string
           gera_mov_automatico: boolean
           id: string
+          interceptador_modo: string
           libera_mov_automatico: boolean
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
+          retorno_de_saida: boolean
+          retorno_tipo_saida_id: string | null
           tenant_id: string
+          updated_at: string
         }
         Insert: {
           armazenagem_automatica?: boolean
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           devolucao?: boolean
           empresa_id: string
           gera_mov_automatico?: boolean
           id?: string
+          interceptador_modo?: string
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          retorno_de_saida?: boolean
+          retorno_tipo_saida_id?: string | null
           tenant_id: string
+          updated_at?: string
         }
         Update: {
           armazenagem_automatica?: boolean
           ativo?: boolean
           codigo_erp?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           devolucao?: boolean
           empresa_id?: string
           gera_mov_automatico?: boolean
           id?: string
+          interceptador_modo?: string
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          retorno_de_saida?: boolean
+          retorno_tipo_saida_id?: string | null
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tipo_entrada_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tipo_entrada_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tipo_entrada_retorno_tipo_saida_id_fkey"
+            columns: ["retorno_tipo_saida_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_saida"
             referencedColumns: ["id"]
           },
           {
@@ -6871,6 +7653,8 @@ export type Database = {
           armazem_id: string | null
           ativo: boolean
           codigo_erp: string
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string
           id: string
@@ -6881,6 +7665,8 @@ export type Database = {
           armazem_id?: string | null
           ativo?: boolean
           codigo_erp: string
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id: string
           id?: string
@@ -6891,6 +7677,8 @@ export type Database = {
           armazem_id?: string | null
           ativo?: boolean
           codigo_erp?: string
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string
           id?: string
@@ -6898,6 +7686,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tipo_estoque_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tipo_estoque_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -6930,10 +7725,14 @@ export type Database = {
       }
       tipo_saida: {
         Row: {
+          alteracao_modo: string
           ativo: boolean
+          cancelamento_conferido: string
           codigo_erp: string | null
           conferencia_cega: boolean
           conferencia_checkout: boolean
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string
           exibe_parceiro_conferencia: boolean
@@ -6946,18 +7745,25 @@ export type Database = {
           id: string
           libera_mov_automatico: boolean
           libera_sem_saldo_picking: boolean
+          marco_retirada: string
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
           reserva_conferencia_movimento: boolean
           reserva_separacao_movimento: boolean
           separa_pulmao: boolean
           tenant_id: string
+          tipo_entrada_devolucao_id: string | null
+          updated_at: string
         }
         Insert: {
+          alteracao_modo?: string
           ativo?: boolean
+          cancelamento_conferido?: string
           codigo_erp?: string | null
           conferencia_cega?: boolean
           conferencia_checkout?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id: string
           exibe_parceiro_conferencia?: boolean
@@ -6970,18 +7776,25 @@ export type Database = {
           id?: string
           libera_mov_automatico?: boolean
           libera_sem_saldo_picking?: boolean
+          marco_retirada?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
           reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
           tenant_id: string
+          tipo_entrada_devolucao_id?: string | null
+          updated_at?: string
         }
         Update: {
+          alteracao_modo?: string
           ativo?: boolean
+          cancelamento_conferido?: string
           codigo_erp?: string | null
           conferencia_cega?: boolean
           conferencia_checkout?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string
           exibe_parceiro_conferencia?: boolean
@@ -6994,14 +7807,24 @@ export type Database = {
           id?: string
           libera_mov_automatico?: boolean
           libera_sem_saldo_picking?: boolean
+          marco_retirada?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
           reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
           tenant_id?: string
+          tipo_entrada_devolucao_id?: string | null
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tipo_saida_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_tipo_saida_empresa"
             columns: ["empresa_id"]
@@ -7023,6 +7846,13 @@ export type Database = {
             referencedRelation: "vw_tenant_resumo"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tipo_saida_tipo_entrada_devolucao_id_fkey"
+            columns: ["tipo_entrada_devolucao_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_entrada"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tipo_tarefa: {
@@ -7032,6 +7862,8 @@ export type Database = {
           categoria: Database["public"]["Enums"]["enum_etapa_ocorrencia"] | null
           codigo: string
           cor_interface: string | null
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string | null
           exige_conferencia: boolean | null
@@ -7055,6 +7887,8 @@ export type Database = {
             | null
           codigo: string
           cor_interface?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id?: string | null
           exige_conferencia?: boolean | null
@@ -7078,6 +7912,8 @@ export type Database = {
             | null
           codigo?: string
           cor_interface?: string | null
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string | null
           exige_conferencia?: boolean | null
@@ -7094,6 +7930,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_tipo_tarefa_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tipo_tarefa_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -7121,6 +7964,8 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          created_at: string | null
+          created_by: string | null
           descricao: string
           hora_fim: string
           hora_inicio: string
@@ -7131,6 +7976,8 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           hora_fim: string
           hora_inicio: string
@@ -7141,6 +7988,8 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           hora_fim?: string
           hora_inicio?: string
@@ -7149,6 +7998,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_turnos_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "turnos_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -7179,6 +8035,7 @@ export type Database = {
           auth_user_id: string | null
           codigo_erp: string | null
           created_at: string
+          created_by: string | null
           deve_trocar_senha: boolean
           email: string | null
           empresa_id: string
@@ -7199,6 +8056,7 @@ export type Database = {
           auth_user_id?: string | null
           codigo_erp?: string | null
           created_at?: string
+          created_by?: string | null
           deve_trocar_senha?: boolean
           email?: string | null
           empresa_id: string
@@ -7219,6 +8077,7 @@ export type Database = {
           auth_user_id?: string | null
           codigo_erp?: string | null
           created_at?: string
+          created_by?: string | null
           deve_trocar_senha?: boolean
           email?: string | null
           empresa_id?: string
@@ -7234,6 +8093,13 @@ export type Database = {
           zona_atividade_separacao?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_usuario_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "usuario_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -7280,24 +8146,37 @@ export type Database = {
       }
       usuario_perfil: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           id: string
           perfil_id: string
           tenant_id: string
           usuario_id: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           perfil_id: string
           tenant_id: string
           usuario_id: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
           perfil_id?: string
           tenant_id?: string
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_usuario_perfil_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "usuario_perfil_perfil_id_fkey"
             columns: ["perfil_id"]
@@ -7383,6 +8262,8 @@ export type Database = {
         Row: {
           ano: number
           ativo: boolean
+          created_at: string | null
+          created_by: string | null
           descricao: string
           empresa_id: string
           id: string
@@ -7396,6 +8277,8 @@ export type Database = {
         Insert: {
           ano: number
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           empresa_id: string
           id?: string
@@ -7409,6 +8292,8 @@ export type Database = {
         Update: {
           ano?: number
           ativo?: boolean
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           empresa_id?: string
           id?: string
@@ -7420,6 +8305,13 @@ export type Database = {
           total_pallet?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_veiculos_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "veiculos_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -7447,6 +8339,7 @@ export type Database = {
         Row: {
           codigo_volume: string
           created_at: string
+          created_by: string | null
           documento_saida_id: string | null
           empresa_id: string
           id: string
@@ -7460,6 +8353,7 @@ export type Database = {
         Insert: {
           codigo_volume: string
           created_at?: string
+          created_by?: string | null
           documento_saida_id?: string | null
           empresa_id: string
           id?: string
@@ -7473,6 +8367,7 @@ export type Database = {
         Update: {
           codigo_volume?: string
           created_at?: string
+          created_by?: string | null
           documento_saida_id?: string | null
           empresa_id?: string
           id?: string
@@ -7484,6 +8379,13 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_volume_expedicao_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "volume_expedicao_documento_saida_id_fkey"
             columns: ["documento_saida_id"]
@@ -7664,6 +8566,8 @@ export type Database = {
         Row: {
           armazem_id: string
           Ativo: boolean | null
+          created_at: string | null
+          created_by: string | null
           descricao: string
           id: string
           tenant_id: string
@@ -7672,6 +8576,8 @@ export type Database = {
         Insert: {
           armazem_id: string
           Ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
           descricao: string
           id?: string
           tenant_id: string
@@ -7680,12 +8586,21 @@ export type Database = {
         Update: {
           armazem_id?: string
           Ativo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
           descricao?: string
           id?: string
           tenant_id?: string
           tipo_grupo?: Database["public"]["Enums"]["enum_tipo_grupo"]
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_zona_atividade_created_by"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "zona_atividade_armazem_id_fkey"
             columns: ["armazem_id"]
@@ -9304,6 +10219,47 @@ export type Database = {
       }
     }
     Functions: {
+      _fn_alteracao_saida_executar: {
+        Args: {
+          p_alteracao_id: string
+          p_empresa_id: string
+          p_linha: Json
+          p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      _fn_alteracao_saida_gerar_devolucao: {
+        Args: {
+          p_alteracao_id: string
+          p_doc_base_id: string
+          p_id_alteracao: string
+          p_itens: Json
+        }
+        Returns: string
+      }
+      _fn_alteracao_saida_recalcular_onda: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      _fn_alteracao_saida_reduzir_dsi: {
+        Args: {
+          p_documento_saida_id: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+        }
+        Returns: number
+      }
+      _fn_alteracao_saida_sync_conf: {
+        Args: { p_msi_id: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      _fn_alterar_documento_saida_executar: {
+        Args: { p_alteracao_id: string; p_simular?: boolean }
+        Returns: Json
+      }
       _fn_cancel_saida_motivo: {
         Args: { p_tenant_id: string }
         Returns: string
@@ -9319,6 +10275,10 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: Json
+      }
+      _fn_msi_recalcular_quantidades: {
+        Args: { p_msi_id: string }
+        Returns: undefined
       }
       _fn_remocao_doc_entrada_core: {
         Args: {
@@ -9603,6 +10563,7 @@ export type Database = {
         }
         Returns: string
       }
+      cron_alerta_endereco_cancelamento: { Args: never; Returns: Json }
       cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: {
@@ -9617,6 +10578,7 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      cron_reprocessar_alteracoes_saida: { Args: never; Returns: Json }
       dados_etiqueta_endereco: {
         Args: { p_endereco_ids: string[] }
         Returns: Json
@@ -9833,10 +10795,48 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_alteracao_saida_liberar_entrada: {
+        Args: {
+          p_documento_entrada_id: string
+          p_motivo: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_alteracao_saida_planejar: {
+        Args: {
+          p_documentos: string[]
+          p_ignorar_alteracao_id?: string
+          p_modo?: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_alterar_documento_saida: {
+        Args: {
+          p_cancelar_documento?: boolean
+          p_codigo_erp: string
+          p_empresa_id: string
+          p_escopo_documento?: boolean
+          p_hash_analise?: string
+          p_id_alteracao: string
+          p_id_documento_saida?: string
+          p_itens: Json
+          p_modo?: string
+          p_request_id?: string
+          p_simular?: boolean
+          p_somente_devolucao?: boolean
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_armazem_padrao_empresa: {
         Args: { p_empresa_id: string; p_tenant_id: string }
         Returns: string
       }
+      fn_audit_usuario_atual: { Args: never; Returns: string }
       fn_buscar_dados_armazenagem: {
         Args: { p_ean: string; p_empresa_ids: string[]; p_tenant_id: string }
         Returns: {
@@ -9926,6 +10926,22 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_cancelar_documento_saida_v3: {
+        Args: {
+          p_codigo_erp?: string
+          p_conexao_id?: string
+          p_documento_saida_id?: string
+          p_empresa_id: string
+          p_idempotency_key?: string
+          p_motivo?: string
+          p_request_id?: string
+          p_solicitado_por?: string
+          p_solicitante?: string
+          p_tenant_id: string
+          p_usuario_id?: string
+        }
+        Returns: Json
+      }
       fn_cancelar_movimento_entrada: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
         Returns: Json
@@ -9973,6 +10989,15 @@ export type Database = {
         Returns: Json
       }
       fn_consolidar_lms_diario: { Args: { p_data?: string }; Returns: Json }
+      fn_consultar_alteracao_saida: {
+        Args: {
+          p_codigo_erp: string
+          p_empresa_id: string
+          p_id_alteracao: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_criar_inventario: {
         Args: {
           p_armazem_id: string
@@ -10180,6 +11205,10 @@ export type Database = {
         Args: { p_armazem_id: string; p_box_id: string; p_tenant_id: string }
         Returns: undefined
       }
+      fn_interceptar_retorno_saida: {
+        Args: { p_documento_entrada_id: string }
+        Returns: Json
+      }
       fn_inventario_buscar_tarefas: {
         Args: {
           p_contagem_inventario: number
@@ -10358,6 +11387,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_painel_endereco_cancelamento: {
+        Args: { p_empresa_id?: string; p_tenant_id: string }
+        Returns: Json
+      }
       fn_pme_atualizar_situacao_endereco: {
         Args: {
           p_endereco_destino_id: string
@@ -10449,6 +11482,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_posicao_documento_saida: {
+        Args: {
+          p_codigo_erp?: string
+          p_documento_saida_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_posicao_os: {
+        Args: {
+          p_codigo_erp: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_preview_inventario: {
         Args: {
           p_armazem_id: string
@@ -10496,6 +11545,10 @@ export type Database = {
         Returns: Json
       }
       fn_realocar_tarefas_pendentes_picking: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: number
+      }
+      fn_realocar_tarefas_pendentes_picking_bkp_20261027: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: number
       }
@@ -10599,6 +11652,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      fn_separacao_endereco_elegivel: {
+        Args: {
+          p_endereco_id: string
+          p_tarefa_id: string
+          p_tenant_id: string
+        }
+        Returns: string
       }
       fn_user_belongs_to_tenant: {
         Args: { p_tenant_id: string }
@@ -10722,6 +11783,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      integracao_autenticar_api: {
+        Args: { p_chave: string }
+        Returns: {
+          conexao_id: string
+          config_extra: Json
+          credenciais: Json
+          empresa_id: string
+          erp_provedor_id: string
+          permitir_reenvio_cancelado: boolean
+          rl_limite: number
+          rl_modo: string
+          rl_reset_em: string
+          rl_usado: number
+          tenant_id: string
+        }[]
+      }
       integracao_criar_documento_entrada_alteracao: {
         Args: {
           p_chave_nfe: string
@@ -10778,6 +11855,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      integracao_expurgar_api_controle: { Args: never; Returns: Json }
       integracao_expurgar_api_erro: { Args: never; Returns: Json }
       integracao_finalizar_alteracao: {
         Args: {
@@ -10887,6 +11965,41 @@ export type Database = {
           p_payload_hash?: string
           p_permitir_reenvio_cancelado?: boolean
           p_request_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_gravar_produtos_lote: {
+        Args: {
+          p_empresa_id: string
+          p_erp_provedor_id: string
+          p_itens: Json
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_idempotencia_concluir: {
+        Args: {
+          p_id: string
+          p_resposta_texto: string
+          p_status_http: number
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
+      integracao_idempotencia_liberar: {
+        Args: { p_id: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      integracao_idempotencia_reservar: {
+        Args: {
+          p_chave: string
+          p_conexao_id: string
+          p_empresa_id: string
+          p_metodo: string
+          p_payload_hash: string
+          p_request_id: string
+          p_rota: string
           p_tenant_id: string
         }
         Returns: Json
@@ -12256,6 +13369,16 @@ export type Database = {
           total_itens: number
         }[]
       }
+      rpc_coletor_transferencia_picking: {
+        Args: {
+          p_armazem_id: string
+          p_empresa_id: string
+          p_endereco_origem_id?: string
+          p_produto_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       rpc_historico_movimento_com_saldo: {
         Args: {
           p_apto?: number
@@ -12893,6 +14016,28 @@ export type Database = {
         }
         Returns: Json
       }
+      separacao_listar_enderecos_alternativos: {
+        Args: { p_tarefa_id: string; p_tenant_id: string }
+        Returns: {
+          atende_total: boolean
+          data_validade: string
+          endereco: string
+          endereco_id: string
+          lote: string
+          picking_mapeado: boolean
+          saldo: number
+          tipo_endereco: string
+        }[]
+      }
+      separacao_trocar_endereco: {
+        Args: {
+          p_endereco_id: string
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       separacao_verificar_itens_cancelados: {
         Args: {
           p_movimento_saida_id: string
@@ -13165,6 +14310,7 @@ export type Database = {
         | "CONFIRMACAO_LOTE"
         | "CONFERENCIA"
         | "AJUSTE_REMOCAO_DOCUMENTO"
+        | "TROCA_ENDERECO"
       enum_tipo_execucao_tarefa_movimento:
         | "Individual"
         | "Paralela"
@@ -13584,6 +14730,7 @@ export const Constants = {
         "CONFIRMACAO_LOTE",
         "CONFERENCIA",
         "AJUSTE_REMOCAO_DOCUMENTO",
+        "TROCA_ENDERECO",
       ],
       enum_tipo_execucao_tarefa_movimento: [
         "Individual",

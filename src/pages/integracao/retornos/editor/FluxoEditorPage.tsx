@@ -31,11 +31,11 @@ import { criarEdge, deRf, layoutAutomatico, paraRf, type FluxoEdge, type FluxoNo
 import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { NodePalette, MIME_NO } from "./NodePalette";
 import { NoContextMenu, type MenuContexto } from "./NoContextMenu";
-import { dependentesDe, geraSaida } from "./saidasAnteriores";
+import { dependentesDe, geraSaida, indexarGrafo } from "./saidasAnteriores";
 import { alinhar, criarNo, ehGatilho, nomeUnico, posicaoLivre } from "./novoNo";
 import { motivoBloqueio, saidasDoTipo, saidasLivres } from "./regrasConexao";
 import { useHistoricoFluxo, type Instantaneo } from "./useHistoricoFluxo";
-import { EditorContext, type EditorContextValor } from "./editorContext";
+import { EditorDinamicoContext, EditorEstaticoContext, type EditorDinamicoValor, type EditorEstaticoValor } from "./editorContext";
 import { EditorTopBar } from "./EditorTopBar";
 import { FlowCanvas } from "./FlowCanvas";
 import { NodeConfigDialog } from "./NodeConfigDialog";
@@ -190,7 +190,8 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const [adicionarEm, setAdicionarEm] = useState<{ x: number; y: number; de?: string; saida?: string } | null>(null);
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
   const renomeandoRef = useRef<string | null>(null); renomeandoRef.current = renomeandoId;
-  const maxNos = catalogo?.limites.max_nos ?? Infinity;
+  const maxNos = catalogo?.limites.max_nos ?? 0;
+  const maxLigacoes = catalogo?.limites.max_ligacoes ?? maxNos * 2;
   const limiteAtingido = nodes.length >= maxNos;
 
   const nodesRef = useRef(nodes); nodesRef.current = nodes;
@@ -239,7 +240,13 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     () => podeSalvar && (inicial.status === "publicado" || inicial.status === "pausado") && sessionStorage.getItem(chaveAviso) !== "1",
   );
 
-  const ctx = useMemo<EditorContextValor>(() => {
+  const ctxEstatico = useMemo<EditorEstaticoValor>(() => ({
+    catalogo, destinos, editavel: !somenteLeitura && !visualizando, limiteAtingido, renomeandoId,
+    onAdicionarNoRamo: (de, saida, tipo) => adicionarRef.current(tipo, { de, saida }),
+    onConcluirRenomear: (id, n) => concluirRenomearRef.current(id, n),
+  }), [catalogo, destinos, somenteLeitura, visualizando, limiteAtingido, renomeandoId]);
+
+  const ctxDinamico = useMemo<EditorDinamicoValor>(() => {
     const v = fluxo.validacao_rascunho;
     const agrupar = (lista: Aviso[] | undefined) => {
       const m = new Map<string, Aviso[]>();
@@ -251,15 +258,11 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     );
     const saidasOcupadas = new Set(edges.map((e) => `${e.source}:${e.sourceHandle ?? "principal"}`));
     return {
-      catalogo, destinos, errosPorNo: agrupar(v?.erros), avisosPorNo: agrupar(v?.avisos), desconectados, editavel: !somenteLeitura,
-      saidasOcupadas, limiteAtingido, renomeandoId,
-      onAdicionarNoRamo: (de, saida, tipo) => adicionarRef.current(tipo, { de, saida }),
-      onConcluirRenomear: (id, n) => concluirRenomearRef.current(id, n),
-      ...(visualizando ? { editavel: false } : {}),
-      execucao: execVisual,
+      errosPorNo: agrupar(v?.erros), avisosPorNo: agrupar(v?.avisos), desconectados,
+      saidasOcupadas, execucao: execVisual,
       onAbrirPasso: resultado ? (id: string) => setPassoNo(id) : undefined,
     };
-  }, [fluxo.validacao_rascunho, catalogo, destinos, somenteLeitura, edges, limiteAtingido, renomeandoId, visualizando, execVisual, resultado]);
+  }, [fluxo.validacao_rascunho, edges, execVisual, resultado]);
 
   // Tela encolheu com alteração pendente: grava antes de travar a edição.
   useEffect(() => {
@@ -313,8 +316,12 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
 
   const adicionar = useCallback((tipo: TipoNo, opts: { pos?: { x: number; y: number }; de?: string; saida?: string } = {}) => {
     aplicar(({ nodes: ns, edges: es }) => {
+      if (maxNos <= 0) { toast.info("Catálogo ainda não carregado. Tente novamente em instantes."); return null; }
       if (ns.length >= maxNos) { toast.info(`Limite de ${maxNos} nós atingido.`); return null; }
       if (ehGatilho(tipo) && ns.some((n) => ehGatilho(n.data.tipo))) { toast.info("O fluxo só pode ter um gatilho."); return null; }
+      const vaiLigar = !!opts.de && !!opts.saida && !ehGatilho(tipo);
+      const substituiLigacao = vaiLigar && es.some((e) => e.source === opts.de && (e.sourceHandle ?? "principal") === opts.saida);
+      if (vaiLigar && !substituiLigacao && es.length >= maxLigacoes) { toast.info(`Limite de ${maxLigacoes} ligações atingido.`); return null; }
       const origem = opts.de ? ns.find((n) => n.id === opts.de) : undefined;
       let pos = opts.pos;
       if (!pos && origem) {
@@ -332,7 +339,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
       }
       return { nodes: nodes2, edges: edges2 };
     });
-  }, [aplicar, maxNos, catalogo]);
+  }, [aplicar, maxNos, maxLigacoes, catalogo]);
   const adicionarRef = useRef(adicionar); adicionarRef.current = adicionar;
 
   const centroVisivel = () => {
@@ -375,12 +382,15 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     let substituida = false;
     aplicar(({ nodes: ns, edges: es }) => {
       if (motivoBloqueio(c, ns, es, catalogo) !== null) return null;
-      const r = ligar(ns, es, c.source, c.sourceHandle ?? "principal", c.target);
+      const saida = c.sourceHandle ?? "principal";
+      const substitui = es.some((e) => e.source === c.source && (e.sourceHandle ?? "principal") === saida);
+      if (!substitui && es.length >= maxLigacoes) { toast.info(`Limite de ${maxLigacoes} ligações atingido.`); return null; }
+      const r = ligar(ns, es, c.source, saida, c.target);
       substituida = r.substituida;
       return { nodes: r.nodes, edges: r.edges };
     });
     if (substituida) toast.info("Ligação substituída.");
-  }, [aplicar, catalogo]);
+  }, [aplicar, catalogo, maxLigacoes]);
   const onConnectEnd: OnConnectEnd<FluxoNode> = useCallback((ev, st) => {
     if (st.isValid || !st.fromNode || !st.fromHandle || st.fromHandle.type !== "source") return;
     const saida = st.fromHandle.id ?? "principal";
@@ -566,6 +576,8 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   useEffect(() => { setAmostra(null); }, [eventoAmostra]);
 
   const ligacoesDialogo = useMemo(() => edges.map((e) => ({ de: e.source, para: e.target, saida: e.sourceHandle ?? "principal" })), [edges]);
+  const nosMin = useMemo(() => nodes.map((n) => ({ id: n.id, tipo: n.data.tipo, nome: n.data.nome })), [nodes]);
+  const indiceGrafo = useMemo(() => indexarGrafo(nosMin, ligacoesDialogo), [nosMin, ligacoesDialogo]);
   const noSelecionado = noAberto ? nodes.find((n) => n.id === noAberto) ?? null : null;
   const totalErros = fluxo.validacao_rascunho?.erros?.length ?? 0;
   const temAlteracoes = fluxo.versao_publicada == null || fluxo.alteracoes_nao_publicadas || auto.estado === "salvando" || auto.estado === "erro";
@@ -635,7 +647,8 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
   const combinadorGatilho = ((gatilhoCfg.combinador as Combinador) ?? "e");
 
   return (
-    <EditorContext.Provider value={ctx}>
+    <EditorEstaticoContext.Provider value={ctxEstatico}>
+    <EditorDinamicoContext.Provider value={ctxDinamico}>
       <div className="flex flex-col flex-1 min-h-0 gap-3 overflow-hidden">
         <EditorTopBar
           nome={nome}
@@ -650,6 +663,8 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           onTentarDeNovo={() => { agendar(); void salvarAgora(); }}
           podeEditar={podeEditar}
           totalErros={totalErros}
+          totalNos={nodes.length}
+          maxNos={maxNos}
           temAlteracoes={temAlteracoes}
           bloqueado={visualizando}
           publicando={publicando}
@@ -715,6 +730,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           <NodePalette
             catalogo={catalogo}
             totalNos={nodes.length}
+            totalLigacoes={edges.length}
             temGatilho={nodes.some((n) => ehGatilho(n.data.tipo))}
             onAdicionar={adicionarPelaPaleta}
           />
@@ -727,7 +743,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           validacao={fluxo.validacao_rascunho}
           onNodesChange={rfVisual ? onNodesVisuaisChange : onNodesChange}
           onEdgesChange={rfVisual ? () => undefined : onEdgesChange}
-          onNodeDragStop={agendar}
+          onNodeDragStop={() => agendar(3000)}
           onBeforeDelete={onBeforeDelete}
           onDelete={onDelete}
           onAbrirNo={(id) => { if (resultado) setPassoNo(id); else if (!versaoVista) setNoAberto(id); }}
@@ -794,6 +810,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
         fluxoId={inicial.id}
         somenteLeitura={somenteLeitura}
         amostra={amostra}
+        indiceGrafo={indiceGrafo}
         onDefinirAmostra={setAmostra}
         onFechar={() => setNoAberto(null)}
         onRenomear={(n) => noSelecionado && atualizarNo(noSelecionado.id, { nome: n || undefined })}
@@ -912,6 +929,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </EditorContext.Provider>
+    </EditorDinamicoContext.Provider>
+    </EditorEstaticoContext.Provider>
   );
 }

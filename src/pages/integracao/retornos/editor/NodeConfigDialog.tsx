@@ -20,6 +20,7 @@ import { ContextoTree } from "./campos/ContextoTree";
 import { PainelContext, avisoReferencia, listarCaminhos, type GrupoCaminhos } from "./campos/painelContext";
 import { obterCaminho } from "./motorPrevia";
 import { useSaidasAnteriores, type SaidaAnterior } from "./useSaidasAnteriores";
+import type { IndiceGrafo } from "./saidasAnteriores";
 import type { FluxoNode } from "./definicaoRf";
 import { ParametrosAtualizar, ParametrosHttp, ParametrosNotificar, ParametrosProvedor, ParametrosWebhook, ResultadoAtualizar, ResultadoHttp, ResultadoNotificar, ResultadoProvedor, ResultadoWebhook } from "./forms/FormAcoes";
 import { ParametrosPayload, ResultadoPayload } from "./forms/FormPayload";
@@ -67,6 +68,8 @@ interface Props {
   fluxoId: string;
   somenteLeitura: boolean;
   amostra: DocumentoRecente | null;
+  /** Índice do grafo memoizado pela página do editor. */
+  indiceGrafo?: IndiceGrafo;
   onDefinirAmostra: (d: DocumentoRecente) => void;
   onFechar: () => void;
   onRenomear: (nome: string) => void;
@@ -260,7 +263,7 @@ export function NodeConfigDialog(p: Props) {
   const contexto = useMemo(() => (agrupado ? contextoLote(contextoBase) : contextoBase), [agrupado, contextoBase]);
   const anteriores = useSaidasAnteriores({
     noId: noId ?? null, nos: p.nos, ligacoes: p.ligacoes, contexto, tenantId: p.tenantId, empresaId: p.empresaId,
-    fluxoId: p.fluxoId, amostra: p.amostra,
+    fluxoId: p.fluxoId, amostra: p.amostra, indice: p.indiceGrafo,
   });
   const { saidas, lista } = anteriores;
   const contextoComSaidas = useMemo(() => ({ ...contexto, saidas }), [contexto, saidas]);

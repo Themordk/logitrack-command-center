@@ -5,7 +5,7 @@ import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { GRUPO_NO_UI, TIPO_NO_UI } from "../retornosUi";
-import { useEditorContext } from "./editorContext";
+import { useEditorDinamico, useEditorEstatico } from "./editorContext";
 import { nomeTipo, resumoNo } from "./resumoNo";
 import type { FluxoNode } from "./definicaoRf";
 
@@ -20,9 +20,9 @@ const COR_ROTULO: Record<string, string> = {
 
 function FlowNodeBase({ id, data, selected }: NodeProps<FluxoNode>) {
   const {
-    catalogo, destinos, errosPorNo, avisosPorNo, desconectados, editavel, saidasOcupadas, limiteAtingido,
-    renomeandoId, onAdicionarNoRamo, onConcluirRenomear, execucao, onAbrirPasso,
-  } = useEditorContext();
+    catalogo, destinos, editavel, limiteAtingido, renomeandoId, onAdicionarNoRamo, onConcluirRenomear,
+  } = useEditorEstatico();
+  const { errosPorNo, avisosPorNo, desconectados, saidasOcupadas, execucao, onAbrirPasso } = useEditorDinamico();
   const passo = execucao?.porNo.get(id);
   const [ramoAberto, setRamoAberto] = useState<string | null>(null);
   const ui = TIPO_NO_UI[data.tipo];
