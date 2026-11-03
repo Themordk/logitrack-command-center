@@ -10,6 +10,7 @@ import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { CRITERIO_LABELS } from "@/modules/inventario/criterios";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -18,6 +19,7 @@ interface InventarioResumo {
   id: string;
   numero_inventario: number;
   tipo_inventario: string;
+  criterio_selecao?: string | null;
   origem: string;
   status: string;
 }
@@ -39,11 +41,21 @@ export function InventarioListPage({ onNavigate }: Props) {
       .from("v_inventario_iniciar")
       .select("*");
     if (error) throw error;
-    return data || [];
-  }, []);
+    const inventarios: InventarioResumo[] = data || [];
+    const rotativos = inventarios.filter(inv => inv.tipo_inventario === "ROTATIVO");
+    if (rotativos.length && tenantId && empresaId) {
+      const { data: criterios, error: erroCriterios } = await supabase.from("inventario")
+        .select("id, criterio_selecao").eq("tenant_id", tenantId).eq("empresa_id", empresaId)
+        .in("id", rotativos.map(inv => inv.id));
+      if (erroCriterios) throw erroCriterios;
+      const porId = new Map((criterios || []).map(inv => [inv.id, inv.criterio_selecao]));
+      for (const inv of rotativos) inv.criterio_selecao = porId.get(inv.id) ?? null;
+    }
+    return inventarios;
+  }, [tenantId, empresaId]);
 
   const { data, loading, isFromCache, error, refetch } = useOfflineCache<InventarioResumo[]>(
-    `inventarios_${empresaId}`,
+    `inventarios_criterios_v2_${empresaId}`,
     fetchInventarios,
     30,
   );
@@ -210,8 +222,9 @@ export function InventarioListPage({ onNavigate }: Props) {
                     {STATUS_LABEL[inv.status] || inv.status}
                   </span>
                 </div>
-                <div className="text-xs text-[hsl(213,31%,55%)]">
-                  Tipo: <span className="font-bold text-[hsl(213,31%,91%)]">{inv.tipo_inventario}</span>
+                <div className="text-xs text-muted-foreground">
+                  Tipo: <span className="font-bold text-foreground">{inv.tipo_inventario === "ROTATIVO" ? "Rotativo" : inv.tipo_inventario}</span>
+                  {inv.tipo_inventario === "ROTATIVO" && inv.criterio_selecao && <span> · {CRITERIO_LABELS[inv.criterio_selecao] || inv.criterio_selecao}</span>}
                 </div>
                 <div className="text-xs text-[hsl(213,31%,45%)]">
                   Origem: <span className="font-medium text-[hsl(213,31%,70%)]">{inv.origem}</span>

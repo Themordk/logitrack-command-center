@@ -8,6 +8,7 @@ import { Loader2, ChevronLeft, ChevronRight, Search, Plus, Eye, MoreHorizontal, 
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dateTime";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
+import { CRITERIO_LABELS } from "@/modules/inventario/criterios";
 
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
@@ -37,6 +38,7 @@ interface Inventario {
   id: string;
   numero_inventario: number;
   tipo_inventario: string;
+  criterio_selecao?: string | null;
   tipo_execucao: string | null;
   descricao: string | null;
   status: string;
@@ -93,6 +95,15 @@ export function InventarioPage({ onNavigate }: Props) {
       const { data, error, count } = await query;
       if (error) throw error;
       const rows: Inventario[] = (data || []).map((inv: any) => ({ ...inv, criado_por_nome: inv.criado_por_nome || "—" }));
+      const rotativos = rows.filter(inv => inv.tipo_inventario === "ROTATIVO");
+      if (rotativos.length && tenantId && empresaId) {
+        const { data: criterios, error: erroCriterios } = await supabase.from("inventario")
+          .select("id, criterio_selecao").eq("tenant_id", tenantId).eq("empresa_id", empresaId)
+          .in("id", rotativos.map(inv => inv.id));
+        if (erroCriterios) throw erroCriterios;
+        const porId = new Map((criterios || []).map(inv => [inv.id, inv.criterio_selecao]));
+        for (const inv of rotativos) inv.criterio_selecao = porId.get(inv.id) ?? null;
+      }
       return { rows, count: count || 0 };
     },
     enabled: !!tenantId && !!empresaId,
@@ -242,7 +253,10 @@ export function InventarioPage({ onNavigate }: Props) {
                           <td className="px-4 py-3 cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>
                             <span className="font-mono text-sm font-semibold text-primary">#{inv.numero_inventario}</span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{TIPO_MAP[inv.tipo_inventario] || inv.tipo_inventario}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>
+                            {TIPO_MAP[inv.tipo_inventario] || inv.tipo_inventario}
+                            {inv.tipo_inventario === "ROTATIVO" && inv.criterio_selecao && <span className="text-xs"> · {CRITERIO_LABELS[inv.criterio_selecao] || inv.criterio_selecao}</span>}
+                          </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{TIPO_EXECUCAO_MAP[inv.tipo_execucao || ""] || (inv.tipo_execucao || "—")}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate cursor-pointer" onClick={() => onNavigate(`/atividades/inventario/${inv.id}/itens?numero=${inv.numero_inventario}`)}>{inv.descricao || "—"}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{fmtDate(inv.criado_em)}</td>
