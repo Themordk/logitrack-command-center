@@ -19,7 +19,6 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {
 } }));
 
 import { NovoInventarioPage } from "@/pages/NovoInventarioPage";
-import { parseError } from "@/lib/errorMapper";
 
 async function aguardarPrevia() {
   await act(async () => { await vi.advanceTimersByTimeAsync(300); });
