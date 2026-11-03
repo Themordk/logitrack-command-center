@@ -50,6 +50,22 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   RETORNO_EVENTO_INVALIDO: { title: "Evento inválido.", instruction: "Escolha um evento do catálogo." },
   RETORNO_ENTIDADE_INVALIDA: { title: "Tipo de documento inválido.", instruction: "Use documento de entrada ou de saída." },
   // === Inventário ===
+  SEM_ITENS_ELEGIVEIS: {
+    title: "Nenhum item elegível para este inventário.",
+    instruction: "Ajuste o critério ou o período de análise e tente novamente.",
+  },
+  CRITERIO_DESCONTINUADO: {
+    title: "Este critério não está mais disponível.",
+    instruction: "Escolha Saídas, Cortes, Cancelamentos ou Devoluções do período.",
+  },
+  PERIODO_INVALIDO: {
+    title: "Período de análise inválido.",
+    instruction: "A data inicial deve ser anterior ou igual à data final.",
+  },
+  PERIODO_OBRIGATORIO: {
+    title: "Selecione o período de análise.",
+    instruction: "",
+  },
   INVENTARIO_NAO_ENCONTRADO: {
     title: "Inventário não encontrado.",
     instruction: "Volte e selecione outro inventário.",
