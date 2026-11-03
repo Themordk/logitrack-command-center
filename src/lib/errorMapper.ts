@@ -239,6 +239,14 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "Item do movimento não encontrado.",
     instruction: "Atualize a lista e tente novamente.",
   },
+  CONFERENCIA_EM_ANDAMENTO: {
+    title: "Existe conferência registrada para este item ou onda.",
+    instruction: "Limpe a conferência antes de limpar a separação.",
+  },
+  CONFERENCIA_NAO_ENCONTRADA: {
+    title: "Esta onda não possui conferência para limpar.",
+    instruction: "Atualize a lista e verifique o status da onda.",
+  },
   ENDERECO_CANCELAMENTO_NAO_CONFIGURADO: {
     title: "Endereço de cancelamento não configurado para este armazém.",
     instruction: "Peça ao supervisor para configurar o endereço de cancelamento.",
