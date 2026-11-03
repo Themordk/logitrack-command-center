@@ -408,6 +408,14 @@ export function MovimentoSaidaPage() {
     }));
   }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, empresaId]);
 
+  // Mantém o cabeçalho/aba Informações da onda selecionada em sincronia com a lista
+  // recarregada (status e totais mudam após limpezas, liberação, corte etc.).
+  useEffect(() => {
+    if (!selectedId) return;
+    const atual = movimentos.find((m) => m.id === selectedId);
+    if (atual) setSelectedMov(atual);
+  }, [movimentos, selectedId]);
+
   const hasErp = useTenantHasErp(tenantId);
 
   const filteredMovimentos = useMemo(() => {
@@ -450,6 +458,9 @@ export function MovimentoSaidaPage() {
 
   const loadTabData = useCallback(async (movId: string) => {
     setTabLoading(true);
+    // O grid "Itens" vem de cache do React Query (staleTime 30s): invalida junto com as
+    // demais abas para refletir na hora o resultado de limpezas, cortes e liberações.
+    void queryClientRemocao.invalidateQueries({ queryKey: ["onda-itens-rpc"] });
     try {
       const [sepRes, confRes, docsRes] = await Promise.all([
         (supabase as any).from("vw_movimento_saida_separacao_detalhe").select("*").eq("movimento_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
@@ -467,9 +478,9 @@ export function MovimentoSaidaPage() {
     } finally {
       setTabLoading(false);
     }
-  }, []);
+  }, [queryClientRemocao]);
 
-  const selectMov = (mov: MovSaida) => {
+  const selectMov =(mov: MovSaida) => {
     setSelectedId(mov.id);
     setSelectedMov(mov);
     loadTabData(mov.id);
