@@ -2,18 +2,18 @@
   "routes": [
     {
       "src": "/",
-      "has": [{ "type": "host", "value": "^(developers\\.corelogitrack\\.com\\.br|logitrack-command-center-git-fix-portal.*\\.vercel\\.app)$" }],
+      "has": [{ "type": "host", "value": "^developers\\.corelogitrack\\.com\\.br$" }],
       "dest": "/developers/index.html"
     },
     {
       "src": "/(openapi\\.json)",
-      "has": [{ "type": "host", "value": "^(developers\\.corelogitrack\\.com\\.br|logitrack-command-center-git-fix-portal.*\\.vercel\\.app)$" }],
+      "has": [{ "type": "host", "value": "^developers\\.corelogitrack\\.com\\.br$" }],
       "headers": { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" },
       "dest": "/developers/$1"
     },
     {
       "src": "/(portal-dados\\.json)",
-      "has": [{ "type": "host", "value": "^(developers\\.corelogitrack\\.com\\.br|logitrack-command-center-git-fix-portal.*\\.vercel\\.app)$" }],
+      "has": [{ "type": "host", "value": "^developers\\.corelogitrack\\.com\\.br$" }],
       "headers": { "Cache-Control": "public, max-age=300" },
       "dest": "/developers/$1"
     }
