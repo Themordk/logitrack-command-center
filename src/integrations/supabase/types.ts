@@ -313,6 +313,7 @@ export type Database = {
           endereco_avaria_id: string | null
           endereco_cancelamento_id: string | null
           endereco_quarentena_id: string | null
+          gerar_tarefa_retirada: boolean
           id: string
           lms_faixa_atencao_pct: number
           lms_faixa_bom_pct: number
@@ -320,6 +321,7 @@ export type Database = {
           lms_tempo_inatividade_tarefa_seg: number
           lms_tempo_ocioso_alerta_seg: number
           lms_tempo_transito_seg: number
+          prazo_endereco_cancelamento_horas: number
           tenant_id: string
           updated_at: string
           updated_by: string | null
@@ -334,6 +336,7 @@ export type Database = {
           endereco_avaria_id?: string | null
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
+          gerar_tarefa_retirada?: boolean
           id?: string
           lms_faixa_atencao_pct?: number
           lms_faixa_bom_pct?: number
@@ -341,6 +344,7 @@ export type Database = {
           lms_tempo_inatividade_tarefa_seg?: number
           lms_tempo_ocioso_alerta_seg?: number
           lms_tempo_transito_seg?: number
+          prazo_endereco_cancelamento_horas?: number
           tenant_id: string
           updated_at?: string
           updated_by?: string | null
@@ -355,6 +359,7 @@ export type Database = {
           endereco_avaria_id?: string | null
           endereco_cancelamento_id?: string | null
           endereco_quarentena_id?: string | null
+          gerar_tarefa_retirada?: boolean
           id?: string
           lms_faixa_atencao_pct?: number
           lms_faixa_bom_pct?: number
@@ -362,6 +367,7 @@ export type Database = {
           lms_tempo_inatividade_tarefa_seg?: number
           lms_tempo_ocioso_alerta_seg?: number
           lms_tempo_transito_seg?: number
+          prazo_endereco_cancelamento_horas?: number
           tenant_id?: string
           updated_at?: string
           updated_by?: string | null
@@ -1040,6 +1046,202 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuario"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      documento_saida_alteracao: {
+        Row: {
+          codigo_erp: string | null
+          created_at: string
+          documento_entrada_gerado_id: string | null
+          documento_entrada_id: string | null
+          documento_saida_gerado_id: string | null
+          documentos_saida: string[]
+          empresa_id: string
+          erro: string | null
+          id: string
+          id_alteracao: string | null
+          modo: string
+          numero_vinculo: string | null
+          origem: string
+          payload_hash: string | null
+          pedido: Json | null
+          processado_em: string | null
+          request_id: string | null
+          resumo: Json
+          situacao: string
+          tenant_id: string
+          tentativas: number
+          updated_at: string
+        }
+        Insert: {
+          codigo_erp?: string | null
+          created_at?: string
+          documento_entrada_gerado_id?: string | null
+          documento_entrada_id?: string | null
+          documento_saida_gerado_id?: string | null
+          documentos_saida?: string[]
+          empresa_id: string
+          erro?: string | null
+          id?: string
+          id_alteracao?: string | null
+          modo: string
+          numero_vinculo?: string | null
+          origem?: string
+          payload_hash?: string | null
+          pedido?: Json | null
+          processado_em?: string | null
+          request_id?: string | null
+          resumo?: Json
+          situacao: string
+          tenant_id: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Update: {
+          codigo_erp?: string | null
+          created_at?: string
+          documento_entrada_gerado_id?: string | null
+          documento_entrada_id?: string | null
+          documento_saida_gerado_id?: string | null
+          documentos_saida?: string[]
+          empresa_id?: string
+          erro?: string | null
+          id?: string
+          id_alteracao?: string | null
+          modo?: string
+          numero_vinculo?: string | null
+          origem?: string
+          payload_hash?: string | null
+          pedido?: Json | null
+          processado_em?: string | null
+          request_id?: string | null
+          resumo?: Json
+          situacao?: string
+          tenant_id?: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_gerado_id_fkey"
+            columns: ["documento_entrada_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_gerado_id_fkey"
+            columns: ["documento_entrada_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_docs_vinculados"
+            referencedColumns: ["documento_entrada_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_id_fkey"
+            columns: ["documento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "documento_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_entrada_id_fkey"
+            columns: ["documento_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_docs_vinculados"
+            referencedColumns: ["documento_entrada_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_saida_gerado_id_fkey"
+            columns: ["documento_saida_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_saida_gerado_id_fkey"
+            columns: ["documento_saida_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_documento_saida_gerado_id_fkey"
+            columns: ["documento_saida_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
+          },
+        ]
+      }
+      documento_saida_alteracao_item: {
+        Row: {
+          acao: string
+          alteracao_id: string
+          created_at: string
+          detalhe: Json
+          documento_saida_id: string | null
+          estagio: string | null
+          id: string
+          movimento_saida_item_id: string | null
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+        }
+        Insert: {
+          acao: string
+          alteracao_id: string
+          created_at?: string
+          detalhe?: Json
+          documento_saida_id?: string | null
+          estagio?: string | null
+          id?: string
+          movimento_saida_item_id?: string | null
+          produto_id: string
+          quantidade: number
+          tenant_id: string
+        }
+        Update: {
+          acao?: string
+          alteracao_id?: string
+          created_at?: string
+          detalhe?: Json
+          documento_saida_id?: string | null
+          estagio?: string | null
+          id?: string
+          movimento_saida_item_id?: string | null
+          produto_id?: string
+          quantidade?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_saida_alteracao_item_alteracao_id_fkey"
+            columns: ["alteracao_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida_alteracao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_item_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "documento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_item_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_documento_saida_nf_vigente"
+            referencedColumns: ["documento_saida_id"]
+          },
+          {
+            foreignKeyName: "documento_saida_alteracao_item_documento_saida_id_fkey"
+            columns: ["documento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_docs_vinculados"
+            referencedColumns: ["documento_saida_id"]
           },
         ]
       }
@@ -7359,9 +7561,12 @@ export type Database = {
           empresa_id: string
           gera_mov_automatico: boolean
           id: string
+          interceptador_modo: string
           libera_mov_automatico: boolean
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
+          retorno_de_saida: boolean
+          retorno_tipo_saida_id: string | null
           tenant_id: string
           updated_at: string
         }
@@ -7376,9 +7581,12 @@ export type Database = {
           empresa_id: string
           gera_mov_automatico?: boolean
           id?: string
+          interceptador_modo?: string
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          retorno_de_saida?: boolean
+          retorno_tipo_saida_id?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -7393,9 +7601,12 @@ export type Database = {
           empresa_id?: string
           gera_mov_automatico?: boolean
           id?: string
+          interceptador_modo?: string
           libera_mov_automatico?: boolean
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          retorno_de_saida?: boolean
+          retorno_tipo_saida_id?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -7412,6 +7623,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tipo_entrada_retorno_tipo_saida_id_fkey"
+            columns: ["retorno_tipo_saida_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_saida"
             referencedColumns: ["id"]
           },
           {
@@ -7507,7 +7725,9 @@ export type Database = {
       }
       tipo_saida: {
         Row: {
+          alteracao_modo: string
           ativo: boolean
+          cancelamento_conferido: string
           codigo_erp: string | null
           conferencia_cega: boolean
           conferencia_checkout: boolean
@@ -7525,16 +7745,20 @@ export type Database = {
           id: string
           libera_mov_automatico: boolean
           libera_sem_saldo_picking: boolean
+          marco_retirada: string
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
           reserva_conferencia_movimento: boolean
           reserva_separacao_movimento: boolean
           separa_pulmao: boolean
           tenant_id: string
+          tipo_entrada_devolucao_id: string | null
           updated_at: string
         }
         Insert: {
+          alteracao_modo?: string
           ativo?: boolean
+          cancelamento_conferido?: string
           codigo_erp?: string | null
           conferencia_cega?: boolean
           conferencia_checkout?: boolean
@@ -7552,16 +7776,20 @@ export type Database = {
           id?: string
           libera_mov_automatico?: boolean
           libera_sem_saldo_picking?: boolean
+          marco_retirada?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
           reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
           tenant_id: string
+          tipo_entrada_devolucao_id?: string | null
           updated_at?: string
         }
         Update: {
+          alteracao_modo?: string
           ativo?: boolean
+          cancelamento_conferido?: string
           codigo_erp?: string | null
           conferencia_cega?: boolean
           conferencia_checkout?: boolean
@@ -7579,12 +7807,14 @@ export type Database = {
           id?: string
           libera_mov_automatico?: boolean
           libera_sem_saldo_picking?: boolean
+          marco_retirada?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
           reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
           tenant_id?: string
+          tipo_entrada_devolucao_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -7614,6 +7844,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tipo_saida_tipo_entrada_devolucao_id_fkey"
+            columns: ["tipo_entrada_devolucao_id"]
+            isOneToOne: false
+            referencedRelation: "tipo_entrada"
             referencedColumns: ["id"]
           },
         ]
@@ -9982,6 +10219,47 @@ export type Database = {
       }
     }
     Functions: {
+      _fn_alteracao_saida_executar: {
+        Args: {
+          p_alteracao_id: string
+          p_empresa_id: string
+          p_linha: Json
+          p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      _fn_alteracao_saida_gerar_devolucao: {
+        Args: {
+          p_alteracao_id: string
+          p_doc_base_id: string
+          p_id_alteracao: string
+          p_itens: Json
+        }
+        Returns: string
+      }
+      _fn_alteracao_saida_recalcular_onda: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      _fn_alteracao_saida_reduzir_dsi: {
+        Args: {
+          p_documento_saida_id: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+        }
+        Returns: number
+      }
+      _fn_alteracao_saida_sync_conf: {
+        Args: { p_msi_id: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      _fn_alterar_documento_saida_executar: {
+        Args: { p_alteracao_id: string; p_simular?: boolean }
+        Returns: Json
+      }
       _fn_cancel_saida_motivo: {
         Args: { p_tenant_id: string }
         Returns: string
@@ -9997,6 +10275,10 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: Json
+      }
+      _fn_msi_recalcular_quantidades: {
+        Args: { p_msi_id: string }
+        Returns: undefined
       }
       _fn_remocao_doc_entrada_core: {
         Args: {
@@ -10281,6 +10563,7 @@ export type Database = {
         }
         Returns: string
       }
+      cron_alerta_endereco_cancelamento: { Args: never; Returns: Json }
       cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: {
@@ -10295,6 +10578,7 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      cron_reprocessar_alteracoes_saida: { Args: never; Returns: Json }
       dados_etiqueta_endereco: {
         Args: { p_endereco_ids: string[] }
         Returns: Json
@@ -10511,6 +10795,43 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_alteracao_saida_liberar_entrada: {
+        Args: {
+          p_documento_entrada_id: string
+          p_motivo: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_alteracao_saida_planejar: {
+        Args: {
+          p_documentos: string[]
+          p_ignorar_alteracao_id?: string
+          p_modo?: string
+          p_produto_id: string
+          p_quantidade: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_alterar_documento_saida: {
+        Args: {
+          p_cancelar_documento?: boolean
+          p_codigo_erp: string
+          p_empresa_id: string
+          p_escopo_documento?: boolean
+          p_hash_analise?: string
+          p_id_alteracao: string
+          p_id_documento_saida?: string
+          p_itens: Json
+          p_modo?: string
+          p_request_id?: string
+          p_simular?: boolean
+          p_somente_devolucao?: boolean
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_armazem_padrao_empresa: {
         Args: { p_empresa_id: string; p_tenant_id: string }
         Returns: string
@@ -10605,6 +10926,22 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_cancelar_documento_saida_v3: {
+        Args: {
+          p_codigo_erp?: string
+          p_conexao_id?: string
+          p_documento_saida_id?: string
+          p_empresa_id: string
+          p_idempotency_key?: string
+          p_motivo?: string
+          p_request_id?: string
+          p_solicitado_por?: string
+          p_solicitante?: string
+          p_tenant_id: string
+          p_usuario_id?: string
+        }
+        Returns: Json
+      }
       fn_cancelar_movimento_entrada: {
         Args: { p_movimento_entrada_id: string; p_tenant_id: string }
         Returns: Json
@@ -10652,6 +10989,15 @@ export type Database = {
         Returns: Json
       }
       fn_consolidar_lms_diario: { Args: { p_data?: string }; Returns: Json }
+      fn_consultar_alteracao_saida: {
+        Args: {
+          p_codigo_erp: string
+          p_empresa_id: string
+          p_id_alteracao: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_criar_inventario: {
         Args: {
           p_armazem_id: string
@@ -10859,6 +11205,10 @@ export type Database = {
         Args: { p_armazem_id: string; p_box_id: string; p_tenant_id: string }
         Returns: undefined
       }
+      fn_interceptar_retorno_saida: {
+        Args: { p_documento_entrada_id: string }
+        Returns: Json
+      }
       fn_inventario_buscar_tarefas: {
         Args: {
           p_contagem_inventario: number
@@ -11037,6 +11387,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_painel_endereco_cancelamento: {
+        Args: { p_empresa_id?: string; p_tenant_id: string }
+        Returns: Json
+      }
       fn_pme_atualizar_situacao_endereco: {
         Args: {
           p_endereco_destino_id: string
@@ -11132,6 +11486,14 @@ export type Database = {
         Args: {
           p_codigo_erp?: string
           p_documento_saida_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_posicao_os: {
+        Args: {
+          p_codigo_erp: string
+          p_empresa_id: string
           p_tenant_id: string
         }
         Returns: Json
