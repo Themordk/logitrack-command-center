@@ -1,27 +1,21 @@
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
-      "has": [{ "type": "host", "value": "developers.corelogitrack.com.br" }],
-      "destination": "/developers/index.html"
+      "src": "/",
+      "has": [{ "type": "host", "value": "^(developers\\.corelogitrack\\.com\\.br|logitrack-command-center-git-fix-portal.*\\.vercel\\.app)$" }],
+      "dest": "/developers/index.html"
     },
     {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "developers.corelogitrack.com.br" }],
-      "destination": "/developers/:path*"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/developers/openapi.json",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Cache-Control", "value": "public, max-age=300" }
-      ]
+      "src": "/(openapi\\.json)",
+      "has": [{ "type": "host", "value": "^(developers\\.corelogitrack\\.com\\.br|logitrack-command-center-git-fix-portal.*\\.vercel\\.app)$" }],
+      "headers": { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" },
+      "dest": "/developers/$1"
     },
     {
-      "source": "/developers/portal-dados.json",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300" }]
+      "src": "/(portal-dados\\.json)",
+      "has": [{ "type": "host", "value": "^(developers\\.corelogitrack\\.com\\.br|logitrack-command-center-git-fix-portal.*\\.vercel\\.app)$" }],
+      "headers": { "Cache-Control": "public, max-age=300" },
+      "dest": "/developers/$1"
     }
   ]
 }
