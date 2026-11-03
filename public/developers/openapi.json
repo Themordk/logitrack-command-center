@@ -1,0 +1,5196 @@
+{
+"openapi": "3.1.0",
+"info": {
+"title": "CORE LogiTrack — API de Integração",
+"version": "1.12.0",
+"summary": "API REST para ERPs enviarem cadastros e movimentos ao WMS CORE LogiTrack.",
+"description": "## Sobre o CORE LogiTrack\n\nO **CORE LogiTrack** é uma plataforma WMS (Warehouse Management System) SaaS multi-tenant projetada para gestão operacional de centros de distribuição. O sistema é orientado a tarefas com rastreabilidade completa de todas as operações.\n\nEsta documentação detalha a **API REST** que permite ao sistema ERP enviar dados mestres e movimentos para o CORE LogiTrack, estabelecendo a integração bidirecional entre os sistemas.\n\n## Arquitetura da Integração\n\nA integração segue o modelo API REST onde o **ERP envia dados para o CORE LogiTrack** através de endpoints HTTP. O ERP é o sistema de origem dos dados mestres (produtos, parceiros, pedidos, notas fiscais) e o WMS é o sistema que recebe e processa esses dados para a operação logística.\n\n| Aspecto | Detalhe |\n|---------|---------|\n| **Direção do fluxo** | ERP → WMS (o ERP envia, o WMS recebe e processa) |\n| **Protocolo** | HTTPS com payloads JSON |\n| **Autenticação** | API Key por tenant no header `x-api-key` |\n| **Idempotência** | Via campo `codigo_erp` (upsert automático) |\n\n## Etapas da Integração\n\nA integração é dividida em **duas etapas sequenciais**. A Etapa 1 deve ser concluída antes da Etapa 2 porque os movimentos referenciam cadastros mestres.\n\n| Etapa | Direção | Descrição | Frequência |\n|-------|---------|-----------|------------|\n| **1. Dados Mestres** | ERP → WMS | Cadastros: parceiros, produtos, grupos, rotas, tipos | Sob demanda / diária |\n| **2. Movimentos** | ERP → WMS | Documentos de entrada (NF) e saída (pedidos) | Sob demanda / tempo real |\n\n> **Importante:** Todos os dados mestres referenciados pelos movimentos (parceiros, produtos, tipos de entrada/saída) devem existir previamente no WMS antes do envio de documentos.\n\n## Modelo Multi-Tenant\n\nO CORE LogiTrack opera com isolamento completo entre tenants. Cada API Key está vinculada a uma **conexão de integração** que identifica automaticamente o `tenant_id` e `empresa_id`. Os dados de um tenant jamais são acessíveis por outro.",
+"contact": {
+"name": "Suporte CORE LogiTrack"
+}
+},
+"servers": [
+{
+"url": "https://dcpmykhxysvxnpgmlyli.supabase.co/functions/v1/integration-gateway",
+"description": "Produção"
+}
+],
+"security": [
+{
+"ApiKey": []
+}
+],
+"tags": [
+{
+"name": "Parceiros",
+"description": "Clientes, fornecedores e transportadores, identificados pelo CNPJ."
+},
+{
+"name": "Grupos de produto",
+"description": "Agrupamento de produtos."
+},
+{
+"name": "Subgrupos de produto",
+"description": "Subdivisão de um grupo de produtos."
+},
+{
+"name": "Produtos",
+"description": "SKUs com suas embalagens e regras de controle."
+},
+{
+"name": "Rotas",
+"description": "Rotas de entrega usadas nos pedidos."
+},
+{
+"name": "Tipos de entrada",
+"description": "Natureza do recebimento (compra, devolução, transferência…)."
+},
+{
+"name": "Tipos de saída",
+"description": "Natureza da expedição e regras de conferência."
+},
+{
+"name": "Documentos de entrada (NF)",
+"description": "Notas fiscais de entrada com itens e lotes."
+},
+{
+"name": "Documentos de saída (pedidos)",
+"description": "Pedidos e ordens de saída com itens, alterações e cancelamento."
+},
+{
+"name": "Sistema",
+"description": "Disponibilidade da API."
+}
+],
+"x-tagGroups": [
+{
+"name": "Dados mestres",
+"tags": [
+"Parceiros",
+"Grupos de produto",
+"Subgrupos de produto",
+"Produtos",
+"Rotas",
+"Tipos de entrada",
+"Tipos de saída"
+]
+},
+{
+"name": "Movimentos",
+"tags": [
+"Documentos de entrada (NF)",
+"Documentos de saída (pedidos)"
+]
+},
+{
+"name": "Sistema",
+"tags": [
+"Sistema"
+]
+}
+],
+"components": {
+"securitySchemes": {
+"ApiKey": {
+"type": "apiKey",
+"in": "header",
+"name": "x-api-key",
+"description": "Chave da conexão ERP, fornecida pelo CORE LogiTrack. Identifica tenant e empresa."
+}
+},
+"parameters": {
+"codigo_erp": {
+"name": "codigo_erp",
+"in": "path",
+"required": true,
+"description": "Código do registro no ERP.",
+"schema": {
+"type": "string"
+}
+},
+"IdempotencyKey": {
+"name": "Idempotency-Key",
+"in": "header",
+"required": false,
+"description": "Até 100 caracteres. Mesma chave + mesmo conteúdo em 24 h devolve a mesma resposta (Idempotent-Replayed: true).",
+"schema": {
+"type": "string",
+"maxLength": 100
+}
+},
+"limit": {
+"name": "limit",
+"in": "query",
+"required": false,
+"description": "Registros por página (1–500). Ativa a paginação.",
+"schema": {
+"type": "integer",
+"minimum": 1,
+"maximum": 500,
+"default": 100
+}
+},
+"cursor": {
+"name": "cursor",
+"in": "query",
+"required": false,
+"description": "next_cursor da página anterior.",
+"schema": {
+"type": "string"
+}
+},
+"updated_since": {
+"name": "updated_since",
+"in": "query",
+"required": false,
+"description": "Só registros criados ou alterados a partir desta data (ISO-8601).",
+"schema": {
+"type": "string",
+"format": "date-time"
+}
+}
+},
+"schemas": {
+"Metadata": {
+"type": "object",
+"properties": {
+"request_id": {
+"type": "string",
+"format": "uuid"
+},
+"timestamp": {
+"type": "string",
+"format": "date-time"
+},
+"processing_ms": {
+"type": "integer"
+},
+"paginacao": {
+"type": "object",
+"description": "Presente só em listagens paginadas.",
+"properties": {
+"limit": {
+"type": "integer"
+},
+"has_more": {
+"type": "boolean"
+},
+"next_cursor": {
+"type": [
+"string",
+"null"
+]
+},
+"updated_since": {
+"type": [
+"string",
+"null"
+],
+"format": "date-time"
+}
+}
+}
+}
+},
+"Erro": {
+"type": "object",
+"required": [
+"success",
+"error",
+"metadata"
+],
+"properties": {
+"success": {
+"const": false
+},
+"error": {
+"type": "object",
+"required": [
+"code",
+"message"
+],
+"properties": {
+"code": {
+"type": "string",
+"enum": [
+"AMBIGUOUS_DOCUMENT",
+"AUTH_INVALID",
+"AUTH_MISSING",
+"CANCELAMENTO_NAO_PERMITIDO",
+"CANCEL_ERROR",
+"CONFERENCIA_INICIADA",
+"CONFIGURACAO_INCOMPLETA",
+"DELETE_ERROR",
+"DELETE_FAILED",
+"DOCUMENTO_DUPLICADO",
+"DOCUMENTO_SEM_ITENS",
+"DOCUMENT_LOCKED",
+"IDEMPOTENCY_KEY_REUSED",
+"ID_ALTERACAO_CONFLICT",
+"INTERNAL_ERROR",
+"INVALID_CURSOR",
+"INVALID_PAYLOAD",
+"ITEMS_INVALID",
+"ITEM_ERROR",
+"METHOD_NOT_ALLOWED",
+"NOT_FOUND",
+"RATE_LIMITED",
+"RETRY_LATER",
+"ROUTE_NOT_FOUND",
+"VALIDATION_ERROR",
+"VOLUME_EXPEDICAO_EXISTENTE"
+]
+},
+"message": {
+"type": "string"
+},
+"details": {
+"type": "array",
+"items": {
+"type": "object"
+}
+}
+}
+},
+"metadata": {
+"$ref": "#/components/schemas/Metadata"
+}
+}
+},
+"ResultadoLote": {
+"type": "object",
+"properties": {
+"total": {
+"type": "integer"
+},
+"created": {
+"type": "integer"
+},
+"updated": {
+"type": "integer"
+},
+"errors": {
+"type": "integer"
+},
+"already_processed": {
+"type": "integer"
+},
+"already_exists": {
+"type": "integer"
+},
+"results": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string"
+},
+"status": {
+"type": "string"
+},
+"id": {
+"type": "string",
+"format": "uuid"
+},
+"error": {
+"type": "string"
+}
+}
+}
+}
+}
+},
+"Resposta": {
+"type": "object",
+"additionalProperties": true,
+"properties": {
+"success": {
+"type": "boolean"
+},
+"data": {
+"type": [
+"object",
+"array"
+],
+"additionalProperties": true
+},
+"error": {
+"type": "object",
+"description": "Presente quando success = false (ex.: cancelamento recusado)."
+},
+"metadata": {
+"$ref": "#/components/schemas/Metadata"
+}
+}
+},
+"RespostaLote": {
+"type": "object",
+"additionalProperties": true,
+"properties": {
+"success": {
+"type": "boolean"
+},
+"data": {
+"$ref": "#/components/schemas/ResultadoLote"
+},
+"error": {
+"type": "object",
+"description": "Presente quando success = false (ex.: cancelamento recusado)."
+},
+"metadata": {
+"$ref": "#/components/schemas/Metadata"
+}
+}
+}
+},
+"responses": {
+"E400": {
+"description": "Requisição inválida.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"VALIDATION_ERROR": {
+"value": {
+"success": false,
+"error": {
+"code": "VALIDATION_ERROR",
+"message": "Campo obrigatório ausente, formato inválido ou parâmetro de consulta inválido. A mensagem diz qual."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+},
+"INVALID_PAYLOAD": {
+"value": {
+"success": false,
+"error": {
+"code": "INVALID_PAYLOAD",
+"message": "Corpo vazio ou JSON malformado."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+},
+"E401": {
+"description": "Chave ausente ou inválida.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"AUTH_MISSING": {
+"value": {
+"success": false,
+"error": {
+"code": "AUTH_MISSING",
+"message": "Header x-api-key não enviado na requisição"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+},
+"AUTH_INVALID": {
+"value": {
+"success": false,
+"error": {
+"code": "AUTH_INVALID",
+"message": "Chave de API inválida ou revogada"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+},
+"E404": {
+"description": "Registro ou rota não encontrada.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"NOT_FOUND": {
+"value": {
+"success": false,
+"error": {
+"code": "NOT_FOUND",
+"message": "Recurso não encontrado no sistema"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+},
+"ROUTE_NOT_FOUND": {
+"value": {
+"success": false,
+"error": {
+"code": "ROUTE_NOT_FOUND",
+"message": "Caminho inexistente na API."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+},
+"E409": {
+"description": "Conflito — repita após Retry-After ou informe ?id_alteracao.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"RETRY_LATER": {
+"value": {
+"success": false,
+"error": {
+"code": "RETRY_LATER",
+"message": "O pedido está sendo usado por outra operação no mesmo instante (ex.: um operador gravando uma coleta). Nada foi alterado."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+},
+"AMBIGUOUS_DOCUMENT": {
+"value": {
+"success": false,
+"error": {
+"code": "AMBIGUOUS_DOCUMENT",
+"message": "Consulta, cancelamento ou exclusão por codigo_erp sem id_alteracao, sem documento original ativo e com mais de uma alteração ativa."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+},
+"ID_ALTERACAO_CONFLICT": {
+"value": {
+"success": false,
+"error": {
+"code": "ID_ALTERACAO_CONFLICT",
+"message": "O id_alteracao informado já foi recebido para este codigo_erp com conteúdo diferente."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+},
+"DOCUMENTO_DUPLICADO": {
+"value": {
+"success": false,
+"error": {
+"code": "DOCUMENTO_DUPLICADO",
+"message": "Já existe documento ativo com esse codigo_erp em condição que impede o reenvio."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+},
+"E422": {
+"description": "Regra de negócio impediu a operação.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"IDEMPOTENCY_KEY_REUSED": {
+"value": {
+"success": false,
+"error": {
+"code": "IDEMPOTENCY_KEY_REUSED",
+"message": "A mesma Idempotency-Key foi usada em 24 h com outro conteúdo ou outra rota."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+},
+"ITEMS_INVALID": {
+"value": {
+"success": false,
+"error": {
+"code": "ITEMS_INVALID",
+"message": "Um ou mais itens do documento são inválidos. Nada foi gravado; error.details lista todos."
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+},
+"E429": {
+"description": "Limite de requisições por minuto excedido.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"RATE_LIMITED": {
+"value": {
+"success": false,
+"error": {
+"code": "RATE_LIMITED",
+"message": "Muitas requisições em curto período"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+},
+"E500": {
+"description": "Erro interno. Repita com backoff e informe o X-Request-Id ao suporte.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"INTERNAL_ERROR": {
+"value": {
+"success": false,
+"error": {
+"code": "INTERNAL_ERROR",
+"message": "Erro interno do servidor"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+}
+}
+},
+"paths": {
+"/master-data/parceiros": {
+"get": {
+"operationId": "get-master-data-parceiros",
+"tags": [
+"Parceiros"
+],
+"summary": "Listar parceiros",
+"description": "Retorna a lista de parceiros cadastrados para a empresa vinculada à API Key.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"cnpj": "12345678000100",
+"ativo": true,
+"codigo_erp": "F001",
+"razao_social": "Fornecedor Exemplo",
+"tipo_parceiro": "FORNECEDOR"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-master-data-parceiros",
+"tags": [
+"Parceiros"
+],
+"summary": "Criar ou atualizar parceiro",
+"description": "Cria o parceiro ou atualiza o existente com o mesmo codigo_erp (upsert). O parceiro é identificado pelo CNPJ: códigos diferentes do mesmo CNPJ resolvem para o mesmo parceiro.\n\nIdempotência via codigo_erp. Se o parceiro já existir, os campos enviados são atualizados.\n\n**Limite:** 200 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "Identificador único do parceiro no ERP."
+},
+"cnpj": {
+"type": "string",
+"description": "CNPJ (com ou sem formatação — normalizado automaticamente)."
+},
+"razao_social": {
+"type": "string",
+"description": "Razão social completa."
+},
+"endereco": {
+"type": "string",
+"description": "Endereço completo (rua, número)."
+},
+"bairro": {
+"type": "string",
+"description": "Bairro."
+},
+"cidade": {
+"type": "string",
+"description": "Cidade."
+},
+"estado": {
+"type": "string",
+"maxLength": 2,
+"description": "UF — sigla de 2 caracteres."
+},
+"tipo_parceiro": {
+"type": "string",
+"description": "CLIENTE, FORNECEDOR ou TRANSPORTADOR.",
+"enum": [
+"CLIENTE",
+"FORNECEDOR",
+"TRANSPORTADOR"
+]
+},
+"rota_codigo_erp": {
+"type": "string",
+"description": "Código ERP da rota de entrega associada."
+},
+"ativo": {
+"type": "boolean",
+"description": "Default: true."
+},
+"nome_fantasia": {
+"type": "string",
+"description": "Nome fantasia."
+},
+"numero": {
+"type": "string",
+"description": "Número do endereço."
+},
+"complemento": {
+"type": "string",
+"description": "Complemento do endereço."
+},
+"cep": {
+"type": "string",
+"description": "CEP, só dígitos."
+},
+"telefone": {
+"type": "string",
+"description": "Telefone de contato."
+},
+"email": {
+"type": "string",
+"description": "E-mail de contato."
+}
+},
+"required": [
+"codigo_erp",
+"cnpj",
+"razao_social",
+"endereco",
+"bairro",
+"cidade",
+"estado",
+"tipo_parceiro"
+]
+},
+"example": {
+"cep": "01001000",
+"cnpj": "12345678000100",
+"ativo": true,
+"email": "contato@fornecedor.com",
+"bairro": "Centro",
+"cidade": "São Paulo",
+"estado": "SP",
+"numero": "100",
+"endereco": "Rua das Flores",
+"telefone": "11999990000",
+"codigo_erp": "F001",
+"razao_social": "Fornecedor Exemplo Ltda",
+"nome_fantasia": "Fornecedor Ex",
+"tipo_parceiro": "FORNECEDOR"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "F001"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/parceiros/batch": {
+"post": {
+"operationId": "post-master-data-parceiros-batch",
+"tags": [
+"Parceiros"
+],
+"summary": "Criar/atualizar parceiros em lote",
+"description": "Envia até 200 parceiros por requisição. Cada item segue o mesmo schema do endpoint unitário. Resposta 207 indica processamento parcial.\n\nLimite: 200 itens por requisição (desde v1.11, 2026-10-19). HTTP 207 quando há erros parciais. Envie os lotes em sequência (no máximo 2 simultâneos).\n\n**Limite:** 200 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 200,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"cnpj": "12345678000100",
+"ativo": true,
+"bairro": "Centro",
+"cidade": "São Paulo",
+"estado": "SP",
+"endereco": "Rua das Flores, 100",
+"codigo_erp": "F001",
+"razao_social": "Fornecedor 1 Ltda",
+"tipo_parceiro": "FORNECEDOR"
+},
+{
+"cnpj": "98765432000199",
+"ativo": true,
+"bairro": "Jardim América",
+"cidade": "Fortaleza",
+"estado": "CE",
+"endereco": "Av. Brasil, 2000",
+"codigo_erp": "C001",
+"razao_social": "Cliente 1 Ltda",
+"tipo_parceiro": "CLIENTE"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/parceiros/{codigo_erp}": {
+"get": {
+"operationId": "get-master-data-parceiros-por-codigo",
+"tags": [
+"Parceiros"
+],
+"summary": "Buscar parceiro por código ERP",
+"description": "\n\nRetorna o parceiro com o codigo_erp informado na URL.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"cnpj": "12345678000190",
+"ativo": true,
+"codigo_erp": "CLI-001",
+"razao_social": "Distribuidora ABC Ltda",
+"tipo_parceiro": "CLIENTE"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"patch": {
+"operationId": "patch-master-data-parceiros-por-codigo",
+"tags": [
+"Parceiros"
+],
+"summary": "Alterar campos de um parceiro",
+"description": "Altera só os campos enviados; os demais ficam como estão. Aceita o código principal ou qualquer código (apelido) do parceiro. O CNPJ identifica o parceiro e não muda por PATCH.\n\nEnvie só o que mudou. `cnpj`, se vier, precisa ser igual ao atual. `numero` e `complemento` só junto com `endereco`. Campo fora da lista → 400 `VALIDATION_ERROR`. Enviar `null` não apaga valores. Aceita `Idempotency-Key`. Respostas: 200 `updated`; 400 `VALIDATION_ERROR` / `INVALID_PAYLOAD`; 404 `NOT_FOUND`.",
+"x-versao-desde": "1.12.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"razao_social": {
+"type": "string",
+"description": "Razão social."
+},
+"nome_fantasia": {
+"type": "string",
+"description": "Nome fantasia."
+},
+"endereco": {
+"type": "string",
+"description": "Logradouro. Para mudar número ou complemento, envie os três juntos."
+},
+"numero": {
+"type": "string",
+"description": "Número (só junto com endereco)."
+},
+"complemento": {
+"type": "string",
+"description": "Complemento (só junto com endereco)."
+},
+"bairro": {
+"type": "string",
+"description": "Bairro."
+},
+"cidade": {
+"type": "string",
+"description": "Cidade."
+},
+"estado": {
+"type": "string",
+"maxLength": 2,
+"description": "UF."
+},
+"cep": {
+"type": "string",
+"description": "CEP."
+},
+"telefone": {
+"type": "string",
+"description": "Telefone."
+},
+"email": {
+"type": "string",
+"description": "E-mail."
+},
+"tipo_parceiro": {
+"type": "string",
+"description": "CLIENTE, FORNECEDOR ou TRANSPORTADOR (do código usado no caminho).",
+"enum": [
+"CLIENTE",
+"FORNECEDOR",
+"TRANSPORTADOR"
+]
+},
+"ativo": {
+"type": "boolean",
+"description": "Ativa ou inativa o código usado no caminho. O parceiro fica ativo se algum código dele estiver ativo."
+},
+"rota_codigo_erp": {
+"type": "string",
+"description": "Código da rota (precisa existir)."
+}
+}
+},
+"example": {
+"email": "compras@fornecedor.com",
+"telefone": "85988887777"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "updated",
+"codigo_erp": "F001",
+"campos_alterados": [
+"telefone",
+"email"
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/grupos": {
+"get": {
+"operationId": "get-master-data-grupos",
+"tags": [
+"Grupos de produto"
+],
+"summary": "Listar grupos de produto",
+"description": "Retorna grupos de produto da empresa.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"ativo": true,
+"descricao": "Alimentos",
+"codigo_erp": "G01"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-master-data-grupos",
+"tags": [
+"Grupos de produto"
+],
+"summary": "Criar ou atualizar grupo",
+"description": "Upsert por codigo_erp.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "Código único no ERP."
+},
+"descricao": {
+"type": "string",
+"description": "Nome do grupo."
+},
+"ativo": {
+"type": "boolean",
+"description": "Default: true."
+}
+},
+"required": [
+"codigo_erp",
+"descricao"
+]
+},
+"example": {
+"ativo": true,
+"descricao": "Alimentos Secos",
+"codigo_erp": "G01"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "G01"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/grupos/batch": {
+"post": {
+"operationId": "post-master-data-grupos-batch",
+"tags": [
+"Grupos de produto"
+],
+"summary": "Criar/atualizar grupos em lote",
+"description": "Até 50 por requisição.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 50,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"descricao": "Alimentos",
+"codigo_erp": "G01"
+},
+{
+"descricao": "Bebidas",
+"codigo_erp": "G02"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/subgrupos": {
+"get": {
+"operationId": "get-master-data-subgrupos",
+"tags": [
+"Subgrupos de produto"
+],
+"summary": "Listar subgrupos",
+"description": "Retorna subgrupos de produto.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"descricao": "Grãos",
+"codigo_erp": "SG01",
+"grupo_codigo_erp": "G01"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-master-data-subgrupos",
+"tags": [
+"Subgrupos de produto"
+],
+"summary": "Criar ou atualizar subgrupo",
+"description": "Upsert por codigo_erp. O grupo pai deve existir.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "Código único no ERP."
+},
+"descricao": {
+"type": "string",
+"description": "Nome do subgrupo."
+},
+"grupo_codigo_erp": {
+"type": "string",
+"description": "Código ERP do grupo pai (deve existir)."
+},
+"ativo": {
+"type": "boolean",
+"description": "Default: true."
+}
+},
+"required": [
+"codigo_erp",
+"descricao",
+"grupo_codigo_erp"
+]
+},
+"example": {
+"ativo": true,
+"descricao": "Grãos",
+"codigo_erp": "SG01",
+"grupo_codigo_erp": "G01"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "SG01"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/subgrupos/batch": {
+"post": {
+"operationId": "post-master-data-subgrupos-batch",
+"tags": [
+"Subgrupos de produto"
+],
+"summary": "Criar/atualizar subgrupos em lote",
+"description": "Mesmo payload do POST individual dentro de um array items. Resposta 207 com o resultado de cada item.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 50,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"descricao": "Subgrupo A",
+"codigo_erp": "SUB-001",
+"grupo_codigo_erp": "GRP-001"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/produtos": {
+"get": {
+"operationId": "get-master-data-produtos",
+"tags": [
+"Produtos"
+],
+"summary": "Listar produtos",
+"description": "Retorna produtos cadastrados com embalagens.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"sku": "SKU001",
+"ativo": true,
+"descricao": "Produto Exemplo",
+"codigo_erp": "P001"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-master-data-produtos",
+"tags": [
+"Produtos"
+],
+"summary": "Criar ou atualizar produto com embalagens",
+"description": "Cria o produto ou atualiza o existente com o mesmo codigo_erp (upsert), junto com suas embalagens. O fornecedor (parceiro_codigo_erp) precisa existir no WMS.\n\nOtimização HTTP: produto + embalagens em uma única requisição. Para um produto com 3 embalagens, isso reduz de 4 chamadas para 1.\n\n**Limite:** 100 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "Identificador único do produto no ERP."
+},
+"sku": {
+"type": "string",
+"description": "Código SKU do produto."
+},
+"descricao": {
+"type": "string",
+"description": "Descrição completa do produto."
+},
+"referencia": {
+"type": "string",
+"description": "Código de referência interna."
+},
+"marca": {
+"type": "string",
+"description": "Marca do produto."
+},
+"parceiro_codigo_erp": {
+"type": "string",
+"description": "Código ERP do fornecedor padrão (deve existir no WMS)."
+},
+"grupo_codigo_erp": {
+"type": "string",
+"description": "Código ERP do grupo de produto."
+},
+"tipo_controle": {
+"type": "string",
+"description": "UNIDADE, LOTE, VALIDADE, SERIE ou METROS. Opcional desde a v1.12: ausente, vale a regra de padrão do WMS; sem regra, UNIDADE na criação e o valor atual na atualização.",
+"enum": [
+"UNIDADE",
+"LOTE",
+"VALIDADE",
+"SERIE",
+"METROS"
+]
+},
+"tipo_separacao": {
+"type": "string",
+"description": "FRACIONADO, EMBALAGEM_TOTAL ou CAIXARIA. Opcional desde a v1.12: ausente, vale a regra de padrão do WMS; sem regra, FRACIONADO na criação e o valor atual na atualização.",
+"enum": [
+"FRACIONADO",
+"EMBALAGEM_TOTAL",
+"CAIXARIA"
+]
+},
+"peso_variavel": {
+"type": "boolean",
+"description": "Se produto tem peso variável. Default: false."
+},
+"usa_picking": {
+"type": "boolean",
+"description": "Se usa endereço de picking. Default: true."
+},
+"varios_pickings": {
+"type": "boolean",
+"description": "Se permite múltiplos endereços de picking."
+},
+"preco_custo": {
+"type": "number",
+"description": "Preço de custo unitário."
+},
+"ativo": {
+"type": "boolean",
+"description": "Default: true."
+},
+"embalagens": {
+"type": "array",
+"items": {
+"type": "object"
+},
+"description": "Lista de embalagens do produto (EAN/códigos de barras). Cada embalagem: {codigo_erp?, ean (obrig.), fator (obrig.), embalagem (obrig.: UN, CX, FD, PCT, PL), peso_bruto?, peso_liquido?, altura?, largura?, comprimento?}."
+}
+},
+"required": [
+"codigo_erp",
+"sku",
+"descricao",
+"referencia",
+"parceiro_codigo_erp"
+]
+},
+"example": {
+"sku": "7891234567890",
+"ativo": true,
+"marca": "Marca X",
+"descricao": "Arroz Branco Tipo 1 5kg",
+"codigo_erp": "PROD-001",
+"embalagens": [
+{
+"ean": "7891234567890",
+"fator": 1,
+"altura": 8,
+"largura": 30,
+"embalagem": "UN",
+"codigo_erp": "EMB-001-UN",
+"peso_bruto": 5.1,
+"comprimento": 20,
+"peso_liquido": 5
+},
+{
+"ean": "7891234567906",
+"fator": 6,
+"altura": 25,
+"largura": 40,
+"embalagem": "CX",
+"codigo_erp": "EMB-001-CX",
+"peso_bruto": 31.2,
+"comprimento": 35,
+"peso_liquido": 30
+}
+],
+"referencia": "ARZ-5KG-T1",
+"preco_custo": 22.9,
+"usa_picking": true,
+"peso_variavel": false,
+"tipo_controle": "LOTE",
+"tipo_separacao": "FRACIONADO",
+"varios_pickings": false,
+"grupo_codigo_erp": "GRP-001",
+"parceiro_codigo_erp": "FORN-001"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "P001"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/produtos/batch": {
+"post": {
+"operationId": "post-master-data-produtos-batch",
+"tags": [
+"Produtos"
+],
+"summary": "Criar/atualizar produtos em lote (cada um com suas embalagens)",
+"description": "Até 100 por requisição.\n\nLimite: 100 produtos por requisição (desde v1.11, 2026-10-19). Cada produto pode incluir suas embalagens aninhadas. Envie os lotes em sequência (no máximo 2 simultâneos).\n\n**Limite:** 100 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 100,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"sku": "7891234567890",
+"ativo": true,
+"descricao": "Arroz Branco 5kg",
+"codigo_erp": "PROD-001",
+"embalagens": [
+{
+"ean": "7891234567890",
+"fator": 1,
+"embalagem": "UN"
+},
+{
+"ean": "7891234567906",
+"fator": 6,
+"embalagem": "CX"
+}
+],
+"referencia": "ARZ-5KG",
+"tipo_controle": "LOTE",
+"tipo_separacao": "FRACIONADO",
+"parceiro_codigo_erp": "FORN-001"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/produtos/{codigo_erp}": {
+"get": {
+"operationId": "get-master-data-produtos-por-codigo",
+"tags": [
+"Produtos"
+],
+"summary": "Buscar produto com embalagens por código ERP",
+"description": "\n\nRetorna o produto com suas embalagens aninhadas.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"sku": "7891234567890",
+"ativo": true,
+"descricao": "Arroz Branco 5kg",
+"codigo_erp": "PROD-001",
+"embalagens": [
+{
+"ean": "7891234567890",
+"fator": 1,
+"embalagem": "UN"
+},
+{
+"ean": "7891234567906",
+"fator": 6,
+"embalagem": "CX"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"patch": {
+"operationId": "patch-master-data-produtos-por-codigo",
+"tags": [
+"Produtos"
+],
+"summary": "Alterar campos de um produto",
+"description": "Altera só os campos enviados; os demais ficam como estão. O produto precisa existir (404 se não existir). Embalagens enviadas são incluídas ou atualizadas pelo EAN; as não enviadas continuam.\n\nEnvie só o que mudou. `codigo_erp` não pode ser alterado (se vier no corpo, precisa ser igual ao do caminho). Campo fora da lista → 400 `VALIDATION_ERROR`. Enviar `null` não apaga valores. Aceita `Idempotency-Key`. Respostas: 200 `updated`; 400 `VALIDATION_ERROR` / `INVALID_PAYLOAD`; 404 `NOT_FOUND`.",
+"x-versao-desde": "1.12.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"sku": {
+"type": "string",
+"description": "Código SKU."
+},
+"descricao": {
+"type": "string",
+"description": "Descrição do produto."
+},
+"referencia": {
+"type": "string",
+"description": "Referência interna."
+},
+"marca": {
+"type": "string",
+"description": "Marca."
+},
+"preco_custo": {
+"type": "number",
+"description": "Preço de custo unitário."
+},
+"tipo_controle": {
+"type": "string",
+"description": "UNIDADE, LOTE, VALIDADE, SERIE ou METROS.",
+"enum": [
+"UNIDADE",
+"LOTE",
+"VALIDADE",
+"SERIE",
+"METROS"
+]
+},
+"tipo_separacao": {
+"type": "string",
+"description": "FRACIONADO, EMBALAGEM_TOTAL ou CAIXARIA.",
+"enum": [
+"FRACIONADO",
+"EMBALAGEM_TOTAL",
+"CAIXARIA"
+]
+},
+"peso_variavel": {
+"type": "boolean",
+"description": "Produto de peso variável."
+},
+"usa_picking": {
+"type": "boolean",
+"description": "Usa endereço de picking."
+},
+"varios_pickings": {
+"type": "boolean",
+"description": "Permite vários endereços de picking."
+},
+"ativo": {
+"type": "boolean",
+"description": "Ativa ou inativa o produto."
+},
+"parceiro_codigo_erp": {
+"type": "string",
+"description": "Código do fornecedor padrão (precisa existir)."
+},
+"grupo_codigo_erp": {
+"type": "string",
+"description": "Código do grupo (precisa existir)."
+},
+"peso_bruto": {
+"type": "number",
+"description": "Peso bruto."
+},
+"peso_liquido": {
+"type": "number",
+"description": "Peso líquido."
+},
+"embalagens": {
+"type": "array",
+"items": {
+"type": "object"
+},
+"description": "Embalagens a incluir ou atualizar: {ean, fator, embalagem, ...}, como no POST."
+}
+}
+},
+"example": {
+"descricao": "Arroz Branco Tipo 1 5kg - nova embalagem",
+"preco_custo": 23.5,
+"tipo_controle": "LOTE"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "updated",
+"codigo_erp": "PROD-001",
+"campos_alterados": [
+"descricao",
+"preco_custo",
+"tipo_controle"
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/rotas": {
+"get": {
+"operationId": "get-master-data-rotas",
+"tags": [
+"Rotas"
+],
+"summary": "Listar rotas",
+"description": "Retorna rotas de entrega.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"ativo": true,
+"descricao": "Rota Sul",
+"codigo_erp": "R01"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-master-data-rotas",
+"tags": [
+"Rotas"
+],
+"summary": "Criar ou atualizar rota",
+"description": "Upsert por codigo_erp.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "Código único no ERP. Se ausente, a descrição é usada como código."
+},
+"descricao": {
+"type": "string",
+"description": "Nome/descrição da rota."
+},
+"ativo": {
+"type": "boolean",
+"description": "Default: true."
+}
+},
+"required": [
+"descricao"
+]
+},
+"example": {
+"ativo": true,
+"descricao": "Rota Zona Sul",
+"codigo_erp": "R01"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "R01"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/rotas/batch": {
+"post": {
+"operationId": "post-master-data-rotas-batch",
+"tags": [
+"Rotas"
+],
+"summary": "Criar/atualizar rotas em lote",
+"description": "Mesmo payload do POST individual dentro de um array items. Resposta 207 com o resultado de cada item.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 50,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"descricao": "Rota Centro",
+"codigo_erp": "ROTA-01"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/tipos-entrada": {
+"get": {
+"operationId": "get-master-data-tipos-entrada",
+"tags": [
+"Tipos de entrada"
+],
+"summary": "Listar tipos de entrada",
+"description": "Retorna tipos de documento de entrada (NF, transferência, etc).",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"ativo": true,
+"descricao": "Nota Fiscal",
+"codigo_erp": "TE01"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-master-data-tipos-entrada",
+"tags": [
+"Tipos de entrada"
+],
+"summary": "Criar ou atualizar tipo de entrada",
+"description": "Upsert por codigo_erp.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "Código único no ERP."
+},
+"descricao": {
+"type": "string",
+"description": "Descrição do tipo de entrada."
+},
+"ativo": {
+"type": "boolean",
+"description": "Default: true."
+}
+},
+"required": [
+"codigo_erp",
+"descricao"
+]
+},
+"example": {
+"ativo": true,
+"descricao": "Nota Fiscal de Compra",
+"codigo_erp": "TE01"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "TE01"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/tipos-entrada/batch": {
+"post": {
+"operationId": "post-master-data-tipos-entrada-batch",
+"tags": [
+"Tipos de entrada"
+],
+"summary": "Criar/atualizar tipos de entrada em lote",
+"description": "Mesmo payload do POST individual dentro de um array items. Resposta 207 com o resultado de cada item.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 50,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"descricao": "Compra",
+"codigo_erp": "TE-COMPRA"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/tipos-saida": {
+"get": {
+"operationId": "get-master-data-tipos-saida",
+"tags": [
+"Tipos de saída"
+],
+"summary": "Listar tipos de saída",
+"description": "Retorna tipos de pedido de saída.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"ativo": true,
+"descricao": "Pedido de Venda",
+"codigo_erp": "TS01"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-master-data-tipos-saida",
+"tags": [
+"Tipos de saída"
+],
+"summary": "Criar ou atualizar tipo de saída",
+"description": "Upsert por codigo_erp.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "Código único no ERP."
+},
+"descricao": {
+"type": "string",
+"description": "Descrição do tipo de saída."
+},
+"realiza_conferencia": {
+"type": "boolean",
+"description": "Se exige conferência na expedição. Default: true."
+},
+"conferencia_checkout": {
+"type": "boolean",
+"description": "Se usa conferência por checkout. Default: false."
+},
+"separa_pulmao": {
+"type": "boolean",
+"description": "Se separa do pulmão. Default: false."
+},
+"ativo": {
+"type": "boolean",
+"description": "Default: true."
+}
+},
+"required": [
+"codigo_erp",
+"descricao"
+]
+},
+"example": {
+"ativo": true,
+"descricao": "Pedido de Venda",
+"codigo_erp": "TS01",
+"realiza_conferencia": true
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "TS01"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/master-data/tipos-saida/batch": {
+"post": {
+"operationId": "post-master-data-tipos-saida-batch",
+"tags": [
+"Tipos de saída"
+],
+"summary": "Criar/atualizar tipos de saída em lote",
+"description": "Mesmo payload do POST individual dentro de um array items. Resposta 207 com o resultado de cada item.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 50,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"descricao": "Venda",
+"codigo_erp": "TS-VENDA"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-entrada": {
+"get": {
+"operationId": "get-movements-documentos-entrada",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Listar documentos de entrada",
+"description": "Retorna notas fiscais de entrada importadas.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"status": 1,
+"parceiro": "Fornecedor Ex",
+"codigo_erp": "NF001",
+"numero_nota": "12345"
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-movements-documentos-entrada",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Criar NF com itens e lotes em uma única chamada",
+"description": "Importa NF de entrada com itens. Sem id_alteracao: upsert por codigo_erp (documento original). Com id_alteracao: cria um documento novo de alteração para o mesmo codigo_erp e registra o histórico.\n\nOtimização HTTP: NF + itens + lotes em 1 requisição. Limite batch: 10 documentos. Se algum item falha, o documento é criado com status created_with_warnings.\n\n**Alterações de documento (`id_alteracao`, v1.8):**\n- Documento sem `id_alteracao` = **original** (comportamento de sempre).\n- Alterações feitas no ERP depois do envio: envie um **novo movimento** com o mesmo `codigo_erp` e um `id_alteracao` novo (ex.: `ALT-1`, `ALT-2`). Inclusões/aumentos → documento de saída; reduções/devoluções → documento de entrada. Envie em `itens` **somente o que este movimento movimenta**.\n- Reenviar o mesmo `codigo_erp` + `id_alteracao` com o mesmo conteúdo é seguro: HTTP 200, `status: already_processed`, nenhum documento novo.\n- Reutilizar um `id_alteracao` com conteúdo diferente: HTTP 409 `ID_ALTERACAO_CONFLICT`.\n- Envios fora de ordem são aceitos. Recusado por validação? Corrija e reenvie com o **mesmo** `id_alteracao`.\n- **Atenção:** uma alteração enviada **sem** `id_alteracao` é tratada como reenvio do original e não gera documento novo.\n- `id_alteracao` é texto alfanumérico de 1 a 50 caracteres (letras, números, `. _ - /`). Número também é aceito e tratado como texto (`2` = `\"2\"`). Maiúsculas e minúsculas são diferentes.\n\nLimite técnico: 50 documentos por chamada. Recomendado: até 10, para respostas mais rápidas.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "ID do documento no ERP. Sem id_alteracao é a chave de idempotência do documento original; nas alterações repita o codigo_erp do original."
+},
+"id_alteracao": {
+"type": "string",
+"description": "Opcional. Omitir no documento original. Em cada alteração do documento no ERP, envie um novo movimento com o mesmo codigo_erp e um id_alteracao novo. Texto alfanumérico de 1 a 50 caracteres (letras, números, . _ - /), ex.: \"ALT-1\", \"OS4521-2\" ou 2. Número é aceito e tratado como texto (2 = \"2\"). Diferencia maiúsculas de minúsculas. Cada par codigo_erp + id_alteracao gera um documento novo no WMS e fica registrado no histórico.",
+"examples": [
+"ALT-1"
+]
+},
+"numero_nota": {
+"type": "string",
+"description": "Número da nota fiscal."
+},
+"chave_nfe": {
+"type": "string",
+"maxLength": 44,
+"description": "Chave de acesso da NF-e (44 dígitos)."
+},
+"parceiro_codigo_erp": {
+"type": "string",
+"description": "Código ERP do fornecedor (deve existir)."
+},
+"tipo_entrada_codigo_erp": {
+"type": "string",
+"description": "Código ERP do tipo de entrada (deve existir)."
+},
+"data_emissao": {
+"type": "string",
+"description": "Data de emissão do documento."
+},
+"data_entrada": {
+"type": "string",
+"description": "Data de entrada prevista ou efetiva."
+},
+"valor_total_produtos": {
+"type": "number",
+"description": "Soma dos valores dos itens."
+},
+"valor_total_nota": {
+"type": "number",
+"description": "Valor total da nota fiscal."
+},
+"qtd_volume": {
+"type": "integer",
+"description": "Quantidade de volumes físicos (default: 0)."
+},
+"itens": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"produto_codigo_erp": {
+"type": "string",
+"description": "Código ERP do produto (deve existir no WMS)."
+},
+"quantidade": {
+"type": "number",
+"description": "Quantidade do item na NF."
+},
+"valor_unidade": {
+"type": "number",
+"description": "Valor unitário (default: 0)."
+},
+"valor_total": {
+"type": "number",
+"description": "Valor total do item (default: 0)."
+},
+"lotes": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"lote": {
+"type": "string",
+"description": "Código do lote."
+},
+"fabricacao": {
+"type": "string",
+"format": "date",
+"description": "Data de fabricação (YYYY-MM-DD)."
+},
+"validade": {
+"type": "string",
+"format": "date",
+"description": "Data de validade (YYYY-MM-DD)."
+},
+"quantidade": {
+"type": "number",
+"description": "Quantidade neste lote."
+},
+"serie": {
+"type": "string",
+"description": "Número de série (quando aplicável)."
+}
+},
+"required": [
+"lote",
+"quantidade"
+]
+},
+"description": "Lotes do item. Obrigatório se tipo_controle do produto = LOTE ou VALIDADE."
+}
+},
+"required": [
+"produto_codigo_erp",
+"quantidade"
+]
+},
+"description": "Lista de itens da NF. Cada item contém produto_codigo_erp, quantidade, e opcionalmente lotes[]."
+}
+},
+"required": [
+"codigo_erp",
+"numero_nota",
+"parceiro_codigo_erp",
+"tipo_entrada_codigo_erp",
+"data_emissao",
+"data_entrada",
+"valor_total_produtos",
+"valor_total_nota",
+"itens"
+]
+},
+"example": {
+"itens": [
+{
+"lotes": [
+{
+"lote": "LT-2026-A1",
+"validade": "2027-05-01",
+"fabricacao": "2026-05-01",
+"quantidade": 300
+},
+{
+"lote": "LT-2026-A2",
+"validade": "2027-06-01",
+"fabricacao": "2026-06-01",
+"quantidade": 300
+}
+],
+"quantidade": 600,
+"valor_total": 13740,
+"valor_unidade": 22.9,
+"produto_codigo_erp": "PROD-001"
+},
+{
+"lotes": [],
+"quantidade": 200,
+"valor_total": 2060,
+"valor_unidade": 10.3,
+"produto_codigo_erp": "PROD-002"
+}
+],
+"chave_nfe": "35260612345678000190550010001234001234567890",
+"codigo_erp": "NF-2026-001234",
+"qtd_volume": 45,
+"numero_nota": "001234",
+"data_emissao": "2026-06-28T10:00:00Z",
+"data_entrada": "2026-06-29T08:00:00Z",
+"valor_total_nota": 17200.5,
+"parceiro_codigo_erp": "FORN-001",
+"valor_total_produtos": 15800,
+"tipo_entrada_codigo_erp": "TE-COMPRA"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"original": {
+"summary": "Documento original (sem id_alteracao)",
+"value": {
+"data": {
+"id": "uuid",
+"itens": {
+"ok": 2,
+"erros": 0,
+"total": 2,
+"detalhes": [
+{
+"lotes": {
+"ok": 2,
+"erros": 0
+},
+"status": "created",
+"produto_codigo_erp": "PROD-001"
+},
+{
+"lotes": {
+"ok": 0,
+"erros": 0
+},
+"status": "created",
+"produto_codigo_erp": "PROD-002"
+}
+]
+},
+"status": "created",
+"codigo_erp": "NF-2026-001234"
+},
+"success": true
+}
+},
+"alteracao_criada": {
+"summary": "Alteração criada (id_alteracao = 2)",
+"value": {
+"data": {
+"id": "uuid",
+"itens": {
+"ok": 1,
+"erros": 0,
+"total": 1
+},
+"id_wms": "uuid",
+"status": "created",
+"codigo_erp": "OS-4521",
+"id_alteracao": "ALT-2",
+"documento_original_id": "uuid",
+"id_alteracao_anterior": "ALT-1"
+},
+"success": true
+}
+},
+"alteracao_conflito": {
+"summary": "Mesmo id_alteracao com conteúdo diferente (HTTP 409)",
+"value": {
+"error": {
+"code": "ID_ALTERACAO_CONFLICT",
+"message": "id_alteracao ALT-2 ja recebido para 'OS-4521' com conteudo diferente."
+},
+"success": false
+}
+},
+"alteracao_reenviada": {
+"summary": "Mesma alteração reenviada (HTTP 200)",
+"value": {
+"data": {
+"id": "uuid",
+"id_wms": "uuid",
+"status": "already_processed",
+"codigo_erp": "OS-4521",
+"id_alteracao": "ALT-2"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-entrada/batch": {
+"post": {
+"operationId": "post-movements-documentos-entrada-batch",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Importar documentos de entrada em lote",
+"description": "Até 50 documentos com itens por requisição (recomendado: 10, para respostas mais rápidas).\n\n**`id_alteracao` (v1.8):** cada item do array aceita o campo opcional `id_alteracao`, com as mesmas regras do POST individual. O resumo do lote passa a trazer `already_processed` quando houver reenvios idênticos; conflitos de `id_alteracao` contam em `errors` com `status: id_alteracao_conflict` no item.\n\nLimite técnico: 50 documentos por chamada. Recomendado: até 10, para respostas mais rápidas.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 50,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"itens": [
+{
+"lotes": [
+{
+"lote": "LT-2026-A1",
+"validade": "2027-05-01",
+"quantidade": 300
+},
+{
+"lote": "LT-2026-A2",
+"validade": "2027-06-01",
+"quantidade": 300
+}
+],
+"quantidade": 600,
+"valor_unidade": 22.9,
+"produto_codigo_erp": "PROD-001"
+}
+],
+"codigo_erp": "NF-2026-001234",
+"numero_nota": "001234",
+"data_emissao": "2026-06-28T10:00:00Z",
+"data_entrada": "2026-06-29T08:00:00Z",
+"valor_total_nota": 17200.5,
+"parceiro_codigo_erp": "FORN-001",
+"valor_total_produtos": 15800,
+"tipo_entrada_codigo_erp": "TE-COMPRA"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-entrada/{codigo_erp}": {
+"get": {
+"operationId": "get-movements-documentos-entrada-por-codigo",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Buscar NF com itens e lotes aninhados",
+"description": "\n\nRetorna o documento com itens e lotes completos.\n\n**`id_alteracao` (v1.8):** sem parâmetro, atua sobre o **documento original**. Para uma alteração específica use `?id_alteracao=ALT-2` (o identificador enviado pelo ERP). Quando houver alteração, a resposta inclui o campo `id_alteracao`.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"schema": {
+"type": "string",
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"name": "todos",
+"in": "query",
+"required": false,
+"description": "Com todos=true, retorna a lista com o documento original e todas as alterações do codigo_erp.",
+"schema": {
+"type": "boolean",
+"description": "Com todos=true, retorna a lista com o documento original e todas as alterações do codigo_erp.",
+"examples": [
+true
+]
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"itens": [
+{
+"lotes": [
+{
+"lote": "LT-2026-A1",
+"quantidade": 300
+}
+],
+"quantidade": 600,
+"produto_codigo_erp": "PROD-001"
+}
+],
+"status": 0,
+"codigo_erp": "NF-2026-001234",
+"numero_nota": "001234"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-entrada/{codigo_erp}/cancel": {
+"post": {
+"operationId": "post-movements-documentos-entrada-por-codigo-cancel",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Cancelar documento de entrada ainda não iniciado",
+"description": "Cancela a nota de entrada enquanto ela ainda não começou a ser recebida no WMS (status 0). Notas já em recebimento, conferência ou armazenagem são recusadas com 422 DOCUMENT_LOCKED. Aceita PATCH ou POST. O corpo é opcional e hoje não é gravado.\n\nAceita **PATCH** ou **POST**. Respostas: 200 `cancelled`; 200 `already_cancelled`; 404 `NOT_FOUND`; 409 `AMBIGUOUS_DOCUMENT` (sem original e com mais de uma alteração ativa: informe `?id_alteracao=`); 422 `DOCUMENT_LOCKED` (recebimento já iniciado: trate no WMS). **`id_alteracao`:** sem parâmetro, atua no documento original; para uma alteração use `?id_alteracao=ALT-2`. Sem `?id_alteracao`, se o documento só existir como alteração e ela já estiver cancelada, a resposta é 200 `already_cancelled` (desde a v1.12).",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"schema": {
+"type": "string",
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": false,
+"content": {
+"application/json": {
+"schema": {
+"type": "object"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"bloqueado": {
+"summary": "Nota já em recebimento (HTTP 422)",
+"value": {
+"error": {
+"code": "DOCUMENT_LOCKED",
+"message": "Doc ja em processamento."
+},
+"success": false
+}
+},
+"cancelado": {
+"summary": "Nota pendente cancelada (HTTP 200)",
+"value": {
+"data": {
+"status": "cancelled",
+"codigo_erp": "NF-2026-001234"
+},
+"success": true
+}
+},
+"ja_cancelado": {
+"summary": "Nota já cancelada: nada é refeito (HTTP 200)",
+"value": {
+"data": {
+"status": "already_cancelled",
+"codigo_erp": "NF-2026-001234"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-entrada/{codigo_erp}/cancel-status": {
+"get": {
+"operationId": "get-movements-documentos-entrada-por-codigo-cancel-status",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Consultar status de cancelamento de documento de entrada",
+"description": "Retorna o status atual de cancelamento de um documento de entrada, incluindo informações sobre tarefas PED-CAN pendentes, estornos realizados e divergências encontradas. Útil para polling do ERP após solicitar um cancelamento nos cenários C, D, E.1 ou E.2 (onde o cancelamento não é imediato).\n\nEndpoint de leitura sem efeitos colaterais. Use para polling após solicitar cancelamento. \n\n**Status de cancelamento possíveis:**\n- `none` — nenhum cancelamento solicitado\n- `in_progress` — cancelamento solicitado, tarefas PED-CAN em execução (status doc = 8)\n- `cancelled` — cancelamento concluído (status doc = 9)\n\n**Intervalo de polling recomendado:** 30 segundos\n\n**`id_alteracao` (v1.8):** sem parâmetro, atua sobre o **documento original**. Para uma alteração específica use `?id_alteracao=ALT-2` (o identificador enviado pelo ERP). Quando houver alteração, a resposta inclui o campo `id_alteracao`.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"schema": {
+"type": "string",
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"examples": [
+"ALT-2"
+]
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"sem_cancelamento": {
+"summary": "Documento não possui solicitação de cancelamento",
+"value": {
+"data": {
+"codigo_erp": "NF-2026-001234",
+"status_documento": 0,
+"cancelamento_motivo": null,
+"cancelamento_origem": null,
+"status_cancelamento": "none",
+"documento_entrada_id": "uuid",
+"cancelamento_solicitado_em": null
+},
+"success": true
+}
+},
+"cancelamento_concluido": {
+"summary": "Todas as tarefas PED-CAN concluídas, documento cancelado",
+"value": {
+"data": {
+"codigo_erp": "NF-2026-001234",
+"tarefas_ped_can": {
+"total": 5,
+"pendentes": 0,
+"canceladas": 0,
+"concluidas": 5
+},
+"estornos_estoque": {
+"total_itens": 5,
+"qtd_total_estornada": 500
+},
+"status_documento": 9,
+"cancelamento_motivo": "NF cancelada pelo fornecedor",
+"cancelamento_origem": "API_ERP",
+"status_cancelamento": "cancelled",
+"documento_entrada_id": "uuid",
+"cancelamento_solicitado_em": "2026-08-30T14:30:00Z"
+},
+"success": true
+}
+},
+"cancelamento_em_andamento": {
+"summary": "Tarefas PED-CAN ainda em execução",
+"value": {
+"data": {
+"codigo_erp": "NF-2026-001234",
+"tarefas_ped_can": {
+"total": 5,
+"pendentes": 3,
+"canceladas": 0,
+"concluidas": 2
+},
+"status_documento": 8,
+"cancelamento_motivo": "NF cancelada pelo fornecedor",
+"cancelamento_origem": "API_ERP",
+"status_cancelamento": "in_progress",
+"documento_entrada_id": "uuid",
+"cancelamento_solicitado_em": "2026-08-30T14:30:00Z"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-entrada/{codigo_erp}/alteracoes": {
+"get": {
+"operationId": "get-movements-documentos-entrada-por-codigo-alteracoes",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Histórico de alterações do documento de entrada",
+"description": "Retorna o histórico de movimentos de alteração (id_alteracao) recebidos para o codigo_erp, com a situação de cada um e o documento gerado no WMS.\n\nSomente leitura. Lista apenas os envios **com** `id_alteracao` (o documento original não aparece aqui; consulte-o em GET /{codigo_erp}).\n\n**Situação:**\n- `aplicada` — documento criado com todos os itens\n- `pendente` — documento criado, mas algum item falhou (ver `motivo`)\n- `recusada` — o envio falhou na validação e nenhum documento foi criado; corrija e reenvie com o mesmo `id_alteracao`\n\n`fora_de_ordem` e `salto` são apenas alertas para conciliação com o ERP e só são calculados quando os identificadores são numéricos (nos demais casos vêm `null`); não bloqueiam o processamento. A lista é ordenada pela data de recebimento.",
+"x-versao-desde": "1.8.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"data": {
+"alteracoes": [
+{
+"salto": false,
+"id_wms": "uuid",
+"motivo": null,
+"situacao": "aplicada",
+"request_id": "uuid",
+"tentativas": 1,
+"recebido_em": "2026-10-14T12:00:00Z",
+"id_alteracao": "ALT-1",
+"fora_de_ordem": false,
+"processado_em": "2026-10-14T12:00:01Z",
+"status_documento": 0,
+"id_alteracao_anterior": null
+},
+{
+"salto": false,
+"id_wms": "uuid",
+"motivo": null,
+"situacao": "aplicada",
+"request_id": "uuid",
+"tentativas": 2,
+"recebido_em": "2026-10-14T15:30:00Z",
+"id_alteracao": "ALT-2",
+"fora_de_ordem": false,
+"processado_em": "2026-10-14T15:30:01Z",
+"status_documento": 0,
+"id_alteracao_anterior": "ALT-1"
+}
+],
+"codigo_erp": "NF-2026-001234"
+},
+"success": true
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-entrada/{codigo_erp}/delete": {
+"patch": {
+"operationId": "patch-movements-documentos-entrada-por-codigo-delete",
+"tags": [
+"Documentos de entrada (NF)"
+],
+"summary": "Excluir documento de entrada",
+"description": "Exclui logicamente a NF no WMS (status 99), com ocorrência registrada para auditoria. Aceita PATCH ou POST. Para interromper uma entrada já iniciada prefira o cancelamento (/cancel).\n\nAceita **PATCH** ou **POST**. Erros: 400 `VALIDATION_ERROR` (campos obrigatórios), 404 `NOT_FOUND`, 422 `DELETE_FAILED` (etapa não permite exclusão). Use `?id_alteracao=` para excluir uma alteração específica.\n\nTambém aceito como **POST** na mesma rota (clientes sem suporte a PATCH).",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Exclui a alteração informada. Sem o parâmetro, atua no documento original.",
+"schema": {
+"type": "string",
+"description": "Exclui a alteração informada. Sem o parâmetro, atua no documento original.",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"usuario_id": {
+"type": "string",
+"format": "uuid",
+"description": "Usuário do WMS registrado como responsável pela exclusão.",
+"examples": [
+"7f1c2d3e-0000-4000-8000-000000000001"
+]
+},
+"motivo_ocorrencia_id": {
+"type": "string",
+"format": "uuid",
+"description": "Motivo de ocorrência cadastrado no WMS.",
+"examples": [
+"9a8b7c6d-0000-4000-8000-000000000002"
+]
+},
+"observacao": {
+"type": "string",
+"description": "Texto livre para a ocorrência.",
+"examples": [
+"NF emitida em duplicidade"
+]
+}
+},
+"required": [
+"usuario_id",
+"motivo_ocorrencia_id"
+]
+},
+"example": {
+"observacao": "NF emitida em duplicidade",
+"usuario_id": "7f1c2d3e-0000-4000-8000-000000000001",
+"motivo_ocorrencia_id": "9a8b7c6d-0000-4000-8000-000000000002"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"data": {
+"status": "deleted",
+"codigo_erp": "NF-000123",
+"ocorrencia_id": "uuid",
+"numero_ocorrencia": "181"
+},
+"success": true
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+},
+"x-aceita-post": true
+}
+},
+"/movements/documentos-saida": {
+"get": {
+"operationId": "get-movements-documentos-saida",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Listar documentos de saída",
+"description": "Retorna pedidos de saída importados.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/limit"
+},
+{
+"$ref": "#/components/parameters/cursor"
+},
+{
+"$ref": "#/components/parameters/updated_since"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": [
+{
+"status": 1,
+"parceiro": "Cliente Ex",
+"codigo_erp": "PED001",
+"numero_pedido": 5001
+}
+],
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"post": {
+"operationId": "post-movements-documentos-saida",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Criar pedido com itens em uma única chamada",
+"description": "Importa pedido/OS de saída com itens. Sem id_alteracao: upsert por codigo_erp (documento original). Com id_alteracao: cria um documento novo de alteração para o mesmo codigo_erp e registra o histórico.\n\nOtimização HTTP: pedido + itens em 1 requisição. Limite batch: 10 documentos. Pré-requisitos: parceiro, tipo_saída, rota e produtos devem existir.\n\n**Alterações de documento (`id_alteracao`, v1.8):**\n- Documento sem `id_alteracao` = **original** (comportamento de sempre).\n- Alterações feitas no ERP depois do envio: envie um **novo movimento** com o mesmo `codigo_erp` e um `id_alteracao` novo (ex.: `ALT-1`, `ALT-2`). Inclusões/aumentos → documento de saída; reduções/devoluções → documento de entrada. Envie em `itens` **somente o que este movimento movimenta**.\n- Reenviar o mesmo `codigo_erp` + `id_alteracao` com o mesmo conteúdo é seguro: HTTP 200, `status: already_processed`, nenhum documento novo.\n- Reutilizar um `id_alteracao` com conteúdo diferente: HTTP 409 `ID_ALTERACAO_CONFLICT`.\n- Envios fora de ordem são aceitos. Recusado por validação? Corrija e reenvie com o **mesmo** `id_alteracao`.\n- **Atenção:** uma alteração enviada **sem** `id_alteracao` é tratada como reenvio do original e não gera documento novo.\n- `id_alteracao` é texto alfanumérico de 1 a 50 caracteres (letras, números, `. _ - /`). Número também é aceito e tratado como texto (`2` = `\"2\"`). Maiúsculas e minúsculas são diferentes.\n\nLimite técnico: 50 documentos por chamada. Recomendado: até 10, para respostas mais rápidas.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp": {
+"type": "string",
+"description": "ID do pedido/OS no ERP. Sem id_alteracao é a chave de idempotência do documento original; nas alterações repita o codigo_erp do original."
+},
+"id_alteracao": {
+"type": "string",
+"description": "Opcional. Omitir no documento original. Em cada alteração do documento no ERP, envie um novo movimento com o mesmo codigo_erp e um id_alteracao novo. Texto alfanumérico de 1 a 50 caracteres (letras, números, . _ - /), ex.: \"ALT-1\", \"OS4521-2\" ou 2. Número é aceito e tratado como texto (2 = \"2\"). Diferencia maiúsculas de minúsculas. Cada par codigo_erp + id_alteracao gera um documento novo no WMS e fica registrado no histórico.",
+"examples": [
+"ALT-1"
+]
+},
+"numero_pedido": {
+"type": "integer",
+"description": "Número do pedido no ERP."
+},
+"parceiro_codigo_erp": {
+"type": "string",
+"description": "Código ERP do cliente (deve existir)."
+},
+"tipo_saida_codigo_erp": {
+"type": "string",
+"description": "Código ERP do tipo de saída (deve existir)."
+},
+"rota_codigo_erp": {
+"type": "string",
+"description": "Código ERP da rota de entrega."
+},
+"data_emissao": {
+"type": "string",
+"description": "Data de emissão do pedido."
+},
+"valor_pedido": {
+"type": "number",
+"description": "Valor total do pedido."
+},
+"observacao": {
+"type": "string",
+"description": "Observações do pedido."
+},
+"transportador": {
+"type": "string",
+"description": "Nome da transportadora."
+},
+"itens": {
+"type": "array",
+"items": {
+"type": "object",
+"properties": {
+"produto_codigo_erp": {
+"type": "string",
+"description": "Código ERP do produto (deve existir)."
+},
+"quantidade": {
+"type": "number",
+"description": "Quantidade solicitada."
+},
+"valor_unit": {
+"type": "number",
+"description": "Valor unitário (default: 0)."
+},
+"valor_total": {
+"type": "number",
+"description": "Valor total do item (default: 0)."
+}
+},
+"required": [
+"produto_codigo_erp",
+"quantidade"
+]
+},
+"description": "Lista de itens do pedido."
+}
+},
+"required": [
+"codigo_erp",
+"numero_pedido",
+"parceiro_codigo_erp",
+"tipo_saida_codigo_erp",
+"data_emissao",
+"valor_pedido",
+"itens"
+]
+},
+"example": {
+"itens": [
+{
+"quantidade": 100,
+"valor_unit": 22.9,
+"valor_total": 2290,
+"produto_codigo_erp": "PROD-001"
+},
+{
+"quantidade": 200,
+"valor_unit": 11.45,
+"valor_total": 2290,
+"produto_codigo_erp": "PROD-002"
+}
+],
+"codigo_erp": "PED-2026-005678",
+"observacao": "Entregar até 14h",
+"data_emissao": "2026-06-29T09:00:00Z",
+"valor_pedido": 4580,
+"numero_pedido": 5678,
+"transportador": "Transportes Rápidos Ltda",
+"rota_codigo_erp": "ROTA-SP-01",
+"parceiro_codigo_erp": "CLI-001",
+"tipo_saida_codigo_erp": "TS-VENDA"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"original": {
+"summary": "Documento original (sem id_alteracao)",
+"value": {
+"id": "uuid",
+"status": "created",
+"codigo_erp": "PED001",
+"itens_processados": 1
+}
+},
+"alteracao_criada": {
+"summary": "Alteração criada (id_alteracao = 2)",
+"value": {
+"data": {
+"id": "uuid",
+"itens": {
+"ok": 1,
+"erros": 0,
+"total": 1
+},
+"id_wms": "uuid",
+"status": "created",
+"codigo_erp": "OS-4521",
+"id_alteracao": "ALT-2",
+"documento_original_id": "uuid",
+"id_alteracao_anterior": "ALT-1"
+},
+"success": true
+}
+},
+"alteracao_conflito": {
+"summary": "Mesmo id_alteracao com conteúdo diferente (HTTP 409)",
+"value": {
+"error": {
+"code": "ID_ALTERACAO_CONFLICT",
+"message": "id_alteracao ALT-2 ja recebido para 'OS-4521' com conteudo diferente."
+},
+"success": false
+}
+},
+"alteracao_reenviada": {
+"summary": "Mesma alteração reenviada (HTTP 200)",
+"value": {
+"data": {
+"id": "uuid",
+"id_wms": "uuid",
+"status": "already_processed",
+"codigo_erp": "OS-4521",
+"id_alteracao": "ALT-2"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/batch": {
+"post": {
+"operationId": "post-movements-documentos-saida-batch",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Importar pedidos de saída em lote",
+"description": "Até 50 documentos com itens por requisição (recomendado: 10, para respostas mais rápidas).\n\n**`id_alteracao` (v1.8):** cada item do array aceita o campo opcional `id_alteracao`, com as mesmas regras do POST individual. O resumo do lote passa a trazer `already_processed` quando houver reenvios idênticos; conflitos de `id_alteracao` contam em `errors` com `status: id_alteracao_conflict` no item.\n\nLimite técnico: 50 documentos por chamada. Recomendado: até 10, para respostas mais rápidas.\n\n**Limite:** 50 itens por requisição.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"required": [
+"items"
+],
+"properties": {
+"items": {
+"type": "array",
+"maxItems": 50,
+"items": {
+"type": "object"
+}
+}
+}
+},
+"example": {
+"items": [
+{
+"itens": [
+{
+"quantidade": 100,
+"valor_unit": 22.9,
+"produto_codigo_erp": "PROD-001"
+},
+{
+"quantidade": 200,
+"valor_unit": 11.45,
+"produto_codigo_erp": "PROD-002"
+}
+],
+"codigo_erp": "PED-2026-005678",
+"data_emissao": "2026-06-29T09:00:00Z",
+"valor_pedido": 4580,
+"numero_pedido": 5678,
+"rota_codigo_erp": "ROTA-SP-01",
+"parceiro_codigo_erp": "CLI-001",
+"tipo_saida_codigo_erp": "TS-VENDA"
+}
+]
+}
+}
+}
+},
+"responses": {
+"207": {
+"description": "Lote processado; confira o status de cada item.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/RespostaLote"
+},
+"example": {
+"success": true,
+"data": {
+"total": 2,
+"created": 2,
+"updated": 0,
+"errors": 0,
+"results": [
+{
+"codigo_erp": "F001",
+"status": "created",
+"id": "8c1d…"
+},
+{
+"codigo_erp": "F002",
+"status": "created",
+"id": "4be2…"
+}
+]
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z",
+"processing_ms": 420
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}": {
+"get": {
+"operationId": "get-movements-documentos-saida-por-codigo",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Buscar pedido com itens por código ERP",
+"description": "\n\nRetorna o pedido com itens completos.\n\n**`id_alteracao` (v1.8):** sem parâmetro, atua sobre o **documento original**. Para uma alteração específica use `?id_alteracao=ALT-2` (o identificador enviado pelo ERP). Quando houver alteração, a resposta inclui o campo `id_alteracao`.",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"schema": {
+"type": "string",
+"description": "Atua sobre a alteração informada. Sem o parâmetro, atua sobre o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"name": "todos",
+"in": "query",
+"required": false,
+"description": "Com todos=true, retorna a lista com o documento original e todas as alterações do codigo_erp.",
+"schema": {
+"type": "boolean",
+"description": "Com todos=true, retorna a lista com o documento original e todas as alterações do codigo_erp.",
+"examples": [
+true
+]
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"itens": [
+{
+"quantidade": 100,
+"produto_codigo_erp": "PROD-001"
+}
+],
+"status": 0,
+"codigo_erp": "PED-2026-005678",
+"numero_pedido": 5678
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/cancel": {
+"patch": {
+"operationId": "patch-movements-documentos-saida-por-codigo-cancel",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Cancelar pedido de saída (com estorno da separação)",
+"description": "Cancela o pedido no WMS na mesma chamada. Desfaz o que já aconteceu na expedição conforme a etapa: cancela tarefas, retira o pedido da onda e estorna o que já foi coletado para o endereço de cancelamento do armazém (mesmo movimento do botão Limpar separação, com lote, validade, fabricação e HU preservados). A partir da conferência o cancelamento é recusado. Aceita PATCH ou POST.\n\nAceita **PATCH** ou **POST** (clientes que não suportam PATCH). O corpo é **opcional**: pode ser vazio ou trazer `motivo` e `solicitado_por`.\r\n\r\n**O que acontece em cada etapa do pedido**\r\n\r\n| Etapa do pedido no WMS | Resultado | O que o WMS faz |\r\n|---|---|---|\r\n| Sem onda (status 0) | 200 `cancelled` | Cancela o pedido |\r\n| Onda gerada (CRIADA) ou liberada (LIBERADO) | 200 `cancelled` | Cancela as tarefas do pedido. Onda só com este pedido é cancelada; com outros pedidos, só a parte deste sai da onda |\r\n| Em separação (EM_PICKING) ou separado (SEPARADO) | 200 `cancelled` | Igual acima e estorna o que já foi coletado para o endereço de cancelamento. Cria a tarefa de retirada física (PED-CAN) para o operador levar o produto até lá |\r\n| Em conferência, conferido, em carregamento, concluído ou exportado | 422 `CANCELAMENTO_NAO_PERMITIDO` | Nada. Estorne a conferência no WMS ou trate como devolução no ERP |\r\n\r\n**Recusas que valem em qualquer etapa permitida:** volumes de expedição já gerados → 422 `VOLUME_EXPEDICAO_EXISTENTE`; conferência da onda já iniciada → 422 `CONFERENCIA_INICIADA`; endereço de cancelamento não configurado e há coleta → 422 `CONFIGURACAO_INCOMPLETA`.\r\n\r\n**Cancelamento imediato:** em caso de sucesso o pedido fica cancelado (status 9) na mesma chamada e o saldo já está estornado. O 202 não é mais usado. A retirada física (PED-CAN) é acompanhada em `GET /{codigo_erp}/cancel-status`, sem efeito para o ERP.\r\n\r\n**Coleta em andamento:** se um operador estiver gravando uma coleta do pedido no mesmo instante, a API responde 409 `RETRY_LATER` com o header `Retry-After` (segundos). Repita a chamada. A tarefa do operador é cancelada e a próxima leitura dele no coletor recebe `TAREFA_CANCELADA`.\r\n\r\n**Idempotência:** cancelar um pedido já cancelado responde 200 `already_cancelled`. Com o header `Idempotency-Key` (até 100 caracteres), a mesma chave devolve exatamente a mesma resposta da primeira chamada, inclusive recusas. Use uma chave nova a cada tentativa nova depois de uma recusa resolvida no WMS.\r\n\r\n**Rastreabilidade:** toda chamada, aceita ou recusada, gera um registro de auditoria (`cancelamento_id`) e, quando há mudança na operação, uma ocorrência no WMS (`numero_ocorrencia`).\r\n\r\n**`id_alteracao` (v1.8):** sem parâmetro, atua sobre o **documento original**. Para uma alteração específica use `?id_alteracao=ALT-2`. Sem `?id_alteracao`, se o documento só existir como alteração e ela já estiver cancelada, a resposta é 200 `already_cancelled` (desde a v1.12).\n\nTambém aceito como **POST** na mesma rota (clientes sem suporte a PATCH).",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Cancela a alteração informada. Sem o parâmetro, cancela o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"schema": {
+"type": "string",
+"description": "Cancela a alteração informada. Sem o parâmetro, cancela o documento original. Se não houver original e existir mais de uma alteração ativa, retorna 409 AMBIGUOUS_DOCUMENT.",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": false,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"motivo": {
+"type": "string",
+"description": "Opcional. Motivo do cancelamento no ERP (até 500 caracteres). Fica na auditoria e na ocorrência do WMS.",
+"examples": [
+"Cliente desistiu da compra"
+]
+},
+"solicitado_por": {
+"type": "string",
+"description": "Opcional. Quem solicitou no ERP (até 150 caracteres).",
+"examples": [
+"joao.vendas"
+]
+}
+}
+},
+"example": {
+"motivo": "Cliente desistiu da compra",
+"solicitado_por": "joao.vendas"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"ja_cancelado": {
+"summary": "Pedido já estava cancelado: nada é refeito (HTTP 200)",
+"value": {
+"data": {
+"status": "already_cancelled",
+"message": "Pedido #5678 já está cancelado.",
+"success": true,
+"codigo_erp": "PED-2026-005678",
+"numero_pedido": 5678,
+"cancelamento_id": "uuid"
+},
+"success": true
+}
+},
+"tentar_novamente": {
+"summary": "Coleta sendo gravada no mesmo instante: repita após alguns segundos (HTTP 409, header Retry-After: 3)",
+"value": {
+"data": {
+"codigo": "RETRY_LATER",
+"status": "retry_later",
+"message": "O pedido está sendo usado por outra operação neste instante (ex.: coleta sendo gravada). Tente novamente em alguns segundos.",
+"success": false,
+"codigo_erp": "PED-2026-005678",
+"retry_after_ms": 3000
+},
+"error": {
+"code": "RETRY_LATER",
+"message": "O pedido está sendo usado por outra operação neste instante..."
+},
+"success": false
+}
+},
+"cancelado_sem_onda": {
+"summary": "Pedido ainda sem onda: cancelado, nada a desfazer (HTTP 200)",
+"value": {
+"data": {
+"status": "cancelled",
+"totais": {},
+"message": "Pedido #5678 cancelado com sucesso.",
+"success": true,
+"codigo_erp": "PED-2026-005678",
+"numero_pedido": 5678,
+"ocorrencia_id": "uuid",
+"cancelamento_id": "uuid",
+"retirada_fisica": {
+"status": "NAO_APLICAVEL",
+"tarefas": 0
+},
+"numero_ocorrencia": "174",
+"estagio_encontrado": "SEM_ONDA",
+"tarefas_cancelamento_criadas": 0
+},
+"success": true,
+"metadata": {
+"timestamp": "2026-10-20T13:02:11Z",
+"request_id": "uuid",
+"processing_ms": 180
+}
+}
+},
+"recusado_conferencia": {
+"summary": "Pedido em conferência ou adiante: recusado, nada é alterado (HTTP 422)",
+"value": {
+"data": {
+"codigo": "CANCELAMENTO_NAO_PERMITIDO",
+"status": "cancellation_rejected",
+"message": "Pedido #5678 está na onda #808 em EM_CONFERENCIA. A partir da conferência o cancelamento pela integração não é permitido: faça o estorno no WMS ou trate como devolução no ERP.",
+"success": false,
+"tipo_onda": "PEDIDO_UNICO",
+"codigo_erp": "PED-2026-005678",
+"onda_numero": 808,
+"cancelamento_id": "uuid",
+"estagio_encontrado": "EM_CONFERENCIA"
+},
+"error": {
+"code": "CANCELAMENTO_NAO_PERMITIDO",
+"message": "Pedido #5678 está na onda #808 em EM_CONFERENCIA. ..."
+},
+"success": false
+}
+},
+"cancelado_com_estorno": {
+"summary": "Pedido em separação com itens já coletados: cancelado, saldo estornado e retirada física pendente (HTTP 200)",
+"value": {
+"data": {
+"status": "cancelled",
+"totais": {
+"qtd_estornada": 3,
+"tarefas_novas": 1,
+"tarefas_reduzidas": 0,
+"coletas_estornadas": 1,
+"tarefas_canceladas": 1
+},
+"message": "Pedido #5678 cancelado com sucesso.",
+"success": true,
+"tipo_onda": "PEDIDO_UNICO",
+"codigo_erp": "PED-2026-005678",
+"onda_numero": 1010,
+"numero_pedido": 5678,
+"ocorrencia_id": "uuid",
+"cancelamento_id": "uuid",
+"retirada_fisica": {
+"status": "PENDENTE",
+"tarefas": 1,
+"endereco_cancelamento": "R08-P02-N02-A02"
+},
+"numero_ocorrencia": "180",
+"estagio_encontrado": "EM_PICKING",
+"tarefas_cancelamento_criadas": 1
+},
+"success": true,
+"metadata": {
+"timestamp": "2026-10-20T13:02:11Z",
+"request_id": "uuid",
+"processing_ms": 412
+}
+}
+},
+"configuracao_incompleta": {
+"summary": "Armazém sem endereço de cancelamento configurado e há itens coletados (HTTP 422)",
+"value": {
+"data": {
+"codigo": "CONFIGURACAO_INCOMPLETA",
+"status": "configuration_error",
+"message": "Endereço de cancelamento não configurado para o armazém. Configure em Parâmetros > Armazém e reenvie o cancelamento.",
+"success": false,
+"codigo_erp": "PED-2026-005678"
+},
+"error": {
+"code": "CONFIGURACAO_INCOMPLETA",
+"message": "Endereço de cancelamento não configurado para o armazém..."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+},
+"x-aceita-post": true
+}
+},
+"/movements/documentos-saida/{codigo_erp}/cancel-status": {
+"get": {
+"operationId": "get-movements-documentos-saida-por-codigo-cancel-status",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Consultar status do cancelamento do pedido de saída",
+"description": "Retorna se o pedido foi cancelado, em que etapa ele estava, a última recusa (se houver) e o andamento da retirada física dos itens já separados até o endereço de cancelamento (tarefas PED-CAN).\n\nEndpoint de leitura, sem efeitos colaterais.\r\n\r\n**`status`:**\r\n- `not_requested` — nenhum cancelamento solicitado\r\n- `cancelled` — pedido cancelado no WMS (status 9)\r\n- `rejected` — a última solicitação foi recusada e o pedido continua ativo (veja `codigo_recusa` e `mensagem_recusa`)\r\n- `cancellation_in_progress` — pedido cancelado pelo fluxo anterior à v1.10, com retirada pendente\r\n\r\n**`retirada_fisica.status`:** `NAO_APLICAVEL` (nada tinha sido separado), `PENDENTE` (produto a caminho do endereço de cancelamento) ou `CONCLUIDA`.\r\n\r\nA retirada física é só operacional: o pedido já está cancelado e o saldo já foi estornado quando o cancelamento responde 200. O ERP não precisa aguardar a retirada para seguir o processo dele.\r\n\r\n**Intervalo de consulta recomendado:** 60 segundos, se o ERP quiser acompanhar a retirada.\r\n\r\n**`id_alteracao` (v1.8):** sem parâmetro, atua sobre o **documento original**. Para uma alteração específica use `?id_alteracao=ALT-2`.",
+"x-versao-desde": "1.10.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Consulta a alteração informada. Sem o parâmetro, consulta o documento original.",
+"schema": {
+"type": "string",
+"description": "Consulta a alteração informada. Sem o parâmetro, consulta o documento original.",
+"examples": [
+"ALT-2"
+]
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"recusado": {
+"summary": "Cancelamento recusado (ex.: pedido já em conferência); pedido continua ativo",
+"value": {
+"data": {
+"status": "rejected",
+"codigo_erp": "PED-2026-005678",
+"codigo_recusa": "CANCELAMENTO_NAO_PERMITIDO",
+"numero_pedido": 5678,
+"cancelamento_id": null,
+"mensagem_recusa": "Pedido #5678 está na onda #808 em EM_CONFERENCIA. ...",
+"retirada_fisica": {
+"itens": [],
+"status": "NAO_APLICAVEL",
+"pendentes": 0,
+"concluidas": 0,
+"percentual": 0,
+"concluida_em": null,
+"total_tarefas": 0
+},
+"tentativas_recusadas": 1
+},
+"success": true
+}
+},
+"sem_cancelamento": {
+"summary": "Nenhum cancelamento solicitado",
+"value": {
+"data": {
+"status": "not_requested",
+"codigo_erp": "PED-2026-005678",
+"numero_pedido": 5678,
+"cancelamento_id": null,
+"retirada_fisica": {
+"itens": [],
+"status": "NAO_APLICAVEL",
+"pendentes": 0,
+"concluidas": 0,
+"percentual": 0,
+"concluida_em": null,
+"total_tarefas": 0
+},
+"tentativas_recusadas": 0
+},
+"success": true
+}
+},
+"retirada_pendente": {
+"summary": "Pedido cancelado, produto separado ainda a caminho do endereço de cancelamento",
+"value": {
+"data": {
+"origem": "API_ERP",
+"status": "cancelled",
+"codigo_erp": "PED-2026-005678",
+"onda_numero": 1010,
+"numero_pedido": 5678,
+"solicitado_em": "2026-10-20T13:02:11Z",
+"cancelamento_id": "uuid",
+"retirada_fisica": {
+"itens": [
+{
+"sku": "7891000100103",
+"status": "ATRIBUIDA",
+"quantidade": 3,
+"concluido_em": null
+}
+],
+"status": "PENDENTE",
+"pendentes": 1,
+"concluidas": 0,
+"percentual": 0,
+"concluida_em": null,
+"total_tarefas": 1
+},
+"estagio_encontrado": "EM_PICKING",
+"tentativas_recusadas": 0
+},
+"success": true
+}
+},
+"retirada_concluida": {
+"summary": "Pedido cancelado e produto entregue no endereço de cancelamento",
+"value": {
+"data": {
+"origem": "API_ERP",
+"status": "cancelled",
+"codigo_erp": "PED-2026-005678",
+"onda_numero": 1010,
+"numero_pedido": 5678,
+"cancelamento_id": "uuid",
+"retirada_fisica": {
+"itens": [
+{
+"sku": "7891000100103",
+"status": "CONCLUIDA",
+"quantidade": 3,
+"concluido_em": "2026-10-20T13:20:45Z"
+}
+],
+"status": "CONCLUIDA",
+"pendentes": 0,
+"concluidas": 1,
+"percentual": 100,
+"concluida_em": "2026-10-20T13:20:45Z",
+"total_tarefas": 1
+},
+"estagio_encontrado": "EM_PICKING",
+"tentativas_recusadas": 0
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/alteracoes": {
+"get": {
+"operationId": "get-movements-documentos-saida-por-codigo-alteracoes",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Histórico de alterações do pedido/OS de saída",
+"description": "Retorna o histórico de movimentos de alteração (id_alteracao) recebidos para o codigo_erp, com a situação de cada um e o documento gerado no WMS.\n\nSomente leitura. Lista apenas os envios **com** `id_alteracao` (o documento original não aparece aqui; consulte-o em GET /{codigo_erp}).\n\n**Situação:**\n- `aplicada` — documento criado com todos os itens\n- `pendente` — documento criado, mas algum item falhou (ver `motivo`)\n- `recusada` — o envio falhou na validação e nenhum documento foi criado; corrija e reenvie com o mesmo `id_alteracao`\n\n`fora_de_ordem` e `salto` são apenas alertas para conciliação com o ERP e só são calculados quando os identificadores são numéricos (nos demais casos vêm `null`); não bloqueiam o processamento. A lista é ordenada pela data de recebimento.",
+"x-versao-desde": "1.8.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"data": {
+"alteracoes": [
+{
+"salto": false,
+"id_wms": "uuid",
+"motivo": null,
+"situacao": "aplicada",
+"request_id": "uuid",
+"tentativas": 1,
+"recebido_em": "2026-10-14T12:00:00Z",
+"id_alteracao": "ALT-1",
+"fora_de_ordem": false,
+"processado_em": "2026-10-14T12:00:01Z",
+"status_documento": 0,
+"id_alteracao_anterior": null
+},
+{
+"salto": false,
+"id_wms": "uuid",
+"motivo": null,
+"situacao": "aplicada",
+"request_id": "uuid",
+"tentativas": 2,
+"recebido_em": "2026-10-14T15:30:00Z",
+"id_alteracao": "ALT-2",
+"fora_de_ordem": false,
+"processado_em": "2026-10-14T15:30:01Z",
+"status_documento": 0,
+"id_alteracao_anterior": "ALT-1"
+}
+],
+"codigo_erp": "OS-4521"
+},
+"success": true
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/delete": {
+"patch": {
+"operationId": "patch-movements-documentos-saida-por-codigo-delete",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Excluir pedido de saída",
+"description": "Exclui logicamente o pedido no WMS (status 99), com ocorrência registrada para auditoria. Aceita PATCH ou POST. Para pedidos já em separação use o cancelamento (/cancel), que estorna o que foi coletado.\n\nAceita **PATCH** ou **POST**. Erros: 400 `VALIDATION_ERROR`, 404 `NOT_FOUND`, 422 `DELETE_FAILED`. Use `?id_alteracao=` para excluir uma alteração específica.\n\nTambém aceito como **POST** na mesma rota (clientes sem suporte a PATCH).",
+"x-versao-desde": "1.0.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Exclui a alteração informada. Sem o parâmetro, atua no documento original.",
+"schema": {
+"type": "string",
+"description": "Exclui a alteração informada. Sem o parâmetro, atua no documento original.",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"usuario_id": {
+"type": "string",
+"format": "uuid",
+"description": "Usuário do WMS registrado como responsável pela exclusão.",
+"examples": [
+"7f1c2d3e-0000-4000-8000-000000000001"
+]
+},
+"motivo_ocorrencia_id": {
+"type": "string",
+"format": "uuid",
+"description": "Motivo de ocorrência cadastrado no WMS.",
+"examples": [
+"9a8b7c6d-0000-4000-8000-000000000002"
+]
+},
+"observacao": {
+"type": "string",
+"description": "Texto livre para a ocorrência.",
+"examples": [
+"Pedido lançado por engano"
+]
+}
+},
+"required": [
+"usuario_id",
+"motivo_ocorrencia_id"
+]
+},
+"example": {
+"observacao": "Pedido lançado por engano",
+"usuario_id": "7f1c2d3e-0000-4000-8000-000000000001",
+"motivo_ocorrencia_id": "9a8b7c6d-0000-4000-8000-000000000002"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"data": {
+"status": "deleted",
+"codigo_erp": "PED-2026-005678",
+"ocorrencia_id": "uuid",
+"numero_ocorrencia": "182"
+},
+"success": true
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+},
+"x-aceita-post": true
+}
+},
+"/health": {
+"get": {
+"operationId": "get-health",
+"tags": [
+"Sistema"
+],
+"summary": "Health check",
+"description": "Verifica se o gateway está operacional. Não requer autenticação.\n\nNão requer x-api-key. Use para monitoramento.",
+"x-versao-desde": "1.0.0",
+"security": [],
+"x-sem-erros-4xx": true,
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"status": "ok",
+"timestamp": "2026-08-25T12:00:00Z"
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-10-28T12:00:00Z"
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}

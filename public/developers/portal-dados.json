@@ -1,0 +1,503 @@
+{
+"guias": [
+{
+"slug": "visao-geral",
+"ordem": 10,
+"secao": "guias",
+"titulo": "Visão Geral",
+"conteudo": "## Sobre o CORE LogiTrack\n\nO **CORE LogiTrack** é uma plataforma WMS (Warehouse Management System) SaaS multi-tenant projetada para gestão operacional de centros de distribuição. O sistema é orientado a tarefas com rastreabilidade completa de todas as operações.\n\nEsta documentação detalha a **API REST** que permite ao sistema ERP enviar dados mestres e movimentos para o CORE LogiTrack, estabelecendo a integração bidirecional entre os sistemas.\n\n## Arquitetura da Integração\n\nA integração segue o modelo API REST onde o **ERP envia dados para o CORE LogiTrack** através de endpoints HTTP. O ERP é o sistema de origem dos dados mestres (produtos, parceiros, pedidos, notas fiscais) e o WMS é o sistema que recebe e processa esses dados para a operação logística.\n\n| Aspecto | Detalhe |\n|---------|---------|\n| **Direção do fluxo** | ERP → WMS (o ERP envia, o WMS recebe e processa) |\n| **Protocolo** | HTTPS com payloads JSON |\n| **Autenticação** | API Key por tenant no header `x-api-key` |\n| **Idempotência** | Via campo `codigo_erp` (upsert automático) |\n\n## Etapas da Integração\n\nA integração é dividida em **duas etapas sequenciais**. A Etapa 1 deve ser concluída antes da Etapa 2 porque os movimentos referenciam cadastros mestres.\n\n| Etapa | Direção | Descrição | Frequência |\n|-------|---------|-----------|------------|\n| **1. Dados Mestres** | ERP → WMS | Cadastros: parceiros, produtos, grupos, rotas, tipos | Sob demanda / diária |\n| **2. Movimentos** | ERP → WMS | Documentos de entrada (NF) e saída (pedidos) | Sob demanda / tempo real |\n\n> **Importante:** Todos os dados mestres referenciados pelos movimentos (parceiros, produtos, tipos de entrada/saída) devem existir previamente no WMS antes do envio de documentos.\n\n## Modelo Multi-Tenant\n\nO CORE LogiTrack opera com isolamento completo entre tenants. Cada API Key está vinculada a uma **conexão de integração** que identifica automaticamente o `tenant_id` e `empresa_id`. Os dados de um tenant jamais são acessíveis por outro.",
+"subtitulo": "Entenda a arquitetura de integração ERP → WMS"
+},
+{
+"slug": "autenticacao",
+"ordem": 30,
+"secao": "guias",
+"titulo": "Autenticação",
+"conteudo": "## API Key\n\nTodas as requisições à API (exceto o health check) devem incluir o header de autenticação `x-api-key`.\n\n### Headers obrigatórios\n\n| Header | Tipo | Obrigatório | Descrição |\n|--------|------|-------------|-----------|\n| `x-api-key` | String (UUID) | Sim | Chave de API fornecida pelo CORE LogiTrack |\n| `Content-Type` | String | Sim | Deve ser `application/json` para requisições POST/PATCH |\n\n### Exemplo de headers\n\n```json\n{\n  \"Content-Type\": \"application/json\",\n  \"x-api-key\": \"47cd6041-e973-4a79-8648-153cf7c65be0\"\n}\n```\n\n## Como a API Key funciona\n\nA API Key é vinculada a uma **conexão de integração** que identifica automaticamente:\n\n- **tenant_id** — Identifica a organização/empresa no CORE LogiTrack\n- **empresa_id** — Identifica a filial ou unidade de negócio\n\nNão é necessário enviar `tenant_id` ou `empresa_id` nas requisições — a API resolve essas informações automaticamente a partir da chave.\n\n## Obtendo sua API Key\n\n1. Solicite ao administrador do seu tenant no CORE LogiTrack\n2. A chave será gerada na seção **Configurações → Integração** do painel\n3. Cada conexão de integração possui sua própria API Key\n4. A chave pode ser regenerada a qualquer momento (a anterior é invalidada imediatamente)\n\n## Segurança\n\n- **Nunca exponha** a API Key em código frontend, repositórios públicos ou logs\n- Armazene a chave em **variáveis de ambiente** ou cofres de segurança (vault)\n- Use sempre **HTTPS** — requisições HTTP serão rejeitadas\n- A API Key tem escopo limitado aos endpoints de integração — não concede acesso ao painel operacional\n- Em caso de comprometimento, solicite a regeneração imediata da chave\n\n## Erros de autenticação\n\n| Código | HTTP | Causa |\n|--------|------|-------|\n| `AUTH_MISSING` | 401 | Header `x-api-key` não enviado |\n| `AUTH_INVALID` | 401 | API Key inválida, expirada ou integração desativada |",
+"subtitulo": "Como autenticar suas requisições na API"
+},
+{
+"slug": "padroes",
+"ordem": 40,
+"secao": "guias",
+"titulo": "Padrões da API",
+"conteudo": "## Base URL\n\nTodos os endpoints utilizam a seguinte URL base:\n\n```\nhttps://dcpmykhxysvxnpgmlyli.supabase.co/functions/v1/integration-gateway\n```\n\n## Padrão de Resposta\n\nTodas as respostas seguem um envelope padronizado com `success`, `data` (ou `error`) e `metadata`.\n\n### Sucesso\n\n```json\n{\n  \"success\": true,\n  \"data\": { \"...\" },\n  \"metadata\": {\n    \"request_id\": \"uuid-da-requisicao\",\n    \"timestamp\": \"2026-06-30T14:30:00.000Z\",\n    \"processing_ms\": 142\n  }\n}\n```\n\n### Erro\n\n```json\n{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"Campos ausentes: sku, descricao\"\n  },\n  \"metadata\": {\n    \"request_id\": \"uuid-da-requisicao\",\n    \"timestamp\": \"2026-06-30T14:30:01.000Z\",\n    \"processing_ms\": 8\n  }\n}\n```\n\n## Códigos HTTP\n\n| Código | Significado | Quando ocorre |\n|--------|-------------|---------------|\n| `200` | OK | Requisição processada com sucesso |\n| `201` | Created | Recurso criado/atualizado com sucesso |\n| `207` | Multi-Status | Operação em lote com resultados mistos |\n| `400` | Bad Request | Payload inválido ou campos obrigatórios ausentes |\n| `401` | Unauthorized | API Key ausente ou inválida |\n| `404` | Not Found | Recurso não encontrado |\n| `405` | Method Not Allowed | Método HTTP não aceito no endpoint |\n| `409` | Conflict | Conflito de dados (ex: CNPJ duplicado entre tenants) |\n| `422` | Unprocessable | Regra de negócio impediu a operação (ex.: cancelamento depois da conferência) |\n| `429` | Too Many Requests | Rate limit excedido |\n| `500` | Internal Error | Erro interno do servidor |\n\n## Idempotência via codigo_erp\n\nToda entidade enviada pelo ERP deve conter um campo `codigo_erp` que funciona como identificador único do registro no sistema de origem. O CORE LogiTrack utiliza esse campo como **chave de idempotência**:\n\n- **Primeiro envio:** cria o registro e retorna o UUID interno gerado\n- **Envios subsequentes** com mesmo `codigo_erp`: atualiza o registro existente e retorna o mesmo UUID — **nunca duplica**\n\nA chave de unicidade é composta por: `tenant + empresa + codigo_erp`, garantindo isolamento entre tenants.\n\n## Resolução Automática de Referências\n\nA API resolve automaticamente as referências entre entidades usando o `codigo_erp`. Por exemplo, ao enviar um produto com `parceiro_codigo_erp: \"FORN-001\"`, a API localiza internamente o UUID do parceiro cadastrado com esse código ERP.\n\nIsso significa que o ERP **nunca precisa armazenar os UUIDs internos** do WMS — basta usar os códigos do próprio ERP como referência.\n\n## Operações em Lote (Batch)\n\nTodos os endpoints de dados mestres suportam envio em lote através do sufixo `/batch`. O payload deve conter um array `items` com até **200** parceiros, **100** produtos, **50** registros nos demais cadastros ou **50** documentos (movimentos; recomendado até 10).\n\nA resposta usa HTTP **207 (Multi-Status)** com o resultado individual de cada item:\n\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"total\": 2,\n    \"created\": 1,\n    \"updated\": 1,\n    \"errors\": 0,\n    \"results\": [\n      { \"codigo_erp\": \"P1\", \"status\": \"created\", \"id\": \"uuid...\" },\n      { \"codigo_erp\": \"P2\", \"status\": \"updated\", \"id\": \"uuid...\" }\n    ]\n  }\n}\n```\n\n> **Dica:** Sempre verifique o campo `errors` e os `results` individuais, mesmo quando `success: true`.\n\n## Paginação e Sincronização Incremental\n\nTodas as listagens `GET` aceitam paginação por cursor. Sem esses parâmetros, a listagem continua como antes.\n\n| Parâmetro | Tipo | Descrição |\n|-----------|------|-----------|\n| `limit` | inteiro 1–500 | Registros por página. Padrão: 100 |\n| `updated_since` | data ISO-8601 | Só registros criados ou alterados a partir desta data |\n| `cursor` | texto | Valor de `next_cursor` da página anterior |\n\nA ordem é por data de alteração (`updated_at`) e `id`. A resposta traz `metadata.paginacao`:\n\n```json\n\"metadata\": {\n  \"request_id\": \"uuid\",\n  \"paginacao\": { \"limit\": 100, \"has_more\": true, \"next_cursor\": \"eyJ1Ijoi...\", \"updated_since\": \"2026-10-28T00:00:00.000Z\" }\n}\n```\n\nPara buscar tudo, repita a chamada com `cursor=<next_cursor>` até `has_more` ser `false`. Para sincronizar só o que mudou, guarde a data da última sincronização e envie em `updated_since`.\n\n> Reenvios idênticos não alteram `updated_at`: só mudanças reais aparecem no `updated_since`. Registros que não foram alterados desde 27/10/2026 têm `updated_at` igual a essa data.\n\n## Rate Limit\n\nCada chave de API tem um limite de requisições por minuto. Toda resposta informa o consumo:\n\n| Header | Significado |\n|--------|-------------|\n| `X-RateLimit-Limit` | Requisições permitidas no minuto |\n| `X-RateLimit-Remaining` | Requisições restantes no minuto atual |\n| `X-RateLimit-Reset` | Quando o contador zera (epoch, em segundos) |\n\nAo exceder o limite, a API responde **429** com código `RATE_LIMITED` e o header `Retry-After` (segundos). Aguarde esse tempo antes de tentar de novo.\n\n> **Período de adaptação:** enquanto o header `X-RateLimit-Mode` vier como `observar`, o limite é só informado e nenhuma chamada é recusada. O bloqueio (`aplicar`) é comunicado com 30 dias de antecedência.\n\nUse lotes (`/batch`) e envie só o que mudou para ficar longe do limite.\n\n## Idempotency-Key\n\nEnvie o header `Idempotency-Key` (até 100 caracteres) em qualquer `POST` ou `PATCH` para repetir uma chamada com segurança, por exemplo após um timeout.\n\n| Situação (até 24 h) | Resposta |\n|---------------------|----------|\n| Mesma chave, mesmo conteúdo, já processada | A resposta original, com o header `Idempotent-Replayed: true` |\n| Mesma chave, ainda processando | 409 `RETRY_LATER` + `Retry-After` |\n| Mesma chave, conteúdo ou rota diferente | 422 `IDEMPOTENCY_KEY_REUSED` |\n| Primeira chamada terminou em erro 5xx | A chave fica livre para nova tentativa |\n\nUse uma chave nova (um UUID, por exemplo) para cada operação nova.",
+"subtitulo": "Base URL, respostas, idempotência, batch e resolução de referências"
+},
+{
+"slug": "ordem-integracao",
+"ordem": 50,
+"secao": "guias",
+"titulo": "Ordem de Integração",
+"conteudo": "## Por que a ordem importa?\n\nA API do CORE LogiTrack utiliza **resolução automática de referências** via `codigo_erp`. Isso significa que ao cadastrar um produto que referencia um grupo (`grupo_codigo_erp: \"GRP-001\"`), o grupo já deve existir no WMS. Se não existir, a API retornará erro `REFERENCE_NOT_FOUND`.\n\n## Sequência Recomendada\n\n| Ordem | Entidade | Dependências | Endpoint |\n|-------|----------|-------------|----------|\n| 1º | Tipos de Entrada | Nenhuma | `/master-data/tipos-entrada` |\n| 2º | Tipos de Saída | Nenhuma | `/master-data/tipos-saida` |\n| 3º | Rotas | Nenhuma (armazém automático) | `/master-data/rotas` |\n| 4º | Grupos de Produto | Nenhuma | `/master-data/grupos` |\n| 5º | Subgrupos de Produto | Grupo (deve existir) | `/master-data/subgrupos` |\n| 6º | Parceiros | Rota (opcional) | `/master-data/parceiros` |\n| 7º | Produtos + Embalagens | Parceiro + Grupo (opcionais) | `/master-data/produtos` |\n| 8º | Documentos de Entrada | Parceiro + Tipo Entrada + Produtos | `/movements/documentos-entrada` |\n| 9º | Documentos de Saída | Parceiro + Tipo Saída + Produtos + Rota | `/movements/documentos-saida` |\n\n## Diagrama de Dependências\n\n```\nTipos de Entrada ──┐\nTipos de Saída ────┤\nRotas ─────────────┤\n                   ├──► Documentos de Entrada (NF)\nGrupos ──► Subgrupos ──┐   │\n                       ├──► Produtos ──┤\nParceiros ─────────────┘              ├──► Documentos de Saída (Pedidos)\n                                      │\nRotas ────────────────────────────────┘\n```\n\n## Recomendações práticas\n\n- **Entidades sem dependência** (tipos, rotas, grupos) podem ser enviadas **em paralelo** para acelerar a carga inicial\n- **Produtos** devem ser cadastrados após parceiros e grupos, pois referenciam ambos\n- **Movimentos** (etapa 2) só devem ser enviados após **todos os dados mestres** estarem cadastrados\n- Na carga inicial, use **batch** para enviar múltiplos registros por requisição\n- Na operação contínua (dia-a-dia), envie registros individuais conforme surgem no ERP",
+"subtitulo": "Sequência obrigatória para garantir integridade referencial"
+},
+{
+"slug": "limites",
+"ordem": 60,
+"secao": "referencia",
+"titulo": "Limites e Recomendações",
+"conteudo": "## Limites por Requisição\n\nA API impõe limites para garantir estabilidade e performance do sistema.\n\n| Recurso | Limite | Observação |\n|---------|--------|------------|\n| Itens por lote — parceiros | **200 itens** | `POST /master-data/parceiros/batch` |\n| Itens por lote — produtos | **100 itens** | `POST /master-data/produtos/batch` (cada produto com suas embalagens) |\n| Itens por lote — demais cadastros | **50 itens** | grupos, subgrupos, rotas, tipos de entrada e de saída |\n| Documentos por lote — movimentos | **50 documentos** | `documentos-entrada/batch` e `documentos-saida/batch`. Recomendado: até 10 por chamada |\n| Listagens GET sem filtro | 100 a 500 registros | Use a consulta por `codigo_erp` para registros específicos |\n| Requisições por chave | **600 por minuto** | Padrão; o limite da sua chave vem em `X-RateLimit-Limit` |\n| Página de listagem | **até 500 registros** | `?limit=`; padrão 100 |\n| `Idempotency-Key` | até 100 caracteres | Qualquer `POST` ou `PATCH`; vale por 24 h |\n\n> Lotes grandes de produtos podem levar dezenas de segundos. Configure o timeout do seu cliente HTTP em **120 segundos** para chamadas `/batch`.\n\n## Formatos de Dados\n\n### Datas e Timestamps\n\nTodas as datas devem seguir o padrão **ISO 8601**:\n\n```\n// Data simples\n\"2026-01-15\"\n\n// Data com hora (timezone UTC)\n\"2026-01-15T14:30:00Z\"\n\n// Data com hora (timezone São Paulo)\n\"2026-01-15T14:30:00-03:00\"\n```\n\n### Valores Decimais\n\nUtilize **ponto** como separador decimal:\n\n```json\n{\n  \"preco_unitario\": 29.90,\n  \"quantidade\": 1.500,\n  \"peso_bruto\": 12.750\n}\n```\n\n> ⚠️ **Atenção:** Vírgula como separador decimal será rejeitada.\n\n### Codificação de Texto\n\nTodos os textos devem estar em **UTF-8**. Caracteres acentuados e especiais do português são totalmente suportados.\n\n### Identificadores\n\nO sistema utiliza **UUID v4** para IDs internos. O campo `codigo_erp` é o identificador do seu sistema e deve ser uma string única por entidade.\n\n```json\n{\n  \"id\": \"f47ac10b-58cc-4372-a567-0d02b2c3d479\",\n  \"codigo_erp\": \"PROD-001\"\n}\n```\n\n## Recomendações de Performance\n\n### Agrupamento em Lote\n\nSempre que possível, agrupe registros numa única chamada `/batch` em vez de enviar um por um:\n\n```json\n// ✅ Recomendado: uma chamada com vários itens\nPOST /master-data/produtos/batch\n{\n  \"items\": [\n    { \"codigo_erp\": \"P001\", \"descricao\": \"Produto A\" },\n    { \"codigo_erp\": \"P002\", \"descricao\": \"Produto B\" }\n  ]\n}\n\n// ❌ Evitar: uma chamada por item\nPOST /master-data/produtos { \"codigo_erp\": \"P001\", ... }\nPOST /master-data/produtos { \"codigo_erp\": \"P002\", ... }\n```\n\n### Envie só o que mudou\n\nReenviar o cadastro inteiro a cada sincronização consome o limite de requisições sem necessidade. Envie ao WMS apenas os registros alterados no ERP desde o último envio.\n\n### Retry com Backoff Exponencial\n\nEm caso de erro `5xx`, `409 RETRY_LATER` ou timeout, implemente retry com backoff:\n\n```\nTentativa 1: aguardar 1s\nTentativa 2: aguardar 2s\nTentativa 3: aguardar 4s\nTentativa 4: aguardar 8s (máximo recomendado)\n```\n\nQuando a resposta trouxer o header `Retry-After`, aguarde o tempo indicado.\n\nPara os demais erros `4xx`, **não** faça retry — corrija o payload antes de reenviar.",
+"subtitulo": "Limites técnicos, formatos de dados e boas práticas para garantir integrações estáveis"
+},
+{
+"slug": "webhooks",
+"ordem": 70,
+"secao": "referencia",
+"titulo": "Webhooks e Retorno",
+"conteudo": "## Como Funcionam os Webhooks\n\nO CORE LogiTrack pode notificar seu sistema automaticamente quando eventos importantes ocorrem no WMS, como conclusão de conferência, expedição de pedido ou recebimento de mercadoria.\n\n### Fluxo de Notificação\n\n```\n[Evento no WMS] → [CORE LogiTrack] → POST → [Sua URL de Webhook]\n```\n\n1. Um evento ocorre no WMS (ex: pedido conferido)\n2. O sistema monta o payload com os dados do evento\n3. Uma requisição POST é enviada para a URL cadastrada\n4. Seu sistema processa e retorna HTTP 200\n\n### Configuração\n\nOs webhooks são configurados por entidade na tela de **Configuração > Integração** do painel administrativo. Para cada entidade, você pode definir:\n\n- **URL de callback**: endpoint HTTPS do seu sistema\n- **Eventos**: quais tipos de evento disparam a notificação\n- **Headers personalizados**: para autenticação no seu lado\n\n### Estrutura do Payload\n\n```json\n{\n  \"evento\": \"pedido.conferido\",\n  \"timestamp\": \"2024-01-15T14:30:00Z\",\n  \"dados\": {\n    \"id\": \"uuid-do-registro\",\n    \"codigo_erp\": \"PED-001\",\n    \"status\": \"conferido\",\n    \"itens\": [...]\n  }\n}\n```\n\n## Endpoints de Retorno\n\nAlém dos webhooks (push), a API oferece endpoints de retorno (pull) para consultar o status de processamento:\n\n### Retorno de Entrada\n\n```\nGET /retorno-entrada?codigo_erp=NE-001\n```\n\nRetorna o status de processamento de notas de entrada: recebimento, conferência, armazenagem.\n\n### Retorno de Saída\n\n```\nGET /retorno-saida?codigo_erp=PED-001\n```\n\nRetorna o status de processamento de pedidos: separação, conferência, expedição, dados de transporte.\n\n## Boas Práticas para Webhooks\n\n- **Responda rápido**: retorne HTTP 200 em menos de 5 segundos; processe de forma assíncrona\n- **Idempotência**: o mesmo evento pode ser enviado mais de uma vez; use o `id` do evento para deduplicar\n- **HTTPS obrigatório**: apenas URLs com certificado SSL válido são aceitas\n- **Retry automático**: em caso de falha (non-2xx ou timeout), o sistema reenvia até 3 vezes com backoff exponencial",
+"subtitulo": "Receba notificações em tempo real sobre eventos do WMS no seu sistema"
+},
+{
+"slug": "alteracoes-documento",
+"ordem": 75,
+"secao": "referencia",
+"titulo": "Alterações de Documento",
+"conteudo": "## Quando usar\r\n\r\nUse `id_alteracao` quando um documento **já enviado** ao WMS for alterado no ERP — por exemplo, o mecânico inclui ou remove peças de uma OS.\r\n\r\nO campo é **opcional**. Documentos enviados sem ele são **documentos originais** e seguem a regra de sempre (idempotência por `codigo_erp`).\r\n\r\n## Como funciona\r\n\r\nCada alteração é enviada como um **novo movimento**, com o mesmo `codigo_erp` do original e um `id_alteracao` novo:\r\n\r\n| Alteração no ERP | Endpoint | Itens a enviar |\r\n|------------------|----------|----------------|\r\n| Inclusão de item ou aumento de quantidade | `POST /movements/documentos-saida` | Só o que foi incluído / a diferença |\r\n| Remoção de item ou redução de quantidade | `POST /movements/documentos-entrada` | Só o que foi removido / a diferença (ex.: tipo de entrada de devolução) |\r\n\r\nO WMS cria **um documento novo** para cada `codigo_erp` + `id_alteracao` e registra o histórico, permitindo saber de qual documento original a alteração veio.\r\n\r\n## Exemplo\r\n\r\n```json\r\n{\r\n  \"codigo_erp\": \"OS-4521\",\r\n  \"id_alteracao\": \"ALT-2\",\r\n  \"numero_pedido\": 4521,\r\n  \"parceiro_codigo_erp\": \"CLI-0098\",\r\n  \"tipo_saida_codigo_erp\": \"TS-GAUD-OS\",\r\n  \"data_emissao\": \"2026-10-14T09:30:00-03:00\",\r\n  \"valor_pedido\": 130.00,\r\n  \"itens\": [\r\n    { \"produto_codigo_erp\": \"PRD-2040\", \"quantidade\": 2, \"valor_unit\": 65.00 }\r\n  ]\r\n}\r\n```\r\n\r\n## Regras\r\n\r\n1. `id_alteracao` é **texto alfanumérico** de 1 a 50 caracteres: letras, números e `. _ - /` (ex.: `ALT-2`, `OS4521-2`, `2`). Número também é aceito e tratado como texto (`2` = `\"2\"`). Espaços internos, acentos, `#` ou valor vazio → 400.\r\n2. Use um identificador diferente para cada alteração do mesmo `codigo_erp`. Maiúsculas e minúsculas são diferentes: `ALT-1` e `alt-1` são alterações distintas.\r\n3. Reenviar o mesmo `codigo_erp` + `id_alteracao` com o mesmo conteúdo é seguro → 200 `already_processed`.\r\n4. Não reutilize um `id_alteracao` com conteúdo diferente → 409 `ID_ALTERACAO_CONFLICT`.\r\n5. Envios fora de ordem são aceitos. Quando os identificadores são só números, o histórico sinaliza envios fora de ordem e saltos para conciliação.\r\n6. Se o envio for recusado por validação (ex.: produto inexistente), corrija e reenvie com o **mesmo** `id_alteracao`.\r\n7. **Atenção:** uma alteração enviada sem `id_alteracao` é tratada como reenvio do original e **não** gera documento novo.\r\n\r\n## Consultar e cancelar\r\n\r\n| Ação | Chamada |\r\n|------|---------|\r\n| Documento original | `GET /movements/documentos-saida/OS-4521` |\r\n| Uma alteração | `GET /movements/documentos-saida/OS-4521?id_alteracao=ALT-2` |\r\n| Original + todas as alterações | `GET /movements/documentos-saida/OS-4521?todos=true` |\r\n| Histórico de alterações | `GET /movements/documentos-saida/OS-4521/alteracoes` |\r\n| Cancelar uma alteração | `POST /movements/documentos-saida/OS-4521/cancel?id_alteracao=ALT-2` |\r\n\r\nSem `?id_alteracao`, consulta, cancelamento e exclusão atuam sobre o **documento original**. O mesmo vale para `documentos-entrada`.\r\n\r\n## Retorno ao ERP\r\n\r\nOs eventos de retorno trazem `documento.id_alteracao` (nulo no original), para o ERP identificar qual movimento foi concluído.\r\n",
+"subtitulo": "Como enviar alterações de NF, pedido ou OS já integrados usando id_alteracao (alfanumérico)"
+},
+{
+"slug": "cancelamento-saida",
+"ordem": 77,
+"secao": "referencia",
+"titulo": "Cancelamento de Pedido de Saída",
+"conteudo": "## Quando usar\r\n\r\nChame o cancelamento assim que o pedido (ou a OS) for cancelado no ERP. O WMS cancela **na mesma chamada**: interrompe a separação, devolve ao estoque o que já foi coletado e registra tudo para auditoria.\r\n\r\n```\r\nPOST /movements/documentos-saida/{codigo_erp}/cancel\r\n```\r\n\r\n`PATCH` também é aceito. O corpo é opcional:\r\n\r\n```json\r\n{ \"motivo\": \"Cliente desistiu da compra\", \"solicitado_por\": \"joao.vendas\" }\r\n```\r\n\r\n## O que o WMS faz em cada etapa\r\n\r\n| Etapa do pedido no WMS | Resposta | O que acontece |\r\n|---|---|---|\r\n| Sem onda | 200 `cancelled` | Pedido cancelado |\r\n| Onda gerada ou liberada | 200 `cancelled` | Tarefas do pedido canceladas; se a onda tiver outros pedidos, só a parte deste pedido sai |\r\n| Em separação ou separado | 200 `cancelled` | Igual acima, e o que já foi coletado é estornado para o endereço de cancelamento |\r\n| Em conferência em diante | 422 `CANCELAMENTO_NAO_PERMITIDO` | Nada é alterado |\r\n\r\nQuando há estorno, o saldo volta ao estoque **imediatamente**, com lote, validade e fabricação preservados. O WMS cria uma tarefa para o operador levar o produto ao endereço de cancelamento (`retirada_fisica.status = PENDENTE`). Essa etapa é só operacional: o pedido já está cancelado.\r\n\r\n## Respostas que o ERP deve tratar\r\n\r\n| HTTP | Código | O que fazer no ERP |\r\n|---|---|---|\r\n| 200 | `cancelled` / `already_cancelled` | Marcar como cancelado no WMS |\r\n| 404 | `NOT_FOUND` | Conferir o `codigo_erp` (e o `?id_alteracao`, se usar) |\r\n| 409 | `RETRY_LATER` | Repetir após o header `Retry-After` (segundos) |\r\n| 409 | `AMBIGUOUS_DOCUMENT` | Reenviar com `?id_alteracao=` |\r\n| 422 | `CANCELAMENTO_NAO_PERMITIDO`, `CONFERENCIA_INICIADA`, `VOLUME_EXPEDICAO_EXISTENTE` | Pedir estorno no WMS e reenviar, ou tratar como devolução |\r\n| 422 | `CONFIGURACAO_INCOMPLETA` | Acionar o suporte do WMS e reenviar |\r\n| 500 | `INTERNAL_ERROR` / `CANCEL_ERROR` | Repetir com backoff exponencial |\r\n\r\n## Repetir com segurança\r\n\r\n1. Cancelar um pedido já cancelado responde 200 `already_cancelled`. Nada é refeito.\r\n2. Envie o header `Idempotency-Key` (até 100 caracteres) para receber exatamente a mesma resposta em reenvios por timeout. Recusas também ficam guardadas: depois de resolver a recusa no WMS, use uma chave nova.\r\n3. Em `RETRY_LATER`, nada foi alterado: repita a mesma chamada.\r\n\r\n## Acompanhar a retirada física\r\n\r\n```\r\nGET /movements/documentos-saida/{codigo_erp}/cancel-status\r\n```\r\n\r\nMostra o status do cancelamento (`cancelled`, `rejected`, `not_requested`), a última recusa e o andamento da retirada física (`PENDENTE` → `CONCLUIDA`). O ERP não precisa esperar a retirada para seguir o processo dele.\r\n\r\n## Alterações de documento\r\n\r\nSem `?id_alteracao`, o cancelamento atua sobre o **documento original**. Para cancelar uma alteração específica, use `?id_alteracao=ALT-2`.\r\n\r\n## Retorno ao ERP\r\n\r\nSe o seu ambiente tiver o fluxo de retorno `saida.documento_cancelado` ativo, o WMS também avisa o ERP quando o pedido fica cancelado, inclusive quando o cancelamento partiu do próprio ERP.\r\n",
+"subtitulo": "Como cancelar um pedido já integrado e o que o WMS desfaz em cada etapa"
+},
+{
+"slug": "boas-praticas",
+"ordem": 80,
+"secao": "referencia",
+"titulo": "Boas Práticas de Integração",
+"conteudo": "## Arquitetura Recomendada\n\n### Fila de Processamento\n\nNão envie dados diretamente do seu ERP para a API em tempo real. Utilize uma fila intermediária:\n\n```\n[ERP] → [Fila Local] → [Worker] → [API CORE LogiTrack]\n```\n\nVantagens:\n- Resiliência a falhas temporárias da rede\n- Controle de taxa de envio\n- Rastreabilidade de cada operação\n- Possibilidade de reprocessamento\n\n### Separação de Responsabilidades\n\nOrganize sua integração em módulos independentes:\n\n1. **Módulo de Cadastros**: sincroniza produtos, parceiros, grupos\n2. **Módulo de Movimentos**: envia notas e pedidos\n3. **Módulo de Retorno**: consulta status de processamento\n\nCada módulo deve ter seu próprio ciclo de sincronização e tratamento de erros.\n\n## Tratamento de Erros\n\n### Categorização\n\nClassifique os erros em duas categorias para decidir a ação:\n\n| Categoria | HTTP Status | Ação |\n|-----------|-------------|------|\n| Transitório | 408, 429, 500, 502, 503, 504 | Retry com backoff exponencial |\n| Permanente | 400, 401, 403, 404, 409, 422 | Corrigir payload ou configuração |\n\n### Log Estruturado\n\nRegistre cada requisição com informações suficientes para diagnóstico:\n\n```json\n{\n  \"timestamp\": \"2024-01-15T14:30:00Z\",\n  \"endpoint\": \"/produtos\",\n  \"metodo\": \"POST\",\n  \"status_http\": 422,\n  \"erro_codigo\": \"VALIDATION_ERROR\",\n  \"erro_detalhe\": \"Campo descricao é obrigatório\",\n  \"payload_resumo\": { \"codigo_erp\": \"P001\", \"itens\": 3 },\n  \"duracao_ms\": 245\n}\n```\n\n## Sincronização\n\n### Carga Inicial vs. Incremental\n\n**Carga inicial** (primeira vez):\n1. Envie todos os cadastros respeitando a ordem de dependência\n2. Use batches no tamanho máximo permitido\n3. Aguarde confirmação de cada batch antes de enviar o próximo\n\n**Sincronização incremental** (rotina):\n1. Consulte registros alterados desde a última sincronização\n2. Use o parâmetro `updated_since` nos endpoints GET\n3. Armazene o timestamp da última sincronização bem-sucedida\n\n### Controle de Concorrência\n\n- Não envie o mesmo `codigo_erp` em requisições paralelas\n- Respeite a ordem de dependência entre entidades\n- Use um mutex ou lock por entidade para evitar condições de corrida\n\n## Monitoramento\n\n### Health Check\n\nVerifique a disponibilidade da API periodicamente:\n\n```\nGET /health\n```\n\nSe o health check falhar, pause o envio de dados e alerte sua equipe.\n\n### Métricas Recomendadas\n\nAcompanhe estas métricas na sua integração:\n\n- **Taxa de sucesso**: % de requisições com HTTP 2xx\n- **Latência média**: tempo de resposta por endpoint\n- **Fila pendente**: quantidade de itens aguardando envio\n- **Erros por tipo**: agrupamento por código de erro\n- **Última sincronização**: timestamp por entidade\n\n### Alertas\n\nConfigure alertas para:\n- Taxa de erro acima de 5% em janela de 5 minutos\n- Fila pendente acima de 1000 itens\n- Última sincronização há mais de 2x o intervalo configurado\n- Health check falhando por mais de 2 minutos consecutivos",
+"subtitulo": "Padrões recomendados para construir integrações robustas e resilientes"
+}
+],
+"erros": [
+{
+"codigo": "AUTH_MISSING",
+"http": 401,
+"descricao": "Header x-api-key não enviado na requisição",
+"acao": "Inclua o header x-api-key com sua chave de API válida"
+},
+{
+"codigo": "AUTH_INVALID",
+"http": 401,
+"descricao": "Chave de API inválida ou revogada",
+"acao": "Verifique se a chave está correta e ativa no painel de configuração"
+},
+{
+"codigo": "VALIDATION_ERROR",
+"http": 400,
+"descricao": "Campo obrigatório ausente, formato inválido ou parâmetro de consulta inválido. A mensagem diz qual.",
+"acao": "Corrija o payload e reenvie. Não repita sem corrigir."
+},
+{
+"codigo": "INVALID_PAYLOAD",
+"http": 400,
+"descricao": "Corpo vazio ou JSON malformado.",
+"acao": "Envie JSON válido com Content-Type: application/json."
+},
+{
+"codigo": "INVALID_CURSOR",
+"http": 400,
+"descricao": "O cursor de paginação foi alterado ou não veio desta API.",
+"acao": "Use exatamente o next_cursor da página anterior, ou recomece sem cursor."
+},
+{
+"codigo": "NOT_FOUND",
+"http": 404,
+"descricao": "Recurso não encontrado no sistema",
+"acao": "Verifique se o endpoint e o identificador (codigo_erp ou ID) estão corretos"
+},
+{
+"codigo": "ROUTE_NOT_FOUND",
+"http": 404,
+"descricao": "Caminho inexistente na API.",
+"acao": "Confira a rota na referência de endpoints."
+},
+{
+"codigo": "METHOD_NOT_ALLOWED",
+"http": 405,
+"descricao": "Método HTTP não aceito nessa rota.",
+"acao": "Confira o método na referência. Cancelar e excluir aceitam PATCH ou POST."
+},
+{
+"codigo": "RETRY_LATER",
+"http": 409,
+"descricao": "O pedido está sendo usado por outra operação no mesmo instante (ex.: um operador gravando uma coleta). Nada foi alterado.",
+"acao": "Reenvie após o tempo indicado no header Retry-After (em segundos); use backoff se repetir."
+},
+{
+"codigo": "AMBIGUOUS_DOCUMENT",
+"http": 409,
+"descricao": "Consulta, cancelamento ou exclusão por codigo_erp sem id_alteracao, sem documento original ativo e com mais de uma alteração ativa.",
+"acao": "Informe o parâmetro ?id_alteracao=<identificador> (ex.: ?id_alteracao=ALT-2) para indicar qual alteração deve ser consultada, cancelada ou excluída."
+},
+{
+"codigo": "ID_ALTERACAO_CONFLICT",
+"http": 409,
+"descricao": "O id_alteracao informado já foi recebido para este codigo_erp com conteúdo diferente.",
+"acao": "Use um id_alteracao diferente para um movimento diferente. Para reenviar o mesmo movimento, envie exatamente o mesmo conteúdo."
+},
+{
+"codigo": "DOCUMENTO_DUPLICADO",
+"http": 409,
+"descricao": "Já existe documento ativo com esse codigo_erp em condição que impede o reenvio.",
+"acao": "Consulte o documento existente ou envie uma alteração com id_alteracao."
+},
+{
+"codigo": "IDEMPOTENCY_KEY_REUSED",
+"http": 422,
+"descricao": "A mesma Idempotency-Key foi usada em 24 h com outro conteúdo ou outra rota.",
+"acao": "Gere uma chave nova para cada operação nova."
+},
+{
+"codigo": "ITEMS_INVALID",
+"http": 422,
+"descricao": "Um ou mais itens do documento são inválidos. Nada foi gravado; error.details lista todos.",
+"acao": "Corrija cada item apontado e reenvie o documento inteiro."
+},
+{
+"codigo": "DOCUMENTO_SEM_ITENS",
+"http": 422,
+"descricao": "Documento enviado sem itens.",
+"acao": "Envie o array itens com ao menos um item."
+},
+{
+"codigo": "DOCUMENT_LOCKED",
+"http": 422,
+"descricao": "A nota de entrada já está em processamento no WMS e não pode ser cancelada pela API.",
+"acao": "Peça ao WMS para tratar o recebimento."
+},
+{
+"codigo": "DELETE_FAILED",
+"http": 422,
+"descricao": "A etapa atual do documento não permite exclusão.",
+"acao": "Use o cancelamento, que trata todas as etapas permitidas."
+},
+{
+"codigo": "CANCELAMENTO_NAO_PERMITIDO",
+"http": 422,
+"descricao": "O pedido de saída já está em conferência, conferido, em carregamento, concluído ou exportado. O cancelamento pela integração não é permitido a partir da conferência; nada foi alterado.",
+"acao": "Peça ao WMS para estornar a conferência e reenvie o cancelamento, ou trate como devolução no ERP."
+},
+{
+"codigo": "CONFERENCIA_INICIADA",
+"http": 422,
+"descricao": "A conferência da onda do pedido já começou, mesmo que a onda ainda esteja como separada. Nada foi alterado.",
+"acao": "Peça ao WMS para estornar a conferência e reenvie o cancelamento."
+},
+{
+"codigo": "VOLUME_EXPEDICAO_EXISTENTE",
+"http": 422,
+"descricao": "O pedido já tem volumes de expedição gerados. Nada foi alterado.",
+"acao": "Peça ao WMS para excluir os volumes do pedido e reenvie o cancelamento."
+},
+{
+"codigo": "CONFIGURACAO_INCOMPLETA",
+"http": 422,
+"descricao": "Falta configuração no WMS para concluir o cancelamento (ex.: endereço de cancelamento do armazém ou usuário técnico admin). Nada foi alterado.",
+"acao": "Acione o suporte do WMS para completar a configuração e reenvie o cancelamento."
+},
+{
+"codigo": "RATE_LIMITED",
+"http": 429,
+"descricao": "Muitas requisições em curto período",
+"acao": "Aguarde alguns segundos e reenvie; implemente backoff exponencial"
+},
+{
+"codigo": "INTERNAL_ERROR",
+"http": 500,
+"descricao": "Erro interno do servidor",
+"acao": "Tente novamente com backoff exponencial; se persistir, entre em contato com o suporte"
+},
+{
+"codigo": "CANCEL_ERROR",
+"http": 500,
+"descricao": "Falha técnica ao executar o cancelamento. Nada foi alterado.",
+"acao": "Reenvie com backoff exponencial; se persistir, informe o request_id ao suporte."
+},
+{
+"codigo": "DELETE_ERROR",
+"http": 500,
+"descricao": "Falha técnica ao excluir. Nada foi alterado.",
+"acao": "Reenvie com backoff; se persistir, informe o X-Request-Id."
+},
+{
+"codigo": "ITEM_ERROR",
+"http": "207 (por item)",
+"descricao": "Item de um lote recusado; os demais seguem processados.",
+"acao": "Leia results[].error de cada item com status error."
+}
+],
+"enums": {
+"tipo_parceiro": [
+"CLIENTE",
+"FORNECEDOR",
+"TRANSPORTADOR"
+],
+"tipo_controle": [
+"UNIDADE",
+"LOTE",
+"VALIDADE",
+"SERIE",
+"METROS"
+],
+"tipo_separacao": [
+"FRACIONADO",
+"EMBALAGEM_TOTAL",
+"CAIXARIA"
+]
+},
+"eventos": [
+{
+"nome": "Entrada · Armazenagem finalizada",
+"codigo": "entrada.armazenagem_finalizada",
+"descricao": "Todo o recebimento foi armazenado; estoque disponível."
+},
+{
+"nome": "Entrada · Conferência finalizada",
+"codigo": "entrada.conferencia_finalizada",
+"descricao": "Conferência concluída sem divergência."
+},
+{
+"nome": "Entrada · Conferência iniciada",
+"codigo": "entrada.conferencia_iniciada",
+"descricao": "A conferência do recebimento começou."
+},
+{
+"nome": "Entrada · Divergência",
+"codigo": "entrada.divergencia",
+"descricao": "Conferência concluída com divergência."
+},
+{
+"nome": "Entrada · Documento cancelado",
+"codigo": "entrada.documento_cancelado",
+"descricao": "A nota de entrada foi cancelada."
+},
+{
+"nome": "Entrada · Movimento cancelado",
+"codigo": "entrada.movimento_cancelado",
+"descricao": "O movimento de entrada foi cancelado."
+},
+{
+"nome": "Entrada · Recebimento liberado",
+"codigo": "entrada.recebimento_liberado",
+"descricao": "O movimento de entrada foi liberado para a doca."
+},
+{
+"nome": "Manual · Documento de entrada",
+"codigo": "manual.documento_entrada",
+"descricao": "Disparado pelo botão no detalhe do documento ou pelo teste do fluxo."
+},
+{
+"nome": "Manual · Documento de saída",
+"codigo": "manual.documento_saida",
+"descricao": "Disparado pelo botão no detalhe do documento ou pelo teste do fluxo."
+},
+{
+"nome": "Saída · Carregamento iniciado",
+"codigo": "saida.carregamento_iniciado",
+"descricao": "O carregamento do veículo começou."
+},
+{
+"nome": "Saída · Conferência finalizada",
+"codigo": "saida.conferencia_finalizada",
+"descricao": "A conferência de saída foi concluída."
+},
+{
+"nome": "Saída · Pedido cancelado",
+"codigo": "saida.documento_cancelado",
+"descricao": "O pedido foi cancelado no WMS."
+},
+{
+"nome": "Saída · Expedido",
+"codigo": "saida.expedido",
+"descricao": "A onda foi concluída e expedida."
+},
+{
+"nome": "Saída · Onda cancelada",
+"codigo": "saida.onda_cancelada",
+"descricao": "A onda foi cancelada."
+},
+{
+"nome": "Saída · Onda liberada",
+"codigo": "saida.onda_liberada",
+"descricao": "A onda foi liberada para separação."
+},
+{
+"nome": "Saída · Separação finalizada",
+"codigo": "saida.separacao_finalizada",
+"descricao": "Todos os itens foram separados (com ou sem corte)."
+},
+{
+"nome": "Saída · Separação iniciada",
+"codigo": "saida.separacao_iniciada",
+"descricao": "A separação da onda começou."
+}
+],
+"changelog": [
+{
+"data": "2024-06-01",
+"tipo": "feature",
+"versao": "1.0.0",
+"detalhes": "Endpoints de dados mestres: produtos, parceiros, grupos e subgrupos de produto, tipos de entrada e saída. Endpoints de movimentos: notas de entrada, pedidos de saída, NFs de devolução. Endpoints de retorno: retorno de entrada e saída. Endpoint de sistema: health check. Autenticação via API Key (header x-api-key). Suporte a operações em batch com upsert via codigo_erp.",
+"descricao": "Lançamento inicial da API de Integração"
+},
+{
+"data": "2024-09-15",
+"tipo": "feature",
+"versao": "1.1.0",
+"detalhes": "Novos endpoints para movimentos de entrada e movimentos de saída. Suporte a consulta de movimentações internas do armazém.",
+"descricao": "Adicionados endpoints de movimentos internos"
+},
+{
+"data": "2025-01-20",
+"tipo": "feature",
+"versao": "1.2.0",
+"detalhes": "Documentação da API agora disponível publicamente sem necessidade de autenticação. Inclui guias interativos, referência de endpoints, enumerações, códigos de erro e changelog. Novos campos na documentação: tags, curl_exemplo, headers_exemplo, parametros_query, versao_desde.",
+"descricao": "Portal de documentação pública"
+},
+{
+"data": "2025-02-10",
+"tipo": "fix",
+"versao": "1.2.1",
+"detalhes": "Corrigida validação do campo codigo_barras em produtos para aceitar códigos EAN-8. Corrigido tratamento de timezone em campos de data para notas de entrada.",
+"descricao": "Correções na validação de campos"
+},
+{
+"data": "2026-10-14",
+"tipo": "feature",
+"versao": "1.8.0",
+"detalhes": "Permite enviar alterações de documentos já integrados como novos movimentos (mesmo codigo_erp + id_alteracao sequencial), com histórico consultável em GET /{codigo_erp}/alteracoes. Consulta, cancelamento e exclusão aceitam ?id_alteracao=N; sem o parâmetro atuam no documento original. Novos erros: ID_ALTERACAO_CONFLICT e AMBIGUOUS_DOCUMENT (409). Correção: GET /movements/documentos-saida/{codigo_erp}/cancel-status voltou a responder.",
+"descricao": "Campo opcional id_alteracao em documentos de entrada e saída"
+},
+{
+"data": "2026-10-15",
+"tipo": "feature",
+"versao": "1.9.0",
+"detalhes": "O campo id_alteracao (documentos de entrada e saída) aceita texto de 1 a 50 caracteres (letras, números, . _ - /), além de número, que é tratado como texto (2 = \"2\"). Diferencia maiúsculas de minúsculas. O parâmetro ?id_alteracao aceita o mesmo formato. No retorno ao ERP e nas respostas da API, id_alteracao passa a vir como texto. Os alertas fora_de_ordem/salto do histórico só são calculados para identificadores numéricos.",
+"descricao": "id_alteracao passa a ser alfanumérico"
+},
+{
+"data": "2026-10-20",
+"tipo": "feature",
+"versao": "1.10.0",
+"detalhes": "POST|PATCH /movements/documentos-saida/{codigo_erp}/cancel passa a cancelar em qualquer etapa até a separação concluída, estornando o que já foi coletado para o endereço de cancelamento (lote, validade e fabricação preservados) e retirando da onda só a parte do pedido. A partir da conferência responde 422 CANCELAMENTO_NAO_PERMITIDO. O cancelamento é imediato: o 202 deixa de ser usado. Corpo opcional com motivo e solicitado_por; header Idempotency-Key. Novos erros: CANCELAMENTO_NAO_PERMITIDO, CONFERENCIA_INICIADA, VOLUME_EXPEDICAO_EXISTENTE, CONFIGURACAO_INCOMPLETA, RETRY_LATER (409 + Retry-After), CANCEL_ERROR. GET /{codigo_erp}/cancel-status reformulado: status do cancelamento, última recusa e andamento da retirada física.",
+"descricao": "Cancelamento de pedido de saída com estorno da separação"
+},
+{
+"data": "2026-10-27",
+"tipo": "feature",
+"versao": "1.11.0",
+"detalhes": "Toda resposta traz X-RateLimit-Limit, X-RateLimit-Remaining e X-RateLimit-Reset (padrão 600 requisições por minuto por chave; ao exceder, 429 RATE_LIMITED com Retry-After — por enquanto em modo de observação). Listagens GET aceitam limit, cursor e updated_since, com metadata.paginacao; sem esses parâmetros nada muda. Idempotency-Key passa a valer em qualquer POST ou PATCH por 24 h (Idempotent-Replayed: true no reenvio; 422 IDEMPOTENCY_KEY_REUSED se o conteúdo mudar). Documentados: exclusão de documentos (/delete), lotes de subgrupos, rotas e tipos, e o limite real de 50 documentos por lote.",
+"descricao": "Rate limit informado, paginação por cursor e Idempotency-Key em toda escrita"
+},
+{
+"data": "2026-10-28",
+"tipo": "feature",
+"versao": "1.12.0",
+"detalhes": "Novos PATCH /master-data/produtos/{codigo_erp} e PATCH /master-data/parceiros/{codigo_erp}: alteram só os campos enviados (404 se o cadastro não existir; codigo_erp e CNPJ não mudam). No POST de produto, tipo_controle e tipo_separacao passam a ser opcionais: ausentes, valem as regras de padrão do WMS (sem regra, UNIDADE e FRACIONADO na criação; na atualização fica o valor atual). Correção: cancelar por codigo_erp um documento que só existe como alteração já cancelada responde 200 already_cancelled (antes 404).",
+"descricao": "PATCH de produto e parceiro; tipos de produto opcionais"
+}
+],
+"limites": [
+[
+"Requisições por chave",
+"600 / min",
+"Padrão. Seu limite vem em X-RateLimit-Limit"
+],
+[
+"Lote de parceiros",
+"200 itens",
+"POST /master-data/parceiros/batch"
+],
+[
+"Lote de produtos",
+"100 itens",
+"POST /master-data/produtos/batch"
+],
+[
+"Lote dos demais cadastros",
+"50 itens",
+"grupos, subgrupos, rotas, tipos"
+],
+[
+"Lote de documentos",
+"50 documentos",
+"documentos-entrada/batch e documentos-saida/batch (recomendado: 10)"
+],
+[
+"Página de listagem",
+"até 500",
+"?limit= (padrão 100)"
+],
+[
+"Idempotency-Key",
+"100 caracteres · 24 h",
+"Qualquer POST ou PATCH"
+],
+[
+"Timeout recomendado no cliente",
+"120 s",
+"Para chamadas /batch de produtos"
+]
+],
+"exemplos": {
+"produto": {
+"sku": "7891234567890",
+"ativo": true,
+"marca": "Marca X",
+"descricao": "Arroz Branco Tipo 1 5kg",
+"codigo_erp": "PROD-001",
+"embalagens": [
+{
+"ean": "7891234567890",
+"fator": 1,
+"altura": 8,
+"largura": 30,
+"embalagem": "UN",
+"codigo_erp": "EMB-001-UN",
+"peso_bruto": 5.1,
+"comprimento": 20,
+"peso_liquido": 5
+}
+],
+"referencia": "ARZ-5KG-T1",
+"preco_custo": 22.9,
+"usa_picking": true,
+"peso_variavel": false,
+"tipo_controle": "LOTE",
+"tipo_separacao": "FRACIONADO",
+"varios_pickings": false,
+"grupo_codigo_erp": "GRP-001",
+"parceiro_codigo_erp": "FORN-001"
+},
+"pedido": {
+"itens": [
+{
+"quantidade": 100,
+"valor_unit": 22.9,
+"valor_total": 2290,
+"produto_codigo_erp": "PROD-001"
+},
+{
+"quantidade": 200,
+"valor_unit": 11.45,
+"valor_total": 2290,
+"produto_codigo_erp": "PROD-002"
+}
+],
+"codigo_erp": "PED-2026-005678",
+"observacao": "Entregar até 14h",
+"data_emissao": "2026-06-29T09:00:00Z",
+"valor_pedido": 4580,
+"numero_pedido": 5678,
+"transportador": "Transportes Rápidos Ltda",
+"rota_codigo_erp": "ROTA-SP-01",
+"parceiro_codigo_erp": "CLI-001",
+"tipo_saida_codigo_erp": "TS-VENDA"
+}
+}
+}

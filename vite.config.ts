@@ -64,8 +64,10 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/~oauth/],
+        // /developers: portal público da API (developers.corelogitrack.com.br), fora do cache do PWA
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/developers/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globIgnores: ["developers/**"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
