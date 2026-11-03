@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { Loader2, Info, BarChart3, Search, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseError } from "@/lib/errorMapper";
+import { Button } from "@/components/ui/button";
+import { formatDate } from "@/utils/dateTime";
+import { CRITERIO_ROTATIVO_OPTIONS, CRITERIO_LABELS, type CriterioRotativo } from "@/modules/inventario/criterios";
 
 const TIPO_OPTIONS = [
   { value: "GERAL", label: "Geral" },
@@ -15,13 +18,6 @@ const TIPO_OPTIONS = [
   { value: "GRUPO_PRODUTO", label: "Por Grupo de Produto" },
 ] as const;
 type Tipo = typeof TIPO_OPTIONS[number]["value"] | "";
-
-const CRITERIO_OPTIONS = [
-  { value: "CURVA_VENDAS", label: "Curva de Vendas" },
-  { value: "CURVA_ACESSO", label: "Curva de Acesso" },
-  { value: "CORTES", label: "Cortes" },
-  { value: "ESTORNOS", label: "Estornos" },
-] as const;
 
 const PERIODO_OPTIONS = [
   { value: "HOJE", label: "Data atual" },
@@ -38,9 +34,9 @@ function todayFortaleza(): Date {
     timeZone: "America/Fortaleza",
     year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(new Date());
-  const y = parts.find(p => p.type === "year")!.value;
-  const m = parts.find(p => p.type === "month")!.value;
-  const d = parts.find(p => p.type === "day")!.value;
+  const y = parts.find(p => p.type === "year")?.value ?? "1970";
+  const m = parts.find(p => p.type === "month")?.value ?? "01";
+  const d = parts.find(p => p.type === "day")?.value ?? "01";
   return new Date(`${y}-${m}-${d}T00:00:00-03:00`);
 }
 function toISODate(d: Date): string {
@@ -69,7 +65,9 @@ const ERROR_MAP: Record<string, string> = {
   ESCOPO_PRODUTO_OBRIGATORIO: "Selecione um produto.",
   ESCOPO_GRUPO_OBRIGATORIO: "Selecione um grupo de produto.",
   CRITERIO_ROTATIVO_OBRIGATORIO: "Selecione o critério do inventário rotativo.",
-  CURVA_OBRIGATORIA: "Selecione a curva (A, B, C ou D).",
+  SEM_ITENS_ELEGIVEIS: "Nenhum item elegível para este inventário. Ajuste o critério ou o período de análise e tente novamente.",
+  CRITERIO_DESCONTINUADO: "Este critério não está mais disponível. Escolha Saídas, Cortes, Cancelamentos ou Devoluções do período.",
+  PERIODO_INVALIDO: "Período de análise inválido. A data inicial deve ser anterior ou igual à data final.",
   ARMAZEM_OBRIGATORIO: "Armazém não identificado. Recarregue a página.",
   TENANT_OBRIGATORIO: "Empresa não identificada. Recarregue a página.",
   INVENTARIO_NAO_ENCONTRADO: "Inventário não encontrado.",
@@ -122,8 +120,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const [bloquearMov, setBloquearMov] = useState(false);
 
   // --- Escopo ROTATIVO
-  const [criterio, setCriterio] = useState<"" | "CURVA_VENDAS" | "CURVA_ACESSO" | "CORTES" | "ESTORNOS">("");
-  const [curva, setCurva] = useState<"" | "A" | "B" | "C" | "D">("");
+  const [criterio, setCriterio] = useState<"" | CriterioRotativo>("");
   const [maxEnderecosDia, setMaxEnderecosDia] = useState("");
   const [priorizarPicking, setPriorizarPicking] = useState(true);
   const [periodoAnalise, setPeriodoAnalise] = useState<PeriodoOpt>("30D");
@@ -165,16 +162,11 @@ export function NovoInventarioPage({ onNavigate }: Props) {
 
   // Reset escopo ao trocar tipo
   useEffect(() => {
-    setCriterio(""); setCurva(""); setMaxEnderecosDia(""); setPriorizarPicking(true); setPeriodoAnalise("30D");
+    setCriterio(""); setMaxEnderecosDia(""); setPriorizarPicking(true); setPeriodoAnalise("30D");
     setZonaId(""); setGrupoId("");
     setEnderecoId(""); setEnderecoLabel(""); setEnderecoSearch(""); setEnderecoResults([]);
     setProdutoId(""); setProdutoLabel(""); setProdutoSearch(""); setProdutoResults([]);
   }, [tipo]);
-
-  // Limpa curva quando critério não exige
-  useEffect(() => {
-    if (criterio !== "CURVA_VENDAS" && criterio !== "CURVA_ACESSO") setCurva("");
-  }, [criterio]);
 
   // Tipos de execução disponíveis
   const TIPOS_EXEC = useMemo(() => [
@@ -272,7 +264,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       (tipo === "ENDERECO" && !enderecoId) ||
       (tipo === "PRODUTO" && !produtoId) ||
       (tipo === "GRUPO_PRODUTO" && !grupoId) ||
-      (tipo === "ROTATIVO" && (!criterio || ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva)))
+      (tipo === "ROTATIVO" && (!criterio || !periodoAnalise))
     ) {
       setResumo(RESET);
       return;
@@ -283,10 +275,10 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     const done = (patch: Partial<typeof RESET>) => {
       if (!cancelled.v) setResumo({ ...RESET, calculado: true, ...patch });
     };
+    setResumo({ ...RESET, loading: true });
     previewRef.current = setTimeout(async () => {
-      setResumo((r) => ({ ...r, loading: true, erro: null }));
       try {
-        const periodo = tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+        const periodo = tipo === "ROTATIVO"
           ? resolvePeriodo(periodoAnalise) : null;
         const { data, error } = await (supabase as any).rpc("fn_preview_inventario", {
           p_tenant_id: tenantId, p_empresa_id: empresaId, p_armazem_id: armazemId,
@@ -295,11 +287,12 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           p_produto_id: tipo === "PRODUTO" ? produtoId : null,
           p_grupo_produto_id: tipo === "GRUPO_PRODUTO" ? grupoId : null,
           p_criterio_selecao: tipo === "ROTATIVO" ? criterio : null,
-          p_curva: tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") ? curva : null,
+          p_curva: null,
           p_data_inicio_analise: periodo?.inicio ?? null, p_data_fim_analise: periodo?.fim ?? null,
         });
         if (error) throw error;
-        const result = unwrap(data);
+        const resposta = Array.isArray(data) ? data[0] : data;
+        const result = resposta?.codigo === "SEM_ESTOQUE" ? resposta : unwrap(data);
         done({
           enderecos: Number(result?.enderecos_elegiveis || 0),
           skus: Number(result?.skus_elegiveis || 0),
@@ -313,7 +306,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
       }
     }, 250);
     return () => { cancelled.v = true; clearTimeout(previewRef.current); };
-  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise, previewNonce]);
+  }, [tipo, tenantId, empresaId, armazemId, zonaId, enderecoId, produtoId, grupoId, criterio, periodoAnalise, previewNonce]);
 
 
 
@@ -326,19 +319,20 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     if (tipo === "GRUPO_PRODUTO") return !!grupoId;
     if (tipo === "ROTATIVO") {
       if (!criterio) return false;
-      if ((criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && !curva) return false;
-      if ((criterio === "CORTES" || criterio === "ESTORNOS") && !periodoAnalise) return false;
+      if (!periodoAnalise) return false;
     }
     return true;
-  }, [tipo, tipoExecucao, zonaId, enderecoId, produtoId, grupoId, criterio, curva, periodoAnalise]);
+  }, [tipo, tipoExecucao, zonaId, enderecoId, produtoId, grupoId, criterio, periodoAnalise]);
 
-  const mapError = (err: any): string => {
-    const raw = err?.message || String(err);
+  const mapError = (err: unknown): string => {
+    const raw = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
     for (const code in ERROR_MAP) if (raw.includes(code)) return ERROR_MAP[code];
-    return raw;
+    const parsed = parseError(err, "inventario-criar");
+    return [parsed.title, parsed.instruction].filter(Boolean).join(" ");
   };
 
   const handleSave = async () => {
+    if (criacaoBloqueadaPeloResumo || saving) return;
     if (!isValid) { toast.error("Preencha todos os campos obrigatórios."); return; }
     if (!tenantId || !empresaId || !armazemId) {
       const msg = armazemErro || ERROR_MAP.ARMAZEM_OBRIGATORIO;
@@ -350,7 +344,6 @@ export function NovoInventarioPage({ onNavigate }: Props) {
     setSaving(true);
     setSaveError(null);
     setProgresso(null);
-    let etapa = "configuração";
     try {
       // Pré-checagem: tipo de execução precisa estar configurado para o tenant
       const { data: cfg, error: cfgError } = await (supabase as any).from("inventario_tipo_tarefa")
@@ -376,15 +369,14 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         p_produto_id: tipo === "PRODUTO" ? produtoId : null,
         p_grupo_produto_id: tipo === "GRUPO_PRODUTO" ? grupoId : null,
         p_criterio_selecao: tipo === "ROTATIVO" ? criterio : null,
-        p_curva: tipo === "ROTATIVO" && (criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") ? curva : null,
+        p_curva: null,
         p_max_enderecos_dia: tipo === "ROTATIVO" && maxEnderecosDia ? Number(maxEnderecosDia) : null,
         p_priorizar_picking: tipo === "ROTATIVO" ? priorizarPicking : false,
-        p_data_inicio_analise: tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+        p_data_inicio_analise: tipo === "ROTATIVO"
           ? resolvePeriodo(periodoAnalise).inicio : null,
-        p_data_fim_analise: tipo === "ROTATIVO" && (criterio === "CORTES" || criterio === "ESTORNOS")
+        p_data_fim_analise: tipo === "ROTATIVO"
           ? resolvePeriodo(periodoAnalise).fim : null,
       };
-      etapa = "criação";
       const { data, error } = await supabase.rpc("fn_criar_inventario_v2" as any, payload);
       if (error) throw error;
       const inv = unwrap(data);
@@ -399,7 +391,6 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         toast.success("Inventário geral criado! Pronto para contagem livre no coletor.");
         onNavigate("/atividades/inventario");
       } else {
-        etapa = "geração";
         // Demais tipos: loop de geração de tarefas (fluxo original)
         let acumulado = 0;
         let finalizado = false;
@@ -421,8 +412,8 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         toast.success(`Inventário criado com ${acumulado} ${acumulado === 1 ? "tarefa" : "tarefas"}.`);
         onNavigate("/atividades/inventario");
       }
-    } catch (err: any) {
-      const msg = `${etapa}: ${mapError(err)}`;
+    } catch (err: unknown) {
+      const msg = mapError(err);
       setSaveError(msg);
       toast.error(msg);
     } finally {
@@ -491,6 +482,13 @@ export function NovoInventarioPage({ onNavigate }: Props) {
   const tipoLabel = TIPO_OPTIONS.find(t => t.value === tipo)?.label || "—";
   const execLabel = TIPOS_EXEC.find(t => t.value === tipoExecucao)?.label || "—";
 
+  const periodoResumo = tipo === "ROTATIVO" && criterio ? resolvePeriodo(periodoAnalise) : null;
+  const periodoLabel = periodoResumo
+    ? `${formatDate(`${periodoResumo.inicio}T00:00:00-03:00`)} a ${formatDate(`${periodoResumo.fim}T00:00:00-03:00`)}` : "—";
+  const avisoSemEstoque = tipo === "ROTATIVO"
+    ? "Nenhum endereço com saldo atende a este critério no período selecionado. Ajuste o período ou o critério."
+    : "Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa de inventário será gerada.";
+
   const buttonText = saving
     ? (progresso ? `Gerando tarefas... (${progresso.geradas})` : "Criando...")
     : "Criar Inventário";
@@ -514,7 +512,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
         ? "A prévia falhou. Tente novamente antes de criar."
         : resumo.loading || !resumo.calculado
           ? "Aguardando o cálculo da prévia."
-          : "Nenhum endereço elegível para este escopo.")
+          : (tipo === "ROTATIVO" ? avisoSemEstoque : "Nenhum endereço elegível para este escopo."))
       : undefined;
 
 
@@ -528,7 +526,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
             className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
             Cancelar
           </button>
-          <button
+          <Button
             type="button"
             onClick={handleSave}
             title={motivoBloqueio}
@@ -537,7 +535,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {buttonText}
-          </button>
+          </Button>
 
         </div>
       </div>
@@ -573,7 +571,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>Tipo Inventário *</label>
-                  <select value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)} className={inputClass}>
+                  <select aria-label="Tipo Inventário" value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)} className={inputClass}>
                     <option value="">Selecione...</option>
                     {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
@@ -590,7 +588,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <label className={labelClass} title="Auditoria: registra divergência sem alterar estoque. Atualização: atualiza o saldo ao confirmar.">
                     Tipo de Execução *
                   </label>
-                  <select value={tipoExecucao} onChange={(e) => setTipoExecucao(e.target.value)} className={inputClass}>
+                  <select aria-label="Tipo de Execução" value={tipoExecucao} onChange={(e) => setTipoExecucao(e.target.value)} className={inputClass}>
                     <option value="">Selecione...</option>
                     {TIPOS_EXEC.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
@@ -620,37 +618,27 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                     <div>
                       <label className={labelClass}>Critério de Seleção *</label>
                       <div className="flex flex-col gap-2 mt-1">
-                        {CRITERIO_OPTIONS.map(c => (
-                          <label key={c.value} className="flex items-center gap-2 cursor-pointer">
+                        {CRITERIO_ROTATIVO_OPTIONS.map(c => (
+                          <label key={c.value} className="flex items-center gap-3 py-2 cursor-pointer">
                             <input
                               type="radio" name="criterio" value={c.value}
                               checked={criterio === c.value}
                               onChange={() => setCriterio(c.value)}
                               className="w-4 h-4 accent-primary"
                             />
-                            <span className="text-sm text-foreground">{c.label}</span>
+                            <span className="flex flex-col gap-0.5">
+                              <span className="text-sm text-foreground">{c.label}</span>
+                              <span className="text-xs text-muted-foreground">{c.descricao}</span>
+                            </span>
                           </label>
                         ))}
                       </div>
                     </div>
 
-                    {(criterio === "CURVA_VENDAS" || criterio === "CURVA_ACESSO") && (
-                      <div className="w-48 transition-all duration-200">
-                        <label className={labelClass}>Curva *</label>
-                        <select value={curva} onChange={(e) => setCurva(e.target.value as any)} className={inputClass}>
-                          <option value="">Selecione...</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                          <option value="D">D</option>
-                        </select>
-                      </div>
-                    )}
-
-                    {(criterio === "CORTES" || criterio === "ESTORNOS") && (
+                    {criterio && (
                       <div className="w-64 transition-all duration-200">
-                        <label className={labelClass}>Período de Análise *</label>
-                        <select value={periodoAnalise} onChange={(e) => setPeriodoAnalise(e.target.value as PeriodoOpt)} className={inputClass}>
+                        <label htmlFor="periodo-analise" className={labelClass}>Período de Análise *</label>
+                        <select id="periodo-analise" value={periodoAnalise} onChange={(e) => setPeriodoAnalise(e.target.value as PeriodoOpt)} className={inputClass}>
                           {PERIODO_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                         </select>
                       </div>
@@ -774,6 +762,18 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                   <span className="text-xs text-muted-foreground">Execução</span>
                   <span className="text-xs font-semibold text-foreground">{execLabel}</span>
                 </div>
+                {tipo === "ROTATIVO" && criterio && (
+                  <>
+                    <div className="flex items-start justify-between gap-2 p-3 rounded-lg bg-secondary/30 border border-border">
+                      <span className="text-xs text-muted-foreground">Critério</span>
+                      <span className="text-xs font-semibold text-foreground text-right">{CRITERIO_LABELS[criterio] || criterio}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 p-3 rounded-lg bg-secondary/30 border border-border">
+                      <span className="text-xs text-muted-foreground">Período</span>
+                      <span className="text-xs font-semibold text-foreground">{periodoLabel}</span>
+                    </div>
+                  </>
+                )}
                 {contextoCarregando ? (
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30 border border-border text-[11px] text-muted-foreground">
                     <Loader2 size={12} className="animate-spin" /> Resolvendo empresa e armazém…
@@ -814,7 +814,7 @@ export function NovoInventarioPage({ onNavigate }: Props) {
                       <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10">
                         <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
                         <p className="text-[11px] leading-snug text-amber-200/90">
-                          Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa de inventário será gerada.
+                          {avisoSemEstoque}
                         </p>
                       </div>
                     )}
@@ -845,11 +845,17 @@ export function NovoInventarioPage({ onNavigate }: Props) {
           <div className="flex flex-col items-center"><span className="text-muted-foreground">Endereços</span><span className="font-bold text-primary">{resumo.loading ? "…" : !resumo.calculado || resumo.erro ? "—" : `${resumo.enderecos}${resumo.truncado ? "+" : ""}`}</span></div>
           <div className="flex flex-col items-center"><span className="text-muted-foreground">SKUs</span><span className="font-bold text-primary">{resumo.loading ? "…" : !resumo.calculado || resumo.erro ? "—" : `${resumo.skus}${resumo.truncado ? "+" : ""}`}</span></div>
         </div>
+        {tipo === "ROTATIVO" && criterio && (
+          <div className="card-surface p-3 text-xs flex flex-col gap-1">
+            <p><span className="text-muted-foreground">Critério: </span>{CRITERIO_LABELS[criterio] || criterio}</p>
+            <p><span className="text-muted-foreground">Período: </span>{periodoLabel}</p>
+          </div>
+        )}
         {semEstoque && (
           <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-500/40 bg-amber-500/10">
             <AlertTriangle size={13} className="text-amber-400 mt-0.5 shrink-0" />
             <p className="text-[11px] leading-snug text-amber-200/90">
-              Nenhuma posição com saldo no armazém selecionado para este escopo. Nenhuma tarefa será gerada.
+              {avisoSemEstoque}
             </p>
           </div>
         )}
