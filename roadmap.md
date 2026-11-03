@@ -1,5 +1,12 @@
 # Ajustes de destino da armazenagem
 
+## Inventário rotativo por período
+- [x] Compartilhar os quatro critérios e os labels legados nas listas web/coletor; leitura complementar em lote, pois as views não possuem o campo.
+- [x] Atualizar criação, período, resumo, bloqueio sem elegíveis e mensagens amigáveis.
+- [x] Testar as regras: 10 testes passaram; build OK; sem alterações no banco.
+- [ ] Regenerar tipos Supabase: arquivo protegido e nenhuma ferramenta de regeneração disponível; valores novos tipados localmente, sem editar o arquivo gerado.
+- [ ] Validar com usuário conectado: Supabase externo sem sessão disponível.
+
 ## Picking na transferência do coletor
 - [x] Consultar RPC exclusiva e mostrar orientação nos detalhes e destino, sem alterar validações.
 - [x] Limpar orientação ao reiniciar e concluir o fluxo.

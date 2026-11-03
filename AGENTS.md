@@ -1,4 +1,6 @@
  # Frontend rules
+
+- Inventory criterion labels are shared through the inventory criteria module; lists enrich rotational rows in one tenant/company-scoped batch because existing inventory views omit the criterion, avoiding per-row queries.
  
 - Transfer picking hints come exclusively from rpc_coletor_transferencia_picking via transferenciaService; they are guidance only and never replace rpc_validar_endereco_picking.
 
