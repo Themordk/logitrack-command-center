@@ -248,6 +248,7 @@ export function MovimentoSaidaPage() {
   // Limpar placeholders
   const [limparSepDialog, setLimparSepDialog] = useState<string | null>(null);
   const [limparConfDialog, setLimparConfDialog] = useState<string | null>(null);
+  const [limparTotalLoading, setLimparTotalLoading] = useState(false);
   const [limparSepItemDialog, setLimparSepItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
   const [limparSepItemLoading, setLimparSepItemLoading] = useState(false);
   const [limparConfItemDialog, setLimparConfItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
@@ -1825,28 +1826,97 @@ export function MovimentoSaidaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Limpar Separação Total (UI only) */}
-      <Dialog open={!!limparSepDialog} onOpenChange={(v) => !v && setLimparSepDialog(null)}>
+      {/* Limpar Separação Total */}
+      <Dialog open={!!limparSepDialog} onOpenChange={(v) => !v && !limparTotalLoading && setLimparSepDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Limpar Separação Total</DialogTitle>
-            <DialogDescription>Esta ação irá limpar toda a separação desta onda. Funcionalidade em desenvolvimento.</DialogDescription>
+            <DialogDescription>
+              Toda a separação desta onda será limpa: as execuções serão canceladas e o estoque separado será estornado para o endereço de cancelamento. Se houver conferência registrada, limpe a conferência antes.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setLimparSepDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+            <button disabled={limparTotalLoading} onClick={() => setLimparSepDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              disabled={limparTotalLoading}
+              onClick={async () => {
+                if (!limparSepDialog || !tenantId || !empresaId || !usuarioId) return;
+                setLimparTotalLoading(true);
+                try {
+                  const { data, error } = await supabase.rpc("separacao_limpar_total", {
+                    p_tenant_id: tenantId,
+                    p_empresa_id: empresaId,
+                    p_usuario_id: usuarioId,
+                    p_movimento_saida_id: limparSepDialog,
+                  });
+                  if (error) throw error;
+                  const rpcResult = parseRpcResult(data);
+                  if (!rpcResult.sucesso) {
+                    toast.error(parseError(data, "limpar-separacao-total").title);
+                    return;
+                  }
+                  toast.success(rpcResult.mensagem || "Separação da onda limpa com sucesso!");
+                  setLimparSepDialog(null);
+                  if (selectedId) loadTabData(selectedId);
+                  fetchMovimentos();
+                } catch (err) {
+                  toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar separação da onda." : p.title; })());
+                } finally {
+                  setLimparTotalLoading(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+            >
+              {limparTotalLoading && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Limpar Conferência Total (UI only) */}
-      <Dialog open={!!limparConfDialog} onOpenChange={(v) => !v && setLimparConfDialog(null)}>
+      {/* Limpar Conferência Total */}
+      <Dialog open={!!limparConfDialog} onOpenChange={(v) => !v && !limparTotalLoading && setLimparConfDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Limpar Conferência Total</DialogTitle>
-            <DialogDescription>Esta ação irá limpar toda a conferência desta onda. Funcionalidade em desenvolvimento.</DialogDescription>
+            <DialogDescription>
+              Toda a conferência desta onda será limpa e os itens voltarão a aguardar conferência. Esta ação não pode ser desfeita.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setLimparConfDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Fechar</button>
+            <button disabled={limparTotalLoading} onClick={() => setLimparConfDialog(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              disabled={limparTotalLoading}
+              onClick={async () => {
+                if (!limparConfDialog || !tenantId || !usuarioId) return;
+                setLimparTotalLoading(true);
+                try {
+                  const { data, error } = await supabase.rpc("separacao_conferencia_limpar_total", {
+                    p_tenant_id: tenantId,
+                    p_movimento_saida_id: limparConfDialog,
+                    p_usuario_id: usuarioId,
+                  });
+                  if (error) throw error;
+                  const rpcResult = parseRpcResult(data);
+                  if (!rpcResult.sucesso) {
+                    toast.error(parseError(data, "limpar-conferencia-total").title);
+                    return;
+                  }
+                  toast.success(rpcResult.mensagem || "Conferência da onda limpa com sucesso!");
+                  setLimparConfDialog(null);
+                  if (selectedId) loadTabData(selectedId);
+                  fetchMovimentos();
+                } catch (err) {
+                  toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar conferência da onda." : p.title; })());
+                } finally {
+                  setLimparTotalLoading(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+            >
+              {limparTotalLoading && <Loader2 size={14} className="animate-spin" />}
+              Confirmar
+            </button>
           </div>
         </DialogContent>
       </Dialog>

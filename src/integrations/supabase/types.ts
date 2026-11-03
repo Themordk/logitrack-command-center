@@ -13978,6 +13978,14 @@ export type Database = {
         }
         Returns: Json
       }
+      separacao_conferencia_limpar_total: {
+        Args: {
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       separacao_confirmar_endereco: {
         Args: {
           p_endereco_lido: string
@@ -14061,6 +14069,15 @@ export type Database = {
           p_empresa_id: string
           p_movimento_saida_id: string
           p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      separacao_limpar_total: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
           p_tenant_id: string
           p_usuario_id: string
         }
