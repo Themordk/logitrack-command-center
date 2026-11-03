@@ -335,6 +335,14 @@ export function MovimentoEntradaPage() {
     }));
   }, [listRows, opsQuery.data]);
 
+  // Mantém o status do movimento selecionado em sincronia com a lista recarregada
+  // (controla as ações disponíveis; antes ficava com o valor fixo passado após cada ação).
+  useEffect(() => {
+    if (!selectedMov) return;
+    const atual = movements.find((m) => m.id === selectedMov);
+    if (atual) setSelectedMovStatus(atual.status);
+  }, [movements, selectedMov]);
+
   const hasErp = useTenantHasErp(tenantId);
 
   const filteredMovements = useMemo(() => {
@@ -411,6 +419,9 @@ export function MovimentoEntradaPage() {
     setSelectedMovStatus(movStatus);
     setItemTab("itens");
     setDetailLoading(true);
+    // O grid "Itens" vem de cache do React Query (staleTime 30s): invalida junto com as
+    // demais abas para refletir na hora o resultado de liberações, conferência e armazenagem.
+    void queryClient.invalidateQueries({ queryKey: ["movimento-entrada-itens-rpc"] });
     try {
       const [r2, r3] = await Promise.all([
         (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
