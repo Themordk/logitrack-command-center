@@ -1,5 +1,10 @@
 # Ajustes de destino da armazenagem
 
+## Inventário rotativo por período
+- [ ] Compartilhar os quatro critérios e os labels legados nas telas de inventário.
+- [ ] Atualizar criação, período, resumo, bloqueio sem elegíveis e mensagens amigáveis.
+- [ ] Testar as regras e conferir a tela; sem alterações no banco.
+
 ## Picking na transferência do coletor
 - [x] Consultar RPC exclusiva e mostrar orientação nos detalhes e destino, sem alterar validações.
 - [x] Limpar orientação ao reiniciar e concluir o fluxo.

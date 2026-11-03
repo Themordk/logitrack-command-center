@@ -11160,6 +11160,14 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_gerar_tarefas_inventario_internal_bkp_20261103: {
+        Args: {
+          p_chunk_size?: number
+          p_inventario_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       fn_gme_analisar_documentos: {
         Args: { p_documento_entrada_ids: string[]; p_tenant_id: string }
         Returns: Record<string, unknown>
@@ -11281,6 +11289,31 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: Json
+      }
+      fn_inventario_itens_elegiveis: {
+        Args: {
+          p_armazem_id: string
+          p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+          p_curva?: Database["public"]["Enums"]["enum_curva"]
+          p_data_fim_analise?: string
+          p_data_inicio_analise?: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_grupo_produto_id?: string
+          p_produto_id?: string
+          p_tenant_id: string
+          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          p_zona_atividade_id?: string
+        }
+        Returns: {
+          codigo_endereco: number
+          endereco_id: string
+          estoque_geral_id: string
+          ordem_execucao: number
+          produto_id: string
+          quantidade_total: number
+          tipo_endereco: string
+        }[]
       }
       fn_inventario_registrar_contagem: {
         Args: {
@@ -11499,6 +11532,23 @@ export type Database = {
         Returns: Json
       }
       fn_preview_inventario: {
+        Args: {
+          p_armazem_id: string
+          p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+          p_curva?: Database["public"]["Enums"]["enum_curva"]
+          p_data_fim_analise?: string
+          p_data_inicio_analise?: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_grupo_produto_id?: string
+          p_produto_id?: string
+          p_tenant_id: string
+          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          p_zona_atividade_id?: string
+        }
+        Returns: Json
+      }
+      fn_preview_inventario_bkp_20261103: {
         Args: {
           p_armazem_id: string
           p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
