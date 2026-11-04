@@ -32,7 +32,7 @@ export function MudancaPickingOrigemPage({ onNavigate }: Props) {
       }
 
       const preview = await previewMudanca(tenantId, endereco.id);
-      if (!preview.sucesso) {
+      if (preview.sucesso !== true) {
         result.showWarning(preview.mensagem);
         return;
       }
