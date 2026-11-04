@@ -190,15 +190,16 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
             <button
               type="button"
               className={opcaoCls(decisao?.acao === "CRIAR_PICKING")}
-              onClick={() =>
+              onClick={() => {
+                if (decisao?.acao === "CRIAR_PICKING") return;
                 setDecisao(p.produto_id, {
                   produto_id: p.produto_id,
                   acao: "CRIAR_PICKING",
                   tipo_picking: "FRACIONADO",
                   est_minimo: 0,
                   est_maximo: 0,
-                })
-              }
+                });
+              }}
             >
               Criar picking no novo endereço
             </button>
