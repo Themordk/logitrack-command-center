@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { Loader2 } from "lucide-react";
+import {
+  MUDPICK_KEYS,
+  buscarEnderecoPorCodigo,
+  limparSessaoMudanca,
+  previewMudanca,
+} from "@/modules/coletor/mudanca-picking/mudancaPicking.service";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -16,29 +21,29 @@ export function MudancaPickingOrigemPage({ onNavigate }: Props) {
   const result = useResultDialog({ coletorMode: true });
 
   const handleScan = async (code: string) => {
+    const tenantId = localStorage.getItem("core_tenant_id") || "";
     setScanned(code);
     setLoading(true);
     try {
-      const { data } = await (supabase as any)
-        .from("endereco")
-        .select("id, descricao, situacao")
-        .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
-        .limit(1);
-
-      if (!data || data.length === 0) {
+      const endereco = await buscarEnderecoPorCodigo(tenantId, code);
+      if (!endereco) {
         result.showWarning("Endereço não encontrado.");
         return;
       }
-      if (!["LIVRE", "OCUPADO"].includes(data[0].situacao)) {
-        result.showWarning(`Endereço ${data[0].descricao} está ${data[0].situacao}. Movimentações não são permitidas.`);
+
+      const preview = await previewMudanca(tenantId, endereco.id);
+      if (!preview.sucesso) {
+        result.showWarning(preview.mensagem);
         return;
       }
 
-      sessionStorage.setItem("mudpick_origem_id", data[0].id);
-      sessionStorage.setItem("mudpick_origem_desc", data[0].descricao);
+      limparSessaoMudanca();
+      sessionStorage.setItem(MUDPICK_KEYS.origemId, endereco.id);
+      sessionStorage.setItem(MUDPICK_KEYS.origemDesc, endereco.descricao);
+      sessionStorage.setItem(MUDPICK_KEYS.preview, JSON.stringify(preview));
       onNavigate("/coletor/movimentos/mudanca-picking/lista");
-    } catch {
-      result.showError(new Error("Erro ao buscar endereço."), { context: "mudanca-picking" });
+    } catch (err) {
+      result.showError(err, { context: "mudanca-picking" });
     } finally {
       setLoading(false);
     }
