@@ -88,7 +88,9 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
 
       if (res.tipo === "negocio") {
         const e = res.erro;
-        if (e.codigo === "VALIDACAO_REPROVADA" && e.erros?.length) {
+        if (e.codigo === "ORIGEM_COM_SKUS_SEM_PICKING") {
+          result.showWarning("Mudança de picking não permitida", { details: e.mensagem });
+        } else if (e.codigo === "VALIDACAO_REPROVADA" && e.erros?.length) {
           result.showWarning("Validação reprovada", {
             details: e.erros.map((x) => `• ${x}`).join("\n") + "\n\nNenhuma alteração foi gravada.",
           });

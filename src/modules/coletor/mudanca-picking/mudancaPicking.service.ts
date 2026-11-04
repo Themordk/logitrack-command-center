@@ -67,6 +67,9 @@ export interface PreviewResponse {
   produtos: PreviewProduto[];
   pendencias: Pendencia[];
   bloqueios: string[];
+  motivos_bloqueio?: MotivoBloqueio[];
+  skus_sem_mapeamento?: string[];
+  acao_sugerida?: "TRANSFERENCIA" | null;
   pode_prosseguir: boolean;
   totais: {
     qtd_itens: number;
@@ -83,6 +86,25 @@ export interface ErroNegocio {
   mensagem: string;
   erros?: string[];
   pendencias?: Array<{ tipo_tarefa: string; status: string; endereco: string }>;
+  skus_sem_mapeamento?: string[];
+  acao_sugerida?: "TRANSFERENCIA" | null;
+}
+
+export interface MotivoBloqueio {
+  codigo: "SKUS_SEM_MAPEAMENTO" | "PENDENCIAS_ABERTAS" | "OUTRO";
+  mensagem: string;
+  quantidade: number;
+  skus?: string[];
+}
+
+export function montarMotivosBloqueio(
+  preview: Pick<PreviewResponse, "motivos_bloqueio" | "bloqueios">,
+): MotivoBloqueio[] {
+  return preview.motivos_bloqueio ?? preview.bloqueios.map((mensagem) => ({
+    codigo: "OUTRO",
+    mensagem,
+    quantidade: 1,
+  }));
 }
 
 export type Decisao =
