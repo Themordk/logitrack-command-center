@@ -10,8 +10,6 @@ import { Loader2, MapPin } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
-const TIPO_TAREFA_TRANF = "6942b989-816c-45c5-8af5-50cd22589cc6";
-
 export function TransferenciaDestinoPage({ onNavigate }: Props) {
   const offlineBlocked = useOnlineOnlyBlocked();
   const tenantId = localStorage.getItem("core_tenant_id") || "";

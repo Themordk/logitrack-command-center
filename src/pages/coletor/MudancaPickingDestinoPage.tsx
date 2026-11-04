@@ -1,137 +1,111 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
-
 import { Loader2 } from "lucide-react";
+import {
+  MUDPICK_KEYS,
+  buscarEnderecoPorCodigo,
+  executarMudanca,
+  lerDecisoes,
+  lerPreview,
+} from "@/modules/coletor/mudanca-picking/mudancaPicking.service";
 
 interface Props { onNavigate: (path: string) => void; }
-
-const TIPO_TAREFA_TRANF = "6942b989-816c-45c5-8af5-50cd22589cc6";
-
-interface ItemEstoque {
-  id: string;
-  produto_id: string;
-  sku: string;
-  quantidade_disponivel: number;
-  lote: string | null;
-  data_validade: string | null;
-  data_fabricacao: string | null;
-}
 
 export function MudancaPickingDestinoPage({ onNavigate }: Props) {
   const offlineBlocked = useOnlineOnlyBlocked();
   const tenantId = localStorage.getItem("core_tenant_id") || "";
-  const empresaId = localStorage.getItem("core_empresa_id") || "";
   const usuarioId = localStorage.getItem("core_usuario_id") || "";
-  const origemId = sessionStorage.getItem("mudpick_origem_id") || "";
-  const origemDesc = sessionStorage.getItem("mudpick_origem_desc") || "";
-  const itens: ItemEstoque[] = JSON.parse(sessionStorage.getItem("mudpick_itens") || "[]");
+  const origemId = sessionStorage.getItem(MUDPICK_KEYS.origemId) || "";
+
+  const preview = useMemo(() => lerPreview(), []);
+  const decisoes = useMemo(() => lerDecisoes(), []);
 
   const [loading, setLoading] = useState(false);
   const [scanned, setScanned] = useState("");
+  const submitting = useRef(false);
   const result = useResultDialog({ coletorMode: true });
 
-  const qtdTotal = itens.reduce((s, i) => s + i.quantidade_disponivel, 0);
+  useEffect(() => {
+    if (!preview) onNavigate("/coletor/movimentos/mudanca-picking/origem");
+  }, [preview, onNavigate]);
+
+  if (!preview) return null;
+
+  const { totais, produtos } = preview;
+  const pickingsTransferir =
+    produtos.filter((p) => p.situacao === "MAPEADO_ORIGEM").length +
+    Object.values(decisoes).filter(
+      (d) => d.acao === "MIGRAR_PICKING_EXISTENTE" || d.acao === "CRIAR_PICKING",
+    ).length;
 
   const handleScan = async (code: string) => {
+    if (submitting.current) return;
     setScanned(code);
     setLoading(true);
+    submitting.current = true;
     try {
-      const { data: enderecos } = await (supabase as any)
-        .from("endereco")
-        .select("id, descricao, situacao, tipo_endereco")
-        .or(`descricao.eq.${code},codigo_endereco.eq.${code}`)
-        .limit(1);
-
-      if (!enderecos || enderecos.length === 0) {
+      const destino = await buscarEnderecoPorCodigo(tenantId, code);
+      if (!destino) {
         result.showWarning("Endereço destino não encontrado.");
         return;
       }
-      if (!["LIVRE", "OCUPADO"].includes(enderecos[0].situacao)) {
-        result.showWarning(`Endereço ${enderecos[0].descricao} está ${enderecos[0].situacao}. Movimentações não são permitidas.`);
-        return;
-      }
-      const destinoId = enderecos[0].id;
-      const destinoDesc = enderecos[0].descricao;
-      const destinoTipo = enderecos[0].tipo_endereco;
-      if (destinoId === origemId) {
+      if (destino.id === origemId) {
         result.showWarning("Endereço destino igual ao origem.");
         return;
       }
 
-      // Validar TODOS os itens antes de gravar
-      if (destinoTipo === "PICKING") {
-        const armazemId = localStorage.getItem("core_armazem_id");
-        for (const it of itens) {
-          const { data: validacao, error: valErr } = await (supabase as any).rpc("rpc_validar_endereco_picking", {
-            p_tenant_id: tenantId,
-            p_armazem_id: armazemId,
-            p_produto_id: it.produto_id,
-            p_endereco_id: destinoId,
-            p_lote: it.lote || null,
-            p_validade: it.data_validade && it.data_validade !== "1900-01-01" ? it.data_validade : null,
-            p_quantidade: it.quantidade_disponivel,
+      const decisoesEnviar = produtos
+        .filter((p) => p.requer_decisao)
+        .map((p) => decisoes[p.produto_id])
+        .filter(Boolean);
+
+      const res = await executarMudanca({
+        tenantId,
+        origemId,
+        destinoId: destino.id,
+        usuarioId,
+        decisoes: decisoesEnviar,
+      });
+
+      if (res.tipo === "sucesso") {
+        sessionStorage.setItem(MUDPICK_KEYS.resultado, JSON.stringify(res.dados));
+        onNavigate("/coletor/movimentos/mudanca-picking/concluido");
+        return;
+      }
+
+      if (res.tipo === "negocio") {
+        const e = res.erro;
+        if (e.codigo === "VALIDACAO_REPROVADA" && e.erros?.length) {
+          result.showWarning("Validação reprovada", {
+            details: e.erros.map((x) => `• ${x}`).join("\n") + "\n\nNenhuma alteração foi gravada.",
           });
-          if (valErr) throw valErr;
-          if (validacao && !validacao.valido) {
-            result.showWarning(`SKU ${it.sku}: ${validacao.erros?.join(" • ") || "Endereço não permitido pelas regras de armazenagem."}`);
-            return;
-          }
+        } else if (e.codigo === "PENDENCIAS_ABERTAS" && e.pendencias?.length) {
+          result.showWarning("Pendências abertas", {
+            details:
+              e.pendencias.map((p) => `• ${p.tipo_tarefa} · ${p.status} · ${p.endereco}`).join("\n") +
+              "\n\nNenhuma alteração foi gravada.",
+          });
+        } else {
+          result.showWarning(e.mensagem, { details: "Nenhuma alteração foi gravada." });
         }
+        return;
       }
 
-      // Processa cada item em loop; trigger de banco atualiza estoque_geral
-      for (const it of itens) {
-        const now = new Date().toISOString();
-        const { data: tarefa, error: errTarefa } = await (supabase as any)
-          .from("tarefa")
-          .insert({
-            tenant_id: tenantId,
-            empresa_id: empresaId,
-            tipo_tarefa_id: TIPO_TAREFA_TRANF,
-            produto_id: it.produto_id,
-            quantidade_requerida: it.quantidade_disponivel,
-            status: "CONCLUIDA",
-            prioridade_tarefa: "NORMAL",
-            criado_em: now,
-            id_local_origem: origemId,
-            id_local_destino: destinoId,
-          })
-          .select("id")
-          .single();
-        if (errTarefa) throw errTarefa;
-
-        const { error: errExec } = await (supabase as any)
-          .from("tarefa_execucao")
-          .insert({
-            tenant_id: tenantId,
-            tarefa_id: tarefa.id,
-            usuario_id: usuarioId,
-            status: "CONCLUIDA",
-            quantidade_executada: it.quantidade_disponivel,
-            endereco_origem_id: origemId,
-            endereco_destino_id: destinoId,
-            lote: it.lote || null,
-            validade: it.data_validade && it.data_validade !== "1900-01-01" ? it.data_validade : null,
-            fabricacao: it.data_fabricacao && it.data_fabricacao !== "1900-01-01" ? it.data_fabricacao : null,
-            iniciado_em: now,
-            concluido_em: now,
-          });
-        if (errExec) throw errExec;
+      // Erro técnico
+      if (res.mensagemJson) {
+        result.showWarning(res.mensagemJson.mensagem, { details: "Nenhuma alteração foi gravada." });
+      } else {
+        result.showError(res.erroOriginal, { context: "mudanca-picking" });
       }
-
-      sessionStorage.setItem("mudpick_destino_desc", destinoDesc);
-      sessionStorage.setItem("mudpick_qtd_itens", String(itens.length));
-      sessionStorage.setItem("mudpick_qtd_total", String(qtdTotal));
-      onNavigate("/coletor/movimentos/mudanca-picking/concluido");
-    } catch (err: any) {
+    } catch (err) {
       result.showError(err, { context: "mudanca-picking" });
     } finally {
       setLoading(false);
+      submitting.current = false;
     }
   };
 
@@ -144,14 +118,23 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
         <span className="text-xs text-[hsl(213,31%,55%)]">Passo 3 de 3</span>
         <p className="text-sm font-bold text-white">Escanear o endereço de DESTINO</p>
         <div className="grid grid-cols-3 gap-2 mt-2">
-          <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Origem</span><p className="text-xs font-mono text-white">{origemDesc}</p></div>
-          <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Itens</span><p className="text-xs font-bold text-white">{itens.length}</p></div>
-          <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Qtd. Total</span><p className="text-xs font-bold text-white">{qtdTotal}</p></div>
+          <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Origem</span><p className="text-xs font-mono text-white">{preview.origem.descricao}</p></div>
+          <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Itens</span><p className="text-xs font-bold text-white">{totais.qtd_itens}</p></div>
+          <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Qtd. Total</span><p className="text-xs font-bold text-white">{totais.qtd_total}</p></div>
+          {totais.qtd_bloqueada > 0 && (
+            <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Bloqueado</span><p className="text-xs font-bold text-amber-400">{totais.qtd_bloqueada}</p></div>
+          )}
+          <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Pickings a transferir</span><p className="text-xs font-bold text-white">{pickingsTransferir}</p></div>
         </div>
       </div>
 
       <ScanField label="Escanear Endereço Destino" onScan={handleScan} lastScanned={scanned} disabled={loading || offlineBlocked} />
-      {loading && <div className="flex flex-col items-center py-4 gap-2"><Loader2 className="animate-spin text-[hsl(280,80%,60%)]" size={28} /><span className="text-xs text-[hsl(213,31%,55%)]">Transferindo itens...</span></div>}
+      {loading && (
+        <div className="flex flex-col items-center py-4 gap-2">
+          <Loader2 className="animate-spin text-[hsl(280,80%,60%)]" size={28} />
+          <span className="text-xs text-[hsl(213,31%,55%)]">Transferindo saldo e picking...</span>
+        </div>
+      )}
     </ColetorLayout>
   );
 }
