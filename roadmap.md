@@ -1,5 +1,10 @@
 # Ajustes de destino da armazenagem
 
+## Mudança de Picking: bloqueio resumido
+- [ ] Adaptar contrato e motivos com compatibilidade com prévias antigas.
+- [ ] Exibir cartão único de bloqueio, SKUs recolhidos e ações de navegação; preservar fluxo liberado.
+- [ ] Tratar ORIGEM_COM_SKUS_SEM_PICKING no destino e executar testes do coletor.
+
 ## Mudança de Picking v2 (RPCs)
 - [x] Serviço com tipos do contrato, preview/executar via RPC e sessão (mudpick_*).
 - [x] Telas 1–4: preview na origem, decisões de picking na lista, execução atômica no destino, resumo na conclusão.
