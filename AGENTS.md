@@ -1,5 +1,7 @@
  # Frontend rules
 
+- Mudança de Picking blocking reasons are normalized by montarMotivosBloqueio in its service, preserving legacy previews while blocked lists render only a single summary and session-clearing navigation.
+
 - Inventory criterion labels are shared through the inventory criteria module; lists enrich rotational rows in one tenant/company-scoped batch because existing inventory views omit the criterion, avoiding per-row queries.
  
 - Transfer picking hints come exclusively from rpc_coletor_transferencia_picking via transferenciaService; they are guidance only and never replace rpc_validar_endereco_picking.

@@ -1,5 +1,12 @@
 # Ajustes de destino da armazenagem
 
+## Mudança de Picking: bloqueio resumido
+- [x] Adaptar contrato e motivos com compatibilidade com prévias antigas.
+- [x] Exibir cartão único de bloqueio, SKUs recolhidos e ações de navegação; preservar fluxo liberado.
+- [x] Tratar ORIGEM_COM_SKUS_SEM_PICKING no destino; 34 testes do coletor passaram e build OK.
+- [x] Conferir cartão e expansão em 360px com dados simulados, navegação à Transferência e limpeza da sessão.
+- [ ] Validar origem 1010 real no QA: Supabase externo sem sessão autenticada disponível.
+
 ## Mudança de Picking v2 (RPCs)
 - [x] Serviço com tipos do contrato, preview/executar via RPC e sessão (mudpick_*).
 - [x] Telas 1–4: preview na origem, decisões de picking na lista, execução atômica no destino, resumo na conclusão.

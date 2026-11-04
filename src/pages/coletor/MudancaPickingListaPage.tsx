@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ActionButton } from "@/components/coletor/ActionButton";
+import { Button } from "@/components/ui/button";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 import {
   AlertDialog,
@@ -13,12 +14,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Ban, CheckCircle2, Package } from "lucide-react";
+import { AlertTriangle, Ban, CheckCircle2, ChevronDown, ChevronUp, Package } from "lucide-react";
 import {
   type Decisao,
   type PreviewProduto,
   lerDecisoes,
   lerPreview,
+  limparSessaoMudanca,
+  montarMotivosBloqueio,
   salvarDecisoes,
 } from "@/modules/coletor/mudanca-picking/mudancaPicking.service";
 
@@ -41,6 +44,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
   const preview = useMemo(() => lerPreview(), []);
   const [decisoes, setDecisoes] = useState<Record<string, Decisao>>(() => lerDecisoes());
   const [confirmarMigracao, setConfirmarMigracao] = useState(false);
+  const [skusExpandidos, setSkusExpandidos] = useState(false);
 
   useEffect(() => {
     if (!preview) onNavigate("/coletor/movimentos/mudanca-picking/origem");
@@ -48,7 +52,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
 
   if (!preview) return null;
 
-  const { itens, produtos, totais, bloqueios, pendencias } = preview;
+  const { itens, produtos, totais, pendencias } = preview;
 
   const setDecisao = (produtoId: string, d: Decisao) => {
     const next = { ...decisoes, [produtoId]: d };
@@ -110,21 +114,7 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
     }
 
     if (p.situacao === "SEM_MAPEAMENTO_NAO_PERMITIDO") {
-      return (
-        <div key={p.produto_id} className={`${base} bg-[hsl(222,40%,12%)] border-red-500/50`}>
-          <div className="flex items-start gap-2">
-            <Ban size={16} className="text-red-400 mt-0.5 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs font-mono text-[hsl(217,91%,60%)]">{p.sku}</p>
-              <p className="text-xs text-white truncate">{p.descricao}</p>
-              <p className="text-[11px] text-red-300 mt-1">
-                Produto com saldo neste endereço, sem mapeamento de picking, e não permite vários pickings.
-                Regularize o cadastro (Mapear Picking) antes da mudança.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
+      return null;
     }
 
     // DECIDIR_MIGRAR_OU_MANTER | DECIDIR_CRIAR_OU_MANTER
@@ -223,6 +213,81 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
     );
   };
 
+  if (preview.pode_prosseguir === false) {
+    const navegarOutraOrigem = (path: string) => {
+      limparSessaoMudanca();
+      onNavigate(path);
+    };
+
+    return (
+      <ColetorLayout title="Mudança de Picking - Itens" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/mudanca-picking/origem">
+        <OnlineOnlyNotice flow="Mudança de Picking" />
+        <section aria-labelledby="titulo-bloqueio" className="min-w-0 rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex flex-col gap-4">
+          <header className="flex items-start gap-2 min-w-0">
+            <Ban size={15} className="text-destructive shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <h2 id="titulo-bloqueio" className="text-sm font-bold text-destructive break-words">
+                Mudança de picking não permitida neste endereço
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1 break-words">
+                Origem: {preview.origem.descricao} · {totais.qtd_produtos.toLocaleString("pt-BR")} SKUs · {totais.qtd_total.toLocaleString("pt-BR")} UN
+              </p>
+            </div>
+          </header>
+
+          {montarMotivosBloqueio(preview).map((motivo, indice) => (
+            <div key={`${motivo.codigo}-${indice}`} className="min-w-0 flex items-start gap-2">
+              <AlertTriangle size={14} className="text-destructive shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-foreground break-words">{motivo.mensagem}</p>
+                {motivo.codigo === "SKUS_SEM_MAPEAMENTO" && (
+                  <>
+                    <Button
+                      variant="link"
+                      className="px-0 h-auto min-h-10 text-xs text-destructive whitespace-normal justify-start"
+                      aria-expanded={skusExpandidos}
+                      aria-controls="skus-sem-mapeamento"
+                      onClick={() => setSkusExpandidos((atual) => !atual)}
+                    >
+                      {skusExpandidos ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      Ver os {motivo.quantidade} SKUs
+                    </Button>
+                    {skusExpandidos && (
+                      <ul id="skus-sem-mapeamento" aria-label="SKUs sem mapeamento" className="grid grid-cols-2 gap-x-3 gap-y-1 max-h-48 overflow-y-auto rounded-lg bg-secondary/40 p-2 font-mono text-xs text-foreground">
+                        {(motivo.skus ?? preview.skus_sem_mapeamento ?? []).map((sku) => (
+                          <li key={sku} className="min-w-0 break-all">{sku}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+                {motivo.codigo === "PENDENCIAS_ABERTAS" && (
+                  <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                    {pendencias.slice(0, 5).map((pendencia) => (
+                      <p key={pendencia.tarefa_id} className="break-words">{pendencia.tipo_tarefa} · {pendencia.status}</p>
+                    ))}
+                    {pendencias.length > 5 && <p>+{pendencias.length - 5}</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+
+          <div className="flex flex-col gap-2">
+            {preview.acao_sugerida === "TRANSFERENCIA" && (
+              <ActionButton onClick={() => navegarOutraOrigem("/coletor/movimentos/transferencia/origem")}>
+                Ir para Transferência
+              </ActionButton>
+            )}
+            <Button variant="outline" className="w-full h-[52px] rounded-xl text-base font-semibold text-muted-foreground border-border whitespace-normal" onClick={() => navegarOutraOrigem("/coletor/movimentos/mudanca-picking/origem")}>
+              Escanear outra origem
+            </Button>
+          </div>
+        </section>
+      </ColetorLayout>
+    );
+  }
+
   return (
     <ColetorLayout title="Mudança de Picking - Itens" onNavigate={onNavigate} showBack backPath="/coletor/movimentos/mudanca-picking/origem">
       <OnlineOnlyNotice flow="Mudança de Picking" />
@@ -260,24 +325,6 @@ export function MudancaPickingListaPage({ onNavigate }: Props) {
           )}
         </div>
       </div>
-
-      {bloqueios.length > 0 && (
-        <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-3 mb-2 flex flex-col gap-1">
-          {bloqueios.map((b, i) => (
-            <p key={i} className="text-xs text-red-300 flex items-start gap-1.5">
-              <AlertTriangle size={13} className="shrink-0 mt-0.5" /> {b}
-            </p>
-          ))}
-          {pendencias.slice(0, 5).map((pd) => (
-            <p key={pd.tarefa_id} className="text-[11px] text-red-300/80 pl-5">
-              {pd.tipo_tarefa} · {pd.status} · {pd.endereco}
-            </p>
-          ))}
-          {pendencias.length > 5 && (
-            <p className="text-[11px] text-red-300/80 pl-5">+{pendencias.length - 5}</p>
-          )}
-        </div>
-      )}
 
       <div className="flex flex-col gap-2 max-h-[calc(100vh-340px)] overflow-y-auto pb-2">
         <p className="text-[11px] font-semibold text-[hsl(213,31%,55%)] uppercase tracking-wide px-1">
