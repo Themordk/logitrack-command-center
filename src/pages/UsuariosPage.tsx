@@ -16,7 +16,8 @@ export function UsuariosPage() {
     tenantId,
     orderBy: "nome",
     searchFields: ["nome", "login", "email", "codigo_erp"],
-    select: "*, usuario_perfil(perfil_id, perfil(nome))",
+    // FK explícita: usuario_perfil possui 2 FKs para usuario (usuario_id e created_by) — evita PGRST201
+    select: "*, usuario_perfil!usuario_perfil_usuario_id_fkey(perfil_id, perfil(nome))",
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
