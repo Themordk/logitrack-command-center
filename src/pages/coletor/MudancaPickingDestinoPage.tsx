@@ -37,10 +37,14 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
 
   const { totais, produtos } = preview;
   const pickingsTransferir =
-    produtos.filter((p) => p.situacao === "MAPEADO_ORIGEM").length +
-    Object.values(decisoes).filter(
-      (d) => d.acao === "MIGRAR_PICKING_EXISTENTE" || d.acao === "CRIAR_PICKING",
-    ).length;
+    produtos
+      .filter((p) => p.situacao === "MAPEADO_ORIGEM")
+      .reduce((acc, p) => acc + p.mapeamentos_origem.length, 0) +
+    produtos.filter((p) => {
+      if (!p.requer_decisao) return false;
+      const d = decisoes[p.produto_id];
+      return d?.acao === "MIGRAR_PICKING_EXISTENTE" || d?.acao === "CRIAR_PICKING";
+    }).length;
 
   const handleScan = async (code: string) => {
     if (submitting.current) return;
@@ -55,6 +59,11 @@ export function MudancaPickingDestinoPage({ onNavigate }: Props) {
       }
       if (destino.id === origemId) {
         result.showWarning("Endereço destino igual ao origem.");
+        return;
+      }
+
+      if (!usuarioId) {
+        result.showWarning("Sessão sem usuário identificado. Faça login novamente no coletor.");
         return;
       }
 

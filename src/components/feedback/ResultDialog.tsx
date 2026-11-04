@@ -117,7 +117,7 @@ export function ResultDialog({
           {/* Detalhes */}
           {details && (
             <p
-              className={`text-muted-foreground ${
+              className={`text-muted-foreground whitespace-pre-line ${
                 coletorMode ? "text-base" : "text-sm"
               }`}
             >
