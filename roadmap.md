@@ -1,5 +1,12 @@
 # Ajustes de destino da armazenagem
 
+## Mudança de Picking v2 (RPCs)
+- [x] Serviço com tipos do contrato, preview/executar via RPC e sessão (mudpick_*).
+- [x] Telas 1–4: preview na origem, decisões de picking na lista, execução atômica no destino, resumo na conclusão.
+- [x] TransferenciaDestinoPage sem ID fixo de tipo de tarefa (busca TRANF do tenant).
+- [x] Testes do serviço (6) + coletor (22) passaram; typecheck/build OK; sem inserts diretos nem migrations.
+- [ ] Validar com usuário conectado: sessão indisponível no Supabase externo.
+
 ## Inventário rotativo por período
 - [x] Compartilhar os quatro critérios e os labels legados nas listas web/coletor; leitura complementar em lote, pois as views não possuem o campo.
 - [x] Atualizar criação, período, resumo, bloqueio sem elegíveis e mensagens amigáveis.
