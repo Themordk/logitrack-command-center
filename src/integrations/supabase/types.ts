@@ -12018,6 +12018,31 @@ export type Database = {
         }
         Returns: boolean
       }
+      integracao_documento_evento_detalhe: {
+        Args: {
+          p_documento_id: string
+          p_empresa_id: string
+          p_entidade: string
+          p_fonte: string
+          p_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_documento_eventos: {
+        Args: {
+          p_direcao?: string
+          p_documento_id: string
+          p_empresa_id: string
+          p_entidade: string
+          p_limite?: number
+          p_offset?: number
+          p_ordem?: string
+          p_somente_problemas?: boolean
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       integracao_expurgar_api_controle: { Args: never; Returns: Json }
       integracao_expurgar_api_erro: { Args: never; Returns: Json }
       integracao_finalizar_alteracao: {
