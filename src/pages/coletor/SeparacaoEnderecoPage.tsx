@@ -4,7 +4,8 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, Package, Navigation, Ban } from "lucide-react";
+import { MapPin, SkipForward, MoreVertical, MapPinned, Loader2, Package, Navigation, Ban, Lock } from "lucide-react";
+import { useCorteAcesso } from "@/hooks/useCorteAcesso";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
@@ -163,9 +164,9 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
           setShowOutrosEnderecos(false);
           toast.success(`Tarefa liberada: coletar em ${atual.endereco}`);
         } else if (aviso === "alternativo") {
-          result.showWarning("O endereço escolhido ficou sem saldo.", { instruction: "Abra Outros Endereços e escolha outro, pule o item ou registre o corte." });
+          result.showWarning("O endereço escolhido ficou sem saldo.", { instruction: `Abra Outros Endereços e escolha outro, pule o item ou ${textoCorte}.` });
         } else {
-          result.showWarning("Ainda sem saldo para este produto.", { instruction: Number(atual.saldo_pulmao ?? 0) > 0 ? "Aguarde o abastecimento ou pule o item." : "Pule o item, registre o corte ou avise a supervisão." });
+          result.showWarning("Ainda sem saldo para este produto.", { instruction: Number(atual.saldo_pulmao ?? 0) > 0 ? "Aguarde o abastecimento ou pule o item." : `Pule o item, ${textoCorte} ou avise a supervisão.` });
         }
       }
     } catch (erro: unknown) { result.showError(erro, { context: "separacao-pendencias" }); }
@@ -493,7 +494,7 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
                     <MapPinned size={16} className="text-[hsl(217,91%,60%)]" />
                     Outros Endereços do Produto
                   </button>
-                  {pendente && <Button variant="ghost" className="w-full justify-start" onClick={registrarCorte}>Registrar corte</Button>}
+                  {pendente && <Button variant="ghost" className="w-full justify-start" onClick={registrarCorte}>{corteAcesso.precisaSupervisor ? <><Lock size={14} className="mr-2" />Solicitar corte (supervisor)</> : "Registrar corte"}</Button>}
                 </div>
               )}
             </div>

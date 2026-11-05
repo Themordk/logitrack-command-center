@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { toast } from "sonner";
-import { AlertTriangle, Truck, Loader2 } from "lucide-react";
+import { AlertTriangle, Truck, Loader2, Lock } from "lucide-react";
+import { useCorteAcesso } from "@/hooks/useCorteAcesso";
+import { AutorizacaoCorteSheet } from "@/components/coletor/AutorizacaoCorteSheet";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
@@ -14,6 +16,7 @@ interface Props { onNavigate: (path: string) => void; }
 interface MotivoOcorrencia {
   id: string;
   descricao: string;
+  exige_observacao?: boolean | null;
 }
 
 export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
@@ -26,6 +29,8 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
   const [observacao, setObservacao] = useState("");
   const [processing, setProcessing] = useState(false);
   const result = useResultDialog({ coletorMode: true });
+  const [showAutorizacao, setShowAutorizacao] = useState(false);
+  const corteAcesso = useCorteAcesso({ armazemId: tarefa?.armazem_id ?? null });
 
   const numeroOnda = sessionStorage.getItem("coletor_separacao_numero_onda") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
@@ -73,13 +78,15 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
     }
   };
 
-  const loadMotivos = async () => {
+  const loadMotivos = async (action: "cortar" | "abastecimento") => {
     try {
-      const { data, error } = await (supabase as any)
+      let q = (supabase as any)
         .from("motivo_ocorrencia")
-        .select("id, descricao")
+        .select("id, descricao, exige_observacao")
         .eq("etapa_ocorrencia", "SEPARACAO")
         .eq("ativo", true);
+      if (action === "cortar") q = q.eq("permite_corte", true);
+      const { data, error } = await q;
       if (error) throw error;
       setMotivos(data || []);
     } catch (err: any) {
@@ -92,8 +99,10 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
     setShowMotivoModal(action);
     setSelectedMotivo("");
     setObservacao("");
-    loadMotivos();
+    loadMotivos(action);
   };
+
+  const exigeObs = showMotivoModal === "cortar" && !!motivos.find((m) => m.id === selectedMotivo)?.exige_observacao;
 
   const advanceToNext = async () => {
     const tarefas = JSON.parse(sessionStorage.getItem("coletor_separacao_tarefas") || "[]");
@@ -173,13 +182,18 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
         const { data, error } = await supabase.rpc("cortar_item_separacao" as any, {
           p_tenant_id: tenantId,
           p_tarefa_id: tarefa.tarefa_id,
-          p_usuario: usuarioId,
           p_motivo_ocorrencia: selectedMotivo,
           p_observacao: observacao || null,
         });
         if (error) throw error;
 
         const rpcResult = parseRpcResult(data);
+        if (!rpcResult.sucesso && rpcResult.codigo === "CORTE_REQUER_AUTORIZACAO") {
+          setShowMotivoModal(null);
+          void corteAcesso.refetch();
+          setShowAutorizacao(true);
+          return;
+        }
         if (!rpcResult.sucesso) {
           result.showError(rpcResult, { context: "separacao-ocorrencia" });
           setShowMotivoModal(null);
@@ -236,12 +250,22 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <ActionButton
-              onClick={() => openMotivoModal("cortar")}
-              variant="danger"
-            >
-              <AlertTriangle size={18} /> Registrar Ocorrência e Cortar Saldo
-            </ActionButton>
+            {corteAcesso.loading ? (
+              <ActionButton onClick={() => undefined} variant="danger" disabled>
+                <Loader2 size={18} className="animate-spin" /> Verificando permissão…
+              </ActionButton>
+            ) : corteAcesso.precisaSupervisor ? (
+              <>
+                <ActionButton onClick={() => setShowAutorizacao(true)} variant="danger">
+                  <Lock size={18} /> Solicitar corte (requer supervisor)
+                </ActionButton>
+                <p className="text-[10px] text-[hsl(213,31%,55%)] text-center -mt-2">Um supervisor precisa informar login e senha.</p>
+              </>
+            ) : (
+              <ActionButton onClick={() => openMotivoModal("cortar")} variant="danger">
+                <AlertTriangle size={18} /> Registrar Ocorrência e Cortar Saldo
+              </ActionButton>
+            )}
 
             <ActionButton
               onClick={() => openMotivoModal("abastecimento")}
@@ -299,7 +323,7 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
             </div>
 
             <div>
-              <label className="text-[10px] uppercase text-[hsl(213,31%,45%)] block mb-1">Observação (opcional)</label>
+              <label className="text-[10px] uppercase text-[hsl(213,31%,45%)] block mb-1">Observação ({exigeObs ? "obrigatória" : "opcional"})</label>
               <textarea
                 value={observacao}
                 onChange={(e) => setObservacao(e.target.value)}
@@ -313,13 +337,26 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
               <ActionButton onClick={() => setShowMotivoModal(null)} variant="secondary">
                 Cancelar
               </ActionButton>
-              <ActionButton onClick={handleConfirm} disabled={!selectedMotivo} loading={processing} variant="primary">
+              <ActionButton onClick={handleConfirm} disabled={!selectedMotivo || (exigeObs && !observacao.trim())} loading={processing} variant="primary">
                 Confirmar
               </ActionButton>
             </div>
           </div>
         </div>
       )}
+
+      <AutorizacaoCorteSheet
+        open={showAutorizacao}
+        tarefa={tarefa}
+        numeroOnda={numeroOnda}
+        temSaldoPulmao={temSaldoPulmao}
+        onClose={() => setShowAutorizacao(false)}
+        onNavigate={onNavigate}
+        onSuccess={({ autorizadorNome }) => {
+          setShowAutorizacao(false);
+          result.showSuccess(`Corte autorizado por ${autorizadorNome || "supervisor"}.`, { onClose: advanceToNext });
+        }}
+      />
 
       <ResultDialog {...result.dialogProps} />
 
