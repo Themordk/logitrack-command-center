@@ -17,6 +17,7 @@ async function clicar(texto: RegExp) {
 import { SeparacaoEnderecoPage } from "@/pages/coletor/SeparacaoEnderecoPage";
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), navegar: vi.fn(), aviso: vi.fn() }));
+vi.mock("@/hooks/useCorteAcesso", () => ({ useCorteAcesso: () => ({ carregando: false, podeCortarDiretoColetor: true, podeCortarWeb: true, exigeAutorizacao: false, dados: {} }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc } }));
 vi.mock("@/components/coletor/ColetorLayout", () => ({ ColetorLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
