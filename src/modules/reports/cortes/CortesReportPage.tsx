@@ -3,7 +3,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
 import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
-import { fetchCortesReport, fetchMotivosOcorrencia, type CortesFilter, type CorteRow } from "./cortes.service";
+import { fetchCortesReport, fetchMotivosOcorrencia, fetchUsuariosTenant, labelMetodoCorte, type CortesFilter, type CorteRow } from "./cortes.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,13 @@ export function CortesReportPage() {
   const [dataFim, setDataFim] = useState(() => new Date().toISOString().split("T")[0]);
   const [filterMotivo, setFilterMotivo] = useState("");
   const [filterSku, setFilterSku] = useState("");
+  const [filterAutorizador, setFilterAutorizador] = useState("");
+  const [usuarios, setUsuarios] = useState<{ id: string; login: string; nome: string | null }[]>([]);
+
+  useEffect(() => {
+    if (tenantId) fetchUsuariosTenant(tenantId).then(setUsuarios);
+    else setUsuarios([]);
+  }, [tenantId]);
 
   useEffect(() => {
     if (tenantId) {
@@ -64,6 +71,7 @@ export function CortesReportPage() {
         empresa_id: empresaId || undefined,
         motivo_ocorrencia_id: filterMotivo || undefined,
         sku: filterSku || undefined,
+        usuario_autorizou_id: filterAutorizador || undefined,
       };
       const results = await fetchCortesReport(filters);
       setData(results);
@@ -80,6 +88,7 @@ export function CortesReportPage() {
   const handleClear = () => {
     setFilterMotivo("");
     setFilterSku("");
+    setFilterAutorizador("");
   };
 
   // Summary
@@ -108,7 +117,9 @@ export function CortesReportPage() {
       ),
     },
     { key: "motivo", label: "Motivo", width: "180px" },
+    { key: "solicitante", label: "Solicitado por", width: "120px" },
     { key: "usuario", label: "Autorizado por", width: "120px" },
+    { key: "metodo", label: "Método", width: "150px", render: (v) => labelMetodoCorte(v) },
     {
       key: "autorizado_em", label: "Autorizado em", width: "150px",
       render: (v) => formatDateTime(v),
@@ -122,6 +133,7 @@ export function CortesReportPage() {
     activeFilters["Motivo"] = m?.descricao ?? filterMotivo;
   }
   if (filterSku) activeFilters["SKU"] = filterSku;
+  if (filterAutorizador) activeFilters["Autorizado por"] = usuarios.find((u) => u.id === filterAutorizador)?.login ?? filterAutorizador;
 
   const fmtBRL = (v: any) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -133,7 +145,9 @@ export function CortesReportPage() {
     { key: "preco_custo", label: "Preço Custo", align: "right", format: (r) => fmtBRL(r.preco_custo) },
     { key: "custo_total_item", label: "Custo Total", align: "right", format: (r) => fmtBRL(r.custo_total_item) },
     { key: "motivo", label: "Motivo" },
+    { key: "solicitante", label: "Solicitado por" },
     { key: "usuario", label: "Autorizado por" },
+    { key: "metodo", label: "Método", format: (r) => labelMetodoCorte(r.metodo) },
     { key: "autorizado_em", label: "Autorizado em", format: (r) => fmtDateTimeBR(r.autorizado_em) },
   ];
 
@@ -191,6 +205,19 @@ export function CortesReportPage() {
                   <SelectContent>
                     {motivos.map((m) => (
                       <SelectItem key={m.id} value={m.id}>{m.descricao}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Autorizado por</Label>
+                <Select value={filterAutorizador} onValueChange={setFilterAutorizador}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {usuarios.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.login}{u.nome ? ` — ${u.nome}` : ""}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
