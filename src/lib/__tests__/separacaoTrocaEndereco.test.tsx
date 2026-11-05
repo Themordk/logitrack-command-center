@@ -5,6 +5,7 @@ import { SeparacaoEnderecoPage } from "@/pages/coletor/SeparacaoEnderecoPage";
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), navegar: vi.fn(), aviso: vi.fn(), erro: vi.fn() }));
+vi.mock("@/hooks/useCorteAcesso", () => ({ useCorteAcesso: () => ({ carregando: false, podeCortarDiretoColetor: true, podeCortarWeb: true, exigeAutorizacao: false, dados: {} }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc } }));
 vi.mock("@/components/coletor/ColetorLayout", () => ({ ColetorLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
