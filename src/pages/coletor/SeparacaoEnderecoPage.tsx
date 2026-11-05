@@ -142,6 +142,8 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const requerLote = (tc?: string) => !!tc && ["LOTE", "VALIDADE", "LOTE_SERIE"].includes(tc);
 
   const tarefa = tarefas[currentIdx];
+  const corteAcesso = useCorteAcesso({ armazemId: (tarefa as { armazem_id?: string | null } | undefined)?.armazem_id ?? null });
+  const textoCorte = corteAcesso.precisaSupervisor ? "registre o corte (com supervisor, se necessário)" : "registre o corte";
   const situacao = tarefa ? situacaoTarefa(tarefa) : "OK";
   const pendente = situacao !== "OK";
   const recarregar = async (tarefaId?: string, aviso?: "atualizar" | "alternativo") => {
