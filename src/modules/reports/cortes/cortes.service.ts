@@ -8,6 +8,7 @@ export interface CortesFilter {
   empresa_id?: string;
   motivo_ocorrencia_id?: string;
   sku?: string;
+  usuario_autorizou_id?: string;
 }
 
 export interface CorteRow {
@@ -20,6 +21,8 @@ export interface CorteRow {
   custo_total_item: number;
   motivo: string;
   usuario: string;
+  solicitante: string;
+  metodo: string;
   autorizado_em: string | null;
 }
 
@@ -33,7 +36,9 @@ export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow
       movimento_saida:movimento_saida!movimento_saida_item_movimento_saida_id_fkey (numero_onda),
       produto:produto_id (sku, descricao, preco_custo),
       motivo:motivo_ocorrencia (descricao),
-      usuario_auth:usuario_autorizou (login)
+      usuario_auth:usuario_autorizou (login),
+      solicitante:usuario_solicitou_corte (login, nome),
+      autorizacao:corte_autorizacao_id (metodo)
     `,
     (q) => {
       q = q
@@ -43,6 +48,9 @@ export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow
         .order("autorizado_em", { ascending: false });
       if (filters.motivo_ocorrencia_id) {
         q = q.eq("motivo_ocorrencia", filters.motivo_ocorrencia_id);
+      }
+      if (filters.usuario_autorizou_id) {
+        q = q.eq("usuario_autorizou", filters.usuario_autorizou_id);
       }
       return q;
     },
@@ -66,6 +74,8 @@ export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow
       custo_total_item: precoCusto * qtdeCortada,
       motivo: mot?.descricao ?? "—",
       usuario: usr?.login ?? "—",
+      solicitante: r.solicitante?.login ?? "—",
+      metodo: r.autorizacao?.metodo ?? "",
       autorizado_em: r.autorizado_em,
     };
   });
@@ -78,6 +88,22 @@ export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow
 
   return rows;
 }
+
+export async function fetchUsuariosTenant(tenantId: string): Promise<{ id: string; login: string; nome: string | null }[]> {
+  const { data } = await (supabase as any)
+    .from("usuario")
+    .select("id, login, nome")
+    .eq("tenant_id", tenantId)
+    .order("login");
+  return (data ?? []) as { id: string; login: string; nome: string | null }[];
+}
+
+export const METODO_CORTE_LABELS: Record<string, string> = {
+  SENHA: "Senha do supervisor",
+  PERMISSAO_PROPRIA: "Permissão própria",
+  DISPENSADA: "Regra desligada",
+};
+export const labelMetodoCorte = (m?: string | null) => (m && METODO_CORTE_LABELS[m]) || (m ? m : "—");
 
 export async function fetchMotivosOcorrencia(tenantId: string, armazemId?: string | null) {
   let q = supabase

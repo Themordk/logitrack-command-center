@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, Save, Trash2, MapPin, Settings2, ShieldCheck, BarChart3, Info, Clock } from "lucide-react";
+import { Loader2, Save, Trash2, MapPin, Settings2, ShieldCheck, BarChart3, Info, Clock, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
@@ -96,6 +96,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   const [tempoTransitoMin, setTempoTransitoMin] = useState(5);
   const [tempoOciosoAlertaMin, setTempoOciosoAlertaMin] = useState(15);
   const [tempoInatividadeTarefaMin, setTempoInatividadeTarefaMin] = useState(30);
+  const [corteExigeAutorizacao, setCorteExigeAutorizacao] = useState(false);
+  const [corteTokenValidadeSeg, setCorteTokenValidadeSeg] = useState(180);
 
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
@@ -105,7 +107,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const [cfgRes, regRes] = await Promise.all([
         (supabase as any)
           .from("armazem_config")
-          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg, lms_tempo_inatividade_tarefa_seg")
+          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg, lms_tempo_inatividade_tarefa_seg, corte_exige_autorizacao, corte_token_validade_seg")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -130,6 +132,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setTempoTransitoMin(Math.round((cfg?.lms_tempo_transito_seg ?? 300) / 60));
       setTempoOciosoAlertaMin(Math.round((cfg?.lms_tempo_ocioso_alerta_seg ?? 900) / 60));
       setTempoInatividadeTarefaMin(Math.round((cfg?.lms_tempo_inatividade_tarefa_seg ?? 1800) / 60));
+      setCorteExigeAutorizacao(!!cfg?.corte_exige_autorizacao);
+      setCorteTokenValidadeSeg(cfg?.corte_token_validade_seg ?? 180);
 
       const reg = regRes.data;
       setRegra(reg ? { ...REGRA_DEFAULTS, ...reg } : { ...REGRA_DEFAULTS });
@@ -166,6 +170,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         lms_tempo_transito_seg: tempoTransitoMin * 60,
         lms_tempo_ocioso_alerta_seg: tempoOciosoAlertaMin * 60,
         lms_tempo_inatividade_tarefa_seg: tempoInatividadeTarefaMin * 60,
+        corte_exige_autorizacao: corteExigeAutorizacao,
+        corte_token_validade_seg: Math.min(900, Math.max(30, Math.round(corteTokenValidadeSeg || 180))),
         ativo: true,
         updated_by: usuarioId,
       };
@@ -326,6 +332,29 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                       armazemId={armazem?.id ?? null}
                       tenantId={tenantId}
                     />
+                  </div>
+                </section>
+
+                <Separator />
+
+                {/* Corte na separação */}
+                <section>
+                  <SectionTitle
+                    icon={<Scissors size={14} className="text-primary" />}
+                    title="Corte na separação"
+                    subtitle="Quando ligado, só Supervisor e Administrador cortam direto. Os demais precisam do login e senha de um supervisor no coletor."
+                  />
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <Label htmlFor="corte-exige-autorizacao" className="text-sm font-medium">Exigir autorização do supervisor para corte</Label>
+                      <Switch id="corte-exige-autorizacao" checked={corteExigeAutorizacao} onCheckedChange={setCorteExigeAutorizacao} />
+                    </div>
+                    <div className="space-y-1.5 max-w-xs">
+                      <Label htmlFor="corte-token-validade" className="text-xs uppercase tracking-wide text-muted-foreground">Validade da autorização (segundos)</Label>
+                      <Input id="corte-token-validade" type="number" min={30} max={900} value={corteTokenValidadeSeg}
+                        onChange={(e) => setCorteTokenValidadeSeg(Number(e.target.value))} />
+                      <p className="text-xs text-muted-foreground">Entre 30 e 900 segundos.</p>
+                    </div>
                   </div>
                 </section>
 

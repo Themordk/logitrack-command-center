@@ -10,8 +10,6 @@ import { Loader2, MapPin } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
 
-const TIPO_TAREFA_TRANF = "6942b989-816c-45c5-8af5-50cd22589cc6";
-
 export function TransferenciaDestinoPage({ onNavigate }: Props) {
   const offlineBlocked = useOnlineOnlyBlocked();
   const tenantId = localStorage.getItem("core_tenant_id") || "";
@@ -85,6 +83,22 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
         }
       }
 
+      // Buscar tipo de tarefa TRANSFERÊNCIA do tenant logado
+      const { data: tipoTarefa, error: errTipo } = await (supabase as any)
+        .from("tipo_tarefa")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("codigo", "TRANF")
+        .eq("ativo", true)
+        .limit(1)
+        .maybeSingle();
+      if (errTipo) throw errTipo;
+      if (!tipoTarefa) {
+        result.showWarning("Tipo de tarefa TRANSFERÊNCIA não configurado para este tenant.");
+        setLoading(false);
+        return;
+      }
+
       const now = new Date().toISOString();
 
       // Create tarefa
@@ -93,7 +107,7 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
         .insert({
           tenant_id: tenantId,
           empresa_id: empresaId,
-          tipo_tarefa_id: TIPO_TAREFA_TRANF,
+          tipo_tarefa_id: tipoTarefa.id,
           produto_id: produtoId,
           quantidade_requerida: quantidade,
           status: "CONCLUIDA",

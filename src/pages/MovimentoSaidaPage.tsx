@@ -30,6 +30,7 @@ import type { AvisoLiberacao } from "@/lib/pendenciasPicking.types";
 import { DescricaoCell } from "@/components/DescricaoCell";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortableTh } from "@/components/tabela/SortableTh";
+import { useCorteAcesso } from "@/hooks/useCorteAcesso";
 
 interface OndaCarregamentoListItem {
   id: string;
@@ -170,6 +171,7 @@ interface LiberarResult {
 interface MotivoOcorrencia {
   id: string;
   descricao: string;
+  exige_observacao?: boolean | null;
 }
 
 const normalizeOccurrenceType = (tipo?: string | null) => (tipo || "").trim().toUpperCase();
@@ -242,6 +244,10 @@ export function MovimentoSaidaPage() {
   const [corteMotivos, setCorteMotivos] = useState<MotivoOcorrencia[]>([]);
   const [corteMotivoId, setCorteMotivoId] = useState("");
   const [corteSaving, setCorteSaving] = useState(false);
+  const [corteObservacao, setCorteObservacao] = useState("");
+  const corteAcesso = useCorteAcesso({ empresaId });
+  const corteRestrito = !corteAcesso.loading && corteAcesso.exigeAutorizacao && !corteAcesso.podeCortarWeb;
+  const corteExigeObs = !!corteMotivos.find((m) => m.id === corteMotivoId)?.exige_observacao;
   const [loadingSaldoPulmao, setLoadingSaldoPulmao] = useState(false);
   const [abastItemLoading, setAbastItemLoading] = useState<string | null>(null);
 
@@ -774,10 +780,12 @@ export function MovimentoSaidaPage() {
   const handleOpenCorte = async (item: OcorrenciaItem) => {
     setCorteItem(item);
     setCorteMotivoId("");
+    setCorteObservacao("");
     // Load motivos
     const { data } = await (supabase as any)
       .from("motivo_ocorrencia")
-      .select("id, descricao")
+      .select("id, descricao, exige_observacao")
+      .eq("permite_corte", true)
       .eq("tenant_id", tenantId)
       .eq("armazem_id", armazemId)
       .eq("ativo", true)
@@ -787,44 +795,30 @@ export function MovimentoSaidaPage() {
   };
 
   const handleConfirmarCorte = async () => {
-    if (!corteItem || !corteMotivoId || !liberarMovId || !usuarioId) return;
+    if (!corteItem || !corteMotivoId || !liberarMovId) return;
     if (!corteItem.produto_id) {
       toast.error("Produto do item não identificado para realizar o corte.");
       return;
     }
+    if (corteExigeObs && !corteObservacao.trim()) return;
 
     setCorteSaving(true);
     try {
-      const { data: itensMovimento, error: itensError } = await (supabase as any)
-        .from("movimento_saida_item")
-        .select("id, qtd_esperada")
-        .eq("movimento_saida_id", liberarMovId)
-        .eq("produto_id", corteItem.produto_id);
-
-      if (itensError) throw itensError;
-      if (!itensMovimento?.length) {
-        throw new Error("Item da onda não encontrado para realizar o corte.");
+      const { data, error } = await supabase.rpc("cortar_item_onda_web" as never, {
+        p_tenant_id: tenantId,
+        p_movimento_saida_id: liberarMovId,
+        p_produto_id: corteItem.produto_id,
+        p_motivo_ocorrencia: corteMotivoId,
+        p_observacao: corteObservacao.trim() || null,
+      } as never);
+      if (error) throw error;
+      const r = parseRpcResult(data);
+      if (!r.sucesso) {
+        toast.error(parseError(r, "movimento-saida-corte").title);
+        return;
       }
 
-      const autorizadoEm = new Date().toISOString();
-      const updateResults = await Promise.all(
-        itensMovimento.map((item: any) =>
-          (supabase as any)
-            .from("movimento_saida_item")
-            .update({
-              qtde_cortada: Number(item.qtd_esperada ?? 0),
-              motivo_ocorrencia: corteMotivoId,
-              usuario_autorizou: usuarioId,
-              autorizado_em: autorizadoEm,
-            })
-            .eq("id", item.id)
-        )
-      );
-
-      const updateError = updateResults.find((result: any) => result.error)?.error;
-      if (updateError) throw updateError;
-
-      toast.success("Item cortado com sucesso!");
+      toast.success(r.mensagem ?? "Item cortado com sucesso!");
       void queryClientRemocao.invalidateQueries({ queryKey: ["onda-pendencias-picking"] });
       setCorteItem(null);
       // Remove item from list
@@ -1556,7 +1550,9 @@ export function MovimentoSaidaPage() {
                                     {abastItemLoading === oc.produto_id ? <Loader2 size={12} className="animate-spin inline" /> : "Abastecer"}
                                   </Button></span></TooltipTrigger><TooltipContent>{oc.endereco_picking_id ? "Abastecer picking" : "Produto sem picking mapeado"}</TooltipContent></Tooltip>
                                 ) : (
-                                  <button
+                                  corteRestrito ? (
+                                    <Tooltip><TooltipTrigger asChild><span className="text-[11px] text-muted-foreground">Corte restrito ao supervisor</span></TooltipTrigger><TooltipContent>Seu perfil não tem permissão para cortar itens da onda.</TooltipContent></Tooltip>
+                                  ) : <button
                                     onClick={() => handleOpenCorte(oc)}
                                     className="px-2 py-1 rounded text-[11px] font-medium bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition-colors"
                                   >
@@ -1704,7 +1700,9 @@ export function MovimentoSaidaPage() {
                                   {abastItemLoading === item.produto_id ? <Loader2 size={12} className="animate-spin inline" /> : "Abastecer"}
                                 </Button></span></TooltipTrigger><TooltipContent>{item.endereco_picking_id ? "Abastecer picking" : "Produto sem picking mapeado"}</TooltipContent></Tooltip>
                               ) : (
-                                <button
+                                corteRestrito ? (
+                                  <Tooltip><TooltipTrigger asChild><span className="text-[11px] text-muted-foreground">Corte restrito ao supervisor</span></TooltipTrigger><TooltipContent>Seu perfil não tem permissão para cortar itens da onda.</TooltipContent></Tooltip>
+                                ) : <button
                                   onClick={() => handleOpenCorte(item)}
                                   className="px-2 py-1 rounded text-[11px] font-medium bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition-colors"
                                 >
@@ -1790,11 +1788,19 @@ export function MovimentoSaidaPage() {
               ))}
             </select>
           </div>
+          {corteExigeObs && (
+            <div className="mt-2">
+              <label htmlFor="corte-observacao" className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase">Observação *</label>
+              <textarea id="corte-observacao" value={corteObservacao} onChange={(e) => setCorteObservacao(e.target.value)} rows={2}
+                className="w-full px-3 py-2 rounded-md border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary"
+                placeholder="Descreva o que aconteceu..." />
+            </div>
+          )}
           <div className="flex justify-end gap-2 mt-4">
             <button onClick={() => setCorteItem(null)} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
             <button
               onClick={handleConfirmarCorte}
-              disabled={corteSaving || !corteMotivoId}
+              disabled={corteSaving || !corteMotivoId || (corteExigeObs && !corteObservacao.trim())}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors"
             >
               {corteSaving && <Loader2 size={14} className="animate-spin" />}

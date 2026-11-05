@@ -1,5 +1,5 @@
 import { HistoricoMovimentosCard } from "@/components/movimentos/DocumentosRemovidosBloco";
-import { RetornosDocumentoCard } from "@/pages/integracao/retornos/components/RetornosDocumentoCard";
+import { EventosIntegracaoDocumentoCard } from "@/pages/integracao/eventos-documento/components/EventosIntegracaoDocumentoCard";
 import { Fragment, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -341,7 +341,7 @@ export function DocEntradaDetalhePage({ documentoId, onBack, backLabel }: Props)
       </Card>
 
       <HistoricoMovimentosCard documentoId={documentoId} tipo="entrada" />
-      <RetornosDocumentoCard entidade="documento_entrada" documentoId={documentoId} />
+      <EventosIntegracaoDocumentoCard entidade="documento_entrada" documentoId={documentoId} />
     </div>
   );
 }

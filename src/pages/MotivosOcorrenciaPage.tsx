@@ -63,6 +63,12 @@ export function MotivosOcorrenciaPage() {
         </span>
       ),
     },
+    { key: "permite_corte", label: "Permite corte", render: (row) => (
+      <span className="text-xs">{row.etapa_ocorrencia === "SEPARACAO" ? (row.permite_corte ? "Sim" : "Não") : "—"}</span>
+    )},
+    { key: "exige_observacao", label: "Exige observação", render: (row) => (
+      <span className="text-xs">{row.etapa_ocorrencia === "SEPARACAO" ? (row.exige_observacao ? "Sim" : "Não") : "—"}</span>
+    )},
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -76,6 +82,8 @@ export function MotivosOcorrenciaPage() {
     { name: "acao_automatica", label: "Ação automática", type: "enum", defaultValue: "NENHUMA", enumValues: ["NENHUMA", "BLOQUEIO_ESTOQUE", "NOTIFICACAO_SUPERVISOR", "AJUSTE_ESTOQUE"] },
     { name: "sla_horas", label: "SLA (horas)", type: "number", placeholder: "Ex: 24" },
     { name: "sla_notificar_percentual", label: "Alerta em (% do SLA)", type: "number", placeholder: "Ex: 80", defaultValue: 80 },
+    { name: "permite_corte", label: "Permite corte", type: "switch", defaultValue: false, visibleWhen: (f) => f.etapa_ocorrencia === "SEPARACAO" },
+    { name: "exige_observacao", label: "Exige observação", type: "switch", defaultValue: false, visibleWhen: (f) => f.etapa_ocorrencia === "SEPARACAO" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 

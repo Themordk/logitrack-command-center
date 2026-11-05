@@ -8,6 +8,20 @@ export interface ParsedError {
 }
 
 const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }> = {
+  CORTE_REQUER_AUTORIZACAO: { title: "Este corte precisa de autorização do supervisor.", instruction: "Chame o supervisor para informar login e senha." },
+  CREDENCIAL_INVALIDA: { title: "Usuário ou senha do supervisor inválidos.", instruction: "Confira os dados e tente novamente." },
+  AUTORIZADOR_SEM_PERMISSAO: { title: "Este usuário não pode autorizar cortes.", instruction: "Chame um supervisor ou administrador." },
+  AUTORIZADOR_IGUAL_SOLICITANTE: { title: "O supervisor precisa ser outra pessoa.", instruction: "Peça a outro supervisor para autorizar." },
+  AUTORIZACAO_BLOQUEADA: { title: "Muitas tentativas de autorização.", instruction: "Aguarde alguns minutos e tente novamente." },
+  AUTORIZACAO_EXPIRADA: { title: "A autorização expirou.", instruction: "Peça ao supervisor para autorizar de novo." },
+  AUTORIZACAO_INVALIDA: { title: "O item mudou desde a autorização.", instruction: "Volte, toque em Atualizar tarefa e tente de novo." },
+  MOTIVO_INVALIDO: { title: "Motivo de corte inválido.", instruction: "Escolha outro motivo." },
+  MOTIVO_EXIGE_OBSERVACAO: { title: "Este motivo exige uma observação.", instruction: "Descreva o que aconteceu no campo Observação." },
+  TAREFA_JA_FINALIZADA: { title: "Esta tarefa já foi finalizada.", instruction: "Atualize a lista de tarefas." },
+  PERMISSAO_NEGADA: { title: "Você não tem permissão para cortar itens.", instruction: "Peça a um supervisor para realizar o corte." },
+  CORTE_SOMENTE_VIA_RPC: { title: "Corte não permitido por este caminho.", instruction: "Atualize a página e tente novamente." },
+  ITEM_NAO_ENCONTRADO: { title: "Item da onda não encontrado.", instruction: "Atualize a onda e tente novamente." },
+  USUARIO_NAO_IDENTIFICADO: { title: "Sessão do usuário não identificada.", instruction: "Saia e entre novamente no sistema." },
   AGUARDANDO_ABASTECIMENTO: { title: "Endereço sem saldo deste produto.", instruction: "Aguarde o abastecimento, pule o item ou registre o corte." },
   PICKING_NAO_MAPEADO: { title: "Produto sem picking mapeado.", instruction: "Toque em Atualizar tarefa ou pule o item. O mapeamento é feito pela supervisão." },
   LIBERADA_COM_AVISOS: { title: "Onda liberada com pendências de picking/saldo.", instruction: "Confira os itens marcados em vermelho." },
@@ -16,6 +30,15 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   INTEGRACAO_CONEXAO_NAO_ENCONTRADA: { title: "Integração ainda não configurada.", instruction: "Salve as credenciais do provedor antes de alterar esta regra." },
   INTEGRACAO_PARAMETROS: { title: "Empresa não selecionada.", instruction: "Selecione uma empresa." },
   // === Motor de Retorno ao ERP (códigos mais longos antes dos prefixos) ===
+  DOC_EVENTOS_SEM_PERMISSAO: { title: "Você não tem permissão para ver os eventos de integração deste documento.", instruction: "Peça acesso à tela de documentos ao administrador." },
+  DOC_EVENTOS_ACESSO_NEGADO: { title: "Acesso negado a esta empresa.", instruction: "Confira a empresa selecionada." },
+  DOC_EVENTOS_NAO_AUTENTICADO: { title: "Sua sessão expirou.", instruction: "Entre novamente." },
+  DOC_EVENTOS_EMPRESA_INVALIDA: { title: "Empresa inválida para este tenant.", instruction: "Selecione outra empresa." },
+  DOC_EVENTOS_PARAMETROS: { title: "Parâmetros inválidos na consulta de eventos.", instruction: "Recarregue a página." },
+  DOC_EVENTOS_ENTIDADE_INVALIDA: { title: "Tipo de documento inválido.", instruction: "Recarregue a página." },
+  DOC_EVENTOS_DOCUMENTO_NAO_ENCONTRADO: { title: "Documento não encontrado.", instruction: "Ele pode ter sido removido. Volte à lista." },
+  DOC_EVENTOS_EVENTO_NAO_ENCONTRADO: { title: "Evento não encontrado para este documento.", instruction: "Atualize a lista de eventos." },
+  DOC_EVENTOS_FONTE_INVALIDA: { title: "Tipo de evento inválido.", instruction: "Atualize a lista de eventos." },
   RETORNO_SEM_PERMISSAO: { title: "Você não tem permissão para alterar os retornos ao ERP.", instruction: "Peça acesso de edição em Integração ao administrador." },
   RETORNO_ACESSO_NEGADO: { title: "Acesso negado a esta empresa.", instruction: "Confira a empresa selecionada." },
   RETORNO_NAO_AUTENTICADO: { title: "Sua sessão expirou.", instruction: "Entre novamente." },
@@ -442,6 +465,11 @@ const SYSTEM_ERROR_PATTERNS: Array<{
   title: string;
   instruction: string;
 }> = [
+  {
+    pattern: /CORTE_SOMENTE_VIA_RPC/,
+    title: "Corte não permitido por este caminho.",
+    instruction: "Atualize a página e tente novamente.",
+  },
   {
     pattern: /Invalid login credentials/i,
     title: "Usuário ou senha incorretos.",

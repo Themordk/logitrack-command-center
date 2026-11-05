@@ -6870,6 +6870,9 @@ export type Database = {
         Row: {
           armazem_id: string | null
           auto_separacao: boolean
+          cancelado_em: string | null
+          cancelado_origem: string | null
+          cancelado_por: string | null
           cancelamento_documento_id: string | null
           concluido_em: string | null
           contagem_inventario: number | null
@@ -6905,6 +6908,9 @@ export type Database = {
         Insert: {
           armazem_id?: string | null
           auto_separacao?: boolean
+          cancelado_em?: string | null
+          cancelado_origem?: string | null
+          cancelado_por?: string | null
           cancelamento_documento_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
@@ -6940,6 +6946,9 @@ export type Database = {
         Update: {
           armazem_id?: string | null
           auto_separacao?: boolean
+          cancelado_em?: string | null
+          cancelado_origem?: string | null
+          cancelado_por?: string | null
           cancelamento_documento_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
@@ -6978,6 +6987,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_cancelado_por_fkey"
+            columns: ["cancelado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
           {
@@ -7298,6 +7314,9 @@ export type Database = {
       tarefa_execucao: {
         Row: {
           atribuido_em: string
+          cancelado_em: string | null
+          cancelado_origem: string | null
+          cancelado_por: string | null
           concluido_em: string | null
           endereco_destino_id: string | null
           endereco_origem_id: string | null
@@ -7320,6 +7339,9 @@ export type Database = {
         }
         Insert: {
           atribuido_em?: string
+          cancelado_em?: string | null
+          cancelado_origem?: string | null
+          cancelado_por?: string | null
           concluido_em?: string | null
           endereco_destino_id?: string | null
           endereco_origem_id?: string | null
@@ -7342,6 +7364,9 @@ export type Database = {
         }
         Update: {
           atribuido_em?: string
+          cancelado_em?: string | null
+          cancelado_origem?: string | null
+          cancelado_por?: string | null
           concluido_em?: string | null
           endereco_destino_id?: string | null
           endereco_origem_id?: string | null
@@ -7408,6 +7433,13 @@ export type Database = {
           {
             foreignKeyName: "execucao_tarefa_usuario_id_fkey"
             columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_execucao_cancelado_por_fkey"
+            columns: ["cancelado_por"]
             isOneToOne: false
             referencedRelation: "usuario"
             referencedColumns: ["id"]
@@ -10276,6 +10308,10 @@ export type Database = {
         }
         Returns: Json
       }
+      _fn_mov_saida_status_pos_limpeza: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: string
+      }
       _fn_msi_recalcular_quantidades: {
         Args: { p_msi_id: string }
         Returns: undefined
@@ -10519,6 +10555,26 @@ export type Database = {
             Returns: Json
           }
       cortar_item_separacao_bkp_20261012:
+        | {
+            Args: {
+              p_motivo_ocorrencia: string
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_motivo_ocorrencia: string
+              p_observacao?: string
+              p_tarefa_id: string
+              p_tenant_id: string
+              p_usuario: string
+            }
+            Returns: Json
+          }
+      cortar_item_separacao_bkp_20261103:
         | {
             Args: {
               p_motivo_ocorrencia: string
@@ -10950,6 +11006,10 @@ export type Database = {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: Json
       }
+      fn_cancelar_onda_carregamento_bkp_20261103: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       fn_cancelar_saida_por_nf_cancelada: {
         Args: {
           p_documento_saida_id: string
@@ -11017,6 +11077,30 @@ export type Database = {
         Returns: Json
       }
       fn_criar_inventario_v2: {
+        Args: {
+          p_armazem_id: string
+          p_bloquear_movimentacao?: boolean
+          p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+          p_curva?: Database["public"]["Enums"]["enum_curva"]
+          p_data_fim_analise?: string
+          p_data_inicio_analise?: string
+          p_data_planejada?: string
+          p_descricao: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_grupo_produto_id?: string
+          p_max_enderecos_dia?: number
+          p_priorizar_picking?: boolean
+          p_produto_id?: string
+          p_tenant_id: string
+          p_tipo_execucao: Database["public"]["Enums"]["enum_execucao_inventario"]
+          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          p_usuario_id: string
+          p_zona_atividade_id?: string
+        }
+        Returns: Json
+      }
+      fn_criar_inventario_v2_bkp_20261103: {
         Args: {
           p_armazem_id: string
           p_bloquear_movimentacao?: boolean
@@ -11141,6 +11225,10 @@ export type Database = {
         Returns: Json
       }
       fn_gerar_conferencia_saida: {
+        Args: { p_movimento_saida_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      fn_gerar_conferencia_saida_bkp_20261103: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: Json
       }
@@ -11291,6 +11379,31 @@ export type Database = {
         Returns: Json
       }
       fn_inventario_itens_elegiveis: {
+        Args: {
+          p_armazem_id: string
+          p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
+          p_curva?: Database["public"]["Enums"]["enum_curva"]
+          p_data_fim_analise?: string
+          p_data_inicio_analise?: string
+          p_empresa_id: string
+          p_endereco_id?: string
+          p_grupo_produto_id?: string
+          p_produto_id?: string
+          p_tenant_id: string
+          p_tipo_inventario: Database["public"]["Enums"]["enum_tipo_inventario"]
+          p_zona_atividade_id?: string
+        }
+        Returns: {
+          codigo_endereco: number
+          endereco_id: string
+          estoque_geral_id: string
+          ordem_execucao: number
+          produto_id: string
+          quantidade_total: number
+          tipo_endereco: string
+        }[]
+      }
+      fn_inventario_itens_elegiveis_bkp_20261103: {
         Args: {
           p_armazem_id: string
           p_criterio_selecao?: Database["public"]["Enums"]["enum_criterio_selecao_inventario"]
@@ -11904,6 +12017,31 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: boolean
+      }
+      integracao_documento_evento_detalhe: {
+        Args: {
+          p_documento_id: string
+          p_empresa_id: string
+          p_entidade: string
+          p_fonte: string
+          p_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      integracao_documento_eventos: {
+        Args: {
+          p_direcao?: string
+          p_documento_id: string
+          p_empresa_id: string
+          p_entidade: string
+          p_limite?: number
+          p_offset?: number
+          p_ordem?: string
+          p_somente_problemas?: boolean
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       integracao_expurgar_api_controle: { Args: never; Returns: Json }
       integracao_expurgar_api_erro: { Args: never; Returns: Json }
@@ -13978,6 +14116,15 @@ export type Database = {
         }
         Returns: Json
       }
+      separacao_conferencia_limpar_item_bkp_20261103: {
+        Args: {
+          p_movimento_saida_id: string
+          p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       separacao_conferencia_limpar_total: {
         Args: {
           p_movimento_saida_id: string
@@ -14065,6 +14212,16 @@ export type Database = {
         Returns: string
       }
       separacao_limpar_item: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_produto_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      separacao_limpar_item_bkp_20261103: {
         Args: {
           p_empresa_id: string
           p_movimento_saida_id: string
@@ -14209,6 +14366,8 @@ export type Database = {
         | "CURVA_ACESSO"
         | "CORTES"
         | "ESTORNOS"
+        | "SAIDAS"
+        | "DEVOLUCOES"
       enum_curva: "A" | "B" | "C" | "D"
       enum_disponibilidade_hu:
         | "DISPONIVEL"
@@ -14609,6 +14768,8 @@ export const Constants = {
         "CURVA_ACESSO",
         "CORTES",
         "ESTORNOS",
+        "SAIDAS",
+        "DEVOLUCOES",
       ],
       enum_curva: ["A", "B", "C", "D"],
       enum_disponibilidade_hu: [
