@@ -102,14 +102,14 @@ export function agruparEventos(eventos: EventoDocumento[]): EventoComNivel[] {
   return out;
 }
 
-/** Retorno enviado ao ERP mais recente (maior seq) e que terminou com erro. */
+/** Retorno enviado ao ERP mais recente (maior seq) com situação "erro". */
 export function ultimoRetornoComErroId(eventos: EventoDocumento[]): string | null {
   let melhor: EventoDocumento | null = null;
   for (const e of eventos) {
-    if (e.fonte !== "retorno_execucao") continue;
+    if (e.fonte !== "retorno_execucao" || e.situacao !== "erro") continue;
     if (!melhor || e.seq > melhor.seq) melhor = e;
   }
-  return melhor && melhor.situacao === "erro" ? melhor.id : null;
+  return melhor?.id ?? null;
 }
 
 const CHAVE_ORDEM = "doc-eventos-ordem";
