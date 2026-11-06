@@ -1,3 +1,4 @@
+import { lerOrigemArmazenagem, rotaListaItens } from "@/lib/armazenagemOrigem";
 import { useEffect } from "react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
@@ -7,6 +8,7 @@ import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext
 interface Props { onNavigate: (path: string) => void; }
 
 export function ArmazenagemConcluidoPage({ onNavigate }: Props) {
+  const origem = lerOrigemArmazenagem();
   const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
   useEffect(() => {
     setFabVisivel(true);
@@ -20,13 +22,13 @@ export function ArmazenagemConcluidoPage({ onNavigate }: Props) {
           <CheckCircle size={56} className="text-[#22C55E]" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white mb-1">Item Armazenado!</h2>
-          <p className="text-base text-[hsl(213,31%,55%)]">Produto armazenado. Selecione o próximo item.</p>
+          <h2 className="text-2xl font-bold text-white mb-1">{origem === "CANCELAMENTO" ? "Item devolvido ao estoque!" : "Item Armazenado!"}</h2>
+          <p className="text-base text-[hsl(213,31%,55%)]">{origem === "CANCELAMENTO" ? "Item devolvido ao estoque. Selecione o próximo item." : "Produto armazenado. Selecione o próximo item."}</p>
         </div>
       </div>
 
       <div className="space-y-3 pb-4">
-        <ActionButton onClick={() => onNavigate("/coletor/armazenagem/itens")} variant="primary">
+        <ActionButton onClick={() => onNavigate(rotaListaItens(origem))} variant="primary">
           <RotateCcw size={20} /> PRÓXIMO ITEM
         </ActionButton>
         <ActionButton onClick={() => onNavigate("/coletor/home")} variant="secondary">

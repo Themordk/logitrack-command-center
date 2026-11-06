@@ -306,6 +306,8 @@ export type Database = {
         Row: {
           armazem_id: string
           ativo: boolean
+          corte_exige_autorizacao: boolean
+          corte_token_validade_seg: number
           created_at: string
           created_by: string | null
           empresa_id: string
@@ -329,6 +331,8 @@ export type Database = {
         Insert: {
           armazem_id: string
           ativo?: boolean
+          corte_exige_autorizacao?: boolean
+          corte_token_validade_seg?: number
           created_at?: string
           created_by?: string | null
           empresa_id: string
@@ -352,6 +356,8 @@ export type Database = {
         Update: {
           armazem_id?: string
           ativo?: boolean
+          corte_exige_autorizacao?: boolean
+          corte_token_validade_seg?: number
           created_at?: string
           created_by?: string | null
           empresa_id?: string
@@ -3865,7 +3871,9 @@ export type Database = {
           descricao: string
           empresa_id: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
+          exige_observacao: boolean
           id: string
+          permite_corte: boolean
           prioridade_padrao:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
@@ -3888,7 +3896,9 @@ export type Database = {
           descricao: string
           empresa_id?: string | null
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
+          exige_observacao?: boolean
           id?: string
+          permite_corte?: boolean
           prioridade_padrao?:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
@@ -3911,7 +3921,9 @@ export type Database = {
           descricao?: string
           empresa_id?: string | null
           etapa_ocorrencia?: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
+          exige_observacao?: boolean
           id?: string
+          permite_corte?: boolean
           prioridade_padrao?:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
             | null
@@ -4741,6 +4753,7 @@ export type Database = {
       movimento_saida_item: {
         Row: {
           autorizado_em: string | null
+          corte_autorizacao_id: string | null
           created_at: string | null
           created_by: string | null
           id: string
@@ -4754,11 +4767,13 @@ export type Database = {
           status: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
           usuario_autorizou: string | null
+          usuario_solicitou_corte: string | null
           valor_total: number
           valor_unit: number
         }
         Insert: {
           autorizado_em?: string | null
+          corte_autorizacao_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -4772,11 +4787,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id: string
           usuario_autorizou?: string | null
+          usuario_solicitou_corte?: string | null
           valor_total: number
           valor_unit: number
         }
         Update: {
           autorizado_em?: string | null
+          corte_autorizacao_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -4790,6 +4807,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["enum_status_item_onda"] | null
           tenant_id?: string
           usuario_autorizou?: string | null
+          usuario_solicitou_corte?: string | null
           valor_total?: number
           valor_unit?: number
         }
@@ -4865,6 +4883,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimento_saida_item_corte_autorizacao_id_fkey"
+            columns: ["corte_autorizacao_id"]
+            isOneToOne: false
+            referencedRelation: "separacao_corte_autorizacao"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimento_saida_item_motivo_ocorrencia_fkey"
             columns: ["motivo_ocorrencia"]
             isOneToOne: false
@@ -4909,6 +4934,13 @@ export type Database = {
           {
             foreignKeyName: "movimento_saida_item_usuario_autorizou_fkey"
             columns: ["usuario_autorizou"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimento_saida_item_usuario_solicitou_corte_fkey"
+            columns: ["usuario_solicitou_corte"]
             isOneToOne: false
             referencedRelation: "usuario"
             referencedColumns: ["id"]
@@ -5147,6 +5179,7 @@ export type Database = {
       ocorrencia_operacional: {
         Row: {
           armazem_id: string | null
+          autorizado_por: string | null
           categoria:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
@@ -5183,6 +5216,7 @@ export type Database = {
         }
         Insert: {
           armazem_id?: string | null
+          autorizado_por?: string | null
           categoria?:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
@@ -5219,6 +5253,7 @@ export type Database = {
         }
         Update: {
           armazem_id?: string | null
+          autorizado_por?: string | null
           categoria?:
             | Database["public"]["Enums"]["enum_categoria_ocorrencia"]
             | null
@@ -5259,6 +5294,13 @@ export type Database = {
             columns: ["armazem_id"]
             isOneToOne: false
             referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_autorizado_por_fkey"
+            columns: ["autorizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuario"
             referencedColumns: ["id"]
           },
           {
@@ -6602,6 +6644,354 @@ export type Database = {
           },
         ]
       }
+      separacao_corte_autorizacao: {
+        Row: {
+          armazem_id: string | null
+          autorizador_usuario_id: string
+          created_at: string
+          created_by: string | null
+          dispositivo: string | null
+          empresa_id: string | null
+          expira_em: string | null
+          id: string
+          ip_origem: string | null
+          metodo: Database["public"]["Enums"]["enum_metodo_autorizacao_corte"]
+          motivo_ocorrencia_id: string
+          movimento_saida_id: string | null
+          movimento_saida_item_id: string | null
+          observacao: string | null
+          ocorrencia_id: string | null
+          origem: Database["public"]["Enums"]["enum_origem_corte"]
+          produto_id: string | null
+          quantidade_autorizada: number
+          solicitante_usuario_id: string
+          status: Database["public"]["Enums"]["enum_status_autorizacao_corte"]
+          tarefa_id: string | null
+          tenant_id: string
+          token_hash: string | null
+          updated_at: string
+          updated_by: string | null
+          utilizada_em: string | null
+        }
+        Insert: {
+          armazem_id?: string | null
+          autorizador_usuario_id: string
+          created_at?: string
+          created_by?: string | null
+          dispositivo?: string | null
+          empresa_id?: string | null
+          expira_em?: string | null
+          id?: string
+          ip_origem?: string | null
+          metodo: Database["public"]["Enums"]["enum_metodo_autorizacao_corte"]
+          motivo_ocorrencia_id: string
+          movimento_saida_id?: string | null
+          movimento_saida_item_id?: string | null
+          observacao?: string | null
+          ocorrencia_id?: string | null
+          origem: Database["public"]["Enums"]["enum_origem_corte"]
+          produto_id?: string | null
+          quantidade_autorizada: number
+          solicitante_usuario_id: string
+          status?: Database["public"]["Enums"]["enum_status_autorizacao_corte"]
+          tarefa_id?: string | null
+          tenant_id: string
+          token_hash?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          utilizada_em?: string | null
+        }
+        Update: {
+          armazem_id?: string | null
+          autorizador_usuario_id?: string
+          created_at?: string
+          created_by?: string | null
+          dispositivo?: string | null
+          empresa_id?: string | null
+          expira_em?: string | null
+          id?: string
+          ip_origem?: string | null
+          metodo?: Database["public"]["Enums"]["enum_metodo_autorizacao_corte"]
+          motivo_ocorrencia_id?: string
+          movimento_saida_id?: string | null
+          movimento_saida_item_id?: string | null
+          observacao?: string | null
+          ocorrencia_id?: string | null
+          origem?: Database["public"]["Enums"]["enum_origem_corte"]
+          produto_id?: string | null
+          quantidade_autorizada?: number
+          solicitante_usuario_id?: string
+          status?: Database["public"]["Enums"]["enum_status_autorizacao_corte"]
+          tarefa_id?: string | null
+          tenant_id?: string
+          token_hash?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          utilizada_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "separacao_corte_autorizacao_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_autorizador_usuario_id_fkey"
+            columns: ["autorizador_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_motivo_ocorrencia_id_fkey"
+            columns: ["motivo_ocorrencia_id"]
+            isOneToOne: false
+            referencedRelation: "motivo_ocorrencia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "v_separacao_iniciar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_lista"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_movimento_saida_id_fkey"
+            columns: ["movimento_saida_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["movimento_id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_movimento_saida_item_id_fkey"
+            columns: ["movimento_saida_item_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_saida_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_movimento_saida_item_id_fkey"
+            columns: ["movimento_saida_item_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_resumo"
+            referencedColumns: ["movimento_item_id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_ocorrencia_id_fkey"
+            columns: ["ocorrencia_id"]
+            isOneToOne: false
+            referencedRelation: "ocorrencia_operacional"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_solicitante_usuario_id_fkey"
+            columns: ["solicitante_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_autorizacao_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      separacao_corte_tentativa: {
+        Row: {
+          autorizador_usuario_id: string | null
+          created_at: string
+          id: string
+          ip_origem: string | null
+          login_informado: string | null
+          motivo_falha: string | null
+          solicitante_usuario_id: string
+          sucesso: boolean
+          tarefa_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          autorizador_usuario_id?: string | null
+          created_at?: string
+          id?: string
+          ip_origem?: string | null
+          login_informado?: string | null
+          motivo_falha?: string | null
+          solicitante_usuario_id: string
+          sucesso: boolean
+          tarefa_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          autorizador_usuario_id?: string | null
+          created_at?: string
+          id?: string
+          ip_origem?: string | null
+          login_informado?: string | null
+          motivo_falha?: string | null
+          solicitante_usuario_id?: string
+          sucesso?: boolean
+          tarefa_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "separacao_corte_tentativa_autorizador_usuario_id_fkey"
+            columns: ["autorizador_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_tentativa_solicitante_usuario_id_fkey"
+            columns: ["solicitante_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_tentativa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_tentativa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_tentativa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_tentativa_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_tentativa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "separacao_corte_tentativa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sequencia: {
         Row: {
           created_at: string
@@ -6876,6 +7266,7 @@ export type Database = {
           cancelamento_documento_id: string | null
           concluido_em: string | null
           contagem_inventario: number | null
+          corte_autorizacao_id: string | null
           criado_em: string
           criado_por: string | null
           empresa_id: string
@@ -6914,6 +7305,7 @@ export type Database = {
           cancelamento_documento_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
+          corte_autorizacao_id?: string | null
           criado_em?: string
           criado_por?: string | null
           empresa_id: string
@@ -6952,6 +7344,7 @@ export type Database = {
           cancelamento_documento_id?: string | null
           concluido_em?: string | null
           contagem_inventario?: number | null
+          corte_autorizacao_id?: string | null
           criado_em?: string
           criado_por?: string | null
           empresa_id?: string
@@ -7001,6 +7394,13 @@ export type Database = {
             columns: ["cancelamento_documento_id"]
             isOneToOne: false
             referencedRelation: "documento_saida_cancelamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_corte_autorizacao_id_fkey"
+            columns: ["corte_autorizacao_id"]
+            isOneToOne: false
+            referencedRelation: "separacao_corte_autorizacao"
             referencedColumns: ["id"]
           },
           {
@@ -10308,6 +10708,41 @@ export type Database = {
         }
         Returns: Json
       }
+      _fn_cortar_item_separacao_core: {
+        Args: {
+          p_motivo_ocorrencia: string
+          p_observacao: string
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_token_autorizacao: string
+        }
+        Returns: Json
+      }
+      _fn_corte_bloqueado_ate: {
+        Args: { p_login: string; p_solicitante_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      _fn_corte_exige_autorizacao: {
+        Args: {
+          p_armazem_id: string
+          p_empresa_id?: string
+          p_tenant_id: string
+        }
+        Returns: boolean
+      }
+      _fn_corte_ret: {
+        Args: {
+          p_codigo: string
+          p_dados?: Json
+          p_mensagem: string
+          p_sucesso: boolean
+        }
+        Returns: Json
+      }
+      _fn_corte_tem_permissao: {
+        Args: { p_modulo: string; p_usuario_id: string }
+        Returns: boolean
+      }
       _fn_mov_saida_status_pos_limpeza: {
         Args: { p_movimento_saida_id: string; p_tenant_id: string }
         Returns: string
@@ -10534,13 +10969,24 @@ export type Database = {
             }
             Returns: Json
           }
+      cortar_item_onda_web: {
+        Args: {
+          p_motivo_ocorrencia: string
+          p_movimento_saida_id: string
+          p_observacao?: string
+          p_produto_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       cortar_item_separacao:
         | {
             Args: {
               p_motivo_ocorrencia: string
+              p_observacao?: string
               p_tarefa_id: string
               p_tenant_id: string
-              p_usuario: string
+              p_token_autorizacao?: string
             }
             Returns: Json
           }
@@ -10594,6 +11040,44 @@ export type Database = {
             }
             Returns: Json
           }
+      corte_emitir_autorizacao: {
+        Args: {
+          p_autorizador_auth_uid: string
+          p_dispositivo?: string
+          p_ip?: string
+          p_login: string
+          p_motivo_ocorrencia: string
+          p_observacao?: string
+          p_quantidade?: number
+          p_solicitante_auth_uid: string
+          p_tarefa_id: string
+        }
+        Returns: Json
+      }
+      corte_pre_validar: {
+        Args: { p_ip?: string; p_login: string; p_solicitante_auth_uid: string }
+        Returns: Json
+      }
+      corte_registrar_tentativa: {
+        Args: {
+          p_autorizador_usuario_id?: string
+          p_ip?: string
+          p_login: string
+          p_motivo_falha: string
+          p_solicitante_auth_uid: string
+          p_sucesso: boolean
+          p_tarefa_id: string
+        }
+        Returns: Json
+      }
+      corte_verificar_acesso: {
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       criar_hu_recebimento: {
         Args: {
           p_armazem_id: string
@@ -11533,6 +12017,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_mudanca_picking_pendencias: {
+        Args: { p_enderecos: string[]; p_tenant_id: string }
+        Returns: Json
+      }
       fn_painel_endereco_cancelamento: {
         Args: { p_empresa_id?: string; p_tenant_id: string }
         Returns: Json
@@ -11798,6 +12286,10 @@ export type Database = {
         }[]
       }
       fn_restaurar_bkp_remocao_documento: { Args: never; Returns: number }
+      fn_seed_permissoes_corte: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       fn_seed_rbac_para_tenant: {
         Args: { p_tenant_id: string }
         Returns: undefined
@@ -12535,6 +13027,7 @@ export type Database = {
       }
       integracao_retorno_executar: {
         Args: {
+          p_descartar_bloqueios?: boolean
           p_documento_id: string
           p_fluxo_id: string
           p_modo?: string
@@ -12668,6 +13161,10 @@ export type Database = {
       }
       integracao_retorno_validar_fluxo: {
         Args: { p_definicao: Json; p_empresa_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      integracao_retorno_verificar_envio: {
+        Args: { p_documento_id: string; p_fluxo_id: string }
         Returns: Json
       }
       integracao_retorno_versoes_fluxo: {
@@ -13632,6 +14129,20 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_mudanca_picking_executar: {
+        Args: {
+          p_decisoes?: Json
+          p_destino_id: string
+          p_origem_id: string
+          p_tenant_id: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      rpc_mudanca_picking_preview: {
+        Args: { p_origem_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       rpc_onda_pendencias_picking: {
         Args: { p_movimento_saida_ids: string[]; p_tenant_id: string }
         Returns: {
@@ -14391,11 +14902,18 @@ export type Database = {
       enum_execucao_inventario: "AUDITORIA" | "ATUALIZACAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
+      enum_metodo_autorizacao_corte:
+        | "PERMISSAO_PROPRIA"
+        | "SENHA"
+        | "DISPENSADA"
+        | "CRACHA_PIN"
+        | "REMOTO"
       enum_momento_geracao_volume:
         | "NENHUMA"
         | "SEPARAÇÃO"
         | "CONFERÊNCIA"
         | "CARREGAMENTO"
+      enum_origem_corte: "COLETOR_SEPARACAO" | "WEB_LIBERACAO_ONDA"
       enum_origem_inventario: "MANUAL" | "AUTOMATICO" | "ROTATIVO_SISTEMA"
       enum_prioridade_ocorrencia: "BAIXA" | "NORMAL" | "ALTA" | "CRITICA"
       enum_prioridade_onda: "URGENTE" | "ALTA" | "NORMAL" | "BAIXA"
@@ -14414,6 +14932,11 @@ export type Database = {
         | "EM_EXECUCAO"
         | "FINALIZADO"
         | "CANCELADO"
+      enum_status_autorizacao_corte:
+        | "EMITIDA"
+        | "UTILIZADA"
+        | "EXPIRADA"
+        | "REVOGADA"
       enum_status_conexao_impressora:
         | "ONLINE"
         | "OFFLINE"
@@ -14796,12 +15319,20 @@ export const Constants = {
       enum_execucao_inventario: ["AUDITORIA", "ATUALIZACAO"],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],
       enum_lado: ["PAR", "IMPAR"],
+      enum_metodo_autorizacao_corte: [
+        "PERMISSAO_PROPRIA",
+        "SENHA",
+        "DISPENSADA",
+        "CRACHA_PIN",
+        "REMOTO",
+      ],
       enum_momento_geracao_volume: [
         "NENHUMA",
         "SEPARAÇÃO",
         "CONFERÊNCIA",
         "CARREGAMENTO",
       ],
+      enum_origem_corte: ["COLETOR_SEPARACAO", "WEB_LIBERACAO_ONDA"],
       enum_origem_inventario: ["MANUAL", "AUTOMATICO", "ROTATIVO_SISTEMA"],
       enum_prioridade_ocorrencia: ["BAIXA", "NORMAL", "ALTA", "CRITICA"],
       enum_prioridade_onda: ["URGENTE", "ALTA", "NORMAL", "BAIXA"],
@@ -14822,6 +15353,12 @@ export const Constants = {
         "EM_EXECUCAO",
         "FINALIZADO",
         "CANCELADO",
+      ],
+      enum_status_autorizacao_corte: [
+        "EMITIDA",
+        "UTILIZADA",
+        "EXPIRADA",
+        "REVOGADA",
       ],
       enum_status_conexao_impressora: [
         "ONLINE",

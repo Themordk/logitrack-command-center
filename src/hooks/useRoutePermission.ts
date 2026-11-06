@@ -57,6 +57,8 @@ const routeToModuleMap: Record<string, string> = {
 const coletorModuleMap: Record<string, string> = {
   "/coletor/recebimento": "coletor.recebimento",
   "/coletor/armazenagem": "coletor.armazenagem",
+  "/coletor/armazenagem/itens": "coletor.armazenagem",
+  "/coletor/armazenagem/cancelamentos/itens": "coletor.armazenagem",
   "/coletor/movimentos": "coletor.movimentos",
   "/coletor/separacao/iniciar": "coletor.separacao",
   "/coletor/conferencia/iniciar": "coletor.conferencia",

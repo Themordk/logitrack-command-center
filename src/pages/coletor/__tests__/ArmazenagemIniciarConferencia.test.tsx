@@ -84,4 +84,14 @@ describe("/iniciar recebendo a conferência feita na lista", () => {
     expect(container.textContent).toMatch(/Bipe o produto para liberar o destino/);
     expect(botao(/SEGUIR PARA O PICKING/)?.disabled).toBe(true);
   });
+
+  it("cancelamento descarta recomendação para a própria origem", async () => {
+    sessionStorage.setItem("coletor_armazenagem_origem", "CANCELAMENTO");
+    sessionStorage.setItem("coletor_armazenagem_canc_origem_id", "end1");
+    sessionStorage.setItem("coletor_armazenagem_ean_confirmado", JSON.stringify({ tarefa_id: "t1", codigo: "17891234567897" }));
+    await montar();
+    await act(async () => { botao(/SEGUIR PARA O PICKING/)?.click(); });
+    expect(sessionStorage.getItem("coletor_armazenagem_destino_endereco_id")).toBe("");
+    expect(sessionStorage.getItem("coletor_armazenagem_recomendacao_endereco_id")).toBe("");
+  });
 });
