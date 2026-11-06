@@ -11,6 +11,8 @@ import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useFeedback } from "@/hooks/useFeedback";
 import {
+  chamarRpcArmazenagem,
+  buscarDashboardCancelamento,
   embalagensDoProduto,
   limparEanConfirmado,
   montarEanMap,
@@ -18,6 +20,10 @@ import {
   resolverLeituraArmazenagem,
   type EanMapArmazenagem,
 } from "@/lib/armazenagemService";
+import { definirOrigemArmazenagem, ZERO_UUID, calcularPrazo, type ArmazenagemOrigem } from "@/lib/armazenagemOrigem";
+import type { CamposCancelamento } from "@/types/armazenagemCancelamento";
+import { PrazoCancelamentoBadge } from "@/components/coletor/PrazoCancelamentoBadge";
+import { formatDate } from "@/utils/dateTime";
 import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import * as OfflineStore from "@/lib/offlineStore";
@@ -25,9 +31,9 @@ import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext
 
 interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
-interface Props { onNavigate: (path: string) => void; }
+interface Props { onNavigate: (path: string) => void; origem?: ArmazenagemOrigem; }
 
-interface ItemArmazenagem {
+interface ItemArmazenagem extends CamposCancelamento {
   tarefa_id: string;
   movimento_entrada_item_id: string;
   produto_id: string;
@@ -55,6 +61,7 @@ interface ItemArmazenagem {
 }
 
 interface ItensPayload {
+  habilitado?: boolean;
   itens: ItemArmazenagem[];
   huMap: Record<string, HUInfo>;
   /** EANs das embalagens dos produtos do movimento — permite bipar também offline. */
@@ -72,7 +79,7 @@ interface SelecaoLeitura {
   fatorPorProduto: Record<string, number>;
 }
 
-export function ArmazenagemItensPage({ onNavigate }: Props) {
+export function ArmazenagemItensPage({ onNavigate, origem = "ENTRADA" }: Props) {
   const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
   useEffect(() => {
     setFabVisivel(true);
@@ -81,22 +88,38 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
   }, [setFabVisivel, setContexto]);
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
+  const cancelamento = origem === "CANCELAMENTO";
+  const armazemId = localStorage.getItem("core_armazem_id");
+  const [agora, setAgora] = useState(Date.now);
   const movimentoId = sessionStorage.getItem("coletor_armazenagem_movimento_id");
   const movimentoNumero = sessionStorage.getItem("coletor_armazenagem_movimento_numero") || "";
 
   const fetchItens = useCallback(async (): Promise<ItensPayload> => {
-    if (!tenantId || !empresaId || !movimentoId) return { itens: [], huMap: {}, eanMap: {} };
-    const { data, error } = await supabase.rpc("rpc_coletor_armazenagem_itens_movimento" as any, {
-      p_tenant_id: tenantId,
-      p_empresa_id: empresaId,
-      p_movimento_entrada_id: movimentoId,
-    });
-    if (error) throw error;
-    const rows = (data || []) as ItemArmazenagem[];
+    if (!tenantId || !empresaId || (!cancelamento && !movimentoId)) return { itens: [], huMap: {}, eanMap: {} };
+    const rows = await chamarRpcArmazenagem<ItemArmazenagem[]>(cancelamento ? "rpc_coletor_armz_cancelamento_itens" : "rpc_coletor_armazenagem_itens_movimento", {
+      p_tenant_id: tenantId, p_empresa_id: empresaId,
+      ...(cancelamento ? { p_armazem_id: armazemId } : { p_movimento_entrada_id: movimentoId }),
+    }) || [];
+    let habilitado: boolean | undefined;
+    if (cancelamento) {
+      const dashboard = await buscarDashboardCancelamento(tenantId, empresaId, armazemId);
+      habilitado = dashboard.habilitado;
+      rows.sort((a, b) => Number(a.ordem ?? 0) - Number(b.ordem ?? 0));
+    }
 
     const tarefaIds = rows.map(i => i.tarefa_id);
     const map: Record<string, HUInfo> = {};
-    if (tarefaIds.length > 0) {
+    if (cancelamento) {
+      const ids = [...new Set(rows.map(i => i.hu_id).filter((id): id is string => !!id && id !== ZERO_UUID))];
+      if (ids.length > 0) {
+        const { data: hus, error } = await supabase.from("hu").select("id, codigo_hu, tipo_hu, tamanho").eq("tenant_id", tenantId).eq("empresa_id", empresaId).in("id", ids);
+        if (error) throw error;
+        for (const item of rows) {
+          const hu = hus?.find(h => h.id === item.hu_id);
+          if (hu) map[item.tarefa_id] = { hu_id: hu.id, codigo_hu: hu.codigo_hu || "", tipo_hu: hu.tipo_hu || "", tamanho: hu.tamanho || "" };
+        }
+      }
+    } else if (tarefaIds.length > 0) {
       const { data: huData } = await (supabase as any)
         .from("tarefa_execucao")
         .select("tarefa_id, hu, hu_rel:hu(codigo_hu, tipo_hu, tamanho)")
@@ -125,15 +148,28 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
       // Falha ao ler EANs não impede a lista: o bipe avisa e o toque no card segue funcionando.
       if (!embErr) eanMap = montarEanMap(embData || []);
     }
-    return { itens: rows, huMap: map, eanMap };
-  }, [tenantId, empresaId, movimentoId]);
+    return { itens: rows, huMap: map, eanMap, habilitado };
+  }, [tenantId, empresaId, movimentoId, cancelamento, armazemId]);
 
-  const { data, loading, isFromCache, refetch } = useOfflineCache<ItensPayload>(
-    `armazenagem_itens_${movimentoId}`,
+  const { data, loading, isFromCache, refetch, error: erroLista } = useOfflineCache<ItensPayload>(
+    cancelamento ? `armz_canc_itens_${empresaId}` : `armazenagem_itens_${movimentoId}`,
     fetchItens,
     15,
-    !!movimentoId,
+    cancelamento ? !!tenantId && !!empresaId : !!movimentoId,
   );
+
+  useEffect(() => {
+    if (!cancelamento) return;
+    definirOrigemArmazenagem("CANCELAMENTO");
+    const atualizar = () => { setAgora(Date.now()); if (navigator.onLine) void refetch(); };
+    const intervalo = window.setInterval(atualizar, 60000);
+    window.addEventListener("online", atualizar);
+    if (sessionStorage.getItem("coletor_armazenagem_canc_refetch")) {
+      sessionStorage.removeItem("coletor_armazenagem_canc_refetch");
+      void refetch();
+    }
+    return () => { window.clearInterval(intervalo); window.removeEventListener("online", atualizar); };
+  }, [cancelamento, refetch]);
 
   const itens = useMemo(() => data?.itens ?? [], [data]);
   const huMap = useMemo(() => data?.huMap ?? {}, [data]);
@@ -175,6 +211,13 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     sessionStorage.setItem("coletor_armazenagem_qtd_requerida", String(item.quantidade_requerida ?? 0));
     sessionStorage.setItem("coletor_armazenagem_qtd_executada", String(item.quantidade_executada ?? 0));
     sessionStorage.setItem("coletor_armazenagem_movimento_item_id", item.movimento_entrada_item_id || "");
+    definirOrigemArmazenagem(origem);
+    if (cancelamento) {
+      sessionStorage.setItem("coletor_armazenagem_movimento_item_id", "");
+      sessionStorage.removeItem("coletor_armazenagem_movimento_id");
+      sessionStorage.removeItem("coletor_armazenagem_movimento_numero");
+      Object.entries({ origem_id: item.endereco_origem_id || "", origem_desc: item.endereco_origem_desc || "", status_prazo: item.status_prazo || "NO_PRAZO", entrada_em: item.entrada_em || "", saldo_origem: String(item.saldo_origem ?? 0), prazo_horas: String(item.prazo_horas ?? 2), horas_parado: String(item.horas_parado ?? 0) }).forEach(([chave, valor]) => sessionStorage.setItem(`coletor_armazenagem_canc_${chave}`, valor));
+    }
     const hu = huMap[item.tarefa_id];
     if (hu) {
       sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
@@ -217,12 +260,12 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
       setSelecao(null);
       const foraDoMovimento = r.tipo === "FORA_DO_MOVIMENTO" || (await eanCadastradoForaDaLista(r.codigo));
       if (foraDoMovimento) {
-        result.showWarning(`Produto não pertence ao Movimento #${movimentoNumero}`, {
-          details: `Código lido: ${code}\nEste produto não tem armazenagem pendente neste movimento.`,
-          instruction: "Confira se está com o produto certo ou volte e escolha o movimento correto.",
+        result.showWarning(cancelamento ? "Este produto não está no endereço de cancelamento" : `Produto não pertence ao Movimento #${movimentoNumero}`, {
+          details: cancelamento ? `Código lido: ${code}` : `Código lido: ${code}\nEste produto não tem armazenagem pendente neste movimento.`,
+          instruction: cancelamento ? "Confira o produto e atualize a lista." : "Confira se está com o produto certo ou volte e escolha o movimento correto.",
         });
       } else {
-        result.showWarning("EAN não encontrado neste movimento", {
+        result.showWarning(cancelamento ? "EAN não encontrado no endereço de cancelamento" : "EAN não encontrado neste movimento", {
           details: `Código lido: ${code}`,
           instruction: "Bipe o código de barras da embalagem (EAN). SKU e referência não são aceitos.",
         });
@@ -283,13 +326,15 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
     }
   }, [data]);
 
-  const title = `Movimento #${movimentoNumero}`;
+  const title = cancelamento ? "Armazenar Cancelamentos" : `Movimento #${movimentoNumero}`;
+  const vencidos = itens.filter(i => calcularPrazo(i.entrada_em, Number(i.horas_parado ?? 0), Number(i.prazo_horas ?? 2), agora).status === "VENCIDO").length;
 
   return (
-    <ColetorLayout title={title} onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/movimentos">
+    <ColetorLayout title={title} onNavigate={onNavigate} showBack backPath={cancelamento ? "/coletor/armazenagem" : "/coletor/armazenagem/movimentos"}>
       <StatusOverlay type={overlay} message={overlayMsg} onDone={handleOverlayDone} />
       <ResultDialog {...result.dialogProps} />
       <EtapaIndicador etapa={1} />
+      {cancelamento && itens[0] && <div className="text-xs text-muted-foreground">Origem: {itens[0].endereco_origem_desc} · Prazo {itens[0].prazo_horas}h<br />{itens.length} item(ns) · {vencidos} vencido(s)</div>}
       {!loading && itens.length > 0 && (
         <ScanField
           compact
@@ -303,13 +348,17 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={32} className="animate-spin text-[hsl(217,91%,60%)]" />
         </div>
+      ) : cancelamento && erroLista ? (
+        <div className="border border-destructive/40 rounded-lg p-4 space-y-3"><p className="text-sm text-destructive">Não foi possível carregar os itens.</p><ActionButton variant="secondary" onClick={refetch}>TENTAR NOVAMENTE</ActionButton></div>
+      ) : cancelamento && data?.habilitado === false ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3"><p className="text-muted-foreground text-center">Fluxo desativado. Ative em Parâmetros &gt; Armazém.</p><RefreshListButton onRefresh={refetch} /></div>
       ) : itens.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
           <CheckCircle size={56} className="text-[#22C55E]" />
-          <p className="text-base text-white font-semibold">Todos os itens foram armazenados!</p>
-          <ActionButton onClick={() => onNavigate("/coletor/armazenagem/movimentos")} variant="primary">
+          <p className="text-base text-white font-semibold">{cancelamento ? "Endereço de cancelamento vazio. Nada para armazenar." : "Todos os itens foram armazenados!"}</p>
+          {cancelamento ? <RefreshListButton onRefresh={refetch} /> : <ActionButton onClick={() => onNavigate("/coletor/armazenagem/movimentos")} variant="primary">
             VOLTAR AOS MOVIMENTOS
-          </ActionButton>
+          </ActionButton>}
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
@@ -349,9 +398,13 @@ export function ArmazenagemItensPage({ onNavigate }: Props) {
             <div
               key={item.tarefa_id}
               data-testid="item-armazenagem"
+              role="button" tabIndex={0}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTapItem(item); } }}
               onClick={() => handleTapItem(item)}
-              className={`rounded-xl bg-[hsl(222,40%,12%)] border ${selecao ? "border-[hsl(217,91%,60%)] ring-1 ring-[hsl(217,91%,60%)]/40" : "border-[hsl(222,35%,22%)]"} p-3 space-y-2 active:bg-[hsl(222,35%,16%)] active:scale-[0.98] transition-all cursor-pointer`}
+              className={`rounded-xl bg-[hsl(222,40%,12%)] border ${selecao ? "border-[hsl(217,91%,60%)] ring-1 ring-[hsl(217,91%,60%)]/40" : "border-[hsl(222,35%,22%)]"} ${cancelamento && calcularPrazo(item.entrada_em, Number(item.horas_parado ?? 0), Number(item.prazo_horas ?? 2), agora).status === "VENCIDO" ? "border-l-4 border-l-destructive" : ""} p-3 space-y-2 active:bg-[hsl(222,35%,16%)] active:scale-[0.98] transition-all cursor-pointer`}
             >
+              {cancelamento && <div className="flex justify-end"><PrazoCancelamentoBadge entrada={item.entrada_em} horas={Number(item.horas_parado ?? 0)} prazo={Number(item.prazo_horas ?? 2)} agora={agora} /></div>}
+              {cancelamento && (item.lote || item.validade) && <p className="text-xs text-muted-foreground">{item.lote && `Lote: ${item.lote}`} {item.validade && `Val: ${formatDate(item.validade)}`}</p>}
               {/* Linha 1: Endereço de picking */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
