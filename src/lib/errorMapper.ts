@@ -140,6 +140,9 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     instruction: "Recarregue a página e tente novamente.",
   },
 
+  TRANSFERENCIA_ORIGEM_CANCELAMENTO_BLOQUEADA: { title: "A retirada deste endereço é feita pela Armazenagem.", instruction: "Use Armazenagem > Armazenar Cancelamentos." },
+  DESTINO_IGUAL_ORIGEM: { title: "O destino não pode ser o endereço de cancelamento.", instruction: "Escaneie um endereço de picking ou pulmão." },
+  PARAMETRO_OBRIGATORIO: { title: "Dados obrigatórios ausentes.", instruction: "Volte à lista e selecione o item novamente." },
   // === Estoque / Endereço ===
   ESTOQUE_INSUFICIENTE: {
     title: "Estoque insuficiente para esta operação.",
@@ -392,7 +395,7 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   },
   ENDERECO_OUTRO_ARMAZEM: {
     title: "Endereço de outro armazém.",
-    instruction: "Escolha um endereço do armazém desta separação.",
+    instruction: "Escaneie um endereço deste armazém.",
   },
   ENDERECO_TIPO_NAO_PERMITIDO: {
     title: "Este endereço não pode ser usado para esta separação.",
@@ -576,6 +579,16 @@ function findBusinessError(
  * Analisa qualquer erro e retorna um objeto estruturado com mensagem amigável.
  */
 export function parseError(error: unknown, context?: string): ParsedError {
+  if (context?.startsWith("armazenagem")) {
+    const mensagem = extractMessage(error);
+    const codigo = error && typeof error === "object" && "codigo" in error ? String(error.codigo) : findBusinessError(mensagem)?.code;
+    if (codigo === "SALDO_INSUFICIENTE" || codigo === "TAREFA_CANCELADA") return {
+      type: "business", errorCode: codigo,
+      title: codigo === "SALDO_INSUFICIENTE" ? "Saldo mudou no endereço de cancelamento." : "Item já retirado do endereço.",
+      instruction: "Atualize a lista de cancelamentos e confira o saldo disponível.",
+      technicalMessage: `[${context}] ${mensagem}`,
+    };
+  }
   // Retorno estruturado das RPCs { sucesso, codigo, mensagem }
   if (error && typeof error === "object" && "codigo" in error) {
     const obj = error as { codigo?: unknown; mensagem?: unknown };

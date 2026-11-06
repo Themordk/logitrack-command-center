@@ -5,6 +5,8 @@ import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/Onl
 import { ScanField } from "@/components/coletor/ScanField";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { enderecoCancelamentoComTarefa } from "@/lib/armazenagemService";
+import { definirOrigemArmazenagem } from "@/lib/armazenagemOrigem";
 import { Loader2 } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -51,6 +53,19 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
         return;
       }
 
+      const tenantId = localStorage.getItem("core_tenant_id");
+      if (!tenantId) { result.showWarning("Sessão não identificada. Entre novamente."); return; }
+      if (await enderecoCancelamentoComTarefa(tenantId, data[0].id)) {
+        sessionStorage.removeItem("transf_origem_id");
+        sessionStorage.removeItem("transf_origem_desc");
+        result.showWarning("Endereço de cancelamento", {
+          details: "A retirada deste endereço é feita pela Armazenagem.",
+          instruction: "Use Armazenagem > Armazenar Cancelamentos.",
+          secondaryLabel: "IR PARA ARMAZENAR CANCELAMENTOS",
+          onSecondary: () => { definirOrigemArmazenagem("CANCELAMENTO"); onNavigate("/coletor/armazenagem/cancelamentos/itens"); },
+        });
+        return;
+      }
       sessionStorage.setItem("transf_origem_id", data[0].id);
       sessionStorage.setItem("transf_origem_desc", data[0].descricao);
 
