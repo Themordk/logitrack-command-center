@@ -48,6 +48,7 @@
     --status-moving-bg: 217 91% 60% / 0.12;
     --status-discarded: 215 20% 45%;
     --status-discarded-bg: 215 20% 45% / 0.12;
+    --armazenagem-cancelamento: 25 95% 53%;
 
     /* Surface hierarchy */
     --surface-1: 222 47% 7%;
@@ -115,6 +116,11 @@
 }
 
 @layer components {
+  .cancelamento-destaque { color: hsl(var(--armazenagem-cancelamento)); }
+  .cancelamento-cartao { border-color: hsl(var(--armazenagem-cancelamento) / 0.4); }
+  .prazo-vencido { color: hsl(var(--destructive)); background: hsl(var(--destructive) / 0.15); border-color: hsl(var(--destructive) / 0.3); }
+  .prazo-atencao { color: hsl(var(--status-busy)); background: hsl(var(--status-busy) / 0.15); border-color: hsl(var(--status-busy) / 0.3); }
+  .prazo-normal { color: hsl(var(--status-free)); background: hsl(var(--status-free) / 0.15); border-color: hsl(var(--status-free) / 0.3); }
   .retorno-canvas {
     --xy-background-color: hsl(var(--background));
     --xy-background-pattern-color: hsl(var(--border));

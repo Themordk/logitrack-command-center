@@ -1,4 +1,5 @@
  # Frontend rules
+- Storage origin and deadline helpers are shared by the existing collector pages; cancellation RPC casts stay in armazenagemService, so entry execution and offline behavior remain isolated.
 
 - Mudança de Picking blocking reasons are normalized by montarMotivosBloqueio in its service, preserving legacy previews while blocked lists render only a single summary and session-clearing navigation.
 

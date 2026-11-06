@@ -6,6 +6,8 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 
+import { parseError } from "@/lib/errorMapper";
+import { definirOrigemArmazenagem } from "@/lib/armazenagemOrigem";
 import { Loader2, MapPin } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -145,8 +147,14 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
       // Store success data
       sessionStorage.setItem("transf_destino_desc", destinoDesc);
       onNavigate("/coletor/movimentos/transferencia/concluido");
-    } catch (err: any) {
-      result.showError(err, { context: "transferencia" });
+    } catch (err: unknown) {
+      if (parseError(err, "transferencia").errorCode === "TRANSFERENCIA_ORIGEM_CANCELAMENTO_BLOQUEADA") {
+        result.showWarning("Endereço de cancelamento", {
+          details: "A retirada deste endereço é feita pela Armazenagem.", instruction: "Use Armazenagem > Armazenar Cancelamentos.",
+          secondaryLabel: "IR PARA ARMAZENAR CANCELAMENTOS",
+          onSecondary: () => { definirOrigemArmazenagem("CANCELAMENTO"); onNavigate("/coletor/armazenagem/cancelamentos/itens"); },
+        });
+      } else result.showError(err, { context: "transferencia" });
     } finally {
       setLoading(false);
     }

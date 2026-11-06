@@ -10,6 +10,8 @@ import { parseError } from "@/lib/errorMapper";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { prazoCancelamentoValido } from "@/lib/armazenagemOrigem";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -80,6 +82,11 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   // Config de endereços
   const [configId, setConfigId] = useState<string | null>(null);
   const [enderecoCancelamentoId, setEnderecoCancelamentoId] = useState<string | null>(null);
+  const [gerarTarefaRetirada, setGerarTarefaRetirada] = useState(false);
+  const [prazoCancelamentoHoras, setPrazoCancelamentoHoras] = useState(2);
+  const [confirmarDesligar, setConfirmarDesligar] = useState(false);
+  const [geracaoOriginal, setGeracaoOriginal] = useState(false);
+  const [desligamentoConfirmado, setDesligamentoConfirmado] = useState(false);
   const [enderecoAvariaId, setEnderecoAvariaId] = useState<string | null>(null);
   const [enderecoQuarentenaId, setEnderecoQuarentenaId] = useState<string | null>(null);
   const [enderecoArmazenagemAutomaticaId, setEnderecoArmazenagemAutomaticaId] = useState<string | null>(null);
@@ -107,7 +114,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const [cfgRes, regRes] = await Promise.all([
         (supabase as any)
           .from("armazem_config")
-          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg, lms_tempo_inatividade_tarefa_seg, corte_exige_autorizacao, corte_token_validade_seg")
+          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg, lms_tempo_inatividade_tarefa_seg, corte_exige_autorizacao, corte_token_validade_seg, gerar_tarefa_retirada, prazo_endereco_cancelamento_horas")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -123,6 +130,10 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const cfg = cfgRes.data;
       setConfigId(cfg?.id ?? null);
       setEnderecoCancelamentoId(cfg?.endereco_cancelamento_id ?? null);
+      setGerarTarefaRetirada(!!cfg?.gerar_tarefa_retirada);
+      setGeracaoOriginal(!!cfg?.gerar_tarefa_retirada);
+      setDesligamentoConfirmado(false);
+      setPrazoCancelamentoHoras(Number(cfg?.prazo_endereco_cancelamento_horas ?? 2));
       setEnderecoAvariaId(cfg?.endereco_avaria_id ?? null);
       setEnderecoQuarentenaId(cfg?.endereco_quarentena_id ?? null);
       setEnderecoArmazenagemAutomaticaId(cfg?.endereco_armazenagem_automatica_id ?? null);
@@ -153,6 +164,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       toast.error("As faixas precisam estar em ordem decrescente: Excelente > Bom > Atenção.");
       return;
     }
+    if (!prazoCancelamentoValido(prazoCancelamentoHoras)) { toast.error("O prazo deve ser um número inteiro de pelo menos 1 hora."); return; }
+    if (geracaoOriginal && (!gerarTarefaRetirada || !enderecoCancelamentoId) && !desligamentoConfirmado) { setConfirmarDesligar(true); return; }
     setSaving(true);
     try {
       // 1. Salvar armazem_config
@@ -161,6 +174,8 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         empresa_id: armazem.empresa_id,
         armazem_id: armazem.id,
         endereco_cancelamento_id: enderecoCancelamentoId,
+        gerar_tarefa_retirada: gerarTarefaRetirada && !!enderecoCancelamentoId,
+        prazo_endereco_cancelamento_horas: prazoCancelamentoHoras,
         endereco_avaria_id: enderecoAvariaId,
         endereco_quarentena_id: enderecoQuarentenaId,
         endereco_armazenagem_automatica_id: enderecoArmazenagemAutomaticaId,
@@ -251,6 +266,11 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       toast.success("Configuração removida.");
       setConfigId(null);
       setEnderecoCancelamentoId(null);
+      setGerarTarefaRetirada(false);
+      setGeracaoOriginal(false);
+      setPrazoCancelamentoHoras(2);
+      setDesligamentoConfirmado(false);
+      setConfirmarDesligar(false);
       setEnderecoAvariaId(null);
       setEnderecoQuarentenaId(null);
       setEnderecoArmazenagemAutomaticaId(null);
@@ -311,6 +331,16 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                       armazemId={armazem?.id ?? null}
                       tenantId={tenantId}
                     />
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <Label htmlFor="gerar-armz-cancelamento" className="text-sm">Gerar tarefas de armazenagem para o endereço de cancelamento</Label>
+                        <Switch id="gerar-armz-cancelamento" disabled={!enderecoCancelamentoId || saving} checked={gerarTarefaRetirada} onCheckedChange={v => { if (!v) setConfirmarDesligar(true); else { setGerarTarefaRetirada(true); setDesligamentoConfirmado(false); } }} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Ao ativar, cada item que cair neste endereço vira uma tarefa em Coletor &gt; Armazenagem &gt; Armazenar Cancelamentos (inclusive o saldo que já está lá). A Transferência manual a partir deste endereço fica bloqueada.</p>
+                      <Label htmlFor="prazo-armz-cancelamento" className="text-xs uppercase tracking-wide text-muted-foreground">Prazo ideal no endereço de cancelamento (horas)</Label>
+                      <Input id="prazo-armz-cancelamento" type="number" min={1} step={1} value={prazoCancelamentoHoras} onChange={e => setPrazoCancelamentoHoras(Number(e.target.value))} className="max-w-32" />
+                      <p className="text-xs text-muted-foreground">Com 50% do prazo o item fica em ATENÇÃO; com 100% fica VENCIDO, sobe para prioridade URGENTE e o supervisor recebe uma notificação.</p>
+                    </div>
                     <EnderecoSearchInput
                       label="Endereço de Avaria"
                       value={enderecoAvariaId}
@@ -658,6 +688,9 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         </SheetContent>
       </Sheet>
 
+      <AlertDialog open={confirmarDesligar} onOpenChange={setConfirmarDesligar}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Desligar armazenagem de cancelamentos?</AlertDialogTitle><AlertDialogDescription>As tarefas abertas de cancelamento serão encerradas. O saldo não é alterado. Deseja continuar?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Manter ativo</AlertDialogCancel><AlertDialogAction onClick={() => { setGerarTarefaRetirada(false); setDesligamentoConfirmado(true); setConfirmarDesligar(false); }}>Desligar</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
       <DeleteConfirmDialog
         open={confirmRemove}
         onClose={() => setConfirmRemove(false)}

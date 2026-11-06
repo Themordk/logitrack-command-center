@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { DestinoArmazenagem, DestinoRecomendado } from "@/types/armazenagem";
+import type { DashboardCancelamento, RespostaArmazenagemCancelamento } from "@/types/armazenagemCancelamento";
 
 export function lerPulmaoHabilitado(armazemId: string | null): boolean {
   try {
@@ -30,6 +31,15 @@ export function quantidadeSugerida(destino: DestinoArmazenagem | null, escolha: 
 
 type RpcFn = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
 const rpc = (supabase as unknown as { rpc: RpcFn }).rpc.bind(supabase);
+
+export async function chamarRpcArmazenagem<T>(nome: string, parametros: Record<string, unknown>): Promise<T> {
+  const { data, error } = await rpc(nome, parametros);
+  if (error) throw error;
+  return (typeof data === "string" ? JSON.parse(data) : data) as T;
+}
+export const buscarDashboardCancelamento = (tenantId: string, empresaId: string, armazemId: string | null) => chamarRpcArmazenagem<DashboardCancelamento>("rpc_coletor_armz_cancelamento_dashboard", { p_tenant_id: tenantId, p_empresa_id: empresaId, p_armazem_id: armazemId });
+export const enderecoCancelamentoComTarefa = (tenantId: string, enderecoId: string) => chamarRpcArmazenagem<boolean>("fn_endereco_cancelamento_com_tarefa", { p_tenant_id: tenantId, p_endereco_id: enderecoId });
+export const finalizarArmazenagemCancelamento = (parametros: Record<string, unknown>) => chamarRpcArmazenagem<RespostaArmazenagemCancelamento>("finalizar_armazenagem_cancelamento", parametros);
 
 export async function buscarDestinoArmazenagem(params: {
   produtoId: string;

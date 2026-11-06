@@ -81,10 +81,10 @@ const pincelB = { ...base, tarefa_id: "t3", movimento_entrada_item_id: "mi3", pr
 let raiz: Root | undefined;
 let container: HTMLDivElement;
 const flush = () => act(async () => { await new Promise(r => setTimeout(r, 0)); });
-async function montar() {
+async function montar(origem: "ENTRADA" | "CANCELAMENTO" = "ENTRADA") {
   container = document.createElement("div"); document.body.append(container);
   raiz = createRoot(container);
-  await act(async () => { raiz?.render(<ArmazenagemItensPage onNavigate={mocks.navegar} />); });
+  await act(async () => { raiz?.render(<ArmazenagemItensPage onNavigate={mocks.navegar} origem={origem} />); });
   await flush();
 }
 async function bipar(codigo: string) {
@@ -213,5 +213,25 @@ describe("lista de itens da armazenagem com leitura de EAN", () => {
     await bipar("7891234567890");
     expect(mocks.navegar).not.toHaveBeenCalled();
     expect(mocks.aviso).toHaveBeenCalled();
+  });
+
+  it("cancelamento usa a RPC própria, ordem oficial, HU direta e EAN da tarefa certa", async () => {
+    const cancelados = [
+      { ...tinta, ordem: 2, hu_id: "hu-canc", endereco_origem_id: "origem", endereco_origem_desc: "CANCELAMENTO", prazo_horas: 2, entrada_em: "2026-11-06T12:00:00Z" },
+      { ...pincelA, ordem: 1, hu_id: "00000000-0000-0000-0000-000000000000", endereco_origem_id: "origem", prazo_horas: 2 },
+    ];
+    mocks.rpc.mockImplementation((nome: string) => Promise.resolve({ data: nome === "rpc_coletor_armz_cancelamento_dashboard" ? { habilitado: true } : cancelados, error: null }));
+    mocks.hus = [{ id: "hu-canc", codigo_hu: "HU-CANC", tipo_hu: "PALETE", tamanho: "P" }];
+    localStorage.setItem("core_armazem_id", "armazem");
+    sessionStorage.removeItem("coletor_armazenagem_movimento_id");
+    await montar("CANCELAMENTO");
+    expect(mocks.rpc).toHaveBeenCalledWith("rpc_coletor_armz_cancelamento_itens", { p_tenant_id: "tenant", p_empresa_id: "empresa", p_armazem_id: "armazem" });
+    expect(cards()[0].textContent).toContain("PINCEL");
+    expect(cards()[1].textContent).toContain("TINTA");
+    expect(mocks.from).not.toHaveBeenCalledWith("tarefa_execucao");
+    await bipar("17891234567897");
+    expect(ss("tarefa_id")).toBe("t1"); expect(ss("fator")).toBe("12"); expect(ss("hu_codigo")).toBe("HU-CANC");
+    expect(ss("origem")).toBe("CANCELAMENTO"); expect(ss("movimento_id")).toBeNull(); expect(ss("movimento_numero")).toBeNull(); expect(ss("movimento_item_id")).toBe(""); expect(ss("canc_origem_id")).toBe("origem");
+    expect(mocks.navegar).toHaveBeenCalledWith("/coletor/armazenagem/iniciar");
   });
 });

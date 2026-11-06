@@ -18,6 +18,8 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 import { CancelamentoOverlay } from "@/components/coletor/CancelamentoOverlay";
 import { useCancelamentoListener, documentoEntradaCancelado } from "@/hooks/useCancelamentoListener";
+import { lerOrigemArmazenagem, rotaListaItens } from "@/lib/armazenagemOrigem";
+import { finalizarArmazenagemCancelamento } from "@/lib/armazenagemService";
 import { useFeedback } from "@/hooks/useFeedback";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -28,6 +30,9 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     setFabVisivel(false);
   }, [setFabVisivel]);
 
+  const origem = lerOrigemArmazenagem();
+  const cancelamentoOrigem = origem === "CANCELAMENTO";
+  const origemCancelamentoId = sessionStorage.getItem("coletor_armazenagem_canc_origem_id") || "";
   const tenantId = localStorage.getItem("core_tenant_id");
   const usuarioId = localStorage.getItem("core_usuario_id");
   const tarefaId = sessionStorage.getItem("coletor_armazenagem_tarefa_id") || "";
@@ -49,12 +54,12 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [movimentoEntradaId, setMovimentoEntradaId] = useState<string | null>(null);
   const [documentoEntradaId, setDocumentoEntradaId] = useState<string | null>(null);
   const [docCanceladoInline, setDocCanceladoInline] = useState(false);
-  const { cancelamento } = useCancelamentoListener(documentoEntradaId, tenantId);
+  const { cancelamento } = useCancelamentoListener(cancelamentoOrigem ? null : documentoEntradaId, tenantId);
   const { error: feedbackError } = useFeedback();
 
   // Resolve o documento de entrada vinculado ao movimento da tarefa
   useEffect(() => {
-    if (!movimentoEntradaId || !tenantId || !isOnline) return;
+    if (cancelamentoOrigem || !movimentoEntradaId || !tenantId || !isOnline) return;
     let ativo = true;
     (async () => {
       try {
@@ -71,7 +76,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       }
     })();
     return () => { ativo = false; };
-  }, [movimentoEntradaId, tenantId, isOnline]);
+  }, [movimentoEntradaId, tenantId, isOnline, cancelamentoOrigem]);
 
 
 
@@ -96,6 +101,9 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     icone: "warning" | "error" | "info";
     instrucao?: string;
   }> = {
+    DESTINO_IGUAL_ORIGEM: { titulo: "O destino não pode ser o endereço de cancelamento", icone: "warning", instrucao: "Escaneie um endereço de picking ou pulmão." },
+    ENDERECO_OUTRO_ARMAZEM: { titulo: "Endereço de outro armazém", icone: "warning", instrucao: "Escaneie um endereço deste armazém." },
+    PARAMETRO_OBRIGATORIO: { titulo: "Dados obrigatórios ausentes", icone: "error", instrucao: "Volte à lista e selecione o item novamente." },
     TAREFA_NAO_ENCONTRADA: {
       titulo: "Tarefa não encontrada",
       icone: "error",
@@ -165,6 +173,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
 
   // Fetch movimento_entrada_id from tarefa
   useEffect(() => {
+    if (cancelamentoOrigem) return;
     // Fallback offline: usa o movimento do sessionStorage
     const movIdFromSession = sessionStorage.getItem("coletor_armazenagem_movimento_id");
     if (movIdFromSession) setMovimentoEntradaId(movIdFromSession);
@@ -191,12 +200,12 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         console.error("Erro ao buscar movimento_entrada_id:", err);
       }
     })();
-  }, [tarefaId, tenantId, isOnline]);
+  }, [tarefaId, tenantId, isOnline, cancelamentoOrigem]);
 
 
   const handleScanEndereco = async (code: string) => {
     // Verificação pré-ação (fallback caso o Realtime falhe)
-    if (isOnline && documentoEntradaId) {
+    if (!cancelamentoOrigem && isOnline && documentoEntradaId) {
       const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
       if (cancelado) {
         setDocCanceladoInline(true);
@@ -245,6 +254,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
         await saveEnderecoToCache({ ...endData, codigo_endereco: Number(code) }).catch(() => {});
       }
 
+      if (cancelamentoOrigem && endData.id === origemCancelamentoId) {
+        result.showWarning("O destino não pode ser o endereço de cancelamento", { instruction: "Escaneie um endereço de picking ou pulmão." });
+        return;
+      }
       if (!["LIVRE", "OCUPADO"].includes(endData.situacao)) {
         result.showWarning("Endereço bloqueado", {
           details: `Endereço ${endData.descricao} está ${endData.situacao}.`,
@@ -267,6 +280,14 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     p_picking_est_minimo: number;
     p_picking_est_maximo: number;
   }) => {
+    if (cancelamentoOrigem && !navigator.onLine) {
+      result.showWarning("Sem conexão", { instruction: "A armazenagem de cancelamentos exige conexão. Aguarde o sinal voltar." });
+      return;
+    }
+    if (cancelamentoOrigem && enderecoId === origemCancelamentoId) {
+      result.showWarning("O destino não pode ser o endereço de cancelamento", { instruction: "Escaneie um endereço de picking ou pulmão." });
+      return;
+    }
     const lote = sessionStorage.getItem("coletor_armazenagem_lote") || "";
     const validadeRaw = sessionStorage.getItem("coletor_armazenagem_validade");
     const fabricacaoRaw = sessionStorage.getItem("coletor_armazenagem_fabricacao");
@@ -301,7 +322,12 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       toast.info("Sem conexão: a validação do endereço de picking será feita na sincronização.");
     }
 
-    const offlineResult = await executeOffline("finalizar_armazenagem", {
+    const offlineResult = cancelamentoOrigem
+      ? { success: true, offline: false, data: await finalizarArmazenagemCancelamento({
+          p_tenant_id: tenantId, p_tarefa_id: tarefaId, p_usuario: usuarioId,
+          p_quantidade: qtdFinal, p_endereco_destino_id: enderecoId, ...(pickingParams || {}),
+        }) }
+      : await executeOffline("finalizar_armazenagem", {
       p_tenant_id: tenantId,
       p_tarefa_id: tarefaId,
       p_movimento_entrada_id: movimentoEntradaId,
@@ -337,6 +363,22 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const codigo = response.codigo as string;
       const dados = response.dados || {};
 
+      if (cancelamentoOrigem && (codigo === "SALDO_INSUFICIENTE" || codigo === "TAREFA_CANCELADA")) {
+        const restante = Number(dados.restante ?? 0);
+        const voltar = () => {
+          sessionStorage.setItem("coletor_armazenagem_canc_refetch", "S");
+          onNavigate(rotaListaItens(origem));
+        };
+        sessionStorage.setItem("coletor_armazenagem_canc_refetch", "S");
+        if (codigo === "SALDO_INSUFICIENTE" && restante > 0) {
+          setQuantidade(String(restante / fator));
+          sessionStorage.setItem("coletor_armazenagem_qtd_restante", String(restante));
+          result.showWarning("Saldo mudou no endereço de cancelamento", { details: `Disponível agora: ${restante.toLocaleString("pt-BR")} UN`, instruction: "Confira a quantidade e confirme novamente." });
+        } else {
+          result.showWarning(codigo === "TAREFA_CANCELADA" ? "Item já retirado do endereço" : "Saldo mudou no endereço de cancelamento", { instruction: "A separação usou este saldo. Selecione o próximo item.", onClose: voltar });
+        }
+        return;
+      }
       // Caso especial: Picking não cadastrado → abrir modal
       if (codigo === "PICKING_NAO_CADASTRADO") {
         setPickingTipo("FRACIONADO");
@@ -387,7 +429,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       const catItem = ERRO_ARMAZENAGEM[codigo];
       if (catItem) {
         if (catItem.icone === "error") {
-          result.showError(new Error(response.mensagem), { context: "armazenagem-execucao" });
+          result.showError({ codigo, mensagem: response.mensagem || catItem.titulo }, { context: "armazenagem-execucao" });
         } else {
           result.showWarning(catItem.titulo, {
             details: response.mensagem,
@@ -428,7 +470,9 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     }
 
     // Mensagem de sucesso diferenciada quando picking foi registrado inline
-    const msgSucesso = response?.picking_registrado
+    const msgSucesso = cancelamentoOrigem
+      ? (response?.picking_registrado ? "Picking cadastrado e item devolvido ao estoque!" : "Item devolvido ao estoque!")
+      : response?.picking_registrado
       ? "Picking cadastrado e armazenagem registrada!"
       : "Armazenagem registrada com sucesso!";
 
@@ -438,10 +482,10 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   };
 
   const handleConfirm = async () => {
-    if (!tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || !movimentoEntradaId) return;
+    if (saving || !tarefaId || !tenantId || !usuarioId || !enderecoId || !quantidade || (!cancelamentoOrigem && !movimentoEntradaId)) return;
 
     // Verificação pré-ação (fallback caso o Realtime falhe)
-    if (isOnline && documentoEntradaId) {
+    if (!cancelamentoOrigem && isOnline && documentoEntradaId) {
       const cancelado = await documentoEntradaCancelado(documentoEntradaId, tenantId);
       if (cancelado) {
         setDocCanceladoInline(true);
@@ -497,7 +541,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   }
 
   return (
-    <ColetorLayout title="Armazenar" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/iniciar">
+    <ColetorLayout title={cancelamentoOrigem ? "Armazenar Cancelamento" : "Armazenar"} onNavigate={onNavigate} showBack backPath={cancelamentoOrigem ? rotaListaItens(origem) : "/coletor/armazenagem/iniciar"}>
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
       <EtapaIndicador etapa={3} />
@@ -646,7 +690,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
       <StickyFooter>
         <ActionButton
           onClick={handleConfirm}
-          disabled={!quantidade || Number(quantidade) <= 0 || !enderecoId || !movimentoEntradaId}
+          disabled={saving || !quantidade || Number(quantidade) <= 0 || !enderecoId || (!cancelamentoOrigem && !movimentoEntradaId)}
           loading={saving}
           variant="success"
         >
