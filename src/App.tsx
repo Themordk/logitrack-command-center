@@ -498,6 +498,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/recebimento/concluido": return <RecebimentoConcluidoPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem": return <ArmazenagemDashboardPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/movimentos": return <ArmazenagemMovimentosPage onNavigate={onNavigate} />;
+    case "/coletor/armazenagem/cancelamentos/itens": return <ArmazenagemItensPage onNavigate={onNavigate} origem="CANCELAMENTO" />;
     case "/coletor/armazenagem/itens": return <ArmazenagemItensPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/iniciar": return <ArmazenagemIniciarPage onNavigate={onNavigate} />;
     case "/coletor/armazenagem/execucao": return <ArmazenagemExecucaoPage onNavigate={onNavigate} />;

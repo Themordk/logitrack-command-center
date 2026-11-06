@@ -8,6 +8,7 @@ import { MovimentoEntradaChips } from "@/components/coletor/MovimentoEntradaChip
 import { useRecebimentoFilter } from "@/hooks/useRecebimentoFilter";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { Loader2, Package, Database } from "lucide-react";
+import { definirOrigemArmazenagem } from "@/lib/armazenagemOrigem";
 import { formatDate } from "@/utils/dateTime";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
@@ -78,6 +79,7 @@ export function ArmazenagemMovimentosPage({ onNavigate }: Props) {
   const tiposEntrada = [...new Set(movimentos.map((m) => (m.tipo_entrada || "").trim()).filter(Boolean))].sort();
 
   const handleSelectMovimento = (mov: MovimentoArmazenagem) => {
+    definirOrigemArmazenagem("ENTRADA");
     sessionStorage.setItem("coletor_armazenagem_movimento_id", mov.movimento_entrada_id);
     sessionStorage.setItem("coletor_armazenagem_movimento_numero", String(mov.numero_movimento));
     onNavigate("/coletor/armazenagem/itens");

@@ -16,6 +16,8 @@ import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 import { buscarDestinoArmazenagem, lerPulmaoHabilitado, guardarPulmaoHabilitado, preSelecionarDestino, quantidadeSugerida, lerEanConfirmado, limparEanConfirmado } from "@/lib/armazenagemService";
 import type { DestinoArmazenagem, PickingDestino } from "@/types/armazenagem";
 import { OcorrenciaBottomSheet } from "@/components/ocorrencia/OcorrenciaBottomSheet";
+import { lerOrigemArmazenagem, rotaListaItens } from "@/lib/armazenagemOrigem";
+import { PrazoCancelamentoBadge } from "@/components/coletor/PrazoCancelamentoBadge";
 import { Button } from "@/components/ui/button";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -41,6 +43,11 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   useEffect(() => {
     setFabVisivel(false);
   }, [setFabVisivel]);
+  const origem = lerOrigemArmazenagem();
+  const cancelamento = origem === "CANCELAMENTO";
+  const origemId = sessionStorage.getItem("coletor_armazenagem_canc_origem_id");
+  const [agora, setAgora] = useState(Date.now);
+  useEffect(() => { if (!cancelamento) return; const id = window.setInterval(() => setAgora(Date.now()), 60000); return () => window.clearInterval(id); }, [cancelamento]);
   const tenantId = localStorage.getItem("core_tenant_id");
   const empresaId = localStorage.getItem("core_empresa_id");
   const armazemId = localStorage.getItem("core_armazem_id");
@@ -97,7 +104,13 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     if (!navigator.onLine) { setDestinoErro(true); return; }
     setLoadingDestino(true);
     try {
-      const d = await buscarDestinoArmazenagem({ produtoId, tarefaId });
+      const resposta = await buscarDestinoArmazenagem({ produtoId, tarefaId });
+      const d = cancelamento ? {
+        ...resposta, pickings: resposta.pickings.filter(p => p.endereco_id !== origemId),
+        recomendacao: resposta.recomendacao.endereco_id === origemId
+          ? { ...resposta.recomendacao, endereco_id: null, endereco: null, motivo: "Escaneie outro endereço de picking ou pulmão." }
+          : resposta.recomendacao,
+      } : resposta;
       setDestino(d);
       const habilitado = d.pulmao.habilitado !== false;
       setPulmaoHabilitado(habilitado);
@@ -110,7 +123,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     } finally {
       setLoadingDestino(false);
     }
-  }, [armazemId]);
+  }, [armazemId, cancelamento, origemId]);
 
   useEffect(() => {
     if (preloadedTarefa) carregarDestino(preloadedTarefa.produto_id, preloadedTarefa.tarefa_id);
@@ -235,6 +248,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
       return;
     }
 
+    if (cancelamento) { result.showWarning("Selecione um item na lista de cancelamentos", { onClose: () => onNavigate(rotaListaItens(origem)) }); return; }
     setTarefa(null);
     setIsFromCache(false);
     if (!tenantId || !empresaId) return;
@@ -333,10 +347,11 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     : undefined;
 
   return (
-    <ColetorLayout title="Conferir produto" onNavigate={onNavigate} showBack backPath="/coletor/armazenagem/itens">
+    <ColetorLayout title="Conferir produto" onNavigate={onNavigate} showBack backPath={rotaListaItens(origem)}>
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
       <EtapaIndicador etapa={2} />
+      {cancelamento && <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground"><span>Origem: {sessionStorage.getItem("coletor_armazenagem_canc_origem_desc")}</span><PrazoCancelamentoBadge entrada={sessionStorage.getItem("coletor_armazenagem_canc_entrada_em")} horas={Number(sessionStorage.getItem("coletor_armazenagem_canc_horas_parado") || 0)} prazo={Number(sessionStorage.getItem("coletor_armazenagem_canc_prazo_horas") || 2)} agora={agora} /></div>}
 
       <div className="flex flex-col gap-2 -mt-1">
         {tarefa && (
