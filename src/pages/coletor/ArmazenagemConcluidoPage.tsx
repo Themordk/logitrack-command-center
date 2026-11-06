@@ -8,12 +8,12 @@ import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext
 interface Props { onNavigate: (path: string) => void; }
 
 export function ArmazenagemConcluidoPage({ onNavigate }: Props) {
+  const origem = lerOrigemArmazenagem();
   const { setFabVisivel, setContexto } = useOcorrenciaColetorContext();
   useEffect(() => {
     setFabVisivel(true);
     setContexto({ etapa: "ARMAZENAGEM" });
-    const origem = lerOrigemArmazenagem();
-  return () => setFabVisivel(false);
+    return () => setFabVisivel(false);
   }, [setFabVisivel, setContexto]);
   return (
     <ColetorLayout title="Concluído" onNavigate={onNavigate} showBack={false}>
