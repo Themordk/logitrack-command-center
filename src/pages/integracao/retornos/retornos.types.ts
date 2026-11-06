@@ -301,6 +301,32 @@ export interface ResultadoExecutar {
   status: "pendente" | "filtrado";
   modo: ModoExecucao;
   evento: string;
+  /** Execuções anteriores descartadas para liberar a fila (só modo manual com p_descartar_bloqueios). */
+  descartadas?: string[];
+}
+
+/** Execução anterior que bloqueia a fila do documento no mesmo fluxo. */
+export interface BloqueioEnvio {
+  id: string;
+  status: Extract<StatusExecucao, "pendente" | "executando" | "aguardando_retry" | "erro">;
+  modo: ModoExecucao;
+  fluxo_versao: number | null;
+  erro: string | null;
+  erro_http_status: number | null;
+  created_at: string;
+  pode_descartar: boolean;
+}
+
+/** Pré-checagem de `integracao_retorno_verificar_envio`. */
+export interface VerificacaoEnvio {
+  fluxo_id: string;
+  fluxo_versao: number | null;
+  evento: string;
+  entidade: EntidadeDocumento;
+  movimento_status: string | null;
+  documento_status_wms: string | null;
+  bloqueios: BloqueioEnvio[];
+  em_andamento: boolean;
 }
 
 export type DispatcherBody =

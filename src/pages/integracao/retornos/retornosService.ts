@@ -3,7 +3,7 @@ import type {
   Catalogo, Combinador, Contexto, Definicao, Destino, DestinoEntrada, DispatcherBody,
   DispatcherExecutarResposta, DispatcherTestarResposta, DocumentoRecente, EntidadeDocumento,
   ExecucaoDetalhe, ExecucaoResumo, FiltrosExecucao, FluxoCompleto, FluxoEntrada, FluxoResumo,
-  ListaExecucoes, MapaItem, MotorRetorno, Regra, ResultadoExecutar, RetornoConfig, Validacao, VersaoFluxo,
+  ListaExecucoes, MapaItem, MotorRetorno, Regra, ResultadoExecutar, RetornoConfig, Validacao, VerificacaoEnvio, VersaoFluxo,
 } from "./retornos.types";
 
 // As RPCs ainda não estão nos tipos gerados do Supabase: único cast concentrado aqui.
@@ -95,10 +95,15 @@ export const execucoesDocumento = (tenantId: string, empresaId: string, entidade
   rpc<ExecucaoResumo[]>("integracao_retorno_execucoes_documento", {
     p_tenant_id: tenantId, p_empresa_id: empresaId, p_entidade: entidade, p_documento_id: documentoId,
   });
-export const executar = (fluxoId: string, documentoId: string, modo: "manual" | "teste" | "simulacao", usarRascunho = false) =>
-  rpc<ResultadoExecutar>("integracao_retorno_executar", {
-    p_fluxo_id: fluxoId, p_documento_id: documentoId, p_modo: modo, p_usar_rascunho: usarRascunho,
-  });
+export const executar = (
+  fluxoId: string, documentoId: string, modo: "manual" | "teste" | "simulacao", usarRascunho = false, descartarBloqueios = false,
+) => rpc<ResultadoExecutar>("integracao_retorno_executar", {
+  p_fluxo_id: fluxoId, p_documento_id: documentoId, p_modo: modo, p_usar_rascunho: usarRascunho,
+  p_descartar_bloqueios: descartarBloqueios,
+});
+/** Pré-checagem do envio manual: execuções anteriores que travam a fila + status atual x gatilho. */
+export const verificarEnvio = (fluxoId: string, documentoId: string) =>
+  rpc<VerificacaoEnvio>("integracao_retorno_verificar_envio", { p_fluxo_id: fluxoId, p_documento_id: documentoId });
 export const reprocessar = (execucaoId: string, aPartirNo: string | null = null) =>
   rpc<ExecucaoResumo>("integracao_retorno_reprocessar", { p_execucao_id: execucaoId, p_a_partir_no: aPartirNo });
 export const descartar = (execucaoId: string, motivo: string) =>
