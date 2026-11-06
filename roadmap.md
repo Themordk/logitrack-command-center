@@ -1,5 +1,12 @@
 # Ajustes de destino da armazenagem
 
+## Armazenagem de cancelamentos
+- [ ] Compartilhar origem, serviços e prazo; adicionar escolha e lista de cancelamentos.
+- [ ] Adaptar início, execução online, erros de saldo e conclusão sem alterar entradas.
+- [ ] Bloquear transferência, adicionar parâmetros e conferir notificações.
+- [ ] Executar testes de regras e regressões; conferir telas no celular.
+- [ ] Validar operação com dados reais: Supabase externo sem sessão autenticada disponível.
+
 ## Mudança de Picking: bloqueio resumido
 - [x] Adaptar contrato e motivos com compatibilidade com prévias antigas.
 - [x] Exibir cartão único de bloqueio, SKUs recolhidos e ações de navegação; preservar fluxo liberado.
