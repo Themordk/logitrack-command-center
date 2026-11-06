@@ -63,6 +63,8 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   RETORNO_DOCUMENTO_NAO_ENCONTRADO: { title: "Documento não encontrado nesta empresa.", instruction: "Escolha outro documento." },
   RETORNO_EXECUCAO_NAO_ENCONTRADA: { title: "Execução não encontrada.", instruction: "Atualize a lista." },
   RETORNO_EXECUCAO_EM_ANDAMENTO: { title: "A execução ainda está em andamento.", instruction: "Aguarde terminar." },
+  RETORNO_DOCUMENTO_BLOQUEADO: { title: "Existe retorno anterior pendente ou com erro para este documento.", instruction: "Confirme o descarte para enviar com a versão publicada." },
+  RETORNO_ENVIO_EM_ANDAMENTO: { title: "Há um retorno deste documento sendo enviado agora.", instruction: "Aguarde terminar e tente de novo." },
   RETORNO_DESCARTE_INVALIDO: { title: "Esta execução não pode ser descartada.", instruction: "Só pendentes ou com erro." },
   RETORNO_REPROCESSAR_NO: { title: "Escolha o nó de onde recomeçar.", instruction: "" },
   RETORNO_NO_INEXISTENTE: { title: "Nó não existe nesta versão do fluxo.", instruction: "Escolha outro nó." },

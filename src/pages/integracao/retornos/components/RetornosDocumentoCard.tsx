@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { History, Loader2, RotateCcw, Send } from "lucide-react";
@@ -11,13 +11,15 @@ import { useTenant } from "@/contexts/TenantContext";
 import { parseError } from "@/lib/errorMapper";
 import { formatDateTime } from "@/utils/dateTime";
 import type { EntidadeDocumento } from "../retornos.types";
-import { contextoDocumento, executar, execucoesDocumento, invokeDispatcher, listarFluxos } from "../retornosService";
+import { contextoDocumento, execucoesDocumento, listarFluxos } from "../retornosService";
 import { useCatalogoRetorno, usePermissaoRetorno } from "../useRetornos";
 import { StatusRetornoBadge } from "./StatusRetornoBadge";
 import { ExecucaoDetalheSheet } from "../execucoes/ExecucaoDetalheSheet";
 import { reprocessarEExecutar } from "../execucoes/AcoesExecucaoDialogs";
 import { retornosKeys } from "../retornosKeys";
 import { MODO_EXECUCAO_UI } from "../retornosUi";
+import { useEnviarAoErp } from "./useEnviarAoErp";
+import { ConfirmarEnvioErpDialog } from "./ConfirmarEnvioErpDialog";
 
 interface Props { entidade: EntidadeDocumento; documentoId: string }
 
@@ -37,7 +39,6 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
   const { data: catalogo } = useCatalogoRetorno();
   const [aberta, setAberta] = useState<string | null>(null);
   const [popAberto, setPopAberto] = useState(false);
-  const [enviando, setEnviando] = useState(false);
   const [reenviando, setReenviando] = useState(false);
 
   const chave = retornosKeys.execucoesDocumento(tenantId, empresaId, entidade, documentoId);
@@ -61,28 +62,18 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
 
   const lista = execs.data ?? [];
   const ultimaErro = lista[0]?.status === "erro" ? lista[0] : null;
-  const recarregar = () => {
+  const recarregar = useCallback(() => {
     qc.invalidateQueries({ queryKey: chave });
     qc.invalidateQueries({ queryKey: ["retorno-execucoes"] });
-  };
+  }, [qc, chave]);
   const numeroDoc = (ctx.data?.documento as { numero?: string | number | null } | undefined)?.numero;
 
-  async function enviar(fluxoId: string) {
-    setEnviando(true);
-    try {
-      const r = await executar(fluxoId, documentoId, "manual", false);
-      if (r.status === "filtrado") { toast.warning("Documento barrado pelos filtros do fluxo."); return; }
-      const d = await invokeDispatcher({ acao: "executar", execucao_id: r.execucao_id });
-      if (d.status === "sucesso") toast.success("Enviado ao ERP.");
-      else if (d.status === "erro") toast.error(d.erro || "O envio falhou.");
-      else toast.info("Envio em processamento.");
-      setPopAberto(false);
-    } catch (e) {
-      toast.error(parseError(e, "retorno-enviar").title);
-    } finally {
-      setEnviando(false);
-      recarregar();
-    }
+  const envio = useEnviarAoErp(documentoId, recarregar);
+  const enviando = envio.enviando;
+
+  async function enviar(fluxoId: string, fluxoNome: string) {
+    await envio.enviar(fluxoId, fluxoNome);
+    setPopAberto(false);
   }
 
   async function reenviar(id: string) {
@@ -103,8 +94,9 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
         <div className="ml-auto flex gap-2">
           <Button size="sm" variant="ghost" onClick={() => irPara(`/config/integracao/retornos?${new URLSearchParams({ aba: "execucoes", ...(numeroDoc != null ? { busca: String(numeroDoc) } : {}) }).toString()}`)}>Ver todas</Button>
           {ultimaErro && (
-            <Button size="sm" variant="outline" disabled={!podeEditar || reenviando} onClick={() => reenviar(ultimaErro.id)}>
-              {reenviando ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Reenviar
+            <Button size="sm" variant="outline" disabled={!podeEditar || reenviando} onClick={() => reenviar(ultimaErro.id)}
+              title={`Reprocessa este retorno com a versão em que ele foi criado (v${ultimaErro.fluxo_versao ?? "?"}). Para usar a versão publicada, use Enviar ao ERP.`}>
+              {reenviando ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Reenviar{ultimaErro.fluxo_versao != null ? ` (v${ultimaErro.fluxo_versao})` : ""}
             </Button>
           )}
           <Popover open={popAberto} onOpenChange={setPopAberto}>
@@ -125,7 +117,7 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
                 <div className="flex flex-col">
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1">Escolha o fluxo</p>
                   {fluxosServem.map((f) => (
-                    <button key={f.id} disabled={enviando} onClick={() => enviar(f.id)}
+                    <button key={f.id} disabled={enviando} onClick={() => enviar(f.id, f.nome)}
                       className="text-left text-xs px-2 py-1.5 rounded hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground">
                       {f.nome} <span className="text-muted-foreground">v{f.versao_publicada}</span>
                     </button>
@@ -179,6 +171,7 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
 
       <ExecucaoDetalheSheet execucaoId={aberta} podeEditar={podeEditar}
         onFechar={() => { setAberta(null); recarregar(); }} onAbrirExecucao={setAberta} onNavigate={irPara} />
+      <ConfirmarEnvioErpDialog confirmacao={envio.confirmacao} enviando={enviando} onConfirmar={envio.confirmar} onCancelar={envio.cancelar} />
     </div>
   );
 }

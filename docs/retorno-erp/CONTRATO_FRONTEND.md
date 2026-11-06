@@ -79,7 +79,8 @@
 | `integracao_retorno_listar_execucoes` | `p_tenant_id, p_empresa_id, p_filtros, p_limite (≤200), p_offset` | `{ total, itens: ExecucaoResumo[] }` |
 | `integracao_retorno_obter_execucao` | `p_execucao_id` | `ExecucaoDetalhe` (§3.5) |
 | `integracao_retorno_execucoes_documento` | `p_tenant_id, p_empresa_id, p_entidade, p_documento_id` | `ExecucaoResumo[]` (inclui lotes que contêm o documento) |
-| `integracao_retorno_executar` | `p_fluxo_id, p_documento_id, p_modo 'manual'\|'teste'\|'simulacao', p_usar_rascunho` | `{ execucao_id, status: 'pendente'\|'filtrado', modo, evento }` |
+| `integracao_retorno_executar` | `p_fluxo_id, p_documento_id, p_modo 'manual'\|'teste'\|'simulacao', p_usar_rascunho, p_descartar_bloqueios (default false)` | `{ execucao_id, status: 'pendente'\|'filtrado', modo, evento, descartadas: uuid[] }` |
+| `integracao_retorno_verificar_envio` | `p_fluxo_id, p_documento_id` | `{ fluxo_id, fluxo_versao, evento, entidade, movimento_status, documento_status_wms, bloqueios: BloqueioEnvio[], em_andamento }` |
 | `integracao_retorno_reprocessar` | `p_execucao_id, p_a_partir_no text\|null` | `ExecucaoResumo` |
 | `integracao_retorno_descartar` | `p_execucao_id, p_motivo` | `ExecucaoResumo` |
 
@@ -242,6 +243,12 @@ type Passo = { id; seq: number /* ORDENE POR seq */; no_id; no_tipo; tentativa; 
 - Headers sensíveis já chegam como `***`.
 - Um mesmo nó pode aparecer várias vezes, uma por tentativa.
 - Um documento travado atrás de um erro do mesmo fluxo fica em `pendente` até o erro ser reprocessado ou descartado.
+- Envio manual ("Enviar ao ERP") usa a mesma fila (chave_ordenacao) das execuções automáticas do fluxo/documento. Antes de executar, chame `verificar_envio`:
+  - `em_andamento=true` → avise e não envie (RPC recusa com `RETORNO_ENVIO_EM_ANDAMENTO`);
+  - `bloqueios` não vazio → peça confirmação (`ConfirmarEnvioErpDialog`) e só então chame `executar(..., p_descartar_bloqueios=true)`; os bloqueios viram `descartado` com motivo "Substituído por envio manual (vN)". Sem a flag, a RPC recusa com `RETORNO_DOCUMENTO_BLOQUEADO`.
+  - Documento barrado pelos filtros (`filtrado`) não descarta nada.
+  - `movimento_status` é só informativo: o envio manual não depende do evento do gatilho.
+- `reprocessar` ("Reenviar") roda com a versão do fluxo da execução original, não com a publicada.
 
 ### 3.6 Contexto (o que os nós enxergam)
 

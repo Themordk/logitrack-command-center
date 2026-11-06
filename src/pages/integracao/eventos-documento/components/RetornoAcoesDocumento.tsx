@@ -7,10 +7,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useTenant } from "@/contexts/TenantContext";
 import { parseError } from "@/lib/errorMapper";
 import type { EntidadeDocumento } from "../../retornos/retornos.types";
-import { executar, invokeDispatcher, listarFluxos } from "../../retornos/retornosService";
+import { listarFluxos } from "../../retornos/retornosService";
 import { useCatalogoRetorno, usePermissaoRetorno } from "../../retornos/useRetornos";
 import { reprocessarEExecutar } from "../../retornos/execucoes/AcoesExecucaoDialogs";
 import { retornosKeys } from "../../retornos/retornosKeys";
+import { useEnviarAoErp } from "../../retornos/components/useEnviarAoErp";
+import { ConfirmarEnvioErpDialog } from "../../retornos/components/ConfirmarEnvioErpDialog";
 
 interface Props {
   entidade: EntidadeDocumento;
@@ -34,7 +36,6 @@ function Acoes({ entidade, documentoId, numeroDoc, ultimoRetornoComErroId, onApo
   const { podeEditar } = usePermissaoRetorno();
   const { data: catalogo } = useCatalogoRetorno();
   const [popAberto, setPopAberto] = useState(false);
-  const [enviando, setEnviando] = useState(false);
   const [reenviando, setReenviando] = useState(false);
 
   const fluxos = useQuery({
@@ -48,22 +49,12 @@ function Acoes({ entidade, documentoId, numeroDoc, ultimoRetornoComErroId, onApo
     return (fluxos.data ?? []).filter((f) => f.ativo && f.versao_publicada != null && f.evento && evEntidade.get(f.evento) === entidade);
   }, [fluxos.data, catalogo, entidade]);
 
-  async function enviar(fluxoId: string) {
-    setEnviando(true);
-    try {
-      const r = await executar(fluxoId, documentoId, "manual", false);
-      if (r.status === "filtrado") { toast.warning("Documento barrado pelos filtros do fluxo."); return; }
-      const d = await invokeDispatcher({ acao: "executar", execucao_id: r.execucao_id });
-      if (d.status === "sucesso") toast.success("Enviado ao ERP.");
-      else if (d.status === "erro") toast.error(d.erro || "O envio falhou.");
-      else toast.info("Envio em processamento.");
-      setPopAberto(false);
-    } catch (e) {
-      toast.error(parseError(e, "retorno-enviar").title);
-    } finally {
-      setEnviando(false);
-      onAposAcao();
-    }
+  const envio = useEnviarAoErp(documentoId, onAposAcao);
+  const enviando = envio.enviando;
+
+  async function enviar(fluxoId: string, fluxoNome: string) {
+    await envio.enviar(fluxoId, fluxoNome);
+    setPopAberto(false);
   }
 
   async function reenviar(id: string) {
@@ -77,7 +68,8 @@ function Acoes({ entidade, documentoId, numeroDoc, ultimoRetornoComErroId, onApo
     <div className="flex flex-wrap gap-2">
       <Button size="sm" variant="ghost" onClick={() => irPara(`/config/integracao/retornos?${new URLSearchParams({ aba: "execucoes", ...(numeroDoc != null ? { busca: String(numeroDoc) } : {}) }).toString()}`)}>Ver todas</Button>
       {ultimoRetornoComErroId && (
-        <Button size="sm" variant="outline" disabled={!podeEditar || reenviando} onClick={() => reenviar(ultimoRetornoComErroId)}>
+        <Button size="sm" variant="outline" disabled={!podeEditar || reenviando} onClick={() => reenviar(ultimoRetornoComErroId)}
+          title="Reprocessa o último retorno com erro usando a mesma versão do fluxo em que ele foi criado. Para usar a versão publicada, use Enviar ao ERP.">
           {reenviando ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Reenviar
         </Button>
       )}
@@ -99,7 +91,7 @@ function Acoes({ entidade, documentoId, numeroDoc, ultimoRetornoComErroId, onApo
             <div className="flex flex-col">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground px-2 py-1">Escolha o fluxo</p>
               {fluxosServem.map((f) => (
-                <button key={f.id} disabled={enviando} onClick={() => enviar(f.id)}
+                <button key={f.id} disabled={enviando} onClick={() => enviar(f.id, f.nome)}
                   className="text-left text-xs px-2 py-1.5 rounded hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground">
                   {f.nome} <span className="text-muted-foreground">v{f.versao_publicada}</span>
                 </button>
@@ -108,6 +100,7 @@ function Acoes({ entidade, documentoId, numeroDoc, ultimoRetornoComErroId, onApo
           )}
         </PopoverContent>
       </Popover>
+      <ConfirmarEnvioErpDialog confirmacao={envio.confirmacao} enviando={enviando} onConfirmar={envio.confirmar} onCancelar={envio.cancelar} />
     </div>
   );
 }
