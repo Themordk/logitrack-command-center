@@ -395,7 +395,7 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   },
   ENDERECO_OUTRO_ARMAZEM: {
     title: "Endereço de outro armazém.",
-    instruction: "Escaneie um endereço deste armazém.",
+    instruction: "Escolha um endereço do armazém desta separação.",
   },
   ENDERECO_TIPO_NAO_PERMITIDO: {
     title: "Este endereço não pode ser usado para esta separação.",

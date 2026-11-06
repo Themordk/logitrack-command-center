@@ -10,5 +10,5 @@ describe("origem e prazo de armazenagem", () => {
   it("vencido começa exatamente em 100%", () => { expect(calcularPrazo(null, 1.999, 2).status).toBe("ATENCAO"); expect(calcularPrazo(null, 2, 2).status).toBe("VENCIDO"); });
   it("passagem do tempo recalcula pelo instante de entrada", () => { const inicio = "2026-11-06T12:00:00Z"; expect(calcularPrazo(inicio, 0, 2, Date.parse("2026-11-06T14:00:00Z")).status).toBe("VENCIDO"); });
   it("prazo mínimo 1 e somente inteiro", () => { expect(prazoCancelamentoValido(1)).toBe(true); expect(prazoCancelamentoValido(2)).toBe(true); expect(prazoCancelamentoValido(0)).toBe(false); expect(prazoCancelamentoValido(1.5)).toBe(false); });
-  it("tempo em minutos, horas e dias", () => { expect(formatarHorasParado(.75)).toBe("45min"); expect(formatarHorasParado(3.5)).toBe("3,5h"); expect(formatarHorasParado(28)).toBe("2d 4h".replace("2d", "1d")); });
+  it("tempo em minutos, horas e dias", () => { expect(formatarHorasParado(.75)).toBe("45min"); expect(formatarHorasParado(3.5)).toBe("3,5h"); expect(formatarHorasParado(52)).toBe("2d 4h"); });
 });

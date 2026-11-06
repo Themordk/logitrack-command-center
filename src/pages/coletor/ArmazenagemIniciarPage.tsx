@@ -17,6 +17,7 @@ import { buscarDestinoArmazenagem, lerPulmaoHabilitado, guardarPulmaoHabilitado,
 import type { DestinoArmazenagem, PickingDestino } from "@/types/armazenagem";
 import { OcorrenciaBottomSheet } from "@/components/ocorrencia/OcorrenciaBottomSheet";
 import { lerOrigemArmazenagem, rotaListaItens } from "@/lib/armazenagemOrigem";
+import { formatDate } from "@/utils/dateTime";
 import { PrazoCancelamentoBadge } from "@/components/coletor/PrazoCancelamentoBadge";
 import { Button } from "@/components/ui/button";
 
@@ -382,8 +383,8 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
             {(tarefa.lote || dataValida(tarefa.fabricacao) || dataValida(tarefa.validade) || isFromCache) && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[hsl(213,31%,55%)]">
                 {tarefa.lote && <span>Lote: <b className="text-[hsl(213,31%,85%)]">{tarefa.lote}</b></span>}
-                {dataValida(tarefa.fabricacao) && <span>Fab: <b className="text-[hsl(213,31%,85%)]">{tarefa.fabricacao}</b></span>}
-                {dataValida(tarefa.validade) && <span>Val: <b className="text-[hsl(213,31%,85%)]">{tarefa.validade}</b></span>}
+                {dataValida(tarefa.fabricacao) && <span>Fab: <b className="text-[hsl(213,31%,85%)]">{cancelamento ? formatDate(tarefa.fabricacao) : tarefa.fabricacao}</b></span>}
+                {dataValida(tarefa.validade) && <span>Val: <b className="text-[hsl(213,31%,85%)]">{cancelamento ? formatDate(tarefa.validade) : tarefa.validade}</b></span>}
                 {isFromCache && (
                   <span className="flex items-center gap-1 text-[10px] text-yellow-400"><Database size={10} /> Cache</span>
                 )}

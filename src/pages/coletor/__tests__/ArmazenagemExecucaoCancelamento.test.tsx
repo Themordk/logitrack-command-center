@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { render, fireEvent, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, fireEvent, screen, waitFor, cleanup, act } from "@testing-library/react";
 const m = vi.hoisted(() => ({ rpc: vi.fn(), offline: vi.fn(), navegar: vi.fn(), aviso: vi.fn(), sucesso: vi.fn(), erro: vi.fn(), from: vi.fn(), listener: vi.fn(), documento: vi.fn(), online: true, destinoId: "destino", tipo: "PULMAO" }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   rpc: m.rpc,
@@ -26,7 +26,7 @@ vi.mock("@/lib/lmsTimestamp", () => ({ markTarefaIniciadaByTarefa: vi.fn() }));
 vi.mock("@/lib/offlineEnderecoCache", () => ({ getEnderecoFromCache: () => Promise.resolve({ id: m.destinoId, descricao: "DESTINO", situacao: "LIVRE", tipo_endereco: m.tipo }), saveEnderecoToCache: () => Promise.resolve() }));
 vi.mock("@/hooks/useFeedback", () => ({ useFeedback: () => ({ error: vi.fn() }) }));
 import { ArmazenagemExecucaoPage } from "../ArmazenagemExecucaoPage";
-const confirmar = async () => { fireEvent.click(screen.getByText("Bipar destino")); await waitFor(() => expect(screen.getByText("CONFIRMAR ARMAZENAGEM")).not.toBeDisabled()); fireEvent.click(screen.getByText("CONFIRMAR ARMAZENAGEM")); };
+const confirmar = async () => { fireEvent.click(screen.getByText("Bipar destino")); await waitFor(() => expect(screen.getByText("CONFIRMAR ARMAZENAGEM")).not.toBeDisabled()); await act(async () => { fireEvent.click(screen.getByText("CONFIRMAR ARMAZENAGEM")); }); };
 const ultimoAviso = () => m.aviso.mock.calls.at(-1)?.[1] as { onClose?: () => void };
 describe("execução de armazenagem por origem", () => {
   beforeEach(() => {
