@@ -34,7 +34,7 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
     },
   );
 
-  let results = data.map((row: any) => ({
+  const results = data.map((row: any) => ({
     id: row.id,
     criado_em: row.criado_em,
     sku: row.sku || "",
@@ -47,6 +47,8 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
     usuario: row.usuario_nome || "—",
     tipo_documento_origem: row.tipo_documento_origem || "",
     tarefa_execucao_id: row.tarefa_execucao_id || "",
+    // Preenchido nos estornos: tarefa_execucao_id passa a apontar para a execução estornada
+    estorno_da_execucao_id: row.estorno_da_execucao_id || "",
     tipo_tarefa_codigo: row.tipo_tarefa_codigo || "",
     tipo_tarefa_descricao: row.tipo_tarefa_descricao || "",
     tarefa_execucao_status: row.tarefa_execucao_status || "",
@@ -56,14 +58,12 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
     saldo_posterior_destino: row.saldo_posterior_destino != null ? Number(row.saldo_posterior_destino) : null,
     saldo_inicial: Number(row.saldo_inicial ?? 0),
     saldo_final: Number(row.saldo_final ?? 0),
+    // Saldo total do SKU na empresa (todos os endereços/armazéns, inclui bloqueado)
+    saldo_global_anterior: row.saldo_global_anterior != null ? Number(row.saldo_global_anterior) : null,
+    saldo_global_posterior: row.saldo_global_posterior != null ? Number(row.saldo_global_posterior) : null,
   }));
 
-  // Busca exata por SKU (sem correspondência parcial).
-  const skuBusca = filters.sku?.trim().toLowerCase();
-  if (skuBusca) {
-    results = results.filter((r) => r.sku.trim().toLowerCase() === skuBusca);
-  }
-
+  // A busca exata por SKU é feita no backend (rpc_historico_movimento_com_saldo).
   return results;
 }
 
@@ -246,6 +246,14 @@ export function getTipoDocumentoLabel(tipo: string): string {
     case "MOVIMENTO_ENTRADA_ITEM": return "Mov. Entrada";
     case "MOVIMENTO_SAIDA_ITEM": return "Mov. Saída";
     case "INVENTARIO": return "Inventário";
+    case "LIMPEZA_SEPARACAO_ITEM": return "Limpeza Separação";
+    case "CANCELAMENTO_DOCUMENTO_SAIDA": return "Canc. Doc. Saída";
+    case "ALTERACAO_DOCUMENTO_SAIDA": return "Alteração Doc. Saída";
+    case "REMOCAO_DOCUMENTO": return "Remoção Documento";
+    case "CANCELAMENTO_ENTRADA": return "Canc. Entrada";
+    case "CONVERSAO_UNIDADE": return "Conversão Unidade";
+    case "TRANSFERENCIA_PICKING_MASSA": return "Mudança Picking";
+    case "CARGA_INICIAL": return "Carga Inicial";
     default: return tipo || "—";
   }
 }

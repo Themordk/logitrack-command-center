@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Search, X, ExternalLink } from "lucide-react";
+import { Filter, Search, X, ExternalLink, ArrowDown, ArrowUp, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,9 @@ import {
   fmtNumberBR,
   type ExportColumn,
 } from "../utils/exporters";
+
+const SALDO_GLOBAL_DICA =
+  "Saldo total do SKU na empresa (todos os endereços e armazéns, inclui bloqueado), antes e depois da movimentação.";
 
 interface MovimentacoesReportPageProps {
   onNavigate?: (path: string) => void;
@@ -156,8 +159,10 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       render: (v, row) => {
         if (!v) return <span className="text-muted-foreground">—</span>;
         const label = row.tipo_tarefa_codigo || v.substring(0, 8);
+        const ehEstorno = !!row.estorno_da_execucao_id;
         return (
           <button
+            title={ehEstorno ? "Estorno desta tarefa — abre a execução original" : undefined}
             onClick={(e) => {
               e.stopPropagation();
               if (onNavigate) {
@@ -168,6 +173,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
             }}
             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 hover:underline transition-colors"
           >
+            {ehEstorno && <Undo2 size={10} aria-label="estorno" />}
             {label}
             <ExternalLink size={10} />
           </button>
@@ -177,6 +183,40 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
     {
       key: "quantidade", label: "Quantidade", align: "right", width: "100px",
       render: (v) => Number(v).toLocaleString("pt-BR"),
+    },
+    {
+      key: "saldo_global_anterior", label: "Sld Global Ant.", align: "right" as const, width: "110px",
+      headerTitle: SALDO_GLOBAL_DICA,
+      headerClassName: "bg-primary/10",
+      render: (v) => v != null
+        ? <span className="text-muted-foreground">{Number(v).toLocaleString("pt-BR")}</span>
+        : <span className="text-muted-foreground/40">—</span>,
+    },
+    {
+      key: "saldo_global_posterior", label: "Sld Global Pós.", align: "right" as const, width: "110px",
+      headerTitle: SALDO_GLOBAL_DICA,
+      headerClassName: "bg-primary/10",
+      render: (v, row) => {
+        if (v == null) return <span className="text-muted-foreground/40">—</span>;
+        const pos = Number(v);
+        const ant = Number(row.saldo_global_anterior);
+        const variacao = pos - ant;
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center justify-end gap-1 font-semibold",
+              variacao < 0 && "text-red-400",
+              variacao > 0 && "text-emerald-400",
+              variacao === 0 && "text-foreground",
+            )}
+            title={variacao === 0 ? "Sem alteração no saldo global" : `${variacao > 0 ? "+" : ""}${variacao.toLocaleString("pt-BR")} no saldo global`}
+          >
+            {variacao < 0 && <ArrowDown size={11} aria-label="diminuiu" />}
+            {variacao > 0 && <ArrowUp size={11} aria-label="aumentou" />}
+            {pos.toLocaleString("pt-BR")}
+          </span>
+        );
+      },
     },
     {
       key: "saldo_anterior_origem", label: "Sld Ant. Orig.", align: "right" as const, width: "100px",
@@ -227,8 +267,13 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
     { key: "destino", label: "Destino" },
     { key: "tipo_movimento", label: "Tipo Movimento", format: (r) => getTipoMovimentoLabel(r.tipo_movimento) },
     { key: "tipo_documento_origem", label: "Doc. Origem", format: (r) => getTipoDocumentoLabel(r.tipo_documento_origem) },
-    { key: "tipo_tarefa_codigo", label: "Tarefa", format: (r) => r.tipo_tarefa_codigo || "" },
+    { key: "tipo_tarefa_codigo", label: "Tarefa",
+      format: (r) => (r.tipo_tarefa_codigo ? `${r.estorno_da_execucao_id ? "Estorno " : ""}${r.tipo_tarefa_codigo}` : "") },
     { key: "quantidade", label: "Quantidade", align: "right", format: (r) => fmtNumberBR(r.quantidade) },
+    { key: "saldo_global_anterior", label: "Sld Global Ant.", align: "right" as const,
+      format: (r) => r.saldo_global_anterior != null ? fmtNumberBR(r.saldo_global_anterior) : "" },
+    { key: "saldo_global_posterior", label: "Sld Global Pós.", align: "right" as const,
+      format: (r) => r.saldo_global_posterior != null ? fmtNumberBR(r.saldo_global_posterior) : "" },
     { key: "saldo_anterior_origem", label: "Sld Ant. Orig.", align: "right" as const,
       format: (r: any) => r.saldo_anterior_origem != null ? fmtNumberBR(r.saldo_anterior_origem) : "" },
     { key: "saldo_posterior_origem", label: "Sld Pos. Orig.", align: "right" as const,

@@ -29,6 +29,7 @@ const TIPO_MOV_OPTS = [
   { value: 1, label: "Entrada" },
   { value: 2, label: "Saída" },
   { value: 3, label: "Transferência" },
+  { value: 6, label: "Inventário (ajuste)" },
 ];
 
 const CATEGORIA_OPTS = [
