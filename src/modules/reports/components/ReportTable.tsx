@@ -17,6 +17,8 @@ export interface ReportColumn {
   wrap?: boolean;
   render?: (value: any, row: any) => React.ReactNode;
   sortable?: boolean;
+  /** Classe extra aplicada ao cabeçalho da coluna (ex.: destaque do critério ativo). */
+  headerClassName?: string;
 }
 
 interface ReportTableProps {
