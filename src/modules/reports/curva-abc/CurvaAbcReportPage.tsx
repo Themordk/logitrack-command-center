@@ -131,6 +131,7 @@ export function CurvaAbcReportPage() {
       const result = await fetchCurvaAbcReport(filters);
       setResumo(result.resumo);
       setData(result.itens);
+      setFiltrosGerados(montarFiltrosAtivos());
       setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
@@ -148,10 +149,16 @@ export function CurvaAbcReportPage() {
     setFilterMarca(""); setFilterSku(""); setFilterClasse("");
   };
 
+  // Parâmetros exibidos: depois de gerar, refletem o resumo retornado pela RPC;
+  // antes de gerar, refletem o estado atual dos campos.
+  const criterioExib: CurvaAbcCriterio = resumo?.criterio ?? criterio;
+  const limiteAExib = resumo ? Math.round(resumo.limite_a * 100) : limiteA;
+  const limiteBExib = resumo ? Math.round(resumo.limite_b * 100) : limiteB;
+
   const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
   const fmtNum = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
   const fmtBRL = (v: number) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const fmtMetrica = (v: number) => (criterio === "VALOR" ? fmtBRL(v) : fmtNum(v));
+  const fmtMetrica = (v: number) => (criterioExib === "VALOR" ? fmtBRL(v) : fmtNum(v));
 
   const classeCores: Record<"A" | "B" | "C", string> = {
     A: "bg-[hsl(var(--status-free))]/15 text-[hsl(var(--status-free))] border-[hsl(var(--status-free))]/30",
