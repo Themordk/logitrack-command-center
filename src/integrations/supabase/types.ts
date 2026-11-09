@@ -14330,6 +14330,7 @@ export type Database = {
           criado_em: string
           endereco_destino: string
           endereco_origem: string
+          estorno_da_execucao_id: string
           hu_id: string
           id: string
           lote: string
@@ -14338,6 +14339,8 @@ export type Database = {
           saldo_anterior_destino: number
           saldo_anterior_origem: number
           saldo_final: number
+          saldo_global_anterior: number
+          saldo_global_posterior: number
           saldo_inicial: number
           saldo_posterior_destino: number
           saldo_posterior_origem: number
