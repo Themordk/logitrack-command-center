@@ -7503,6 +7503,163 @@ export type Database = {
           },
         ]
       }
+      tarefa_armz_cancelamento: {
+        Row: {
+          alerta_atencao_em: string | null
+          alerta_vencido_em: string | null
+          armazem_id: string
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          data_fabricacao: string
+          data_validade: string
+          empresa_id: string
+          encerrado_em: string | null
+          endereco_id: string
+          entrada_em: string
+          hu_id: string
+          id: string
+          lote: string
+          motivo_encerramento: string | null
+          produto_id: string
+          tarefa_id: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          alerta_atencao_em?: string | null
+          alerta_vencido_em?: string | null
+          armazem_id: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data_fabricacao?: string
+          data_validade?: string
+          empresa_id: string
+          encerrado_em?: string | null
+          endereco_id: string
+          entrada_em?: string
+          hu_id?: string
+          id?: string
+          lote?: string
+          motivo_encerramento?: string | null
+          produto_id: string
+          tarefa_id: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          alerta_atencao_em?: string | null
+          alerta_vencido_em?: string | null
+          armazem_id?: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data_fabricacao?: string
+          data_validade?: string
+          empresa_id?: string
+          encerrado_em?: string | null
+          endereco_id?: string
+          entrada_em?: string
+          hu_id?: string
+          id?: string
+          lote?: string
+          motivo_encerramento?: string | null
+          produto_id?: string
+          tarefa_id?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_armazem_id_fkey"
+            columns: ["armazem_id"]
+            isOneToOne: false
+            referencedRelation: "armazem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "endereco"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_endereco_id_fkey"
+            columns: ["endereco_id"]
+            isOneToOne: false
+            referencedRelation: "vw_endereco_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_produto_listagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: true
+            referencedRelation: "inventario_item_resumo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: true
+            referencedRelation: "tarefa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: true
+            referencedRelation: "vw_movimento_entrada_conferencia_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: true
+            referencedRelation: "vw_movimento_saida_separacao_detalhe"
+            referencedColumns: ["tarefa_id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_armz_cancelamento_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_tenant_resumo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tarefa_atribuicao: {
         Row: {
           atribuido_em: string
@@ -11104,6 +11261,7 @@ export type Database = {
         Returns: string
       }
       cron_alerta_endereco_cancelamento: { Args: never; Returns: Json }
+      cron_armz_cancelamento_monitor: { Args: never; Returns: Json }
       cron_disparar_sync_entidade: { Args: never; Returns: undefined }
       cron_liberar_conferencia_automatica: { Args: never; Returns: Json }
       cron_liberar_separacao_automatica: {
@@ -11315,6 +11473,19 @@ export type Database = {
         }
         Returns: Json
       }
+      finalizar_armazenagem_cancelamento: {
+        Args: {
+          p_endereco_destino_id: string
+          p_picking_est_maximo?: number
+          p_picking_est_minimo?: number
+          p_picking_tipo?: Database["public"]["Enums"]["enum_tipo_picking"]
+          p_quantidade: number
+          p_tarefa_id: string
+          p_tenant_id: string
+          p_usuario: string
+        }
+        Returns: Json
+      }
       finalizar_conferencia_entrada_item: {
         Args: {
           p_fabricacao: string
@@ -11374,6 +11545,28 @@ export type Database = {
       }
       fn_armazem_padrao_empresa: {
         Args: { p_empresa_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      fn_armz_canc_reconciliar: {
+        Args: { p_armazem_id?: string; p_tenant_id?: string }
+        Returns: Json
+      }
+      fn_armz_canc_sincronizar: {
+        Args: {
+          p_empresa_id: string
+          p_endereco_id: string
+          p_entrada_em?: string
+          p_fabricacao: string
+          p_hu_id: string
+          p_lote: string
+          p_produto_id: string
+          p_tenant_id: string
+          p_validade: string
+        }
+        Returns: string
+      }
+      fn_armz_canc_tipo_tarefa_id: {
+        Args: { p_tenant_id: string }
         Returns: string
       }
       fn_audit_usuario_atual: { Args: never; Returns: string }
@@ -11615,6 +11808,10 @@ export type Database = {
           p_empresa_id: string
           p_tenant_id: string
         }
+        Returns: boolean
+      }
+      fn_endereco_cancelamento_com_tarefa: {
+        Args: { p_endereco_id: string; p_tenant_id: string }
         Returns: boolean
       }
       fn_endereco_valores_filtro: {
@@ -14052,6 +14249,57 @@ export type Database = {
           qtd_total_requerida: number
           status_movimento: string
           total_itens: number
+        }[]
+      }
+      rpc_coletor_armz_cancelamento_dashboard: {
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      rpc_coletor_armz_cancelamento_itens: {
+        Args: {
+          p_armazem_id?: string
+          p_empresa_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          armazem_id: string
+          descricao: string
+          endereco_origem_desc: string
+          endereco_origem_id: string
+          entrada_em: string
+          fabricacao: string
+          fator_caixa: number
+          horas_parado: number
+          hu_id: string
+          lote: string
+          ordem: number
+          picking_apto: number
+          picking_endereco_desc: string
+          picking_endereco_id: string
+          picking_est_maximo: number
+          picking_est_minimo: number
+          picking_nivel: number
+          picking_ok: boolean
+          picking_predio: number
+          picking_rua: number
+          prazo_horas: number
+          prioridade_tarefa: string
+          produto_id: string
+          qtd_restante: number
+          quantidade_executada: number
+          quantidade_requerida: number
+          referencia: string
+          saldo_origem: number
+          saldo_picking: number
+          sku: string
+          status_prazo: string
+          tarefa_id: string
+          validade: string
+          varios_pickings: boolean
         }[]
       }
       rpc_coletor_transferencia_picking: {
