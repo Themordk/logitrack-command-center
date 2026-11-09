@@ -1,92 +1,84 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
+import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
 
 export interface CortesFilter {
   tenant_id: string;
-  data_inicio: string;
-  data_fim: string;
-  empresa_id?: string;
-  motivo_ocorrencia_id?: string;
-  sku?: string;
+  empresa_id: string;
+  data_inicio: string; // YYYY-MM-DD
+  data_fim: string; // YYYY-MM-DD
+  motivo_ids?: string[];
   usuario_autorizou_id?: string;
+  sku?: string;
+  tem_saldo?: "SIM" | "NAO"; // undefined = todos
 }
 
 export interface CorteRow {
   id: string;
+  movimento_saida_id: string;
   numero_onda: number;
+  produto_id: string;
   sku: string;
   descricao: string;
-  preco_custo: number;
   qtde_cortada: number;
-  custo_total_item: number;
-  motivo: string;
-  usuario: string;
-  solicitante: string;
-  metodo: string;
-  autorizado_em: string | null;
+  preco_custo: number;
+  custo_total: number;
+  saldo_disponivel_no_corte: number | null; // null = corte anterior ao registro de saldo
+  tem_saldo: "SIM" | "NAO" | "SEM_REGISTRO";
+  motivo_id: string | null;
+  motivo: string | null;
+  solicitante_login: string | null;
+  solicitante_nome: string | null;
+  autorizador_login: string | null;
+  autorizador_nome: string | null;
+  metodo: string | null; // SENHA | PERMISSAO_PROPRIA | DISPENSADA
+  autorizado_em: string;
 }
 
 export async function fetchCortesReport(filters: CortesFilter): Promise<CorteRow[]> {
-  const data = await fetchAllSelectRows(
-    "movimento_saida_item",
-    `
-      id,
-      qtde_cortada,
-      autorizado_em,
-      movimento_saida:movimento_saida!movimento_saida_item_movimento_saida_id_fkey (numero_onda),
-      produto:produto_id (sku, descricao, preco_custo),
-      motivo:motivo_ocorrencia (descricao),
-      usuario_auth:usuario_autorizou (login),
-      solicitante:usuario_solicitou_corte (login, nome),
-      autorizacao:corte_autorizacao_id (metodo)
-    `,
-    (q) => {
-      q = q
-        .gt("qtde_cortada", 0)
-        .gte("autorizado_em", filters.data_inicio)
-        .lte("autorizado_em", filters.data_fim + "T23:59:59")
-        .order("autorizado_em", { ascending: false });
-      if (filters.motivo_ocorrencia_id) {
-        q = q.eq("motivo_ocorrencia", filters.motivo_ocorrencia_id);
-      }
-      if (filters.usuario_autorizou_id) {
-        q = q.eq("usuario_autorizou", filters.usuario_autorizou_id);
-      }
-      return q;
-    },
-  );
-
-  let rows: CorteRow[] = data.map((r: any) => {
-    const mov = r.movimento_saida as any;
-    const prod = r.produto as any;
-    const mot = r.motivo as any;
-    const usr = r.usuario_auth as any;
-    const precoCusto = prod?.preco_custo ?? 0;
-    const qtdeCortada = Number(r.qtde_cortada ?? 0);
-
-    return {
-      id: r.id,
-      numero_onda: mov?.numero_onda ?? 0,
-      sku: prod?.sku ?? "",
-      descricao: prod?.descricao ?? "",
-      preco_custo: precoCusto,
-      qtde_cortada: qtdeCortada,
-      custo_total_item: precoCusto * qtdeCortada,
-      motivo: mot?.descricao ?? "—",
-      usuario: usr?.login ?? "—",
-      solicitante: r.solicitante?.login ?? "—",
-      metodo: r.autorizacao?.metodo ?? "",
-      autorizado_em: r.autorizado_em,
-    };
+  const data = await fetchAllRpcRows("fn_relatorio_cortes", {
+    p_tenant_id: filters.tenant_id,
+    p_empresa_id: filters.empresa_id,
+    p_data_inicio: filters.data_inicio,
+    p_data_fim: filters.data_fim,
+    p_motivo_ids: filters.motivo_ids?.length ? filters.motivo_ids : null,
+    p_usuario_autorizou_id: filters.usuario_autorizou_id ?? null,
+    p_sku: filters.sku?.trim() || null,
+    p_tem_saldo: filters.tem_saldo ?? null,
   });
 
-  // Client-side SKU filter
-  if (filters.sku) {
-    const skuLower = filters.sku.toLowerCase();
-    rows = rows.filter((r) => r.sku.toLowerCase().includes(skuLower));
-  }
+  return data.map((r: any) => ({
+    ...r,
+    numero_onda: Number(r.numero_onda ?? 0),
+    qtde_cortada: Number(r.qtde_cortada ?? 0),
+    preco_custo: Number(r.preco_custo ?? 0),
+    custo_total: Number(r.custo_total ?? 0),
+    saldo_disponivel_no_corte:
+      r.saldo_disponivel_no_corte == null ? null : Number(r.saldo_disponivel_no_corte),
+  })) as CorteRow[];
+}
 
-  return rows;
+/** Extrai a mensagem amigável de erros da RPC no formato "CODIGO: texto". */
+export function extrairMensagemErroCortes(err: unknown): string {
+  const msg = (err as { message?: string })?.message ?? "";
+  const match = /^[A-Z_]+:\s*(.+)$/.exec(msg);
+  return match ? match[1] : "Erro ao gerar relatório.";
+}
+
+export interface MotivoCorteOption {
+  descricao: string;
+  motivo_ids: string[];
+  ativo: boolean;
+}
+
+/**
+ * Opções do filtro de motivo: todos os motivos da etapa SEPARAÇÃO
+ * (inclusive inativos), já agrupados por descrição pelo backend.
+ */
+export async function fetchMotivosCorte(tenantId: string): Promise<MotivoCorteOption[]> {
+  const { data } = await (supabase as any).rpc("fn_relatorio_cortes_motivos", {
+    p_tenant_id: tenantId,
+  });
+  return (data ?? []) as MotivoCorteOption[];
 }
 
 export async function fetchUsuariosTenant(tenantId: string): Promise<{ id: string; login: string; nome: string | null }[]> {
@@ -104,15 +96,3 @@ export const METODO_CORTE_LABELS: Record<string, string> = {
   DISPENSADA: "Regra desligada",
 };
 export const labelMetodoCorte = (m?: string | null) => (m && METODO_CORTE_LABELS[m]) || (m ? m : "—");
-
-export async function fetchMotivosOcorrencia(tenantId: string, armazemId?: string | null) {
-  let q = supabase
-    .from("motivo_ocorrencia")
-    .select("id, descricao")
-    .eq("tenant_id", tenantId)
-    .eq("ativo", true)
-    .order("descricao");
-  if (armazemId) q = q.eq("armazem_id", armazemId);
-  const { data } = await q;
-  return data ?? [];
-}
