@@ -58,6 +58,7 @@ export function CurvaAbcReportPage() {
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [generatedAt, setGeneratedAt] = useState("");
+  const [filtrosGerados, setFiltrosGerados] = useState<Record<string, string> | null>(null);
   const [showFilters, setShowFilters] = useState(true);
 
   const [dataInicio, setDataInicio] = useState(def.inicio);
@@ -98,6 +99,7 @@ export function CurvaAbcReportPage() {
     setResumo(null);
     setGenerated(false);
     setGeneratedAt("");
+    setFiltrosGerados(null);
     setFilterArmazemId(""); setFilterGrupoId(""); setFilterSubgrupoId("");
   }, [empresaId, empresaVersion]);
 
@@ -129,6 +131,7 @@ export function CurvaAbcReportPage() {
       const result = await fetchCurvaAbcReport(filters);
       setResumo(result.resumo);
       setData(result.itens);
+      setFiltrosGerados(montarFiltrosAtivos());
       setGeneratedAt(nowDisplay());
       setGenerated(true);
     } catch (err: any) {
@@ -146,10 +149,16 @@ export function CurvaAbcReportPage() {
     setFilterMarca(""); setFilterSku(""); setFilterClasse("");
   };
 
+  // Parâmetros exibidos: depois de gerar, refletem o resumo retornado pela RPC;
+  // antes de gerar, refletem o estado atual dos campos.
+  const criterioExib: CurvaAbcCriterio = resumo?.criterio ?? criterio;
+  const limiteAExib = resumo ? Math.round(resumo.limite_a * 100) : limiteA;
+  const limiteBExib = resumo ? Math.round(resumo.limite_b * 100) : limiteB;
+
   const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
   const fmtNum = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
   const fmtBRL = (v: number) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const fmtMetrica = (v: number) => (criterio === "VALOR" ? fmtBRL(v) : fmtNum(v));
+  const fmtMetrica = (v: number) => (criterioExib === "VALOR" ? fmtBRL(v) : fmtNum(v));
 
   const classeCores: Record<"A" | "B" | "C", string> = {
     A: "bg-[hsl(var(--status-free))]/15 text-[hsl(var(--status-free))] border-[hsl(var(--status-free))]/30",
@@ -167,7 +176,7 @@ export function CurvaAbcReportPage() {
     ACESSOS: "acessos",
   };
   const destaqueCriterio = (key: string) =>
-    key === colunaCriterio[criterio] ? "font-bold text-primary" : undefined;
+    key === colunaCriterio[criterioExib] ? "font-bold text-primary" : undefined;
 
   const columns: ReportColumn[] = [
     { key: "posicao", label: "Pos.", align: "right", width: "60px" },
@@ -193,17 +202,20 @@ export function CurvaAbcReportPage() {
     { key: "classe", label: "Classe", align: "center", width: "70px", render: (v) => classeBadge(v) },
   ];
 
-  const activeFilters: Record<string, string> = {
-    Período: `${dataInicio} → ${dataFim}`,
-    Critério: CRITERIO_OPTIONS.find((c) => c.value === criterio)?.label || criterio,
-    Limites: `A ${limiteA}% · B ${limiteB}%`,
+  const montarFiltrosAtivos = (): Record<string, string> => {
+    const f: Record<string, string> = {
+      Período: `${dataInicio} → ${dataFim}`,
+      Critério: CRITERIO_OPTIONS.find((c) => c.value === criterio)?.label || criterio,
+      Limites: `A ${limiteA}% · B ${limiteB}%`,
+    };
+    if (filterArmazemId) f["Armazém"] = armazens.find((a) => a.id === filterArmazemId)?.descricao || filterArmazemId;
+    if (filterGrupoId) f["Grupo"] = grupos.find((g) => g.id === filterGrupoId)?.descricao || filterGrupoId;
+    if (filterSubgrupoId) f["Subgrupo"] = subgrupos.find((s) => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
+    if (filterMarca) f["Marca"] = filterMarca;
+    if (filterSku) f["SKU"] = filterSku;
+    if (filterClasse) f["Classe"] = filterClasse;
+    return f;
   };
-  if (filterArmazemId) activeFilters["Armazém"] = armazens.find((a) => a.id === filterArmazemId)?.descricao || filterArmazemId;
-  if (filterGrupoId) activeFilters["Grupo"] = grupos.find((g) => g.id === filterGrupoId)?.descricao || filterGrupoId;
-  if (filterSubgrupoId) activeFilters["Subgrupo"] = subgrupos.find((s) => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
-  if (filterMarca) activeFilters["Marca"] = filterMarca;
-  if (filterSku) activeFilters["SKU"] = filterSku;
-  if (filterClasse) activeFilters["Classe"] = filterClasse;
 
   const exportColumns: ExportColumn[] = [
     { key: "posicao", label: "Pos.", align: "right", format: (r) => String(r.posicao) },
@@ -225,7 +237,7 @@ export function CurvaAbcReportPage() {
     exportToPdf("curva_abc", exportColumns, data, {
       title: "Curva ABC",
       generatedAt, usuario: usuarioNome || "—",
-      total: data.length, filters: activeFilters,
+      total: data.length, filters: filtrosGerados ?? {},
     });
   const handlePrint = () => window.print();
 
@@ -233,10 +245,10 @@ export function CurvaAbcReportPage() {
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
         title="Curva ABC de Estoque"
-        subtitle={`Classificação por ${CRITERIO_SUBTITULO[criterio]} no período — A ≤ ${limiteA}% · B ≤ ${limiteB}%`}
+        subtitle={`Classificação por ${CRITERIO_SUBTITULO[criterioExib]} no período — A ≤ ${limiteAExib}% · B ≤ ${limiteBExib}%`}
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
-        filters={generated ? activeFilters : undefined}
+        filters={generated ? (filtrosGerados ?? undefined) : undefined}
         onExportExcel={canExport ? handleExcel : undefined}
         onExportPdf={canExport ? handlePdf : undefined}
         onPrint={canExport ? handlePrint : undefined}
@@ -353,7 +365,7 @@ export function CurvaAbcReportPage() {
                 <div key={classe} className={cn("border rounded-lg p-3 space-y-1", classeCores[classe])}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold">Classe {classe}</span>
-                    <span className="text-xs font-semibold">{fmtPct(c.participacao)} do {CRITERIO_ROTULO[criterio]}</span>
+                    <span className="text-xs font-semibold">{fmtPct(c.participacao)} do {CRITERIO_ROTULO[criterioExib]}</span>
                   </div>
                   <div className="text-xs">
                     {fmtNum(c.skus)} SKU(s) · {fmtPct(pctSkus)} dos SKUs
@@ -366,7 +378,7 @@ export function CurvaAbcReportPage() {
           <p className="text-[11px] text-muted-foreground">
             Saída líquida: {fmtNum(resumo.total_qtd_saida)} un · Estornado no período: {fmtNum(resumo.total_qtd_estornada)} un · {fmtNum(resumo.skus_100_estornados)} SKU(s) 100% estornados fora da curva
           </p>
-          {criterio === "VALOR" && resumo.skus_sem_custo > 0 && (
+          {criterioExib === "VALOR" && resumo.skus_sem_custo > 0 && (
             <div className="flex items-center gap-2 text-xs text-[hsl(var(--status-busy))]">
               <AlertTriangle size={13} />
               {fmtNum(resumo.skus_sem_custo)} SKU(s) sem preço de custo foram considerados com valor zero.
