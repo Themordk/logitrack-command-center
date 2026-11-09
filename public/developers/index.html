@@ -132,6 +132,7 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .met { font: 600 11px/1 var(--mono); padding: 5px 7px; border-radius: 5px; border: 1px solid currentColor; }
 .met.GET { color: var(--get); } .met.POST { color: var(--post); } .met.PATCH { color: var(--patch); }
 .http { font: 500 12px var(--mono); padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line-2); color: var(--ink-2); white-space: nowrap; }
+.quando-ctx { color: var(--ink-3); font: 12.5px var(--mono); margin: -4px 0 6px; }
 .chip { display: inline-block; font: 500 12.5px var(--mono); padding: 4px 9px; border-radius: 6px; background: var(--blue-wash); color: var(--ink); border: 1px solid var(--line); margin: 3px 5px 3px 0; }
 
 #referencia-host { min-height: 70vh; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
@@ -172,8 +173,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   </a>
   <span class="selo">Developers</span>
   <span class="esp"></span>
-  <span class="pill ok" id="versao-api">API v1.12.0</span>
-  <span class="pill gw">Gateway 1.21</span>
+  <span class="pill ok" id="versao-api">API v1.14.0</span>
+  <span class="pill gw">Gateway 1.23</span>
   <button class="icone-bt" id="tema-bt" type="button" aria-label="Alternar tema claro e escuro">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
     <span id="tema-rotulo">Claro</span>
@@ -219,7 +220,7 @@ try {
   document.getElementById('menu-bt').onclick = (ev) => { const f = nav.classList.toggle('fechado'); ev.currentTarget.setAttribute('aria-expanded', String(!f)); };
 
   const main = document.getElementById('conteudo');
-  const RODAPE = `<footer class="rodape"><span>CORE LogiTrack · API v${esc(D.spec.info.version)}</span><span>Atualizado em 28/10/2026</span><span class="esp" style="flex:1"></span><span class="lema">Transformando operações em resultados reais</span></footer>`;
+  const RODAPE = `<footer class="rodape"><span>CORE LogiTrack · API v${esc(D.spec.info.version)}</span><span>Atualizado em 09/11/2026</span><span class="esp" style="flex:1"></span><span class="lema">Transformando operações em resultados reais</span></footer>`;
   document.getElementById('marca').onclick = (ev) => { ev.preventDefault(); ir('inicio'); };
 
   // Tema: escuro é o padrão da marca; a escolha do visitante fica salva neste navegador.
@@ -288,9 +289,13 @@ try {
         </tbody></table></div></div>`;
     },
     valores() {
+      const bloco = (c) => `<h3><code>${esc(c.categoria)}</code></h3>${c.contexto ? `<p class="quando-ctx">${esc(c.contexto)}</p>` : ''}
+        <div class="tabela"><table><thead><tr><th>Valor</th><th>Significado</th></tr></thead><tbody>
+        ${c.valores.map(v => `<tr><td><code>${esc(v.valor)}</code></td><td>${esc(v.descricao)}</td></tr>`).join('')}</tbody></table></div>`;
       return `<div class="leitura"><h1>Valores aceitos</h1>
-        <p class="lead">Campos de lista fechada. Envie exatamente estes valores, em maiúsculas; qualquer outro é recusado.</p>
-        ${Object.entries(D.enums).map(([k, vs]) => `<h2><code>${esc(k)}</code></h2><div>${vs.map(v => `<span class="chip">${esc(v)}</span>`).join('')}</div>`).join('')}
+        <p class="lead">Campos de lista fechada. Nos campos que você envia, use exatamente estes valores; qualquer outro é recusado.</p>
+        <h2>Valores que você envia</h2>${D.enums.filter(c => c.entrada).map(bloco).join('')}
+        <h2>Valores que a API devolve</h2>${D.enums.filter(c => !c.entrada).map(bloco).join('')}
       </div>`;
     },
     webhooks() {

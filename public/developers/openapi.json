@@ -2,7 +2,7 @@
 "openapi": "3.1.0",
 "info": {
 "title": "CORE LogiTrack — API de Integração",
-"version": "1.12.0",
+"version": "1.14.0",
 "summary": "API REST para ERPs enviarem cadastros e movimentos ao WMS CORE LogiTrack.",
 "description": "## Sobre o CORE LogiTrack\n\nO **CORE LogiTrack** é uma plataforma WMS (Warehouse Management System) SaaS multi-tenant projetada para gestão operacional de centros de distribuição. O sistema é orientado a tarefas com rastreabilidade completa de todas as operações.\n\nEsta documentação detalha a **API REST** que permite ao sistema ERP enviar dados mestres e movimentos para o CORE LogiTrack, estabelecendo a integração bidirecional entre os sistemas.\n\n## Arquitetura da Integração\n\nA integração segue o modelo API REST onde o **ERP envia dados para o CORE LogiTrack** através de endpoints HTTP. O ERP é o sistema de origem dos dados mestres (produtos, parceiros, pedidos, notas fiscais) e o WMS é o sistema que recebe e processa esses dados para a operação logística.\n\n| Aspecto | Detalhe |\n|---------|---------|\n| **Direção do fluxo** | ERP → WMS (o ERP envia, o WMS recebe e processa) |\n| **Protocolo** | HTTPS com payloads JSON |\n| **Autenticação** | API Key por tenant no header `x-api-key` |\n| **Idempotência** | Via campo `codigo_erp` (upsert automático) |\n\n## Etapas da Integração\n\nA integração é dividida em **duas etapas sequenciais**. A Etapa 1 deve ser concluída antes da Etapa 2 porque os movimentos referenciam cadastros mestres.\n\n| Etapa | Direção | Descrição | Frequência |\n|-------|---------|-----------|------------|\n| **1. Dados Mestres** | ERP → WMS | Cadastros: parceiros, produtos, grupos, rotas, tipos | Sob demanda / diária |\n| **2. Movimentos** | ERP → WMS | Documentos de entrada (NF) e saída (pedidos) | Sob demanda / tempo real |\n\n> **Importante:** Todos os dados mestres referenciados pelos movimentos (parceiros, produtos, tipos de entrada/saída) devem existir previamente no WMS antes do envio de documentos.\n\n## Modelo Multi-Tenant\n\nO CORE LogiTrack opera com isolamento completo entre tenants. Cada API Key está vinculada a uma **conexão de integração** que identifica automaticamente o `tenant_id` e `empresa_id`. Os dados de um tenant jamais são acessíveis por outro.",
 "contact": {
@@ -58,6 +58,10 @@
 "description": "Pedidos e ordens de saída com itens, alterações e cancelamento."
 },
 {
+"name": "Notas fiscais de saída",
+"description": "NF-e e NFC-e emitidas para o pedido: registro, cancelamento e consulta."
+},
+{
 "name": "Sistema",
 "description": "Disponibilidade da API."
 }
@@ -79,7 +83,8 @@
 "name": "Movimentos",
 "tags": [
 "Documentos de entrada (NF)",
-"Documentos de saída (pedidos)"
+"Documentos de saída (pedidos)",
+"Notas fiscais de saída"
 ]
 },
 {
@@ -213,18 +218,25 @@
 "code": {
 "type": "string",
 "enum": [
+"ALTERACAO_ERROR",
 "AMBIGUOUS_DOCUMENT",
+"ANALISE_DESATUALIZADA",
 "AUTH_INVALID",
 "AUTH_MISSING",
 "CANCELAMENTO_NAO_PERMITIDO",
 "CANCEL_ERROR",
+"CHAVE_ACESSO_INVALIDA",
 "CONFERENCIA_INICIADA",
 "CONFIGURACAO_INCOMPLETA",
+"CONSULTA_ERROR",
 "DELETE_ERROR",
 "DELETE_FAILED",
 "DOCUMENTO_DUPLICADO",
+"DOCUMENTO_ENCERRADO",
+"DOCUMENTO_NAO_ENCONTRADO",
 "DOCUMENTO_SEM_ITENS",
 "DOCUMENT_LOCKED",
+"FINALIDADE_NAO_SUPORTADA",
 "IDEMPOTENCY_KEY_REUSED",
 "ID_ALTERACAO_CONFLICT",
 "INTERNAL_ERROR",
@@ -232,12 +244,21 @@
 "INVALID_PAYLOAD",
 "ITEMS_INVALID",
 "ITEM_ERROR",
+"ITEM_NAO_ENCONTRADO",
 "METHOD_NOT_ALLOWED",
+"NF_NAO_ENCONTRADA",
+"NF_VINCULADA_OUTRO_DOCUMENTO",
 "NOT_FOUND",
+"POSICAO_ERROR",
+"QUANTIDADE_EXCEDE_DEVOLVIVEL",
+"QUANTIDADE_EXCEDE_VIGENTE",
+"QUANTIDADE_INVALIDA",
 "RATE_LIMITED",
 "RETRY_LATER",
 "ROUTE_NOT_FOUND",
+"SITUACAO_NAO_PERMITIDA",
 "VALIDATION_ERROR",
+"VERSAO_CONFLITO",
 "VOLUME_EXPEDICAO_EXISTENTE"
 ]
 },
@@ -4548,8 +4569,8 @@ true
 "tags": [
 "Documentos de saída (pedidos)"
 ],
-"summary": "Cancelar pedido de saída (com estorno da separação)",
-"description": "Cancela o pedido no WMS na mesma chamada. Desfaz o que já aconteceu na expedição conforme a etapa: cancela tarefas, retira o pedido da onda e estorna o que já foi coletado para o endereço de cancelamento do armazém (mesmo movimento do botão Limpar separação, com lote, validade, fabricação e HU preservados). A partir da conferência o cancelamento é recusado. Aceita PATCH ou POST.\n\nAceita **PATCH** ou **POST** (clientes que não suportam PATCH). O corpo é **opcional**: pode ser vazio ou trazer `motivo` e `solicitado_por`.\r\n\r\n**O que acontece em cada etapa do pedido**\r\n\r\n| Etapa do pedido no WMS | Resultado | O que o WMS faz |\r\n|---|---|---|\r\n| Sem onda (status 0) | 200 `cancelled` | Cancela o pedido |\r\n| Onda gerada (CRIADA) ou liberada (LIBERADO) | 200 `cancelled` | Cancela as tarefas do pedido. Onda só com este pedido é cancelada; com outros pedidos, só a parte deste sai da onda |\r\n| Em separação (EM_PICKING) ou separado (SEPARADO) | 200 `cancelled` | Igual acima e estorna o que já foi coletado para o endereço de cancelamento. Cria a tarefa de retirada física (PED-CAN) para o operador levar o produto até lá |\r\n| Em conferência, conferido, em carregamento, concluído ou exportado | 422 `CANCELAMENTO_NAO_PERMITIDO` | Nada. Estorne a conferência no WMS ou trate como devolução no ERP |\r\n\r\n**Recusas que valem em qualquer etapa permitida:** volumes de expedição já gerados → 422 `VOLUME_EXPEDICAO_EXISTENTE`; conferência da onda já iniciada → 422 `CONFERENCIA_INICIADA`; endereço de cancelamento não configurado e há coleta → 422 `CONFIGURACAO_INCOMPLETA`.\r\n\r\n**Cancelamento imediato:** em caso de sucesso o pedido fica cancelado (status 9) na mesma chamada e o saldo já está estornado. O 202 não é mais usado. A retirada física (PED-CAN) é acompanhada em `GET /{codigo_erp}/cancel-status`, sem efeito para o ERP.\r\n\r\n**Coleta em andamento:** se um operador estiver gravando uma coleta do pedido no mesmo instante, a API responde 409 `RETRY_LATER` com o header `Retry-After` (segundos). Repita a chamada. A tarefa do operador é cancelada e a próxima leitura dele no coletor recebe `TAREFA_CANCELADA`.\r\n\r\n**Idempotência:** cancelar um pedido já cancelado responde 200 `already_cancelled`. Com o header `Idempotency-Key` (até 100 caracteres), a mesma chave devolve exatamente a mesma resposta da primeira chamada, inclusive recusas. Use uma chave nova a cada tentativa nova depois de uma recusa resolvida no WMS.\r\n\r\n**Rastreabilidade:** toda chamada, aceita ou recusada, gera um registro de auditoria (`cancelamento_id`) e, quando há mudança na operação, uma ocorrência no WMS (`numero_ocorrencia`).\r\n\r\n**`id_alteracao` (v1.8):** sem parâmetro, atua sobre o **documento original**. Para uma alteração específica use `?id_alteracao=ALT-2`. Sem `?id_alteracao`, se o documento só existir como alteração e ela já estiver cancelada, a resposta é 200 `already_cancelled` (desde a v1.12).\n\nTambém aceito como **POST** na mesma rota (clientes sem suporte a PATCH).",
+"summary": "Cancelar pedido de saída (estorno da separação ou devolução do que já foi retirado)",
+"description": "Cancela o pedido no WMS na mesma chamada. Desfaz o que já aconteceu na expedição conforme a etapa: cancela tarefas, retira o pedido da onda e estorna o que já foi coletado para o endereço de cancelamento do armazém. A partir da conferência, o resultado depende do tipo de saída: nos tipos configurados para \"devolver\" (ex.: OS de oficina), o WMS zera o documento e abre a devolução do que já foi retirado; nos demais, o cancelamento é recusado. Aceita PATCH ou POST.\n\nAceita **PATCH** ou **POST** (clientes que não suportam PATCH). O corpo é **opcional**: pode ser vazio ou trazer `motivo` e `solicitado_por`.\r\n\r\n**O que acontece em cada etapa do pedido**\r\n\r\n| Etapa do pedido no WMS | Resultado | O que o WMS faz |\r\n|---|---|---|\r\n| Sem onda (status 0) | 200 `cancelled` | Cancela o pedido |\r\n| Onda gerada (CRIADA) ou liberada (LIBERADO) | 200 `cancelled` | Cancela as tarefas do pedido. Onda só com este pedido é cancelada; com outros pedidos, só a parte deste sai da onda |\r\n| Em separação (EM_PICKING) ou separado (SEPARADO) | 200 `cancelled` | Igual acima e estorna o que já foi coletado para o endereço de cancelamento. Cria a tarefa de retirada física (PED-CAN) para o operador levar o produto até lá |\r\n| Em conferência, conferido, em carregamento, concluído ou exportado — tipo de saída que **recusa** (padrão) | 422 `CANCELAMENTO_NAO_PERMITIDO` | Nada. Estorne a conferência no WMS ou trate como devolução no ERP |\r\n| Em conferência — tipo de saída que **devolve** | 200 `cancellation_in_progress` | Aceito; o WMS conclui sozinho quando a conferência terminar |\r\n| Conferido, em carregamento, concluído ou exportado — tipo de saída que **devolve** | 200 `cancelled` com `modo: devolucao` | Zera o documento: o conferido/expedido vira devolução aguardando recebimento e o restante é estornado. A resposta traz o bloco `alteracao` com a decomposição por item |\r\n\r\n**Recusas que valem em qualquer etapa permitida:** volumes de expedição já gerados → 422 `VOLUME_EXPEDICAO_EXISTENTE`; conferência da onda já iniciada → 422 `CONFERENCIA_INICIADA`; endereço de cancelamento não configurado e há coleta → 422 `CONFIGURACAO_INCOMPLETA`.\r\n\r\n**Cancelamento imediato:** em caso de sucesso o pedido fica cancelado (status 9) na mesma chamada e o saldo já está estornado. O 202 não é mais usado. A retirada física (PED-CAN) é acompanhada em `GET /{codigo_erp}/cancel-status`, sem efeito para o ERP.\r\n\r\n**Coleta em andamento:** se um operador estiver gravando uma coleta do pedido no mesmo instante, a API responde 409 `RETRY_LATER` com o header `Retry-After` (segundos). Repita a chamada. A tarefa do operador é cancelada e a próxima leitura dele no coletor recebe `TAREFA_CANCELADA`.\r\n\r\n**Idempotência:** cancelar um pedido já cancelado responde 200 `already_cancelled`. Com o header `Idempotency-Key` (até 100 caracteres), a mesma chave devolve exatamente a mesma resposta da primeira chamada, inclusive recusas. Use uma chave nova a cada tentativa nova depois de uma recusa resolvida no WMS.\r\n\r\n**Cancelamento com devolução (v1.13):** a regra é configurada por tipo de saída (`cancelamento_conferido`: `RECUSAR` padrão ou `DEVOLVER`). Reenviar o cancelamento responde `already_cancelled` e não abre uma segunda devolução. Para voltar uma conexão ao comportamento anterior, o suporte usa `config_extra.cancelamento_saida_v3 = false`.\r\n\r\n**Rastreabilidade:** toda chamada, aceita ou recusada, gera um registro de auditoria (`cancelamento_id`) e, quando há mudança na operação, uma ocorrência no WMS (`numero_ocorrencia`).\r\n\r\n**`id_alteracao` (v1.8):** sem parâmetro, atua sobre o **documento original**. Para uma alteração específica use `?id_alteracao=ALT-2`. Sem `?id_alteracao`, se o documento só existir como alteração e ela já estiver cancelada, a resposta é 200 `already_cancelled` (desde a v1.12).",
 "x-versao-desde": "1.0.0",
 "parameters": [
 {
@@ -4625,24 +4646,6 @@ true
 "success": true
 }
 },
-"tentar_novamente": {
-"summary": "Coleta sendo gravada no mesmo instante: repita após alguns segundos (HTTP 409, header Retry-After: 3)",
-"value": {
-"data": {
-"codigo": "RETRY_LATER",
-"status": "retry_later",
-"message": "O pedido está sendo usado por outra operação neste instante (ex.: coleta sendo gravada). Tente novamente em alguns segundos.",
-"success": false,
-"codigo_erp": "PED-2026-005678",
-"retry_after_ms": 3000
-},
-"error": {
-"code": "RETRY_LATER",
-"message": "O pedido está sendo usado por outra operação neste instante..."
-},
-"success": false
-}
-},
 "cancelado_sem_onda": {
 "summary": "Pedido ainda sem onda: cancelado, nada a desfazer (HTTP 200)",
 "value": {
@@ -4669,27 +4672,6 @@ true
 "request_id": "uuid",
 "processing_ms": 180
 }
-}
-},
-"recusado_conferencia": {
-"summary": "Pedido em conferência ou adiante: recusado, nada é alterado (HTTP 422)",
-"value": {
-"data": {
-"codigo": "CANCELAMENTO_NAO_PERMITIDO",
-"status": "cancellation_rejected",
-"message": "Pedido #5678 está na onda #808 em EM_CONFERENCIA. A partir da conferência o cancelamento pela integração não é permitido: faça o estorno no WMS ou trate como devolução no ERP.",
-"success": false,
-"tipo_onda": "PEDIDO_UNICO",
-"codigo_erp": "PED-2026-005678",
-"onda_numero": 808,
-"cancelamento_id": "uuid",
-"estagio_encontrado": "EM_CONFERENCIA"
-},
-"error": {
-"code": "CANCELAMENTO_NAO_PERMITIDO",
-"message": "Pedido #5678 está na onda #808 em EM_CONFERENCIA. ..."
-},
-"success": false
 }
 },
 "cancelado_com_estorno": {
@@ -4729,6 +4711,114 @@ true
 }
 }
 },
+"cancelado_com_devolucao": {
+"summary": "OS já conferida, tipo de saída que devolve: cancelada e o retirado vira devolução (HTTP 200)",
+"value": {
+"data": {
+"modo": "devolucao",
+"status": "cancelled",
+"message": "Pedido #4521 cancelado. O que já tinha sido retirado virou devolução aguardando recebimento.",
+"success": true,
+"alteracao": {
+"itens": [
+{
+"variacao": -4,
+"resolucao": {
+"estorno": 1,
+"devolucao": 3
+},
+"codigo_erp_produto": "PRD-2040",
+"quantidade_vigente": 0,
+"quantidade_vigente_antes": 4
+}
+],
+"status": "applied",
+"devolucao": {
+"status": "aguardando_recebimento",
+"codigo_erp": "WMS-DEV-OS-4521"
+},
+"id_alteracao": "CANCEL-1f0c...",
+"documento_cancelado": true
+},
+"codigo_erp": "OS-4521",
+"numero_pedido": 4521,
+"cancelamento_id": "uuid"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"description": "Conflito — repita após Retry-After ou informe ?id_alteracao.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"tentar_novamente": {
+"summary": "Coleta sendo gravada no mesmo instante: repita após alguns segundos (HTTP 409, header Retry-After: 3)",
+"value": {
+"data": {
+"codigo": "RETRY_LATER",
+"status": "retry_later",
+"message": "O pedido está sendo usado por outra operação neste instante (ex.: coleta sendo gravada). Tente novamente em alguns segundos.",
+"success": false,
+"codigo_erp": "PED-2026-005678",
+"retry_after_ms": 3000
+},
+"error": {
+"code": "RETRY_LATER",
+"message": "O pedido está sendo usado por outra operação neste instante..."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"422": {
+"description": "Regra de negócio impediu a operação.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"recusado_conferencia": {
+"summary": "Pedido em conferência ou adiante: recusado, nada é alterado (HTTP 422)",
+"value": {
+"data": {
+"codigo": "CANCELAMENTO_NAO_PERMITIDO",
+"status": "cancellation_rejected",
+"message": "Pedido #5678 está na onda #808 em EM_CONFERENCIA. A partir da conferência o cancelamento pela integração não é permitido: faça o estorno no WMS ou trate como devolução no ERP.",
+"success": false,
+"tipo_onda": "PEDIDO_UNICO",
+"codigo_erp": "PED-2026-005678",
+"onda_numero": 808,
+"cancelamento_id": "uuid",
+"estagio_encontrado": "EM_CONFERENCIA"
+},
+"error": {
+"code": "CANCELAMENTO_NAO_PERMITIDO",
+"message": "Pedido #5678 está na onda #808 em EM_CONFERENCIA. ..."
+},
+"success": false
+}
+},
 "configuracao_incompleta": {
 "summary": "Armazém sem endereço de cancelamento configurado e há itens coletados (HTTP 422)",
 "value": {
@@ -4750,29 +4840,13 @@ true
 }
 }
 },
-"400": {
-"$ref": "#/components/responses/E400"
-},
-"401": {
-"$ref": "#/components/responses/E401"
-},
-"404": {
-"$ref": "#/components/responses/E404"
-},
-"409": {
-"$ref": "#/components/responses/E409"
-},
-"422": {
-"$ref": "#/components/responses/E422"
-},
 "429": {
 "$ref": "#/components/responses/E429"
 },
 "500": {
 "$ref": "#/components/responses/E500"
 }
-},
-"x-aceita-post": true
+}
 }
 },
 "/movements/documentos-saida/{codigo_erp}/cancel-status": {
@@ -5028,6 +5102,281 @@ true
 "$ref": "#/components/responses/E500"
 }
 }
+},
+"post": {
+"operationId": "post-movements-documentos-saida-por-codigo-alteracoes",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Alterar a OS: o WMS decide corte, estorno, devolução ou inclusão",
+"description": "Aplica uma alteração de itens na OS. Para cada unidade retirada, o WMS consome do estágio mais barato para o mais caro: apaga corte já existente, reduz o que ainda não foi separado, estorna para o endereço de cancelamento o que está separado aguardando conferência e, para o que já foi retirado pelo cliente, abre uma devolução que precisa ser recebida e conferida. Inclusões geram um novo documento da OS. A alteração é tudo ou nada.\n\n**Ordem de decisão por produto** (do mais barato ao mais caro; só desce enquanto ainda falta retirar):\n\n| Onde a unidade está | Chave em `resolucao` | O que o WMS faz | Volta ao estoque? |\n|---|---|---|---|\n| Já cortada na separação | `ja_cortado` | Apaga o corte | Não |\n| Não separada | `corte` | Reduz a OS e a tarefa de separação | Não (nunca saiu) |\n| Em coleta ou em conferência | `aguardando` | Espera terminar; resposta 202 `pending` e reprocessa a cada minuto | Ainda não |\n| Separada, aguardando conferência | `estorno` | Estorna para o endereço de cancelamento | Sim, no endereço de cancelamento |\n| Já retirada pelo cliente ou expedida | `devolucao` | Abre devolução que aguarda recebimento e conferência física | Sim, após a conferência |\n| Inclusão (quantidade positiva) | `inclusao` | Novo documento de saída da OS | — |\n\nA soma das chaves de `resolucao` é sempre igual à `variacao` pedida. Com vários documentos na OS, o mesmo estágio é percorrido em todos (do mais recente ao mais antigo) antes de descer ao próximo.\n\n**Respostas:** 200 `applied` · 200 `already_processed` (reenvio idêntico do mesmo `id_alteracao`, devolve o resultado original) · 202 `pending` · 400 `VALIDATION_ERROR` · 404 `NOT_FOUND` · 409 `VERSAO_CONFLITO` · 409 `ANALISE_DESATUALIZADA` · 422 `ITEM_NAO_ENCONTRADO`, `QUANTIDADE_INVALIDA`, `QUANTIDADE_EXCEDE_VIGENTE`, `DOCUMENTO_ENCERRADO`, `CONFIGURACAO_INCOMPLETA` · 500 `INTERNAL_ERROR` / `ALTERACAO_ERROR` (reenviar com o mesmo `id_alteracao` é seguro).\n\n**Retorno:** toda alteração aplicada emite o evento `saida.alteracao_aplicada`; quando há devolução, também `saida.devolucao_gerada`. O fluxo antigo (documento de entrada de devolução da OS) continua aceito e passa pelas mesmas regras.",
+"x-versao-desde": "1.13.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"id_alteracao": {
+"type": "string",
+"description": "Identificador único da alteração dentro da OS: 1 a 50 caracteres (letras, números, . _ - /). Número é aceito e tratado como texto.",
+"examples": [
+"ALT-3"
+]
+},
+"itens": {
+"type": "array",
+"items": {
+"type": "object"
+},
+"description": "Lista de produtos (1 a 500). Produto repetido é somado.",
+"examples": [
+"[...]"
+]
+},
+"itens[].codigo_erp_produto": {
+"type": "string",
+"description": "Código do produto no ERP (aceita também produto_codigo_erp, codigo_produto ou sku).",
+"examples": [
+"PRD-2040"
+]
+},
+"itens[].quantidade": {
+"type": "number",
+"description": "No modo delta: negativo retira, positivo inclui. No modo quantidade_final: total desejado (0 remove o item).",
+"examples": [
+-2
+]
+},
+"modo": {
+"type": "string",
+"description": "delta ou quantidade_final. Sem o campo, vale o padrão do tipo de saída (delta).",
+"enum": [
+"delta",
+"quantidade_final"
+],
+"examples": [
+"delta"
+]
+},
+"hash_analise": {
+"type": "string",
+"description": "hash_analise devolvido pela simulação. Se a OS mudou desde então, responde 409 ANALISE_DESATUALIZADA.",
+"examples": [
+"9b1c0f6e2a4d..."
+]
+}
+},
+"required": [
+"id_alteracao",
+"itens",
+"itens[].codigo_erp_produto",
+"itens[].quantidade"
+]
+},
+"example": {
+"modo": "delta",
+"itens": [
+{
+"quantidade": -2,
+"codigo_erp_produto": "PRD-2040"
+},
+{
+"quantidade": 1,
+"codigo_erp_produto": "PRD-0310"
+}
+],
+"id_alteracao": "ALT-3"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"aplicada": {
+"summary": "Alteração aplicada na hora (HTTP 200)",
+"value": {
+"data": {
+"modo": "delta",
+"itens": [
+{
+"sku": "FLT-310",
+"variacao": 1,
+"resolucao": {
+"inclusao": 1
+},
+"produto_id": "uuid",
+"codigo_erp_produto": "PRD-0310",
+"quantidade_vigente": 1,
+"quantidade_vigente_antes": 0
+},
+{
+"sku": "PST-100",
+"variacao": -2,
+"resolucao": {
+"estorno": 1,
+"devolucao": 1
+},
+"produto_id": "uuid",
+"codigo_erp_produto": "PRD-2040",
+"quantidade_vigente": 2,
+"quantidade_vigente_antes": 4
+}
+],
+"ondas": [
+"uuid"
+],
+"status": "applied",
+"inclusao": {
+"codigo_erp": "OS-4521-ALT-3",
+"id_alteracao": "ALT-ALT-3",
+"documento_saida_id": "uuid"
+},
+"devolucao": {
+"status": "aguardando_recebimento",
+"codigo_erp": "WMS-DEV-OS-4521",
+"id_alteracao": "WMS-ALT-3",
+"documento_entrada_id": "uuid"
+},
+"codigo_erp": "OS-4521",
+"documentos": [
+"uuid"
+],
+"alteracao_id": "uuid",
+"hash_analise": "9b1c0f6e2a4d...",
+"id_alteracao": "ALT-3",
+"numero_pedido": 4521,
+"pode_aplicar_agora": true
+},
+"success": true,
+"metadata": {
+"timestamp": "2026-11-02T15:00:00Z",
+"request_id": "uuid",
+"processing_ms": 420
+}
+}
+}
+}
+}
+}
+},
+"202": {
+"description": "Aceito; ainda não aplicado.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"pendente": {
+"summary": "Peça em coleta ou conferência: o WMS aplica sozinho quando terminar (HTTP 202)",
+"value": {
+"data": {
+"itens": [
+{
+"variacao": -2,
+"resolucao": {
+"aguardando": 2
+},
+"codigo_erp_produto": "PRD-2040"
+}
+],
+"status": "pending",
+"codigo_erp": "OS-4521",
+"alteracao_id": "uuid",
+"id_alteracao": "ALT-3",
+"pode_aplicar_agora": false
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"description": "Conflito — repita após Retry-After ou informe ?id_alteracao.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"conflito": {
+"summary": "Mesmo id_alteracao com outro conteúdo (HTTP 409)",
+"value": {
+"error": {
+"code": "VERSAO_CONFLITO",
+"message": "id_alteracao ALT-3 já foi usado com outro conteúdo nesta OS."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"422": {
+"description": "Regra de negócio impediu a operação.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"excede": {
+"summary": "Retirada maior que a OS: nada é aplicado (HTTP 422)",
+"value": {
+"error": {
+"code": "QUANTIDADE_EXCEDE_VIGENTE",
+"details": [
+{
+"variacao": -6,
+"codigo_erp_produto": "PRD-2040",
+"quantidade_vigente": 4
+}
+],
+"message": "Produto PRD-2040: a OS tem 4 e a alteração pede -6."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
 }
 },
 "/movements/documentos-saida/{codigo_erp}/delete": {
@@ -5154,6 +5503,1403 @@ true
 }
 },
 "x-aceita-post": true
+}
+},
+"/movements/documentos-saida/{codigo_erp}/posicao": {
+"get": {
+"operationId": "get-movements-documentos-saida-por-codigo-posicao",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Posição da OS inteira por produto",
+"description": "Mostra a situação atual da OS lógica (documento original + todas as alterações com o mesmo numero_pedido e tipo de saída), por produto: quanto está vigente, pendente, em coleta, separado, conferido, cortado, retirado, devolvido e quanto ainda pode ser devolvido. O {codigo_erp} pode ser o de qualquer documento da OS.\n\nSomente leitura.\n\n| Campo | Significado |\n|---|---|\n| `quantidade_vigente` | O que a OS pede hoje (todos os documentos, menos o que já virou devolução) |\n| `quantidade_faturavel` | Vigente menos o cortado |\n| `qtd_pendente` | Ainda não separado |\n| `qtd_em_coleta` | Coleta em andamento |\n| `qtd_separada_nao_conferida` | No box, aguardando conferência |\n| `qtd_conferida` | Conferido |\n| `qtd_cortada` | Cortado na separação (faltou) |\n| `qtd_retirada` | Já entregue ao cliente: conferido quando o tipo de saída tem `marco_retirada = CONFERENCIA` (OS de oficina); senão, só o expedido |\n| `qtd_devolvida` | Já devolvido por alteração ou devolução |\n| `qtd_devolvivel` | Retirado e ainda não devolvido: limite de `POST /devolucoes` |\n\n`alteracoes_pendentes` lista alterações aguardando o fim de uma coleta/conferência ou com erro.",
+"x-versao-desde": "1.13.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"data": {
+"itens": [
+{
+"sku": "PST-100",
+"produto": "Pastilha de freio dianteira",
+"produto_id": "uuid",
+"qtd_cortada": 0,
+"qtd_pendente": 1,
+"qtd_retirada": 2,
+"qtd_conferida": 2,
+"qtd_devolvida": 0,
+"qtd_em_coleta": 0,
+"qtd_devolvivel": 2,
+"codigo_erp_produto": "PRD-2040",
+"quantidade_vigente": 4,
+"quantidade_faturavel": 4,
+"qtd_separada_nao_conferida": 1
+}
+],
+"gerado_em": "2026-11-02T15:00:00Z",
+"codigo_erp": "OS-4521",
+"documentos": [
+{
+"onda": {
+"numero": 1010,
+"status": "EM_CONFERENCIA"
+},
+"status": 1,
+"totais": {},
+"codigo_erp": "OS-4521",
+"id_alteracao": null
+}
+],
+"tipo_saida": "TS-GAUD-OS",
+"numero_pedido": 4521,
+"marco_retirada": "CONFERENCIA",
+"alteracoes_pendentes": []
+},
+"success": true,
+"metadata": {
+"timestamp": "2026-11-02T15:00:00Z",
+"request_id": "uuid",
+"processing_ms": 95
+}
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-11-09T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/alteracoes/simular": {
+"post": {
+"operationId": "post-movements-documentos-saida-por-codigo-alteracoes-simular",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Simular uma alteração da OS (nada é gravado)",
+"description": "Recebe o mesmo corpo de POST /alteracoes e devolve o que o WMS faria com cada produto (corte, estorno, devolução, inclusão ou aguardar), sem gravar nada. Use ao abrir a edição da OS no ERP para avisar o usuário, por exemplo, que uma peça já foi retirada e que tirá-la abrirá uma devolução.\n\nNada é gravado e o `id_alteracao` é dispensável.\n\n- `pode_aplicar_agora = false` quando alguma unidade está em coleta ou conferência (`resolucao.aguardando`): aplicada agora, a alteração responderia 202 `pending`.\n- Envie o `hash_analise` no `POST /alteracoes` para garantir que a OS não mudou entre a simulação e a aplicação (senão: 409 `ANALISE_DESATUALIZADA`).\n- Erros de validação são os mesmos de `POST /alteracoes`.",
+"x-versao-desde": "1.13.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"itens": {
+"type": "array",
+"items": {
+"type": "object"
+},
+"description": "Lista de produtos (1 a 500).",
+"examples": [
+"[...]"
+]
+},
+"itens[].codigo_erp_produto": {
+"type": "string",
+"description": "Código do produto no ERP (aceita também produto_codigo_erp, codigo_produto ou sku).",
+"examples": [
+"PRD-2040"
+]
+},
+"itens[].quantidade": {
+"type": "number",
+"description": "No modo delta: negativo retira, positivo inclui. No modo quantidade_final: total desejado (0 remove o item).",
+"examples": [
+-2
+]
+},
+"modo": {
+"type": "string",
+"description": "delta ou quantidade_final. Sem o campo, vale o padrão do tipo de saída (delta).",
+"enum": [
+"delta",
+"quantidade_final"
+],
+"examples": [
+"delta"
+]
+},
+"id_alteracao": {
+"type": "string",
+"description": "Dispensável na simulação.",
+"examples": [
+"ALT-3"
+]
+}
+},
+"required": [
+"itens",
+"itens[].codigo_erp_produto",
+"itens[].quantidade"
+]
+},
+"example": {
+"modo": "delta",
+"itens": [
+{
+"quantidade": -2,
+"codigo_erp_produto": "PRD-2040"
+}
+]
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"data": {
+"modo": "delta",
+"itens": [
+{
+"sku": "PST-100",
+"variacao": -2,
+"resolucao": {
+"corte": 1,
+"estorno": 1
+},
+"produto_id": "uuid",
+"codigo_erp_produto": "PRD-2040",
+"quantidade_vigente": 2,
+"quantidade_vigente_antes": 4
+}
+],
+"status": "simulated",
+"codigo_erp": "OS-4521",
+"documentos": [
+"uuid"
+],
+"hash_analise": "9b1c0f6e2a4d...",
+"numero_pedido": 4521,
+"pode_aplicar_agora": true
+},
+"success": true,
+"metadata": {
+"timestamp": "2026-11-02T15:00:00Z",
+"request_id": "uuid",
+"processing_ms": 140
+}
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-11-09T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/alteracoes/{id_alteracao}": {
+"get": {
+"operationId": "get-movements-documentos-saida-por-codigo-alteracoes-por-id-alteracao",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Consultar a situação de uma alteração",
+"description": "Devolve a situação de uma alteração enviada por POST /alteracoes ou /devolucoes: aplicado, pendente ou erro, com o resultado detalhado por item.\n\nUse após um 202 `pending` para saber quando a alteração foi aplicada (ou acompanhe o evento `saida.alteracao_aplicada`).\n\n`situacao`: `aplicado` · `pendente` (aguardando o fim de uma coleta/conferência; o WMS tenta a cada minuto) · `erro` (ver `erro`).\n\nNão confundir com `GET /{codigo_erp}/alteracoes` (sem id), que lista o histórico de documentos enviados com `id_alteracao`.",
+"x-versao-desde": "1.13.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "path",
+"required": true,
+"description": "Identificador da alteração enviado pelo ERP (ex.: ALT-2).",
+"schema": {
+"type": "string"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"example": {
+"success": true,
+"data": {
+"data": {
+"erro": null,
+"situacao": "aplicado",
+"resultado": {
+"itens": [
+{
+"variacao": -2,
+"resolucao": {
+"estorno": 1,
+"devolucao": 1
+},
+"codigo_erp_produto": "PRD-2040",
+"quantidade_vigente": 2,
+"quantidade_vigente_antes": 4
+}
+],
+"devolucao": {
+"status": "aguardando_recebimento",
+"codigo_erp": "WMS-DEV-OS-4521"
+}
+},
+"codigo_erp": "OS-4521",
+"tentativas": 1,
+"recebida_em": "2026-11-02T15:00:00Z",
+"id_alteracao": "ALT-3",
+"processada_em": "2026-11-02T15:00:01Z"
+},
+"success": true,
+"metadata": {
+"timestamp": "2026-11-02T15:05:00Z",
+"request_id": "uuid",
+"processing_ms": 60
+}
+},
+"metadata": {
+"request_id": "3f1c…",
+"timestamp": "2026-11-09T12:00:00Z"
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/devolucoes": {
+"post": {
+"operationId": "post-movements-documentos-saida-por-codigo-devolucoes",
+"tags": [
+"Documentos de saída (pedidos)"
+],
+"summary": "Registrar devolução de peça já retirada",
+"description": "Abre uma devolução de produto que o cliente já retirou, limitada ao que saiu e ainda não foi devolvido (qtd_devolvivel da posição). O WMS gera um documento de entrada de devolução, com conferência física, aguardando recebimento. Opcional: POST /alteracoes já abre a devolução sozinho quando necessário.\n\nA quantidade é **positiva**. Acima do devolvível: 422 `QUANTIDADE_EXCEDE_DEVOLVIVEL` (nada é aplicado). Demais respostas iguais às de `POST /alteracoes`.\n\nA devolução gerada pelo WMS não existe no ERP: ela **não** emite eventos de entrada; o ERP é avisado pelo evento `saida.devolucao_gerada`, ligado à OS.",
+"x-versao-desde": "1.13.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"id_alteracao": {
+"type": "string",
+"description": "Identificador único dentro da OS (mesmas regras de POST /alteracoes).",
+"examples": [
+"DEV-1"
+]
+},
+"itens": {
+"type": "array",
+"items": {
+"type": "object"
+},
+"description": "Lista de produtos (1 a 500).",
+"examples": [
+"[...]"
+]
+},
+"itens[].codigo_erp_produto": {
+"type": "string",
+"description": "Código do produto no ERP.",
+"examples": [
+"PRD-2040"
+]
+},
+"itens[].quantidade": {
+"type": "number",
+"description": "Quantidade devolvida, sempre positiva.",
+"examples": [
+1
+]
+}
+},
+"required": [
+"id_alteracao",
+"itens",
+"itens[].codigo_erp_produto",
+"itens[].quantidade"
+]
+},
+"example": {
+"itens": [
+{
+"quantidade": 1,
+"codigo_erp_produto": "PRD-2040"
+}
+],
+"id_alteracao": "DEV-1"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"aplicada": {
+"summary": "Devolução aberta (HTTP 200)",
+"value": {
+"data": {
+"modo": "delta",
+"itens": [
+{
+"variacao": -1,
+"resolucao": {
+"devolucao": 1
+},
+"codigo_erp_produto": "PRD-2040",
+"quantidade_vigente": 3,
+"quantidade_vigente_antes": 4
+}
+],
+"status": "applied",
+"devolucao": {
+"status": "aguardando_recebimento",
+"codigo_erp": "WMS-DEV-OS-4521",
+"id_alteracao": "WMS-DEV-1",
+"documento_entrada_id": "uuid"
+},
+"codigo_erp": "OS-4521",
+"alteracao_id": "uuid",
+"id_alteracao": "DEV-1"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"description": "Regra de negócio impediu a operação.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"acima_do_devolvivel": {
+"summary": "Quantidade maior que a já retirada (HTTP 422)",
+"value": {
+"error": {
+"code": "QUANTIDADE_EXCEDE_DEVOLVIVEL",
+"message": "Produto PRD-2040: só 2 un podem ser devolvidas (já retiradas e ainda não devolvidas)."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/notas-fiscais": {
+"post": {
+"operationId": "post-movements-documentos-saida-por-codigo-notas-fiscais",
+"tags": [
+"Notas fiscais de saída"
+],
+"summary": "Registrar nota fiscal (NF-e/NFC-e) do pedido",
+"description": "Informa ao WMS a nota fiscal emitida para um documento de saída que o WMS já recebeu. Os dados ficam disponíveis para etiqueta de volumes, conferência de saída e consulta. O mesmo POST serve para reenviar a nota com dados novos (ex.: volumes); reenvio idêntico não grava nada. Um pedido pode ter mais de uma nota (faturamento parcial ou refaturamento). Para cancelar, prefira o PATCH de situação.\n\nRespostas: 201 `created` (nota nova), 200 `updated` (dados ou situação mudaram), 200 `already_processed` (nada mudou). Aceita `Idempotency-Key`.\n\nO pedido precisa existir no WMS antes da nota; se a nota chegar antes, a resposta é 404 `DOCUMENTO_NAO_ENCONTRADO` e o ERP deve reenviar depois. Pedido já cancelado no WMS aceita a nota e devolve o aviso `PEDIDO_CANCELADO_NO_WMS` em `data.avisos`.\n\n**Nota enviada como CANCELADA cancela o pedido no WMS** (separação desfeita, onda e pedido cancelados), como no cancelamento por NF do Omie. Se a onda já estiver em carregamento ou tiver outros pedidos, o pedido não é cancelado e o WMS abre ocorrência para decisão manual; o resultado vem em `data.cancelamento_pedido`. Configurável por conexão.\n\nSituação final não volta: nota CANCELADA, DENEGADA ou INUTILIZADA reenviada como AUTORIZADA dá 409 `SITUACAO_NAO_PERMITIDA`. A mesma chave em outro pedido dá 409 `NF_VINCULADA_OUTRO_DOCUMENTO`.",
+"x-versao-desde": "1.14.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Opcional. Vincula a nota à alteração informada. Sem o parâmetro, a nota fica no documento original (recomendado).",
+"schema": {
+"type": "string",
+"description": "Opcional. Vincula a nota à alteração informada. Sem o parâmetro, a nota fica no documento original (recomendado).",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"codigo_erp_nf": {
+"type": "string",
+"description": "ID da nota no ERP (até 60 caracteres). Opcional: sem ele, a nota é identificada pela chave de acesso; sem chave, por modelo-serie-numero. Use o mesmo valor em reenvios e no PATCH.",
+"examples": [
+"NF-998877"
+]
+},
+"modelo": {
+"type": "string",
+"description": "55 (NF-e) ou 65 (NFC-e). Aceita também NFE, NF-e, NFCE, NFC-e.",
+"enum": [
+"55",
+"65"
+],
+"examples": [
+"55"
+]
+},
+"numero_nf": {
+"type": "string",
+"description": "Número da nota, 1 a 9 dígitos (texto ou número).",
+"examples": [
+"12345"
+]
+},
+"serie": {
+"type": "string",
+"description": "Série, de 0 a 999 (texto ou número; \"001\" vira \"1\").",
+"examples": [
+"1"
+]
+},
+"chave_acesso": {
+"type": "string",
+"description": "Chave de 44 dígitos; pontos e espaços são removidos. O dígito verificador é conferido e o modelo da chave (posições 21-22) precisa ser igual ao campo modelo. Obrigatória quando situacao = AUTORIZADA ou CANCELADA.",
+"examples": [
+"23261112345678000190550010000123451000123455"
+]
+},
+"situacao": {
+"type": "string",
+"description": "AUTORIZADA, CANCELADA, DENEGADA ou INUTILIZADA (ver enum situacao_nf).",
+"enum": [
+"AUTORIZADA",
+"CANCELADA",
+"DENEGADA",
+"INUTILIZADA"
+],
+"examples": [
+"AUTORIZADA"
+]
+},
+"data_emissao": {
+"type": "string",
+"format": "date-time",
+"description": "Data e hora de emissão. Sem fuso, vale o horário de Brasília (-03:00).",
+"examples": [
+"2026-11-09T14:32:00-03:00"
+]
+},
+"data_saida": {
+"type": "string",
+"format": "date-time",
+"description": "Data e hora de saída da mercadoria.",
+"examples": [
+"2026-11-09T16:00:00-03:00"
+]
+},
+"data_cancelamento": {
+"type": "string",
+"format": "date-time",
+"description": "Obrigatória quando situacao = CANCELADA.",
+"examples": [
+"2026-11-10T09:12:00-03:00"
+]
+},
+"tipo_ambiente": {
+"type": "string",
+"description": "1 produção (padrão) ou 2 homologação. Nota de homologação é gravada como HOMOLOGACAO e não conta como nota do pedido.",
+"enum": [
+"1",
+"2"
+],
+"examples": [
+"1"
+]
+},
+"finalidade": {
+"type": "string",
+"description": "1 normal (padrão), 2 complementar, 3 ajuste. 4 (devolução) é recusada com 422 FINALIDADE_NAO_SUPORTADA.",
+"enum": [
+"1",
+"2",
+"3",
+"4"
+],
+"examples": [
+"1"
+]
+},
+"protocolo_autorizacao": {
+"type": "string",
+"description": "Protocolo de autorização da SEFAZ (1 a 20 dígitos).",
+"examples": [
+"123261234567890"
+]
+},
+"valor_total_nf": {
+"type": "number",
+"description": "Valor total da nota (≥ 0).",
+"examples": [
+1850.4
+]
+},
+"valor_produtos": {
+"type": "number",
+"description": "Valor dos produtos (≥ 0).",
+"examples": [
+1800
+]
+},
+"valor_frete": {
+"type": "number",
+"description": "Valor do frete (≥ 0).",
+"examples": [
+50.4
+]
+},
+"transportadora_codigo_erp": {
+"type": "string",
+"description": "Código da transportadora no ERP (até 60 caracteres).",
+"examples": [
+"TRANSP-15"
+]
+},
+"modalidade_frete": {
+"type": "string",
+"description": "Código SEFAZ de 0 a 9 (ver enum modalidade_frete).",
+"enum": [
+"0",
+"1",
+"2",
+"3",
+"4",
+"9"
+],
+"examples": [
+"0"
+]
+},
+"qtd_itens": {
+"type": "integer",
+"description": "Quantidade de itens da nota (≥ 1).",
+"examples": [
+3
+]
+},
+"qtd_volumes": {
+"type": "integer",
+"description": "Quantidade de volumes (≥ 0). Base da etiqueta \"volume X de N\".",
+"examples": [
+4
+]
+},
+"especie_volumes": {
+"type": "string",
+"description": "Espécie dos volumes (até 60 caracteres).",
+"examples": [
+"CAIXA"
+]
+},
+"peso_bruto": {
+"type": "number",
+"description": "Peso bruto em kg (≥ 0).",
+"examples": [
+62.5
+]
+},
+"peso_liquido": {
+"type": "number",
+"description": "Peso líquido em kg (≥ 0).",
+"examples": [
+58
+]
+}
+},
+"required": [
+"modelo",
+"numero_nf",
+"serie",
+"situacao",
+"data_emissao",
+"valor_total_nf"
+]
+},
+"example": {
+"serie": "1",
+"modelo": "55",
+"situacao": "AUTORIZADA",
+"numero_nf": "12345",
+"qtd_itens": 3,
+"peso_bruto": 62.5,
+"qtd_volumes": 4,
+"valor_frete": 50.4,
+"chave_acesso": "23261112345678000190550010000123451000123455",
+"data_emissao": "2026-11-09T14:32:00-03:00",
+"peso_liquido": 58,
+"codigo_erp_nf": "NF-998877",
+"valor_produtos": 1800,
+"valor_total_nf": 1850.4,
+"especie_volumes": "CAIXA",
+"modalidade_frete": "0",
+"protocolo_autorizacao": "123261234567890",
+"transportadora_codigo_erp": "TRANSP-15"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"reenvio": {
+"summary": "Reenvio idêntico (HTTP 200)",
+"value": {
+"data": {
+"id": "uuid",
+"status": "already_processed",
+"situacao": "AUTORIZADA",
+"codigo_erp": "OS-4521",
+"codigo_erp_nf": "NF-998877",
+"situacao_anterior": "AUTORIZADA"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"201": {
+"description": "Criado.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"criada": {
+"summary": "Nota registrada (HTTP 201)",
+"value": {
+"data": {
+"id": "uuid",
+"status": "created",
+"situacao": "AUTORIZADA",
+"codigo_erp": "OS-4521",
+"nf_vigente": {
+"nf_id": "uuid",
+"serie": "1",
+"modelo": "55",
+"qtd_nfs": 1,
+"chave_nfe": "23261112345678000190550010000123451000123455",
+"numero_nf": "12345",
+"peso_bruto": 62.5,
+"nf_situacao": "AUTORIZADA",
+"qtd_volumes": 4,
+"peso_liquido": 58,
+"especie_volumes": "CAIXA",
+"nf_data_emissao": "2026-11-09T17:32:00+00:00",
+"qtd_nfs_autorizadas": 1
+},
+"codigo_erp_nf": "NF-998877",
+"situacao_anterior": null,
+"documento_saida_id": "uuid"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"description": "Requisição inválida.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"campos_invalidos": {
+"summary": "Campos ausentes ou inválidos (HTTP 400)",
+"value": {
+"error": {
+"code": "VALIDATION_ERROR",
+"details": [
+{
+"campo": "numero_nf",
+"mensagem": "numero_nf obrigatorio."
+},
+{
+"campo": "data_emissao",
+"mensagem": "data_emissao obrigatoria (ISO-8601)."
+}
+],
+"message": "2 campo(s) invalido(s) na NF."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"description": "Registro ou rota não encontrada.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"pedido_inexistente": {
+"summary": "Documento de saída não encontrado (HTTP 404)",
+"value": {
+"error": {
+"code": "DOCUMENTO_NAO_ENCONTRADO",
+"message": "Documento de saida 'OS-4521' nao encontrado."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"description": "Regra de negócio impediu a operação.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"chave_invalida": {
+"summary": "Chave com dígito verificador errado (HTTP 422)",
+"value": {
+"error": {
+"code": "CHAVE_ACESSO_INVALIDA",
+"message": "chave_acesso deve ter 44 digitos com digito verificador valido."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+},
+"get": {
+"operationId": "get-movements-documentos-saida-por-codigo-notas-fiscais",
+"tags": [
+"Notas fiscais de saída"
+],
+"summary": "Consultar notas fiscais do pedido",
+"description": "Lista as notas registradas para o documento de saída (da mais nova para a mais antiga) e indica a nota vigente: a autorizada mais recente; sem autorizada, a última cancelada ou denegada. Notas de homologação aparecem na lista, mas nunca são a vigente.\n\nPedido sem notas: 200 com `notas_fiscais: []` e `vigente: null`. Pedido inexistente: 404 `DOCUMENTO_NAO_ENCONTRADO`.",
+"x-versao-desde": "1.14.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Opcional. Lista as notas vinculadas à alteração informada.",
+"schema": {
+"type": "string",
+"description": "Opcional. Lista as notas vinculadas à alteração informada.",
+"examples": [
+"ALT-2"
+]
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"ok": {
+"summary": "Notas do pedido (HTTP 200)",
+"value": {
+"data": {
+"vigente": {
+"nf_id": "uuid",
+"serie": "1",
+"modelo": "55",
+"qtd_nfs": 1,
+"numero_nf": "12345",
+"nf_situacao": "AUTORIZADA",
+"qtd_volumes": 4,
+"qtd_nfs_autorizadas": 1
+},
+"codigo_erp": "OS-4521",
+"notas_fiscais": [
+{
+"id": "uuid",
+"serie": "1",
+"modelo": "55",
+"situacao": "AUTORIZADA",
+"chave_nfe": "23261112345678000190550010000123451000123455",
+"numero_nf": "12345",
+"qtd_itens": 3,
+"data_saida": null,
+"finalidade": "1",
+"peso_bruto": 62.5,
+"updated_at": "2026-11-09T17:32:01+00:00",
+"qtd_volumes": 4,
+"valor_frete": 50.4,
+"data_emissao": "2026-11-09T17:32:00+00:00",
+"peso_liquido": 58,
+"codigo_erp_nf": "NF-998877",
+"tipo_ambiente": "1",
+"valor_produtos": 1800,
+"valor_total_nf": 1850.4,
+"especie_volumes": "CAIXA",
+"modalidade_frete": "0",
+"data_cancelamento": null,
+"protocolo_autorizacao": "123261234567890",
+"protocolo_cancelamento": null,
+"transportadora_codigo_erp": "TRANSP-15"
+}
+],
+"documento_saida_id": "uuid"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/notas-fiscais/{id_nf}": {
+"patch": {
+"operationId": "patch-movements-documentos-saida-por-codigo-notas-fiscais-por-id-nf",
+"tags": [
+"Notas fiscais de saída"
+],
+"summary": "Mudar a situação da nota fiscal (cancelamento)",
+"description": "Muda só a situação de uma nota já registrada. Nesta versão a única mudança aceita é AUTORIZADA → CANCELADA. {id_nf} é o codigo_erp_nf enviado no POST ou a chave de acesso de 44 dígitos. Cancelar a nota cancela o pedido no WMS (ver notas).\n\nSó os 4 campos acima são aceitos; qualquer outro dá 400 (dados da nota mudam pelo POST). Repetir o PATCH é seguro: responde 200 `already_processed` e não cancela o pedido de novo. Duas chamadas simultâneas para a mesma nota: uma aplica e a outra recebe `already_processed` ou 409 `RETRY_LATER` com `Retry-After`.\n\n**Efeito no pedido:** o WMS desfaz a separação, devolve ao estoque o que foi coletado e cancela onda e pedido, registrando ocorrência. Se a onda estiver em carregamento, concluída ou tiver outros pedidos, o pedido **não** é cancelado: o WMS abre ocorrência CRÍTICA para decisão manual e informa `cancelamento_pedido.codigo = DECISAO_MANUAL`. Se o pedido tiver outra nota AUTORIZADA (refaturamento), o pedido segue ativo (`POSSUI_NF_AUTORIZADA`).\n\nPara clientes sem PATCH (Java/Spring): `POST .../notas-fiscais/{id_nf}/situacao` com o mesmo corpo. Aceita `Idempotency-Key`.",
+"x-versao-desde": "1.14.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_nf",
+"in": "path",
+"required": true,
+"description": "codigo_erp_nf enviado no POST da nota ou a chave de acesso de 44 dígitos.",
+"schema": {
+"type": "string"
+}
+},
+{
+"name": "id_alteracao",
+"in": "query",
+"required": false,
+"description": "Opcional. Procura a nota na alteração informada em vez do documento original.",
+"schema": {
+"type": "string",
+"description": "Opcional. Procura a nota na alteração informada em vez do documento original.",
+"examples": [
+"ALT-2"
+]
+}
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"situacao": {
+"type": "string",
+"description": "Somente CANCELADA nesta versão (maiúsculas ou minúsculas).",
+"enum": [
+"AUTORIZADA",
+"CANCELADA",
+"DENEGADA",
+"INUTILIZADA"
+],
+"examples": [
+"CANCELADA"
+]
+},
+"data_cancelamento": {
+"type": "string",
+"format": "date-time",
+"description": "Data e hora do cancelamento na SEFAZ. Não pode ser anterior à emissão. Sem fuso, vale -03:00.",
+"examples": [
+"2026-11-10T09:12:00-03:00"
+]
+},
+"protocolo_cancelamento": {
+"type": "string",
+"description": "Protocolo do evento de cancelamento (1 a 20 dígitos).",
+"examples": [
+"135260000001"
+]
+},
+"motivo": {
+"type": "string",
+"description": "Justificativa do cancelamento, de 15 a 255 caracteres.",
+"examples": [
+"Cliente desistiu da compra antes da saida"
+]
+}
+},
+"required": [
+"situacao",
+"data_cancelamento"
+]
+},
+"example": {
+"motivo": "Cliente desistiu da compra antes da saida",
+"situacao": "CANCELADA",
+"data_cancelamento": "2026-11-10T09:12:00-03:00",
+"protocolo_cancelamento": "135260000001"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"repetido": {
+"summary": "Nota já estava cancelada (HTTP 200)",
+"value": {
+"data": {
+"id_nf": "NF-998877",
+"status": "already_processed",
+"situacao": "CANCELADA",
+"codigo_erp": "OS-4521",
+"situacao_anterior": "CANCELADA"
+},
+"success": true
+}
+},
+"cancelada": {
+"summary": "Nota cancelada e pedido cancelado no WMS (HTTP 200)",
+"value": {
+"data": {
+"id": "uuid",
+"id_nf": "NF-998877",
+"status": "updated",
+"situacao": "CANCELADA",
+"codigo_erp": "OS-4521",
+"nf_vigente": {
+"qtd_nfs": 1,
+"numero_nf": "12345",
+"nf_situacao": "CANCELADA",
+"qtd_nfs_autorizadas": 0
+},
+"situacao_anterior": "AUTORIZADA",
+"documento_saida_id": "uuid",
+"cancelamento_pedido": {
+"codigo": "CANCELADO",
+"sucesso": true,
+"mensagem": "Pedido #4521 cancelado (NF 12345 cancelada no ERP).",
+"estornos_estoque": 0,
+"tarefas_canceladas": 2
+}
+},
+"success": true
+}
+},
+"decisao_manual": {
+"summary": "Nota cancelada, mas a onda já está em carregamento (HTTP 200)",
+"value": {
+"data": {
+"id_nf": "NF-998877",
+"status": "updated",
+"situacao": "CANCELADA",
+"codigo_erp": "OS-4521",
+"situacao_anterior": "AUTORIZADA",
+"cancelamento_pedido": {
+"codigo": "DECISAO_MANUAL",
+"sucesso": false,
+"mensagem": "Onda #812 está EM_CARREGAMENTO (produto pode já ter sido carregado/expedido)."
+}
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"description": "Registro ou rota não encontrada.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"nf_inexistente": {
+"summary": "Nota não encontrada neste pedido (HTTP 404)",
+"value": {
+"error": {
+"code": "NF_NAO_ENCONTRADA",
+"message": "NF NF-998877 não encontrada neste documento de saída."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"409": {
+"description": "Conflito — repita após Retry-After ou informe ?id_alteracao.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"nao_permitido": {
+"summary": "Nota denegada ou inutilizada (HTTP 409)",
+"value": {
+"error": {
+"code": "SITUACAO_NAO_PERMITIDA",
+"details": [
+{
+"situacao_atual": "DENEGADA"
+}
+],
+"message": "A NF 12345 está DENEGADA e não pode ser alterada para CANCELADA."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/movements/documentos-saida/{codigo_erp}/notas-fiscais/{id_nf}/situacao": {
+"post": {
+"operationId": "post-movements-documentos-saida-por-codigo-notas-fiscais-por-id-nf-situacao",
+"tags": [
+"Notas fiscais de saída"
+],
+"summary": "Mudar a situação da nota fiscal (alternativa ao PATCH)",
+"description": "Mesmo comportamento, corpo e respostas do PATCH /notas-fiscais/{id_nf}. Existe para clientes HTTP que não enviam PATCH (ex.: Java HttpURLConnection).\n\n{id_nf} também pode ser a chave de acesso, como no exemplo. Demais regras iguais às do PATCH.",
+"x-versao-desde": "1.14.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "id_nf",
+"in": "path",
+"required": true,
+"description": "codigo_erp_nf enviado no POST da nota ou a chave de acesso de 44 dígitos.",
+"schema": {
+"type": "string"
+}
+},
+{
+"$ref": "#/components/parameters/IdempotencyKey"
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"properties": {
+"situacao": {
+"type": "string",
+"description": "Somente CANCELADA nesta versão.",
+"enum": [
+"AUTORIZADA",
+"CANCELADA",
+"DENEGADA",
+"INUTILIZADA"
+],
+"examples": [
+"CANCELADA"
+]
+},
+"data_cancelamento": {
+"type": "string",
+"format": "date-time",
+"description": "Data e hora do cancelamento.",
+"examples": [
+"2026-11-10T09:12:00-03:00"
+]
+},
+"protocolo_cancelamento": {
+"type": "string",
+"description": "Protocolo do evento de cancelamento (1 a 20 dígitos).",
+"examples": [
+"135260000001"
+]
+},
+"motivo": {
+"type": "string",
+"description": "Justificativa, de 15 a 255 caracteres.",
+"examples": [
+"Cliente desistiu da compra antes da saida"
+]
+}
+},
+"required": [
+"situacao",
+"data_cancelamento"
+]
+},
+"example": {
+"situacao": "CANCELADA",
+"data_cancelamento": "2026-11-10T09:12:00-03:00"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"cancelada": {
+"summary": "Mesmas respostas do PATCH (HTTP 200)",
+"value": {
+"data": {
+"id_nf": "23261112345678000190550010000123451000123455",
+"status": "updated",
+"situacao": "CANCELADA",
+"codigo_erp": "OS-4521",
+"situacao_anterior": "AUTORIZADA"
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"$ref": "#/components/responses/E404"
+},
+"409": {
+"$ref": "#/components/responses/E409"
+},
+"422": {
+"$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
 }
 },
 "/health": {

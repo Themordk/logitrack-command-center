@@ -9,6 +9,14 @@
 "subtitulo": "Entenda a arquitetura de integração ERP → WMS"
 },
 {
+"slug": "quickstart",
+"ordem": 20,
+"secao": "guias",
+"titulo": "Quickstart",
+"conteudo": "## Pré-requisitos\n\nAntes de começar, você precisa:\n\n1. **API Key** — Solicite ao time CORE LogiTrack. A chave é vinculada ao seu tenant e empresa.\n2. **Ferramenta HTTP** — cURL, Postman, Insomnia ou qualquer cliente REST.\n\n## Passo 1 — Health Check\n\nVerifique se a API está operacional. Este é o único endpoint que **não exige autenticação**.\n\n```bash\ncurl -X GET \\\n  https://dcpmykhxysvxnpgmlyli.supabase.co/functions/v1/integration-gateway/health\n```\n\n**Resposta esperada (200):**\n```json\n{\n  \"success\": true,\n  \"data\": { \"status\": \"ok\", \"timestamp\": \"2026-09-02T12:00:00.000Z\" }\n}\n```\n\n## Passo 2 — Cadastrar um Parceiro\n\nCom a API Key em mãos, cadastre seu primeiro parceiro (fornecedor, cliente ou transportador):\n\n```bash\ncurl -X POST \\\n  https://dcpmykhxysvxnpgmlyli.supabase.co/functions/v1/integration-gateway/master-data/parceiros \\\n  -H \"Content-Type: application/json\" \\\n  -H \"x-api-key: SUA_CHAVE_AQUI\" \\\n  -d '{\"codigo_erp\":\"CLI-001\",\"cnpj\":\"12.345.678/0001-90\",\"razao_social\":\"Distribuidora ABC Ltda\",\"endereco\":\"Rua das Flores, 123\",\"bairro\":\"Centro\",\"cidade\":\"São Paulo\",\"estado\":\"SP\",\"tipo_parceiro\":\"CLIENTE\",\"ativo\":true}'\n```\n\n**Resposta esperada (201):**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"codigo_erp\": \"CLI-001\",\n    \"status\": \"created\",\n    \"id\": \"uuid-gerado-automaticamente\"\n  }\n}\n```\n\n> **Idempotência:** Se enviar novamente com o mesmo `codigo_erp`, o registro será atualizado (upsert), nunca duplicado.\n\n## Passo 3 — Cadastrar um Produto com Embalagem\n\nProdutos podem ser enviados junto com suas embalagens em uma única requisição:\n\n```bash\ncurl -X POST \\\n  https://dcpmykhxysvxnpgmlyli.supabase.co/functions/v1/integration-gateway/master-data/produtos \\\n  -H \"Content-Type: application/json\" \\\n  -H \"x-api-key: SUA_CHAVE_AQUI\" \\\n  -d '{\"codigo_erp\":\"PROD-001\",\"sku\":\"7891234567890\",\"descricao\":\"Arroz Branco Tipo 1 5kg\",\"referencia\":\"ARZ-5KG-T1\",\"marca\":\"Marca X\",\"tipo_controle\":\"LOTE\",\"tipo_separacao\":\"FRACIONADO\",\"usa_picking\":true,\"ativo\":true,\"embalagens\":[{\"ean\":\"7891234567890\",\"fator\":1,\"embalagem\":\"UN\",\"peso_bruto\":5.1,\"peso_liquido\":5.0}]}'\n```\n\n## Passo 4 — Enviar uma Nota Fiscal de Entrada\n\nCom parceiro e produto cadastrados, envie um documento de entrada:\n\n```bash\ncurl -X POST \\\n  https://dcpmykhxysvxnpgmlyli.supabase.co/functions/v1/integration-gateway/movements/documentos-entrada \\\n  -H \"Content-Type: application/json\" \\\n  -H \"x-api-key: SUA_CHAVE_AQUI\" \\\n  -d '{\"codigo_erp\":\"NF-2026-001\",\"numero_nota\":\"001234\",\"parceiro_codigo_erp\":\"CLI-001\",\"tipo_entrada_codigo_erp\":\"TE-COMPRA\",\"data_emissao\":\"2026-09-01T10:00:00Z\",\"itens\":[{\"produto_codigo_erp\":\"PROD-001\",\"quantidade\":100}]}'\n```\n\n> **Atenção:** O `parceiro_codigo_erp` e `produto_codigo_erp` devem referenciar registros já cadastrados na Etapa 1. Caso contrário, a API retornará erro `REFERENCE_NOT_FOUND`.\n\n## Passo 5 — Verificar o resultado\n\nConsulte o documento de entrada recém-criado:\n\n```bash\ncurl -X GET \\\n  https://dcpmykhxysvxnpgmlyli.supabase.co/functions/v1/integration-gateway/movements/documentos-entrada/NF-2026-001 \\\n  -H \"x-api-key: SUA_CHAVE_AQUI\"\n```\n\n**Pronto!** Você completou o ciclo básico de integração. Agora consulte a seção **Ordem de Integração** para a sequência completa recomendada.",
+"subtitulo": "Do zero ao primeiro dado cadastrado em 5 minutos"
+},
+{
 "slug": "autenticacao",
 "ordem": 30,
 "secao": "guias",
@@ -45,7 +53,7 @@
 "ordem": 70,
 "secao": "referencia",
 "titulo": "Webhooks e Retorno",
-"conteudo": "## Como Funcionam os Webhooks\n\nO CORE LogiTrack pode notificar seu sistema automaticamente quando eventos importantes ocorrem no WMS, como conclusão de conferência, expedição de pedido ou recebimento de mercadoria.\n\n### Fluxo de Notificação\n\n```\n[Evento no WMS] → [CORE LogiTrack] → POST → [Sua URL de Webhook]\n```\n\n1. Um evento ocorre no WMS (ex: pedido conferido)\n2. O sistema monta o payload com os dados do evento\n3. Uma requisição POST é enviada para a URL cadastrada\n4. Seu sistema processa e retorna HTTP 200\n\n### Configuração\n\nOs webhooks são configurados por entidade na tela de **Configuração > Integração** do painel administrativo. Para cada entidade, você pode definir:\n\n- **URL de callback**: endpoint HTTPS do seu sistema\n- **Eventos**: quais tipos de evento disparam a notificação\n- **Headers personalizados**: para autenticação no seu lado\n\n### Estrutura do Payload\n\n```json\n{\n  \"evento\": \"pedido.conferido\",\n  \"timestamp\": \"2024-01-15T14:30:00Z\",\n  \"dados\": {\n    \"id\": \"uuid-do-registro\",\n    \"codigo_erp\": \"PED-001\",\n    \"status\": \"conferido\",\n    \"itens\": [...]\n  }\n}\n```\n\n## Endpoints de Retorno\n\nAlém dos webhooks (push), a API oferece endpoints de retorno (pull) para consultar o status de processamento:\n\n### Retorno de Entrada\n\n```\nGET /retorno-entrada?codigo_erp=NE-001\n```\n\nRetorna o status de processamento de notas de entrada: recebimento, conferência, armazenagem.\n\n### Retorno de Saída\n\n```\nGET /retorno-saida?codigo_erp=PED-001\n```\n\nRetorna o status de processamento de pedidos: separação, conferência, expedição, dados de transporte.\n\n## Boas Práticas para Webhooks\n\n- **Responda rápido**: retorne HTTP 200 em menos de 5 segundos; processe de forma assíncrona\n- **Idempotência**: o mesmo evento pode ser enviado mais de uma vez; use o `id` do evento para deduplicar\n- **HTTPS obrigatório**: apenas URLs com certificado SSL válido são aceitas\n- **Retry automático**: em caso de falha (non-2xx ou timeout), o sistema reenvia até 3 vezes com backoff exponencial",
+"conteudo": "## Como Funcionam os Webhooks\n\nO CORE LogiTrack pode notificar seu sistema automaticamente quando eventos importantes ocorrem no WMS, como conclusão de conferência, expedição de pedido ou recebimento de mercadoria.\n\n### Fluxo de Notificação\n\n```\n[Evento no WMS] → [CORE LogiTrack] → POST → [Sua URL de Webhook]\n```\n\n1. Um evento ocorre no WMS (ex: pedido conferido)\n2. O sistema monta o payload com os dados do evento\n3. Uma requisição POST é enviada para a URL cadastrada\n4. Seu sistema processa e retorna HTTP 200\n\n### Configuração\n\nOs webhooks são configurados por entidade na tela de **Configuração > Integração** do painel administrativo. Para cada entidade, você pode definir:\n\n- **URL de callback**: endpoint HTTPS do seu sistema\n- **Eventos**: quais tipos de evento disparam a notificação\n- **Headers personalizados**: para autenticação no seu lado\n\n### Estrutura do Payload\n\n```json\n{\n  \"evento\": \"pedido.conferido\",\n  \"timestamp\": \"2024-01-15T14:30:00Z\",\n  \"dados\": {\n    \"id\": \"uuid-do-registro\",\n    \"codigo_erp\": \"PED-001\",\n    \"status\": \"conferido\",\n    \"itens\": [...]\n  }\n}\n```\n\n## Endpoints de Retorno\n\nAlém dos webhooks (push), a API oferece endpoints de retorno (pull) para consultar o status de processamento:\n\n### Retorno de Entrada\n\n```\nGET /retorno-entrada?codigo_erp=NE-001\n```\n\nRetorna o status de processamento de notas de entrada: recebimento, conferência, armazenagem.\n\n### Retorno de Saída\n\n```\nGET /retorno-saida?codigo_erp=PED-001\n```\n\nRetorna o status de processamento de pedidos: separação, conferência, expedição, dados de transporte.\n\n## Boas Práticas para Webhooks\n\n- **Responda rápido**: retorne HTTP 200 em menos de 5 segundos; processe de forma assíncrona\n- **Idempotência**: o mesmo evento pode ser enviado mais de uma vez; use o `id` do evento para deduplicar\n- **HTTPS obrigatório**: apenas URLs com certificado SSL válido são aceitas\n- **Retry automático**: em caso de falha (non-2xx ou timeout), o sistema reenvia até 3 vezes com backoff exponencial\n\n## Eventos de alteração de OS (v1.13)\n\n| Evento | Quando sai | O que traz |\n|---|---|---|\n| `saida.alteracao_aplicada` | Toda alteração da OS aplicada, pela API (`POST /alteracoes`, `/devolucoes`, cancelamento com devolução) ou pelo documento de devolução da OS | Bloco `alteracao`: `id_alteracao`, `origem` e, por item, vigente antes, variação, vigente depois e `resolucao` (`corte`, `estorno`, `devolucao`, `inclusao`) |\n| `saida.devolucao_gerada` | O WMS abriu devolução de peça já retirada | Bloco `devolucao`: `codigo_erp` do documento de entrada, `id_alteracao` e status `aguardando_recebimento` |\n| `entrada.conferencia_finalizada` | Recebimento conferido | Agora traz `conferencia_fisica` (verdadeiro quando o tipo de entrada exige conferência física). Filtre por `conferencia_fisica = true` para receber só conferências reais |\n\nAs devoluções geradas pelo próprio WMS não existem no ERP e não emitem eventos de entrada; o ERP é avisado por `saida.devolucao_gerada`. Cada evento só é enviado se houver um fluxo de retorno publicado para ele no seu ambiente.\n",
 "subtitulo": "Receba notificações em tempo real sobre eventos do WMS no seu sistema"
 },
 {
@@ -53,7 +61,7 @@
 "ordem": 75,
 "secao": "referencia",
 "titulo": "Alterações de Documento",
-"conteudo": "## Quando usar\r\n\r\nUse `id_alteracao` quando um documento **já enviado** ao WMS for alterado no ERP — por exemplo, o mecânico inclui ou remove peças de uma OS.\r\n\r\nO campo é **opcional**. Documentos enviados sem ele são **documentos originais** e seguem a regra de sempre (idempotência por `codigo_erp`).\r\n\r\n## Como funciona\r\n\r\nCada alteração é enviada como um **novo movimento**, com o mesmo `codigo_erp` do original e um `id_alteracao` novo:\r\n\r\n| Alteração no ERP | Endpoint | Itens a enviar |\r\n|------------------|----------|----------------|\r\n| Inclusão de item ou aumento de quantidade | `POST /movements/documentos-saida` | Só o que foi incluído / a diferença |\r\n| Remoção de item ou redução de quantidade | `POST /movements/documentos-entrada` | Só o que foi removido / a diferença (ex.: tipo de entrada de devolução) |\r\n\r\nO WMS cria **um documento novo** para cada `codigo_erp` + `id_alteracao` e registra o histórico, permitindo saber de qual documento original a alteração veio.\r\n\r\n## Exemplo\r\n\r\n```json\r\n{\r\n  \"codigo_erp\": \"OS-4521\",\r\n  \"id_alteracao\": \"ALT-2\",\r\n  \"numero_pedido\": 4521,\r\n  \"parceiro_codigo_erp\": \"CLI-0098\",\r\n  \"tipo_saida_codigo_erp\": \"TS-GAUD-OS\",\r\n  \"data_emissao\": \"2026-10-14T09:30:00-03:00\",\r\n  \"valor_pedido\": 130.00,\r\n  \"itens\": [\r\n    { \"produto_codigo_erp\": \"PRD-2040\", \"quantidade\": 2, \"valor_unit\": 65.00 }\r\n  ]\r\n}\r\n```\r\n\r\n## Regras\r\n\r\n1. `id_alteracao` é **texto alfanumérico** de 1 a 50 caracteres: letras, números e `. _ - /` (ex.: `ALT-2`, `OS4521-2`, `2`). Número também é aceito e tratado como texto (`2` = `\"2\"`). Espaços internos, acentos, `#` ou valor vazio → 400.\r\n2. Use um identificador diferente para cada alteração do mesmo `codigo_erp`. Maiúsculas e minúsculas são diferentes: `ALT-1` e `alt-1` são alterações distintas.\r\n3. Reenviar o mesmo `codigo_erp` + `id_alteracao` com o mesmo conteúdo é seguro → 200 `already_processed`.\r\n4. Não reutilize um `id_alteracao` com conteúdo diferente → 409 `ID_ALTERACAO_CONFLICT`.\r\n5. Envios fora de ordem são aceitos. Quando os identificadores são só números, o histórico sinaliza envios fora de ordem e saltos para conciliação.\r\n6. Se o envio for recusado por validação (ex.: produto inexistente), corrija e reenvie com o **mesmo** `id_alteracao`.\r\n7. **Atenção:** uma alteração enviada sem `id_alteracao` é tratada como reenvio do original e **não** gera documento novo.\r\n\r\n## Consultar e cancelar\r\n\r\n| Ação | Chamada |\r\n|------|---------|\r\n| Documento original | `GET /movements/documentos-saida/OS-4521` |\r\n| Uma alteração | `GET /movements/documentos-saida/OS-4521?id_alteracao=ALT-2` |\r\n| Original + todas as alterações | `GET /movements/documentos-saida/OS-4521?todos=true` |\r\n| Histórico de alterações | `GET /movements/documentos-saida/OS-4521/alteracoes` |\r\n| Cancelar uma alteração | `POST /movements/documentos-saida/OS-4521/cancel?id_alteracao=ALT-2` |\r\n\r\nSem `?id_alteracao`, consulta, cancelamento e exclusão atuam sobre o **documento original**. O mesmo vale para `documentos-entrada`.\r\n\r\n## Retorno ao ERP\r\n\r\nOs eventos de retorno trazem `documento.id_alteracao` (nulo no original), para o ERP identificar qual movimento foi concluído.\r\n",
+"conteudo": "## Dois caminhos\n\nDesde a v1.13 há dois jeitos de informar ao WMS que uma OS/pedido mudou depois de enviado:\n\n| Caminho | Quando usar | Endpoint |\n|---|---|---|\n| **Alteração resolvida pelo WMS (recomendado)** | Retirar, reduzir ou incluir itens em OS/pedido de saída | `POST /movements/documentos-saida/{codigo_erp}/alteracoes` |\n| Documento novo com `id_alteracao` | Entrada, ou integrações que já usam este formato | `POST /movements/documentos-saida` (inclusão) ou `/documentos-entrada` (remoção) |\n\n## Alteração resolvida pelo WMS (saída)\n\nO ERP diz, por produto, quanto muda. O WMS olha onde cada unidade está e escolhe a ação mais barata:\n\n| Onde a unidade está | `resolucao` | Volta ao estoque? |\n|---|---|---|\n| Já cortada | `ja_cortado` | Não |\n| Não separada | `corte` | Não (nunca saiu) |\n| Em coleta ou conferência | `aguardando` (resposta 202) | Ainda não |\n| Separada, aguardando conferência | `estorno` | Sim, no endereço de cancelamento |\n| Já retirada pelo cliente ou expedida | `devolucao` | Sim, após recebimento e conferência |\n| Quantidade positiva | `inclusao` | — |\n\n```json\nPOST /movements/documentos-saida/OS-4521/alteracoes\n{\n  \"id_alteracao\": \"ALT-3\",\n  \"modo\": \"delta\",\n  \"itens\": [ { \"codigo_erp_produto\": \"PRD-2040\", \"quantidade\": -2 } ]\n}\n```\n\nFluxo sugerido:\n\n1. `GET /{codigo_erp}/posicao` — o que a OS tem hoje e quanto já foi retirado.\n2. `POST /{codigo_erp}/alteracoes/simular` — mostra o efeito sem gravar e devolve `hash_analise`.\n3. `POST /{codigo_erp}/alteracoes` com `id_alteracao` (e, se quiser, o `hash_analise`).\n4. Se a resposta for 202 `pending`, acompanhe `GET /{codigo_erp}/alteracoes/{id_alteracao}` ou o evento `saida.alteracao_aplicada`.\n\nRegras: `id_alteracao` único por OS (1 a 50 caracteres: letras, números, `. _ - /`); reenvio idêntico → 200 `already_processed`; mesmo id com outro conteúdo → 409 `VERSAO_CONFLITO`; retirar mais do que a OS tem → 422 `QUANTIDADE_EXCEDE_VIGENTE`; a alteração é tudo ou nada. O `{codigo_erp}` pode ser o de qualquer documento da OS.\n\nDevolução explícita de peça já retirada: `POST /{codigo_erp}/devolucoes` (quantidade positiva, limitada a `qtd_devolvivel`).\n\n## Documento novo com `id_alteracao`\n\nCada alteração é enviada como um **novo movimento**, com o mesmo `codigo_erp` do original e um `id_alteracao` novo:\n\n| Alteração no ERP | Endpoint | Itens a enviar |\n|---|---|---|\n| Inclusão de item ou aumento de quantidade | `POST /movements/documentos-saida` | Só o que foi incluído / a diferença |\n| Remoção de item ou redução de quantidade | `POST /movements/documentos-entrada` | Só o que foi removido / a diferença (tipo de entrada de devolução da OS) |\n\nQuando o tipo de entrada está configurado como **retorno de saída**, o WMS liga o documento à OS (`numero_nota` = `numero_pedido` da OS) e aplica as mesmas regras da tabela acima: só gera recebimento do que já tinha sido retirado. A resposta da API continua 201; o resultado chega pelo evento `saida.alteracao_aplicada`.\n\n```json\n{\n  \"codigo_erp\": \"OS-4521\",\n  \"id_alteracao\": \"ALT-2\",\n  \"numero_pedido\": 4521,\n  \"parceiro_codigo_erp\": \"CLI-0098\",\n  \"tipo_saida_codigo_erp\": \"TS-GAUD-OS\",\n  \"data_emissao\": \"2026-10-14T09:30:00-03:00\",\n  \"valor_pedido\": 130.00,\n  \"itens\": [ { \"produto_codigo_erp\": \"PRD-2040\", \"quantidade\": 2, \"valor_unit\": 65.00 } ]\n}\n```\n\n1. `id_alteracao` é **texto alfanumérico** de 1 a 50 caracteres: letras, números e `. _ - /`. Número também é aceito e tratado como texto (`2` = `\"2\"`).\n2. Use um identificador diferente para cada alteração do mesmo `codigo_erp`. Maiúsculas e minúsculas são diferentes.\n3. Reenviar o mesmo `codigo_erp` + `id_alteracao` com o mesmo conteúdo é seguro → 200 `already_processed`.\n4. Não reutilize um `id_alteracao` com conteúdo diferente → 409 `ID_ALTERACAO_CONFLICT`.\n5. Se o envio for recusado por validação, corrija e reenvie com o **mesmo** `id_alteracao`.\n6. **Atenção:** uma alteração enviada sem `id_alteracao` é tratada como reenvio do original e **não** gera documento novo.\n\n## Consultar e cancelar\n\n| Ação | Chamada |\n|---|---|\n| Posição da OS inteira | `GET /movements/documentos-saida/OS-4521/posicao` |\n| Situação de uma alteração (caminho recomendado) | `GET /movements/documentos-saida/OS-4521/alteracoes/ALT-3` |\n| Documento original | `GET /movements/documentos-saida/OS-4521` |\n| Um documento de alteração | `GET /movements/documentos-saida/OS-4521?id_alteracao=ALT-2` |\n| Original + todos os documentos | `GET /movements/documentos-saida/OS-4521?todos=true` |\n| Histórico de documentos com `id_alteracao` | `GET /movements/documentos-saida/OS-4521/alteracoes` |\n| Cancelar um documento de alteração | `POST /movements/documentos-saida/OS-4521/cancel?id_alteracao=ALT-2` |\n\n## Retorno ao ERP\n\n- `saida.alteracao_aplicada`: toda alteração aplicada (pela API ou pelo documento de devolução da OS), com o bloco `alteracao` — `id_alteracao`, origem e, por item, vigente antes, variação, vigente depois e `resolucao`.\n- `saida.devolucao_gerada`: o WMS abriu devolução de peça já retirada (bloco `devolucao`, status `aguardando_recebimento`).\n- Os eventos trazem `documento.id_alteracao` (nulo no original).\n",
 "subtitulo": "Como enviar alterações de NF, pedido ou OS já integrados usando id_alteracao (alfanumérico)"
 },
 {
@@ -61,8 +69,16 @@
 "ordem": 77,
 "secao": "referencia",
 "titulo": "Cancelamento de Pedido de Saída",
-"conteudo": "## Quando usar\r\n\r\nChame o cancelamento assim que o pedido (ou a OS) for cancelado no ERP. O WMS cancela **na mesma chamada**: interrompe a separação, devolve ao estoque o que já foi coletado e registra tudo para auditoria.\r\n\r\n```\r\nPOST /movements/documentos-saida/{codigo_erp}/cancel\r\n```\r\n\r\n`PATCH` também é aceito. O corpo é opcional:\r\n\r\n```json\r\n{ \"motivo\": \"Cliente desistiu da compra\", \"solicitado_por\": \"joao.vendas\" }\r\n```\r\n\r\n## O que o WMS faz em cada etapa\r\n\r\n| Etapa do pedido no WMS | Resposta | O que acontece |\r\n|---|---|---|\r\n| Sem onda | 200 `cancelled` | Pedido cancelado |\r\n| Onda gerada ou liberada | 200 `cancelled` | Tarefas do pedido canceladas; se a onda tiver outros pedidos, só a parte deste pedido sai |\r\n| Em separação ou separado | 200 `cancelled` | Igual acima, e o que já foi coletado é estornado para o endereço de cancelamento |\r\n| Em conferência em diante | 422 `CANCELAMENTO_NAO_PERMITIDO` | Nada é alterado |\r\n\r\nQuando há estorno, o saldo volta ao estoque **imediatamente**, com lote, validade e fabricação preservados. O WMS cria uma tarefa para o operador levar o produto ao endereço de cancelamento (`retirada_fisica.status = PENDENTE`). Essa etapa é só operacional: o pedido já está cancelado.\r\n\r\n## Respostas que o ERP deve tratar\r\n\r\n| HTTP | Código | O que fazer no ERP |\r\n|---|---|---|\r\n| 200 | `cancelled` / `already_cancelled` | Marcar como cancelado no WMS |\r\n| 404 | `NOT_FOUND` | Conferir o `codigo_erp` (e o `?id_alteracao`, se usar) |\r\n| 409 | `RETRY_LATER` | Repetir após o header `Retry-After` (segundos) |\r\n| 409 | `AMBIGUOUS_DOCUMENT` | Reenviar com `?id_alteracao=` |\r\n| 422 | `CANCELAMENTO_NAO_PERMITIDO`, `CONFERENCIA_INICIADA`, `VOLUME_EXPEDICAO_EXISTENTE` | Pedir estorno no WMS e reenviar, ou tratar como devolução |\r\n| 422 | `CONFIGURACAO_INCOMPLETA` | Acionar o suporte do WMS e reenviar |\r\n| 500 | `INTERNAL_ERROR` / `CANCEL_ERROR` | Repetir com backoff exponencial |\r\n\r\n## Repetir com segurança\r\n\r\n1. Cancelar um pedido já cancelado responde 200 `already_cancelled`. Nada é refeito.\r\n2. Envie o header `Idempotency-Key` (até 100 caracteres) para receber exatamente a mesma resposta em reenvios por timeout. Recusas também ficam guardadas: depois de resolver a recusa no WMS, use uma chave nova.\r\n3. Em `RETRY_LATER`, nada foi alterado: repita a mesma chamada.\r\n\r\n## Acompanhar a retirada física\r\n\r\n```\r\nGET /movements/documentos-saida/{codigo_erp}/cancel-status\r\n```\r\n\r\nMostra o status do cancelamento (`cancelled`, `rejected`, `not_requested`), a última recusa e o andamento da retirada física (`PENDENTE` → `CONCLUIDA`). O ERP não precisa esperar a retirada para seguir o processo dele.\r\n\r\n## Alterações de documento\r\n\r\nSem `?id_alteracao`, o cancelamento atua sobre o **documento original**. Para cancelar uma alteração específica, use `?id_alteracao=ALT-2`.\r\n\r\n## Retorno ao ERP\r\n\r\nSe o seu ambiente tiver o fluxo de retorno `saida.documento_cancelado` ativo, o WMS também avisa o ERP quando o pedido fica cancelado, inclusive quando o cancelamento partiu do próprio ERP.\r\n",
+"conteudo": "## Quando usar\r\n\r\nChame o cancelamento assim que o pedido (ou a OS) for cancelado no ERP. O WMS cancela **na mesma chamada**: interrompe a separação, devolve ao estoque o que já foi coletado e registra tudo para auditoria.\r\n\r\n```\r\nPOST /movements/documentos-saida/{codigo_erp}/cancel\r\n```\r\n\r\n`PATCH` também é aceito. O corpo é opcional:\r\n\r\n```json\r\n{ \"motivo\": \"Cliente desistiu da compra\", \"solicitado_por\": \"joao.vendas\" }\r\n```\r\n\r\n## O que o WMS faz em cada etapa\r\n\r\n| Etapa do pedido no WMS | Resposta | O que acontece |\r\n|---|---|---|\r\n| Sem onda | 200 `cancelled` | Pedido cancelado |\r\n| Onda gerada ou liberada | 200 `cancelled` | Tarefas do pedido canceladas; se a onda tiver outros pedidos, só a parte deste pedido sai |\r\n| Em separação ou separado | 200 `cancelled` | Igual acima, e o que já foi coletado é estornado para o endereço de cancelamento |\r\n| Em conferência em diante — tipo de saída que recusa (padrão) | 422 `CANCELAMENTO_NAO_PERMITIDO` | Nada é alterado |\r\n| Em conferência — tipo de saída que devolve | 200 `cancellation_in_progress` | Concluído sozinho quando a conferência terminar |\r\n| Conferido, em carregamento ou expedido — tipo de saída que devolve | 200 `cancelled` com `modo: devolucao` | O retirado vira devolução aguardando recebimento; o restante é estornado |\r\n\r\nQuando há estorno, o saldo volta ao estoque **imediatamente**, com lote, validade e fabricação preservados. O WMS cria uma tarefa para o operador levar o produto ao endereço de cancelamento (`retirada_fisica.status = PENDENTE`). Essa etapa é só operacional: o pedido já está cancelado.\r\n\r\n## OS já conferida (v1.13)\r\n\r\nEm tipos de saída configurados para **devolver** (ex.: OS de oficina, em que a peça conferida já foi entregue ao mecânico), o cancelamento não é mais recusado: o WMS zera o documento pelo mesmo motor de `POST /alteracoes` e abre a devolução do que já foi retirado. A resposta traz o bloco `alteracao` com a decomposição por item e o documento de devolução. Reenviar o cancelamento responde `already_cancelled` e não abre uma segunda devolução. Os demais tipos continuam recusando.\r\n\r\n## Respostas que o ERP deve tratar\r\n\r\n| HTTP | Código | O que fazer no ERP |\r\n|---|---|---|\r\n| 200 | `cancelled` / `already_cancelled` | Marcar como cancelado no WMS |\r\n| 404 | `NOT_FOUND` | Conferir o `codigo_erp` (e o `?id_alteracao`, se usar) |\r\n| 409 | `RETRY_LATER` | Repetir após o header `Retry-After` (segundos) |\r\n| 409 | `AMBIGUOUS_DOCUMENT` | Reenviar com `?id_alteracao=` |\r\n| 422 | `CANCELAMENTO_NAO_PERMITIDO`, `CONFERENCIA_INICIADA`, `VOLUME_EXPEDICAO_EXISTENTE` | Pedir estorno no WMS e reenviar, ou tratar como devolução |\r\n| 422 | `CONFIGURACAO_INCOMPLETA` | Acionar o suporte do WMS e reenviar |\r\n| 500 | `INTERNAL_ERROR` / `CANCEL_ERROR` | Repetir com backoff exponencial |\r\n\r\n## Repetir com segurança\r\n\r\n1. Cancelar um pedido já cancelado responde 200 `already_cancelled`. Nada é refeito.\r\n2. Envie o header `Idempotency-Key` (até 100 caracteres) para receber exatamente a mesma resposta em reenvios por timeout. Recusas também ficam guardadas: depois de resolver a recusa no WMS, use uma chave nova.\r\n3. Em `RETRY_LATER`, nada foi alterado: repita a mesma chamada.\r\n\r\n## Acompanhar a retirada física\r\n\r\n```\r\nGET /movements/documentos-saida/{codigo_erp}/cancel-status\r\n```\r\n\r\nMostra o status do cancelamento (`cancelled`, `rejected`, `not_requested`), a última recusa e o andamento da retirada física (`PENDENTE` → `CONCLUIDA`). O ERP não precisa esperar a retirada para seguir o processo dele.\r\n\r\n## Alterações de documento\r\n\r\nSem `?id_alteracao`, o cancelamento atua sobre o **documento original**. Para cancelar uma alteração específica, use `?id_alteracao=ALT-2`.\r\n\r\n## Retorno ao ERP\r\n\r\nSe o seu ambiente tiver o fluxo de retorno `saida.documento_cancelado` ativo, o WMS também avisa o ERP quando o pedido fica cancelado, inclusive quando o cancelamento partiu do próprio ERP.\r\n",
 "subtitulo": "Como cancelar um pedido já integrado e o que o WMS desfaz em cada etapa"
+},
+{
+"slug": "notas-fiscais-saida",
+"ordem": 78,
+"secao": "referencia",
+"titulo": "Notas Fiscais de Saída",
+"conteudo": "## Para que serve\n\nCom a nota fiscal no WMS, a operação imprime etiquetas de volume com os dados da NF (número, série, chave, volumes) e confere a saída contra a nota. O ERP envia a nota assim que ela é autorizada.\n\n## Fluxo\n\n1. O pedido chega ao WMS: `POST /movements/documentos-saida`.\n2. O ERP fatura e a SEFAZ autoriza: `POST /movements/documentos-saida/{codigo_erp}/notas-fiscais`.\n3. Se a nota for cancelada na SEFAZ: `PATCH /movements/documentos-saida/{codigo_erp}/notas-fiscais/{id_nf}` com `situacao: CANCELADA`.\n\nO pedido precisa existir antes da nota. Nota que chega antes do pedido recebe 404 `DOCUMENTO_NAO_ENCONTRADO`: reenvie depois de enviar o pedido.\n\n## Registrar a nota\n\n```json\n{\n  \"codigo_erp_nf\": \"NF-998877\",\n  \"modelo\": \"55\",\n  \"numero_nf\": \"12345\",\n  \"serie\": \"1\",\n  \"chave_acesso\": \"23261112345678000190550010000123451000123455\",\n  \"situacao\": \"AUTORIZADA\",\n  \"data_emissao\": \"2026-11-09T14:32:00-03:00\",\n  \"valor_total_nf\": 1850.40,\n  \"qtd_volumes\": 4,\n  \"especie_volumes\": \"CAIXA\",\n  \"peso_bruto\": 62.5,\n  \"peso_liquido\": 58\n}\n```\n\n- `codigo_erp_nf` é o seu ID da nota; guarde-o para o PATCH. Sem ele, a nota é identificada pela chave.\n- A chave é conferida (44 dígitos, dígito verificador e modelo). Chave errada: 422 `CHAVE_ACESSO_INVALIDA`.\n- Reenviar a mesma nota é seguro: sem mudança responde `already_processed`; com dados novos (ex.: volumes) responde `updated`.\n- Um pedido pode ter várias notas (faturamento parcial ou refaturamento). `GET .../notas-fiscais` mostra todas e a vigente.\n\n## Cancelar a nota\n\n```json\n{ \"situacao\": \"CANCELADA\", \"data_cancelamento\": \"2026-11-10T09:12:00-03:00\", \"motivo\": \"Cliente desistiu da compra antes da saida\" }\n```\n\n**Cancelar a nota cancela o pedido no WMS.** Isso é diferente de `POST /{codigo_erp}/cancel`, que cancela o pedido sem nota.\n\n| Situação do pedido no WMS | O que acontece |\n|---|---|\n| Sem onda, ou onda só deste pedido sem carregamento | Separação desfeita, estoque coletado devolvido, onda e pedido cancelados (`cancelamento_pedido.codigo = CANCELADO`) |\n| Onda em carregamento, concluída ou com outros pedidos | Pedido **não** é cancelado; o WMS abre ocorrência CRÍTICA para decisão manual (`DECISAO_MANUAL`) |\n| Pedido com outra nota autorizada (refaturado) | Só a nota é cancelada; o pedido segue (`POSSUI_NF_AUTORIZADA`) |\n| Pedido já cancelado | Só a nota é cancelada |\n\nA nota fica CANCELADA em todos os casos (HTTP 200). O cancelamento automático do pedido pode ser desligado por conexão; fale com o suporte.\n\n## Boas práticas\n\n- Use `Idempotency-Key` no POST e no PATCH para reenviar com segurança em caso de timeout.\n- Não envie notas de devolução (finalidade 4) por aqui: use o fluxo de devolução.\n- Nota de homologação (`tipo_ambiente = 2`) é aceita para testes e nunca vira a nota vigente do pedido.\n- Situação final não volta: uma nota cancelada não pode ser reautorizada. Uma reemissão é uma nota nova, com outra chave.",
+"subtitulo": "Como informar ao WMS a NF-e ou NFC-e de um pedido e o que acontece quando ela é cancelada"
 },
 {
 "slug": "boas-praticas",
@@ -87,10 +103,76 @@
 "acao": "Verifique se a chave está correta e ativa no painel de configuração"
 },
 {
+"codigo": "NOT_FOUND",
+"http": 404,
+"descricao": "Recurso não encontrado no sistema",
+"acao": "Verifique se o endpoint e o identificador (codigo_erp ou ID) estão corretos"
+},
+{
 "codigo": "VALIDATION_ERROR",
 "http": 400,
 "descricao": "Campo obrigatório ausente, formato inválido ou parâmetro de consulta inválido. A mensagem diz qual.",
 "acao": "Corrija o payload e reenvie. Não repita sem corrigir."
+},
+{
+"codigo": "RATE_LIMITED",
+"http": 429,
+"descricao": "Muitas requisições em curto período",
+"acao": "Aguarde alguns segundos e reenvie; implemente backoff exponencial"
+},
+{
+"codigo": "INTERNAL_ERROR",
+"http": 500,
+"descricao": "Erro interno do servidor",
+"acao": "Tente novamente com backoff exponencial; se persistir, entre em contato com o suporte"
+},
+{
+"codigo": "ID_ALTERACAO_CONFLICT",
+"http": 409,
+"descricao": "O id_alteracao informado já foi recebido para este codigo_erp com conteúdo diferente.",
+"acao": "Use um id_alteracao diferente para um movimento diferente. Para reenviar o mesmo movimento, envie exatamente o mesmo conteúdo."
+},
+{
+"codigo": "AMBIGUOUS_DOCUMENT",
+"http": 409,
+"descricao": "Consulta, cancelamento ou exclusão por codigo_erp sem id_alteracao, sem documento original ativo e com mais de uma alteração ativa.",
+"acao": "Informe o parâmetro ?id_alteracao=<identificador> (ex.: ?id_alteracao=ALT-2) para indicar qual alteração deve ser consultada, cancelada ou excluída."
+},
+{
+"codigo": "CANCELAMENTO_NAO_PERMITIDO",
+"http": 422,
+"descricao": "O pedido de saída já está em conferência, conferido, em carregamento, concluído ou exportado. O cancelamento pela integração não é permitido a partir da conferência; nada foi alterado.",
+"acao": "Peça ao WMS para estornar a conferência e reenvie o cancelamento, ou trate como devolução no ERP."
+},
+{
+"codigo": "CONFERENCIA_INICIADA",
+"http": 422,
+"descricao": "A conferência da onda do pedido já começou, mesmo que a onda ainda esteja como separada. Nada foi alterado.",
+"acao": "Peça ao WMS para estornar a conferência e reenvie o cancelamento."
+},
+{
+"codigo": "VOLUME_EXPEDICAO_EXISTENTE",
+"http": 422,
+"descricao": "O pedido já tem volumes de expedição gerados. Nada foi alterado.",
+"acao": "Peça ao WMS para excluir os volumes do pedido e reenvie o cancelamento."
+},
+{
+"codigo": "CONFIGURACAO_INCOMPLETA",
+"http": 422,
+"descricao": "Falta configuração no WMS para concluir o cancelamento (ex.: endereço de cancelamento do armazém ou usuário técnico admin). Nada foi alterado. Também nas alterações de saída, quando o tipo de saída não tem tipo de entrada de devolução configurado.",
+"acao": "Acione o suporte do WMS para completar a configuração e reenvie o cancelamento."
+},
+{
+"codigo": "RETRY_LATER",
+"http": 409,
+"descricao": "O pedido está sendo usado por outra operação no mesmo instante (ex.: um operador gravando uma coleta). Nada foi alterado.",
+"acao": "Reenvie após o tempo indicado no header Retry-After (em segundos); use backoff se repetir."
+},
+{
+"codigo": "CANCEL_ERROR",
+"http": 500,
+"descricao": "Falha técnica ao executar o cancelamento. Nada foi alterado.",
+"acao": "Reenvie com backoff exponencial; se persistir, informe o request_id ao suporte."
 },
 {
 "codigo": "INVALID_PAYLOAD",
@@ -105,12 +187,6 @@
 "acao": "Use exatamente o next_cursor da página anterior, ou recomece sem cursor."
 },
 {
-"codigo": "NOT_FOUND",
-"http": 404,
-"descricao": "Recurso não encontrado no sistema",
-"acao": "Verifique se o endpoint e o identificador (codigo_erp ou ID) estão corretos"
-},
-{
 "codigo": "ROUTE_NOT_FOUND",
 "http": 404,
 "descricao": "Caminho inexistente na API.",
@@ -121,24 +197,6 @@
 "http": 405,
 "descricao": "Método HTTP não aceito nessa rota.",
 "acao": "Confira o método na referência. Cancelar e excluir aceitam PATCH ou POST."
-},
-{
-"codigo": "RETRY_LATER",
-"http": 409,
-"descricao": "O pedido está sendo usado por outra operação no mesmo instante (ex.: um operador gravando uma coleta). Nada foi alterado.",
-"acao": "Reenvie após o tempo indicado no header Retry-After (em segundos); use backoff se repetir."
-},
-{
-"codigo": "AMBIGUOUS_DOCUMENT",
-"http": 409,
-"descricao": "Consulta, cancelamento ou exclusão por codigo_erp sem id_alteracao, sem documento original ativo e com mais de uma alteração ativa.",
-"acao": "Informe o parâmetro ?id_alteracao=<identificador> (ex.: ?id_alteracao=ALT-2) para indicar qual alteração deve ser consultada, cancelada ou excluída."
-},
-{
-"codigo": "ID_ALTERACAO_CONFLICT",
-"http": 409,
-"descricao": "O id_alteracao informado já foi recebido para este codigo_erp com conteúdo diferente.",
-"acao": "Use um id_alteracao diferente para um movimento diferente. Para reenviar o mesmo movimento, envie exatamente o mesmo conteúdo."
 },
 {
 "codigo": "DOCUMENTO_DUPLICADO",
@@ -167,56 +225,14 @@
 {
 "codigo": "DOCUMENT_LOCKED",
 "http": 422,
-"descricao": "A nota de entrada já está em processamento no WMS e não pode ser cancelada pela API.",
+"descricao": "A nota de entrada já começou a ser recebida no WMS e não pode ser cancelada pela API.",
 "acao": "Peça ao WMS para tratar o recebimento."
 },
 {
 "codigo": "DELETE_FAILED",
 "http": 422,
 "descricao": "A etapa atual do documento não permite exclusão.",
-"acao": "Use o cancelamento, que trata todas as etapas permitidas."
-},
-{
-"codigo": "CANCELAMENTO_NAO_PERMITIDO",
-"http": 422,
-"descricao": "O pedido de saída já está em conferência, conferido, em carregamento, concluído ou exportado. O cancelamento pela integração não é permitido a partir da conferência; nada foi alterado.",
-"acao": "Peça ao WMS para estornar a conferência e reenvie o cancelamento, ou trate como devolução no ERP."
-},
-{
-"codigo": "CONFERENCIA_INICIADA",
-"http": 422,
-"descricao": "A conferência da onda do pedido já começou, mesmo que a onda ainda esteja como separada. Nada foi alterado.",
-"acao": "Peça ao WMS para estornar a conferência e reenvie o cancelamento."
-},
-{
-"codigo": "VOLUME_EXPEDICAO_EXISTENTE",
-"http": 422,
-"descricao": "O pedido já tem volumes de expedição gerados. Nada foi alterado.",
-"acao": "Peça ao WMS para excluir os volumes do pedido e reenvie o cancelamento."
-},
-{
-"codigo": "CONFIGURACAO_INCOMPLETA",
-"http": 422,
-"descricao": "Falta configuração no WMS para concluir o cancelamento (ex.: endereço de cancelamento do armazém ou usuário técnico admin). Nada foi alterado.",
-"acao": "Acione o suporte do WMS para completar a configuração e reenvie o cancelamento."
-},
-{
-"codigo": "RATE_LIMITED",
-"http": 429,
-"descricao": "Muitas requisições em curto período",
-"acao": "Aguarde alguns segundos e reenvie; implemente backoff exponencial"
-},
-{
-"codigo": "INTERNAL_ERROR",
-"http": 500,
-"descricao": "Erro interno do servidor",
-"acao": "Tente novamente com backoff exponencial; se persistir, entre em contato com o suporte"
-},
-{
-"codigo": "CANCEL_ERROR",
-"http": 500,
-"descricao": "Falha técnica ao executar o cancelamento. Nada foi alterado.",
-"acao": "Reenvie com backoff exponencial; se persistir, informe o request_id ao suporte."
+"acao": "Use o cancelamento, que trata as etapas permitidas."
 },
 {
 "codigo": "DELETE_ERROR",
@@ -226,30 +242,554 @@
 },
 {
 "codigo": "ITEM_ERROR",
-"http": "207 (por item)",
+"http": 207,
 "descricao": "Item de um lote recusado; os demais seguem processados.",
 "acao": "Leia results[].error de cada item com status error."
+},
+{
+"codigo": "VERSAO_CONFLITO",
+"http": 409,
+"descricao": "O id_alteracao já foi usado nesta OS com outro conteúdo (alterações de saída).",
+"acao": "Use um id_alteracao novo para uma alteração diferente. Reenvio idêntico responde 200 already_processed."
+},
+{
+"codigo": "ANALISE_DESATUALIZADA",
+"http": 409,
+"descricao": "A OS mudou desde a simulação: o hash_analise enviado não confere mais.",
+"acao": "Simule de novo (POST /alteracoes/simular) e reenvie com o hash_analise novo."
+},
+{
+"codigo": "ITEM_NAO_ENCONTRADO",
+"http": 422,
+"descricao": "Produto da alteração não encontrado pelo codigo_erp_produto (nem pelo SKU). Nada foi aplicado.",
+"acao": "Cadastre ou corrija o produto e reenvie com o mesmo id_alteracao. error.details lista os itens."
+},
+{
+"codigo": "QUANTIDADE_INVALIDA",
+"http": 422,
+"descricao": "Quantidade ausente, não numérica ou fora da regra do modo (negativa em quantidade_final, não positiva em devoluções). Nada foi aplicado.",
+"acao": "Corrija a quantidade e reenvie com o mesmo id_alteracao."
+},
+{
+"codigo": "QUANTIDADE_EXCEDE_VIGENTE",
+"http": 422,
+"descricao": "A alteração retira mais do que a OS tem hoje para o produto. Nada foi aplicado.",
+"acao": "Consulte GET /{codigo_erp}/posicao (quantidade_vigente) e reenvie com a quantidade correta. error.details traz o saldo."
+},
+{
+"codigo": "QUANTIDADE_EXCEDE_DEVOLVIVEL",
+"http": 422,
+"descricao": "A devolução pede mais do que o cliente já retirou e ainda não devolveu. Nada foi aplicado.",
+"acao": "Consulte GET /{codigo_erp}/posicao (qtd_devolvivel) e reenvie com a quantidade correta."
+},
+{
+"codigo": "DOCUMENTO_ENCERRADO",
+"http": 422,
+"descricao": "A OS/pedido está cancelado: não aceita alterações.",
+"acao": "Envie um novo pedido, se for o caso."
+},
+{
+"codigo": "ALTERACAO_ERROR",
+"http": 500,
+"descricao": "Falha inesperada ao processar a alteração ou devolução.",
+"acao": "Reenvie com o mesmo id_alteracao (é seguro). Persistindo, acione o suporte com o request_id."
+},
+{
+"codigo": "POSICAO_ERROR",
+"http": 500,
+"descricao": "Falha inesperada ao montar a posição da OS.",
+"acao": "Repita a consulta. Persistindo, acione o suporte com o request_id."
+},
+{
+"codigo": "CONSULTA_ERROR",
+"http": 500,
+"descricao": "Falha inesperada ao consultar a alteração.",
+"acao": "Repita a consulta. Persistindo, acione o suporte com o request_id."
+},
+{
+"codigo": "DOCUMENTO_NAO_ENCONTRADO",
+"http": 404,
+"descricao": "O documento de saída do caminho não existe no WMS para esta empresa (ou foi excluído).",
+"acao": "Envie o pedido antes da nota fiscal; se o pedido já foi enviado, confira o codigo_erp e reenvie a nota depois."
+},
+{
+"codigo": "NF_NAO_ENCONTRADA",
+"http": 404,
+"descricao": "Nenhuma nota com esse codigo_erp_nf ou chave de acesso neste documento de saída.",
+"acao": "Confira o {id_nf} (o mesmo codigo_erp_nf usado no POST, ou a chave) e se a nota foi registrada neste pedido (GET /notas-fiscais)."
+},
+{
+"codigo": "NF_VINCULADA_OUTRO_DOCUMENTO",
+"http": 409,
+"descricao": "A chave de acesso já está registrada em outro documento de saída. Nada foi gravado.",
+"acao": "Confira se o codigo_erp do caminho é o pedido certo; uma nota não muda de pedido pela API."
+},
+{
+"codigo": "SITUACAO_NAO_PERMITIDA",
+"http": 409,
+"descricao": "A mudança de situação não é permitida (ex.: nota CANCELADA voltando para AUTORIZADA, ou cancelamento de nota DENEGADA). A situação atual vem em error.details.",
+"acao": "Não reenvie a mesma mudança. Se a nota foi reemitida, registre a nova nota com outro codigo_erp_nf e outra chave."
+},
+{
+"codigo": "CHAVE_ACESSO_INVALIDA",
+"http": 422,
+"descricao": "A chave de acesso não tem 44 dígitos, tem dígito verificador errado ou indica um modelo diferente do campo modelo.",
+"acao": "Envie a chave exatamente como autorizada pela SEFAZ e confira o campo modelo (55 ou 65)."
+},
+{
+"codigo": "FINALIDADE_NAO_SUPORTADA",
+"http": 422,
+"descricao": "Nota de devolução (finalidade 4) não é registrada como nota do pedido de saída.",
+"acao": "Use o fluxo de devolução (POST /devolucoes ou documento de entrada de devolução)."
 }
 ],
-"enums": {
-"tipo_parceiro": [
-"CLIENTE",
-"FORNECEDOR",
-"TRANSPORTADOR"
-],
-"tipo_controle": [
-"UNIDADE",
-"LOTE",
-"VALIDADE",
-"SERIE",
-"METROS"
-],
-"tipo_separacao": [
-"FRACIONADO",
-"EMBALAGEM_TOTAL",
-"CAIXARIA"
+"enums": [
+{
+"categoria": "tipo_parceiro",
+"entrada": true,
+"contexto": "Campo tipo_parceiro de /master-data/parceiros",
+"valores": [
+{
+"valor": "CLIENTE",
+"descricao": "Destinatário de pedidos de saída."
+},
+{
+"valor": "FORNECEDOR",
+"descricao": "Emitente de notas de entrada e fornecedor padrão de produtos."
+},
+{
+"valor": "TRANSPORTADOR",
+"descricao": "Transportadora. O mesmo CNPJ pode ter códigos de cliente e fornecedor (apelidos)."
+}
 ]
 },
+{
+"categoria": "tipo_controle",
+"entrada": true,
+"contexto": "Campo tipo_controle de /master-data/produtos",
+"valores": [
+{
+"valor": "UNIDADE",
+"descricao": "Controle só por quantidade, sem lote, validade ou série."
+},
+{
+"valor": "LOTE",
+"descricao": "Controle por número de lote."
+},
+{
+"valor": "VALIDADE",
+"descricao": "Controle por data de validade."
+},
+{
+"valor": "SERIE",
+"descricao": "Controle por número de série."
+},
+{
+"valor": "METROS",
+"descricao": "Quantidade controlada em metros."
+}
+]
+},
+{
+"categoria": "tipo_separacao",
+"entrada": true,
+"contexto": "Campo tipo_separacao de /master-data/produtos",
+"valores": [
+{
+"valor": "FRACIONADO",
+"descricao": "Separação em unidades."
+},
+{
+"valor": "EMBALAGEM_TOTAL",
+"descricao": "Separação somente em embalagens fechadas."
+},
+{
+"valor": "CAIXARIA",
+"descricao": "Separação por caixa."
+}
+]
+},
+{
+"categoria": "modo_alteracao_saida",
+"entrada": true,
+"contexto": "POST /alteracoes",
+"valores": [
+{
+"valor": "delta",
+"descricao": "Quantidade é a variação: negativo retira, positivo inclui (padrão)"
+},
+{
+"valor": "quantidade_final",
+"descricao": "Quantidade é o total desejado para o produto; 0 remove o item"
+}
+]
+},
+{
+"categoria": "situacao_nf",
+"entrada": true,
+"contexto": "POST /notas-fiscais",
+"valores": [
+{
+"valor": "AUTORIZADA",
+"descricao": "Nota autorizada pela SEFAZ. Exige chave_acesso."
+},
+{
+"valor": "CANCELADA",
+"descricao": "Nota cancelada. Exige data_cancelamento e cancela o pedido no WMS. Prefira o PATCH."
+},
+{
+"valor": "DENEGADA",
+"descricao": "Uso denegado pela SEFAZ. Situação final."
+},
+{
+"valor": "INUTILIZADA",
+"descricao": "Numeração inutilizada. Situação final."
+},
+{
+"valor": "HOMOLOGACAO",
+"descricao": "Gravada automaticamente quando tipo_ambiente = 2. Não é enviada pelo ERP."
+}
+]
+},
+{
+"categoria": "modelo_nf",
+"entrada": true,
+"contexto": "POST /notas-fiscais",
+"valores": [
+{
+"valor": "55",
+"descricao": "NF-e (aceita também NFE ou NF-e)"
+},
+{
+"valor": "65",
+"descricao": "NFC-e (aceita também NFCE ou NFC-e)"
+}
+]
+},
+{
+"categoria": "modalidade_frete",
+"entrada": true,
+"contexto": "POST /notas-fiscais",
+"valores": [
+{
+"valor": "0",
+"descricao": "Contratação do frete por conta do remetente (CIF)"
+},
+{
+"valor": "1",
+"descricao": "Contratação do frete por conta do destinatário (FOB)"
+},
+{
+"valor": "2",
+"descricao": "Contratação do frete por conta de terceiros"
+},
+{
+"valor": "3",
+"descricao": "Transporte próprio por conta do remetente"
+},
+{
+"valor": "4",
+"descricao": "Transporte próprio por conta do destinatário"
+},
+{
+"valor": "9",
+"descricao": "Sem ocorrência de transporte"
+}
+]
+},
+{
+"categoria": "finalidade_nf",
+"entrada": true,
+"contexto": "POST /notas-fiscais",
+"valores": [
+{
+"valor": "1",
+"descricao": "NF-e normal (padrão)"
+},
+{
+"valor": "2",
+"descricao": "NF-e complementar"
+},
+{
+"valor": "3",
+"descricao": "NF-e de ajuste"
+},
+{
+"valor": "4",
+"descricao": "Devolução: recusada neste endpoint (422 FINALIDADE_NAO_SUPORTADA)"
+}
+]
+},
+{
+"categoria": "tipo_ambiente",
+"entrada": true,
+"contexto": "POST /notas-fiscais",
+"valores": [
+{
+"valor": "1",
+"descricao": "Produção (padrão)"
+},
+{
+"valor": "2",
+"descricao": "Homologação: gravada como HOMOLOGACAO, nunca é a nota vigente"
+}
+]
+},
+{
+"categoria": "estagio_cancelamento_saida",
+"entrada": false,
+"contexto": "Campo estagio_encontrado do cancelamento de saída",
+"valores": [
+{
+"valor": "SEM_ONDA",
+"descricao": "Pedido ainda não estava em onda"
+},
+{
+"valor": "VINCULADO_SEM_ONDA_ATIVA",
+"descricao": "Pedido vinculado a onda já cancelada"
+},
+{
+"valor": "ONDA_CRIADA",
+"descricao": "Onda gerada, separação ainda não liberada"
+},
+{
+"valor": "ONDA_LIBERADA",
+"descricao": "Onda liberada para separação, nada coletado"
+},
+{
+"valor": "EM_PICKING",
+"descricao": "Separação em andamento; o que foi coletado é estornado"
+},
+{
+"valor": "SEPARADO",
+"descricao": "Separação concluída, conferência não iniciada; o coletado é estornado"
+},
+{
+"valor": "EM_CONFERENCIA",
+"descricao": "Conferência iniciada: cancelamento recusado"
+},
+{
+"valor": "CONFERIDO",
+"descricao": "Conferência concluída: cancelamento recusado"
+},
+{
+"valor": "EM_CARREGAMENTO",
+"descricao": "Em carregamento: cancelamento recusado"
+},
+{
+"valor": "CONCLUIDA",
+"descricao": "Expedido: cancelamento recusado; tratar como devolução"
+},
+{
+"valor": "EXPORTADA_ERP",
+"descricao": "Expedido e devolvido ao ERP: cancelamento recusado; tratar como devolução"
+}
+]
+},
+{
+"categoria": "evento_retorno_saida",
+"entrada": false,
+"contexto": "Retorno ao ERP",
+"valores": [
+{
+"valor": "saida.alteracao_aplicada",
+"descricao": "Alteração da OS aplicada (pela API ou pelo documento de devolução da OS), com a decomposição por item"
+},
+{
+"valor": "saida.devolucao_gerada",
+"descricao": "O WMS abriu devolução de peça já retirada"
+}
+]
+},
+{
+"categoria": "marco_retirada",
+"entrada": false,
+"contexto": "GET /posicao",
+"valores": [
+{
+"valor": "CONFERENCIA",
+"descricao": "Peça conferida conta como entregue ao cliente (ex.: OS de oficina)"
+},
+{
+"valor": "EXPEDICAO",
+"descricao": "Peça só conta como entregue ao expedir (padrão)"
+}
+]
+},
+{
+"categoria": "resolucao_alteracao_saida",
+"entrada": false,
+"contexto": "itens[].resolucao",
+"valores": [
+{
+"valor": "ja_cortado",
+"descricao": "Unidade já cortada na separação: o corte é apagado"
+},
+{
+"valor": "corte",
+"descricao": "Unidade não separada: OS e tarefa reduzidas"
+},
+{
+"valor": "aguardando",
+"descricao": "Unidade em coleta ou conferência: aguardando para aplicar"
+},
+{
+"valor": "estorno",
+"descricao": "Unidade separada aguardando conferência: estornada para o endereço de cancelamento"
+},
+{
+"valor": "devolucao",
+"descricao": "Unidade já retirada ou expedida: devolução aberta, aguardando recebimento"
+},
+{
+"valor": "inclusao",
+"descricao": "Quantidade incluída: novo documento de saída da OS"
+}
+]
+},
+{
+"categoria": "retirada_fisica_cancelamento",
+"entrada": false,
+"contexto": "Campo retirada_fisica.status do cancelamento e do cancel-status",
+"valores": [
+{
+"valor": "NAO_APLICAVEL",
+"descricao": "Nada tinha sido separado; não há produto a recolher"
+},
+{
+"valor": "PENDENTE",
+"descricao": "Produto separado a caminho do endereço de cancelamento (tarefa PED-CAN aberta)"
+},
+{
+"valor": "CONCLUIDA",
+"descricao": "Produto entregue no endereço de cancelamento"
+}
+]
+},
+{
+"categoria": "situacao_alteracao_saida",
+"entrada": false,
+"contexto": "GET /alteracoes/{id_alteracao}",
+"valores": [
+{
+"valor": "aplicado",
+"descricao": "Alteração aplicada"
+},
+{
+"valor": "pendente",
+"descricao": "Aguardando o fim de uma coleta ou conferência; reprocessada a cada minuto"
+},
+{
+"valor": "erro",
+"descricao": "Não aplicada; ver o campo erro"
+}
+]
+},
+{
+"categoria": "status_alteracao_saida",
+"entrada": false,
+"contexto": "POST /alteracoes e /devolucoes",
+"valores": [
+{
+"valor": "applied",
+"descricao": "Alteração aplicada (HTTP 200)"
+},
+{
+"valor": "already_processed",
+"descricao": "Reenvio idêntico do mesmo id_alteracao; devolve o resultado original (HTTP 200)"
+},
+{
+"valor": "simulated",
+"descricao": "Resultado da simulação; nada gravado (HTTP 200)"
+},
+{
+"valor": "pending",
+"descricao": "Peça em coleta ou conferência; o WMS aplica sozinho quando terminar (HTTP 202)"
+}
+]
+},
+{
+"categoria": "status_cancelamento_saida",
+"entrada": false,
+"contexto": "Campo data.status do POST|PATCH /documentos-saida/{codigo_erp}/cancel",
+"valores": [
+{
+"valor": "cancelled",
+"descricao": "Pedido cancelado no WMS nesta chamada (HTTP 200)"
+},
+{
+"valor": "already_cancelled",
+"descricao": "Pedido já estava cancelado; nada foi refeito (HTTP 200)"
+},
+{
+"valor": "cancellation_rejected",
+"descricao": "Cancelamento recusado; veja data.codigo (HTTP 422)"
+},
+{
+"valor": "retry_later",
+"descricao": "Pedido em uso por outra operação; repita após Retry-After (HTTP 409)"
+},
+{
+"valor": "configuration_error",
+"descricao": "Falta configuração no WMS (HTTP 422 CONFIGURACAO_INCOMPLETA)"
+},
+{
+"valor": "not_found",
+"descricao": "Pedido não encontrado (HTTP 404)"
+},
+{
+"valor": "cancellation_in_progress",
+"descricao": "Pedido cancelado pelo fluxo anterior à v1.10, com retirada pendente (HTTP 200)"
+},
+{
+"valor": "error",
+"descricao": "Falha técnica; nada foi alterado (HTTP 500)"
+}
+]
+},
+{
+"categoria": "status_consulta_cancelamento",
+"entrada": false,
+"contexto": "Campo data.status do GET /documentos-saida/{codigo_erp}/cancel-status",
+"valores": [
+{
+"valor": "not_requested",
+"descricao": "Nenhum cancelamento solicitado"
+},
+{
+"valor": "cancelled",
+"descricao": "Pedido cancelado no WMS"
+},
+{
+"valor": "rejected",
+"descricao": "Última solicitação recusada; pedido continua ativo"
+},
+{
+"valor": "cancellation_in_progress",
+"descricao": "Cancelado pelo fluxo anterior à v1.10, retirada pendente"
+}
+]
+},
+{
+"categoria": "status_nf",
+"entrada": false,
+"contexto": "POST /notas-fiscais",
+"valores": [
+{
+"valor": "created",
+"descricao": "Nota nova registrada (HTTP 201)"
+},
+{
+"valor": "updated",
+"descricao": "Dados ou situação da nota mudaram (HTTP 200)"
+},
+{
+"valor": "already_processed",
+"descricao": "Reenvio sem mudança; nada foi gravado (HTTP 200)"
+}
+]
+}
+],
 "eventos": [
 {
 "nome": "Entrada · Armazenagem finalizada",
@@ -339,53 +879,25 @@
 ],
 "changelog": [
 {
-"data": "2024-06-01",
+"data": "2026-11-09",
 "tipo": "feature",
-"versao": "1.0.0",
-"detalhes": "Endpoints de dados mestres: produtos, parceiros, grupos e subgrupos de produto, tipos de entrada e saída. Endpoints de movimentos: notas de entrada, pedidos de saída, NFs de devolução. Endpoints de retorno: retorno de entrada e saída. Endpoint de sistema: health check. Autenticação via API Key (header x-api-key). Suporte a operações em batch com upsert via codigo_erp.",
-"descricao": "Lançamento inicial da API de Integração"
+"versao": "1.14.0",
+"detalhes": "- Novo `POST /movements/documentos-saida/{codigo_erp}/notas-fiscais`: registra a nota emitida para o pedido (chave, série, protocolo, volumes, espécie, pesos, transportadora).\n- Novo `PATCH /movements/documentos-saida/{codigo_erp}/notas-fiscais/{id_nf}`: cancela a nota; `{id_nf}` aceita o codigo_erp_nf ou a chave. Alternativa `POST .../{id_nf}/situacao` para clientes sem PATCH.\n- Novo `GET /movements/documentos-saida/{codigo_erp}/notas-fiscais`: notas do pedido e a nota vigente.\n- Nota cancelada cancela o pedido no WMS (mesma regra do cancelamento por NF do Omie), com decisão manual quando a onda já está em carregamento.\n- Chave de acesso validada (44 dígitos, dígito verificador e modelo). A mesma nota vinda do Omie e da API fica num único registro.\n- Novos códigos de erro: `DOCUMENTO_NAO_ENCONTRADO`, `NF_NAO_ENCONTRADA`, `NF_VINCULADA_OUTRO_DOCUMENTO`, `SITUACAO_NAO_PERMITIDA`, `CHAVE_ACESSO_INVALIDA`, `FINALIDADE_NAO_SUPORTADA`.\n- Gateway 1.23. Nenhuma rota existente mudou.",
+"descricao": "Notas fiscais (NF-e/NFC-e) de saída por documento"
 },
 {
-"data": "2024-09-15",
+"data": "2026-11-02",
 "tipo": "feature",
-"versao": "1.1.0",
-"detalhes": "Novos endpoints para movimentos de entrada e movimentos de saída. Suporte a consulta de movimentações internas do armazém.",
-"descricao": "Adicionados endpoints de movimentos internos"
+"versao": "1.13.0",
+"detalhes": "- Novo `GET /movements/documentos-saida/{codigo_erp}/posicao`: situação da OS inteira por produto.\n- Novos `POST /movements/documentos-saida/{codigo_erp}/alteracoes` e `/alteracoes/simular`: o WMS decide corte, estorno, devolução ou inclusão e responde a decomposição por item.\n- Novo `GET /movements/documentos-saida/{codigo_erp}/alteracoes/{id_alteracao}`: situação de uma alteração.\n- Novo `POST /movements/documentos-saida/{codigo_erp}/devolucoes`: devolução limitada ao que já foi retirado.\n- `/cancel`: em tipos de saída configurados para devolver, OS já conferida passa a ser cancelada com devolução (200 `cancelled`, `modo: devolucao`) em vez de 422.\n- Documento de entrada de devolução da OS (fluxo antigo) continua aceito, sem mudança de payload: o WMS liga à OS e aplica as mesmas regras, sem inflar o estoque.\n- Novos eventos de retorno: `saida.alteracao_aplicada` e `saida.devolucao_gerada`. `entrada.conferencia_finalizada` passa a trazer `conferencia_fisica`.\n- Novos códigos de erro: `VERSAO_CONFLITO`, `ANALISE_DESATUALIZADA`, `ITEM_NAO_ENCONTRADO`, `QUANTIDADE_INVALIDA`, `QUANTIDADE_EXCEDE_VIGENTE`, `QUANTIDADE_EXCEDE_DEVOLVIVEL`, `DOCUMENTO_ENCERRADO`.\n- Gateway 1.22.",
+"descricao": "Alterações de OS resolvidas pelo WMS: posição, simulação, alteração, devolução e cancelamento de OS conferida"
 },
 {
-"data": "2025-01-20",
+"data": "2026-10-28",
 "tipo": "feature",
-"versao": "1.2.0",
-"detalhes": "Documentação da API agora disponível publicamente sem necessidade de autenticação. Inclui guias interativos, referência de endpoints, enumerações, códigos de erro e changelog. Novos campos na documentação: tags, curl_exemplo, headers_exemplo, parametros_query, versao_desde.",
-"descricao": "Portal de documentação pública"
-},
-{
-"data": "2025-02-10",
-"tipo": "fix",
-"versao": "1.2.1",
-"detalhes": "Corrigida validação do campo codigo_barras em produtos para aceitar códigos EAN-8. Corrigido tratamento de timezone em campos de data para notas de entrada.",
-"descricao": "Correções na validação de campos"
-},
-{
-"data": "2026-10-14",
-"tipo": "feature",
-"versao": "1.8.0",
-"detalhes": "Permite enviar alterações de documentos já integrados como novos movimentos (mesmo codigo_erp + id_alteracao sequencial), com histórico consultável em GET /{codigo_erp}/alteracoes. Consulta, cancelamento e exclusão aceitam ?id_alteracao=N; sem o parâmetro atuam no documento original. Novos erros: ID_ALTERACAO_CONFLICT e AMBIGUOUS_DOCUMENT (409). Correção: GET /movements/documentos-saida/{codigo_erp}/cancel-status voltou a responder.",
-"descricao": "Campo opcional id_alteracao em documentos de entrada e saída"
-},
-{
-"data": "2026-10-15",
-"tipo": "feature",
-"versao": "1.9.0",
-"detalhes": "O campo id_alteracao (documentos de entrada e saída) aceita texto de 1 a 50 caracteres (letras, números, . _ - /), além de número, que é tratado como texto (2 = \"2\"). Diferencia maiúsculas de minúsculas. O parâmetro ?id_alteracao aceita o mesmo formato. No retorno ao ERP e nas respostas da API, id_alteracao passa a vir como texto. Os alertas fora_de_ordem/salto do histórico só são calculados para identificadores numéricos.",
-"descricao": "id_alteracao passa a ser alfanumérico"
-},
-{
-"data": "2026-10-20",
-"tipo": "feature",
-"versao": "1.10.0",
-"detalhes": "POST|PATCH /movements/documentos-saida/{codigo_erp}/cancel passa a cancelar em qualquer etapa até a separação concluída, estornando o que já foi coletado para o endereço de cancelamento (lote, validade e fabricação preservados) e retirando da onda só a parte do pedido. A partir da conferência responde 422 CANCELAMENTO_NAO_PERMITIDO. O cancelamento é imediato: o 202 deixa de ser usado. Corpo opcional com motivo e solicitado_por; header Idempotency-Key. Novos erros: CANCELAMENTO_NAO_PERMITIDO, CONFERENCIA_INICIADA, VOLUME_EXPEDICAO_EXISTENTE, CONFIGURACAO_INCOMPLETA, RETRY_LATER (409 + Retry-After), CANCEL_ERROR. GET /{codigo_erp}/cancel-status reformulado: status do cancelamento, última recusa e andamento da retirada física.",
-"descricao": "Cancelamento de pedido de saída com estorno da separação"
+"versao": "1.12.0",
+"detalhes": "Novos PATCH /master-data/produtos/{codigo_erp} e PATCH /master-data/parceiros/{codigo_erp}: alteram só os campos enviados (404 se o cadastro não existir; codigo_erp e CNPJ não mudam). No POST de produto, tipo_controle e tipo_separacao passam a ser opcionais: ausentes, valem as regras de padrão do WMS (sem regra, UNIDADE e FRACIONADO na criação; na atualização fica o valor atual). Correção: cancelar por codigo_erp um documento que só existe como alteração já cancelada responde 200 already_cancelled (antes 404).",
+"descricao": "PATCH de produto e parceiro; tipos de produto opcionais"
 },
 {
 "data": "2026-10-27",
@@ -395,11 +907,53 @@
 "descricao": "Rate limit informado, paginação por cursor e Idempotency-Key em toda escrita"
 },
 {
-"data": "2026-10-28",
+"data": "2026-10-20",
 "tipo": "feature",
-"versao": "1.12.0",
-"detalhes": "Novos PATCH /master-data/produtos/{codigo_erp} e PATCH /master-data/parceiros/{codigo_erp}: alteram só os campos enviados (404 se o cadastro não existir; codigo_erp e CNPJ não mudam). No POST de produto, tipo_controle e tipo_separacao passam a ser opcionais: ausentes, valem as regras de padrão do WMS (sem regra, UNIDADE e FRACIONADO na criação; na atualização fica o valor atual). Correção: cancelar por codigo_erp um documento que só existe como alteração já cancelada responde 200 already_cancelled (antes 404).",
-"descricao": "PATCH de produto e parceiro; tipos de produto opcionais"
+"versao": "1.10.0",
+"detalhes": "POST|PATCH /movements/documentos-saida/{codigo_erp}/cancel passa a cancelar em qualquer etapa até a separação concluída, estornando o que já foi coletado para o endereço de cancelamento (lote, validade e fabricação preservados) e retirando da onda só a parte do pedido. A partir da conferência responde 422 CANCELAMENTO_NAO_PERMITIDO. O cancelamento é imediato: o 202 deixa de ser usado. Corpo opcional com motivo e solicitado_por; header Idempotency-Key. Novos erros: CANCELAMENTO_NAO_PERMITIDO, CONFERENCIA_INICIADA, VOLUME_EXPEDICAO_EXISTENTE, CONFIGURACAO_INCOMPLETA, RETRY_LATER (409 + Retry-After), CANCEL_ERROR. GET /{codigo_erp}/cancel-status reformulado: status do cancelamento, última recusa e andamento da retirada física.",
+"descricao": "Cancelamento de pedido de saída com estorno da separação"
+},
+{
+"data": "2026-10-15",
+"tipo": "feature",
+"versao": "1.9.0",
+"detalhes": "O campo id_alteracao (documentos de entrada e saída) aceita texto de 1 a 50 caracteres (letras, números, . _ - /), além de número, que é tratado como texto (2 = \"2\"). Diferencia maiúsculas de minúsculas. O parâmetro ?id_alteracao aceita o mesmo formato. No retorno ao ERP e nas respostas da API, id_alteracao passa a vir como texto. Os alertas fora_de_ordem/salto do histórico só são calculados para identificadores numéricos.",
+"descricao": "id_alteracao passa a ser alfanumérico"
+},
+{
+"data": "2026-10-14",
+"tipo": "feature",
+"versao": "1.8.0",
+"detalhes": "Permite enviar alterações de documentos já integrados como novos movimentos (mesmo codigo_erp + id_alteracao sequencial), com histórico consultável em GET /{codigo_erp}/alteracoes. Consulta, cancelamento e exclusão aceitam ?id_alteracao=N; sem o parâmetro atuam no documento original. Novos erros: ID_ALTERACAO_CONFLICT e AMBIGUOUS_DOCUMENT (409). Correção: GET /movements/documentos-saida/{codigo_erp}/cancel-status voltou a responder.",
+"descricao": "Campo opcional id_alteracao em documentos de entrada e saída"
+},
+{
+"data": "2025-02-10",
+"tipo": "fix",
+"versao": "1.2.1",
+"detalhes": "Corrigida validação do campo codigo_barras em produtos para aceitar códigos EAN-8. Corrigido tratamento de timezone em campos de data para notas de entrada.",
+"descricao": "Correções na validação de campos"
+},
+{
+"data": "2025-01-20",
+"tipo": "feature",
+"versao": "1.2.0",
+"detalhes": "Documentação da API agora disponível publicamente sem necessidade de autenticação. Inclui guias interativos, referência de endpoints, enumerações, códigos de erro e changelog. Novos campos na documentação: tags, curl_exemplo, headers_exemplo, parametros_query, versao_desde.",
+"descricao": "Portal de documentação pública"
+},
+{
+"data": "2024-09-15",
+"tipo": "feature",
+"versao": "1.1.0",
+"detalhes": "Novos endpoints para movimentos de entrada e movimentos de saída. Suporte a consulta de movimentações internas do armazém.",
+"descricao": "Adicionados endpoints de movimentos internos"
+},
+{
+"data": "2024-06-01",
+"tipo": "feature",
+"versao": "1.0.0",
+"detalhes": "Endpoints de dados mestres: produtos, parceiros, grupos e subgrupos de produto, tipos de entrada e saída. Endpoints de movimentos: notas de entrada, pedidos de saída, NFs de devolução. Endpoints de retorno: retorno de entrada e saída. Endpoint de sistema: health check. Autenticação via API Key (header x-api-key). Suporte a operações em batch com upsert via codigo_erp.",
+"descricao": "Lançamento inicial da API de Integração"
 }
 ],
 "limites": [
