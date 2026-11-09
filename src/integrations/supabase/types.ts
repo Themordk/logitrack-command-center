@@ -13890,6 +13890,7 @@ export type Database = {
           p_data_de?: string
           p_empresa_id?: string
           p_numero_documento?: number
+          p_numero_nf?: string
           p_numero_onda?: number
           p_page?: number
           p_page_size?: number
@@ -14502,6 +14503,52 @@ export type Database = {
         }
         Returns: Json
       }
+      rpc_relatorio_baixo_giro: {
+        Args: {
+          p_armazem_id?: string
+          p_classificacao?: string
+          p_dias_baixo_giro?: number
+          p_dias_obsoleto?: number
+          p_empresa_id: string
+          p_fuso?: string
+          p_grupo_id?: string
+          p_limit?: number
+          p_marca?: string
+          p_offset?: number
+          p_ordenacao?: string
+          p_saldo_minimo?: number
+          p_sku?: string
+          p_subgrupo_id?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          classificacao: string
+          custo_total: number
+          descricao: string
+          dias_parado: number
+          entrada_mais_antiga: string
+          grupo_descricao: string
+          grupo_id: string
+          marca: string
+          nunca_saiu: boolean
+          preco_custo: number
+          produto_id: string
+          qtd_baixo_giro: number
+          qtd_obsoleto: number
+          qtd_posicoes: number
+          qtd_sem_custo: number
+          qtd_sem_movimento: number
+          saldo: number
+          saldo_bloqueado: number
+          sku: string
+          subgrupo_descricao: string
+          subgrupo_id: string
+          total_custo: number
+          total_registros: number
+          total_saldo: number
+          ultima_saida: string
+        }[]
+      }
       rpc_relatorio_ciclo_pedido: {
         Args: {
           p_armazem_id?: string
@@ -14539,6 +14586,25 @@ export type Database = {
           tempo_pos_conf_min: number
           tempo_total_min: number
         }[]
+      }
+      rpc_relatorio_curva_abc: {
+        Args: {
+          p_armazem_id?: string
+          p_classe?: string
+          p_criterio?: string
+          p_data_fim: string
+          p_data_inicio: string
+          p_empresa_id: string
+          p_fuso?: string
+          p_grupo_id?: string
+          p_limite_a?: number
+          p_limite_b?: number
+          p_marca?: string
+          p_sku?: string
+          p_subgrupo_id?: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       rpc_relatorio_dock_to_stock: {
         Args: {
