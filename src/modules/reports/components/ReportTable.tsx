@@ -19,6 +19,8 @@ export interface ReportColumn {
   sortable?: boolean;
   /** Classe extra aplicada ao cabeçalho da coluna (ex.: destaque do critério ativo). */
   headerClassName?: string;
+  /** Dica exibida ao passar o mouse no cabeçalho (atributo title). */
+  headerTitle?: string;
 }
 
 interface ReportTableProps {
@@ -162,6 +164,7 @@ export function ReportTable({
                       ? { minWidth: col.width, maxWidth: col.wrap ? col.maxWidth : undefined }
                       : undefined
                   }
+                  title={col.headerTitle}
                   onClick={() => col.sortable !== false && handleSort(col.key)}
                 >
                   <span className="flex items-center gap-1">
