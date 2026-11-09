@@ -200,6 +200,8 @@ export function MovimentoSaidaPage() {
 
   const debouncedOnda = useDebounce(filterOnda, 400);
   const debouncedNumeroDocumento = useDebounce(filterNumeroDocumento, 400);
+  const [filterNumeroNf, setFilterNumeroNf] = useState("");
+  const debouncedNumeroNf = useDebounce(filterNumeroNf, 400);
   const debouncedParceiroCodigoErp = useDebounce(filterParceiroCodigoErp, 400);
   const debouncedVendedor = useDebounce(filterVendedor, 400);
   const debouncedTransportador = useDebounce(filterTransportador, 400);
@@ -266,7 +268,7 @@ export function MovimentoSaidaPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, debouncedSku, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
+  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, debouncedNumeroNf, debouncedSku, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
 
   // Tipo Saida options
   const tipoSaidaOptionsQuery = useQuery({
@@ -293,6 +295,7 @@ export function MovimentoSaidaPage() {
       filterDateTo,
       debouncedOnda,
       debouncedNumeroDocumento,
+      debouncedNumeroNf,
       debouncedSku,
       filterTipoSaidaId,
       debouncedParceiroCodigoErp,
@@ -309,6 +312,7 @@ export function MovimentoSaidaPage() {
         p_data_ate: filterDateTo || null,
         p_numero_onda: debouncedOnda ? Number(debouncedOnda) : null,
         p_numero_documento: debouncedNumeroDocumento ? Number(debouncedNumeroDocumento) : null,
+        p_numero_nf: debouncedNumeroNf.trim() || null,
         p_tipo_saida_id: filterTipoSaidaId || null,
         p_parceiro_codigo_erp: debouncedParceiroCodigoErp || null,
         p_vendedor: debouncedVendedor || null,
