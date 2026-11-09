@@ -1,17 +1,30 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
+
+/**
+ * Relatório Baixo Giro / Obsoletos — toda a regra roda na RPC
+ * `rpc_relatorio_baixo_giro` (migration 20261109151910):
+ *  - saída = tipos 2 (Saída) e 5 (Separação), descontando estornos (99);
+ *  - sem saída: dias contados da entrada mais antiga do saldo atual;
+ *  - faixas configuráveis; armazém restringe saldo e saída; fuso America/Fortaleza.
+ * A RPC é paginada e devolve, em cada linha, os totais do conjunto filtrado.
+ */
+
+export type BaixoGiroClassificacao = "BAIXO_GIRO" | "OBSOLETO" | "SEM_MOVIMENTO";
+export type BaixoGiroOrdenacao = "DIAS_DESC" | "CUSTO_DESC" | "SALDO_DESC" | "SKU_ASC";
 
 export interface BaixoGiroFilter {
   tenant_id: string;
-  empresa_id?: string;
+  empresa_id: string;
   armazem_id?: string;
-  dias_limite: number; // default 90
+  dias_baixo_giro: number; // padrão 90
+  dias_obsoleto: number;   // padrão 180
   sku?: string;
   marca?: string;
   grupo_id?: string;
   subgrupo_id?: string;
-  classificacao?: "BAIXO_GIRO" | "OBSOLETO" | "SEM_MOVIMENTO";
+  classificacao?: BaixoGiroClassificacao;
   saldo_minimo?: number;
+  ordenacao?: BaixoGiroOrdenacao;
 }
 
 export interface BaixoGiroRow {
@@ -20,138 +33,131 @@ export interface BaixoGiroRow {
   descricao: string;
   marca: string;
   grupo_id: string | null;
+  grupo_descricao: string | null;
   subgrupo_id: string | null;
+  subgrupo_descricao: string | null;
   saldo: number;
+  saldo_bloqueado: number;
+  qtd_posicoes: number;
   preco_custo: number;
   custo_total: number;
   ultima_saida: string | null;
-  dias_sem_movimento: number | null; // null = nunca
-  classificacao: "BAIXO_GIRO" | "OBSOLETO" | "SEM_MOVIMENTO";
+  entrada_mais_antiga: string | null;
+  dias_parado: number | null;
+  nunca_saiu: boolean;
+  classificacao: BaixoGiroClassificacao;
 }
 
-function classifica(dias: number | null): BaixoGiroRow["classificacao"] {
-  if (dias === null) return "SEM_MOVIMENTO";
-  if (dias >= 180) return "OBSOLETO";
-  return "BAIXO_GIRO";
+export interface BaixoGiroResumo {
+  total_registros: number;
+  total_saldo: number;
+  total_custo: number;
+  qtd_baixo_giro: number;
+  qtd_obsoleto: number;
+  qtd_sem_movimento: number;
+  qtd_sem_custo: number;
 }
 
-export async function fetchBaixoGiroReport(filters: BaixoGiroFilter): Promise<BaixoGiroRow[]> {
-  // 1. Saldo agregado por produto
-  const saldos = await fetchAllSelectRows<any>(
-    "estoque_geral",
-    "produto_id, quantidade_total",
-    (q) => {
-      q = q.eq("tenant_id", filters.tenant_id).gt("quantidade_total", 0);
-      if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
-      return q;
-    },
-  );
+export interface BaixoGiroPage {
+  rows: BaixoGiroRow[];
+  resumo: BaixoGiroResumo;
+}
 
-  const saldoMap = new Map<string, number>();
-  for (const s of (saldos || [])) {
-    saldoMap.set(s.produto_id, (saldoMap.get(s.produto_id) || 0) + Number(s.quantidade_total));
-  }
+export const BAIXO_GIRO_PAGE_SIZE = 100;
+const EXPORT_PAGE_SIZE = 1000; // máximo aceito pela RPC
+const EXPORT_CONCORRENCIA = 4;
 
-  if (saldoMap.size === 0) return [];
+const RESUMO_VAZIO: BaixoGiroResumo = {
+  total_registros: 0, total_saldo: 0, total_custo: 0,
+  qtd_baixo_giro: 0, qtd_obsoleto: 0, qtd_sem_movimento: 0, qtd_sem_custo: 0,
+};
 
-  const produtoIds = Array.from(saldoMap.keys());
-
-  // Helper: chunk array para evitar URL gigante no PostgREST (.in com milhares de UUIDs)
-  const chunk = <T,>(arr: T[], size: number): T[][] => {
-    const out: T[][] = [];
-    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-    return out;
+function toParams(f: BaixoGiroFilter, limit: number, offset: number) {
+  return {
+    p_tenant_id: f.tenant_id,
+    p_empresa_id: f.empresa_id,
+    p_armazem_id: f.armazem_id ?? null,
+    p_dias_baixo_giro: f.dias_baixo_giro,
+    p_dias_obsoleto: f.dias_obsoleto,
+    p_classificacao: f.classificacao ?? null,
+    p_grupo_id: f.grupo_id ?? null,
+    p_subgrupo_id: f.subgrupo_id ?? null,
+    p_marca: f.marca?.trim() || null,
+    p_sku: f.sku?.trim() || null,
+    p_saldo_minimo: f.saldo_minimo ?? null,
+    p_ordenacao: f.ordenacao ?? "DIAS_DESC",
+    p_limit: limit,
+    p_offset: offset,
   };
-  const ID_BATCH = 300;
+}
 
-  // 2. Última saída por produto (busca em batch)
-  const ultimaSaidaMap = new Map<string, string>();
-  for (const ids of chunk(produtoIds, ID_BATCH)) {
-    const movs = await fetchAllSelectRows<any>(
-      "estoque_movimento",
-      "produto_id, criado_em",
-      (q) => {
-        q = q
-          .eq("tenant_id", filters.tenant_id)
-          .eq("tipo_movimento", 2)
-          .in("produto_id", ids)
-          .order("criado_em", { ascending: false });
-        if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
-        return q;
-      },
-    );
-    for (const m of (movs || [])) {
-      if (!ultimaSaidaMap.has(m.produto_id)) {
-        ultimaSaidaMap.set(m.produto_id, m.criado_em);
-      }
+function mapRow(r: any): BaixoGiroRow {
+  return {
+    produto_id: r.produto_id,
+    sku: r.sku ?? "—",
+    descricao: r.descricao ?? "—",
+    marca: r.marca ?? "",
+    grupo_id: r.grupo_id ?? null,
+    grupo_descricao: r.grupo_descricao ?? null,
+    subgrupo_id: r.subgrupo_id ?? null,
+    subgrupo_descricao: r.subgrupo_descricao ?? null,
+    saldo: Number(r.saldo) || 0,
+    saldo_bloqueado: Number(r.saldo_bloqueado) || 0,
+    qtd_posicoes: Number(r.qtd_posicoes) || 0,
+    preco_custo: Number(r.preco_custo) || 0,
+    custo_total: Number(r.custo_total) || 0,
+    ultima_saida: r.ultima_saida ?? null,
+    entrada_mais_antiga: r.entrada_mais_antiga ?? null,
+    dias_parado: r.dias_parado ?? null,
+    nunca_saiu: !!r.nunca_saiu,
+    classificacao: r.classificacao,
+  };
+}
+
+function mapResumo(r: any | undefined): BaixoGiroResumo {
+  if (!r) return RESUMO_VAZIO;
+  return {
+    total_registros: Number(r.total_registros) || 0,
+    total_saldo: Number(r.total_saldo) || 0,
+    total_custo: Number(r.total_custo) || 0,
+    qtd_baixo_giro: Number(r.qtd_baixo_giro) || 0,
+    qtd_obsoleto: Number(r.qtd_obsoleto) || 0,
+    qtd_sem_movimento: Number(r.qtd_sem_movimento) || 0,
+    qtd_sem_custo: Number(r.qtd_sem_custo) || 0,
+  };
+}
+
+async function callRpc(f: BaixoGiroFilter, limit: number, offset: number): Promise<any[]> {
+  const { data, error } = await (supabase as any).rpc("rpc_relatorio_baixo_giro", toParams(f, limit, offset));
+  if (error) throw error;
+  return (data as any[]) || [];
+}
+
+/** Uma página do relatório + totais do conjunto filtrado inteiro. */
+export async function fetchBaixoGiroPage(
+  filters: BaixoGiroFilter,
+  page: number,
+  pageSize = BAIXO_GIRO_PAGE_SIZE,
+): Promise<BaixoGiroPage> {
+  const data = await callRpc(filters, pageSize, page * pageSize);
+  return { rows: data.map(mapRow), resumo: mapResumo(data[0]) };
+}
+
+/** Todas as linhas (para Excel/PDF). Páginas de 1000, até 4 em paralelo. */
+export async function fetchBaixoGiroAll(
+  filters: BaixoGiroFilter,
+  totalRegistros: number,
+): Promise<BaixoGiroRow[]> {
+  const paginas = Math.ceil(totalRegistros / EXPORT_PAGE_SIZE);
+  const resultado: BaixoGiroRow[][] = new Array(paginas);
+  let proxima = 0;
+  const worker = async () => {
+    while (proxima < paginas) {
+      const p = proxima++;
+      const data = await callRpc(filters, EXPORT_PAGE_SIZE, p * EXPORT_PAGE_SIZE);
+      resultado[p] = data.map(mapRow);
     }
-  }
-
-  // 3. Metadados dos produtos (em batch)
-  const produtoMap = new Map<string, any>();
-  for (const ids of chunk(produtoIds, ID_BATCH)) {
-    const produtos = await fetchAllSelectRows<any>(
-      "produto",
-      "id, sku, descricao, marca, grupo_id, subgrupo_id, preco_custo",
-      (q) => q.eq("tenant_id", filters.tenant_id).in("id", ids),
-    );
-    for (const p of (produtos || [])) produtoMap.set(p.id, p);
-  }
-
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
-  let rows: BaixoGiroRow[] = produtoIds.map((pid) => {
-    const p = produtoMap.get(pid);
-    const ultima = ultimaSaidaMap.get(pid) || null;
-    let dias: number | null = null;
-    if (ultima) {
-      const d = new Date(ultima);
-      d.setHours(0, 0, 0, 0);
-      dias = Math.floor((hoje.getTime() - d.getTime()) / 86400000);
-    }
-    const saldo = saldoMap.get(pid) || 0;
-    const preco = Number(p?.preco_custo) || 0;
-    return {
-      produto_id: pid,
-      sku: p?.sku || "—",
-      descricao: p?.descricao || "—",
-      marca: p?.marca || "",
-      grupo_id: p?.grupo_id ?? null,
-      subgrupo_id: p?.subgrupo_id ?? null,
-      saldo,
-      preco_custo: preco,
-      custo_total: saldo * preco,
-      ultima_saida: ultima,
-      dias_sem_movimento: dias,
-      classificacao: classifica(dias),
-    };
-  });
-
-  // 4. Aplica regra de dias limite (mantém SEM_MOVIMENTO sempre)
-  rows = rows.filter((r) => r.dias_sem_movimento === null || r.dias_sem_movimento >= filters.dias_limite);
-
-  // 5. Filtros client-side
-  if (filters.sku) {
-    const s = filters.sku.toLowerCase();
-    rows = rows.filter((r) => r.sku.toLowerCase().includes(s));
-  }
-  if (filters.marca) {
-    const s = filters.marca.toLowerCase();
-    rows = rows.filter((r) => r.marca.toLowerCase().includes(s));
-  }
-  if (filters.grupo_id) rows = rows.filter((r) => r.grupo_id === filters.grupo_id);
-  if (filters.subgrupo_id) rows = rows.filter((r) => r.subgrupo_id === filters.subgrupo_id);
-  if (filters.classificacao) rows = rows.filter((r) => r.classificacao === filters.classificacao);
-  if (filters.saldo_minimo !== undefined) rows = rows.filter((r) => r.saldo >= filters.saldo_minimo!);
-
-  // 6. Ordenação: SEM_MOVIMENTO primeiro, depois por dias DESC, depois custo total DESC
-  rows.sort((a, b) => {
-    const aD = a.dias_sem_movimento ?? Number.POSITIVE_INFINITY;
-    const bD = b.dias_sem_movimento ?? Number.POSITIVE_INFINITY;
-    if (aD !== bD) return bD - aD;
-    return b.custo_total - a.custo_total;
-  });
-
-  return rows;
+  };
+  await Promise.all(Array.from({ length: Math.min(EXPORT_CONCORRENCIA, paginas) }, worker));
+  return resultado.flat();
 }
