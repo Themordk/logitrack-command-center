@@ -153,9 +153,14 @@ export function EstoqueReportPage() {
       (m) => toast.error(m),
     );
     if (!loc) return;
+    const codigoTxt = filterCodigoEndereco.trim();
+    if (codigoTxt && !/^\d+$/.test(codigoTxt)) {
+      toast.error("Código do endereço deve ser numérico.");
+      return;
+    }
     setLoading(true);
     try {
-      const codigoNum = filterCodigoEndereco.trim() ? Number(filterCodigoEndereco) : undefined;
+      const codigoNum = codigoTxt ? Number(codigoTxt) : undefined;
       const filters: EstoqueFilter = {
         tenant_id: tenantId,
         empresa_id: empresaId || undefined,
