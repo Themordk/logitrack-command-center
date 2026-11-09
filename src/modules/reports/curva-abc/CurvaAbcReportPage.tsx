@@ -58,6 +58,7 @@ export function CurvaAbcReportPage() {
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [generatedAt, setGeneratedAt] = useState("");
+  const [filtrosGerados, setFiltrosGerados] = useState<Record<string, string> | null>(null);
   const [showFilters, setShowFilters] = useState(true);
 
   const [dataInicio, setDataInicio] = useState(def.inicio);
@@ -98,6 +99,7 @@ export function CurvaAbcReportPage() {
     setResumo(null);
     setGenerated(false);
     setGeneratedAt("");
+    setFiltrosGerados(null);
     setFilterArmazemId(""); setFilterGrupoId(""); setFilterSubgrupoId("");
   }, [empresaId, empresaVersion]);
 
