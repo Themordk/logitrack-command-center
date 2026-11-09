@@ -237,7 +237,7 @@ export function CurvaAbcReportPage() {
     exportToPdf("curva_abc", exportColumns, data, {
       title: "Curva ABC",
       generatedAt, usuario: usuarioNome || "—",
-      total: data.length, filters: activeFilters,
+      total: data.length, filters: filtrosGerados ?? {},
     });
   const handlePrint = () => window.print();
 
@@ -245,10 +245,10 @@ export function CurvaAbcReportPage() {
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       <ReportHeader
         title="Curva ABC de Estoque"
-        subtitle={`Classificação por ${CRITERIO_SUBTITULO[criterio]} no período — A ≤ ${limiteA}% · B ≤ ${limiteB}%`}
+        subtitle={`Classificação por ${CRITERIO_SUBTITULO[criterioExib]} no período — A ≤ ${limiteAExib}% · B ≤ ${limiteBExib}%`}
         generatedAt={generated ? generatedAt : "—"}
         total={generated ? data.length : undefined}
-        filters={generated ? activeFilters : undefined}
+        filters={generated ? (filtrosGerados ?? undefined) : undefined}
         onExportExcel={canExport ? handleExcel : undefined}
         onExportPdf={canExport ? handlePdf : undefined}
         onPrint={canExport ? handlePrint : undefined}
@@ -365,7 +365,7 @@ export function CurvaAbcReportPage() {
                 <div key={classe} className={cn("border rounded-lg p-3 space-y-1", classeCores[classe])}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold">Classe {classe}</span>
-                    <span className="text-xs font-semibold">{fmtPct(c.participacao)} do {CRITERIO_ROTULO[criterio]}</span>
+                    <span className="text-xs font-semibold">{fmtPct(c.participacao)} do {CRITERIO_ROTULO[criterioExib]}</span>
                   </div>
                   <div className="text-xs">
                     {fmtNum(c.skus)} SKU(s) · {fmtPct(pctSkus)} dos SKUs
@@ -378,7 +378,7 @@ export function CurvaAbcReportPage() {
           <p className="text-[11px] text-muted-foreground">
             Saída líquida: {fmtNum(resumo.total_qtd_saida)} un · Estornado no período: {fmtNum(resumo.total_qtd_estornada)} un · {fmtNum(resumo.skus_100_estornados)} SKU(s) 100% estornados fora da curva
           </p>
-          {criterio === "VALOR" && resumo.skus_sem_custo > 0 && (
+          {criterioExib === "VALOR" && resumo.skus_sem_custo > 0 && (
             <div className="flex items-center gap-2 text-xs text-[hsl(var(--status-busy))]">
               <AlertTriangle size={13} />
               {fmtNum(resumo.skus_sem_custo)} SKU(s) sem preço de custo foram considerados com valor zero.
