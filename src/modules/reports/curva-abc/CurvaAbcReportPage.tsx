@@ -176,7 +176,7 @@ export function CurvaAbcReportPage() {
     ACESSOS: "acessos",
   };
   const destaqueCriterio = (key: string) =>
-    key === colunaCriterio[criterio] ? "font-bold text-primary" : undefined;
+    key === colunaCriterio[criterioExib] ? "font-bold text-primary" : undefined;
 
   const columns: ReportColumn[] = [
     { key: "posicao", label: "Pos.", align: "right", width: "60px" },
@@ -202,17 +202,20 @@ export function CurvaAbcReportPage() {
     { key: "classe", label: "Classe", align: "center", width: "70px", render: (v) => classeBadge(v) },
   ];
 
-  const activeFilters: Record<string, string> = {
-    Período: `${dataInicio} → ${dataFim}`,
-    Critério: CRITERIO_OPTIONS.find((c) => c.value === criterio)?.label || criterio,
-    Limites: `A ${limiteA}% · B ${limiteB}%`,
+  const montarFiltrosAtivos = (): Record<string, string> => {
+    const f: Record<string, string> = {
+      Período: `${dataInicio} → ${dataFim}`,
+      Critério: CRITERIO_OPTIONS.find((c) => c.value === criterio)?.label || criterio,
+      Limites: `A ${limiteA}% · B ${limiteB}%`,
+    };
+    if (filterArmazemId) f["Armazém"] = armazens.find((a) => a.id === filterArmazemId)?.descricao || filterArmazemId;
+    if (filterGrupoId) f["Grupo"] = grupos.find((g) => g.id === filterGrupoId)?.descricao || filterGrupoId;
+    if (filterSubgrupoId) f["Subgrupo"] = subgrupos.find((s) => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
+    if (filterMarca) f["Marca"] = filterMarca;
+    if (filterSku) f["SKU"] = filterSku;
+    if (filterClasse) f["Classe"] = filterClasse;
+    return f;
   };
-  if (filterArmazemId) activeFilters["Armazém"] = armazens.find((a) => a.id === filterArmazemId)?.descricao || filterArmazemId;
-  if (filterGrupoId) activeFilters["Grupo"] = grupos.find((g) => g.id === filterGrupoId)?.descricao || filterGrupoId;
-  if (filterSubgrupoId) activeFilters["Subgrupo"] = subgrupos.find((s) => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
-  if (filterMarca) activeFilters["Marca"] = filterMarca;
-  if (filterSku) activeFilters["SKU"] = filterSku;
-  if (filterClasse) activeFilters["Classe"] = filterClasse;
 
   const exportColumns: ExportColumn[] = [
     { key: "posicao", label: "Pos.", align: "right", format: (r) => String(r.posicao) },
