@@ -200,6 +200,8 @@ export function MovimentoSaidaPage() {
 
   const debouncedOnda = useDebounce(filterOnda, 400);
   const debouncedNumeroDocumento = useDebounce(filterNumeroDocumento, 400);
+  const [filterNumeroNf, setFilterNumeroNf] = useState("");
+  const debouncedNumeroNf = useDebounce(filterNumeroNf, 400);
   const debouncedParceiroCodigoErp = useDebounce(filterParceiroCodigoErp, 400);
   const debouncedVendedor = useDebounce(filterVendedor, 400);
   const debouncedTransportador = useDebounce(filterTransportador, 400);
@@ -266,7 +268,7 @@ export function MovimentoSaidaPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, debouncedSku, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
+  }, [filterStatus, debouncedOnda, filterDateFrom, filterDateTo, debouncedNumeroDocumento, debouncedNumeroNf, debouncedSku, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, tenantId, empresaId]);
 
   // Tipo Saida options
   const tipoSaidaOptionsQuery = useQuery({
@@ -293,6 +295,7 @@ export function MovimentoSaidaPage() {
       filterDateTo,
       debouncedOnda,
       debouncedNumeroDocumento,
+      debouncedNumeroNf,
       debouncedSku,
       filterTipoSaidaId,
       debouncedParceiroCodigoErp,
@@ -309,6 +312,7 @@ export function MovimentoSaidaPage() {
         p_data_ate: filterDateTo || null,
         p_numero_onda: debouncedOnda ? Number(debouncedOnda) : null,
         p_numero_documento: debouncedNumeroDocumento ? Number(debouncedNumeroDocumento) : null,
+        p_numero_nf: debouncedNumeroNf.trim() || null,
         p_tipo_saida_id: filterTipoSaidaId || null,
         p_parceiro_codigo_erp: debouncedParceiroCodigoErp || null,
         p_vendedor: debouncedVendedor || null,
@@ -910,6 +914,20 @@ export function MovimentoSaidaPage() {
           <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
         </div>
         <div>
+          <label htmlFor="filtro-nf-onda" className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº NF</label>
+          <input
+            id="filtro-nf-onda"
+            type="text"
+            inputMode="numeric"
+            value={filterNumeroNf}
+            onChange={(e) => setFilterNumeroNf(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+            placeholder="Nº ou chave"
+            title="Número da nota fiscal (com ou sem zeros à esquerda) ou chave de acesso de 44 dígitos"
+            className={cn(inputClass, "w-28")}
+          />
+        </div>
+        <div>
           <label htmlFor="filtro-sku-onda" className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">SKU</label>
           <input id="filtro-sku-onda" type="text" value={filterSku} onChange={(e) => setFilterSku(e.target.value)} placeholder="SKU" className={cn(inputClass, "w-24")} />
         </div>
@@ -947,9 +965,11 @@ export function MovimentoSaidaPage() {
               <div className="flex items-center justify-center py-8"><Loader2 size={16} className="animate-spin text-muted-foreground" /></div>
             ) : filteredMovimentos.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8 px-3">
-                {debouncedSku.trim()
-                  ? `Nenhuma onda com o SKU ${debouncedSku.trim()} no período selecionado. Ajuste as datas para ampliar a busca.`
-                  : "Nenhuma onda encontrada."}
+                {debouncedNumeroNf.trim()
+                  ? `Nenhuma onda com a NF ${debouncedNumeroNf.trim()} no período selecionado. Ajuste as datas para ampliar a busca.`
+                  : debouncedSku.trim()
+                    ? `Nenhuma onda com o SKU ${debouncedSku.trim()} no período selecionado. Ajuste as datas para ampliar a busca.`
+                    : "Nenhuma onda encontrada."}
               </p>
             ) : (
               filteredMovimentos.map((mov) => {
@@ -1303,6 +1323,10 @@ export function MovimentoSaidaPage() {
                         <tbody>
                           {tabDocs.map((doc: any, i: number) => {
                             const nfTexto = doc.numero_nf ? (doc.serie_nf ? `${doc.numero_nf}/${doc.serie_nf}` : String(doc.numero_nf)) : null;
+                            const nfDigitos = debouncedNumeroNf.replace(/\D/g, "");
+                            const nfMatch = !!nfDigitos && (nfDigitos.length === 44
+                              ? String(doc.chave_nfe ?? "").replace(/\D/g, "") === nfDigitos
+                              : String(doc.numero_nf ?? "").replace(/^0+/, "") === nfDigitos.replace(/^0+/, ""));
                             const nfCell = (
                               <span className="inline-flex items-center gap-1.5">
                                 <span className="font-mono">{nfTexto ?? "—"}</span>
@@ -1314,7 +1338,7 @@ export function MovimentoSaidaPage() {
                               </span>
                             );
                             return (
-                            <tr key={doc.documento_saida_id || i} className="border-b border-border/50">
+                            <tr key={doc.documento_saida_id || i} className={cn("border-b border-border/50", nfMatch && "bg-primary/10")}>
                               <td className="px-3 py-2 text-xs text-foreground">{doc.ordem}</td>
                               <td className="px-3 py-2 font-mono text-xs text-foreground">{doc.numero_pedido}</td>
                               <td className="px-3 py-2 text-xs text-foreground">

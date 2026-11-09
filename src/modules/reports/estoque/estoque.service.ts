@@ -58,7 +58,7 @@ export async function fetchEstoqueReport(filters: EstoqueFilter) {
       const prods = await fetchAllSelectRows<any>("produto", "id", (q) => {
         q = q.eq("tenant_id", filters.tenant_id);
         if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
-        if (sku) q = q.ilike("sku", `%${sku}%`);
+        if (sku) q = q.eq("sku", sku);
         if (marca) q = q.ilike("marca", `%${marca}%`);
         if (filters.grupo_id) q = q.eq("grupo_id", filters.grupo_id);
         if (filters.subgrupo_id) q = q.eq("subgrupo_id", filters.subgrupo_id);

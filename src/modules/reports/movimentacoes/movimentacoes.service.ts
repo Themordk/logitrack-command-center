@@ -58,11 +58,10 @@ export async function fetchMovimentacoesReport(filters: MovimentacoesFilter) {
     saldo_final: Number(row.saldo_final ?? 0),
   }));
 
-  // RPC já filtra por SKU exato; mantém ILIKE no client p/ compat. com busca parcial.
-  if (filters.sku) {
-    results = results.filter((r) =>
-      r.sku.toLowerCase().includes(filters.sku!.toLowerCase()),
-    );
+  // Busca exata por SKU (sem correspondência parcial).
+  const skuBusca = filters.sku?.trim().toLowerCase();
+  if (skuBusca) {
+    results = results.filter((r) => r.sku.trim().toLowerCase() === skuBusca);
   }
 
   return results;

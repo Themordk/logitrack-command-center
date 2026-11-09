@@ -83,6 +83,10 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
       toast.error("Data início e fim são obrigatórias.");
       return;
     }
+    if (!filterSku.trim()) {
+      toast.error("Informe o SKU.");
+      return;
+    }
     const loc = parseLocalizacao(
       { rua: filterRua, predio: filterPredio, nivel: filterNivel, apto: filterApto },
       (m) => toast.error(m),
@@ -95,7 +99,7 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
         data_inicio: dataInicio,
         data_fim: dataFim,
         empresa_id: empresaId || undefined,
-        sku: filterSku || undefined,
+        sku: filterSku.trim() || undefined,
         tipo_movimento: filterTipoMov ? Number(filterTipoMov) : undefined,
         armazem_id: filterArmazemId || undefined,
         ...loc,
@@ -283,8 +287,8 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
                 <Input type="date" className="h-8 text-xs" value={dataFim} onChange={e => setDataFim(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">SKU</Label>
-                <Input className="h-8 text-xs" placeholder="Buscar SKU..." value={filterSku} onChange={e => setFilterSku(e.target.value)} />
+                <Label className="text-xs">SKU *</Label>
+                <Input className="h-8 text-xs" placeholder="SKU exato" value={filterSku} onChange={e => setFilterSku(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Tipo Movimento</Label>
