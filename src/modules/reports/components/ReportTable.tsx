@@ -17,6 +17,8 @@ export interface ReportColumn {
   wrap?: boolean;
   render?: (value: any, row: any) => React.ReactNode;
   sortable?: boolean;
+  /** Classe extra aplicada ao cabeçalho da coluna (ex.: destaque do critério ativo). */
+  headerClassName?: string;
 }
 
 interface ReportTableProps {
@@ -152,7 +154,8 @@ export function ReportTable({
                     "text-xs font-semibold text-foreground whitespace-nowrap px-3 py-2",
                     col.align === "right" && "text-right",
                     col.align === "center" && "text-center",
-                    col.sortable !== false && "cursor-pointer select-none hover:text-primary"
+                    col.sortable !== false && "cursor-pointer select-none hover:text-primary",
+                    col.headerClassName
                   )}
                   style={
                     col.width || col.maxWidth
