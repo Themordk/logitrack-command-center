@@ -173,8 +173,8 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
   </a>
   <span class="selo">Developers</span>
   <span class="esp"></span>
-  <span class="pill ok" id="versao-api">API v1.14.0</span>
-  <span class="pill gw">Gateway 1.23</span>
+  <span class="pill ok" id="versao-api">API v1.15.0</span>
+  <span class="pill gw">Gateway 1.24</span>
   <button class="icone-bt" id="tema-bt" type="button" aria-label="Alternar tema claro e escuro">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
     <span id="tema-rotulo">Claro</span>
@@ -220,7 +220,7 @@ try {
   document.getElementById('menu-bt').onclick = (ev) => { const f = nav.classList.toggle('fechado'); ev.currentTarget.setAttribute('aria-expanded', String(!f)); };
 
   const main = document.getElementById('conteudo');
-  const RODAPE = `<footer class="rodape"><span>CORE LogiTrack · API v${esc(D.spec.info.version)}</span><span>Atualizado em 09/11/2026</span><span class="esp" style="flex:1"></span><span class="lema">Transformando operações em resultados reais</span></footer>`;
+  const RODAPE = `<footer class="rodape"><span>CORE LogiTrack · API v${esc(D.spec.info.version)}</span><span>Atualizado em 10/11/2026</span><span class="esp" style="flex:1"></span><span class="lema">Transformando operações em resultados reais</span></footer>`;
   document.getElementById('marca').onclick = (ev) => { ev.preventDefault(); ir('inicio'); };
 
   // Tema: escuro é o padrão da marca; a escolha do visitante fica salva neste navegador.

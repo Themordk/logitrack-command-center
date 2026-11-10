@@ -2,7 +2,7 @@
 "openapi": "3.1.0",
 "info": {
 "title": "CORE LogiTrack — API de Integração",
-"version": "1.14.0",
+"version": "1.15.0",
 "summary": "API REST para ERPs enviarem cadastros e movimentos ao WMS CORE LogiTrack.",
 "description": "## Sobre o CORE LogiTrack\n\nO **CORE LogiTrack** é uma plataforma WMS (Warehouse Management System) SaaS multi-tenant projetada para gestão operacional de centros de distribuição. O sistema é orientado a tarefas com rastreabilidade completa de todas as operações.\n\nEsta documentação detalha a **API REST** que permite ao sistema ERP enviar dados mestres e movimentos para o CORE LogiTrack, estabelecendo a integração bidirecional entre os sistemas.\n\n## Arquitetura da Integração\n\nA integração segue o modelo API REST onde o **ERP envia dados para o CORE LogiTrack** através de endpoints HTTP. O ERP é o sistema de origem dos dados mestres (produtos, parceiros, pedidos, notas fiscais) e o WMS é o sistema que recebe e processa esses dados para a operação logística.\n\n| Aspecto | Detalhe |\n|---------|---------|\n| **Direção do fluxo** | ERP → WMS (o ERP envia, o WMS recebe e processa) |\n| **Protocolo** | HTTPS com payloads JSON |\n| **Autenticação** | API Key por tenant no header `x-api-key` |\n| **Idempotência** | Via campo `codigo_erp` (upsert automático) |\n\n## Etapas da Integração\n\nA integração é dividida em **duas etapas sequenciais**. A Etapa 1 deve ser concluída antes da Etapa 2 porque os movimentos referenciam cadastros mestres.\n\n| Etapa | Direção | Descrição | Frequência |\n|-------|---------|-----------|------------|\n| **1. Dados Mestres** | ERP → WMS | Cadastros: parceiros, produtos, grupos, rotas, tipos | Sob demanda / diária |\n| **2. Movimentos** | ERP → WMS | Documentos de entrada (NF) e saída (pedidos) | Sob demanda / tempo real |\n\n> **Importante:** Todos os dados mestres referenciados pelos movimentos (parceiros, produtos, tipos de entrada/saída) devem existir previamente no WMS antes do envio de documentos.\n\n## Modelo Multi-Tenant\n\nO CORE LogiTrack opera com isolamento completo entre tenants. Cada API Key está vinculada a uma **conexão de integração** que identifica automaticamente o `tenant_id` e `empresa_id`. Os dados de um tenant jamais são acessíveis por outro.",
 "contact": {
@@ -62,6 +62,10 @@
 "description": "NF-e e NFC-e emitidas para o pedido: registro, cancelamento e consulta."
 },
 {
+"name": "Estoque",
+"description": "Saldo de estoque com lote, validade, fabricação, série e HU."
+},
+{
 "name": "Sistema",
 "description": "Disponibilidade da API."
 }
@@ -85,6 +89,12 @@
 "Documentos de entrada (NF)",
 "Documentos de saída (pedidos)",
 "Notas fiscais de saída"
+]
+},
+{
+"name": "Consultas",
+"tags": [
+"Estoque"
 ]
 },
 {
@@ -237,6 +247,7 @@
 "DOCUMENTO_SEM_ITENS",
 "DOCUMENT_LOCKED",
 "FINALIDADE_NAO_SUPORTADA",
+"FORBIDDEN",
 "IDEMPOTENCY_KEY_REUSED",
 "ID_ALTERACAO_CONFLICT",
 "INTERNAL_ERROR",
@@ -250,6 +261,7 @@
 "NF_VINCULADA_OUTRO_DOCUMENTO",
 "NOT_FOUND",
 "POSICAO_ERROR",
+"PRODUTO_NAO_ENCONTRADO",
 "QUANTIDADE_EXCEDE_DEVOLVIVEL",
 "QUANTIDADE_EXCEDE_VIGENTE",
 "QUANTIDADE_INVALIDA",
@@ -6892,6 +6904,540 @@ true
 },
 "422": {
 "$ref": "#/components/responses/E422"
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/inventory/estoque/{codigo_erp}": {
+"get": {
+"operationId": "get-inventory-estoque-por-codigo",
+"tags": [
+"Estoque"
+],
+"summary": "Consultar estoque de um produto",
+"description": "Saldo de um produto no WMS com os controles de lote, validade, fabricação, série e HU. Os totais separam físico, bloqueado, em separação e disponível para venda. O nível de detalhe vem de ?detalhe=resumo (padrão), lote ou posicao.\n\nUse `totais.disponivel_venda` para liberar venda. Cálculo: `bloqueado` = bloqueado no WMS + saldo em endereço bloqueado, em inventário ou inativo; `disponivel` = `fisico` − `bloqueado`; `em_separacao` = tarefas de separação abertas (inclui as criadas sem saldo), limitado ao disponível; `disponivel_venda` = disponível dos tipos de estoque vendáveis − em separação. Avaria, garantia e cancelamento não são vendáveis (configurável por conexão).\n\nCampos que não se aplicam saem como `null` (produto sem lote, sem validade ou sem HU). Lotes vêm do vencimento mais próximo ao mais distante (FEFO); `situacao_validade` = `VENCIDO` ou `VALIDO`. `em_separacao` não existe por lote, porque a tarefa de separação não guarda lote. `em_separacao_endereco` se repete em cada posição do mesmo endereço: não some entre posições.\n\nQuantidades na unidade do WMS (`unidade_quantidade`: UN, KG para peso variável, M para METROS). Produto existente sem saldo responde 200 com totais zerados. Resposta com `Cache-Control: no-store`.",
+"x-versao-desde": "1.15.0",
+"parameters": [
+{
+"$ref": "#/components/parameters/codigo_erp"
+},
+{
+"name": "detalhe",
+"in": "query",
+"required": false,
+"description": "resumo (padrão) = totais; lote = + quebra por lote/validade/fabricação; posicao = + cada posição física (endereço, HU, série).",
+"schema": {
+"type": "string",
+"description": "resumo (padrão) = totais; lote = + quebra por lote/validade/fabricação; posicao = + cada posição física (endereço, HU, série).",
+"examples": [
+"lote"
+]
+}
+},
+{
+"name": "armazem",
+"in": "query",
+"required": false,
+"description": "codigo_erp do armazém. Os totais passam a ser só dele.",
+"schema": {
+"type": "string",
+"description": "codigo_erp do armazém. Os totais passam a ser só dele.",
+"examples": [
+"ARM-01"
+]
+}
+},
+{
+"name": "tipo_estoque",
+"in": "query",
+"required": false,
+"description": "codigo_erp do tipo de estoque; aceita lista separada por vírgula.",
+"schema": {
+"type": "string",
+"description": "codigo_erp do tipo de estoque; aceita lista separada por vírgula.",
+"examples": [
+"1000"
+]
+}
+},
+{
+"name": "lote",
+"in": "query",
+"required": false,
+"description": "Só esse lote.",
+"schema": {
+"type": "string",
+"description": "Só esse lote.",
+"examples": [
+"L2609001"
+]
+}
+},
+{
+"name": "hu",
+"in": "query",
+"required": false,
+"description": "Só essa HU (codigo_hu).",
+"schema": {
+"type": "string",
+"description": "Só essa HU (codigo_hu).",
+"examples": [
+"HU-000000101"
+]
+}
+},
+{
+"name": "validade_ate",
+"in": "query",
+"required": false,
+"description": "Só saldo que vence até a data (inclui vencidos).",
+"schema": {
+"type": "string",
+"description": "Só saldo que vence até a data (inclui vencidos).",
+"format": "date",
+"examples": [
+"2026-12-31"
+]
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"lote": {
+"summary": "detalhe=lote (HTTP 200)",
+"value": {
+"data": {
+"sku": "7891000100103",
+"lotes": [
+{
+"lote": "L2608120",
+"fisico": 12,
+"bloqueado": 12,
+"disponivel": 0,
+"qtd_series": 0,
+"data_validade": "2026-11-05",
+"data_fabricacao": "2026-08-12",
+"dias_para_vencer": -5,
+"situacao_validade": "VENCIDO",
+"vida_util_restante_pct": 0.0
+},
+{
+"lote": "L2609001",
+"fisico": 468,
+"bloqueado": 0,
+"disponivel": 468,
+"qtd_series": 0,
+"data_validade": "2026-12-05",
+"data_fabricacao": "2026-09-05",
+"dias_para_vencer": 25,
+"situacao_validade": "VALIDO",
+"vida_util_restante_pct": 27.5
+}
+],
+"totais": {
+"fisico": 480,
+"bloqueado": 12,
+"disponivel": 468,
+"em_separacao": 36,
+"disponivel_venda": 420
+},
+"descricao": "Iogurte natural 170 g",
+"codigo_erp": "PROD-1020",
+"embalagens": [
+{
+"ean": "7891000100103",
+"fator": 1,
+"embalagem": "UN"
+},
+{
+"ean": "17891000100100",
+"fator": 12,
+"embalagem": "CX"
+}
+],
+"fator_caixa": 12,
+"por_armazem": [
+{
+"fisico": 480,
+"armazem": "ARM-01",
+"bloqueado": 12,
+"descricao": "CD Fortaleza",
+"disponivel": 468,
+"em_separacao": 36,
+"disponivel_venda": 420
+}
+],
+"atualizado_em": "2026-11-10T17:20:11-03:00",
+"peso_variavel": false,
+"tipo_controle": "LOTE",
+"por_tipo_estoque": [
+{
+"fisico": 468,
+"vendavel": true,
+"bloqueado": 12,
+"descricao": "ESTOQUE DE VENDAS",
+"disponivel": 456,
+"em_separacao": 36,
+"tipo_estoque": "1000"
+},
+{
+"fisico": 12,
+"vendavel": false,
+"bloqueado": 0,
+"descricao": "AVARIA",
+"disponivel": 12,
+"em_separacao": 0,
+"tipo_estoque": "1510"
+}
+],
+"unidade_quantidade": "UN"
+},
+"success": true
+}
+},
+"posicao": {
+"summary": "Item de posicoes com detalhe=posicao (HTTP 200)",
+"value": {
+"hu": {
+"tipo": "PALLET",
+"codigo": "HU-000000101",
+"status": "ARMAZENADA"
+},
+"lote": "L2609001",
+"fisico": 120,
+"armazem": "ARM-01",
+"endereco": {
+"rua": 4,
+"apto": 101,
+"tipo": "PICKING",
+"nivel": 2,
+"codigo": "R04-P07-N02-A101",
+"predio": 7,
+"situacao": "OCUPADO"
+},
+"bloqueado": 0,
+"disponivel": 120,
+"numero_serie": null,
+"tipo_estoque": "1000",
+"data_validade": "2026-12-05",
+"data_fabricacao": "2026-09-05",
+"em_separacao_endereco": 36
+}
+}
+}
+}
+}
+},
+"400": {
+"$ref": "#/components/responses/E400"
+},
+"401": {
+"$ref": "#/components/responses/E401"
+},
+"404": {
+"description": "Registro ou rota não encontrada.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"nao_encontrado": {
+"summary": "Produto inexistente (HTTP 404)",
+"value": {
+"error": {
+"code": "PRODUTO_NAO_ENCONTRADO",
+"message": "Produto 'PROD-9999' nao encontrado."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"429": {
+"$ref": "#/components/responses/E429"
+},
+"500": {
+"$ref": "#/components/responses/E500"
+}
+}
+}
+},
+"/inventory/estoque": {
+"get": {
+"operationId": "get-inventory-estoque",
+"tags": [
+"Estoque"
+],
+"summary": "Consultar estoque em lote ou foto completa",
+"description": "Com ?codigos_erp=A,B,C (até 100) devolve o saldo desses produtos. Sem a lista, devolve a foto completa do estoque da empresa, paginada por produto (limit + cursor), para conciliação. Mesmo objeto por produto da consulta unitária.\n\nCódigos inexistentes vão para `data.nao_encontrados`; produtos sem saldo vão para `data.sem_saldo` (ou entram zerados com `somente_com_saldo=false`). Na foto completa, `limit` vai de 1 a 500 (padrão 100; até 100 com `detalhe=posicao`) e as páginas seguem a ordem de `codigo_erp`. Repita com o `next_cursor` e os mesmos filtros até `has_more=false`; trocar filtro no meio dá `INVALID_CURSOR`. `updated_since` traz só produtos com movimento de estoque desde a data.\n\nRecomendação: foto completa no máximo a cada 15 minutos; para o dia a dia, consulte por código. Tempo típico: ~50 ms por produto, ~100 ms para 100 códigos, ~250 ms por página de 500.\n\n**Limite:** 100 itens por requisição.",
+"x-versao-desde": "1.15.0",
+"parameters": [
+{
+"name": "codigos_erp",
+"in": "query",
+"required": false,
+"description": "Até 100 códigos separados por vírgula. Sem ele, foto completa paginada.",
+"schema": {
+"type": "string",
+"description": "Até 100 códigos separados por vírgula. Sem ele, foto completa paginada.",
+"examples": [
+"PROD-1020,PROD-1021"
+]
+}
+},
+{
+"name": "detalhe",
+"in": "query",
+"required": false,
+"description": "resumo (padrão), lote ou posicao.",
+"schema": {
+"type": "string",
+"description": "resumo (padrão), lote ou posicao.",
+"examples": [
+"resumo"
+]
+}
+},
+{
+"name": "somente_com_saldo",
+"in": "query",
+"required": false,
+"description": "true (padrão) omite produtos sem saldo; false inclui zerados.",
+"schema": {
+"type": "boolean",
+"description": "true (padrão) omite produtos sem saldo; false inclui zerados.",
+"examples": [
+"true"
+]
+}
+},
+{
+"name": "updated_since",
+"in": "query",
+"required": false,
+"description": "Foto completa: só produtos com movimento de estoque desde a data.",
+"schema": {
+"type": "string",
+"description": "Foto completa: só produtos com movimento de estoque desde a data.",
+"format": "date-time",
+"examples": [
+"2026-11-10T00:00:00-03:00"
+]
+}
+},
+{
+"name": "limit",
+"in": "query",
+"required": false,
+"description": "Foto completa: 1 a 500 (padrão 100; até 100 com detalhe=posicao).",
+"schema": {
+"type": "integer",
+"description": "Foto completa: 1 a 500 (padrão 100; até 100 com detalhe=posicao).",
+"examples": [
+"500"
+]
+}
+},
+{
+"name": "cursor",
+"in": "query",
+"required": false,
+"description": "next_cursor da página anterior.",
+"schema": {
+"type": "string",
+"description": "next_cursor da página anterior.",
+"examples": [
+"eyJjIjoi…"
+]
+}
+},
+{
+"name": "armazem",
+"in": "query",
+"required": false,
+"description": "codigo_erp do armazém.",
+"schema": {
+"type": "string",
+"description": "codigo_erp do armazém.",
+"examples": [
+"ARM-01"
+]
+}
+},
+{
+"name": "tipo_estoque",
+"in": "query",
+"required": false,
+"description": "codigo_erp do tipo de estoque; aceita lista.",
+"schema": {
+"type": "string",
+"description": "codigo_erp do tipo de estoque; aceita lista.",
+"examples": [
+"1000"
+]
+}
+},
+{
+"name": "lote",
+"in": "query",
+"required": false,
+"description": "Só esse lote.",
+"schema": {
+"type": "string",
+"description": "Só esse lote.",
+"examples": [
+"L2609001"
+]
+}
+},
+{
+"name": "hu",
+"in": "query",
+"required": false,
+"description": "Só essa HU.",
+"schema": {
+"type": "string",
+"description": "Só essa HU.",
+"examples": [
+"HU-000000101"
+]
+}
+},
+{
+"name": "validade_ate",
+"in": "query",
+"required": false,
+"description": "Só saldo que vence até a data.",
+"schema": {
+"type": "string",
+"description": "Só saldo que vence até a data.",
+"format": "date",
+"examples": [
+"2026-12-31"
+]
+}
+}
+],
+"responses": {
+"200": {
+"description": "Sucesso.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Resposta"
+},
+"examples": {
+"foto": {
+"summary": "Foto completa paginada (HTTP 200)",
+"value": {
+"data": {
+"itens": [
+{
+"totais": {
+"fisico": 480,
+"bloqueado": 12,
+"disponivel": 468,
+"em_separacao": 36,
+"disponivel_venda": 420
+},
+"codigo_erp": "PROD-1020"
+}
+],
+"sem_saldo": [],
+"nao_encontrados": []
+},
+"success": true,
+"metadata": {
+"paginacao": {
+"limit": 500,
+"has_more": true,
+"next_cursor": "eyJjIjoiUFJPRC0xMDIwIi…",
+"updated_since": null
+},
+"request_id": "3f1c…"
+}
+}
+},
+"lista": {
+"summary": "Lista de códigos (HTTP 200)",
+"value": {
+"data": {
+"itens": [
+{
+"totais": {
+"fisico": 480,
+"bloqueado": 12,
+"disponivel": 468,
+"em_separacao": 36,
+"disponivel_venda": 420
+},
+"codigo_erp": "PROD-1020"
+}
+],
+"sem_saldo": [
+"PROD-0007"
+],
+"nao_encontrados": [
+"PROD-9999"
+]
+},
+"success": true
+}
+}
+}
+}
+}
+},
+"400": {
+"description": "Requisição inválida.",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/Erro"
+},
+"examples": {
+"cursor": {
+"summary": "Cursor de outra consulta (HTTP 400)",
+"value": {
+"error": {
+"code": "INVALID_CURSOR",
+"message": "cursor inválido ou de outra consulta. Use o next_cursor devolvido pela página anterior, com os mesmos filtros."
+},
+"success": false
+}
+},
+"limite": {
+"summary": "Mais de 100 códigos (HTTP 400)",
+"value": {
+"error": {
+"code": "VALIDATION_ERROR",
+"message": "No máximo 100 códigos por consulta (recebidos 101). Para mais, use a foto completa paginada."
+},
+"success": false
+}
+}
+}
+}
+}
+},
+"401": {
+"$ref": "#/components/responses/E401"
 },
 "429": {
 "$ref": "#/components/responses/E429"

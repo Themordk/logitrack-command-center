@@ -81,6 +81,14 @@
 "subtitulo": "Como informar ao WMS a NF-e ou NFC-e de um pedido e o que acontece quando ela é cancelada"
 },
 {
+"slug": "consulta-estoque",
+"ordem": 79,
+"secao": "referencia",
+"titulo": "Consulta de Estoque",
+"conteudo": "## Qual número usar\n\nPara liberar venda, use `totais.disponivel_venda`. Os outros totais explicam de onde ele vem:\n\n| Total | O que é |\n|---|---|\n| `fisico` | Tudo o que está nos endereços do WMS |\n| `bloqueado` | Bloqueado por divergência ou abastecimento + saldo em endereço bloqueado, em inventário ou inativo |\n| `disponivel` | `fisico` − `bloqueado` |\n| `em_separacao` | Reservado por tarefas de separação abertas (pedidos já liberados) |\n| `disponivel_venda` | Disponível dos tipos de estoque vendáveis − em separação |\n\nAvaria, garantia e cancelamento ficam fora do vendável e aparecem em `por_tipo_estoque`.\n\n## Por código ou foto completa\n\n- **Dia a dia:** `GET /inventory/estoque/{codigo_erp}` ou `?codigos_erp=A,B,C` (até 100).\n- **Conciliação:** `GET /inventory/estoque?limit=500`, repetindo com `next_cursor` até `has_more=false`. No máximo a cada 15 minutos. Depois da primeira foto, use `updated_since` para buscar só o que mudou.\n\n## Controles\n\n- **Lote, validade e fabricação:** `?detalhe=lote`. Do vencimento mais próximo ao mais distante, com `dias_para_vencer`, `vida_util_restante_pct` e `situacao_validade`.\n- **HU, endereço e série:** `?detalhe=posicao`. Uma linha por posição física.\n- **Peso variável e metros:** a quantidade vem na unidade de `unidade_quantidade` (KG ou M).\n- Campo que não se aplica ao produto vem `null`.\n\n## Cuidados\n\n- `em_separacao` não existe por lote: a tarefa de separação não guarda lote.\n- `em_separacao_endereco` se repete nas posições do mesmo endereço; não some entre posições.\n- O saldo muda a cada coleta; não guarde a resposta por muito tempo (`Cache-Control: no-store`).",
+"subtitulo": "Qual saldo usar para vender, como conciliar o estoque inteiro e o que cada controle significa"
+},
+{
 "slug": "boas-praticas",
 "ordem": 80,
 "secao": "referencia",
@@ -101,6 +109,12 @@
 "http": 401,
 "descricao": "Chave de API inválida ou revogada",
 "acao": "Verifique se a chave está correta e ativa no painel de configuração"
+},
+{
+"codigo": "FORBIDDEN",
+"http": 403,
+"descricao": "A chave de API não tem permissão para este recurso (ex.: consulta de estoque desligada para a conexão).",
+"acao": "Fale com o suporte CORE LogiTrack para liberar o recurso na sua conexão."
 },
 {
 "codigo": "NOT_FOUND",
@@ -341,9 +355,34 @@
 "http": 422,
 "descricao": "Nota de devolução (finalidade 4) não é registrada como nota do pedido de saída.",
 "acao": "Use o fluxo de devolução (POST /devolucoes ou documento de entrada de devolução)."
+},
+{
+"codigo": "PRODUTO_NAO_ENCONTRADO",
+"http": 404,
+"descricao": "O produto do caminho não existe no WMS para esta empresa.",
+"acao": "Confira o codigo_erp; cadastre o produto antes de consultar o estoque."
 }
 ],
 "enums": [
+{
+"categoria": "detalhe_estoque",
+"entrada": true,
+"contexto": "GET /inventory/estoque",
+"valores": [
+{
+"valor": "resumo",
+"descricao": "Só os totais, por armazém e por tipo de estoque (padrão)"
+},
+{
+"valor": "lote",
+"descricao": "Totais + quebra por lote, validade e fabricação"
+},
+{
+"valor": "posicao",
+"descricao": "Totais + lotes + cada posição física (endereço, HU, série)"
+}
+]
+},
 {
 "categoria": "tipo_parceiro",
 "entrada": true,
@@ -686,6 +725,21 @@
 ]
 },
 {
+"categoria": "situacao_validade",
+"entrada": false,
+"contexto": "Resposta de GET /inventory/estoque",
+"valores": [
+{
+"valor": "VENCIDO",
+"descricao": "Validade anterior a hoje (horário de Brasília)"
+},
+{
+"valor": "VALIDO",
+"descricao": "Dentro da validade"
+}
+]
+},
+{
 "categoria": "status_alteracao_saida",
 "entrada": false,
 "contexto": "POST /alteracoes e /devolucoes",
@@ -788,6 +842,25 @@
 "descricao": "Reenvio sem mudança; nada foi gravado (HTTP 200)"
 }
 ]
+},
+{
+"categoria": "unidade_quantidade",
+"entrada": false,
+"contexto": "Resposta de GET /inventory/estoque",
+"valores": [
+{
+"valor": "UN",
+"descricao": "Unidades"
+},
+{
+"valor": "KG",
+"descricao": "Quilos (produto de peso variável)"
+},
+{
+"valor": "M",
+"descricao": "Metros (controle METROS)"
+}
+]
 }
 ],
 "eventos": [
@@ -878,6 +951,13 @@
 }
 ],
 "changelog": [
+{
+"data": "2026-11-10",
+"tipo": "feature",
+"versao": "1.15.0",
+"detalhes": "- Novo `GET /inventory/estoque/{codigo_erp}`: saldo de um produto.\n- Novo `GET /inventory/estoque`: até 100 produtos em `?codigos_erp=` ou foto completa paginada (limit + cursor, `updated_since`).\n- Totais `fisico`, `bloqueado`, `disponivel`, `em_separacao` e `disponivel_venda`, também por armazém e por tipo de estoque.\n- `?detalhe=lote` (FEFO, dias para vencer, % de vida útil) e `?detalhe=posicao` (endereço, HU, série).\n- Filtros: armazem, tipo_estoque, lote, hu, validade_ate.\n- Novos códigos: `PRODUTO_NAO_ENCONTRADO`, `FORBIDDEN`. Gateway 1.24; nenhuma rota existente mudou.",
+"descricao": "Consulta de estoque com lote, validade, fabricação, série e HU"
+},
 {
 "data": "2026-11-09",
 "tipo": "feature",
