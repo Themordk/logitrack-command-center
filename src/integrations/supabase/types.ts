@@ -307,6 +307,7 @@ export type Database = {
           armazem_id: string
           ativo: boolean
           corte_exige_autorizacao: boolean
+          conferencia_reserva_expira_min: number
           corte_token_validade_seg: number
           created_at: string
           created_by: string | null
@@ -332,6 +333,7 @@ export type Database = {
           armazem_id: string
           ativo?: boolean
           corte_exige_autorizacao?: boolean
+          conferencia_reserva_expira_min?: number
           corte_token_validade_seg?: number
           created_at?: string
           created_by?: string | null
@@ -357,6 +359,7 @@ export type Database = {
           armazem_id?: string
           ativo?: boolean
           corte_exige_autorizacao?: boolean
+          conferencia_reserva_expira_min?: number
           corte_token_validade_seg?: number
           created_at?: string
           created_by?: string | null
