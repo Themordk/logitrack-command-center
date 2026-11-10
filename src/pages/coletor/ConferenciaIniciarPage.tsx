@@ -4,7 +4,7 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, Database, Building2, BadgeDollarSign } from "lucide-react";
+import { Loader2, Database, Building2, BadgeDollarSign, FileClock } from "lucide-react";
 import { toast } from "sonner";
 import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { FilterListButton } from "@/components/coletor/FilterListButton";
@@ -34,6 +34,8 @@ interface OndaResumo {
 export function ConferenciaIniciarPage({ onNavigate }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  // Ondas de tipo "Pós-faturamento" que só esperam a NF (contagem vem do banco; não sai do cache)
+  const [aguardandoNf, setAguardandoNf] = useState(0);
   const result = useResultDialog({ coletorMode: true });
   const { isOnline, cacheData, getCachedData } = useOffline();
 
@@ -51,6 +53,15 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
       p_usuario_id: usuarioId,
     });
     if (error) throw error;
+    void supabase
+      .rpc("conferencia_contar_aguardando_nf", {
+        p_tenant_id: tenantId ?? "",
+        p_empresa_id: empresaId ?? "",
+        p_usuario_id: usuarioId ?? "",
+      })
+      .then(({ data: qtd, error: erroQtd }) => {
+        if (!erroQtd) setAguardandoNf(Number(qtd) || 0);
+      });
     const parsed = Array.isArray(data) ? data : typeof data === "string" ? JSON.parse(data) : [];
     parsed.sort((a: any, b: any) => {
       const pa = prioridadeOrdem[(a.prioridade || "NORMAL").toUpperCase()] ?? 2;
@@ -156,6 +167,8 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
       });
     } catch (err: unknown) {
       result.showError(err, { context: "conferencia-iniciar" });
+      // Recusa de regra (NF, reserva, status...): a lista em tela/cache está desatualizada
+      if (isOnline) void refetch();
     } finally {
       setStarting(false);
     }
@@ -187,6 +200,15 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
             <RefreshListButton onRefresh={loadOndas} />
           </div>
         </div>
+
+        {!isFromCache && aguardandoNf > 0 && (
+          <div className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-300">
+            <FileClock size={14} className="shrink-0" />
+            <span>
+              {aguardandoNf === 1 ? "1 onda aguardando" : `${aguardandoNf} ondas aguardando`} faturamento (NF) para liberar a conferência.
+            </span>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
