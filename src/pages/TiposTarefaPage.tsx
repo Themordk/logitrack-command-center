@@ -8,6 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Save, Loader2 } from "lucide-react";
 import { parseError } from "@/lib/errorMapper";
+import {
+  RESERVA_ACAO_AJUDA, RESERVA_EXPIRA_MAX_HORAS, RESERVA_EXPIRA_MIN_HORAS,
+  formatarHoras, reservaAcaoLabel, type ReservaAcao,
+} from "@/lib/reservaTarefa";
 
 interface TipoTarefa {
   id: string;
@@ -23,6 +27,8 @@ interface TipoTarefa {
   peso_produtividade: number;
   cor_interface: string | null;
   empresa_id: string | null;
+  reserva_acao: ReservaAcao;
+  reserva_expira_min: number;
 }
 
 const TIPO_MOV_OPTS = [
@@ -131,6 +137,14 @@ export function TiposTarefaPage() {
       ),
     },
     {
+      key: "reserva_acao", label: "Reserva sem atividade",
+      render: (r) => (
+        <span className="text-sm text-muted-foreground">
+          {reservaAcaoLabel(r.reserva_acao)}{r.reserva_acao && r.reserva_acao !== "NUNCA" ? ` · ${formatarHoras(r.reserva_expira_min)}` : ""}
+        </span>
+      ),
+    },
+    {
       key: "ativo", label: "Ativo",
       render: (r) => <StatusBadge status={r.ativo ? "Sim" : "Não"} type="generic" />,
     },
@@ -172,10 +186,24 @@ function TipoTarefaEditModal({
 }: { item: TipoTarefa | null; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<Partial<TipoTarefa>>({});
   const [saving, setSaving] = useState(false);
+  const [acoesReserva, setAcoesReserva] = useState<ReservaAcao[]>([]);
+  const [reservaHoras, setReservaHoras] = useState<number>(4);
 
   useEffect(() => {
-    if (item) setForm({ ...item });
+    if (!item) return;
+    setForm({ ...item });
+    setReservaHoras((item.reserva_expira_min ?? 240) / 60);
+    let ativo = true;
+    // Ações permitidas por código vêm do banco (mesma regra do trigger de validação)
+    supabase.rpc("fn_tipo_tarefa_reserva_acoes", { p_codigo: item.codigo }).then(({ data, error }) => {
+      if (!ativo) return;
+      setAcoesReserva(error || !data ? [item.reserva_acao ?? "NUNCA"] : (data as ReservaAcao[]));
+    });
+    return () => { ativo = false; };
   }, [item]);
+
+  const reservaSemOpcao = acoesReserva.length <= 1 && (acoesReserva[0] ?? "NUNCA") === "NUNCA";
+  const reservaAcaoAtual = (form.reserva_acao ?? "NUNCA") as ReservaAcao;
 
   const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 disabled:opacity-60 disabled:cursor-not-allowed";
   const labelClass = "block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide";
@@ -185,6 +213,11 @@ function TipoTarefaEditModal({
 
   const handleSave = async () => {
     if (!item) return;
+    if (reservaAcaoAtual !== "NUNCA"
+        && (!Number.isFinite(reservaHoras) || reservaHoras < RESERVA_EXPIRA_MIN_HORAS || reservaHoras > RESERVA_EXPIRA_MAX_HORAS)) {
+      toast.error(`O prazo da reserva deve ficar entre 15 minutos e ${RESERVA_EXPIRA_MAX_HORAS} horas.`);
+      return;
+    }
     setSaving(true);
     const payload = {
       categoria: form.categoria || null,
@@ -196,6 +229,10 @@ function TipoTarefaEditModal({
       unidade_medida: form.unidade_medida || null,
       peso_produtividade: form.peso_produtividade ? Number(form.peso_produtividade) : 1.0,
       cor_interface: form.cor_interface || null,
+      reserva_acao: reservaAcaoAtual,
+      reserva_expira_min: reservaAcaoAtual === "NUNCA"
+        ? (item.reserva_expira_min ?? 240)
+        : Math.round(reservaHoras * 60),
     };
     const { error } = await (supabase as any).from("tipo_tarefa").update(payload).eq("id", item.id);
     setSaving(false);
@@ -331,6 +368,47 @@ function TipoTarefaEditModal({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Seção 3 — Reserva de tarefa */}
+          <div className="mt-6 pt-6 border-t border-border">
+            <h3 className={sectionTitle}>Reserva sem atividade</h3>
+            {reservaSemOpcao ? (
+              <p className="text-sm text-muted-foreground">
+                Não se aplica: este tipo de tarefa não prende a tarefa a um operador (ou várias pessoas trabalham juntas nela).
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass} htmlFor="reserva-acao">Quando o operador ficar sem atividade</label>
+                  <select
+                    id="reserva-acao"
+                    value={reservaAcaoAtual}
+                    onChange={(e) => set("reserva_acao", e.target.value)}
+                    className={inputClass}
+                  >
+                    {acoesReserva.map((a) => <option key={a} value={a}>{reservaAcaoLabel(a)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="reserva-horas">Prazo sem atividade (horas)</label>
+                  <input
+                    id="reserva-horas"
+                    type="number"
+                    min={RESERVA_EXPIRA_MIN_HORAS}
+                    max={RESERVA_EXPIRA_MAX_HORAS}
+                    step={0.25}
+                    value={reservaHoras}
+                    disabled={reservaAcaoAtual === "NUNCA"}
+                    onChange={(e) => setReservaHoras(Number(e.target.value))}
+                    className={inputClass}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground md:col-span-2">
+                  {RESERVA_ACAO_AJUDA[reservaAcaoAtual]} Atividade = última atribuição ou registro do operador em tarefas deste tipo no mesmo documento. Verificado a cada 10 minutos.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

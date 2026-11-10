@@ -307,7 +307,6 @@ export type Database = {
           armazem_id: string
           ativo: boolean
           corte_exige_autorizacao: boolean
-          conferencia_reserva_expira_min: number
           corte_token_validade_seg: number
           created_at: string
           created_by: string | null
@@ -333,7 +332,6 @@ export type Database = {
           armazem_id: string
           ativo?: boolean
           corte_exige_autorizacao?: boolean
-          conferencia_reserva_expira_min?: number
           corte_token_validade_seg?: number
           created_at?: string
           created_by?: string | null
@@ -359,7 +357,6 @@ export type Database = {
           armazem_id?: string
           ativo?: boolean
           corte_exige_autorizacao?: boolean
-          conferencia_reserva_expira_min?: number
           corte_token_validade_seg?: number
           created_at?: string
           created_by?: string | null
@@ -8468,6 +8465,8 @@ export type Database = {
           meta_unidades_hora: number | null
           peso_produtividade: number
           prioridade_padrao: number | null
+          reserva_acao: string
+          reserva_expira_min: number
           tempo_estimado_segundos: number | null
           tenant_id: string
           tipo_movimento: number | null
@@ -8493,6 +8492,8 @@ export type Database = {
           meta_unidades_hora?: number | null
           peso_produtividade?: number
           prioridade_padrao?: number | null
+          reserva_acao?: string
+          reserva_expira_min?: number
           tempo_estimado_segundos?: number | null
           tenant_id: string
           tipo_movimento?: number | null
@@ -8518,6 +8519,8 @@ export type Database = {
           meta_unidades_hora?: number | null
           peso_produtividade?: number
           prioridade_padrao?: number | null
+          reserva_acao?: string
+          reserva_expira_min?: number
           tempo_estimado_segundos?: number | null
           tenant_id?: string
           tipo_movimento?: number | null
@@ -12538,6 +12541,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      fn_tipo_tarefa_reserva_acoes: {
+        Args: { p_codigo: string }
+        Returns: string[]
       }
       fn_user_belongs_to_tenant: {
         Args: { p_tenant_id: string }

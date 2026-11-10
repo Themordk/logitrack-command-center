@@ -20,6 +20,7 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   CONF_SEM_CONFERENCIA: { title: "O tipo de saída desta onda não realiza conferência.", instruction: "Atualize a lista de ondas." },
   CONF_ONDA_NAO_ENCONTRADA: { title: "Onda não encontrada nesta empresa.", instruction: "Confira a empresa selecionada e atualize a lista." },
   CONF_PARAMETROS: { title: "Sessão incompleta no coletor.", instruction: "Saia e entre novamente no coletor." },
+  RESERVA_ACAO_INVALIDA: { title: "Esta ação não é permitida para este tipo de tarefa.", instruction: "Escolha uma das opções da lista." },
   CORTE_REQUER_AUTORIZACAO: { title: "Este corte precisa de autorização do supervisor.", instruction: "Chame o supervisor para informar login e senha." },
   CREDENCIAL_INVALIDA: { title: "Usuário ou senha do supervisor inválidos.", instruction: "Confira os dados e tente novamente." },
   AUTORIZADOR_SEM_PERMISSAO: { title: "Este usuário não pode autorizar cortes.", instruction: "Chame um supervisor ou administrador." },

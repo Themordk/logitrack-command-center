@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, Save, Trash2, MapPin, Settings2, ShieldCheck, BarChart3, Info, Clock, Scissors, ClipboardCheck } from "lucide-react";
+import { Loader2, Save, Trash2, MapPin, Settings2, ShieldCheck, BarChart3, Info, Clock, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
@@ -105,8 +105,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
   const [tempoInatividadeTarefaMin, setTempoInatividadeTarefaMin] = useState(30);
   const [corteExigeAutorizacao, setCorteExigeAutorizacao] = useState(false);
   const [corteTokenValidadeSeg, setCorteTokenValidadeSeg] = useState(180);
-  // Conferência de saída: horas sem atividade para a reserva da onda expirar (0 = nunca)
-  const [confReservaExpiraHoras, setConfReservaExpiraHoras] = useState(4);
 
   useEffect(() => {
     if (!open || !armazem || !tenantId) return;
@@ -116,7 +114,7 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       const [cfgRes, regRes] = await Promise.all([
         (supabase as any)
           .from("armazem_config")
-          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg, lms_tempo_inatividade_tarefa_seg, corte_exige_autorizacao, corte_token_validade_seg, gerar_tarefa_retirada, prazo_endereco_cancelamento_horas, conferencia_reserva_expira_min")
+          .select("id, endereco_cancelamento_id, endereco_avaria_id, endereco_quarentena_id, endereco_armazenagem_automatica_id, lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct, lms_tempo_transito_seg, lms_tempo_ocioso_alerta_seg, lms_tempo_inatividade_tarefa_seg, corte_exige_autorizacao, corte_token_validade_seg, gerar_tarefa_retirada, prazo_endereco_cancelamento_horas")
           .eq("armazem_id", armazem.id)
           .eq("tenant_id", tenantId)
           .maybeSingle(),
@@ -147,7 +145,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
       setTempoInatividadeTarefaMin(Math.round((cfg?.lms_tempo_inatividade_tarefa_seg ?? 1800) / 60));
       setCorteExigeAutorizacao(!!cfg?.corte_exige_autorizacao);
       setCorteTokenValidadeSeg(cfg?.corte_token_validade_seg ?? 180);
-      setConfReservaExpiraHoras(Number(cfg?.conferencia_reserva_expira_min ?? 240) / 60);
 
       const reg = regRes.data;
       setRegra(reg ? { ...REGRA_DEFAULTS, ...reg } : { ...REGRA_DEFAULTS });
@@ -165,10 +162,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
     if (!armazem || !tenantId) return;
     if (!(faixaExcelente > faixaBom && faixaBom > faixaAtencao)) {
       toast.error("As faixas precisam estar em ordem decrescente: Excelente > Bom > Atenção.");
-      return;
-    }
-    if (!Number.isFinite(confReservaExpiraHoras) || confReservaExpiraHoras < 0 || confReservaExpiraHoras > 168) {
-      toast.error("A expiração da reserva de conferência deve ficar entre 0 e 168 horas.");
       return;
     }
     if (!prazoCancelamentoValido(prazoCancelamentoHoras)) { toast.error("O prazo deve ser um número inteiro de pelo menos 1 hora."); return; }
@@ -194,7 +187,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
         lms_tempo_inatividade_tarefa_seg: tempoInatividadeTarefaMin * 60,
         corte_exige_autorizacao: corteExigeAutorizacao,
         corte_token_validade_seg: Math.min(900, Math.max(30, Math.round(corteTokenValidadeSeg || 180))),
-        conferencia_reserva_expira_min: Math.round(confReservaExpiraHoras * 60),
         ativo: true,
         updated_by: usuarioId,
       };
@@ -393,23 +385,6 @@ export function ArmazemConfigModal({ open, onClose, armazem }: Props) {
                         onChange={(e) => setCorteTokenValidadeSeg(Number(e.target.value))} />
                       <p className="text-xs text-muted-foreground">Entre 30 e 900 segundos.</p>
                     </div>
-                  </div>
-                </section>
-
-                <Separator />
-
-                {/* Conferência de saída */}
-                <section>
-                  <SectionTitle
-                    icon={<ClipboardCheck size={14} className="text-primary" />}
-                    title="Conferência de saída"
-                    subtitle="Uma onda em conferência fica reservada para o operador. Sem nenhuma conferência registrada por ele neste prazo, a onda volta a aparecer para os demais no coletor."
-                  />
-                  <div className="space-y-1.5 max-w-xs">
-                    <Label htmlFor="conf-reserva-expira" className="text-xs uppercase tracking-wide text-muted-foreground">Expirar reserva após (horas)</Label>
-                    <Input id="conf-reserva-expira" type="number" min={0} max={168} step={0.5} value={confReservaExpiraHoras}
-                      onChange={(e) => setConfReservaExpiraHoras(Number(e.target.value))} />
-                    <p className="text-xs text-muted-foreground">Padrão 4 horas. Use 0 para a reserva nunca expirar. Vale para todas as ondas da empresa (a onda não guarda o armazém).</p>
                   </div>
                 </section>
 
