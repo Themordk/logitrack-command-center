@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Teste de QA · 20261110202246_conferencia_momento_faturamento_validador
---               20261110213000_conferencia_reserva_expiracao
+--               20261110230000_tarefa_reserva_expiracao_por_tipo
 -- Rodar no SQL Editor do branch-qa (pwynobnbftqcqygjtrdk).
 -- Tudo roda dentro de um DO que termina com RAISE -> NADA é gravado.
 -- O resultado aparece na mensagem de erro "RESULTADO (rollback): ...".
@@ -26,7 +26,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('sub', auth, 'role','authenticated')::text, true);
   SELECT id INTO prov FROM integracao.erp_provedor LIMIT 1;
   -- Reserva nunca expira na 1ª parte (a reserva do admin na massa é antiga)
-  UPDATE armazem_config SET conferencia_reserva_expira_min = 0 WHERE tenant_id=T AND empresa_id=E;
+  UPDATE tipo_tarefa SET reserva_acao = 'NUNCA' WHERE tenant_id=T AND codigo='SEP-CONF';
   -- Garante a massa: admin com a onda reservada (a correção 20261110214500 liberou a reserva antiga no QA)
   UPDATE movimento_saida SET status='EM_CONFERENCIA' WHERE id=M AND status='SEPARADO';
   PERFORM * FROM conferencia_buscar_tarefas(T,E,A,M);
@@ -85,20 +85,21 @@ BEGIN
   log := log || E'\n18 iniciar(A)                => 1 / EM_CONFERENCIA : ' || n || ' / ' || s;
 
   -- Expiração da reserva (4h sem atividade)
-  UPDATE armazem_config SET conferencia_reserva_expira_min = 240 WHERE tenant_id=T AND empresa_id=E;
+  UPDATE tipo_tarefa SET reserva_acao = 'LIBERAR', reserva_expira_min = 240 WHERE tenant_id=T AND codigo='SEP-CONF';
   UPDATE tarefa_atribuicao SET atribuido_em = now() - interval '5 hours' WHERE tarefa_id=TK AND usuario_id=A;
   UPDATE tarefa_execucao   SET concluido_em = now() - interval '5 hours' WHERE tarefa_id=TK AND usuario_id=A;
   log := log || E'\n20 B c/ reserva A expirada   => OK / 1 : ' || (fn_conferencia_validar_onda(T,E,B,M)->>'codigo')
                 || ' / ' || (fn_conferencia_validar_onda(T,E,B,M)->>'reservas_expiradas');
   SELECT count(*) INTO n FROM conferencia_buscar_tarefas(T,E,B,M);
   log := log || E'\n21 iniciar(B) linhas         => 1 : ' || n;
-  SELECT status || ' / ' || (observacao ILIKE '%expirada%')::text INTO s FROM tarefa_atribuicao WHERE tarefa_id=TK AND usuario_id=A;
-  log := log || E'\n22 atribuição de A           => LIBERADA / true : ' || s;
+  SELECT (SELECT count(*) FROM tarefa_atribuicao WHERE tarefa_id=TK AND usuario_id=A)::text || ' / ' ||
+         (SELECT count(*) FROM tarefa_reserva_liberacao WHERE tarefa_id=TK AND usuario_id=A AND origem='COLETOR_INICIO')::text INTO s;
+  log := log || E'\n22 atribuição A removida / auditada => 0 / 1 : ' || s;
   log := log || E'\n23 validar(A) com B ativo    => CONF_ONDA_RESERVADA : ' || (fn_conferencia_validar_onda(T,E,A,M)->>'codigo');
   UPDATE tarefa_atribuicao SET atribuido_em = now() - interval '5 hours' WHERE tarefa_id=TK AND usuario_id=B;
   SELECT count(*) INTO n FROM conferencia_buscar_tarefas(T,E,A,M);
   SELECT status INTO s FROM tarefa_atribuicao WHERE tarefa_id=TK AND usuario_id=A;
-  log := log || E'\n24 A retoma (reativa LIBERADA) => 1 / ATRIBUIDA : ' || n || ' / ' || s;
+  log := log || E'\n24 A retoma após B expirar  => 1 / ATRIBUIDA : ' || n || ' / ' || s;
 
   -- Confirmação com NF autorizada
   log := log || E'\n19 confirmar item com NF     => CONFERENCIA_REGISTRADA : ' || (conferencia_saida_confirmacao(T,TK,1,A,'manual')->>'codigo');
