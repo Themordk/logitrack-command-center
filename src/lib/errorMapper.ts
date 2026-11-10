@@ -8,6 +8,18 @@ export interface ParsedError {
 }
 
 const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }> = {
+  // === Conferência de saída (fn_conferencia_validar_onda) ===
+  // Ficam no topo: findBusinessError usa includes() na ordem do mapa e
+  // CONF_ONDA_NAO_ENCONTRADA contém ONDA_NAO_ENCONTRADA.
+  CONF_AGUARDANDO_NF: { title: "Onda aguardando faturamento.", instruction: "A conferência deste tipo de saída só começa depois que o ERP enviar a NF autorizada de todos os pedidos." },
+  CONF_NF_NAO_AUTORIZADA: { title: "A NF deste pedido não está mais autorizada.", instruction: "Pare a conferência e avise o supervisor: o pedido será cancelado e refeito." },
+  CONF_ONDA_RESERVADA: { title: "Onda em conferência com outro operador.", instruction: "Escolha outra onda ou peça ao supervisor para liberar." },
+  CONF_STATUS_ONDA: { title: "Esta onda não está disponível para conferência.", instruction: "Atualize a lista de ondas." },
+  CONF_SEM_TAREFAS: { title: "Não há tarefas de conferência disponíveis para você nesta onda.", instruction: "Atualize a lista de ondas." },
+  CONF_FORA_DA_ZONA: { title: "Esta onda não tem itens na sua zona de atividade.", instruction: "Escolha outra onda ou fale com o supervisor." },
+  CONF_SEM_CONFERENCIA: { title: "O tipo de saída desta onda não realiza conferência.", instruction: "Atualize a lista de ondas." },
+  CONF_ONDA_NAO_ENCONTRADA: { title: "Onda não encontrada nesta empresa.", instruction: "Confira a empresa selecionada e atualize a lista." },
+  CONF_PARAMETROS: { title: "Sessão incompleta no coletor.", instruction: "Saia e entre novamente no coletor." },
   CORTE_REQUER_AUTORIZACAO: { title: "Este corte precisa de autorização do supervisor.", instruction: "Chame o supervisor para informar login e senha." },
   CREDENCIAL_INVALIDA: { title: "Usuário ou senha do supervisor inválidos.", instruction: "Confira os dados e tente novamente." },
   AUTORIZADOR_SEM_PERMISSAO: { title: "Este usuário não pode autorizar cortes.", instruction: "Chame um supervisor ou administrador." },
@@ -611,10 +623,13 @@ export function parseError(error: unknown, context?: string): ParsedError {
 
   const businessMatch = findBusinessError(rawMessage);
   if (businessMatch) {
+    // RAISE '<CODIGO>: <mensagem>' -> a mensagem do banco vira detalhe (ex.: nº da onda, operador)
+    const detalheBanco = rawMessage.split(`${businessMatch.code}: `)[1]?.trim();
     return {
       type: "business",
       title: businessMatch.title,
       instruction: businessMatch.instruction,
+      details: detalheBanco && detalheBanco !== businessMatch.title ? detalheBanco : undefined,
       errorCode: businessMatch.code,
       technicalMessage: context ? `[${context}] ${rawMessage}` : rawMessage,
     };

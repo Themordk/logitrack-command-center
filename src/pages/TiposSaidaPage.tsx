@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { PADRAO_EXIBICAO_COLETOR } from "@/lib/exibicaoColetor";
+import { MOMENTO_CONFERENCIA_LABEL, MOMENTO_CONFERENCIA_OPCOES, type MomentoConferencia } from "@/lib/momentoConferencia";
 import { Save, Loader2 } from "lucide-react";
 
 export function TiposSaidaPage() {
@@ -38,6 +39,11 @@ export function TiposSaidaPage() {
     { key: "descricao", label: "Descrição" },
     { key: "codigo_erp", label: "Código ERP" },
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
+    { key: "momento_conferencia", label: "Modo Conferência", type: "custom", render: (row) => (
+      row.realiza_conferencia
+        ? <span className="text-xs text-foreground">{MOMENTO_CONFERENCIA_LABEL[row.momento_conferencia as MomentoConferencia] ?? MOMENTO_CONFERENCIA_LABEL.PRE_FATURAMENTO}</span>
+        : <span className="text-xs text-muted-foreground">—</span>
+    ) },
     { key: "conferencia_checkout", label: "Conferência Checkout", type: "custom", render: (row) => boolBadge(row.conferencia_checkout) },
     { key: "separa_pulmao", label: "Separa Pulmão", type: "custom", render: (row) => boolBadge(row.separa_pulmao) },
     { key: "libera_sem_saldo_picking", label: "Libera s/ Saldo Pick.", type: "custom", render: (row) => boolBadge(row.libera_sem_saldo_picking) },
@@ -72,6 +78,7 @@ export function TiposSaidaPage() {
     setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
+      momento_conferencia: "PRE_FATURAMENTO",
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
       gera_abastecimento_automatico: false,
@@ -92,6 +99,10 @@ export function TiposSaidaPage() {
       payload.conferencia_checkout = false;
       payload.conferencia_cega = false;
       payload.reserva_conferencia_movimento = true;
+      payload.momento_conferencia = "PRE_FATURAMENTO";
+    }
+    if (payload.momento_conferencia !== "POS_FATURAMENTO") {
+      payload.momento_conferencia = "PRE_FATURAMENTO";
     }
     const ok = editItem
       ? await crud.update(editItem.id, payload)
@@ -178,6 +189,25 @@ export function TiposSaidaPage() {
                     className={!form.realiza_conferencia ? "opacity-50" : ""}
                   />
                   <label className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência cega</label>
+                </div>
+                <div className={`pt-1 ${!form.realiza_conferencia ? "opacity-50" : ""}`}>
+                  <label htmlFor="momento-conferencia" className="text-xs text-muted-foreground mb-1 block">Modo de conferência</label>
+                  <select
+                    id="momento-conferencia"
+                    value={form.realiza_conferencia ? (form.momento_conferencia || "PRE_FATURAMENTO") : "PRE_FATURAMENTO"}
+                    onChange={(e) => set("momento_conferencia", e.target.value)}
+                    disabled={!form.realiza_conferencia}
+                    className={inputClass}
+                  >
+                    {MOMENTO_CONFERENCIA_OPCOES.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {form.momento_conferencia === "POS_FATURAMENTO" && form.realiza_conferencia
+                      ? "A onda só aparece na conferência do coletor depois que todos os pedidos tiverem NF autorizada vinculada (enviada pelo ERP)."
+                      : "A onda aparece na conferência assim que a separação termina, antes da emissão da NF."}
+                  </p>
                 </div>
               </div>
             </div>

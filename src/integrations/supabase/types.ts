@@ -8335,6 +8335,7 @@ export type Database = {
           libera_mov_automatico: boolean
           libera_sem_saldo_picking: boolean
           marco_retirada: string
+          momento_conferencia: string
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
           reserva_conferencia_movimento: boolean
@@ -8366,6 +8367,7 @@ export type Database = {
           libera_mov_automatico?: boolean
           libera_sem_saldo_picking?: boolean
           marco_retirada?: string
+          momento_conferencia?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
@@ -8397,6 +8399,7 @@ export type Database = {
           libera_mov_automatico?: boolean
           libera_sem_saldo_picking?: boolean
           marco_retirada?: string
+          momento_conferencia?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
           reserva_conferencia_movimento?: boolean
@@ -11047,6 +11050,17 @@ export type Database = {
         Returns: Json
       }
       cancelar_job_impressao: { Args: { p_job_id: string }; Returns: Json }
+      conferencia_ondas_aguardando_nf: {
+        Args: { p_movimento_ids: string[]; p_tenant_id: string }
+        Returns: {
+          docs_sem_nf: number
+          movimento_saida_id: string
+        }[]
+      }
+      conferencia_contar_aguardando_nf: {
+        Args: { p_empresa_id: string; p_tenant_id: string; p_usuario_id: string }
+        Returns: number
+      }
       conferencia_buscar_ondas: {
         Args: {
           p_empresa_id: string
@@ -11722,6 +11736,15 @@ export type Database = {
           p_codigo_barras: string
           p_movimento_entrada_id: string
           p_tenant_id: string
+        }
+        Returns: Json
+      }
+      fn_conferencia_validar_onda: {
+        Args: {
+          p_empresa_id: string
+          p_movimento_saida_id: string
+          p_tenant_id: string
+          p_usuario_id: string
         }
         Returns: Json
       }

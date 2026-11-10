@@ -343,6 +343,25 @@ export function MovimentoSaidaPage() {
     staleTime: 30_000,
   });
   const pendencias = pendenciasQuery.data || [];
+  // Modo de conferência pós-faturamento: ondas separadas aguardando NF autorizada (1 chamada por página)
+  const ondasConferenciaIds = useMemo(() => [...new Set([
+    ...(listQuery.data ?? []).filter(r => ["SEPARADO", "EM_CONFERENCIA"].includes(r.status)).map(r => r.id),
+    ...(selectedMov && ["SEPARADO", "EM_CONFERENCIA"].includes(selectedMov.status) ? [selectedMov.id] : []),
+  ])].sort(), [listQuery.data, selectedMov]);
+  const aguardandoNfQuery = useQuery({
+    queryKey: ["ondas-aguardando-nf", tenantId, empresaId, ondasConferenciaIds],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("conferencia_ondas_aguardando_nf", {
+        p_tenant_id: tenantId!,
+        p_movimento_ids: ondasConferenciaIds,
+      });
+      if (error) throw error;
+      return new Map<string, number>((data ?? []).map((r) => [r.movimento_saida_id, Number(r.docs_sem_nf) || 0]));
+    },
+    enabled: !!tenantId && !!empresaId && ondasConferenciaIds.length > 0,
+    staleTime: 30_000,
+  });
+  const aguardandoNf = aguardandoNfQuery.data ?? new Map<string, number>();
   const [abastecimentosGerados, setAbastecimentosGerados] = useState<Set<string>>(new Set());
   const abrirDialogAvisos = (resultado: LiberarResult, movId: string) => {
     setLiberarResult(resultado); setLiberarMovId(movId); setLiberarDialogOpen(true);
@@ -985,6 +1004,14 @@ export function MovimentoSaidaPage() {
                       <div className="flex items-center gap-1">
                         {hasErp && <ErpStatusBadge status={mov.status} tipo="saida" compact />}
                         <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
+                        {aguardandoNf.has(mov.id) && (
+                          <span
+                            className="text-[10px] px-1 py-0.5 rounded border border-amber-500/30 bg-amber-500/15 text-amber-500 whitespace-nowrap"
+                            title={`Modo de conferência pós-faturamento: ${aguardandoNf.get(mov.id)} pedido(s) sem NF autorizada. A onda não aparece na conferência do coletor até o ERP enviar a NF.`}
+                          >
+                            Aguardando NF
+                          </span>
+                        )}
                         {pendencias.some(p => p.movimento_saida_id === mov.id) && <span className="text-[10px] px-1 py-0.5 rounded border border-destructive/30 bg-destructive/15 text-destructive">{pendencias.filter(p => p.movimento_saida_id === mov.id).length} sem saldo</span>}
                         <div className="relative">
                           <button
