@@ -7668,6 +7668,8 @@ export type Database = {
           empresa_id: string
           id: string
           liberado_em: string | null
+          liberado_por: string | null
+          motivo_liberacao: string | null
           observacao: string | null
           status: string
           tarefa_id: string
@@ -7684,6 +7686,8 @@ export type Database = {
           empresa_id: string
           id?: string
           liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_liberacao?: string | null
           observacao?: string | null
           status?: string
           tarefa_id: string
@@ -7700,6 +7704,8 @@ export type Database = {
           empresa_id?: string
           id?: string
           liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_liberacao?: string | null
           observacao?: string | null
           status?: string
           tarefa_id?: string
@@ -8338,6 +8344,7 @@ export type Database = {
           momento_conferencia: string
           prioridade: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia: boolean
+          permite_mesmo_operador_sep_conf: boolean
           reserva_conferencia_movimento: boolean
           reserva_separacao_movimento: boolean
           separa_pulmao: boolean
@@ -8370,6 +8377,7 @@ export type Database = {
           momento_conferencia?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          permite_mesmo_operador_sep_conf?: boolean
           reserva_conferencia_movimento?: boolean
           reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
@@ -8402,6 +8410,7 @@ export type Database = {
           momento_conferencia?: string
           prioridade?: Database["public"]["Enums"]["enum_prioridade_onda"]
           realiza_conferencia?: boolean
+          permite_mesmo_operador_sep_conf?: boolean
           reserva_conferencia_movimento?: boolean
           reserva_separacao_movimento?: boolean
           separa_pulmao?: boolean
@@ -10811,6 +10820,37 @@ export type Database = {
       }
     }
     Functions: {
+      rpc_coletor_assumir_etapa: {
+        Args: { p_empresa_id: string; p_etapa: string; p_movimento_saida_id: string; p_tenant_id: string; p_usuario_id: string }
+        Returns: Json
+      }
+      rpc_coletor_onda_resumo: {
+        Args: { p_empresa_id: string; p_etapa: string; p_movimento_saida_id: string; p_tenant_id: string; p_usuario_id: string }
+        Returns: Json
+      }
+      rpc_coletor_sair_etapa: {
+        Args: { p_empresa_id: string; p_etapa: string; p_movimento_saida_id: string; p_tenant_id: string; p_usuario_id: string }
+        Returns: Json
+      }
+      rpc_onda_operadores_elegiveis: {
+        Args: { p_busca?: string | null; p_movimento_saida_id: string; p_tipo_tarefa_id: string; p_usuario_id?: string | null }
+        Returns: Json
+      }
+      rpc_onda_responsaveis_obter: {
+        Args: { p_movimento_saida_id: string; p_usuario_id?: string | null }
+        Returns: Json
+      }
+      rpc_onda_responsaveis_salvar: {
+        Args: {
+          p_alteracoes: Json
+          p_confirmar_progresso?: boolean
+          p_motivo?: string | null
+          p_movimento_saida_id: string
+          p_simular?: boolean
+          p_usuario_id?: string | null
+        }
+        Returns: Json
+      }
       _fn_alteracao_saida_executar: {
         Args: {
           p_alteracao_id: string

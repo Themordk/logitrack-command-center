@@ -14,6 +14,9 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { deveExibirNomeColetor } from "@/lib/exibicaoColetor";
+import { useResumoEtapaColetor } from "@/hooks/useResumoEtapaColetor";
+import { ResumoEtapaPainel } from "@/components/coletor/ResumoEtapaPainel";
+import { acaoColetor, assumirEtapaColetor, sairEtapaColetor } from "@/lib/responsaveisOndaService";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -93,6 +96,61 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
   }, [error]);
 
   const loadOndas = refetch;
+
+  // Convocação híbrida: selecionar a onda só consulta (não reserva). Assumir é explícito.
+  const etapaInfo = useResumoEtapaColetor(selectedId, "SEP-CONF", isOnline);
+  const acao = isOnline && etapaInfo.resumo?.sucesso ? acaoColetor(etapaInfo.resumo, "conferência") : null;
+  const [saindo, setSaindo] = useState(false);
+
+  const handlePrincipal = async () => {
+    if (!selectedId) return;
+    if (isOnline && acao && etapaInfo.contexto) {
+      if (acao.tipo === "BLOQUEADA") {
+        result.showWarning(acao.mensagem);
+        void refetch();
+        return;
+      }
+      if (acao.tipo === "ASSUMIR") {
+        setStarting(true);
+        try {
+          const r = await assumirEtapaColetor(etapaInfo.contexto);
+          if (!r.sucesso) {
+            result.showError(r, { context: "conferencia-assumir" });
+            void refetch();
+            void etapaInfo.recarregar();
+            return;
+          }
+        } catch (err: unknown) {
+          result.showError(err, { context: "conferencia-assumir" });
+          return;
+        } finally {
+          setStarting(false);
+        }
+      }
+    }
+    await handleIniciar();
+  };
+
+  const handleSair = async () => {
+    if (!etapaInfo.contexto) return;
+    setSaindo(true);
+    try {
+      const r = await sairEtapaColetor(etapaInfo.contexto);
+      if (!r.sucesso) {
+        result.showError(r, { context: "conferencia-sair" });
+        return;
+      }
+      // Tarefas devolvidas não podem continuar no cache offline deste aparelho
+      await cacheData(`tarefas_conferencia_${selectedId}`, [], 1).catch(() => {});
+      result.showSuccess(r.mensagem || "Etapa devolvida para a fila.");
+      setSelectedId(null);
+      void refetch();
+    } catch (err: unknown) {
+      result.showError(err, { context: "conferencia-sair" });
+    } finally {
+      setSaindo(false);
+    }
+  };
 
   const handleIniciar = async () => {
     if (!selectedId) return;
@@ -279,9 +337,20 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
           </div>
         )}
 
-        <div className="shrink-0 pt-1">
-          <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
-            Iniciar Conferência
+        {selectedId && isOnline && <ResumoEtapaPainel resumo={etapaInfo.resumo} loading={etapaInfo.loading} />}
+
+        <div className="shrink-0 pt-1 flex flex-col gap-2">
+          {acao?.podeSair && (
+            <ActionButton variant="secondary" onClick={handleSair} loading={saindo} disabled={starting}>
+              Sair da etapa
+            </ActionButton>
+          )}
+          <ActionButton
+            onClick={handlePrincipal}
+            disabled={!selectedId || acao?.tipo === "BLOQUEADA" || (isOnline && etapaInfo.loading)}
+            loading={starting}
+          >
+            {acao?.rotulo ?? "Iniciar Conferência"}
           </ActionButton>
         </div>
       </div>
