@@ -6,6 +6,7 @@ import { Building2, Truck } from "lucide-react";
 import type { ModalidadeTransporte, TransportadoraOpcao } from "@/lib/cargaService";
 import { MODALIDADE_LABEL, nomeTransportadora, placaValida, type TransporteValor } from "@/lib/cargaExibicao";
 import type { VeiculoOpcao } from "@/hooks/useCargaCadastros";
+import { SeletorBusca } from "@/components/carga/SeletorBusca";
 
 interface Props {
   idPrefixo: string;
@@ -67,11 +68,16 @@ export function TransporteCampos({
       {!terceiro ? (
         <div>
           <label htmlFor={`${idPrefixo}-veiculo`} className={labelClass}>Veículo próprio *</label>
-          <select id={`${idPrefixo}-veiculo`} className={inputClass} value={valor.veiculoId} disabled={desabilitado || travarTransporte}
-            onChange={(e) => set({ veiculoId: e.target.value })}>
-            <option value="">{rotuloVeiculoVazio}</option>
-            {veiculos.map((v) => <option key={v.id} value={v.id}>{v.descricao}{v.placa ? ` - ${v.placa}` : ""}</option>)}
-          </select>
+          <SeletorBusca
+            id={`${idPrefixo}-veiculo`}
+            value={valor.veiculoId}
+            onChange={(v) => set({ veiculoId: v })}
+            options={veiculos.map((v) => ({ value: v.id, label: v.descricao, description: v.placa ?? undefined }))}
+            vazio={rotuloVeiculoVazio}
+            permitirVazio={rotuloVeiculoVazio !== "Selecione…"}
+            searchPlaceholder="Descrição ou placa..."
+            disabled={desabilitado || travarTransporte}
+          />
           {veiculos.length === 0 && (
             <p className="text-xs text-muted-foreground mt-1">Nenhum veículo próprio ativo cadastrado para esta empresa.</p>
           )}
@@ -80,13 +86,20 @@ export function TransporteCampos({
         <>
           <div>
             <label htmlFor={`${idPrefixo}-transportadora`} className={labelClass}>Transportadora *</label>
-            <select id={`${idPrefixo}-transportadora`} className={inputClass} value={valor.transportadoraId} disabled={desabilitado || travarTransporte}
-              onChange={(e) => set({ transportadoraId: e.target.value })}>
-              <option value="">{rotuloTransportadoraVazio}</option>
-              {transportadoras.map((t) => (
-                <option key={t.id} value={t.id}>{nomeTransportadora(t)}{t.cnpj ? ` - ${t.cnpj}` : ""}</option>
-              ))}
-            </select>
+            <SeletorBusca
+              id={`${idPrefixo}-transportadora`}
+              value={valor.transportadoraId}
+              onChange={(v) => set({ transportadoraId: v })}
+              options={transportadoras.map((t) => ({
+                value: t.id,
+                label: nomeTransportadora(t),
+                description: [t.nome_fantasia && t.nome_fantasia !== t.razaosocial ? t.razaosocial : null, t.cnpj].filter(Boolean).join(" - ") || undefined,
+              }))}
+              vazio={rotuloTransportadoraVazio}
+              permitirVazio={rotuloTransportadoraVazio !== "Selecione…"}
+              searchPlaceholder="Razão social, fantasia ou CNPJ..."
+              disabled={desabilitado || travarTransporte}
+            />
             {transportadoras.length === 0 && (
               <p className="text-xs text-muted-foreground mt-1">
                 Nenhuma transportadora ativa. Cadastre o parceiro com Tipo de Parceiro = Transportador em Dados Mestres › Parceiros.

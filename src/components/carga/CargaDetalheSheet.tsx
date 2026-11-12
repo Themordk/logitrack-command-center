@@ -22,6 +22,7 @@ import { CargaStatusBadge } from "@/components/carga/CargaStatusBadge";
 import { CapacidadeVeiculo } from "@/components/carga/CapacidadeVeiculo";
 import type { BoxOpcao, VeiculoOpcao } from "@/hooks/useCargaCadastros";
 import { TransporteCampos } from "@/components/carga/TransporteCampos";
+import { SeletorBusca } from "@/components/carga/SeletorBusca";
 
 interface Props {
   cargaId: string | null;
@@ -285,11 +286,15 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                   <div className="space-y-3">
                     <div>
                       <label htmlFor="carga-box" className="block text-xs font-medium text-muted-foreground mb-1.5">Box / doca</label>
-                      <select id="carga-box" className={inputClass} value={cab.boxId} disabled={!editavel || emCarregamento}
-                        onChange={(e) => setCab((c) => (c ? { ...c, boxId: e.target.value } : c))}>
-                        <option value="">Sem box</option>
-                        {boxes.map((b) => <option key={b.id} value={b.id}>{b.descricao}</option>)}
-                      </select>
+                      <SeletorBusca
+                        id="carga-box"
+                        value={cab.boxId}
+                        onChange={(v) => setCab((c) => (c ? { ...c, boxId: v } : c))}
+                        options={boxes.map((b) => ({ value: b.id, label: b.descricao }))}
+                        vazio="Sem box"
+                        searchPlaceholder="Nome do box ou doca..."
+                        disabled={!editavel || emCarregamento}
+                      />
                     </div>
                     <div className="rounded-lg border border-border p-4">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">

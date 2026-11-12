@@ -17,6 +17,7 @@ import { CargaStatusBadge } from "@/components/carga/CargaStatusBadge";
 import { CapacidadeVeiculo } from "@/components/carga/CapacidadeVeiculo";
 import { CargaDetalheSheet } from "@/components/carga/CargaDetalheSheet";
 import { TransporteCampos } from "@/components/carga/TransporteCampos";
+import { SeletorBusca } from "@/components/carga/SeletorBusca";
 
 const MODULO = "web.atividades.montagem-carga";
 const FILTROS: { valor: string; rotulo: string; status: CargaStatus[] | null }[] = [
@@ -245,11 +246,15 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
               />
               <div>
                 <label htmlFor="nova-box" className="block text-xs font-medium text-muted-foreground mb-1.5">Box / doca</label>
-                <select id="nova-box" className={inputClass} value={boxId} disabled={!podeEditar}
-                  onChange={(e) => setBoxId(e.target.value)}>
-                  <option value="">{boxesOndas.length === 1 ? "Usar o box das ondas" : "Sem box"}</option>
-                  {boxes.map((b) => <option key={b.id} value={b.id}>{b.descricao}</option>)}
-                </select>
+                <SeletorBusca
+                  id="nova-box"
+                  value={boxId}
+                  onChange={setBoxId}
+                  options={boxes.map((b) => ({ value: b.id, label: b.descricao }))}
+                  vazio={boxesOndas.length === 1 ? "Usar o box das ondas" : "Sem box"}
+                  searchPlaceholder="Nome do box ou doca..."
+                  disabled={!podeEditar}
+                />
               </div>
               {ondasSel.length > 0 && !terceiro && (
                 <CapacidadeVeiculo medidas={[
