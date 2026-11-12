@@ -2,13 +2,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Relatório Produtos Mapeados em Picking — toda a regra roda na RPC
- * `rpc_relatorio_produtos_mapeados` (migration 20261112163310):
+ * `rpc_relatorio_produtos_mapeados` (migrations 20261112163310 e 20261112164729):
  *  - mapeamentos ativos (picking_produto) da empresa, armazém opcional;
  *  - filtros de SKU, marca, parceiro, endereço (rua/prédio/nível/apto) e
  *    intervalo da data do mapeamento (fuso America/Fortaleza);
  *  - data e usuário do mapeamento = created_at / created_by (mapeamentos
  *    anteriores à auditoria vêm sem esses dados);
- *  - ordem SKU → endereço, paginada no servidor.
+ *  - ordem SKU → endereço, paginada no servidor;
+ *  - resumo do conjunto filtrado (SKUs, endereços, endereços compartilhados,
+ *    tipos de picking, sem autoria) em cada linha, para os cards.
  */
 
 export interface ProdutosMapeadosFilter {
@@ -46,11 +48,24 @@ export interface ProdutosMapeadoRow {
   tipo_picking: string;
   mapeado_em: string | null;
   mapeado_por: string;     // vazio quando o mapeamento não tem auditoria
+  skus_no_endereco: number; // SKUs ativos mapeados no mesmo endereço
+}
+
+export interface ProdutosMapeadosResumo {
+  total: number;
+  qtd_skus: number;
+  qtd_enderecos: number;
+  qtd_enderecos_compartilhados: number;
+  qtd_mapeamentos_compartilhados: number;
+  qtd_fracionado: number;
+  qtd_master: number;
+  qtd_pdv: number;
+  qtd_sem_autoria: number;
 }
 
 export interface ProdutosMapeadosPage {
   rows: ProdutosMapeadoRow[];
-  total: number;
+  resumo: ProdutosMapeadosResumo;
 }
 
 export const PRODUTOS_MAPEADOS_PAGE_SIZE = 100;
@@ -59,6 +74,29 @@ const EXPORT_CONCORRENCIA = 4;
 
 const num = (v: unknown) => Number(v) || 0;
 const numOuNull = (v: unknown) => (v == null ? null : Number(v));
+
+export function resumoVazio(): ProdutosMapeadosResumo {
+  return {
+    total: 0, qtd_skus: 0, qtd_enderecos: 0,
+    qtd_enderecos_compartilhados: 0, qtd_mapeamentos_compartilhados: 0,
+    qtd_fracionado: 0, qtd_master: 0, qtd_pdv: 0, qtd_sem_autoria: 0,
+  };
+}
+
+function mapResumo(r: any | undefined): ProdutosMapeadosResumo {
+  if (!r) return resumoVazio();
+  return {
+    total: num(r.total_registros),
+    qtd_skus: num(r.qtd_skus),
+    qtd_enderecos: num(r.qtd_enderecos),
+    qtd_enderecos_compartilhados: num(r.qtd_enderecos_compartilhados),
+    qtd_mapeamentos_compartilhados: num(r.qtd_mapeamentos_compartilhados),
+    qtd_fracionado: num(r.qtd_fracionado),
+    qtd_master: num(r.qtd_master),
+    qtd_pdv: num(r.qtd_pdv),
+    qtd_sem_autoria: num(r.qtd_sem_autoria),
+  };
+}
 
 function toParams(f: ProdutosMapeadosFilter, limit: number, offset: number) {
   return {
@@ -100,6 +138,7 @@ function mapRow(r: any): ProdutosMapeadoRow {
     tipo_picking: r.tipo_picking ?? "",
     mapeado_em: r.mapeado_em ?? null,
     mapeado_por: r.mapeado_por ?? "",
+    skus_no_endereco: num(r.skus_no_endereco),
   };
 }
 
@@ -109,14 +148,14 @@ async function callRpc(f: ProdutosMapeadosFilter, limit: number, offset: number)
   return (data as any[]) || [];
 }
 
-/** Uma página do relatório + total do conjunto filtrado. */
+/** Uma página do relatório + resumo do conjunto filtrado. */
 export async function fetchProdutosMapeadosPage(
   filters: ProdutosMapeadosFilter,
   page: number,
   pageSize = PRODUTOS_MAPEADOS_PAGE_SIZE,
 ): Promise<ProdutosMapeadosPage> {
   const data = await callRpc(filters, pageSize, page * pageSize);
-  return { rows: data.map(mapRow), total: num(data[0]?.total_registros) };
+  return { rows: data.map(mapRow), resumo: mapResumo(data[0]) };
 }
 
 /** Todas as linhas (para Excel/PDF). Páginas de 1000, até 4 em paralelo. */

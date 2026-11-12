@@ -31,7 +31,16 @@ const linhaBackend = (id: string) => ({
   tipo_picking: "FRACIONADO",
   mapeado_em: "2026-11-12T16:27:38Z",
   mapeado_por: "JOAO OPERADOR",
+  skus_no_endereco: 353,
   total_registros: "6875",
+  qtd_skus: "6875",
+  qtd_enderecos: "2435",
+  qtd_enderecos_compartilhados: "712",
+  qtd_mapeamentos_compartilhados: "5153",
+  qtd_fracionado: "6875",
+  qtd_master: "0",
+  qtd_pdv: "0",
+  qtd_sem_autoria: "6014",
 });
 
 describe("produtosMapeados.service", () => {
@@ -70,16 +79,21 @@ describe("produtosMapeados.service", () => {
     });
   });
 
-  it("converte numéricos, data e usuário do mapeamento e lê o total", async () => {
+  it("converte numéricos, data e usuário do mapeamento e lê o resumo", async () => {
     rpcMock.mockResolvedValue({ data: [linhaBackend("1")], error: null });
-    const { rows, total } = await fetchProdutosMapeadosPage(filtroBase, 0);
-    expect(total).toBe(6875);
+    const { rows, resumo } = await fetchProdutosMapeadosPage(filtroBase, 0);
+    expect(resumo).toEqual({
+      total: 6875, qtd_skus: 6875, qtd_enderecos: 2435,
+      qtd_enderecos_compartilhados: 712, qtd_mapeamentos_compartilhados: 5153,
+      qtd_fracionado: 6875, qtd_master: 0, qtd_pdv: 0, qtd_sem_autoria: 6014,
+    });
     expect(rows[0]).toMatchObject({
       picking_id: "1",
       est_minimo: 5, est_maximo: 20,
       rua: 18, apto: 101,
       mapeado_em: "2026-11-12T16:27:38Z",
       mapeado_por: "JOAO OPERADOR",
+      skus_no_endereco: 353,
     });
   });
 
@@ -90,9 +104,11 @@ describe("produtosMapeados.service", () => {
     expect(rows[0].mapeado_por).toBe("");
   });
 
-  it("sem linhas devolve total zero e propaga erro da RPC", async () => {
+  it("sem linhas devolve resumo zerado e propaga erro da RPC", async () => {
     rpcMock.mockResolvedValueOnce({ data: [], error: null });
-    expect((await fetchProdutosMapeadosPage(filtroBase, 0)).total).toBe(0);
+    const vazio = await fetchProdutosMapeadosPage(filtroBase, 0);
+    expect(vazio.resumo.total).toBe(0);
+    expect(vazio.resumo.qtd_enderecos_compartilhados).toBe(0);
     rpcMock.mockResolvedValueOnce({ data: null, error: { message: "Data final não pode ser anterior à data inicial" } });
     await expect(fetchProdutosMapeadosPage(filtroBase, 0)).rejects.toMatchObject({
       message: "Data final não pode ser anterior à data inicial",

@@ -276,9 +276,10 @@ export function InventarioReportPage() {
   if (apenasDivergentes) activeFilters["Apenas divergentes"] = "Sim";
 
   if (generated && kpis) {
-    activeFilters["Acur. Qtd"] = fmtPct(kpis.acuracidade_ponderada_qtd);
-    activeFilters["Acur. Item"] = fmtPct(kpis.acuracidade_por_item);
-    activeFilters["Acur. R$"] = fmtPct(kpis.acuracidade_ponderada_valor);
+    const contados = kpis.itens_conformes + kpis.itens_divergentes > 0;
+    activeFilters["Acur. Qtd"] = contados ? fmtPct(kpis.acuracidade_ponderada_qtd) : "—";
+    activeFilters["Acur. Item"] = contados ? fmtPct(kpis.acuracidade_por_item) : "—";
+    activeFilters["Acur. R$"] = contados ? fmtPct(kpis.acuracidade_ponderada_valor) : "—";
     activeFilters["Conformes"] = `${kpis.itens_conformes}`;
     activeFilters["Divergentes"] = `${kpis.itens_divergentes}`;
     if (kpis.itens_pendentes > 0) activeFilters["Pendentes"] = `${kpis.itens_pendentes}`;
@@ -339,10 +340,15 @@ export function InventarioReportPage() {
   };
   const handlePrint = () => window.print();
 
+  // Sem itens contados não há acuracidade a medir: "—" neutro, não 0% em vermelho.
+  const temContados = !!kpis && kpis.itens_conformes + kpis.itens_divergentes > 0;
+  const acurCard = (label: string, v: number) => temContados
+    ? { label, value: fmtPct(v), tone: accClass(v) }
+    : { label, value: "—", tone: "text-muted-foreground" };
   const kpiCards = kpis ? [
-    { label: "Acur. Quantidade", value: fmtPct(kpis.acuracidade_ponderada_qtd), tone: accClass(kpis.acuracidade_ponderada_qtd) },
-    { label: "Acur. por Item", value: fmtPct(kpis.acuracidade_por_item), tone: accClass(kpis.acuracidade_por_item) },
-    { label: "Acur. Valor", value: fmtPct(kpis.acuracidade_ponderada_valor), tone: accClass(kpis.acuracidade_ponderada_valor) },
+    acurCard("Acur. Quantidade", kpis.acuracidade_ponderada_qtd),
+    acurCard("Acur. por Item", kpis.acuracidade_por_item),
+    acurCard("Acur. Valor", kpis.acuracidade_ponderada_valor),
     { label: "Divergentes", value: `${kpis.itens_divergentes.toLocaleString("pt-BR")} de ${(kpis.itens_conformes + kpis.itens_divergentes).toLocaleString("pt-BR")}`, tone: "text-foreground" },
     { label: "Pendentes", value: kpis.itens_pendentes.toLocaleString("pt-BR"), tone: "text-muted-foreground" },
     { label: "Impacto R$", value: fmtBRL(kpis.impacto_total), tone: kpis.impacto_total > 0 ? "text-[hsl(var(--status-blocked))]" : "text-foreground" },

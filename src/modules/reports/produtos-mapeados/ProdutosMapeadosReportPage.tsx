@@ -10,6 +10,7 @@ import {
   PRODUTOS_MAPEADOS_PAGE_SIZE,
   type ProdutosMapeadosFilter,
   type ProdutosMapeadoRow,
+  type ProdutosMapeadosResumo,
 } from "./produtosMapeados.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,13 +19,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronLeft, ChevronRight, Filter, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime, nowDisplay } from "@/utils/dateTime";
 import { exportToExcel, exportToPdf, fmtDateTimeBR, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 
 export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: string) => void }) {
   const { tenantId, empresaId, armazemId, empresaVersion, usuarioNome } = useTenant();
   const [data, setData] = useState<ProdutosMapeadoRow[]>([]);
-  const [total, setTotal] = useState(0);
+  const [resumo, setResumo] = useState<ProdutosMapeadosResumo | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<ProdutosMapeadosFilter | null>(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
 
   // Reset ao trocar empresa
   useEffect(() => {
-    setData([]); setTotal(0); setAppliedFilters(null); setPage(0);
+    setData([]); setResumo(null); setAppliedFilters(null); setPage(0);
     setGenerated(false); setGeneratedAt("");
     setFilterSku(""); setFilterMarca("");
     setFilterParceiroId(""); setFilterParceiroNome("");
@@ -68,7 +70,7 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
     try {
       const result = await fetchProdutosMapeadosPage(filters, pageIndex);
       setData(result.rows);
-      setTotal(result.total);
+      setResumo(result.resumo);
       setPage(pageIndex);
       return true;
     } catch (err: any) {
@@ -120,6 +122,8 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
   };
 
   const semAuditoria = <span className="text-muted-foreground">—</span>;
+  const fmtInt = (v: number) => Number(v).toLocaleString("pt-BR");
+  const pct = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).toFixed(1).replace(".", ",")}%` : "0%");
 
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "110px", render: (v) => <span className="font-mono text-foreground">{v}</span> },
@@ -128,6 +132,15 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
     { key: "marca", label: "Marca", width: "110px", render: (v) => v || "—" },
     colTextoLongo({ key: "parceiro_nome", label: "Parceiro", minWidth: 180, maxWidth: 260 }),
     { key: "endereco_descricao", label: "Endereço Picking", width: "150px", render: (v) => <span className="font-mono text-[10px]">{v || "—"}</span> },
+    {
+      key: "skus_no_endereco", label: "SKUs no End.", width: "90px", align: "center",
+      render: (v) => (
+        <span className={cn(v > 1 ? "font-semibold text-[hsl(var(--status-busy))]" : "text-muted-foreground")}
+          title={v > 1 ? "Endereço compartilhado por mais de um SKU" : undefined}>
+          {Number(v).toLocaleString("pt-BR")}
+        </span>
+      ),
+    },
     { key: "est_minimo", label: "Est. Mínimo", width: "100px", align: "right", render: (v) => Number(v).toLocaleString("pt-BR") },
     { key: "est_maximo", label: "Est. Máximo", width: "100px", align: "right", render: (v) => Number(v).toLocaleString("pt-BR") },
     { key: "tipo_picking", label: "Tipo", width: "100px", render: (v) => v || "—" },
@@ -135,6 +148,7 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
     { key: "mapeado_por", label: "Mapeado por", width: "140px", render: (v) => (v ? <span className="truncate">{v}</span> : semAuditoria) },
   ];
 
+  const total = resumo?.total ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / PRODUTOS_MAPEADOS_PAGE_SIZE));
 
   const endereco = [
@@ -152,6 +166,12 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
     activeFilters["Mapeado"] = `${filterDataInicio ? formatDate(filterDataInicio) : "…"} a ${filterDataFim ? formatDate(filterDataFim) : "…"}`;
   }
   if (endereco) activeFilters["Endereço"] = endereco;
+  if (generated && resumo) {
+    activeFilters["SKUs"] = fmtInt(resumo.qtd_skus);
+    activeFilters["Endereços"] = fmtInt(resumo.qtd_enderecos);
+    activeFilters["End. compartilhados"] = fmtInt(resumo.qtd_enderecos_compartilhados);
+    if (resumo.qtd_sem_autoria > 0) activeFilters["Sem autoria"] = fmtInt(resumo.qtd_sem_autoria);
+  }
 
   const exportColumns: ExportColumn[] = [
     { key: "sku", label: "SKU" },
@@ -160,6 +180,7 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
     { key: "marca", label: "Marca" },
     { key: "parceiro_nome", label: "Parceiro" },
     { key: "endereco_descricao", label: "Endereço Picking" },
+    { key: "skus_no_endereco", label: "SKUs no End.", align: "center", format: (r) => fmtNumberBR(r.skus_no_endereco) },
     { key: "est_minimo", label: "Est. Mínimo", align: "right", format: (r) => fmtNumberBR(r.est_minimo) },
     { key: "est_maximo", label: "Est. Máximo", align: "right", format: (r) => fmtNumberBR(r.est_maximo) },
     { key: "tipo_picking", label: "Tipo Picking" },
@@ -201,6 +222,32 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
     }
   };
   const handlePrint = () => window.print();
+
+  const resumoCards: { label: string; value: string; sub?: string; tone: string; hint?: string }[] = resumo ? [
+    { label: "Mapeamentos", value: fmtInt(resumo.total), tone: "text-foreground" },
+    { label: "SKUs", value: fmtInt(resumo.qtd_skus), tone: "text-foreground" },
+    { label: "Endereços", value: fmtInt(resumo.qtd_enderecos), tone: "text-foreground" },
+    {
+      label: "End. compartilhados",
+      value: fmtInt(resumo.qtd_enderecos_compartilhados),
+      sub: `${fmtInt(resumo.qtd_mapeamentos_compartilhados)} mapeamentos · ${pct(resumo.qtd_enderecos_compartilhados, resumo.qtd_enderecos)} dos end.`,
+      tone: resumo.qtd_enderecos_compartilhados > 0 ? "text-[hsl(var(--status-busy))]" : "text-foreground",
+      hint: "Endereços de picking com mais de um SKU mapeado (considera todos os mapeamentos ativos do armazém)",
+    },
+    {
+      label: "Por tipo",
+      value: `${fmtInt(resumo.qtd_fracionado)} frac.`,
+      sub: `Master ${fmtInt(resumo.qtd_master)} · PDV ${fmtInt(resumo.qtd_pdv)}`,
+      tone: "text-foreground",
+    },
+    {
+      label: "Sem autoria",
+      value: fmtInt(resumo.qtd_sem_autoria),
+      sub: `${pct(resumo.qtd_sem_autoria, resumo.total)} sem data/usuário`,
+      tone: "text-muted-foreground",
+      hint: "Mapeamentos anteriores ao registro de auditoria (sem data e usuário)",
+    },
+  ] : [];
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
@@ -306,6 +353,18 @@ export function ProdutosMapeadosReportPage({ onNavigate }: { onNavigate?: (p: st
           </div>
         )}
       </div>
+
+      {generated && resumo && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
+          {resumoCards.map((c) => (
+            <div key={c.label} className="border border-border rounded-lg bg-card px-3 py-2" title={c.hint}>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+              <div className={cn("text-sm font-bold tabular-nums", c.tone)}>{c.value}</div>
+              {c.sub && <div className="text-[10px] text-muted-foreground tabular-nums truncate">{c.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {generated && <ReportTable columns={columns} data={data} loading={loading || exporting} />}
 
