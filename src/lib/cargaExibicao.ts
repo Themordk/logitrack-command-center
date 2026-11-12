@@ -81,17 +81,20 @@ export interface GrupoSugestao {
   peso: number;
   m3: number;
   documentos: number;
+  /** Volumes de expedição gerados na conferência. */
+  volumes: number;
 }
 
 /** Agrupa as ondas sugeridas pela chave calculada no backend (critério + transportadora ou veículo + box). */
 export function agruparSugestao(ondas: OndaSugerida[]): GrupoSugestao[] {
   const mapa = new Map<string, GrupoSugestao>();
   for (const o of ondas) {
-    const g = mapa.get(o.grupo_chave) ?? { chave: o.grupo_chave, rotulo: o.grupo_rotulo, ondas: [], peso: 0, m3: 0, documentos: 0 };
+    const g = mapa.get(o.grupo_chave) ?? { chave: o.grupo_chave, rotulo: o.grupo_rotulo, ondas: [], peso: 0, m3: 0, documentos: 0, volumes: 0 };
     g.ondas.push(o);
     g.peso += Number(o.peso_total ?? 0);
     g.m3 += Number(o.m3 ?? 0);
     g.documentos += Number(o.documentos ?? 0);
+    g.volumes += Number(o.volumes ?? 0);
     mapa.set(o.grupo_chave, g);
   }
   return [...mapa.values()].sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));

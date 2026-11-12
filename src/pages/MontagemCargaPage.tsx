@@ -69,6 +69,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
     peso: ondasSel.reduce((s, o) => s + Number(o.peso_total ?? 0), 0),
     m3: ondasSel.reduce((s, o) => s + Number(o.m3 ?? 0), 0),
     pedidos: ondasSel.reduce((s, o) => s + Number(o.documentos ?? 0), 0),
+    volumes: ondasSel.reduce((s, o) => s + Number(o.volumes ?? 0), 0),
   }), [ondasSel]);
 
   // Veículo/transportadora/box herdados das ondas: o backend recusa se divergirem; aqui só antecipamos o aviso.
@@ -182,7 +183,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-foreground truncate">{g.rotulo}</p>
                           <p className="text-xs text-muted-foreground">
-                            {g.ondas.length} onda(s) · {g.documentos} pedido(s) · {formatarNumero(g.peso)} kg · {formatarNumero(g.m3, 2)} m³
+                            {g.ondas.length} onda(s) · {g.documentos} pedido(s) · {g.volumes} volume(s) · {formatarNumero(g.peso)} kg · {formatarNumero(g.m3, 2)} m³
                           </p>
                         </div>
                         <Button variant="outline" size="sm" disabled={!podeEditar}
@@ -205,6 +206,12 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                                 <span className="text-[11px] text-yellow-400 border border-yellow-500/30 bg-yellow-500/10 rounded px-1.5 py-0.5">Várias transp.</span>
                               )}
                               <span className="text-xs text-muted-foreground w-20 text-right">{o.documentos} ped.</span>
+                              <span
+                                className={`text-xs w-20 text-right ${Number(o.volumes) > 0 ? "text-muted-foreground" : "text-yellow-400"}`}
+                                title={Number(o.volumes) > 0 ? "Volumes de expedição gerados na conferência" : "Nenhum volume gerado na conferência"}
+                              >
+                                {o.volumes} vol.
+                              </span>
                               <span className="text-xs font-mono text-muted-foreground w-24 text-right">{formatarNumero(o.peso_total)} kg</span>
                             </label>
                           </li>
@@ -224,7 +231,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
               </div>
               <p className="text-xs text-muted-foreground">
                 {ondasSel.length === 0 ? "Selecione ondas na lista ao lado."
-                  : `${ondasSel.length} onda(s) · ${totais.pedidos} pedido(s)`}
+                  : `${ondasSel.length} onda(s) · ${totais.pedidos} pedido(s) · ${totais.volumes} volume(s)`}
               </p>
               <TransporteCampos
                 idPrefixo="nova"
