@@ -1,5 +1,6 @@
 -- =====================================================================
 -- 2026-11-12 · Relatórios · Acuracidade de Inventário — RPC server-side
+-- Aplicada em produção como versão 20261112160514.
 --
 -- Substitui inventario.service.ts, que fazia: inventários → todas as páginas
 -- de inventario_item_resumo (.in() com ids) → produto?sku=in.(...) com até

@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Relatório Acuracidade de Inventário — toda a regra roda na RPC
- * `rpc_relatorio_inventario` (migration 20261112160000):
+ * `rpc_relatorio_inventario` (migration 20261112160514):
  *  - itens = tarefas INV-AUDIT/INV-ATU do inventário (canceladas fora);
  *  - PENDENTE = tarefa ainda não contada (status CRIADA/ATRIBUIDA/EM_ANDAMENTO/PAUSADA);
  *  - qtd. contada = última contagem; preço de custo pelo produto da tarefa;
