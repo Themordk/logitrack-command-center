@@ -8,11 +8,14 @@ export interface CicloPedidoFilter {
   tenant_id: string;
   empresa_id?: string;
   armazem_id?: string;
-  parceiro_id?: string;
+  parceiro_id?: string;     // cliente em qualquer pedido da onda (no servidor)
+  numero_onda?: number;     // exato (no servidor)
+  numero_pedido?: string;   // parcial (no servidor)
+  numero_nf?: string;       // parcial, ignora zeros à esquerda (no servidor)
   status_onda?: string;
   prioridade?: string;
-  data_inicio?: string;
-  data_fim?: string;
+  data_inicio?: string;     // AAAA-MM-DD, data local de emissão da onda
+  data_fim?: string;        // AAAA-MM-DD, inclusive
   status_sla?: StatusSla;
   apenas_concluidos?: boolean;
   sla_horas?: number;
@@ -24,6 +27,7 @@ export interface CicloPedidoRow {
   status: string | null;
   prioridade: string | null;
   pedidos: string;
+  notas: string;
   cliente: string;
   parceiro_id: string | null;
   box_id: string | null;
@@ -63,6 +67,11 @@ export interface CicloPedidoKpis {
   tempo_medio_pos_conf_min: number;
   tempo_medio_ocioso_min: number;
   pior_etapa: PiorEtapa;
+  perc_dentro_sla: number | null;   // dentro / concluídas (null sem concluídas)
+  tempo_mediano_total_min: number;
+  total_pedidos: number;
+  total_nfs: number;
+  total_clientes: number;
 }
 
 export async function fetchCicloPedidoReport(
@@ -81,6 +90,10 @@ export async function fetchCicloPedidoReport(
       p_status_onda: filters.status_onda || null,
       p_prioridade: filters.prioridade || null,
       p_sla_horas: sla,
+      p_parceiro_id: filters.parceiro_id || null,
+      p_numero_onda: filters.numero_onda ?? null,
+      p_numero_pedido: filters.numero_pedido?.trim() || null,
+      p_numero_nf: filters.numero_nf?.trim() || null,
     },
   );
   if (data.length === 0) return { rows: [], kpis: emptyKpis() };
@@ -114,6 +127,7 @@ export async function fetchCicloPedidoReport(
       status: r.status_onda,
       prioridade: r.prioridade,
       pedidos: r.pedidos || "—",
+      notas: r.notas || "—",
       cliente: r.cliente || "—",
       parceiro_id: r.parceiro_id || null,
       box_id: r.box_id || null,
@@ -137,7 +151,7 @@ export async function fetchCicloPedidoReport(
     };
   });
 
-  if (filters.parceiro_id) rows = rows.filter((r) => r.parceiro_id === filters.parceiro_id);
+  // Cliente, onda, pedido e NF já vêm filtrados da RPC (cliente em qualquer pedido da onda).
   if (filters.status_sla) rows = rows.filter((r) => r.status_sla === filters.status_sla);
   if (filters.apenas_concluidos) rows = rows.filter((r) => r.status_sla !== "EM_ANDAMENTO");
 
@@ -169,6 +183,22 @@ export async function fetchCicloPedidoReport(
   const piorAgg = etapasAvg.reduce((acc, e) => (e[1] > acc[1] ? e : acc), etapasAvg[0]);
   const pior_etapa: PiorEtapa = piorAgg[1] > 0 ? piorAgg[0] : "—";
 
+  const mediana = (arr: (number | null)[]) => {
+    const v = arr.filter((x): x is number => x != null && !isNaN(x)).sort((a, b) => a - b);
+    if (v.length === 0) return 0;
+    const meio = Math.floor(v.length / 2);
+    return v.length % 2 ? v[meio] : (v[meio - 1] + v[meio]) / 2;
+  };
+  const split = (txt: string) => txt.split(",").map((x) => x.trim()).filter((x) => x && x !== "—");
+  const pedidos = new Set<string>();
+  const nfs = new Set<string>();
+  const clientes = new Set<string>();
+  for (const r of rows) {
+    split(r.pedidos).forEach((x) => pedidos.add(x));
+    split(r.notas).forEach((x) => nfs.add(x));
+    split(r.cliente).forEach((x) => clientes.add(x));
+  }
+
   const kpis: CicloPedidoKpis = {
     total_ondas: rows.length,
     concluidas: concluidas.length,
@@ -183,6 +213,13 @@ export async function fetchCicloPedidoReport(
     tempo_medio_pos_conf_min: m_pos,
     tempo_medio_ocioso_min: m_ocio,
     pior_etapa,
+    perc_dentro_sla: concluidas.length > 0
+      ? (rows.filter((r) => r.status_sla === "DENTRO").length / concluidas.length) * 100
+      : null,
+    tempo_mediano_total_min: mediana(concluidas.map((r) => r.tempo_total_min)),
+    total_pedidos: pedidos.size,
+    total_nfs: nfs.size,
+    total_clientes: clientes.size,
   };
 
   return { rows, kpis };
@@ -203,6 +240,11 @@ function emptyKpis(): CicloPedidoKpis {
     tempo_medio_pos_conf_min: 0,
     tempo_medio_ocioso_min: 0,
     pior_etapa: "—",
+    perc_dentro_sla: null,
+    tempo_mediano_total_min: 0,
+    total_pedidos: 0,
+    total_nfs: 0,
+    total_clientes: 0,
   };
 }
 
