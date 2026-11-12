@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowDown, ArrowUp, CheckCircle2, GripVertical, Loader2, Lock, PackagePlus, Printer, Save, Send, Trash2, Undo2, XCircle,
+  AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, GripVertical, Loader2, Lock, PackagePlus, Printer, Save, Send, Trash2, Undo2, XCircle,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
@@ -14,13 +14,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { parseError } from "@/lib/errorMapper";
-import { cargaService, type CargaDetalhe, type CargaDocumento, type RpcResposta } from "@/lib/cargaService";
-import { UNIDADE_EMBARQUE_LABEL, formatarNumero, moverItem } from "@/lib/cargaExibicao";
+import { cargaService, type CargaDetalhe, type CargaDocumento, type RpcResposta, type TransportadoraOpcao } from "@/lib/cargaService";
+import { MODALIDADE_LABEL, UNIDADE_EMBARQUE_LABEL, formatarNumero, moverItem, type TransporteValor } from "@/lib/cargaExibicao";
 import { imprimirRomaneio } from "@/lib/romaneioPdf";
 import { abrirJanelaImpressao } from "@/modules/reports/utils/exporters";
 import { CargaStatusBadge } from "@/components/carga/CargaStatusBadge";
 import { CapacidadeVeiculo } from "@/components/carga/CapacidadeVeiculo";
 import type { BoxOpcao, VeiculoOpcao } from "@/hooks/useCargaCadastros";
+import { TransporteCampos } from "@/components/carga/TransporteCampos";
 
 interface Props {
   cargaId: string | null;
@@ -31,7 +32,26 @@ interface Props {
   podeEditar: boolean;
   veiculos: VeiculoOpcao[];
   boxes: BoxOpcao[];
+  transportadoras: TransportadoraOpcao[];
 }
+
+interface Cabecalho extends TransporteValor { boxId: string; observacao: string }
+
+function cabecalhoDe(c: CargaDetalhe): Cabecalho {
+  return {
+    modalidade: c.modalidade ?? "PROPRIA",
+    veiculoId: c.veiculo?.id ?? "",
+    transportadoraId: c.transportadora?.id ?? "",
+    placa: c.modalidade === "TERCEIRO" ? c.placa ?? "" : "",
+    motorista: c.motorista ?? "",
+    motoristaDocumento: c.motorista_documento ?? "",
+    boxId: c.box?.id ?? "",
+    observacao: c.observacao ?? "",
+  };
+}
+
+const mesmoCabecalho = (a: Cabecalho, b: Cabecalho) =>
+  (Object.keys(a) as (keyof Cabecalho)[]).every((k) => (a[k] ?? "").trim() === (b[k] ?? "").trim());
 
 const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60";
 const dataHora = (v: string | null) => (v ? new Date(v).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—");
@@ -45,7 +65,7 @@ function mostrarAvisos(r: RpcResposta<unknown>) {
   for (const a of r.avisos ?? []) toast.warning(a.mensagem);
 }
 
-export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuarioId, podeEditar, veiculos, boxes }: Props) {
+export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuarioId, podeEditar, veiculos, boxes, transportadoras }: Props) {
   const qc = useQueryClient();
   const detalhe = useQuery({
     queryKey: ["carga", tenantId, cargaId],
@@ -58,7 +78,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
 
   const [ordem, setOrdem] = useState<CargaDocumento[]>([]);
   const [arrastando, setArrastando] = useState<number | null>(null);
-  const [cab, setCab] = useState({ veiculoId: "", boxId: "", motorista: "", observacao: "" });
+  const [cab, setCab] = useState<Cabecalho | null>(null);
   const [confirmar, setConfirmar] = useState<null | "liberar" | "fechar" | "cancelar">(null);
   const [motivo, setMotivo] = useState("");
   const [adicionarAberto, setAdicionarAberto] = useState(false);
@@ -67,19 +87,14 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
   useEffect(() => {
     if (!carga) return;
     setOrdem(carga.documentos);
-    setCab({
-      veiculoId: carga.veiculo?.id ?? "", boxId: carga.box?.id ?? "",
-      motorista: carga.motorista ?? "", observacao: carga.observacao ?? "",
-    });
+    setCab(cabecalhoDe(carga));
   }, [carga]);
 
   const ordemAlterada = useMemo(
     () => !!carga && ordem.map((d) => d.carga_documento_id).join() !== carga.documentos.map((d) => d.carga_documento_id).join(),
     [ordem, carga],
   );
-  const cabAlterado = !!carga && (
-    cab.veiculoId !== (carga.veiculo?.id ?? "") || cab.boxId !== (carga.box?.id ?? "")
-    || cab.motorista !== (carga.motorista ?? "") || cab.observacao !== (carga.observacao ?? ""));
+  const cabAlterado = !!carga && !!cab && !mesmoCabecalho(cab, cabecalhoDe(carga));
 
   const atualizar = (dados?: CargaDetalhe) => {
     if (dados) qc.setQueryData(["carga", tenantId, cargaId], dados);
@@ -94,11 +109,18 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
   });
 
   const salvarCab = useMutation({
-    mutationFn: () => cargaService.montar({
-      tenantId, empresaId, usuarioId, cargaId,
-      veiculoId: cab.veiculoId || null, boxId: cab.boxId || null,
-      motorista: cab.motorista, observacao: cab.observacao,
-    }),
+    mutationFn: () => {
+      const c = cab as Cabecalho;
+      const terceiro = c.modalidade === "TERCEIRO";
+      return cargaService.montar({
+        tenantId, empresaId, usuarioId, cargaId,
+        modalidade: c.modalidade, boxId: c.boxId || null,
+        veiculoId: terceiro ? null : c.veiculoId || null,
+        transportadoraId: terceiro ? c.transportadoraId || null : null,
+        placa: terceiro ? c.placa : null, motoristaDocumento: c.motoristaDocumento,
+        motorista: c.motorista, observacao: c.observacao,
+      });
+    },
     onSuccess: (r) => { toast.success(r.mensagem ?? "Carga atualizada."); mostrarAvisos(r); atualizar(r.dados); },
     onError: (e) => mostrarErro(e, "carga-cabecalho"),
   });
@@ -149,7 +171,13 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
   const ocupado = salvarCab.isPending || adicionar.isPending || salvarOrdem.isPending || removerOnda.isPending || acao.isPending;
   const pendentes = carga ? carga.progresso.total - carga.progresso.embarcadas : 0;
   const podeReordenar = podeEditar && !!carga?.acoes.reordenar;
-  const veiculoSel = veiculos.find((v) => v.id === cab.veiculoId) ?? null;
+  const veiculoSel = veiculos.find((v) => v.id === cab?.veiculoId) ?? null;
+  const pendenciasFechar = carga?.pendencias_fechamento ?? [];
+  const emCarregamento = carga?.status === "EM_CARREGAMENTO";
+  const editavel = podeEditar && !!carga?.acoes.editar;
+  const terceiro = cab?.modalidade === "TERCEIRO";
+  const tituloFechar = pendentes > 0 ? `Faltam ${pendentes} unidade(s) para embarcar`
+    : pendenciasFechar.length > 0 ? `Informe: ${pendenciasFechar.join(", ").toLowerCase()}` : undefined;
 
   const ondasDisponiveis = (sugestao.data?.ondas ?? []).filter((o) => !carga?.ondas.some((c) => c.movimento_saida_id === o.movimento_saida_id));
 
@@ -166,6 +194,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
               {carga && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Montada por {carga.montada_por_nome ?? "—"} em {dataHora(carga.created_at)}
+                  {" · "}{MODALIDADE_LABEL[carga.modalidade ?? "PROPRIA"]}
                   {carga.unidade_embarque && <> · Embarque por <b className="text-foreground">{UNIDADE_EMBARQUE_LABEL[carga.unidade_embarque]}</b></>}
                 </p>
               )}
@@ -181,8 +210,8 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                   </Button>
                 )}
                 {podeEditar && carga.acoes.fechar && (
-                  <Button size="sm" variant="secondary" onClick={() => setConfirmar("fechar")} disabled={ocupado || pendentes > 0}
-                    title={pendentes > 0 ? `Faltam ${pendentes} unidade(s) para embarcar` : undefined}>
+                  <Button size="sm" variant="secondary" onClick={() => setConfirmar("fechar")}
+                    disabled={ocupado || pendentes > 0 || pendenciasFechar.length > 0 || cabAlterado} title={tituloFechar}>
                     <Lock size={14} /> Fechar carga
                   </Button>
                 )}
@@ -226,50 +255,72 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                 </div>
               )}
 
+              {/* Pendências para fechar (carga de transportadora) */}
+              {pendenciasFechar.length > 0 && carga.acoes.fechar && (
+                <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200 flex gap-2" role="status">
+                  <AlertTriangle size={16} className="shrink-0 mt-0.5 text-yellow-400" aria-hidden="true" />
+                  <span>Para fechar esta carga de transportadora, informe: <b>{pendenciasFechar.join(", ").toLowerCase()}</b>.</span>
+                </div>
+              )}
+
               {/* Cabeçalho */}
-              <section className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-3">
-                  <div>
-                    <label htmlFor="carga-veiculo" className="block text-xs font-medium text-muted-foreground mb-1.5">Veículo *</label>
-                    <select id="carga-veiculo" className={inputClass} value={cab.veiculoId} disabled={!podeEditar || !carga.acoes.editar}
-                      onChange={(e) => setCab((c) => ({ ...c, veiculoId: e.target.value }))}>
-                      <option value="">Selecione…</option>
-                      {veiculos.map((v) => <option key={v.id} value={v.id}>{v.descricao}{v.placa ? ` — ${v.placa}` : ""}</option>)}
-                    </select>
+              {cab && (
+                <section className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <TransporteCampos
+                      idPrefixo="carga"
+                      valor={cab}
+                      onChange={(v) => setCab((c) => (c ? { ...c, ...v } : c))}
+                      veiculos={veiculos}
+                      transportadoras={transportadoras}
+                      desabilitado={!editavel}
+                      travarTransporte={emCarregamento}
+                    />
+                    {carga.transportadoras_pedidos.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Transportadora nos pedidos (ERP): <b className="text-foreground">{carga.transportadoras_pedidos.map((t) => t.nome).join(", ")}</b>
+                      </p>
+                    )}
                   </div>
-                  <div>
-                    <label htmlFor="carga-box" className="block text-xs font-medium text-muted-foreground mb-1.5">Box / doca</label>
-                    <select id="carga-box" className={inputClass} value={cab.boxId} disabled={!podeEditar || !carga.acoes.editar}
-                      onChange={(e) => setCab((c) => ({ ...c, boxId: e.target.value }))}>
-                      <option value="">Sem box</option>
-                      {boxes.map((b) => <option key={b.id} value={b.id}>{b.descricao}</option>)}
-                    </select>
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="carga-box" className="block text-xs font-medium text-muted-foreground mb-1.5">Box / doca</label>
+                      <select id="carga-box" className={inputClass} value={cab.boxId} disabled={!editavel || emCarregamento}
+                        onChange={(e) => setCab((c) => (c ? { ...c, boxId: e.target.value } : c))}>
+                        <option value="">Sem box</option>
+                        {boxes.map((b) => <option key={b.id} value={b.id}>{b.descricao}</option>)}
+                      </select>
+                    </div>
+                    <div className="rounded-lg border border-border p-4">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                        {terceiro ? "Totais da carga" : "Capacidade do veículo"}
+                      </p>
+                      {terceiro ? (
+                        <dl className="grid grid-cols-3 gap-2 text-sm">
+                          <div><dt className="text-xs text-muted-foreground">Peso</dt><dd className="font-mono text-foreground">{formatarNumero(carga.peso_total)} kg</dd></div>
+                          <div><dt className="text-xs text-muted-foreground">Volume</dt><dd className="font-mono text-foreground">{formatarNumero(carga.m3_total, 2)} m³</dd></div>
+                          <div><dt className="text-xs text-muted-foreground">Paletes / HUs</dt><dd className="font-mono text-foreground">{carga.pallets_total}</dd></div>
+                        </dl>
+                      ) : (
+                        <CapacidadeVeiculo medidas={[
+                          { rotulo: "Peso", usado: carga.peso_total, limite: veiculoSel?.peso_total ?? carga.veiculo?.peso_total, unidade: "kg" },
+                          { rotulo: "Volume", usado: carga.m3_total, limite: veiculoSel?.m3 ?? carga.veiculo?.m3, unidade: "m³", casas: 2 },
+                          { rotulo: "Paletes / HUs", usado: carga.pallets_total, limite: veiculoSel?.total_pallet ?? carga.veiculo?.total_pallet, unidade: "un" },
+                        ]} />
+                      )}
+                      {terceiro && <p className="text-[11px] text-muted-foreground mt-2">A capacidade do veículo da transportadora não é controlada.</p>}
+                    </div>
+                    <div>
+                      <label htmlFor="carga-obs" className="block text-xs font-medium text-muted-foreground mb-1.5">Observação</label>
+                      <Textarea id="carga-obs" rows={2} value={cab.observacao} disabled={!editavel} maxLength={500}
+                        onChange={(e) => setCab((c) => (c ? { ...c, observacao: e.target.value } : c))} />
+                    </div>
                   </div>
-                  <div>
-                    <label htmlFor="carga-motorista" className="block text-xs font-medium text-muted-foreground mb-1.5">Motorista</label>
-                    <input id="carga-motorista" className={inputClass} value={cab.motorista} disabled={!podeEditar || !carga.acoes.editar}
-                      maxLength={120} onChange={(e) => setCab((c) => ({ ...c, motorista: e.target.value }))} />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-border p-4">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Capacidade do veículo</p>
-                    <CapacidadeVeiculo medidas={[
-                      { rotulo: "Peso", usado: carga.peso_total, limite: veiculoSel?.peso_total ?? carga.veiculo?.peso_total, unidade: "kg" },
-                      { rotulo: "Volume", usado: carga.m3_total, limite: veiculoSel?.m3 ?? carga.veiculo?.m3, unidade: "m³", casas: 2 },
-                      { rotulo: "Paletes / HUs", usado: carga.pallets_total, limite: veiculoSel?.total_pallet ?? carga.veiculo?.total_pallet, unidade: "un" },
-                    ]} />
-                  </div>
-                  <div>
-                    <label htmlFor="carga-obs" className="block text-xs font-medium text-muted-foreground mb-1.5">Observação</label>
-                    <Textarea id="carga-obs" rows={2} value={cab.observacao} disabled={!podeEditar || !carga.acoes.editar} maxLength={500}
-                      onChange={(e) => setCab((c) => ({ ...c, observacao: e.target.value }))} />
-                  </div>
-                </div>
-              </section>
-              {podeEditar && carga.acoes.editar && cabAlterado && (
+                </section>
+              )}
+              {editavel && cabAlterado && (
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setCab({ veiculoId: carga.veiculo?.id ?? "", boxId: carga.box?.id ?? "", motorista: carga.motorista ?? "", observacao: carga.observacao ?? "" })}>
+                  <Button variant="ghost" size="sm" onClick={() => setCab(cabecalhoDe(carga))}>
                     <Undo2 size={14} /> Desfazer
                   </Button>
                   <Button size="sm" onClick={() => salvarCab.mutate()} disabled={ocupado}>
@@ -284,7 +335,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
               <section>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-foreground">Ondas ({carga.ondas.length})</h3>
-                  {podeEditar && carga.acoes.editar && (
+                  {podeEditar && carga.acoes.editar_ondas && (
                     <Button variant="outline" size="sm" onClick={() => setAdicionarAberto((v) => !v)}>
                       <PackagePlus size={14} /> Adicionar ondas
                     </Button>
@@ -324,7 +375,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                     <span key={o.movimento_saida_id} className="inline-flex items-center gap-2 pl-3 pr-1 py-1 rounded-full border border-border bg-secondary/30 text-sm">
                       <span className="font-mono font-semibold">#{o.numero_onda}</span>
                       <span className="text-xs text-muted-foreground">{o.documentos} ped.</span>
-                      {podeEditar && carga.acoes.editar && (
+                      {podeEditar && carga.acoes.editar_ondas && (
                         <button type="button" onClick={() => removerOnda.mutate(o.movimento_saida_id)} disabled={ocupado}
                           className="p-1 rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-500/10" aria-label={`Retirar onda ${o.numero_onda} da carga`}>
                           <Trash2 size={13} />
@@ -372,6 +423,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
                             {[d.cidade, d.uf].filter(Boolean).join("/") || "—"} · Onda #{d.numero_onda}
+                            {d.transportador_erp && <> · Transp. ERP: {d.transportador_erp}</>}
                           </p>
                         </div>
                         {d.unidades_total > 0 && (
@@ -413,6 +465,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {confirmar === "liberar" && "O coletor passa a mostrar a carga e as unidades a bipar seguem a ordem atual. Ainda dá para reordenar o que não foi bipado."}
+                {confirmar === "liberar" && pendenciasFechar.length > 0 && ` Antes de fechar, informe: ${pendenciasFechar.join(", ").toLowerCase()}.`}
                 {confirmar === "fechar" && "As ondas desta carga ficam concluídas e o ERP recebe o aviso de saída expedida. Depois disso a carga não muda mais."}
                 {confirmar === "cancelar" && "As tarefas de embarque são canceladas e as ondas voltam para a montagem. Informe o motivo."}
               </AlertDialogDescription>

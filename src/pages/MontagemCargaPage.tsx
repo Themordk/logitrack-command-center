@@ -9,11 +9,14 @@ import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { parseError } from "@/lib/errorMapper";
 import { cargaService, type CargaStatus, type OndaSugerida } from "@/lib/cargaService";
-import { CARGA_STATUS_LABEL, agruparSugestao, formatarNumero } from "@/lib/cargaExibicao";
+import {
+  CARGA_STATUS_LABEL, MODALIDADE_LABEL, TRANSPORTE_VAZIO, agruparSugestao, descreverTransporte, formatarNumero, type TransporteValor,
+} from "@/lib/cargaExibicao";
 import { useCargaCadastros } from "@/hooks/useCargaCadastros";
 import { CargaStatusBadge } from "@/components/carga/CargaStatusBadge";
 import { CapacidadeVeiculo } from "@/components/carga/CapacidadeVeiculo";
 import { CargaDetalheSheet } from "@/components/carga/CargaDetalheSheet";
+import { TransporteCampos } from "@/components/carga/TransporteCampos";
 
 const MODULO = "web.atividades.montagem-carga";
 const FILTROS: { valor: string; rotulo: string; status: CargaStatus[] | null }[] = [
@@ -30,13 +33,15 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
   const { can } = usePermissions();
   const podeEditar = can(MODULO, "UPDATE") || can(MODULO, "CREATE");
   const qc = useQueryClient();
-  const { veiculos, boxes } = useCargaCadastros(tenantId, empresaId);
+  const { veiculos, boxes, transportadoras } = useCargaCadastros(tenantId, empresaId);
 
   const [aba, setAba] = useState("montar");
   const [filtro, setFiltro] = useState("ativas");
   const [cargaAberta, setCargaAberta] = useState<string | null>(null);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ veiculoId: "", boxId: "", motorista: "" });
+  const [transporte, setTransporte] = useState<TransporteValor>(TRANSPORTE_VAZIO);
+  const [modalidadeEscolhida, setModalidadeEscolhida] = useState(false);
+  const [boxId, setBoxId] = useState("");
 
   const pronto = !!tenantId && !!empresaId;
 
@@ -66,14 +71,28 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
     pedidos: ondasSel.reduce((s, o) => s + Number(o.documentos ?? 0), 0),
   }), [ondasSel]);
 
-  // Veículo/box herdados das ondas: o backend recusa se divergirem; aqui só antecipamos o aviso.
+  // Veículo/transportadora/box herdados das ondas: o backend recusa se divergirem; aqui só antecipamos o aviso.
   const veiculosOndas = [...new Set(ondasSel.map((o) => o.veiculo_id).filter(Boolean))] as string[];
+  const transpOndas = [...new Set(ondasSel.map((o) => o.transportadora_id).filter(Boolean))] as string[];
   const boxesOndas = [...new Set(ondasSel.map((o) => o.box_id).filter(Boolean))] as string[];
-  const veiculoEfetivo = form.veiculoId || veiculosOndas[0] || "";
+  // Enquanto o supervisor não escolhe, a modalidade segue o que os pedidos trazem do ERP.
+  const modalidade = modalidadeEscolhida ? transporte.modalidade
+    : transpOndas.length > 0 && veiculosOndas.length === 0 ? "TERCEIRO" : "PROPRIA";
+  const transporteExibido: TransporteValor = { ...transporte, modalidade };
+  const terceiro = modalidade === "TERCEIRO";
+  const veiculoEfetivo = transporte.veiculoId || veiculosOndas[0] || "";
   const veiculoSel = veiculos.find((v) => v.id === veiculoEfetivo);
-  const divergente = veiculosOndas.length > 1 || boxesOndas.length > 1
-    || (!!form.veiculoId && veiculosOndas.some((v) => v !== form.veiculoId))
-    || (!!form.boxId && boxesOndas.some((b) => b !== form.boxId));
+  const nomeTranspOndas = transpOndas.length === 1 ? ondasSel.find((o) => o.transportadora_id === transpOndas[0])?.transportadora : null;
+  const variasTransp = transpOndas.length > 1 || ondasSel.some((o) => o.transportadoras > 1);
+  const divergenteVeiculo = !terceiro && (veiculosOndas.length > 1 || (!!transporte.veiculoId && veiculosOndas.some((v) => v !== transporte.veiculoId)));
+  const divergenteBox = boxesOndas.length > 1 || (!!boxId && boxesOndas.some((b) => b !== boxId));
+  const divergente = variasTransp || divergenteVeiculo || divergenteBox;
+  const transpDiferenteErp = terceiro && !!transporte.transportadoraId && transpOndas.length === 1 && transpOndas[0] !== transporte.transportadoraId;
+
+  const alterarTransporte = (v: TransporteValor) => {
+    if (v.modalidade !== modalidade) setModalidadeEscolhida(true);
+    setTransporte(v);
+  };
 
   const alternar = (id: string, marcado: boolean) => setSelecionadas((s) => {
     const n = new Set(s); if (marcado) n.add(id); else n.delete(id); return n;
@@ -82,13 +101,16 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
   const montar = useMutation({
     mutationFn: () => cargaService.montar({
       tenantId: tenantId as string, empresaId: empresaId as string, usuarioId: usuarioId as string,
-      ondas: [...selecionadas], veiculoId: form.veiculoId || null, boxId: form.boxId || null, motorista: form.motorista,
+      ondas: [...selecionadas], modalidade, boxId: boxId || null, motorista: transporte.motorista,
+      veiculoId: terceiro ? null : transporte.veiculoId || null,
+      transportadoraId: terceiro ? transporte.transportadoraId || null : null,
+      placa: terceiro ? transporte.placa : null, motoristaDocumento: terceiro ? transporte.motoristaDocumento : null,
     }),
     onSuccess: (r) => {
       toast.success(r.mensagem ?? "Carga montada.");
       for (const a of r.avisos ?? []) toast.warning(a.mensagem);
       setSelecionadas(new Set());
-      setForm({ veiculoId: "", boxId: "", motorista: "" });
+      setTransporte(TRANSPORTE_VAZIO); setModalidadeEscolhida(false); setBoxId("");
       void qc.invalidateQueries({ queryKey: ["carga-sugestao", tenantId, empresaId] });
       void qc.invalidateQueries({ queryKey: ["cargas", tenantId, empresaId] });
       if (r.dados?.id) setCargaAberta(r.dados.id);
@@ -110,7 +132,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
         <div>
           <h1 className="text-xl font-bold text-foreground">Montagem de Carga</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Junte as ondas que aguardam embarque num veículo, defina a ordem dos pedidos e libere para o coletor.
+            Junte as ondas que aguardam embarque num veículo próprio ou de transportadora, defina a ordem dos pedidos e libere para o coletor.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => { void sugestao.refetch(); void cargas.refetch(); }}
@@ -132,7 +154,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
               {sugestao.data && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                   <Route size={13} aria-hidden="true" />
-                  Sugestão agrupada por {sugestao.data.criterio === "ROTA" ? "rota" : sugestao.data.criterio === "PARCEIRO" ? "parceiro" : "veículo e box"}
+                  Sugestão agrupada por {sugestao.data.criterio === "ROTA" ? "rota" : sugestao.data.criterio === "PARCEIRO" ? "parceiro" : "transportadora ou veículo e box"}
                   {" "}(configurável em Fluxo de Expedição › Embarque).
                 </p>
               )}
@@ -179,6 +201,9 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                                 {o.parceiros ?? "—"}
                               </span>
                               <span className="hidden md:inline text-xs text-muted-foreground w-28 truncate">{o.tipo_saida ?? ""}</span>
+                              {o.transportadoras > 1 && (
+                                <span className="text-[11px] text-yellow-400 border border-yellow-500/30 bg-yellow-500/10 rounded px-1.5 py-0.5">Várias transp.</span>
+                              )}
                               <span className="text-xs text-muted-foreground w-20 text-right">{o.documentos} ped.</span>
                               <span className="text-xs font-mono text-muted-foreground w-24 text-right">{formatarNumero(o.peso_total)} kg</span>
                             </label>
@@ -201,28 +226,25 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                 {ondasSel.length === 0 ? "Selecione ondas na lista ao lado."
                   : `${ondasSel.length} onda(s) · ${totais.pedidos} pedido(s)`}
               </p>
-              <div>
-                <label htmlFor="nova-veiculo" className="block text-xs font-medium text-muted-foreground mb-1.5">Veículo</label>
-                <select id="nova-veiculo" className={inputClass} value={form.veiculoId} disabled={!podeEditar}
-                  onChange={(e) => setForm((f) => ({ ...f, veiculoId: e.target.value }))}>
-                  <option value="">{veiculosOndas.length === 1 ? "Usar o veículo das ondas" : "Selecione…"}</option>
-                  {veiculos.map((v) => <option key={v.id} value={v.id}>{v.descricao}{v.placa ? ` — ${v.placa}` : ""}</option>)}
-                </select>
-              </div>
+              <TransporteCampos
+                idPrefixo="nova"
+                valor={transporteExibido}
+                onChange={alterarTransporte}
+                veiculos={veiculos}
+                transportadoras={transportadoras}
+                desabilitado={!podeEditar}
+                rotuloVeiculoVazio={veiculosOndas.length === 1 ? "Usar o veículo das ondas" : "Selecione…"}
+                rotuloTransportadoraVazio={nomeTranspOndas ? `Usar a dos pedidos (${nomeTranspOndas})` : "Selecione…"}
+              />
               <div>
                 <label htmlFor="nova-box" className="block text-xs font-medium text-muted-foreground mb-1.5">Box / doca</label>
-                <select id="nova-box" className={inputClass} value={form.boxId} disabled={!podeEditar}
-                  onChange={(e) => setForm((f) => ({ ...f, boxId: e.target.value }))}>
+                <select id="nova-box" className={inputClass} value={boxId} disabled={!podeEditar}
+                  onChange={(e) => setBoxId(e.target.value)}>
                   <option value="">{boxesOndas.length === 1 ? "Usar o box das ondas" : "Sem box"}</option>
                   {boxes.map((b) => <option key={b.id} value={b.id}>{b.descricao}</option>)}
                 </select>
               </div>
-              <div>
-                <label htmlFor="nova-motorista" className="block text-xs font-medium text-muted-foreground mb-1.5">Motorista</label>
-                <input id="nova-motorista" className={inputClass} value={form.motorista} maxLength={120} disabled={!podeEditar}
-                  onChange={(e) => setForm((f) => ({ ...f, motorista: e.target.value }))} />
-              </div>
-              {ondasSel.length > 0 && (
+              {ondasSel.length > 0 && !terceiro && (
                 <CapacidadeVeiculo medidas={[
                   { rotulo: "Peso", usado: totais.peso, limite: veiculoSel?.peso_total, unidade: "kg" },
                   { rotulo: "Volume", usado: totais.m3, limite: veiculoSel?.m3, unidade: "m³", casas: 2 },
@@ -230,7 +252,14 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
               )}
               {divergente && (
                 <p className="text-xs text-yellow-400 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2" role="alert">
-                  As ondas selecionadas indicam veículos ou boxes diferentes. Uma carga sai num veículo só.
+                  {variasTransp ? "Os pedidos selecionados são de transportadoras diferentes. Monte uma carga por transportadora."
+                    : divergenteVeiculo ? "As ondas selecionadas indicam veículos diferentes. Uma carga sai num veículo só."
+                    : "As ondas selecionadas indicam boxes diferentes."}
+                </p>
+              )}
+              {transpDiferenteErp && !divergente && (
+                <p className="text-xs text-muted-foreground rounded-md border border-border bg-secondary/30 px-3 py-2">
+                  A transportadora escolhida é diferente da que veio do ERP ({nomeTranspOndas}). A carga será montada com a sua escolha.
                 </p>
               )}
               <Button className="w-full" disabled={!podeEditar || ondasSel.length === 0 || divergente || montar.isPending}
@@ -269,7 +298,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                   <tr>
                     <th className="text-left font-medium px-4 py-2.5">Carga</th>
                     <th className="text-left font-medium px-4 py-2.5">Situação</th>
-                    <th className="text-left font-medium px-4 py-2.5">Veículo</th>
+                    <th className="text-left font-medium px-4 py-2.5">Transporte</th>
                     <th className="text-left font-medium px-4 py-2.5">Box</th>
                     <th className="text-right font-medium px-4 py-2.5">Ondas</th>
                     <th className="text-right font-medium px-4 py-2.5">Pedidos</th>
@@ -285,7 +314,10 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                       <tr key={c.id} className="hover:bg-secondary/20 cursor-pointer" onClick={() => setCargaAberta(c.id)}>
                         <td className="px-4 py-2.5 font-mono font-semibold">#{c.numero_carga}</td>
                         <td className="px-4 py-2.5"><CargaStatusBadge status={c.status} /></td>
-                        <td className="px-4 py-2.5 text-muted-foreground">{c.veiculo ? `${c.veiculo}${c.placa ? ` — ${c.placa}` : ""}` : "—"}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">
+                          <span className="block text-foreground/90">{descreverTransporte(c)}</span>
+                          <span className="block text-[11px]">{MODALIDADE_LABEL[c.modalidade]}</span>
+                        </td>
                         <td className="px-4 py-2.5 text-muted-foreground">{c.box ?? "—"}</td>
                         <td className="px-4 py-2.5 text-right">{c.ondas}</td>
                         <td className="px-4 py-2.5 text-right">{c.documentos}</td>
@@ -326,6 +358,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
         podeEditar={podeEditar}
         veiculos={veiculos}
         boxes={boxes}
+        transportadoras={transportadoras}
       />
     </div>
   );

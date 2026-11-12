@@ -2,7 +2,7 @@
  * Fluxo de Expedição · F6 — regras de EXIBIÇÃO da carga (rótulos, tons, agrupamento, ordem local).
  * Nenhuma regra de negócio: a validação de tudo continua nas RPCs.
  */
-import type { CargaStatus, OndaSugerida, UnidadeEmbarque } from "@/lib/cargaService";
+import type { CargaStatus, ModalidadeTransporte, OndaSugerida, TransportadoraOpcao, UnidadeEmbarque } from "@/lib/cargaService";
 
 export const CARGA_STATUS_LABEL: Record<CargaStatus, string> = {
   EM_MONTAGEM: "Em montagem",
@@ -36,6 +36,44 @@ export const UNIDADE_EMBARQUE_INSTRUCAO: Record<UnidadeEmbarque, string> = {
   CONFIRMACAO: "Confirme cada pedido ao colocá-lo no veículo (ou bipe o número do pedido).",
 };
 
+export const MODALIDADE_LABEL: Record<ModalidadeTransporte, string> = {
+  PROPRIA: "Veículo próprio",
+  TERCEIRO: "Transportadora",
+};
+
+/** Nome curto da transportadora (fantasia quando houver). */
+export function nomeTransportadora(t: Pick<TransportadoraOpcao, "razaosocial" | "nome_fantasia"> | null | undefined): string {
+  if (!t) return "";
+  return t.nome_fantasia?.trim() || t.razaosocial;
+}
+
+/** Linha "quem leva": veículo próprio (descrição) ou transportadora, com a placa quando houver. */
+export function descreverTransporte(c: {
+  modalidade?: ModalidadeTransporte | null; veiculo?: string | null; transportadora?: string | null; placa?: string | null;
+}): string {
+  const base = c.modalidade === "TERCEIRO" ? c.transportadora || "Transportadora não informada" : c.veiculo || "Sem veículo";
+  return c.placa ? `${base} - ${c.placa}` : base;
+}
+
+/** Placa no padrão antigo (AAA9999) ou Mercosul (AAA9A99); só para orientar o digitador, quem decide é o backend. */
+export function placaValida(placa: string): boolean {
+  return /^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(placa.replace(/[\s-]/g, "").toUpperCase());
+}
+
+/** Campos de transporte editados na montagem / detalhe da carga. */
+export interface TransporteValor {
+  modalidade: ModalidadeTransporte;
+  veiculoId: string;
+  transportadoraId: string;
+  placa: string;
+  motorista: string;
+  motoristaDocumento: string;
+}
+
+export const TRANSPORTE_VAZIO: TransporteValor = {
+  modalidade: "PROPRIA", veiculoId: "", transportadoraId: "", placa: "", motorista: "", motoristaDocumento: "",
+};
+
 export interface GrupoSugestao {
   chave: string;
   rotulo: string;
@@ -45,7 +83,7 @@ export interface GrupoSugestao {
   documentos: number;
 }
 
-/** Agrupa as ondas sugeridas pela chave calculada no backend (critério + veículo + box). */
+/** Agrupa as ondas sugeridas pela chave calculada no backend (critério + transportadora ou veículo + box). */
 export function agruparSugestao(ondas: OndaSugerida[]): GrupoSugestao[] {
   const mapa = new Map<string, GrupoSugestao>();
   for (const o of ondas) {

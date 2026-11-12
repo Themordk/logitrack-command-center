@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import type { Romaneio } from "@/lib/cargaService";
-import { CARGA_STATUS_LABEL, UNIDADE_EMBARQUE_LABEL, formatarNumero } from "@/lib/cargaExibicao";
+import { CARGA_STATUS_LABEL, MODALIDADE_LABEL, UNIDADE_EMBARQUE_LABEL, formatarNumero } from "@/lib/cargaExibicao";
 
 const dataHora = (v: string | null | undefined) =>
   v ? new Date(v).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
@@ -32,9 +32,21 @@ export function gerarRomaneioPdf(r: Romaneio): jsPDF {
   doc.text(`Situação: ${CARGA_STATUS_LABEL[c.status]}  -  Emitido em ${dataHora(r.emitido_em)}`, larg - 14, 20, { align: "right" });
 
   // Bloco da carga
+  const terceiro = c.modalidade === "TERCEIRO";
+  const transporte: [string, string][] = terceiro
+    ? [
+        ["Transporte", MODALIDADE_LABEL.TERCEIRO],
+        ["Transportadora", c.transportadora
+          ? `${c.transportadora.razaosocial}${c.transportadora.cnpj ? ` - CNPJ ${c.transportadora.cnpj}` : ""}` : "-"],
+        ["Placa", c.placa ?? "-"],
+      ]
+    : [
+        ["Transporte", MODALIDADE_LABEL.PROPRIA],
+        ["Veículo", c.veiculo ? `${c.veiculo.descricao}${c.veiculo.placa ? ` - ${c.veiculo.placa}` : ""}` : "-"],
+      ];
   const linhas: [string, string][] = [
-    ["Veículo", c.veiculo ? `${c.veiculo.descricao}${c.veiculo.placa ? ` — ${c.veiculo.placa}` : ""}` : "—"],
-    ["Motorista", c.motorista ?? "—"],
+    ...transporte,
+    ["Motorista", [c.motorista, c.motorista_documento ? `doc. ${c.motorista_documento}` : null].filter(Boolean).join(" - ") || "-"],
     ["Box / doca", c.box?.descricao ?? "—"],
     ["Unidade de embarque", c.unidade_embarque ? UNIDADE_EMBARQUE_LABEL[c.unidade_embarque] : "—"],
     ["Liberada em", dataHora(c.liberada_em)],

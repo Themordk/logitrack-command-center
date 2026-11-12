@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { cargaService, type TransportadoraOpcao } from "@/lib/cargaService";
 
 export interface VeiculoOpcao {
   id: string;
@@ -16,7 +17,7 @@ export interface BoxOpcao {
   tipo_box: string | null;
 }
 
-/** Veículos ativos da empresa e boxes ativos do tenant (expedição primeiro), para a montagem de carga. */
+/** Veículos ativos da empresa, transportadoras (parceiro transportador) e boxes ativos do tenant (expedição primeiro), para a montagem de carga. */
 export function useCargaCadastros(tenantId: string | null, empresaId: string | null) {
   const veiculos = useQuery({
     queryKey: ["carga-veiculos", tenantId, empresaId],
@@ -52,5 +53,17 @@ export function useCargaCadastros(tenantId: string | null, empresaId: string | n
     },
   });
 
-  return { veiculos: veiculos.data ?? [], boxes: boxes.data ?? [], loading: veiculos.isLoading || boxes.isLoading };
+  const transportadoras = useQuery({
+    queryKey: ["carga-transportadoras", tenantId, empresaId],
+    enabled: !!tenantId && !!empresaId,
+    staleTime: 5 * 60_000,
+    queryFn: (): Promise<TransportadoraOpcao[]> => cargaService.transportadoras(tenantId as string, empresaId as string),
+  });
+
+  return {
+    veiculos: veiculos.data ?? [],
+    boxes: boxes.data ?? [],
+    transportadoras: transportadoras.data ?? [],
+    loading: veiculos.isLoading || boxes.isLoading || transportadoras.isLoading,
+  };
 }

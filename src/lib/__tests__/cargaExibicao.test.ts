@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { agruparSugestao, moverItem, nivelCapacidade } from "@/lib/cargaExibicao";
+import { agruparSugestao, descreverTransporte, moverItem, nivelCapacidade, placaValida } from "@/lib/cargaExibicao";
 import type { OndaSugerida } from "@/lib/cargaService";
 
 const onda = (n: number, chave: string, rotulo: string, peso: number): OndaSugerida => ({
   movimento_saida_id: `id-${n}`, numero_onda: n, status: "CONFERIDO", prioridade: "NORMAL",
-  veiculo_id: null, veiculo: null, placa: null, box_id: null, box: null, rota: null, tipo_saida: null,
+  veiculo_id: null, veiculo: null, placa: null, box_id: null, box: null, transportadora_id: null, transportadora: null, transportadoras: 0, rota: null, tipo_saida: null,
   parceiros: null, peso_total: peso, m3: 1, documentos: 2, volumes: 0, created_at: null,
   grupo_chave: chave, grupo_rotulo: rotulo,
 });
@@ -39,5 +39,21 @@ describe("nivelCapacidade", () => {
     expect(nivelCapacidade(50)).toBe("ok");
     expect(nivelCapacidade(95)).toBe("alerta");
     expect(nivelCapacidade(101)).toBe("excedido");
+  });
+});
+
+describe("descreverTransporte", () => {
+  it("mostra a transportadora ou o veículo próprio, com a placa", () => {
+    expect(descreverTransporte({ modalidade: "TERCEIRO", transportadora: "ALFA", placa: "ABC1D23" })).toBe("ALFA - ABC1D23");
+    expect(descreverTransporte({ modalidade: "TERCEIRO", transportadora: null })).toBe("Transportadora não informada");
+    expect(descreverTransporte({ modalidade: "PROPRIA", veiculo: "Truck 01", placa: null })).toBe("Truck 01");
+  });
+});
+
+describe("placaValida", () => {
+  it("aceita padrão antigo e Mercosul, com ou sem hífen", () => {
+    expect(placaValida("abc-1234")).toBe(true);
+    expect(placaValida("ABC1D23")).toBe(true);
+    expect(placaValida("AB12345")).toBe(false);
   });
 });

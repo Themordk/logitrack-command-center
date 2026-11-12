@@ -7,7 +7,7 @@ import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/Onl
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { cargaService, type CargaColetor } from "@/lib/cargaService";
-import { CARGA_STATUS_LABEL, UNIDADE_EMBARQUE_LABEL } from "@/lib/cargaExibicao";
+import { CARGA_STATUS_LABEL, UNIDADE_EMBARQUE_LABEL, descreverTransporte } from "@/lib/cargaExibicao";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -90,7 +90,7 @@ export function EmbarqueCargasPage({ onNavigate }: Props) {
                     </span>
                   </div>
                   <div className="flex flex-col gap-1 text-sm text-[hsl(213,31%,70%)]">
-                    <span className="flex items-center gap-1.5"><Truck size={14} aria-hidden="true" />{c.veiculo ?? "—"}{c.placa ? ` · ${c.placa}` : ""}</span>
+                    <span className="flex items-center gap-1.5"><Truck size={14} aria-hidden="true" />{descreverTransporte(c)}</span>
                     <span className="flex items-center gap-1.5"><Warehouse size={14} aria-hidden="true" />Box: {c.box ?? "—"}</span>
                     {c.motorista && <span className="flex items-center gap-1.5"><User size={14} aria-hidden="true" />{c.motorista}</span>}
                   </div>

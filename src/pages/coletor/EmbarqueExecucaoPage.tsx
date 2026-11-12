@@ -11,7 +11,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { useFeedback } from "@/hooks/useFeedback";
 import { parseError } from "@/lib/errorMapper";
 import { CargaRpcError, cargaService, type CargaEmbarque, type UnidadeEmbarqueItem } from "@/lib/cargaService";
-import { UNIDADE_EMBARQUE_INSTRUCAO } from "@/lib/cargaExibicao";
+import { UNIDADE_EMBARQUE_INSTRUCAO, descreverTransporte, nomeTransportadora } from "@/lib/cargaExibicao";
 import { EMBARQUE_CARGA_KEY } from "@/pages/coletor/EmbarqueCargasPage";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -162,7 +162,10 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
           <div className="shrink-0 rounded-xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="flex items-center gap-1.5 text-sm text-[hsl(213,31%,70%)]">
-                <Truck size={16} aria-hidden="true" />{carga.veiculo?.descricao ?? "—"}{carga.veiculo?.placa ? ` · ${carga.veiculo.placa}` : ""}
+                <Truck size={16} aria-hidden="true" />{descreverTransporte({
+                  modalidade: carga.modalidade, veiculo: carga.veiculo?.descricao,
+                  transportadora: nomeTransportadora(carga.transportadora), placa: carga.placa,
+                })}
               </span>
               <span className="text-lg font-bold font-mono text-white">{embarcadas.length}/{total}</span>
             </div>
@@ -198,7 +201,11 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
               <CheckCircle2 size={28} className="text-[#22C55E] shrink-0" aria-hidden="true" />
               <div>
                 <p className="text-base font-bold text-white">Todas as unidades embarcadas</p>
-                <p className="text-sm text-[hsl(213,31%,70%)]">Feche a carga para concluir as ondas.</p>
+                <p className="text-sm text-[hsl(213,31%,70%)]">
+                  {(carga.pendencias_fechamento ?? []).length > 0
+                    ? `Antes de fechar, o supervisor precisa informar na Montagem de Carga: ${carga.pendencias_fechamento.join(", ").toLowerCase()}.`
+                    : "Feche a carga para concluir as ondas."}
+                </p>
               </div>
             </div>
           )}
