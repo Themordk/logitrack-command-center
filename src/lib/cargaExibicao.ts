@@ -2,7 +2,7 @@
  * Fluxo de Expedição · F6 — regras de EXIBIÇÃO da carga (rótulos, tons, agrupamento, ordem local).
  * Nenhuma regra de negócio: a validação de tudo continua nas RPCs.
  */
-import type { CargaDocumento, CargaStatus, ModalidadeTransporte, OndaSugerida, TransportadoraOpcao, UnidadeEmbarque } from "@/lib/cargaService";
+import type { CargaDocumento, CargaStatus, ModalidadeTransporte, PrioridadeCarga, OndaSugerida, TransportadoraOpcao, UnidadeEmbarque } from "@/lib/cargaService";
 
 export const CARGA_STATUS_LABEL: Record<CargaStatus, string> = {
   EM_MONTAGEM: "Em montagem",
@@ -184,3 +184,12 @@ export function ordenarOndas(ondas: OndaSugerida[], coluna: ColunaOnda, direcao:
     return c !== 0 ? c * sinal : a.numero_onda - b.numero_onda;
   });
 }
+
+// ---------- prioridade da carga (mesmos rótulos/cores da onda) ----------
+export const PRIORIDADES_CARGA: PrioridadeCarga[] = ["URGENTE", "ALTA", "NORMAL", "BAIXA"];
+export const PRIORIDADE_TOM: Record<PrioridadeCarga, string> = {
+  URGENTE: "bg-red-500/15 text-red-400 border-red-500/30",
+  ALTA: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  NORMAL: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  BAIXA: "bg-muted text-muted-foreground border-border",
+};

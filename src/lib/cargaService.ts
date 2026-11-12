@@ -12,6 +12,7 @@ export type UnidadeEmbarque = "VOLUME" | "HU" | "DOCUMENTO" | "CONFIRMACAO";
 export type UnidadeStatus = "PENDENTE" | "EMBARCADA" | "CANCELADA";
 /** PROPRIA = veículo do cadastro de veículos; TERCEIRO = transportadora (parceiro marcado como transportador). */
 export type ModalidadeTransporte = "PROPRIA" | "TERCEIRO";
+export type PrioridadeCarga = "URGENTE" | "ALTA" | "NORMAL" | "BAIXA";
 
 export interface TransportadoraOpcao {
   id: string;
@@ -73,6 +74,9 @@ export interface CargaResumo {
   id: string;
   numero_carga: number;
   status: CargaStatus;
+  prioridade: PrioridadeCarga;
+  /** Operadores convocados para o carregamento; vazio = livre para quem tem permissão de embarque. */
+  responsaveis: { usuario_id: string; nome: string }[];
   unidade_embarque: UnidadeEmbarque | null;
   modalidade: ModalidadeTransporte;
   transportadora: string | null;
@@ -114,6 +118,7 @@ export interface CargaDetalhe {
   id: string;
   numero_carga: number;
   status: CargaStatus;
+  prioridade: PrioridadeCarga;
   empresa_id: string;
   modalidade: ModalidadeTransporte;
   /** Placa digitada (transportadora) ou a do veículo próprio. */
@@ -176,6 +181,9 @@ export interface CargaColetor {
   id: string;
   numero_carga: number;
   status: CargaStatus;
+  prioridade: PrioridadeCarga;
+  /** O operador logado está convocado para esta carga. */
+  convocado: boolean;
   unidade_embarque: UnidadeEmbarque | null;
   modalidade: ModalidadeTransporte;
   transportadora: string | null;
@@ -210,6 +218,18 @@ export interface BipResultado {
 }
 
 /** Acompanhamento do carregamento (aba Cargas › olho). */
+export interface OperadorCarga {
+  usuario_id: string;
+  nome: string;
+  login: string | null;
+  logado: boolean;
+  convocado: boolean;
+  volumes_carregados: number;
+  elegivel: boolean;
+  motivo: string | null;
+  mensagem: string | null;
+}
+
 export interface AcompanhamentoVolume {
   id: string;
   codigo: string;
@@ -350,6 +370,22 @@ export const cargaService = {
 
   cancelar: (tenantId: string, usuarioId: string, cargaId: string, motivo: string) =>
     agir<CargaDetalhe>("carga_cancelar", { p_tenant_id: tenantId, p_usuario_id: usuarioId, p_carga_id: cargaId, p_motivo: motivo }),
+
+  definirPrioridade: (tenantId: string, usuarioId: string, cargaId: string, prioridade: PrioridadeCarga) =>
+    agir<null>("carga_definir_prioridade", { p_tenant_id: tenantId, p_usuario_id: usuarioId, p_carga_id: cargaId, p_prioridade: prioridade }),
+
+  operadoresElegiveis: (tenantId: string, cargaId: string, busca?: string) =>
+    ler<OperadorCarga[]>("carga_operadores_elegiveis", { p_tenant_id: tenantId, p_carga_id: cargaId, p_busca: busca || null }),
+
+  /** usuarios vazio = carga livre (qualquer operador com permissão de embarque). */
+  salvarResponsaveis: (tenantId: string, usuarioId: string, cargaId: string, usuarios: string[], motivo?: string) =>
+    agir<null>("carga_responsaveis_salvar", {
+      p_tenant_id: tenantId, p_usuario_id: usuarioId, p_carga_id: cargaId, p_usuarios: usuarios, p_motivo: motivo || null,
+    }),
+
+  /** Volumes carregados voltam a aguardar; a confirmação do veículo também é refeita. Motivo obrigatório. */
+  limparConferencia: (tenantId: string, usuarioId: string, cargaId: string, motivo: string) =>
+    agir<null>("carga_limpar_conferencia", { p_tenant_id: tenantId, p_usuario_id: usuarioId, p_carga_id: cargaId, p_motivo: motivo }),
 
   acompanhamento: (tenantId: string, cargaId: string) =>
     ler<CargaAcompanhamento>("carga_acompanhamento", { p_tenant_id: tenantId, p_carga_id: cargaId }),

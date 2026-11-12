@@ -8,16 +8,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowDown, ArrowUp, ArrowUpDown, Boxes, ChevronLeft, ChevronRight, Eye, FileText, Loader2, MoreHorizontal, PackageCheck, Printer,
-  RefreshCcw, Route, Truck,
+  ArrowDown, ArrowUp, ArrowUpDown, Boxes, ChevronLeft, ChevronRight, Eraser, Eye, FileText, Loader2, MoreHorizontal, PackageCheck, Printer,
+  RefreshCcw, Route, Star, Truck, UserCog,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { parseError } from "@/lib/errorMapper";
-import { cargaService, type CargaStatus, type OndaSugerida } from "@/lib/cargaService";
+import { cargaService, type CargaResumo, type CargaStatus, type OndaSugerida, type PrioridadeCarga } from "@/lib/cargaService";
 import {
-  CARGA_STATUS_LABEL, FILTROS_ONDAS_VAZIOS, MODALIDADE_LABEL, TRANSPORTE_VAZIO, descreverTransporte, filtrarOndas,
+  CARGA_STATUS_LABEL, FILTROS_ONDAS_VAZIOS, MODALIDADE_LABEL, PRIORIDADES_CARGA, PRIORIDADE_TOM, TRANSPORTE_VAZIO, descreverTransporte, filtrarOndas,
   formatarNumero, ordenarOndas, type ColunaOnda, type DirecaoOrdem, type FiltrosOndas, type TransporteValor,
 } from "@/lib/cargaExibicao";
 import { useCargaCadastros } from "@/hooks/useCargaCadastros";
@@ -27,6 +27,7 @@ import { CargaDetalheSheet } from "@/components/carga/CargaDetalheSheet";
 import { TransporteCampos } from "@/components/carga/TransporteCampos";
 import { SeletorBusca } from "@/components/carga/SeletorBusca";
 import { CargaAcompanhamentoSheet } from "@/components/carga/CargaAcompanhamentoSheet";
+import { CargaResponsaveisDialog } from "@/components/carga/CargaResponsaveisDialog";
 import { imprimirRomaneio } from "@/lib/romaneioPdf";
 import { abrirJanelaImpressao } from "@/modules/reports/utils/exporters";
 
@@ -74,6 +75,40 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
   const [cargaAberta, setCargaAberta] = useState<string | null>(null);
   const [acompanhando, setAcompanhando] = useState<string | null>(null);
   const [menuCarga, setMenuCarga] = useState<string | null>(null);
+  // Menu fixo na tela (não é cortado pela rolagem do grid); abre para cima perto do rodapé.
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number }>({ right: 0 });
+  const abrirMenu = (id: string, el: HTMLElement) => {
+    if (menuCarga === id) { setMenuCarga(null); return; }
+    const r = el.getBoundingClientRect();
+    const right = window.innerWidth - r.right;
+    setMenuPos(window.innerHeight - r.bottom < 280 ? { bottom: window.innerHeight - r.top + 4, right } : { top: r.bottom + 4, right });
+    setMenuCarga(id);
+  };
+  const [prioridadeCarga, setPrioridadeCarga] = useState<{ carga: CargaResumo; valor: PrioridadeCarga } | null>(null);
+  const [limparCarga, setLimparCarga] = useState<CargaResumo | null>(null);
+  const [motivoLimpeza, setMotivoLimpeza] = useState("");
+  const [responsaveisCarga, setResponsaveisCarga] = useState<CargaResumo | null>(null);
+  const [acaoCarga, setAcaoCarga] = useState(false);
+
+  const recarregarCargas = () => {
+    void qc.invalidateQueries({ queryKey: ["cargas", tenantId, empresaId] });
+    void qc.invalidateQueries({ queryKey: ["carga-acompanhamento"] });
+    void qc.invalidateQueries({ queryKey: ["carga"] });
+  };
+  const executarAcao = async (fn: () => Promise<{ mensagem?: string }>, fechar: () => void, contexto: string) => {
+    setAcaoCarga(true);
+    try {
+      const r = await fn();
+      toast.success(r.mensagem ?? "Feito.");
+      fechar();
+      recarregarCargas();
+    } catch (e) {
+      const p = parseError(e, contexto);
+      toast.error(p.title, { description: p.instruction || p.details });
+    } finally {
+      setAcaoCarga(false);
+    }
+  };
 
   const imprimirRomaneioCarga = async (id: string) => {
     setMenuCarga(null);
@@ -401,6 +436,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                     <tr className="border-b border-border bg-secondary backdrop-blur">
                       <th className={`${th} text-left`}>Nº Carga</th>
                       <th className={`${th} text-left`}>Situação</th>
+                      <th className={`${th} text-left`}>Prioridade</th>
                       <th className={`${th} text-left`}>Transporte</th>
                       <th className={`${th} text-left`}>Box</th>
                       <th className={`${th} text-center`}>Ondas</th>
@@ -417,9 +453,17 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                         <tr key={c.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => setCargaAberta(c.id)}>
                           <td className={`${td} font-mono text-xs text-foreground`}>{c.numero_carga}</td>
                           <td className={td}><CargaStatusBadge status={c.status} /></td>
+                          <td className={td}>
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium border ${PRIORIDADE_TOM[c.prioridade ?? "NORMAL"]}`}>{c.prioridade ?? "NORMAL"}</span>
+                          </td>
                           <td className={`${td} text-xs`}>
                             <span className="block text-foreground">{descreverTransporte(c)}</span>
                             <span className="block text-[11px] text-muted-foreground">{MODALIDADE_LABEL[c.modalidade]}</span>
+                            {(c.responsaveis ?? []).length > 0 && (
+                              <span className="block text-[11px] text-primary truncate max-w-[220px]" title={c.responsaveis.map((r) => r.nome).join(", ")}>
+                                Responsável: {c.responsaveis.map((r) => r.nome).join(", ")}
+                              </span>
+                            )}
                           </td>
                           <td className={`${td} text-xs text-muted-foreground`}>{c.box ?? "—"}</td>
                           <td className={`${td} text-center text-muted-foreground`}>{c.ondas}</td>
@@ -442,7 +486,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                                 title="Acompanhar carregamento" aria-label={`Acompanhar carregamento da carga ${c.numero_carga}`}>
                                 <Eye size={13} />
                               </button>
-                              <button type="button" onClick={() => setMenuCarga(menuCarga === c.id ? null : c.id)}
+                              <button type="button" onClick={(e) => abrirMenu(c.id, e.currentTarget)}
                                 className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
                                 title="Opções" aria-label={`Opções da carga ${c.numero_carga} (${CARGA_STATUS_LABEL[c.status]})`}
                                 aria-haspopup="menu" aria-expanded={menuCarga === c.id}>
@@ -451,7 +495,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                               {menuCarga === c.id && (
                                 <>
                                   <div className="fixed inset-0 z-20" onClick={() => setMenuCarga(null)} />
-                                  <div role="menu" className="absolute right-0 top-8 z-30 w-48 bg-popover border border-border rounded-lg shadow-lg py-1">
+                                  <div role="menu" style={menuPos} className="fixed z-30 w-64 bg-popover border border-border rounded-lg shadow-lg py-1">
                                     <button type="button" role="menuitem" onClick={() => { setMenuCarga(null); setCargaAberta(c.id); }}
                                       className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2 text-foreground">
                                       <FileText size={12} className="text-blue-400" /> Dados da carga
@@ -459,6 +503,23 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                                     <button type="button" role="menuitem" onClick={() => void imprimirRomaneioCarga(c.id)}
                                       className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2 text-foreground">
                                       <Printer size={12} className="text-muted-foreground" /> Imprimir romaneio
+                                    </button>
+                                    <div className="border-t border-border my-1" />
+                                    <button type="button" role="menuitem" disabled={!podeEditar || !["LIBERADA", "EM_CARREGAMENTO"].includes(c.status) || c.unidades_embarcadas === 0}
+                                      onClick={() => { setMenuCarga(null); setMotivoLimpeza(""); setLimparCarga(c); }}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-foreground">
+                                      <Eraser size={12} /> Limpar conferência do carregamento
+                                    </button>
+                                    <div className="border-t border-border my-1" />
+                                    <button type="button" role="menuitem" disabled={!podeEditar || ["FECHADA", "CANCELADA"].includes(c.status)}
+                                      onClick={() => { setMenuCarga(null); setPrioridadeCarga({ carga: c, valor: c.prioridade ?? "NORMAL" }); }}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-foreground">
+                                      <Star size={12} /> Prioridade da carga
+                                    </button>
+                                    <button type="button" role="menuitem" disabled={!podeEditar || ["FECHADA", "CANCELADA"].includes(c.status)}
+                                      onClick={() => { setMenuCarga(null); setResponsaveisCarga(c); }}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2 text-foreground">
+                                      <UserCog size={12} /> Responsáveis pelo carregamento
                                     </button>
                                   </div>
                                 </>
@@ -541,6 +602,70 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Prioridade da carga (mesmo padrão da onda) */}
+      <Dialog open={!!prioridadeCarga} onOpenChange={(v) => !v && !acaoCarga && setPrioridadeCarga(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Prioridade da carga #{prioridadeCarga?.carga.numero_carga}</DialogTitle>
+            <DialogDescription>Define a ordem da carga na lista do embarque no coletor.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-2" role="radiogroup" aria-label="Prioridade">
+            {PRIORIDADES_CARGA.map((p) => (
+              <button key={p} type="button" role="radio" aria-checked={prioridadeCarga?.valor === p}
+                onClick={() => setPrioridadeCarga((x) => (x ? { ...x, valor: p } : x))}
+                className={`px-4 py-3 rounded-lg border text-sm font-medium text-left transition-colors ${
+                  prioridadeCarga?.valor === p ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary/30 text-foreground hover:bg-secondary"}`}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button type="button" onClick={() => setPrioridadeCarga(null)} disabled={acaoCarga}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button type="button" disabled={acaoCarga}
+              onClick={() => prioridadeCarga && void executarAcao(
+                () => cargaService.definirPrioridade(tenantId as string, usuarioId ?? "", prioridadeCarga.carga.id, prioridadeCarga.valor),
+                () => setPrioridadeCarga(null), "carga-prioridade")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {acaoCarga && <Loader2 size={14} className="animate-spin" />} Salvar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Limpar conferência do carregamento */}
+      <Dialog open={!!limparCarga} onOpenChange={(v) => !v && !acaoCarga && setLimparCarga(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Limpar conferência do carregamento</DialogTitle>
+            <DialogDescription>
+              Os {limparCarga?.unidades_embarcadas ?? 0} volume(s) já carregados da carga #{limparCarga?.numero_carga} voltam a aguardar carregamento
+              e o veículo precisa ser confirmado de novo. O histórico de quem carregou fica registrado.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label htmlFor="motivo-limpeza" className="block text-xs font-medium text-muted-foreground mb-1.5">Motivo *</label>
+            <textarea id="motivo-limpeza" value={motivoLimpeza} onChange={(e) => setMotivoLimpeza(e.target.value)} rows={3} maxLength={300}
+              placeholder="Ex.: volumes carregados no veículo errado"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary resize-none" />
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <button type="button" onClick={() => setLimparCarga(null)} disabled={acaoCarga}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button type="button" disabled={acaoCarga || !motivoLimpeza.trim()}
+              onClick={() => limparCarga && void executarAcao(
+                () => cargaService.limparConferencia(tenantId as string, usuarioId ?? "", limparCarga.id, motivoLimpeza.trim()),
+                () => setLimparCarga(null), "carga-limpar-conferencia")}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
+              {acaoCarga && <Loader2 size={14} className="animate-spin" />} Confirmar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <CargaResponsaveisDialog carga={responsaveisCarga} tenantId={tenantId as string} usuarioId={usuarioId ?? ""}
+        onClose={() => setResponsaveisCarga(null)} onSuccess={recarregarCargas} />
 
       <CargaAcompanhamentoSheet cargaId={acompanhando} tenantId={tenantId as string} onClose={() => setAcompanhando(null)} />
 

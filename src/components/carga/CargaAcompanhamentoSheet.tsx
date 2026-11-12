@@ -27,8 +27,11 @@ const EVENTO_LABEL: Record<string, string> = {
   VEICULO_CODIGO_INVALIDO: "Etiqueta de veículo não reconhecida",
   VOLUMES_GERADOS: "Volumes gerados no embarque",
   VOLUME_DIGITADO: "Código de volume digitado",
+  CONFERENCIA_LIMPA: "Conferência do carregamento limpa",
+  PRIORIDADE_ALTERADA: "Prioridade alterada",
+  RESPONSAVEIS_ALTERADOS: "Responsáveis alterados",
 };
-const EVENTO_ALERTA = new Set(["VEICULO_DIVERGENTE", "VEICULO_CODIGO_INVALIDO", "VOLUME_DIGITADO"]);
+const EVENTO_ALERTA = new Set(["VEICULO_DIVERGENTE", "VEICULO_CODIGO_INVALIDO", "VOLUME_DIGITADO", "CONFERENCIA_LIMPA"]);
 
 const th = "px-3 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase bg-secondary whitespace-nowrap";
 const pilula = (ativo: boolean) => `px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
@@ -220,6 +223,9 @@ export function CargaAcompanhamentoSheet({ cargaId, tenantId, onClose }: Props) 
                           {EVENTO_LABEL[e.tipo] ?? e.tipo}
                           {e.tipo === "VOLUMES_GERADOS" && typeof e.dados.quantidade === "number" ? ` (${e.dados.quantidade})` : ""}
                           {e.tipo === "VOLUME_DIGITADO" && typeof e.dados.codigo === "string" ? ` (${e.dados.codigo})` : ""}
+                          {e.tipo === "PRIORIDADE_ALTERADA" && typeof e.dados.para === "string" ? `: ${String(e.dados.de ?? "")} → ${e.dados.para}` : ""}
+                          {e.tipo === "CONFERENCIA_LIMPA" && typeof e.dados.motivo === "string" ? ` (${String(e.dados.volumes ?? 0)} volume(s)): ${e.dados.motivo}` : ""}
+                          {e.tipo === "RESPONSAVEIS_ALTERADOS" && typeof e.dados.motivo === "string" ? `: ${e.dados.motivo}` : ""}
                           {e.usuario_nome ? <span className="text-muted-foreground"> · {e.usuario_nome}</span> : null}
                         </span>
                       </li>

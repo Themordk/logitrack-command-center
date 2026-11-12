@@ -7,7 +7,7 @@ import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/Onl
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { cargaService, type CargaColetor } from "@/lib/cargaService";
-import { CARGA_STATUS_LABEL, UNIDADE_EMBARQUE_LABEL, descreverTransporte } from "@/lib/cargaExibicao";
+import { CARGA_STATUS_LABEL, UNIDADE_EMBARQUE_LABEL, descreverTransporte, PRIORIDADE_TOM } from "@/lib/cargaExibicao";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -83,7 +83,13 @@ export function EmbarqueCargasPage({ onNavigate }: Props) {
                     ativa ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]" : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-bold text-white font-mono">Carga #{c.numero_carga}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-white font-mono">Carga #{c.numero_carga}</span>
+                      {c.prioridade && c.prioridade !== "NORMAL" && (
+                        <span className={`text-[11px] px-1.5 py-0.5 rounded border font-semibold ${PRIORIDADE_TOM[c.prioridade]}`}>{c.prioridade}</span>
+                      )}
+                      {c.convocado && <span className="text-[11px] px-1.5 py-0.5 rounded border border-[hsl(217,91%,50%)]/50 text-[hsl(217,91%,70%)]">Sua</span>}
+                    </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full border ${
                       c.status === "EM_CARREGAMENTO" ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" : "bg-blue-500/15 text-blue-400 border-blue-500/30"}`}>
                       {CARGA_STATUS_LABEL[c.status]}
