@@ -8,7 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ArrowDown, ArrowUp, ArrowUpDown, Boxes, ChevronLeft, ChevronRight, Loader2, PackageCheck, RefreshCcw, Route, Truck,
+  ArrowDown, ArrowUp, ArrowUpDown, Boxes, ChevronLeft, ChevronRight, Eye, FileText, Loader2, MoreHorizontal, PackageCheck, Printer,
+  RefreshCcw, Route, Truck,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTenant } from "@/contexts/TenantContext";
@@ -25,6 +26,9 @@ import { CapacidadeVeiculo } from "@/components/carga/CapacidadeVeiculo";
 import { CargaDetalheSheet } from "@/components/carga/CargaDetalheSheet";
 import { TransporteCampos } from "@/components/carga/TransporteCampos";
 import { SeletorBusca } from "@/components/carga/SeletorBusca";
+import { CargaAcompanhamentoSheet } from "@/components/carga/CargaAcompanhamentoSheet";
+import { imprimirRomaneio } from "@/lib/romaneioPdf";
+import { abrirJanelaImpressao } from "@/modules/reports/utils/exporters";
 
 const MODULO = "web.atividades.montagem-carga";
 const POR_PAGINA = 20;
@@ -68,6 +72,20 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
   const [aba, setAba] = useState<"ondas" | "cargas">("ondas");
   const [filtroCarga, setFiltroCarga] = useState("ativas");
   const [cargaAberta, setCargaAberta] = useState<string | null>(null);
+  const [acompanhando, setAcompanhando] = useState<string | null>(null);
+  const [menuCarga, setMenuCarga] = useState<string | null>(null);
+
+  const imprimirRomaneioCarga = async (id: string) => {
+    setMenuCarga(null);
+    const janela = abrirJanelaImpressao(); // reservada no clique para não ser bloqueada
+    try {
+      imprimirRomaneio(await cargaService.romaneio(tenantId as string, id), janela);
+    } catch (e) {
+      janela?.close();
+      const p = parseError(e, "carga-romaneio");
+      toast.error(p.title, { description: p.instruction || p.details });
+    }
+  };
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [filtros, setFiltros] = useState<FiltrosOndas>(FILTROS_ONDAS_VAZIOS);
   const [ordem, setOrdem] = useState<{ coluna: ColunaOnda; direcao: DirecaoOrdem }>({ coluna: "sugestao", direcao: "asc" });
@@ -389,7 +407,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                       <th className={`${th} text-center`}>Pedidos</th>
                       <th className={`${th} text-left w-44`}>Embarque</th>
                       <th className={`${th} text-left`}>Criada em</th>
-                      <th className={`${th} text-center w-16`}>Ações</th>
+                      <th className={`${th} text-right w-24`}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -417,12 +435,35 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                             ) : <span className="text-xs text-muted-foreground">{c.status === "EM_MONTAGEM" ? "Não liberada" : "—"}</span>}
                           </td>
                           <td className={`${td} text-xs text-muted-foreground`}>{dataHora(c.created_at)}</td>
-                          <td className={`${td} text-center`}>
-                            <button type="button" className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                              aria-label={`Abrir carga ${c.numero_carga} (${CARGA_STATUS_LABEL[c.status]})`} title="Abrir carga"
-                              onClick={(e) => { e.stopPropagation(); setCargaAberta(c.id); }}>
-                              <ChevronRight size={14} />
-                            </button>
+                          <td className={td} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1 relative">
+                              <button type="button" onClick={() => setAcompanhando(c.id)}
+                                className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                                title="Acompanhar carregamento" aria-label={`Acompanhar carregamento da carga ${c.numero_carga}`}>
+                                <Eye size={13} />
+                              </button>
+                              <button type="button" onClick={() => setMenuCarga(menuCarga === c.id ? null : c.id)}
+                                className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                                title="Opções" aria-label={`Opções da carga ${c.numero_carga} (${CARGA_STATUS_LABEL[c.status]})`}
+                                aria-haspopup="menu" aria-expanded={menuCarga === c.id}>
+                                <MoreHorizontal size={13} />
+                              </button>
+                              {menuCarga === c.id && (
+                                <>
+                                  <div className="fixed inset-0 z-20" onClick={() => setMenuCarga(null)} />
+                                  <div role="menu" className="absolute right-0 top-8 z-30 w-48 bg-popover border border-border rounded-lg shadow-lg py-1">
+                                    <button type="button" role="menuitem" onClick={() => { setMenuCarga(null); setCargaAberta(c.id); }}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2 text-foreground">
+                                      <FileText size={12} className="text-blue-400" /> Dados da carga
+                                    </button>
+                                    <button type="button" role="menuitem" onClick={() => void imprimirRomaneioCarga(c.id)}
+                                      className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2 text-foreground">
+                                      <Printer size={12} className="text-muted-foreground" /> Imprimir romaneio
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -500,6 +541,8 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CargaAcompanhamentoSheet cargaId={acompanhando} tenantId={tenantId as string} onClose={() => setAcompanhando(null)} />
 
       <CargaDetalheSheet
         cargaId={cargaAberta}

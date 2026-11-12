@@ -209,6 +209,37 @@ export interface BipResultado {
   carga_completa: boolean;
 }
 
+/** Acompanhamento do carregamento (aba Cargas › olho). */
+export interface AcompanhamentoVolume {
+  id: string;
+  codigo: string;
+  descricao: string | null;
+  tipo: UnidadeEmbarque;
+  sequencia: number;
+  status: UnidadeStatus;
+  embarcada_em: string | null;
+  embarcada_por_nome: string | null;
+  /** Código digitado (etiqueta ilegível) em vez de lido. */
+  digitado: boolean;
+  numero_pedido: number | null;
+  parceiro: string | null;
+  cidade: string | null;
+  numero_onda: number;
+}
+
+export interface CargaAcompanhamento {
+  carga: {
+    id: string; numero_carga: number; status: CargaStatus; modalidade: ModalidadeTransporte; unidade_embarque: UnidadeEmbarque | null;
+    liberada_em: string | null; liberada_por_nome: string | null; iniciada_em: string | null;
+    veiculo_confirmado_em: string | null; veiculo_confirmado_por_nome: string | null;
+    fechada_em: string | null; fechada_por_nome: string | null; ultima_leitura_em: string | null;
+  };
+  totais: { total: number; embarcados: number; pendentes: number; pedidos_sem_volume: number };
+  operadores: { usuario_id: string | null; nome: string | null; volumes: number; primeira_leitura: string; ultima_leitura: string }[];
+  volumes: AcompanhamentoVolume[];
+  eventos: { tipo: string; created_at: string; usuario_nome: string | null; dados: Record<string, unknown> }[];
+}
+
 /** Pedido no romaneio: NF-e autorizada(s) e volumes (volume de expedição; na falta, qtd. de volumes da NF-e). */
 export interface RomaneioDocumento extends CargaDocumento {
   nfe: string | null;
@@ -319,6 +350,9 @@ export const cargaService = {
 
   cancelar: (tenantId: string, usuarioId: string, cargaId: string, motivo: string) =>
     agir<CargaDetalhe>("carga_cancelar", { p_tenant_id: tenantId, p_usuario_id: usuarioId, p_carga_id: cargaId, p_motivo: motivo }),
+
+  acompanhamento: (tenantId: string, cargaId: string) =>
+    ler<CargaAcompanhamento>("carga_acompanhamento", { p_tenant_id: tenantId, p_carga_id: cargaId }),
 
   romaneio: (tenantId: string, cargaId: string) =>
     ler<Romaneio>("carga_romaneio", { p_tenant_id: tenantId, p_carga_id: cargaId }),
