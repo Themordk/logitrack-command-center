@@ -4,6 +4,20 @@ import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { CrudModal, type FieldSpec } from "@/components/crud/CrudModal";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { Printer, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cargaService } from "@/lib/cargaService";
+import { imprimirEtiquetaVeiculo } from "@/lib/etiquetaVeiculoPdf";
+import { abrirJanelaImpressao } from "@/modules/reports/utils/exporters";
+import { parseError } from "@/lib/errorMapper";
+
+interface VeiculoLinha { id: string; descricao: string; placa: string | null; tipo_veiculo: string | null; codigo_identificacao: string }
+
+const botaoAcao = "w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center";
 
 export function VeiculosPage() {
   const { tenantId, empresaId } = useTenant();
@@ -11,6 +25,28 @@ export function VeiculosPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [novoCodigoItem, setNovoCodigoItem] = useState<VeiculoLinha | null>(null);
+
+  const imprimirEtiqueta = (row: VeiculoLinha) => {
+    const janela = abrirJanelaImpressao(); // reservada no clique para não ser bloqueada
+    imprimirEtiquetaVeiculo([{ codigo_identificacao: row.codigo_identificacao, descricao: row.descricao, placa: row.placa, tipo_veiculo: row.tipo_veiculo }], janela);
+  };
+
+  const gerarNovoCodigo = async () => {
+    if (!novoCodigoItem || !tenantId) return;
+    try {
+      const r = await cargaService.veiculoNovoCodigo(tenantId, novoCodigoItem.id);
+      toast.success(r.mensagem ?? "Novo código gerado.");
+      const atualizado: VeiculoLinha = { ...novoCodigoItem, codigo_identificacao: r.dados?.codigo_identificacao ?? novoCodigoItem.codigo_identificacao };
+      await crud.refresh();
+      imprimirEtiqueta(atualizado);
+    } catch (e) {
+      const p = parseError(e, "veiculo-codigo");
+      toast.error(p.title, { description: p.instruction ?? p.details });
+    } finally {
+      setNovoCodigoItem(null);
+    }
+  };
 
   const columns: ColumnSpec[] = [
     { key: "placa", label: "Placa", type: "mono" },
@@ -57,6 +93,18 @@ export function VeiculosPage() {
         onNew={() => { setEditItem(null); setModalOpen(true); }}
         onEdit={(row) => { setEditItem(row); setModalOpen(true); }}
         onDelete={(row) => setDeleteItem(row)}
+        extraRowActions={(row) => (
+          <>
+            <button type="button" onClick={() => imprimirEtiqueta(row)} className={botaoAcao}
+              title="Imprimir etiqueta do veículo (QR para o embarque)" aria-label={`Imprimir etiqueta do veículo ${row.placa ?? row.descricao}`}>
+              <Printer size={13} />
+            </button>
+            <button type="button" onClick={() => setNovoCodigoItem(row)} className={botaoAcao}
+              title="Gerar novo código (invalida a etiqueta atual)" aria-label={`Gerar novo código do veículo ${row.placa ?? row.descricao}`}>
+              <RefreshCw size={13} />
+            </button>
+          </>
+        )}
         newLabel="Novo Veículo"
         searchPlaceholder="Buscar por placa ou descrição..."
       />
@@ -68,6 +116,21 @@ export function VeiculosPage() {
         initialData={editItem}
         onSave={handleSave}
       />
+      <AlertDialog open={!!novoCodigoItem} onOpenChange={(o) => { if (!o) setNovoCodigoItem(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gerar novo código do veículo {novoCodigoItem?.placa ?? ""}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A etiqueta atual deixa de valer no embarque e a nova é aberta para impressão. Use quando a etiqueta for perdida, danificada ou copiada.
+              Cargas abertas deste veículo precisarão confirmar o veículo de novo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void gerarNovoCodigo()}>Gerar e imprimir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <DeleteConfirmDialog
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}

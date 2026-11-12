@@ -2,7 +2,7 @@
  * Fluxo de Expedição · F6 — regras de EXIBIÇÃO da carga (rótulos, tons, agrupamento, ordem local).
  * Nenhuma regra de negócio: a validação de tudo continua nas RPCs.
  */
-import type { CargaStatus, ModalidadeTransporte, OndaSugerida, TransportadoraOpcao, UnidadeEmbarque } from "@/lib/cargaService";
+import type { CargaDocumento, CargaStatus, ModalidadeTransporte, OndaSugerida, TransportadoraOpcao, UnidadeEmbarque } from "@/lib/cargaService";
 
 export const CARGA_STATUS_LABEL: Record<CargaStatus, string> = {
   EM_MONTAGEM: "Em montagem",
@@ -35,6 +35,20 @@ export const UNIDADE_EMBARQUE_INSTRUCAO: Record<UnidadeEmbarque, string> = {
   DOCUMENTO: "Bipe o número do pedido ao colocá-lo no veículo.",
   CONFIRMACAO: "Confirme cada pedido ao colocá-lo no veículo (ou bipe o número do pedido).",
 };
+
+/** Situação de um pedido no embarque por volume. */
+export type SituacaoPedidoEmbarque = "SEM_VOLUMES" | "PENDENTE" | "PARCIAL" | "COMPLETO";
+
+export function situacaoPedidoEmbarque(d: Pick<CargaDocumento, "unidades_total" | "unidades_embarcadas">): SituacaoPedidoEmbarque {
+  if (d.unidades_total === 0) return "SEM_VOLUMES";
+  if (d.unidades_embarcadas >= d.unidades_total) return "COMPLETO";
+  return d.unidades_embarcadas > 0 ? "PARCIAL" : "PENDENTE";
+}
+
+/** Primeiro pedido, na ordem da carga, que ainda não está todo no veículo (ou que nem tem volume). */
+export function proximoPedidoEmbarque<T extends Pick<CargaDocumento, "sequencia" | "unidades_total" | "unidades_embarcadas">>(docs: T[]): T | null {
+  return [...docs].sort((a, b) => a.sequencia - b.sequencia).find((d) => situacaoPedidoEmbarque(d) !== "COMPLETO") ?? null;
+}
 
 export const MODALIDADE_LABEL: Record<ModalidadeTransporte, string> = {
   PROPRIA: "Veículo próprio",

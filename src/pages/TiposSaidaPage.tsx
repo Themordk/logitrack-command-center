@@ -92,7 +92,7 @@ export function TiposSaidaPage() {
     setEditItem(item);
     setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
-      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false,
+      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false,
       momento_conferencia: "PRE_FATURAMENTO",
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
@@ -237,6 +237,16 @@ export function TiposSaidaPage() {
                 <div className="flex items-center gap-3">
                   <Switch id="realiza-embarque" checked={!!form.realiza_embarque} onCheckedChange={(v) => set("realiza_embarque", v)} />
                   <label htmlFor="realiza-embarque" className="text-sm text-foreground">Realiza embarque (montagem de carga e bip no veículo)</label>
+                </div>
+                <div className="flex items-start gap-3 pl-1">
+                  <Switch id="exige-confirmacao-veiculo" checked={!!form.exige_confirmacao_veiculo} disabled={!form.realiza_embarque}
+                    onCheckedChange={(v) => set("exige_confirmacao_veiculo", v)} />
+                  <div>
+                    <label htmlFor="exige-confirmacao-veiculo" className="text-sm text-foreground">Exige confirmação do veículo no embarque</label>
+                    <p className="text-xs text-muted-foreground">
+                      Em carga de veículo próprio, o operador bipa o QR da etiqueta do veículo antes de conferir os volumes. A etiqueta é impressa no cadastro de veículos.
+                    </p>
+                  </div>
                 </div>
                 <div className="rounded-md border border-border bg-background/40 px-3 py-2">
                   <p className="text-sm text-foreground">

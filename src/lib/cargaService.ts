@@ -135,6 +135,10 @@ export interface CargaDetalhe {
   box: { id: string; descricao: string } | null;
   /** O que falta preencher para fechar (só carga de transportadora). */
   pendencias_fechamento: string[];
+  /** Veículo próprio com onda de tipo de saída que exige ler o QR do veículo antes do embarque. */
+  exige_confirmacao_veiculo: boolean;
+  veiculo_confirmado_em: string | null;
+  veiculo_confirmado_por_nome: string | null;
   capacidade: { peso_pct: number | null; m3_pct: number | null; pallets_pct: number | null; excedida: boolean };
   progresso: { total: number; embarcadas: number };
   ondas: { movimento_saida_id: string; numero_onda: number; status: string; peso_total: number | null; m3: number | null; documentos: number }[];
@@ -144,6 +148,7 @@ export interface CargaDetalhe {
 
 export interface UnidadeEmbarqueItem {
   id: string;
+  carga_documento_id: string | null;
   tipo: UnidadeEmbarque;
   codigo: string;
   descricao: string | null;
@@ -177,11 +182,22 @@ export interface CargaColetor {
   unidades_embarcadas: number;
 }
 
+export interface VolumeGerado {
+  id: string;
+  codigo_volume: string;
+  numero_volume: number;
+  total_volumes: number;
+  numero_pedido: number | null;
+  numero_onda: number;
+}
+
 export interface BipResultado {
   unidade_id: string;
   codigo: string;
   descricao: string | null;
   documento_completo: boolean;
+  documento_total: number;
+  documento_embarcadas: number;
   total: number;
   embarcadas: number;
   carga_completa: boolean;
@@ -308,11 +324,27 @@ export const cargaService = {
   obterCargaColetor: (tenantId: string, cargaId: string, usuarioId: string) =>
     ler<CargaEmbarque>("embarque_obter_carga", { p_tenant_id: tenantId, p_carga_id: cargaId, p_usuario_id: usuarioId }),
 
-  bipar: (p: { tenantId: string; cargaId: string; usuarioId: string; codigo?: string; unidadeId?: string }) =>
+  /** digitado = código informado à mão (etiqueta ilegível); fica registrado na rastreabilidade da carga. */
+  bipar: (p: { tenantId: string; cargaId: string; usuarioId: string; codigo?: string; unidadeId?: string; digitado?: boolean }) =>
     agir<BipResultado>("embarque_bipar_unidade", {
       p_tenant_id: p.tenantId, p_carga_id: p.cargaId, p_usuario_id: p.usuarioId,
-      p_codigo: p.codigo ?? null, p_carga_unidade_id: p.unidadeId ?? null,
+      p_codigo: p.codigo ?? null, p_carga_unidade_id: p.unidadeId ?? null, p_digitado: p.digitado ?? false,
     }),
+
+  /** Lê o QR da etiqueta do veículo; o backend compara com o veículo da carga e registra tentativas erradas. */
+  confirmarVeiculo: (tenantId: string, cargaId: string, usuarioId: string, codigo: string) =>
+    agir<CargaDetalhe>("embarque_confirmar_veiculo", { p_tenant_id: tenantId, p_carga_id: cargaId, p_usuario_id: usuarioId, p_codigo: codigo }),
+
+  /** Pedido sem volume: gera os volumes no embarque (as etiquetas vão para a fila de impressão). */
+  gerarVolumes: (tenantId: string, cargaId: string, usuarioId: string, cargaDocumentoId: string, quantidade: number) =>
+    agir<{ volumes: VolumeGerado[] }>("embarque_gerar_volumes", {
+      p_tenant_id: tenantId, p_carga_id: cargaId, p_usuario_id: usuarioId,
+      p_carga_documento_id: cargaDocumentoId, p_quantidade: quantidade,
+    }),
+
+  /** Novo código do QR do veículo (a etiqueta anterior deixa de valer). */
+  veiculoNovoCodigo: (tenantId: string, veiculoId: string) =>
+    agir<{ codigo_identificacao: string }>("veiculo_gerar_novo_codigo", { p_tenant_id: tenantId, p_veiculo_id: veiculoId }),
 
   fechar: (tenantId: string, cargaId: string, usuarioId: string) =>
     agir<CargaDetalhe>("embarque_fechar_carga", { p_tenant_id: tenantId, p_carga_id: cargaId, p_usuario_id: usuarioId }),

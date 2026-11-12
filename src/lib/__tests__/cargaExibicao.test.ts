@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { agruparSugestao, descreverTransporte, moverItem, nivelCapacidade, placaValida } from "@/lib/cargaExibicao";
+import {
+  agruparSugestao, descreverTransporte, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
+} from "@/lib/cargaExibicao";
 import type { OndaSugerida } from "@/lib/cargaService";
 
 const onda = (n: number, chave: string, rotulo: string, peso: number): OndaSugerida => ({
@@ -55,5 +57,23 @@ describe("placaValida", () => {
     expect(placaValida("abc-1234")).toBe(true);
     expect(placaValida("ABC1D23")).toBe(true);
     expect(placaValida("AB12345")).toBe(false);
+  });
+});
+
+describe("embarque por volume", () => {
+  it("classifica o pedido pelos volumes conferidos", () => {
+    expect(situacaoPedidoEmbarque({ unidades_total: 0, unidades_embarcadas: 0 })).toBe("SEM_VOLUMES");
+    expect(situacaoPedidoEmbarque({ unidades_total: 10, unidades_embarcadas: 0 })).toBe("PENDENTE");
+    expect(situacaoPedidoEmbarque({ unidades_total: 10, unidades_embarcadas: 5 })).toBe("PARCIAL");
+    expect(situacaoPedidoEmbarque({ unidades_total: 10, unidades_embarcadas: 10 })).toBe("COMPLETO");
+  });
+  it("aponta o primeiro pedido incompleto na ordem da carga", () => {
+    const docs = [
+      { sequencia: 2, unidades_total: 0, unidades_embarcadas: 0 },
+      { sequencia: 1, unidades_total: 3, unidades_embarcadas: 3 },
+      { sequencia: 3, unidades_total: 2, unidades_embarcadas: 1 },
+    ];
+    expect(proximoPedidoEmbarque(docs)?.sequencia).toBe(2);
+    expect(proximoPedidoEmbarque([{ sequencia: 1, unidades_total: 1, unidades_embarcadas: 1 }])).toBeNull();
   });
 });
