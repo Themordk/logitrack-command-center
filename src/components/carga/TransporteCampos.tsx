@@ -89,7 +89,7 @@ export function TransporteCampos({
             </select>
             {transportadoras.length === 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Nenhum parceiro marcado como transportador. Marque "Transportador" no cadastro de parceiros.
+                Nenhuma transportadora ativa. Cadastre o parceiro com Tipo de Parceiro = Transportador em Dados Mestres › Parceiros.
               </p>
             )}
           </div>
