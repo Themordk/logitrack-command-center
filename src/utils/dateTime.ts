@@ -18,8 +18,25 @@ const TIMEZONE = "America/Fortaleza";
 const LOCALE = "pt-BR";
 const EMPTY = "—";
 
+/**
+ * Colunas `date` (validade, fabricação, emissão…) chegam como "AAAA-MM-DD".
+ * `new Date("AAAA-MM-DD")` é meia-noite UTC = dia anterior às 21h em Fortaleza,
+ * o que exibia a data com 1 dia a menos. Data pura é data de calendário:
+ * ancoramos ao meio-dia de Fortaleza para formatar sempre o mesmo dia.
+ */
+const DATA_PURA = /^\d{4}-\d{2}-\d{2}$/;
+export function parseDataPura(value: string): Date | null {
+  if (!DATA_PURA.test(value)) return null;
+  const d = new Date(`${value}T12:00:00-03:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function toValidDate(value: string | Date | null | undefined): Date | null {
   if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "string") {
+    const pura = parseDataPura(value.trim());
+    if (pura) return pura;
+  }
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return null;
   return d;
@@ -35,6 +52,8 @@ function toValidDateNaive(value: string | Date | null | undefined): Date | null 
   if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
   if (typeof value === "string") {
     const s = value.trim();
+    const pura = parseDataPura(s);
+    if (pura) return pura;
     const hasOffset = /([zZ]|[+-]\d{2}:?\d{2})$/.test(s);
     if (!hasOffset && /\d{2}:\d{2}/.test(s)) {
       const d = new Date(s.replace(" ", "T") + "-03:00");
