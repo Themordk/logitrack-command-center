@@ -1,16 +1,23 @@
-import { useMemo, useState } from "react";
+/**
+ * Fluxo de Expedição · F6 — Montagem de Carga.
+ * Segue o padrão visual das telas de criação de movimento (Gerar Saída): cabeçalho com ações,
+ * abas em pílula, barra de filtros, grid com seleção/ordenação/paginação e modal para concluir a ação.
+ * Regras (elegibilidade, veículo/transportadora/box) ficam nas RPCs carga_*; aqui só filtro, ordem e seleção.
+ */
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Boxes, ChevronRight, Loader2, PackageCheck, RefreshCw, Route, Truck } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  ArrowDown, ArrowUp, ArrowUpDown, Boxes, ChevronLeft, ChevronRight, Loader2, PackageCheck, RefreshCcw, Route, Truck,
+} from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { parseError } from "@/lib/errorMapper";
 import { cargaService, type CargaStatus, type OndaSugerida } from "@/lib/cargaService";
 import {
-  CARGA_STATUS_LABEL, MODALIDADE_LABEL, TRANSPORTE_VAZIO, agruparSugestao, descreverTransporte, formatarNumero, type TransporteValor,
+  CARGA_STATUS_LABEL, FILTROS_ONDAS_VAZIOS, MODALIDADE_LABEL, TRANSPORTE_VAZIO, descreverTransporte, filtrarOndas,
+  formatarNumero, ordenarOndas, type ColunaOnda, type DirecaoOrdem, type FiltrosOndas, type TransporteValor,
 } from "@/lib/cargaExibicao";
 import { useCargaCadastros } from "@/hooks/useCargaCadastros";
 import { CargaStatusBadge } from "@/components/carga/CargaStatusBadge";
@@ -20,14 +27,36 @@ import { TransporteCampos } from "@/components/carga/TransporteCampos";
 import { SeletorBusca } from "@/components/carga/SeletorBusca";
 
 const MODULO = "web.atividades.montagem-carga";
-const FILTROS: { valor: string; rotulo: string; status: CargaStatus[] | null }[] = [
+const POR_PAGINA = 20;
+const FILTROS_CARGA: { valor: string; rotulo: string; status: CargaStatus[] | null }[] = [
   { valor: "ativas", rotulo: "Em aberto", status: ["EM_MONTAGEM", "LIBERADA", "EM_CARREGAMENTO"] },
   { valor: "FECHADA", rotulo: "Fechadas", status: ["FECHADA"] },
   { valor: "CANCELADA", rotulo: "Canceladas", status: ["CANCELADA"] },
   { valor: "todas", rotulo: "Todas", status: null },
 ];
-const inputClass = "w-full h-10 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-foreground outline-none focus:border-primary";
 const dataHora = (v: string | null) => (v ? new Date(v).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—");
+
+// Classes do padrão das telas de movimento (Gerar Saída)
+const filtroInput = "h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary";
+const filtroLabel = "text-[11px] font-medium text-muted-foreground uppercase";
+const th = "px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase bg-secondary whitespace-nowrap";
+const td = "px-4 py-2.5";
+const pilula = (ativo: boolean) => `px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+  ativo ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary"}`;
+
+const COLUNAS: { chave: ColunaOnda; rotulo: string; alinhar?: "right" | "center" }[] = [
+  { chave: "numero_onda", rotulo: "Nº Movimento" },
+  { chave: "pedidos", rotulo: "Nº Documento" },
+  { chave: "parceiros", rotulo: "Parceiro" },
+  { chave: "rota", rotulo: "Rota" },
+  { chave: "cidades", rotulo: "Cidade" },
+  { chave: "bairros", rotulo: "Bairro" },
+  { chave: "tipo_saida", rotulo: "Tipo Saída" },
+  { chave: "transporte", rotulo: "Transporte" },
+  { chave: "volumes", rotulo: "Volumes", alinhar: "center" },
+  { chave: "peso_total", rotulo: "Peso (kg)", alinhar: "right" },
+  { chave: "m3", rotulo: "m³", alinhar: "right" },
+];
 
 export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void } = {}) {
   const { tenantId, empresaId, usuarioId } = useTenant();
@@ -36,10 +65,14 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
   const qc = useQueryClient();
   const { veiculos, boxes, transportadoras } = useCargaCadastros(tenantId, empresaId);
 
-  const [aba, setAba] = useState("montar");
-  const [filtro, setFiltro] = useState("ativas");
+  const [aba, setAba] = useState<"ondas" | "cargas">("ondas");
+  const [filtroCarga, setFiltroCarga] = useState("ativas");
   const [cargaAberta, setCargaAberta] = useState<string | null>(null);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
+  const [filtros, setFiltros] = useState<FiltrosOndas>(FILTROS_ONDAS_VAZIOS);
+  const [ordem, setOrdem] = useState<{ coluna: ColunaOnda; direcao: DirecaoOrdem }>({ coluna: "sugestao", direcao: "asc" });
+  const [pagina, setPagina] = useState(1);
+  const [modalAberto, setModalAberto] = useState(false);
   const [transporte, setTransporte] = useState<TransporteValor>(TRANSPORTE_VAZIO);
   const [modalidadeEscolhida, setModalidadeEscolhida] = useState(false);
   const [boxId, setBoxId] = useState("");
@@ -53,19 +86,36 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
     refetchInterval: 60_000,
   });
 
-  const statusFiltro = FILTROS.find((f) => f.valor === filtro)?.status ?? null;
+  const statusFiltro = FILTROS_CARGA.find((f) => f.valor === filtroCarga)?.status ?? null;
   const cargas = useQuery({
-    queryKey: ["cargas", tenantId, empresaId, filtro],
+    queryKey: ["cargas", tenantId, empresaId, filtroCarga],
     enabled: pronto,
     queryFn: () => cargaService.listar(tenantId as string, empresaId as string, statusFiltro),
     refetchInterval: 30_000,
   });
 
-  const grupos = useMemo(() => agruparSugestao(sugestao.data?.ondas ?? []), [sugestao.data]);
-  const ondasSel: OndaSugerida[] = useMemo(
-    () => (sugestao.data?.ondas ?? []).filter((o) => selecionadas.has(o.movimento_saida_id)),
-    [sugestao.data, selecionadas],
+  const todasOndas = useMemo(() => sugestao.data?.ondas ?? [], [sugestao.data]);
+  const tiposSaida = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const o of todasOndas) if (o.tipo_saida_id) m.set(o.tipo_saida_id, o.tipo_saida ?? "—");
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+  }, [todasOndas]);
+  const visiveis = useMemo(
+    () => ordenarOndas(filtrarOndas(todasOndas, filtros), ordem.coluna, ordem.direcao),
+    [todasOndas, filtros, ordem],
   );
+  const totalPaginas = Math.max(1, Math.ceil(visiveis.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const linhas = visiveis.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
+  const temFiltro = Object.values(filtros).some(Boolean);
+
+  // Onda que saiu da lista (montada por outra pessoa, por exemplo) sai também da seleção.
+  useEffect(() => {
+    const ids = new Set(todasOndas.map((o) => o.movimento_saida_id));
+    setSelecionadas((s) => { const n = new Set([...s].filter((id) => ids.has(id))); return n.size === s.size ? s : n; });
+  }, [todasOndas]);
+
+  const ondasSel: OndaSugerida[] = useMemo(() => todasOndas.filter((o) => selecionadas.has(o.movimento_saida_id)), [todasOndas, selecionadas]);
   const totais = useMemo(() => ({
     peso: ondasSel.reduce((s, o) => s + Number(o.peso_total ?? 0), 0),
     m3: ondasSel.reduce((s, o) => s + Number(o.m3 ?? 0), 0),
@@ -77,13 +127,11 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
   const veiculosOndas = [...new Set(ondasSel.map((o) => o.veiculo_id).filter(Boolean))] as string[];
   const transpOndas = [...new Set(ondasSel.map((o) => o.transportadora_id).filter(Boolean))] as string[];
   const boxesOndas = [...new Set(ondasSel.map((o) => o.box_id).filter(Boolean))] as string[];
-  // Enquanto o supervisor não escolhe, a modalidade segue o que os pedidos trazem do ERP.
   const modalidade = modalidadeEscolhida ? transporte.modalidade
     : transpOndas.length > 0 && veiculosOndas.length === 0 ? "TERCEIRO" : "PROPRIA";
   const transporteExibido: TransporteValor = { ...transporte, modalidade };
   const terceiro = modalidade === "TERCEIRO";
-  const veiculoEfetivo = transporte.veiculoId || veiculosOndas[0] || "";
-  const veiculoSel = veiculos.find((v) => v.id === veiculoEfetivo);
+  const veiculoSel = veiculos.find((v) => v.id === (transporte.veiculoId || veiculosOndas[0] || ""));
   const nomeTranspOndas = transpOndas.length === 1 ? ondasSel.find((o) => o.transportadora_id === transpOndas[0])?.transportadora : null;
   const variasTransp = transpOndas.length > 1 || ondasSel.some((o) => o.transportadoras > 1);
   const divergenteVeiculo = !terceiro && (veiculosOndas.length > 1 || (!!transporte.veiculoId && veiculosOndas.some((v) => v !== transporte.veiculoId)));
@@ -95,10 +143,16 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
     if (v.modalidade !== modalidade) setModalidadeEscolhida(true);
     setTransporte(v);
   };
-
-  const alternar = (id: string, marcado: boolean) => setSelecionadas((s) => {
-    const n = new Set(s); if (marcado) n.add(id); else n.delete(id); return n;
+  const alternar = (id: string) => setSelecionadas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const todasVisiveisMarcadas = visiveis.length > 0 && visiveis.every((o) => selecionadas.has(o.movimento_saida_id));
+  const alternarTodas = () => setSelecionadas((s) => {
+    const n = new Set(s);
+    for (const o of visiveis) { if (todasVisiveisMarcadas) n.delete(o.movimento_saida_id); else n.add(o.movimento_saida_id); }
+    return n;
   });
+  const mudarFiltro = (campo: keyof FiltrosOndas, valor: string) => { setFiltros((f) => ({ ...f, [campo]: valor })); setPagina(1); };
+  const ordenarPor = (coluna: ColunaOnda) => setOrdem((o) => (
+    o.coluna === coluna ? { coluna, direcao: o.direcao === "asc" ? "desc" : "asc" } : { coluna, direcao: "asc" }));
 
   const montar = useMutation({
     mutationFn: () => cargaService.montar({
@@ -113,6 +167,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
       for (const a of r.avisos ?? []) toast.warning(a.mensagem);
       setSelecionadas(new Set());
       setTransporte(TRANSPORTE_VAZIO); setModalidadeEscolhida(false); setBoxId("");
+      setModalAberto(false);
       void qc.invalidateQueries({ queryKey: ["carga-sugestao", tenantId, empresaId] });
       void qc.invalidateQueries({ queryKey: ["cargas", tenantId, empresaId] });
       if (r.dados?.id) setCargaAberta(r.dados.id);
@@ -128,238 +183,323 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
     return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-muted-foreground" /></div>;
   }
 
+  const atualizando = sugestao.isFetching || cargas.isFetching;
+  const iconeOrdem = (c: ColunaOnda) => (ordem.coluna !== c ? <ArrowUpDown size={12} className="opacity-40" />
+    : ordem.direcao === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />);
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col flex-1 min-h-0 gap-4 animate-fade-in">
+      {/* Cabeçalho */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Montagem de Carga</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Junte as ondas que aguardam embarque num veículo próprio ou de transportadora, defina a ordem dos pedidos e libere para o coletor.
+          <h1 className="text-lg font-bold text-foreground">Montagem de Carga</h1>
+          <p className="text-xs text-muted-foreground">
+            {aba === "ondas"
+              ? "Selecione os movimentos de saída que aguardam embarque para montar uma carga (veículo próprio ou transportadora)"
+              : "Cargas montadas: abra uma carga para definir a ordem, liberar para o coletor, fechar ou imprimir o romaneio"}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { void sugestao.refetch(); void cargas.refetch(); }}
-          disabled={sugestao.isFetching || cargas.isFetching}>
-          <RefreshCw size={14} className={sugestao.isFetching || cargas.isFetching ? "animate-spin" : ""} /> Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => { void sugestao.refetch(); void cargas.refetch(); }} disabled={atualizando}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+            title="Atualizar dados">
+            <RefreshCcw size={14} className={atualizando ? "animate-spin" : ""} /> Atualizar Dados
+          </button>
+          {aba === "ondas" && (
+            <button type="button" onClick={() => setModalAberto(true)} disabled={!podeEditar || selecionadas.size === 0}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <Truck size={14} /> Montar Carga ({selecionadas.size})
+            </button>
+          )}
+        </div>
       </div>
 
-      <Tabs value={aba} onValueChange={setAba}>
-        <TabsList>
-          <TabsTrigger value="montar">Montar carga{sugestao.data ? ` (${sugestao.data.ondas.length})` : ""}</TabsTrigger>
-          <TabsTrigger value="cargas">Cargas</TabsTrigger>
-        </TabsList>
+      {/* Abas */}
+      <div className="flex items-center gap-2" role="tablist" aria-label="Montagem de carga">
+        <button type="button" role="tab" aria-selected={aba === "ondas"} onClick={() => setAba("ondas")} className={pilula(aba === "ondas")}>
+          Ondas para embarque{sugestao.data ? ` (${todasOndas.length})` : ""}
+        </button>
+        <button type="button" role="tab" aria-selected={aba === "cargas"} onClick={() => setAba("cargas")} className={pilula(aba === "cargas")}>
+          Cargas
+        </button>
+      </div>
 
-        {/* ===== Montar ===== */}
-        <TabsContent value="montar" className="mt-4">
-          <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-            <div className="space-y-4 min-w-0">
-              {sugestao.data && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Route size={13} aria-hidden="true" />
-                  Sugestão agrupada por {sugestao.data.criterio === "ROTA" ? "rota" : sugestao.data.criterio === "PARCEIRO" ? "parceiro" : "transportadora ou veículo e box"}
-                  {" "}(configurável em Fluxo de Expedição › Embarque).
-                </p>
-              )}
-              {sugestao.isLoading ? (
-                <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
-              ) : sugestao.isError ? (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300">
-                  {parseError(sugestao.error, "carga-sugestao").title}
-                </div>
-              ) : grupos.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-10 flex flex-col items-center text-center gap-2">
-                  <PackageCheck size={32} className="text-muted-foreground" aria-hidden="true" />
-                  <p className="text-sm font-medium text-foreground">Nenhuma onda aguardando embarque</p>
-                  <p className="text-xs text-muted-foreground max-w-sm">
-                    Aparecem aqui as ondas cujo tipo de saída realiza embarque e que já terminaram a conferência
-                    (ou a separação, quando não há conferência).
-                  </p>
-                </div>
-              ) : (
-                grupos.map((g) => {
-                  const todas = g.ondas.every((o) => selecionadas.has(o.movimento_saida_id));
-                  return (
-                    <div key={g.chave} className="rounded-lg border border-border bg-card">
-                      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{g.rotulo}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {g.ondas.length} onda(s) · {g.documentos} pedido(s) · {g.volumes} volume(s) · {formatarNumero(g.peso)} kg · {formatarNumero(g.m3, 2)} m³
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm" disabled={!podeEditar}
-                          onClick={() => g.ondas.forEach((o) => alternar(o.movimento_saida_id, !todas))}>
-                          {todas ? "Desmarcar grupo" : "Selecionar grupo"}
-                        </Button>
-                      </div>
-                      <ul className="divide-y divide-border">
-                        {g.ondas.map((o) => (
-                          <li key={o.movimento_saida_id}>
-                            <label className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-secondary/30">
-                              <Checkbox disabled={!podeEditar} checked={selecionadas.has(o.movimento_saida_id)}
-                                onCheckedChange={(v) => alternar(o.movimento_saida_id, !!v)} aria-label={`Selecionar onda ${o.numero_onda}`} />
-                              <span className="font-mono font-semibold text-sm w-16">#{o.numero_onda}</span>
-                              <span className="flex-1 min-w-0 text-sm text-muted-foreground truncate" title={o.parceiros ?? undefined}>
-                                {o.parceiros ?? "—"}
-                              </span>
-                              <span className="hidden md:inline text-xs text-muted-foreground w-28 truncate">{o.tipo_saida ?? ""}</span>
-                              {o.transportadoras > 1 && (
-                                <span className="text-[11px] text-yellow-400 border border-yellow-500/30 bg-yellow-500/10 rounded px-1.5 py-0.5">Várias transp.</span>
-                              )}
-                              <span className="text-xs text-muted-foreground w-20 text-right">{o.documentos} ped.</span>
-                              <span
-                                className={`text-xs w-20 text-right ${Number(o.volumes) > 0 ? "text-muted-foreground" : "text-yellow-400"}`}
-                                title={Number(o.volumes) > 0 ? "Volumes de expedição gerados na conferência" : "Nenhum volume gerado na conferência"}
-                              >
-                                {o.volumes} vol.
-                              </span>
-                              <span className="text-xs font-mono text-muted-foreground w-24 text-right">{formatarNumero(o.peso_total)} kg</span>
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })
-              )}
+      {aba === "ondas" ? (
+        <>
+          {/* Filtros */}
+          <div className="flex flex-wrap items-end gap-3 p-4 rounded-lg border border-border bg-secondary/30">
+            {([
+              ["movimento", "Nº Movimento", "Número da onda...", "w-36"],
+              ["documento", "Nº Documento", "Número do pedido...", "w-40"],
+              ["parceiro", "Parceiro", "Nome do parceiro...", "w-52"],
+              ["rota", "Rota", "Rota...", "w-40"],
+              ["cidade", "Cidade", "Cidade...", "w-40"],
+              ["bairro", "Bairro", "Bairro...", "w-40"],
+            ] as const).map(([campo, rotulo, ph, largura]) => (
+              <div key={campo} className="flex flex-col gap-1">
+                <label htmlFor={`filtro-${campo}`} className={filtroLabel}>{rotulo}</label>
+                <input id={`filtro-${campo}`} type="text" placeholder={ph} value={filtros[campo]}
+                  onChange={(e) => mudarFiltro(campo, e.target.value)} className={`${filtroInput} ${largura}`} />
+              </div>
+            ))}
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-tipo" className={filtroLabel}>Tipo Saída</label>
+              <select id="filtro-tipo" value={filtros.tipoSaidaId} onChange={(e) => mudarFiltro("tipoSaidaId", e.target.value)} className={`${filtroInput} w-44`}>
+                <option value="">Todos</option>
+                {tiposSaida.map(([id, d]) => <option key={id} value={id}>{d}</option>)}
+              </select>
             </div>
-
-            {/* Painel da nova carga */}
-            <aside className="lg:sticky lg:top-4 h-fit rounded-lg border border-border bg-card p-4 space-y-4">
-              <div className="flex items-center gap-2">
-                <Truck size={16} className="text-primary" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">Nova carga</h2>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {ondasSel.length === 0 ? "Selecione ondas na lista ao lado."
-                  : `${ondasSel.length} onda(s) · ${totais.pedidos} pedido(s) · ${totais.volumes} volume(s)`}
-              </p>
-              <TransporteCampos
-                idPrefixo="nova"
-                valor={transporteExibido}
-                onChange={alterarTransporte}
-                veiculos={veiculos}
-                transportadoras={transportadoras}
-                desabilitado={!podeEditar}
-                rotuloVeiculoVazio={veiculosOndas.length === 1 ? "Usar o veículo das ondas" : "Selecione…"}
-                rotuloTransportadoraVazio={nomeTranspOndas ? `Usar a dos pedidos (${nomeTranspOndas})` : "Selecione…"}
-              />
-              <div>
-                <label htmlFor="nova-box" className="block text-xs font-medium text-muted-foreground mb-1.5">Box / doca</label>
-                <SeletorBusca
-                  id="nova-box"
-                  value={boxId}
-                  onChange={setBoxId}
-                  options={boxes.map((b) => ({ value: b.id, label: b.descricao }))}
-                  vazio={boxesOndas.length === 1 ? "Usar o box das ondas" : "Sem box"}
-                  searchPlaceholder="Nome do box ou doca..."
-                  disabled={!podeEditar}
-                />
-              </div>
-              {ondasSel.length > 0 && !terceiro && (
-                <CapacidadeVeiculo medidas={[
-                  { rotulo: "Peso", usado: totais.peso, limite: veiculoSel?.peso_total, unidade: "kg" },
-                  { rotulo: "Volume", usado: totais.m3, limite: veiculoSel?.m3, unidade: "m³", casas: 2 },
-                ]} />
-              )}
-              {divergente && (
-                <p className="text-xs text-yellow-400 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2" role="alert">
-                  {variasTransp ? "Os pedidos selecionados são de transportadoras diferentes. Monte uma carga por transportadora."
-                    : divergenteVeiculo ? "As ondas selecionadas indicam veículos diferentes. Uma carga sai num veículo só."
-                    : "As ondas selecionadas indicam boxes diferentes."}
-                </p>
-              )}
-              {transpDiferenteErp && !divergente && (
-                <p className="text-xs text-muted-foreground rounded-md border border-border bg-secondary/30 px-3 py-2">
-                  A transportadora escolhida é diferente da que veio do ERP ({nomeTranspOndas}). A carga será montada com a sua escolha.
-                </p>
-              )}
-              <Button className="w-full" disabled={!podeEditar || ondasSel.length === 0 || divergente || montar.isPending}
-                onClick={() => montar.mutate()}>
-                {montar.isPending ? <Loader2 size={14} className="animate-spin" /> : <Boxes size={14} />} Montar carga
-              </Button>
-              {!podeEditar && <p className="text-xs text-muted-foreground">Seu perfil só consulta cargas.</p>}
-            </aside>
+            {temFiltro && (
+              <button type="button" onClick={() => { setFiltros(FILTROS_ONDAS_VAZIOS); setPagina(1); }}
+                className="h-9 px-3 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                Limpar filtros
+              </button>
+            )}
           </div>
-        </TabsContent>
 
-        {/* ===== Cargas ===== */}
-        <TabsContent value="cargas" className="mt-4 space-y-3">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar cargas por situação">
-            {FILTROS.map((f) => (
-              <button key={f.valor} type="button" onClick={() => setFiltro(f.valor)} aria-pressed={filtro === f.valor}
-                className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
-                  filtro === f.valor ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
+          {/* Grid de movimentos */}
+          <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
+            {sugestao.isLoading ? (
+              <div className="flex items-center justify-center py-16"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+            ) : sugestao.isError ? (
+              <div className="m-4 rounded-lg border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-300">
+                {parseError(sugestao.error, "carga-sugestao").title}
+              </div>
+            ) : visiveis.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-center px-4">
+                <PackageCheck size={32} className="mb-2 opacity-40" aria-hidden="true" />
+                <p className="text-sm">{temFiltro ? "Nenhum movimento encontrado com esses filtros." : "Nenhum movimento de saída aguardando embarque."}</p>
+                {!temFiltro && (
+                  <p className="text-xs mt-1 max-w-md">Aparecem aqui as ondas cujo tipo de saída realiza embarque e que já terminaram a conferência (ou a separação, quando não há conferência).</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-border bg-secondary backdrop-blur">
+                      <th className={`${th} text-left w-10`}>
+                        <input type="checkbox" checked={todasVisiveisMarcadas} onChange={alternarTodas} disabled={!podeEditar}
+                          className="rounded border-border" aria-label="Selecionar todos os movimentos filtrados" />
+                      </th>
+                      {COLUNAS.map((c) => (
+                        <th key={c.chave} className={`${th} ${c.alinhar === "right" ? "text-right" : c.alinhar === "center" ? "text-center" : "text-left"}`}
+                          aria-sort={ordem.coluna === c.chave ? (ordem.direcao === "asc" ? "ascending" : "descending") : "none"}>
+                          <button type="button" onClick={() => ordenarPor(c.chave)}
+                            className={`inline-flex items-center gap-1 uppercase hover:text-foreground ${ordem.coluna === c.chave ? "text-foreground" : ""}`}>
+                            {c.rotulo} {iconeOrdem(c.chave)}
+                          </button>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linhas.map((o) => {
+                      const marcado = selecionadas.has(o.movimento_saida_id);
+                      return (
+                        <tr key={o.movimento_saida_id} onClick={() => podeEditar && alternar(o.movimento_saida_id)}
+                          className={`border-b border-border/50 table-row-hover ${podeEditar ? "cursor-pointer" : ""} ${marcado ? "bg-primary/5" : ""}`}>
+                          <td className={td}>
+                            <input type="checkbox" checked={marcado} disabled={!podeEditar} onChange={() => alternar(o.movimento_saida_id)}
+                              onClick={(e) => e.stopPropagation()} className="rounded border-border" aria-label={`Selecionar movimento ${o.numero_onda}`} />
+                          </td>
+                          <td className={`${td} font-mono text-xs text-foreground`}>{o.numero_onda}</td>
+                          <td className={`${td} font-mono text-xs text-foreground max-w-[160px] truncate`} title={o.pedidos ?? undefined}>{o.pedidos ?? "—"}</td>
+                          <td className={`${td} text-foreground max-w-[220px] truncate`} title={o.parceiros ?? undefined}>{o.parceiros ?? "—"}</td>
+                          <td className={`${td} text-xs text-foreground whitespace-nowrap`}>{o.rota ?? "—"}</td>
+                          <td className={`${td} text-xs text-foreground`}>{o.cidades ?? "—"}</td>
+                          <td className={`${td} text-xs text-muted-foreground`}>{o.bairros ?? "—"}</td>
+                          <td className={`${td} text-xs text-foreground`}>{o.tipo_saida ?? "—"}</td>
+                          <td className={`${td} text-xs whitespace-nowrap`}>
+                            {o.transportadoras > 1 ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border bg-yellow-500/15 text-yellow-400 border-yellow-500/30">
+                                VÁRIAS TRANSPORTADORAS
+                              </span>
+                            ) : o.transportadora ? <span className="text-foreground">{o.transportadora}</span>
+                              : o.veiculo ? <span className="text-foreground">{o.veiculo}{o.placa ? ` - ${o.placa}` : ""}</span>
+                              : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className={`${td} text-center ${Number(o.volumes) > 0 ? "text-muted-foreground" : "text-yellow-400"}`}
+                            title={Number(o.volumes) > 0 ? "Volumes de expedição gerados" : "Sem volume: os volumes serão gerados no embarque"}>
+                            {o.volumes}
+                          </td>
+                          <td className={`${td} text-right font-mono text-foreground`}>{formatarNumero(o.peso_total)}</td>
+                          <td className={`${td} text-right font-mono text-muted-foreground`}>{formatarNumero(o.m3, 2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-t border-border bg-secondary/20">
+              <span className="text-xs text-muted-foreground">
+                {visiveis.length} movimento{visiveis.length === 1 ? "" : "s"}{temFiltro ? " (filtrado)" : ""}
+                {selecionadas.size > 0 && (
+                  <> · <b className="text-foreground">{selecionadas.size} selecionado(s)</b>: {totais.pedidos} pedido(s), {totais.volumes} volume(s),{" "}
+                    {formatarNumero(totais.peso)} kg, {formatarNumero(totais.m3, 2)} m³</>
+                )}
+              </span>
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={paginaAtual === 1}
+                  className="p-1.5 rounded hover:bg-secondary disabled:opacity-30" aria-label="Página anterior"><ChevronLeft size={14} /></button>
+                <span className="text-xs text-muted-foreground px-2">{paginaAtual} / {totalPaginas}</span>
+                <button type="button" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={paginaAtual >= totalPaginas}
+                  className="p-1.5 rounded hover:bg-secondary disabled:opacity-30" aria-label="Próxima página"><ChevronRight size={14} /></button>
+              </div>
+            </div>
+          </div>
+          {sugestao.data && ordem.coluna === "sugestao" && (
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 -mt-2">
+              <Route size={12} aria-hidden="true" />
+              Ordenado pela sugestão de agrupamento ({sugestao.data.criterio === "ROTA" ? "rota" : sugestao.data.criterio === "PARCEIRO" ? "parceiro" : "transportadora ou veículo e box"}). Clique numa coluna para mudar a ordem.
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Situação das cargas */}
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar cargas por situação">
+            {FILTROS_CARGA.map((f) => (
+              <button key={f.valor} type="button" onClick={() => setFiltroCarga(f.valor)} aria-pressed={filtroCarga === f.valor}
+                className={pilula(filtroCarga === f.valor)}>
                 {f.rotulo}
               </button>
             ))}
           </div>
 
-          {cargas.isLoading ? (
-            <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
-          ) : (cargas.data ?? []).length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-10 flex flex-col items-center text-center gap-2">
-              <Truck size={32} className="text-muted-foreground" aria-hidden="true" />
-              <p className="text-sm font-medium text-foreground">Nenhuma carga {FILTROS.find((f) => f.valor === filtro)?.rotulo.toLowerCase()}</p>
-              <p className="text-xs text-muted-foreground">As cargas montadas na aba "Montar carga" aparecem aqui.</p>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-secondary/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="text-left font-medium px-4 py-2.5">Carga</th>
-                    <th className="text-left font-medium px-4 py-2.5">Situação</th>
-                    <th className="text-left font-medium px-4 py-2.5">Transporte</th>
-                    <th className="text-left font-medium px-4 py-2.5">Box</th>
-                    <th className="text-right font-medium px-4 py-2.5">Ondas</th>
-                    <th className="text-right font-medium px-4 py-2.5">Pedidos</th>
-                    <th className="text-left font-medium px-4 py-2.5 w-44">Embarque</th>
-                    <th className="text-left font-medium px-4 py-2.5">Criada em</th>
-                    <th className="px-2" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {(cargas.data ?? []).map((c) => {
-                    const pct = c.unidades_total > 0 ? (c.unidades_embarcadas / c.unidades_total) * 100 : 0;
-                    return (
-                      <tr key={c.id} className="hover:bg-secondary/20 cursor-pointer" onClick={() => setCargaAberta(c.id)}>
-                        <td className="px-4 py-2.5 font-mono font-semibold">#{c.numero_carga}</td>
-                        <td className="px-4 py-2.5"><CargaStatusBadge status={c.status} /></td>
-                        <td className="px-4 py-2.5 text-muted-foreground">
-                          <span className="block text-foreground/90">{descreverTransporte(c)}</span>
-                          <span className="block text-[11px]">{MODALIDADE_LABEL[c.modalidade]}</span>
-                        </td>
-                        <td className="px-4 py-2.5 text-muted-foreground">{c.box ?? "—"}</td>
-                        <td className="px-4 py-2.5 text-right">{c.ondas}</td>
-                        <td className="px-4 py-2.5 text-right">{c.documentos}</td>
-                        <td className="px-4 py-2.5">
-                          {c.unidades_total > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 flex-1 rounded-full bg-secondary overflow-hidden">
-                                <div className="h-full bg-green-500" style={{ width: `${pct}%` }} />
+          <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
+            {cargas.isLoading ? (
+              <div className="flex items-center justify-center py-16"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+            ) : (cargas.data ?? []).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <Truck size={32} className="mb-2 opacity-40" aria-hidden="true" />
+                <p className="text-sm">Nenhuma carga {FILTROS_CARGA.find((f) => f.valor === filtroCarga)?.rotulo.toLowerCase()}.</p>
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="border-b border-border bg-secondary backdrop-blur">
+                      <th className={`${th} text-left`}>Nº Carga</th>
+                      <th className={`${th} text-left`}>Situação</th>
+                      <th className={`${th} text-left`}>Transporte</th>
+                      <th className={`${th} text-left`}>Box</th>
+                      <th className={`${th} text-center`}>Ondas</th>
+                      <th className={`${th} text-center`}>Pedidos</th>
+                      <th className={`${th} text-left w-44`}>Embarque</th>
+                      <th className={`${th} text-left`}>Criada em</th>
+                      <th className={`${th} text-center w-16`}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(cargas.data ?? []).map((c) => {
+                      const pct = c.unidades_total > 0 ? (c.unidades_embarcadas / c.unidades_total) * 100 : 0;
+                      return (
+                        <tr key={c.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => setCargaAberta(c.id)}>
+                          <td className={`${td} font-mono text-xs text-foreground`}>{c.numero_carga}</td>
+                          <td className={td}><CargaStatusBadge status={c.status} /></td>
+                          <td className={`${td} text-xs`}>
+                            <span className="block text-foreground">{descreverTransporte(c)}</span>
+                            <span className="block text-[11px] text-muted-foreground">{MODALIDADE_LABEL[c.modalidade]}</span>
+                          </td>
+                          <td className={`${td} text-xs text-muted-foreground`}>{c.box ?? "—"}</td>
+                          <td className={`${td} text-center text-muted-foreground`}>{c.ondas}</td>
+                          <td className={`${td} text-center text-muted-foreground`}>{c.documentos}</td>
+                          <td className={td}>
+                            {c.unidades_total > 0 ? (
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 flex-1 rounded-full bg-secondary overflow-hidden">
+                                  <div className="h-full bg-green-500" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="text-xs font-mono text-muted-foreground">{c.unidades_embarcadas}/{c.unidades_total}</span>
                               </div>
-                              <span className="text-xs font-mono text-muted-foreground">{c.unidades_embarcadas}/{c.unidades_total}</span>
-                            </div>
-                          ) : <span className="text-xs text-muted-foreground">{c.status === "EM_MONTAGEM" ? "Não liberada" : "—"}</span>}
-                        </td>
-                        <td className="px-4 py-2.5 text-xs text-muted-foreground">{dataHora(c.created_at)}</td>
-                        <td className="px-2">
-                          <button type="button" className="p-1.5 rounded text-muted-foreground hover:text-foreground"
-                            aria-label={`Abrir carga ${c.numero_carga} (${CARGA_STATUS_LABEL[c.status]})`}
-                            onClick={(e) => { e.stopPropagation(); setCargaAberta(c.id); }}>
-                            <ChevronRight size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            ) : <span className="text-xs text-muted-foreground">{c.status === "EM_MONTAGEM" ? "Não liberada" : "—"}</span>}
+                          </td>
+                          <td className={`${td} text-xs text-muted-foreground`}>{dataHora(c.created_at)}</td>
+                          <td className={`${td} text-center`}>
+                            <button type="button" className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label={`Abrir carga ${c.numero_carga} (${CARGA_STATUS_LABEL[c.status]})`} title="Abrir carga"
+                              onClick={(e) => { e.stopPropagation(); setCargaAberta(c.id); }}>
+                              <ChevronRight size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="px-4 py-2.5 border-t border-border bg-secondary/20">
+              <span className="text-xs text-muted-foreground">{(cargas.data ?? []).length} carga(s)</span>
             </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        </>
+      )}
+
+      {/* Modal: montar carga (mesmo padrão do Gerar Onda) */}
+      <Dialog open={modalAberto} onOpenChange={(o) => { if (!montar.isPending) setModalAberto(o); }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Montar Carga</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <TransporteCampos
+              idPrefixo="nova"
+              valor={transporteExibido}
+              onChange={alterarTransporte}
+              veiculos={veiculos}
+              transportadoras={transportadoras}
+              desabilitado={!podeEditar}
+              rotuloVeiculoVazio={veiculosOndas.length === 1 ? "Usar o veículo das ondas" : "Selecione…"}
+              rotuloTransportadoraVazio={nomeTranspOndas ? `Usar a dos pedidos (${nomeTranspOndas})` : "Selecione…"}
+            />
+            <div>
+              <label htmlFor="nova-box" className="block text-xs font-medium text-muted-foreground mb-1.5">Box / doca</label>
+              <SeletorBusca
+                id="nova-box"
+                value={boxId}
+                onChange={setBoxId}
+                options={boxes.map((b) => ({ value: b.id, label: b.descricao }))}
+                vazio={boxesOndas.length === 1 ? "Usar o box das ondas" : "Sem box"}
+                searchPlaceholder="Nome do box ou doca..."
+                disabled={!podeEditar}
+              />
+            </div>
+            {!terceiro && (
+              <CapacidadeVeiculo medidas={[
+                { rotulo: "Peso", usado: totais.peso, limite: veiculoSel?.peso_total, unidade: "kg" },
+                { rotulo: "Volume", usado: totais.m3, limite: veiculoSel?.m3, unidade: "m³", casas: 2 },
+              ]} />
+            )}
+            {divergente && (
+              <p className="text-xs text-yellow-400 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2" role="alert">
+                {variasTransp ? "Os pedidos selecionados são de transportadoras diferentes. Monte uma carga por transportadora."
+                  : divergenteVeiculo ? "Os movimentos selecionados indicam veículos diferentes. Uma carga sai num veículo só."
+                  : "Os movimentos selecionados indicam boxes diferentes."}
+              </p>
+            )}
+            {transpDiferenteErp && !divergente && (
+              <p className="text-xs text-muted-foreground rounded-md border border-border bg-secondary/30 px-3 py-2">
+                A transportadora escolhida é diferente da que veio do ERP ({nomeTranspOndas}). A carga será montada com a sua escolha.
+              </p>
+            )}
+            <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {ondasSel.length} movimento(s) · {totais.pedidos} pedido(s) · {totais.volumes} volume(s) · {formatarNumero(totais.peso)} kg · {formatarNumero(totais.m3, 2)} m³
+              </p>
+              <p className="text-[11px] text-muted-foreground/80">Depois de montar, abra a carga para definir a ordem dos pedidos e liberar para o coletor.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <button type="button" onClick={() => setModalAberto(false)} disabled={montar.isPending}
+              className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">Cancelar</button>
+            <button type="button" onClick={() => montar.mutate()} disabled={!podeEditar || ondasSel.length === 0 || divergente || montar.isPending}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {montar.isPending ? <Loader2 size={14} className="animate-spin" /> : <Boxes size={14} />} Montar Carga
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <CargaDetalheSheet
         cargaId={cargaAberta}

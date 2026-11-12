@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  agruparSugestao, descreverTransporte, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
+  FILTROS_ONDAS_VAZIOS, agruparSugestao, descreverTransporte, filtrarOndas, ordenarOndas, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
 } from "@/lib/cargaExibicao";
 import type { OndaSugerida } from "@/lib/cargaService";
 
 const onda = (n: number, chave: string, rotulo: string, peso: number): OndaSugerida => ({
   movimento_saida_id: `id-${n}`, numero_onda: n, status: "CONFERIDO", prioridade: "NORMAL",
-  veiculo_id: null, veiculo: null, placa: null, box_id: null, box: null, transportadora_id: null, transportadora: null, transportadoras: 0, rota: null, tipo_saida: null,
-  parceiros: null, peso_total: peso, m3: 1, documentos: 2, volumes: 0, created_at: null,
+  veiculo_id: null, veiculo: null, placa: null, box_id: null, box: null, transportadora_id: null, transportadora: null, transportadoras: 0, rota: null, tipo_saida: null, tipo_saida_id: null,
+  parceiros: null, pedidos: null, cidades: null, bairros: null, peso_total: peso, m3: 1, documentos: 2, volumes: 0, created_at: null,
   grupo_chave: chave, grupo_rotulo: rotulo,
 });
 
@@ -75,5 +75,23 @@ describe("embarque por volume", () => {
     ];
     expect(proximoPedidoEmbarque(docs)?.sequencia).toBe(2);
     expect(proximoPedidoEmbarque([{ sequencia: 1, unidades_total: 1, unidades_embarcadas: 1 }])).toBeNull();
+  });
+});
+
+describe("grid de ondas", () => {
+  const base = onda(1, "g", "g", 100);
+  const lista = [
+    { ...base, movimento_saida_id: "a", numero_onda: 1862, pedidos: "2000000080", parceiros: "Francisco Hércules", rota: "Rota Sul", cidades: "TERESINA (PI)", bairros: "Angelim", tipo_saida_id: "t1", volumes: 5, peso_total: 30 },
+    { ...base, movimento_saida_id: "b", numero_onda: 1861, pedidos: "2000000074", parceiros: "Quality Caminhões", rota: null, cidades: "GUARACIABA", bairros: "Centro", tipo_saida_id: "t2", volumes: 10, peso_total: 200 },
+  ];
+  it("filtra sem diferenciar acento e maiúsculas", () => {
+    expect(filtrarOndas(lista, { ...FILTROS_ONDAS_VAZIOS, parceiro: "hercules" }).map((o) => o.numero_onda)).toEqual([1862]);
+    expect(filtrarOndas(lista, { ...FILTROS_ONDAS_VAZIOS, documento: "074", tipoSaidaId: "t2" }).map((o) => o.numero_onda)).toEqual([1861]);
+    expect(filtrarOndas(lista, { ...FILTROS_ONDAS_VAZIOS, rota: "sul", bairro: "centro" })).toHaveLength(0);
+  });
+  it("ordena por número e por texto nos dois sentidos", () => {
+    expect(ordenarOndas(lista, "peso_total", "desc").map((o) => o.numero_onda)).toEqual([1861, 1862]);
+    expect(ordenarOndas(lista, "numero_onda", "asc").map((o) => o.numero_onda)).toEqual([1861, 1862]);
+    expect(ordenarOndas(lista, "cidades", "asc").map((o) => o.numero_onda)).toEqual([1861, 1862]);
   });
 });

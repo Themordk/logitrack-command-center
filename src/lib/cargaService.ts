@@ -46,9 +46,15 @@ export interface OndaSugerida {
   transportadora: string | null;
   /** Quantidade de transportadoras diferentes reconhecidas na onda (>1 = não cabe numa carga só). */
   transportadoras: number;
+  /** Rota da onda; sem rota na onda, as rotas dos parceiros dos pedidos. */
   rota: string | null;
   tipo_saida: string | null;
+  tipo_saida_id: string | null;
   parceiros: string | null;
+  /** Números dos pedidos da onda, separados por vírgula. */
+  pedidos: string | null;
+  cidades: string | null;
+  bairros: string | null;
   peso_total: number | null;
   m3: number | null;
   documentos: number;

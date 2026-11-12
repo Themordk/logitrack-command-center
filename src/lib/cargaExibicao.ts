@@ -134,3 +134,53 @@ export function nivelCapacidade(pct: number | null | undefined): "sem-limite" | 
 export function formatarNumero(v: number | null | undefined, casas = 0): string {
   return Number(v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
 }
+
+// ---------- grid de ondas da montagem (filtros e ordenação locais sobre a sugestão) ----------
+export interface FiltrosOndas {
+  movimento: string; documento: string; parceiro: string; rota: string; cidade: string; bairro: string; tipoSaidaId: string;
+}
+export const FILTROS_ONDAS_VAZIOS: FiltrosOndas = { movimento: "", documento: "", parceiro: "", rota: "", cidade: "", bairro: "", tipoSaidaId: "" };
+
+const normalizar = (v: string | null | undefined) =>
+  (v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const contem = (valor: string | null | undefined, termo: string) => !termo || normalizar(valor).includes(normalizar(termo));
+
+export function filtrarOndas(ondas: OndaSugerida[], f: FiltrosOndas): OndaSugerida[] {
+  return ondas.filter((o) =>
+    contem(String(o.numero_onda), f.movimento)
+    && contem(o.pedidos, f.documento)
+    && contem(o.parceiros, f.parceiro)
+    && contem(o.rota, f.rota)
+    && contem(o.cidades, f.cidade)
+    && contem(o.bairros, f.bairro)
+    && (!f.tipoSaidaId || o.tipo_saida_id === f.tipoSaidaId));
+}
+
+export type ColunaOnda =
+  | "sugestao" | "numero_onda" | "pedidos" | "parceiros" | "rota" | "cidades" | "bairros" | "tipo_saida" | "transporte"
+  | "volumes" | "peso_total" | "m3";
+export type DirecaoOrdem = "asc" | "desc";
+
+const transporteOnda = (o: OndaSugerida) => o.transportadora ?? o.veiculo ?? "";
+const NUMERICAS = new Set<ColunaOnda>(["numero_onda", "volumes", "peso_total", "m3"]);
+
+/** Ordena as ondas; "sugestao" mantém os grupos sugeridos juntos (transportadora/veículo/box) e, dentro deles, o nº da onda. */
+export function ordenarOndas(ondas: OndaSugerida[], coluna: ColunaOnda, direcao: DirecaoOrdem): OndaSugerida[] {
+  const sinal = direcao === "asc" ? 1 : -1;
+  const valor = (o: OndaSugerida): string | number => {
+    switch (coluna) {
+      case "sugestao": return o.grupo_rotulo;
+      case "transporte": return transporteOnda(o);
+      case "pedidos": return o.pedidos ?? "";
+      default: {
+        const v = o[coluna as keyof OndaSugerida];
+        return NUMERICAS.has(coluna) ? Number(v ?? 0) : String(v ?? "");
+      }
+    }
+  };
+  return [...ondas].sort((a, b) => {
+    const va = valor(a); const vb = valor(b);
+    const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb), "pt-BR", { numeric: true });
+    return c !== 0 ? c * sinal : a.numero_onda - b.numero_onda;
+  });
+}
