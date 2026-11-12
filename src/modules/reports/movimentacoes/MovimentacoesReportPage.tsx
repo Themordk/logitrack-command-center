@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
 import {
   fetchMovimentacoesReport,
+  calcularResumoMovimentacoes,
   getTipoMovimentoLabel,
   getTipoMovimentoColor,
   getTipoDocumentoLabel,
@@ -245,6 +246,63 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
     { key: "usuario", label: "Usuário", width: "120px" },
   ];
 
+  const resumo = useMemo(() => calcularResumoMovimentacoes(data), [data]);
+  const fmtQtd = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+  const fmtSinal = (v: number) => `${v > 0 ? "+" : ""}${fmtQtd(v)}`;
+  const variacao = resumo.saldo_inicial != null && resumo.saldo_final != null
+    ? resumo.saldo_final - resumo.saldo_inicial
+    : null;
+
+  const resumoCards: { label: string; value: string; sub?: string; tone: string; hint?: string }[] = [
+    {
+      label: "Movimentações",
+      value: fmtQtd(resumo.total),
+      sub: resumo.ultimo_movimento
+        ? `Última: ${formatDateTimeNaive(resumo.ultimo_movimento)} · ${resumo.usuarios} usuário${resumo.usuarios === 1 ? "" : "s"}`
+        : undefined,
+      tone: "text-foreground",
+    },
+    {
+      label: "Entradas (un.)",
+      value: fmtQtd(resumo.entradas_qtd),
+      sub: `${fmtQtd(resumo.entradas_mov)} movimento${resumo.entradas_mov === 1 ? "" : "s"}`,
+      tone: resumo.entradas_qtd > 0 ? "text-[hsl(var(--status-free))]" : "text-foreground",
+      hint: "Movimentos que aumentaram o saldo global do SKU",
+    },
+    {
+      label: "Saídas (un.)",
+      value: fmtQtd(resumo.saidas_qtd),
+      sub: `${fmtQtd(resumo.saidas_mov)} movimento${resumo.saidas_mov === 1 ? "" : "s"}`,
+      tone: resumo.saidas_qtd > 0 ? "text-[hsl(var(--status-blocked))]" : "text-foreground",
+      hint: "Movimentos que reduziram o saldo global do SKU",
+    },
+    {
+      label: "Internas",
+      value: fmtQtd(resumo.internas_mov),
+      sub: "Sem alterar o saldo global",
+      tone: "text-foreground",
+      hint: "Transferências, armazenagens e demais trocas de endereço",
+    },
+    {
+      label: "Saldo global",
+      value: resumo.saldo_final != null ? fmtQtd(resumo.saldo_final) : "—",
+      sub: resumo.saldo_inicial != null && variacao != null
+        ? `Início ${fmtQtd(resumo.saldo_inicial)} · ${fmtSinal(variacao)}`
+        : undefined,
+      tone: variacao == null || variacao === 0
+        ? "text-foreground"
+        : variacao > 0 ? "text-[hsl(var(--status-free))]" : "text-[hsl(var(--status-blocked))]",
+      hint: `${SALDO_GLOBAL_DICA} Início = antes do movimento mais antigo listado; valor = após o mais recente.`,
+    },
+    {
+      label: "Inventário / Estornos",
+      value: `${fmtQtd(resumo.inventario_mov)} / ${fmtQtd(resumo.estornos_mov)}`,
+      sub: resumo.inventario_mov > 0 ? `Ajuste líquido ${fmtSinal(resumo.inventario_liquido)}` : "Sem ajustes de inventário",
+      tone: resumo.inventario_mov + resumo.estornos_mov > 0 ? "text-[hsl(var(--status-busy))]" : "text-foreground",
+      hint: "Ajustes de inventário (com efeito líquido no saldo) e estornos no período",
+    },
+  ];
+
   const activeFilters: Record<string, string> = {};
   activeFilters["Período"] = `${formatDate(dataInicio)} a ${formatDate(dataFim)}`;
   if (filterSku) activeFilters["SKU"] = filterSku;
@@ -254,6 +312,11 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
   if (filterPredio.trim()) activeFilters["Prédio"] = filterPredio.trim();
   if (filterNivel.trim()) activeFilters["Nível"] = filterNivel.trim();
   if (filterApto.trim()) activeFilters["Apto"] = filterApto.trim();
+  if (generated && data.length > 0) {
+    activeFilters["Entradas"] = fmtQtd(resumo.entradas_qtd);
+    activeFilters["Saídas"] = fmtQtd(resumo.saidas_qtd);
+    if (resumo.saldo_final != null) activeFilters["Saldo global final"] = fmtQtd(resumo.saldo_final);
+  }
   const temLocalizacao = !!filterArmazemId ||
     [filterRua, filterPredio, filterNivel, filterApto].some((v) => v.trim() !== "");
 
@@ -402,6 +465,18 @@ export function MovimentacoesReportPage({ onNavigate }: MovimentacoesReportPageP
           </div>
         )}
       </div>
+
+      {generated && data.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
+          {resumoCards.map((c) => (
+            <div key={c.label} className="border border-border rounded-lg bg-card px-3 py-2" title={c.hint}>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+              <div className={cn("text-sm font-bold tabular-nums", c.tone)}>{c.value}</div>
+              {c.sub && <div className="text-[10px] text-muted-foreground tabular-nums truncate">{c.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {generated && <ReportTable columns={columns} data={data} loading={loading} />}
     </div>
