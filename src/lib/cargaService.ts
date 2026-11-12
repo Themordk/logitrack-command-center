@@ -187,9 +187,20 @@ export interface BipResultado {
   carga_completa: boolean;
 }
 
+/** Pedido no romaneio: NF-e autorizada(s) e volumes (volume de expedição; na falta, qtd. de volumes da NF-e). */
+export interface RomaneioDocumento extends CargaDocumento {
+  nfe: string | null;
+  volumes: number | null;
+  volumes_origem: "VOLUME_EXPEDICAO" | "NFE" | null;
+}
+
 export interface Romaneio {
   empresa: { razaosocial: string | null; cnpj: string | null; url_logo: string | null };
-  carga: CargaDetalhe;
+  carga: Omit<CargaDetalhe, "documentos"> & { documentos: RomaneioDocumento[] };
+  /** Total de volumes da carga (sem contar duas vezes ondas com vários pedidos). */
+  volumes_total: number;
+  /** Ondas com vários pedidos cujos volumes de expedição não estão separados por pedido. */
+  volumes_ondas: { movimento_saida_id: string; numero_onda: number; volumes: number }[];
   operadores: string[];
   emitido_em: string;
 }
