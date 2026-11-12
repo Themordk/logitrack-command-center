@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { usePermissions } from "@/contexts/PermissionsContext";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2, Cloud } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2, Cloud, Truck } from "lucide-react";
 import { useOffline } from "@/contexts/OfflineContext";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
@@ -24,6 +24,7 @@ const modules: ModuleCard[] = [
   { label: "Movimentos", icon: <Repeat size={32} />, path: "/coletor/movimentos", color: "hsl(45,93%,47%)", permModulo: "coletor.movimentos", badgeKey: "movimentos" },
   { label: "Separação", icon: <ArrowUpFromLine size={32} />, path: "/coletor/separacao/iniciar", color: "hsl(280,70%,55%)", permModulo: "coletor.separacao", badgeKey: "separacao" },
   { label: "Conferência", icon: <ClipboardCheck size={32} />, path: "/coletor/conferencia/iniciar", color: "hsl(200,80%,50%)", permModulo: "coletor.conferencia", badgeKey: "conferencia" },
+  { label: "Embarque", icon: <Truck size={32} />, path: "/coletor/embarque", color: "hsl(25,95%,53%)", permModulo: "coletor.embarque", badgeKey: "embarque" },
   { label: "Inventário", icon: <BarChart3 size={32} />, path: "/coletor/inventario", color: "hsl(0,84%,60%)", permModulo: "coletor.inventario", badgeKey: "inventario" },
 ];
 

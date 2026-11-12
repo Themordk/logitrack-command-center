@@ -28,6 +28,8 @@ const routeToModuleMap: Record<string, string> = {
   "/atividades/movimentos": "web.atividades.movimentos",
   "/atividades/saidas": "web.atividades.saidas",
   "/atividades/mov-saida": "web.atividades.mov-saida",
+  "/atividades/montagem-carga": "web.atividades.montagem-carga",
+  "/atividades/embarque": "web.atividades.montagem-carga",
   "/atividades/volumes": "web.atividades.volumes",
   "/atividades/abastecimento": "web.atividades.abastecimento",
   "/atividades/abastecimento/gerar": "web.atividades.abastecimento",
@@ -62,6 +64,8 @@ const coletorModuleMap: Record<string, string> = {
   "/coletor/movimentos": "coletor.movimentos",
   "/coletor/separacao/iniciar": "coletor.separacao",
   "/coletor/conferencia/iniciar": "coletor.conferencia",
+  "/coletor/embarque": "coletor.embarque",
+  "/coletor/embarque/carga": "coletor.embarque",
   "/coletor/inventario": "coletor.inventario",
   "/coletor/consulta": "coletor.consulta",
 };

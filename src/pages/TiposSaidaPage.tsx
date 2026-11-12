@@ -10,6 +10,15 @@ import { PADRAO_EXIBICAO_COLETOR } from "@/lib/exibicaoColetor";
 import { MOMENTO_CONFERENCIA_LABEL, MOMENTO_CONFERENCIA_OPCOES, type MomentoConferencia } from "@/lib/momentoConferencia";
 import { Save, Loader2 } from "lucide-react";
 
+const ETAPA_CONCLUSAO_LABEL = { SEPARACAO: "Separação", CONFERENCIA: "Conferência", EMBARQUE: "Embarque" } as const;
+
+/** Espelha a regra do banco (tg_tipo_saida_etapa_conclusao) só para exibir antes de salvar. */
+function etapaConclusao(t: { realiza_embarque?: boolean | null; realiza_conferencia?: boolean | null }): keyof typeof ETAPA_CONCLUSAO_LABEL {
+  if (t.realiza_embarque) return "EMBARQUE";
+  if (t.realiza_conferencia) return "CONFERENCIA";
+  return "SEPARACAO";
+}
+
 export function TiposSaidaPage() {
   const { tenantId, empresaId } = useTenant();
   const crud = useCrud({ table: "tipo_saida", tenantId, orderBy: "descricao" });
@@ -39,6 +48,12 @@ export function TiposSaidaPage() {
     { key: "descricao", label: "Descrição" },
     { key: "codigo_erp", label: "Código ERP" },
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
+    { key: "realiza_embarque", label: "Realiza Embarque", type: "custom", render: (row) => boolBadge(row.realiza_embarque) },
+    { key: "etapa_conclusao", label: "Conclui em", type: "custom", render: (row) => (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-green-500">
+        {ETAPA_CONCLUSAO_LABEL[etapaConclusao(row)]}
+      </span>
+    ) },
     { key: "momento_conferencia", label: "Modo Conferência", type: "custom", render: (row) => (
       row.realiza_conferencia
         ? <span className="text-xs text-foreground">{MOMENTO_CONFERENCIA_LABEL[row.momento_conferencia as MomentoConferencia] ?? MOMENTO_CONFERENCIA_LABEL.PRE_FATURAMENTO}</span>
@@ -77,7 +92,7 @@ export function TiposSaidaPage() {
     setEditItem(item);
     setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
-      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
+      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false,
       momento_conferencia: "PRE_FATURAMENTO",
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
@@ -96,6 +111,7 @@ export function TiposSaidaPage() {
     if (!form.descricao) return;
     setSaving(true);
     const payload: any = { ...PADRAO_EXIBICAO_COLETOR, ...form, empresa_id: empresaId };
+    delete payload.etapa_conclusao; // calculada no banco (gatilho) a partir das etapas ligadas
     if (!payload.realiza_conferencia) {
       payload.conferencia_checkout = false;
       payload.conferencia_cega = false;
@@ -209,6 +225,25 @@ export function TiposSaidaPage() {
                     {form.momento_conferencia === "POS_FATURAMENTO" && form.realiza_conferencia
                       ? "A onda só aparece na conferência do coletor depois que todos os pedidos tiverem NF autorizada vinculada (enviada pelo ERP)."
                       : "A onda aparece na conferência assim que a separação termina, antes da emissão da NF."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Embarque e conclusão ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Embarque e conclusão</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch id="realiza-embarque" checked={!!form.realiza_embarque} onCheckedChange={(v) => set("realiza_embarque", v)} />
+                  <label htmlFor="realiza-embarque" className="text-sm text-foreground">Realiza embarque (montagem de carga e bip no veículo)</label>
+                </div>
+                <div className="rounded-md border border-border bg-background/40 px-3 py-2">
+                  <p className="text-sm text-foreground">
+                    Este tipo conclui ao fim da: <b>{ETAPA_CONCLUSAO_LABEL[etapaConclusao(form)]}</b>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    A onda fica concluída na última etapa ligada (separação → conferência → embarque). Ondas já liberadas mantêm a regra da liberação.
                   </p>
                 </div>
               </div>
