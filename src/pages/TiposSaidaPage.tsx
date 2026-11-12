@@ -180,6 +180,65 @@ export function TiposSaidaPage() {
                   </select>
                 </div>
               </div>
+              <div className="mt-4 rounded-md border border-border bg-background/40 px-3 py-2">
+                <p className="text-sm text-foreground">
+                  Este tipo conclui ao fim da: <b>{ETAPA_CONCLUSAO_LABEL[etapaConclusao(form)]}</b>
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  A onda fica concluída na última etapa ligada (separação → conferência → embarque). Ondas já liberadas mantêm a regra da liberação.
+                </p>
+              </div>
+            </div>
+
+            {/* ── Informações exibidas no coletor ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Informações exibidas no coletor</p>
+              <p className="text-xs text-muted-foreground">Escolha o que o operador vê ao escolher a onda no coletor.</p>
+              <div className="grid grid-cols-3 items-center gap-x-2 gap-y-3">
+                <div />
+                <span className="text-xs text-muted-foreground uppercase text-center">Separação</span>
+                <span className={`text-xs text-muted-foreground uppercase text-center ${!form.realiza_conferencia ? "opacity-50" : ""}`}>Conferência</span>
+                {([
+                  ["Parceiro", "exibe_parceiro_separacao", "exibe_parceiro_conferencia"],
+                  ["Vendedor", "exibe_vendedor_separacao", "exibe_vendedor_conferencia"],
+                ] as const).map(([label, separacao, conferencia]) => (
+                  <div key={label} className="contents">
+                    <span className="text-sm text-foreground">{label}</span>
+                    <div className="flex justify-center">
+                      <Switch aria-label={`Exibir ${label.toLowerCase()} na separação`} checked={!!form[separacao]} onCheckedChange={(v) => set(separacao, v)} />
+                    </div>
+                    <div className={`flex justify-center ${!form.realiza_conferencia ? "opacity-50" : ""}`}>
+                      <Switch aria-label={`Exibir ${label.toLowerCase()} na conferência`} checked={!!form[conferencia]} onCheckedChange={(v) => set(conferencia, v)} disabled={!form.realiza_conferencia} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Em ondas com pedidos de tipos diferentes, a informação só aparece se todos os tipos permitirem.</p>
+            </div>
+
+            {/* ── Separação ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Separação e volume</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch checked={!!form.separa_pulmao} onCheckedChange={(v) => set("separa_pulmao", v)} />
+                  <label className="text-sm text-foreground">Separa pulmão</label>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <Switch id="libera-sem-saldo-picking" checked={!!form.libera_sem_saldo_picking} onCheckedChange={(v) => set("libera_sem_saldo_picking", v)} />
+                    <label htmlFor="libera-sem-saldo-picking" className="text-sm text-foreground">Libera sem saldo no picking</label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Libera a onda mesmo com item zerado no picking ou sem picking mapeado. O item aparece no coletor com aviso e só pode ser coletado após abastecimento/mapeamento, ou cortado.</p>
+                  {form.libera_sem_saldo_picking && form.gera_abastecimento_automatico && <p className="text-xs text-muted-foreground">O abastecimento do pulmão para o picking será gerado automaticamente na liberação.</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>
+                  <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
+                    {["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* ── Conferência ── */}
@@ -248,65 +307,7 @@ export function TiposSaidaPage() {
                     </p>
                   </div>
                 </div>
-                <div className="rounded-md border border-border bg-background/40 px-3 py-2">
-                  <p className="text-sm text-foreground">
-                    Este tipo conclui ao fim da: <b>{ETAPA_CONCLUSAO_LABEL[etapaConclusao(form)]}</b>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    A onda fica concluída na última etapa ligada (separação → conferência → embarque). Ondas já liberadas mantêm a regra da liberação.
-                  </p>
-                </div>
               </div>
-            </div>
-
-            {/* ── Separação ── */}
-            <div className={sectionClass}>
-              <p className={sectionTitleClass}>Separação e volume</p>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Switch checked={!!form.separa_pulmao} onCheckedChange={(v) => set("separa_pulmao", v)} />
-                  <label className="text-sm text-foreground">Separa pulmão</label>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <Switch id="libera-sem-saldo-picking" checked={!!form.libera_sem_saldo_picking} onCheckedChange={(v) => set("libera_sem_saldo_picking", v)} />
-                    <label htmlFor="libera-sem-saldo-picking" className="text-sm text-foreground">Libera sem saldo no picking</label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Libera a onda mesmo com item zerado no picking ou sem picking mapeado. O item aparece no coletor com aviso e só pode ser coletado após abastecimento/mapeamento, ou cortado.</p>
-                  {form.libera_sem_saldo_picking && form.gera_abastecimento_automatico && <p className="text-xs text-muted-foreground">O abastecimento do pulmão para o picking será gerado automaticamente na liberação.</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>
-                  <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
-                    {["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"].map((v) => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className={sectionClass}>
-              <p className={sectionTitleClass}>Informações exibidas no coletor</p>
-              <p className="text-xs text-muted-foreground">Escolha o que o operador vê ao escolher a onda no coletor.</p>
-              <div className="grid grid-cols-3 items-center gap-x-2 gap-y-3">
-                <div />
-                <span className="text-xs text-muted-foreground uppercase text-center">Separação</span>
-                <span className={`text-xs text-muted-foreground uppercase text-center ${!form.realiza_conferencia ? "opacity-50" : ""}`}>Conferência</span>
-                {([
-                  ["Parceiro", "exibe_parceiro_separacao", "exibe_parceiro_conferencia"],
-                  ["Vendedor", "exibe_vendedor_separacao", "exibe_vendedor_conferencia"],
-                ] as const).map(([label, separacao, conferencia]) => (
-                  <div key={label} className="contents">
-                    <span className="text-sm text-foreground">{label}</span>
-                    <div className="flex justify-center">
-                      <Switch aria-label={`Exibir ${label.toLowerCase()} na separação`} checked={!!form[separacao]} onCheckedChange={(v) => set(separacao, v)} />
-                    </div>
-                    <div className={`flex justify-center ${!form.realiza_conferencia ? "opacity-50" : ""}`}>
-                      <Switch aria-label={`Exibir ${label.toLowerCase()} na conferência`} checked={!!form[conferencia]} onCheckedChange={(v) => set(conferencia, v)} disabled={!form.realiza_conferencia} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted-foreground">Em ondas com pedidos de tipos diferentes, a informação só aparece se todos os tipos permitirem.</p>
             </div>
 
             {/* ── Reserva de tarefas ── */}
