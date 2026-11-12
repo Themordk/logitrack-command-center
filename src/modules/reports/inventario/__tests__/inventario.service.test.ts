@@ -32,6 +32,8 @@ const linhaBackend = (id: string) => ({
   status_tarefa: "CONCLUIDA",
   numero_contagens: 2,
   data_contagem: "2026-11-12T14:44:54Z",
+  tipo_execucao: "ATUALIZACAO",
+  usuario_contagem: "JOAO OPERADOR",
   total_itens: "2095",
   itens_conformes: "937",
   itens_divergentes: "1158",
@@ -60,6 +62,7 @@ describe("inventario.service", () => {
       rua: 0,
       status: "FALTA",
       apenas_divergentes: true,
+      tipo_execucao: "AUDITORIA",
     }, 1);
     expect(rpcMock).toHaveBeenCalledWith("rpc_relatorio_inventario", {
       p_tenant_id: "t1",
@@ -76,6 +79,7 @@ describe("inventario.service", () => {
       p_status: "FALTA",
       p_severidade: null,
       p_apenas_divergentes: true,
+      p_tipo_execucao: "AUDITORIA",
       p_limit: 100,
       p_offset: 100,
     });
@@ -92,12 +96,20 @@ describe("inventario.service", () => {
       preco_custo: 5.5, impacto_financeiro: 11,
       status_calc: "FALTA", severidade: "MEDIA",
       numero_contagens: 2, data_contagem: "2026-11-12T14:44:54Z",
+      tipo_execucao: "ATUALIZACAO", usuario_contagem: "JOAO OPERADOR",
     });
     expect(kpis).toEqual({
       total_itens: 2095, itens_conformes: 937, itens_divergentes: 1158, itens_pendentes: 0,
       acuracidade_por_item: 44.7255, acuracidade_ponderada_qtd: 0, acuracidade_ponderada_valor: 0,
       total_sobra: 100, total_falta: 200, impacto_total: 1214737.73,
     });
+  });
+
+  it("sem tipo de execução envia null e usuário ausente vira vazio", async () => {
+    rpcMock.mockResolvedValue({ data: [{ ...linhaBackend("1"), usuario_contagem: null }], error: null });
+    const { rows } = await fetchInventarioPage(filtroBase, 0);
+    expect(rpcMock.mock.calls[0][1].p_tipo_execucao).toBeNull();
+    expect(rows[0].usuario_contagem).toBe("");
   });
 
   it("devolve KPIs zerados sem linhas", async () => {

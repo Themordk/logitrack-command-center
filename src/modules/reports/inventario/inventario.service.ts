@@ -2,18 +2,20 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Relatório Acuracidade de Inventário — toda a regra roda na RPC
- * `rpc_relatorio_inventario` (migration 20261112160514):
+ * `rpc_relatorio_inventario` (migrations 20261112160514 e 20261112161645):
  *  - itens = tarefas INV-AUDIT/INV-ATU do inventário (canceladas fora);
  *  - PENDENTE = tarefa ainda não contada (status CRIADA/ATRIBUIDA/EM_ANDAMENTO/PAUSADA);
  *  - qtd. contada = última contagem; preço de custo pelo produto da tarefa;
  *  - data da contagem = conclusão da tarefa (ou última execução concluída),
  *    filtrada por intervalo no fuso America/Fortaleza;
+ *  - tipo de execução (Auditoria / Atualização) com filtro, e usuário da última contagem;
  *  - status, severidade, ordenação (severidade ↓, impacto ↓) e KPIs no servidor.
  * A RPC é paginada e devolve, em cada linha, os KPIs do conjunto filtrado.
  */
 
 export type StatusItem = "CONFORME" | "SOBRA" | "FALTA" | "PENDENTE";
 export type Severidade = "OK" | "PEQUENA" | "MEDIA" | "GRANDE";
+export type TipoExecucao = "AUDITORIA" | "ATUALIZACAO";
 
 export interface InventarioFilter {
   tenant_id: string;
@@ -30,6 +32,7 @@ export interface InventarioFilter {
   status?: StatusItem;
   severidade?: Severidade;
   apenas_divergentes?: boolean;
+  tipo_execucao?: TipoExecucao;
 }
 
 export interface InventarioRow {
@@ -58,6 +61,8 @@ export interface InventarioRow {
   status_tarefa: string;
   numero_contagens: number;
   data_contagem: string | null;
+  tipo_execucao: TipoExecucao;
+  usuario_contagem: string;        // vazio em pendentes
 }
 
 export interface InventarioKpis {
@@ -122,6 +127,7 @@ function toParams(f: InventarioFilter, limit: number, offset: number) {
     p_status: f.status || null,
     p_severidade: f.severidade || null,
     p_apenas_divergentes: !!f.apenas_divergentes,
+    p_tipo_execucao: f.tipo_execucao || null,
     p_limit: limit,
     p_offset: offset,
   };
@@ -155,6 +161,8 @@ function mapRow(r: any): InventarioRow {
     status_tarefa: r.status_tarefa ?? "",
     numero_contagens: num(r.numero_contagens),
     data_contagem: r.data_contagem ?? null,
+    tipo_execucao: r.tipo_execucao,
+    usuario_contagem: r.usuario_contagem ?? "",
   };
 }
 
