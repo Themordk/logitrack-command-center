@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
+import { parseDataPura } from "@/utils/dateTime";
 
 export interface ExportColumn {
   key: string;
@@ -186,7 +187,8 @@ export const fmtNumberBR = (v: any): string => {
 export const fmtDateBR = (v: any): string => {
   if (!v || v === "1900-01-01") return "";
   try {
-    const d = new Date(v);
+    // "AAAA-MM-DD" é data de calendário (sem fuso) — ver parseDataPura.
+    const d = (typeof v === "string" && parseDataPura(v.trim())) || new Date(v);
     if (isNaN(d.getTime())) return String(v);
     return d.toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" });
   } catch {

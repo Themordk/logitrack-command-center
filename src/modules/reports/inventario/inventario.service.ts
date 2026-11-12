@@ -1,16 +1,27 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
+
+/**
+ * Relatório Acuracidade de Inventário — toda a regra roda na RPC
+ * `rpc_relatorio_inventario` (migration 20261112160000):
+ *  - itens = tarefas INV-AUDIT/INV-ATU do inventário (canceladas fora);
+ *  - PENDENTE = tarefa ainda não contada (status CRIADA/ATRIBUIDA/EM_ANDAMENTO/PAUSADA);
+ *  - qtd. contada = última contagem; preço de custo pelo produto da tarefa;
+ *  - data da contagem = conclusão da tarefa (ou última execução concluída),
+ *    filtrada por intervalo no fuso America/Fortaleza;
+ *  - status, severidade, ordenação (severidade ↓, impacto ↓) e KPIs no servidor.
+ * A RPC é paginada e devolve, em cada linha, os KPIs do conjunto filtrado.
+ */
 
 export type StatusItem = "CONFORME" | "SOBRA" | "FALTA" | "PENDENTE";
 export type Severidade = "OK" | "PEQUENA" | "MEDIA" | "GRANDE";
 
 export interface InventarioFilter {
   tenant_id: string;
-  empresa_id?: string;
-  inventario_id?: string;          // se vazio → considera todos os do tenant respeitando data_inicio/data_fim
-  data_inicio?: string;            // ISO
-  data_fim?: string;               // ISO
+  empresa_id: string;
+  inventario_id?: string;          // vazio → todos os inventários da empresa
   armazem_id?: string;
+  data_contagem_inicio?: string;   // AAAA-MM-DD (data local da contagem)
+  data_contagem_fim?: string;      // AAAA-MM-DD (inclusive)
   sku?: string;
   rua?: number;
   predio?: number;
@@ -19,7 +30,6 @@ export interface InventarioFilter {
   status?: StatusItem;
   severidade?: Severidade;
   apenas_divergentes?: boolean;
-  incluir_pendentes?: boolean;     // default true (mostra pendentes na tabela)
 }
 
 export interface InventarioRow {
@@ -28,6 +38,7 @@ export interface InventarioRow {
   numero_inventario: number;
   inventario_status: string;
   inventario_finalizado_em: string | null;
+  produto_id: string;
   sku: string;
   descricao: string;
   endereco: string;
@@ -35,7 +46,6 @@ export interface InventarioRow {
   predio: number | null;
   nivel: number | null;
   apto: number | null;
-  lote: string;                    // placeholder "—"
   qtd_sistemica: number;
   qtd_contada: number;
   diferenca: number;
@@ -45,7 +55,9 @@ export interface InventarioRow {
   impacto_financeiro: number;
   status_calc: StatusItem;
   severidade: Severidade;
-  status_view: string | null;      // status original da view
+  status_tarefa: string;
+  numero_contagens: number;
+  data_contagem: string | null;
 }
 
 export interface InventarioKpis {
@@ -61,167 +73,19 @@ export interface InventarioKpis {
   impacto_total: number;
 }
 
-function fmtEnd(rua: number | null, predio: number | null, nivel: number | null, apto: number | null): string {
-  if (rua == null && predio == null && nivel == null && apto == null) return "—";
-  const p = (n: number | null) => String(n ?? 0).padStart(2, "0");
-  return `R${p(rua)}-P${p(predio)}-N${p(nivel)}-A${p(apto)}`;
+export interface InventarioPage {
+  rows: InventarioRow[];
+  kpis: InventarioKpis;
 }
 
-function calcSeveridade(diffPct: number): Severidade {
-  const a = Math.abs(diffPct);
-  if (a === 0) return "OK";
-  if (a <= 5) return "PEQUENA";
-  if (a <= 20) return "MEDIA";
-  return "GRANDE";
-}
+export const INVENTARIO_PAGE_SIZE = 100;
+const EXPORT_PAGE_SIZE = 1000; // máximo aceito pela RPC
+const EXPORT_CONCORRENCIA = 4;
 
-export async function fetchInventarioReport(filters: InventarioFilter): Promise<{ rows: InventarioRow[]; kpis: InventarioKpis }> {
-  // 1) Carrega cabeçalhos de inventário (filtros + lookup)
-  const invs = await fetchAllSelectRows<any>(
-    "inventario",
-    "id, numero_inventario, descricao, status, iniciado_em, finalizado_em, armazem_id, empresa_id",
-    (q) => {
-      q = q.eq("tenant_id", filters.tenant_id);
-      if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
-      if (filters.armazem_id) q = q.eq("armazem_id", filters.armazem_id);
-      if (filters.inventario_id) q = q.eq("id", filters.inventario_id);
-      if (filters.data_inicio) q = q.gte("iniciado_em", filters.data_inicio);
-      if (filters.data_fim) q = q.lte("iniciado_em", filters.data_fim);
-      return q;
-    },
-  );
-  if (invs.length === 0) {
-    return { rows: [], kpis: emptyKpis() };
-  }
+const num = (v: unknown) => Number(v) || 0;
+const numOuNull = (v: unknown) => (v == null ? null : Number(v));
 
-  const invMap = new Map<string, any>();
-  for (const i of invs) invMap.set(i.id, i);
-  const invIds = invs.map((i: any) => i.id);
-
-  // 2) Itens do(s) inventário(s) na view consolidada
-  const itens = await fetchAllSelectRows<any>(
-    "inventario_item_resumo",
-    "*",
-    (q) => {
-      q = q.in("inventario_id", invIds);
-      if (filters.sku) q = q.ilike("sku", `%${filters.sku}%`);
-      if (filters.rua !== undefined) q = q.eq("rua", filters.rua);
-      if (filters.predio !== undefined) q = q.eq("predio", filters.predio);
-      if (filters.nivel !== undefined) q = q.eq("nivel", filters.nivel);
-      if (filters.apto !== undefined) q = q.eq("apto", filters.apto);
-      return q;
-    },
-  );
-  if (itens.length === 0) {
-    return { rows: [], kpis: emptyKpis() };
-  }
-
-  // 3) Carrega preço de custo dos produtos envolvidos (lookup por sku)
-  const skus = Array.from(new Set(itens.map((i: any) => i.sku).filter(Boolean)));
-  const precoMap = new Map<string, number>();
-  if (skus.length > 0) {
-    const prods = await fetchAllSelectRows<any>(
-      "produto",
-      "sku, preco_custo",
-      (q) => q.eq("tenant_id", filters.tenant_id).in("sku", skus),
-    );
-    for (const p of prods) {
-      precoMap.set(p.sku, Number(p.preco_custo) || 0);
-    }
-  }
-
-  // 4) Mapeia para linhas do relatório
-  let rows: InventarioRow[] = itens.map((it: any) => {
-    const inv = invMap.get(it.inventario_id);
-    const sistemico = Number(it.quantidade_requerida) || 0;
-    const isPendente = it.saldo_final == null && it.primeira_contagem == null;
-    const contado = Number(it.saldo_final ?? it.primeira_contagem ?? 0);
-    const diferenca = contado - sistemico;
-    const diferenca_pct = sistemico > 0
-      ? (diferenca / sistemico) * 100
-      : (contado > 0 ? 100 : 0);
-    const acuracidade_item = sistemico > 0
-      ? Math.max(0, (1 - Math.abs(diferenca) / sistemico) * 100)
-      : (contado === 0 ? 100 : 0);
-    const preco = precoMap.get(it.sku) || 0;
-    const impacto = Math.abs(diferenca) * preco;
-
-    let status_calc: StatusItem;
-    if (isPendente) status_calc = "PENDENTE";
-    else if (diferenca === 0) status_calc = "CONFORME";
-    else if (diferenca > 0) status_calc = "SOBRA";
-    else status_calc = "FALTA";
-
-    return {
-      id: it.id || `${it.inventario_id}-${it.sku}-${it.rua}-${it.predio}-${it.nivel}-${it.apto}`,
-      inventario_id: it.inventario_id,
-      numero_inventario: inv?.numero_inventario ?? 0,
-      inventario_status: inv?.status ?? "",
-      inventario_finalizado_em: inv?.finalizado_em ?? null,
-      sku: it.sku || "—",
-      descricao: it.descricao || "—",
-      endereco: fmtEnd(it.rua, it.predio, it.nivel, it.apto),
-      rua: it.rua,
-      predio: it.predio,
-      nivel: it.nivel,
-      apto: it.apto,
-      lote: "—",
-      qtd_sistemica: sistemico,
-      qtd_contada: contado,
-      diferenca,
-      diferenca_pct,
-      acuracidade_item,
-      preco_custo: preco,
-      impacto_financeiro: impacto,
-      status_calc,
-      severidade: isPendente ? "OK" : calcSeveridade(diferenca_pct),
-      status_view: it.status,
-    };
-  });
-
-  // 5) Filtros client-side
-  if (filters.status) rows = rows.filter((r) => r.status_calc === filters.status);
-  if (filters.severidade) rows = rows.filter((r) => r.severidade === filters.severidade);
-  if (filters.apenas_divergentes) rows = rows.filter((r) => r.status_calc !== "CONFORME" && r.status_calc !== "PENDENTE");
-  if (filters.incluir_pendentes === false) rows = rows.filter((r) => r.status_calc !== "PENDENTE");
-
-  // 6) Ordenação default: severidade desc → impacto desc
-  const sevRank: Record<Severidade, number> = { GRANDE: 4, MEDIA: 3, PEQUENA: 2, OK: 1 };
-  rows.sort((a, b) => {
-    const s = sevRank[b.severidade] - sevRank[a.severidade];
-    if (s !== 0) return s;
-    return b.impacto_financeiro - a.impacto_financeiro;
-  });
-
-  // 7) KPIs (agregados — exclui pendentes do cálculo de acuracidade)
-  const consideradas = rows.filter((r) => r.status_calc !== "PENDENTE");
-  const totalSistemico = consideradas.reduce((a, r) => a + r.qtd_sistemica, 0);
-  const totalAbsDiff = consideradas.reduce((a, r) => a + Math.abs(r.diferenca), 0);
-  const totalValorSistemico = consideradas.reduce((a, r) => a + r.qtd_sistemica * r.preco_custo, 0);
-  const totalImpacto = consideradas.reduce((a, r) => a + r.impacto_financeiro, 0);
-  const conformes = consideradas.filter((r) => r.status_calc === "CONFORME").length;
-  const divergentes = consideradas.length - conformes;
-  const pendentes = rows.length - consideradas.length;
-  const sobra = consideradas.filter((r) => r.diferenca > 0).reduce((a, r) => a + r.diferenca, 0);
-  const falta = consideradas.filter((r) => r.diferenca < 0).reduce((a, r) => a + Math.abs(r.diferenca), 0);
-
-  const kpis: InventarioKpis = {
-    total_itens: rows.length,
-    itens_conformes: conformes,
-    itens_divergentes: divergentes,
-    itens_pendentes: pendentes,
-    acuracidade_por_item: consideradas.length > 0 ? (conformes / consideradas.length) * 100 : 0,
-    acuracidade_ponderada_qtd: totalSistemico > 0 ? Math.max(0, (1 - totalAbsDiff / totalSistemico) * 100) : 100,
-    acuracidade_ponderada_valor: totalValorSistemico > 0 ? Math.max(0, (1 - totalImpacto / totalValorSistemico) * 100) : 100,
-    total_sobra: sobra,
-    total_falta: falta,
-    impacto_total: totalImpacto,
-  };
-
-  return { rows, kpis };
-}
-
-function emptyKpis(): InventarioKpis {
+export function emptyKpis(): InventarioKpis {
   return {
     total_itens: 0,
     itens_conformes: 0,
@@ -234,6 +98,115 @@ function emptyKpis(): InventarioKpis {
     total_falta: 0,
     impacto_total: 0,
   };
+}
+
+export function fmtEnd(rua: number | null, predio: number | null, nivel: number | null, apto: number | null): string {
+  if (rua == null && predio == null && nivel == null && apto == null) return "—";
+  const p = (n: number | null) => String(n ?? 0).padStart(2, "0");
+  return `R${p(rua)}-P${p(predio)}-N${p(nivel)}-A${p(apto)}`;
+}
+
+function toParams(f: InventarioFilter, limit: number, offset: number) {
+  return {
+    p_tenant_id: f.tenant_id,
+    p_empresa_id: f.empresa_id,
+    p_inventario_id: f.inventario_id || null,
+    p_armazem_id: f.armazem_id || null,
+    p_data_contagem_inicio: f.data_contagem_inicio || null,
+    p_data_contagem_fim: f.data_contagem_fim || null,
+    p_sku: f.sku?.trim() || null,
+    p_rua: f.rua ?? null,
+    p_predio: f.predio ?? null,
+    p_nivel: f.nivel ?? null,
+    p_apto: f.apto ?? null,
+    p_status: f.status || null,
+    p_severidade: f.severidade || null,
+    p_apenas_divergentes: !!f.apenas_divergentes,
+    p_limit: limit,
+    p_offset: offset,
+  };
+}
+
+function mapRow(r: any): InventarioRow {
+  const rua = numOuNull(r.rua);
+  const predio = numOuNull(r.predio);
+  const nivel = numOuNull(r.nivel);
+  const apto = numOuNull(r.apto);
+  return {
+    id: r.id,
+    inventario_id: r.inventario_id,
+    numero_inventario: num(r.numero_inventario),
+    inventario_status: r.inventario_status ?? "",
+    inventario_finalizado_em: r.inventario_finalizado_em ?? null,
+    produto_id: r.produto_id,
+    sku: r.sku || "—",
+    descricao: r.descricao || "—",
+    endereco: fmtEnd(rua, predio, nivel, apto),
+    rua, predio, nivel, apto,
+    qtd_sistemica: num(r.qtd_sistemica),
+    qtd_contada: num(r.qtd_contada),
+    diferenca: num(r.diferenca),
+    diferenca_pct: num(r.diferenca_pct),
+    acuracidade_item: num(r.acuracidade_item),
+    preco_custo: num(r.preco_custo),
+    impacto_financeiro: num(r.impacto_financeiro),
+    status_calc: r.status_calc,
+    severidade: r.severidade,
+    status_tarefa: r.status_tarefa ?? "",
+    numero_contagens: num(r.numero_contagens),
+    data_contagem: r.data_contagem ?? null,
+  };
+}
+
+function mapKpis(r: any | undefined): InventarioKpis {
+  if (!r) return emptyKpis();
+  return {
+    total_itens: num(r.total_itens),
+    itens_conformes: num(r.itens_conformes),
+    itens_divergentes: num(r.itens_divergentes),
+    itens_pendentes: num(r.itens_pendentes),
+    acuracidade_por_item: num(r.acuracidade_por_item),
+    acuracidade_ponderada_qtd: num(r.acuracidade_ponderada_qtd),
+    acuracidade_ponderada_valor: num(r.acuracidade_ponderada_valor),
+    total_sobra: num(r.total_sobra),
+    total_falta: num(r.total_falta),
+    impacto_total: num(r.impacto_total),
+  };
+}
+
+async function callRpc(f: InventarioFilter, limit: number, offset: number): Promise<any[]> {
+  const { data, error } = await (supabase as any).rpc("rpc_relatorio_inventario", toParams(f, limit, offset));
+  if (error) throw error;
+  return (data as any[]) || [];
+}
+
+/** Uma página do relatório + KPIs do conjunto filtrado inteiro. */
+export async function fetchInventarioPage(
+  filters: InventarioFilter,
+  page: number,
+  pageSize = INVENTARIO_PAGE_SIZE,
+): Promise<InventarioPage> {
+  const data = await callRpc(filters, pageSize, page * pageSize);
+  return { rows: data.map(mapRow), kpis: mapKpis(data[0]) };
+}
+
+/** Todas as linhas (para Excel/PDF). Páginas de 1000, até 4 em paralelo. */
+export async function fetchInventarioAll(
+  filters: InventarioFilter,
+  totalItens: number,
+): Promise<InventarioRow[]> {
+  const paginas = Math.ceil(totalItens / EXPORT_PAGE_SIZE);
+  const resultado: InventarioRow[][] = new Array(paginas);
+  let proxima = 0;
+  const worker = async () => {
+    while (proxima < paginas) {
+      const p = proxima++;
+      const data = await callRpc(filters, EXPORT_PAGE_SIZE, p * EXPORT_PAGE_SIZE);
+      resultado[p] = data.map(mapRow);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(EXPORT_CONCORRENCIA, paginas) }, worker));
+  return resultado.flat();
 }
 
 export async function fetchInventariosLookup(tenantId: string, empresaId?: string) {
