@@ -84,6 +84,7 @@ export function TiposSaidaPage() {
       gera_abastecimento_automatico: false,
       libera_sem_saldo_picking: false,
       reserva_separacao_movimento: true, reserva_conferencia_movimento: true,
+      permite_mesmo_operador_sep_conf: true,
       ativo: true,
     });
     setModalOpen(true);
@@ -99,6 +100,7 @@ export function TiposSaidaPage() {
       payload.conferencia_checkout = false;
       payload.conferencia_cega = false;
       payload.reserva_conferencia_movimento = true;
+      payload.permite_mesmo_operador_sep_conf = true;
       payload.momento_conferencia = "PRE_FATURAMENTO";
     }
     if (payload.momento_conferencia !== "POS_FATURAMENTO") {
@@ -298,6 +300,25 @@ export function TiposSaidaPage() {
                       {form.reserva_conferencia_movimento
                         ? "Apenas 1 operador pode conferir a onda"
                         : "Múltiplos operadores podem conferir a mesma onda"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="permite-mesmo-operador"
+                    checked={form.permite_mesmo_operador_sep_conf !== false}
+                    onCheckedChange={(v) => set("permite_mesmo_operador_sep_conf", v)}
+                    disabled={!form.realiza_conferencia}
+                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="permite-mesmo-operador" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Permite o mesmo operador separar e conferir
+                    </label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.permite_mesmo_operador_sep_conf !== false
+                        ? "Quem separou a onda também pode conferi-la"
+                        : "Quem separou a onda não pode conferi-la"}
                     </p>
                   </div>
                 </div>

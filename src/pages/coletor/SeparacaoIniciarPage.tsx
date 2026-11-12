@@ -15,6 +15,9 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError } from "@/lib/errorMapper";
 import { deveExibirNomeColetor } from "@/lib/exibicaoColetor";
+import { useResumoEtapaColetor } from "@/hooks/useResumoEtapaColetor";
+import { ResumoEtapaPainel } from "@/components/coletor/ResumoEtapaPainel";
+import { acaoColetor, assumirEtapaColetor, sairEtapaColetor } from "@/lib/responsaveisOndaService";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -115,6 +118,66 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   }, [error]);
 
   const loadOndas = refetch;
+
+  // Convocação híbrida: selecionar a onda só consulta (não reserva). Assumir é explícito.
+  const etapaInfo = useResumoEtapaColetor(selectedId, "SEP", isOnline);
+  const acao = isOnline && etapaInfo.resumo?.sucesso ? acaoColetor(etapaInfo.resumo, "separação") : null;
+  const [saindo, setSaindo] = useState(false);
+
+  const handlePrincipal = async () => {
+    if (!selectedId) return;
+    // Onda com itens cancelados pendentes: a devolução vem antes de qualquer reserva
+    if (pedcanPorOnda[selectedId]) {
+      irParaEntregaCancelados(selectedId, pedcanPorOnda[selectedId]);
+      return;
+    }
+    if (isOnline && acao && etapaInfo.contexto) {
+      if (acao.tipo === "BLOQUEADA") {
+        result.showWarning(acao.mensagem);
+        void refetch();
+        return;
+      }
+      if (acao.tipo === "ASSUMIR") {
+        setStarting(true);
+        try {
+          const r = await assumirEtapaColetor(etapaInfo.contexto);
+          if (!r.sucesso) {
+            result.showError(r, { context: "separacao-assumir" });
+            void refetch();
+            void etapaInfo.recarregar();
+            return;
+          }
+        } catch (err: unknown) {
+          result.showError(err, { context: "separacao-assumir" });
+          return;
+        } finally {
+          setStarting(false);
+        }
+      }
+    }
+    await handleIniciar();
+  };
+
+  const handleSair = async () => {
+    if (!etapaInfo.contexto) return;
+    setSaindo(true);
+    try {
+      const r = await sairEtapaColetor(etapaInfo.contexto);
+      if (!r.sucesso) {
+        result.showError(r, { context: "separacao-sair" });
+        return;
+      }
+      // Tarefas devolvidas não podem continuar no cache offline deste aparelho
+      await cacheData(`tarefas_separacao_${selectedId}`, [], 1).catch(() => {});
+      result.showSuccess(r.mensagem || "Etapa devolvida para a fila.");
+      setSelectedId(null);
+      void refetch();
+    } catch (err: unknown) {
+      result.showError(err, { context: "separacao-sair" });
+    } finally {
+      setSaindo(false);
+    }
+  };
 
   const irParaEntregaCancelados = (movimentoSaidaId: string, resultado: any) => {
     sessionStorage.setItem("coletor_separacao_cancel_itens", JSON.stringify(resultado.itens || []));
@@ -289,6 +352,12 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
                 <div className="text-xs text-[hsl(213,31%,55%)]">
                   Pedidos: <span className="font-bold text-[hsl(213,31%,91%)]">{onda.pedidos}</span>
                 </div>
+                {!onda.operador_nome && (
+                  <div className="flex items-center gap-1.5 text-xs text-blue-400 min-w-0">
+                    <UserRound size={12} className="shrink-0" />
+                    <span>Disponível para assumir</span>
+                  </div>
+                )}
                 {onda.operador_nome && (
                   <div className={`flex items-center gap-1.5 text-xs min-w-0 ${onda.atribuida_ao_usuario === true ? "text-emerald-400" : "text-[hsl(213,31%,55%)]"}`}>
                     <UserRound size={12} className="shrink-0" />
@@ -332,9 +401,20 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
           </div>
         )}
 
-        <div className="shrink-0 pt-1">
-          <ActionButton onClick={handleIniciar} disabled={!selectedId} loading={starting}>
-            Iniciar Separação
+        {selectedId && isOnline && <ResumoEtapaPainel resumo={etapaInfo.resumo} loading={etapaInfo.loading} />}
+
+        <div className="shrink-0 pt-1 flex flex-col gap-2">
+          {acao?.podeSair && (
+            <ActionButton variant="secondary" onClick={handleSair} loading={saindo} disabled={starting}>
+              Sair da etapa
+            </ActionButton>
+          )}
+          <ActionButton
+            onClick={handlePrincipal}
+            disabled={!selectedId || acao?.tipo === "BLOQUEADA" || (isOnline && etapaInfo.loading)}
+            loading={starting}
+          >
+            {acao?.rotulo ?? "Iniciar Separação"}
           </ActionButton>
         </div>
       </div>

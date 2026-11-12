@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { cn } from "@/lib/utils";
 import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
-import { ReatribuirTarefasModal } from "@/components/movimentos/ReatribuirTarefasModal";
+import { ResponsaveisOndaModal } from "@/components/movimentos/ResponsaveisOndaModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
@@ -69,6 +69,9 @@ interface OndaCarregamentoItem {
 }
 
 const PRIORIDADE_OPTIONS = ["URGENTE", "ALTA", "NORMAL", "BAIXA"] as const;
+
+/** Ondas em que o gestor ainda pode convocar operadores (antes da liberação inclusive). */
+const STATUS_ONDA_COM_RESPONSAVEIS: string[] = ["CRIADA", "LIBERADO", "EM_PICKING", "SEPARADO", "EM_CONFERENCIA"];
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
   CRIADA: { label: "Criada", class: "bg-red-500/15 text-red-400 border-red-500/30" },
@@ -262,8 +265,8 @@ export function MovimentoSaidaPage() {
   const [limparConfItemDialog, setLimparConfItemDialog] = useState<{ movId: string; produtoId: string } | null>(null);
   const [limparConfItemLoading, setLimparConfItemLoading] = useState(false);
 
-  // Reatribuir tarefas
-  const [reatribuirMov, setReatribuirMov] = useState<{ id: string; numero: number } | null>(null);
+  // Responsáveis da onda (convocação híbrida por etapa)
+  const [responsaveisMov, setResponsaveisMov] = useState<{ id: string; numero: number } | null>(null);
 
   // Reset page when filters change
   useEffect(() => {
@@ -1080,12 +1083,12 @@ export function MovimentoSaidaPage() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setActionMenuId(null);
-                                  setReatribuirMov({ id: mov.id, numero: mov.numero_onda });
+                                  setResponsaveisMov({ id: mov.id, numero: mov.numero_onda });
                                 }}
-                                disabled={(mov.operadores_atribuidos?.length || 0) === 0}
+                                disabled={!STATUS_ONDA_COM_RESPONSAVEIS.includes(mov.status)}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
                               >
-                                <UserCog size={13} /> Reatribuir tarefas
+                                <UserCog size={13} /> Responsáveis da onda
                               </button>
                             </div>
                           )}
@@ -2083,14 +2086,12 @@ export function MovimentoSaidaPage() {
         </DialogContent>
       </Dialog>
 
-      <ReatribuirTarefasModal
-        open={!!reatribuirMov}
-        movimentoSaidaId={reatribuirMov?.id || null}
-        numeroOnda={reatribuirMov?.numero || null}
-        tenantId={tenantId}
-        empresaId={empresaId}
-        onClose={() => setReatribuirMov(null)}
-        onSuccess={() => fetchMovimentos()}
+      <ResponsaveisOndaModal
+        open={!!responsaveisMov}
+        movimentoSaidaId={responsaveisMov?.id || null}
+        numeroOnda={responsaveisMov?.numero || null}
+        onClose={() => setResponsaveisMov(null)}
+        onSuccess={() => { fetchMovimentos(); void opsQuery.refetch(); }}
       />
     </div>
   );
