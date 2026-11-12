@@ -1,6 +1,7 @@
 -- =====================================================================
 -- 2026-11-12 · Relatórios · Acuracidade de Inventário — usuário e tipo de execução
 --
+-- Aplicada em produção como versão 20261112161645.
 -- Redefine rpc_relatorio_inventario (20261112160514) com:
 --  - tipo_execucao: AUDITORIA (tarefa INV-AUDIT) | ATUALIZACAO (INV-ATU) —
 --    o mesmo que inventario.tipo_execucao (1:1 conferido em produção);
