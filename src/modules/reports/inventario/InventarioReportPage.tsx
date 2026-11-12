@@ -13,6 +13,7 @@ import {
   type InventarioKpis,
   type StatusItem,
   type Severidade,
+  type TipoExecucao,
 } from "./inventario.service";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,11 @@ const STATUS_LABEL: Record<StatusItem, string> = {
   SOBRA: "Sobra",
   FALTA: "Falta",
   PENDENTE: "Pendente",
+};
+
+const TIPO_EXECUCAO_LABEL: Record<TipoExecucao, string> = {
+  AUDITORIA: "Auditoria",
+  ATUALIZACAO: "Atualização",
 };
 
 const SEVERIDADE_LABEL: Record<Severidade, string> = {
@@ -64,6 +70,7 @@ export function InventarioReportPage() {
   const [filterStatus, setFilterStatus] = useState<"" | StatusItem>("");
   const [filterSeveridade, setFilterSeveridade] = useState<"" | Severidade>("");
   const [apenasDivergentes, setApenasDivergentes] = useState(false);
+  const [filterTipoExecucao, setFilterTipoExecucao] = useState<"" | TipoExecucao>("");
 
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
   const [inventarios, setInventarios] = useState<any[]>([]);
@@ -135,6 +142,7 @@ export function InventarioReportPage() {
       status: filterStatus || undefined,
       severidade: filterSeveridade || undefined,
       apenas_divergentes: apenasDivergentes,
+      tipo_execucao: filterTipoExecucao || undefined,
     };
     const ok = await loadPage(filters, 0);
     if (ok) {
@@ -149,6 +157,7 @@ export function InventarioReportPage() {
     setFilterDataInicio(""); setFilterDataFim("");
     setFilterRua(""); setFilterPredio(""); setFilterNivel(""); setFilterApto("");
     setFilterStatus(""); setFilterSeveridade(""); setApenasDivergentes(false);
+    setFilterTipoExecucao("");
   };
 
   const fmtNum = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -185,6 +194,23 @@ export function InventarioReportPage() {
     {
       key: "data_contagem", label: "Data Contagem", width: "120px",
       render: (v) => v ? formatDateTime(v) : <span className="text-muted-foreground">—</span>,
+    },
+    {
+      key: "tipo_execucao", label: "Tipo", align: "center", width: "95px",
+      render: (v) => (
+        <span className={cn(
+          "inline-block px-2 py-0.5 rounded text-[10px] font-semibold border",
+          v === "AUDITORIA"
+            ? "bg-primary/10 text-primary border-primary/30"
+            : "bg-muted text-muted-foreground border-border",
+        )}>
+          {TIPO_EXECUCAO_LABEL[v as TipoExecucao] || v}
+        </span>
+      ),
+    },
+    {
+      key: "usuario_contagem", label: "Contado por", width: "140px",
+      render: (v) => v ? <span className="truncate">{v}</span> : <span className="text-muted-foreground">—</span>,
     },
     {
       key: "numero_contagens", label: "Contagens", align: "center", width: "80px",
@@ -246,6 +272,7 @@ export function InventarioReportPage() {
   if (filterSku) activeFilters["SKU"] = filterSku;
   if (filterStatus) activeFilters["Status"] = STATUS_LABEL[filterStatus];
   if (filterSeveridade) activeFilters["Severidade"] = SEVERIDADE_LABEL[filterSeveridade];
+  if (filterTipoExecucao) activeFilters["Tipo"] = TIPO_EXECUCAO_LABEL[filterTipoExecucao];
   if (apenasDivergentes) activeFilters["Apenas divergentes"] = "Sim";
 
   if (generated && kpis) {
@@ -266,6 +293,8 @@ export function InventarioReportPage() {
     exportColDescricao(),
     { key: "endereco", label: "Endereço" },
     { key: "data_contagem", label: "Data Contagem", format: (r) => fmtDateTimeBR(r.data_contagem) },
+    { key: "tipo_execucao", label: "Tipo", format: (r) => TIPO_EXECUCAO_LABEL[r.tipo_execucao as TipoExecucao] || r.tipo_execucao },
+    { key: "usuario_contagem", label: "Contado por", format: (r) => r.usuario_contagem || "" },
     { key: "numero_contagens", label: "Contagens", align: "center", format: (r) => r.status_calc === "PENDENTE" ? "" : `${r.numero_contagens}ª` },
     { key: "qtd_sistemica", label: "Qtd. Sist.", align: "right", format: (r) => fmtNumberBR(r.qtd_sistemica) },
     { key: "qtd_contada", label: "Qtd. Cont.", align: "right", format: (r) => r.status_calc === "PENDENTE" ? "" : fmtNumberBR(r.qtd_contada) },
@@ -418,6 +447,18 @@ export function InventarioReportPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Apto</Label>
                 <Input className="h-8 text-xs" type="number" min="0" value={filterApto} onChange={(e) => setFilterApto(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo de execução</Label>
+                <Select value={filterTipoExecucao || "__all__"}
+                  onValueChange={(v) => setFilterTipoExecucao(v === "__all__" ? "" : (v as TipoExecucao))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos</SelectItem>
+                    <SelectItem value="AUDITORIA">Auditoria</SelectItem>
+                    <SelectItem value="ATUALIZACAO">Atualização</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5 flex items-end">
                 <label className="flex items-center gap-2 text-xs cursor-pointer h-8">
