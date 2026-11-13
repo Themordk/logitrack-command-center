@@ -63,6 +63,7 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   EMBARQUE_QUANTIDADE_INVALIDA: { title: "Quantidade de volumes inválida.", instruction: "Informe de 1 a 999 volumes." },
   VEICULO_SEM_PERMISSAO: { title: "Sem permissão para alterar veículos.", instruction: "Peça a um usuário com acesso ao cadastro de veículos." },
   EMBARQUE_NAO_CONVOCADO: { title: "Esta carga está com outro operador.", instruction: "Ela foi convocada ou reservada para outro operador. Peça ao supervisor para incluir você nos responsáveis do carregamento." },
+  EMBARQUE_MESMO_CONFERENTE: { title: "Você conferiu esta carga.", instruction: "O tipo de saída não permite o mesmo operador conferir e embarcar. Outro operador deve fazer o embarque." },
   CARGA_PRIORIDADE_INVALIDA: { title: "Prioridade inválida.", instruction: "Escolha Urgente, Alta, Normal ou Baixa." },
   CARGA_MOTIVO_OBRIGATORIO: { title: "Informe o motivo.", instruction: "O motivo fica registrado na rastreabilidade da carga." },
   CARGA_RESPONSAVEL_INELEGIVEL: { title: "Operador não pode carregar esta carga.", instruction: "Escolha um operador com permissão de embarque no coletor e da mesma empresa." },

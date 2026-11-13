@@ -92,7 +92,7 @@ export function TiposSaidaPage() {
     setEditItem(item);
     setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
-      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false, reserva_embarque_carga: false,
+      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false, reserva_embarque_carga: false, permite_mesmo_operador_conf_emb: true, libera_embarque_automatico: false,
       momento_conferencia: "PRE_FATURAMENTO",
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
@@ -117,11 +117,14 @@ export function TiposSaidaPage() {
       payload.conferencia_cega = false;
       payload.reserva_conferencia_movimento = true;
       payload.permite_mesmo_operador_sep_conf = true;
+      payload.permite_mesmo_operador_conf_emb = true;
       payload.momento_conferencia = "PRE_FATURAMENTO";
     }
     if (!payload.realiza_embarque) {
       payload.exige_confirmacao_veiculo = false;
       payload.reserva_embarque_carga = false;
+      payload.permite_mesmo_operador_conf_emb = true;
+      payload.libera_embarque_automatico = false;
     }
     if (payload.momento_conferencia !== "POS_FATURAMENTO") {
       payload.momento_conferencia = "PRE_FATURAMENTO";
@@ -290,6 +293,25 @@ export function TiposSaidaPage() {
                       : "A onda aparece na conferência assim que a separação termina, antes da emissão da NF."}
                   </p>
                 </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="permite-mesmo-operador"
+                    checked={form.permite_mesmo_operador_sep_conf !== false}
+                    onCheckedChange={(v) => set("permite_mesmo_operador_sep_conf", v)}
+                    disabled={!form.realiza_conferencia}
+                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="permite-mesmo-operador" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Permite o mesmo operador separar e conferir
+                    </label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.permite_mesmo_operador_sep_conf !== false
+                        ? "Quem separou a onda também pode conferi-la"
+                        : "Quem separou a onda não pode conferi-la"}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -308,6 +330,27 @@ export function TiposSaidaPage() {
                     <label htmlFor="exige-confirmacao-veiculo" className="text-sm text-foreground">Exige confirmação do veículo no embarque</label>
                     <p className="text-xs text-muted-foreground">
                       Em carga de veículo próprio, o operador bipa o QR da etiqueta do veículo antes de conferir os volumes. A etiqueta é impressa no cadastro de veículos.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="permite-mesmo-operador-conf-emb"
+                    checked={form.permite_mesmo_operador_conf_emb !== false}
+                    onCheckedChange={(v) => set("permite_mesmo_operador_conf_emb", v)}
+                    disabled={!form.realiza_embarque || !form.realiza_conferencia}
+                    className={!form.realiza_embarque || !form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="permite-mesmo-operador-conf-emb" className={`text-sm ${!form.realiza_embarque || !form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Permite o mesmo operador conferir e embarcar
+                    </label>
+                    <p className={`text-xs ${!form.realiza_embarque || !form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque || !form.realiza_conferencia
+                        ? "Disponível quando o tipo realiza conferência e embarque"
+                        : form.permite_mesmo_operador_conf_emb !== false
+                        ? "Quem conferiu a onda também pode embarcá-la"
+                        : "Quem conferiu a onda não pode embarcar a carga dela"}
                     </p>
                   </div>
                 </div>
@@ -355,25 +398,6 @@ export function TiposSaidaPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
-                    id="permite-mesmo-operador"
-                    checked={form.permite_mesmo_operador_sep_conf !== false}
-                    onCheckedChange={(v) => set("permite_mesmo_operador_sep_conf", v)}
-                    disabled={!form.realiza_conferencia}
-                    className={!form.realiza_conferencia ? "opacity-50" : ""}
-                  />
-                  <div>
-                    <label htmlFor="permite-mesmo-operador" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
-                      Permite o mesmo operador separar e conferir
-                    </label>
-                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
-                      {form.permite_mesmo_operador_sep_conf !== false
-                        ? "Quem separou a onda também pode conferi-la"
-                        : "Quem separou a onda não pode conferi-la"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
                     id="reserva-embarque-carga"
                     checked={!!form.reserva_embarque_carga}
                     onCheckedChange={(v) => set("reserva_embarque_carga", v)}
@@ -407,6 +431,25 @@ export function TiposSaidaPage() {
                 <div className="flex items-center gap-3">
                   <Switch checked={!!form.libera_mov_automatico} onCheckedChange={(v) => set("libera_mov_automatico", v)} />
                   <label className="text-sm text-foreground">Libera movimento automático</label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="libera-embarque-automatico"
+                    checked={!!form.libera_embarque_automatico}
+                    onCheckedChange={(v) => set("libera_embarque_automatico", v)}
+                    disabled={!form.realiza_embarque}
+                    className={!form.realiza_embarque ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="libera-embarque-automatico" className={`text-sm ${!form.realiza_embarque ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Libera embarque automático
+                    </label>
+                    <p className={`text-xs ${!form.realiza_embarque ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque
+                        ? "Disponível quando o tipo realiza embarque"
+                        : "A carga montada com veículo (ou transportadora) é liberada para o coletor pelo job das saídas, 2 minutos após a última alteração"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch checked={!!form.gera_abastecimento_automatico} onCheckedChange={(v) => set("gera_abastecimento_automatico", v)} />

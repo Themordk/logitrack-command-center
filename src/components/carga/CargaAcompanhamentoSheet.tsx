@@ -32,6 +32,7 @@ const EVENTO_LABEL: Record<string, string> = {
   RESPONSAVEIS_ALTERADOS: "Responsáveis alterados",
   RESERVA_EMBARQUE: "Carga reservada para o operador",
   ONDA_STATUS_DEVOLVIDO: "Onda devolvida para a montagem",
+  LIBERADA_AUTOMATICA: "Carga liberada automaticamente",
 };
 const EVENTO_ALERTA = new Set(["VEICULO_DIVERGENTE", "VEICULO_CODIGO_INVALIDO", "VOLUME_DIGITADO", "CONFERENCIA_LIMPA"]);
 
