@@ -61,7 +61,7 @@ import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { OperadoresAtivosPage } from "./pages/OperadoresAtivosPage";
 import { ScorecardOperadorPage } from "@/pages/ScorecardOperadorPage";
 import { TarefasAtivasPage } from "./pages/TarefasAtivasPage";
-import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
+import { FluxoExpedicaoPage } from "./pages/FluxoExpedicaoPage";
 import { MontagemCargaPage } from "./pages/MontagemCargaPage";
 import { InventarioPage } from "./pages/InventarioPage";
 import { InventarioItensPage } from "./pages/InventarioItensPage";
@@ -209,7 +209,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/operadores-ativos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Operadores Ativos" }],
   "/atividades/scorecard": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Scorecard Operador" }],
   "/atividades/tarefas-ativas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Tarefas Ativas" }],
-  "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
+  "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Fluxo de Expedição" }],
+  "/config/fluxo-expedicao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Fluxo de Expedição" }],
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
@@ -359,7 +360,8 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/atividades/ocorrencias": return <OcorrenciasOperacionaisPage onNavigate={onNavigate} />;
     case "/atividades/operadores-ativos": return <OperadoresAtivosPage onNavigate={onNavigate} />;
     case "/atividades/tarefas-ativas": return <TarefasAtivasPage onNavigate={onNavigate} />;
-    case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
+    case "/armazem/roteiro-separacao": // rota antiga: mesma tela
+    case "/config/fluxo-expedicao": return <FluxoExpedicaoPage onNavigate={onNavigate} />;
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage onNavigate={onNavigate} />;

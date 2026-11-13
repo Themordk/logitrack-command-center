@@ -119,7 +119,7 @@ const navItems: NavItem[] = [
       { label: "Integração ERP", path: "/config/integracao" },
       { label: "Retornos ao ERP", path: "/config/integracao/retornos" },
       { label: "Padrões de cadastro de produto", path: "/integracao/padroes-produto" },
-      { label: "Roteiro de Separação", path: "/armazem/roteiro-separacao" },
+      { label: "Fluxo de Expedição", path: "/config/fluxo-expedicao" },
     ],
   },
 ];
