@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FILTROS_CARGA_COLETOR_VAZIOS, FILTROS_ONDAS_VAZIOS, agruparSugestao, contarFiltrosCarga, descreverResponsavelCarga, filtrarCargasColetor, opcoesFiltroCargas, descreverTransporte, filtrarOndas, ordenarOndas, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
+  FILTROS_CARGA_COLETOR_VAZIOS, FILTROS_CARGAS_VAZIOS, filtrarCargas, FILTROS_ONDAS_VAZIOS, agruparSugestao, contarFiltrosCarga, descreverResponsavelCarga, filtrarCargasColetor, opcoesFiltroCargas, descreverTransporte, filtrarOndas, ordenarOndas, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
 } from "@/lib/cargaExibicao";
 import type { OndaSugerida } from "@/lib/cargaService";
 
@@ -113,5 +113,24 @@ describe("lista de cargas do coletor", () => {
     expect(descreverResponsavelCarga({ convocado: false, responsaveis: [], operadores: [] }).tom).toBe("LIVRE");
     expect(descreverResponsavelCarga({ convocado: true, responsaveis: ["Izaias"] })).toEqual({ tom: "VOCE", prefixo: "Com você", nomes: "" });
     expect(descreverResponsavelCarga({ convocado: false, responsaveis: [], operadores: ["Paulo", "Ana"] }).nomes).toBe("Paulo, Ana");
+  });
+});
+
+describe("filtros da aba Cargas", () => {
+  const lista = [
+    { numero_carga: 24, prioridade: "NORMAL", box: null, created_at: "2026-11-13T20:20:00Z", modalidade: "PROPRIA" as const, veiculo: "CAMINHAO", transportadora: null, placa: "QAS-123" },
+    { numero_carga: 15, prioridade: "ALTA", box: "DOCA", created_at: "2026-11-12T19:23:00Z", modalidade: "TERCEIRO" as const, veiculo: null, transportadora: "2K Intermediação", placa: "HFFF-123" },
+  ];
+  it("filtra por número, prioridade, veículo e box", () => {
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, numero: "24" }).map((c) => c.numero_carga)).toEqual([24]);
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, prioridade: "ALTA" }).map((c) => c.numero_carga)).toEqual([15]);
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, veiculo: "intermediacao" }).map((c) => c.numero_carga)).toEqual([15]);
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, veiculo: "qas" }).map((c) => c.numero_carga)).toEqual([24]);
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, box: "doca" }).map((c) => c.numero_carga)).toEqual([15]);
+  });
+  it("filtra pelo intervalo de datas de criação", () => {
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, criadaDe: "2026-11-13" }).map((c) => c.numero_carga)).toEqual([24]);
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, criadaAte: "2026-11-12" }).map((c) => c.numero_carga)).toEqual([15]);
+    expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, criadaDe: "2026-11-12", criadaAte: "2026-11-13" })).toHaveLength(2);
   });
 });

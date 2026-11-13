@@ -246,3 +246,34 @@ export function descreverResponsavelCarga(c: {
   if (ops.length > 0) return { tom: "OUTROS", prefixo: "Em carregamento com:", nomes: ops.join(", ") };
   return { tom: "LIVRE", prefixo: "Disponível para assumir", nomes: "" };
 }
+
+/* ── Web · filtros da aba Cargas da Montagem de Carga ── */
+
+export interface FiltrosCargas {
+  numero: string; prioridade: string; veiculo: string; box: string; criadaDe: string; criadaAte: string;
+}
+export const FILTROS_CARGAS_VAZIOS: FiltrosCargas = { numero: "", prioridade: "", veiculo: "", box: "", criadaDe: "", criadaAte: "" };
+
+/** Data local (AAAA-MM-DD) de um timestamp, para comparar com o input type="date". */
+export function dataLocalIso(v: string | null | undefined): string {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function filtrarCargas<T extends {
+  numero_carga: number; prioridade?: string | null; box?: string | null; created_at?: string | null;
+  modalidade?: ModalidadeTransporte | null; veiculo?: string | null; transportadora?: string | null; placa?: string | null;
+}>(lista: T[], f: FiltrosCargas): T[] {
+  const num = f.numero.trim();
+  const veic = normalizar(f.veiculo);
+  const box = normalizar(f.box);
+  return lista.filter((c) =>
+    (!num || String(c.numero_carga).includes(num))
+    && (!f.prioridade || (c.prioridade ?? "NORMAL") === f.prioridade)
+    && (!veic || normalizar(`${descreverTransporte(c)} ${c.veiculo ?? ""}`).includes(veic))
+    && (!box || normalizar(c.box ?? "").includes(box))
+    && (!f.criadaDe || dataLocalIso(c.created_at) >= f.criadaDe)
+    && (!f.criadaAte || (dataLocalIso(c.created_at) !== "" && dataLocalIso(c.created_at) <= f.criadaAte)));
+}

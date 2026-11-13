@@ -17,7 +17,7 @@ import { usePermissions } from "@/contexts/PermissionsContext";
 import { parseError } from "@/lib/errorMapper";
 import { cargaService, type CargaResumo, type CargaStatus, type OndaSugerida, type PrioridadeCarga } from "@/lib/cargaService";
 import {
-  CARGA_STATUS_LABEL, FILTROS_ONDAS_VAZIOS, MODALIDADE_LABEL, PRIORIDADES_CARGA, PRIORIDADE_TOM, TRANSPORTE_VAZIO, descreverTransporte, filtrarOndas,
+  CARGA_STATUS_LABEL, FILTROS_CARGAS_VAZIOS, FILTROS_ONDAS_VAZIOS, MODALIDADE_LABEL, filtrarCargas, type FiltrosCargas, PRIORIDADES_CARGA, PRIORIDADE_TOM, TRANSPORTE_VAZIO, descreverTransporte, filtrarOndas,
   formatarNumero, ordenarOndas, type ColunaOnda, type DirecaoOrdem, type FiltrosOndas, type TransporteValor,
 } from "@/lib/cargaExibicao";
 import { useCargaCadastros } from "@/hooks/useCargaCadastros";
@@ -35,8 +35,11 @@ const MODULO = "web.atividades.montagem-carga";
 const POR_PAGINA = 20;
 const FILTROS_CARGA: { valor: string; rotulo: string; status: CargaStatus[] | null }[] = [
   { valor: "ativas", rotulo: "Em aberto", status: ["EM_MONTAGEM", "LIBERADA", "EM_CARREGAMENTO"] },
-  { valor: "FECHADA", rotulo: "Fechadas", status: ["FECHADA"] },
-  { valor: "CANCELADA", rotulo: "Canceladas", status: ["CANCELADA"] },
+  { valor: "EM_MONTAGEM", rotulo: "Em montagem", status: ["EM_MONTAGEM"] },
+  { valor: "LIBERADA", rotulo: "Liberada", status: ["LIBERADA"] },
+  { valor: "EM_CARREGAMENTO", rotulo: "Em carregamento", status: ["EM_CARREGAMENTO"] },
+  { valor: "FECHADA", rotulo: "Fechada", status: ["FECHADA"] },
+  { valor: "CANCELADA", rotulo: "Cancelada", status: ["CANCELADA"] },
   { valor: "todas", rotulo: "Todas", status: null },
 ];
 const dataHora = (v: string | null) => (v ? new Date(v).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—");
@@ -72,6 +75,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
 
   const [aba, setAba] = useState<"ondas" | "cargas">("ondas");
   const [filtroCarga, setFiltroCarga] = useState("ativas");
+  const [filtrosCargas, setFiltrosCargas] = useState<FiltrosCargas>(FILTROS_CARGAS_VAZIOS);
   const [cargaAberta, setCargaAberta] = useState<string | null>(null);
   const [acompanhando, setAcompanhando] = useState<string | null>(null);
   const [menuCarga, setMenuCarga] = useState<string | null>(null);
@@ -146,6 +150,10 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
     queryFn: () => cargaService.listar(tenantId as string, empresaId as string, statusFiltro),
     refetchInterval: 30_000,
   });
+
+  const cargasVisiveis = useMemo(() => filtrarCargas(cargas.data ?? [], filtrosCargas), [cargas.data, filtrosCargas]);
+  const temFiltroCargas = filtroCarga !== "ativas" || Object.values(filtrosCargas).some(Boolean);
+  const mudarFiltroCarga = (campo: keyof FiltrosCargas, valor: string) => setFiltrosCargas((f) => ({ ...f, [campo]: valor }));
 
   const todasOndas = useMemo(() => sugestao.data?.ondas ?? [], [sugestao.data]);
   const tiposSaida = useMemo(() => {
@@ -411,23 +419,61 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
         </>
       ) : (
         <>
-          {/* Situação das cargas */}
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar cargas por situação">
-            {FILTROS_CARGA.map((f) => (
-              <button key={f.valor} type="button" onClick={() => setFiltroCarga(f.valor)} aria-pressed={filtroCarga === f.valor}
-                className={pilula(filtroCarga === f.valor)}>
-                {f.rotulo}
+          {/* Filtros das cargas */}
+          <div className="flex flex-wrap items-end gap-3 p-4 rounded-lg border border-border bg-secondary/30">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-carga-numero" className={filtroLabel}>Nº Carga</label>
+              <input id="filtro-carga-numero" type="text" inputMode="numeric" placeholder="Número da carga..." value={filtrosCargas.numero}
+                onChange={(e) => mudarFiltroCarga("numero", e.target.value)} className={`${filtroInput} w-36`} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-carga-situacao" className={filtroLabel}>Situação</label>
+              <select id="filtro-carga-situacao" value={filtroCarga} onChange={(e) => setFiltroCarga(e.target.value)} className={`${filtroInput} w-40`}>
+                {FILTROS_CARGA.map((f) => <option key={f.valor} value={f.valor}>{f.rotulo}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-carga-prioridade" className={filtroLabel}>Prioridade</label>
+              <select id="filtro-carga-prioridade" value={filtrosCargas.prioridade} onChange={(e) => mudarFiltroCarga("prioridade", e.target.value)} className={`${filtroInput} w-32`}>
+                <option value="">Todas</option>
+                {PRIORIDADES_CARGA.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-carga-veiculo" className={filtroLabel}>Veículo / Transportadora</label>
+              <input id="filtro-carga-veiculo" type="text" placeholder="Veículo, placa ou transportadora..." value={filtrosCargas.veiculo}
+                onChange={(e) => mudarFiltroCarga("veiculo", e.target.value)} className={`${filtroInput} w-60`} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-carga-box" className={filtroLabel}>Box</label>
+              <input id="filtro-carga-box" type="text" placeholder="Box..." value={filtrosCargas.box}
+                onChange={(e) => mudarFiltroCarga("box", e.target.value)} className={`${filtroInput} w-32`} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span id="filtro-carga-periodo" className={filtroLabel}>Criada em</span>
+              <div className="flex items-center gap-1.5" role="group" aria-labelledby="filtro-carga-periodo">
+                <input type="date" aria-label="Criada a partir de" value={filtrosCargas.criadaDe} max={filtrosCargas.criadaAte || undefined}
+                  onChange={(e) => mudarFiltroCarga("criadaDe", e.target.value)} className={`${filtroInput} w-36`} />
+                <span className="text-xs text-muted-foreground">até</span>
+                <input type="date" aria-label="Criada até" value={filtrosCargas.criadaAte} min={filtrosCargas.criadaDe || undefined}
+                  onChange={(e) => mudarFiltroCarga("criadaAte", e.target.value)} className={`${filtroInput} w-36`} />
+              </div>
+            </div>
+            {temFiltroCargas && (
+              <button type="button" onClick={() => { setFiltrosCargas(FILTROS_CARGAS_VAZIOS); setFiltroCarga("ativas"); }}
+                className="h-9 px-3 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                Limpar filtros
               </button>
-            ))}
+            )}
           </div>
 
           <div className="card-surface flex flex-col flex-1 min-h-0 overflow-hidden">
             {cargas.isLoading ? (
               <div className="flex items-center justify-center py-16"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
-            ) : (cargas.data ?? []).length === 0 ? (
+            ) : cargasVisiveis.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                 <Truck size={32} className="mb-2 opacity-40" aria-hidden="true" />
-                <p className="text-sm">Nenhuma carga {FILTROS_CARGA.find((f) => f.valor === filtroCarga)?.rotulo.toLowerCase()}.</p>
+                <p className="text-sm">{temFiltroCargas ? "Nenhuma carga encontrada com esses filtros." : "Nenhuma carga em aberto."}</p>
               </div>
             ) : (
               <div className="flex-1 min-h-0 overflow-auto">
@@ -447,7 +493,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                     </tr>
                   </thead>
                   <tbody>
-                    {(cargas.data ?? []).map((c) => {
+                    {cargasVisiveis.map((c) => {
                       const pct = c.unidades_total > 0 ? (c.unidades_embarcadas / c.unidades_total) * 100 : 0;
                       return (
                         <tr key={c.id} className="border-b border-border/50 table-row-hover cursor-pointer" onClick={() => setCargaAberta(c.id)}>
@@ -534,7 +580,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
               </div>
             )}
             <div className="px-4 py-2.5 border-t border-border bg-secondary/20">
-              <span className="text-xs text-muted-foreground">{(cargas.data ?? []).length} carga(s)</span>
+              <span className="text-xs text-muted-foreground">{cargasVisiveis.length} carga(s){temFiltroCargas ? " (filtrado)" : ""}</span>
             </div>
           </div>
         </>
