@@ -228,22 +228,48 @@ export function TiposSaidaPage() {
               <p className={sectionTitleClass}>Separação e volume</p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.separa_pulmao} onCheckedChange={(v) => set("separa_pulmao", v)} />
-                  <label className="text-sm text-foreground">Separa pulmão</label>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <Switch id="libera-sem-saldo-picking" checked={!!form.libera_sem_saldo_picking} onCheckedChange={(v) => set("libera_sem_saldo_picking", v)} />
-                    <label htmlFor="libera-sem-saldo-picking" className="text-sm text-foreground">Libera sem saldo no picking</label>
+                  <Switch
+                    id="separa-pulmao"
+                    checked={!!form.separa_pulmao}
+                    onCheckedChange={(v) => set("separa_pulmao", v)}
+                  />
+                  <div>
+                    <label htmlFor="separa-pulmao" className="text-sm text-foreground">Separa pulmão</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.separa_pulmao
+                        ? "A separação também pode buscar o produto direto nos endereços de pulmão quando o picking não tiver saldo"
+                        : "A separação busca o produto somente nos endereços de picking"}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">Libera a onda mesmo com item zerado no picking ou sem picking mapeado. O item aparece no coletor com aviso e só pode ser coletado após abastecimento/mapeamento, ou cortado.</p>
-                  {form.libera_sem_saldo_picking && form.gera_abastecimento_automatico && <p className="text-xs text-muted-foreground">O abastecimento do pulmão para o picking será gerado automaticamente na liberação.</p>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="libera-sem-saldo-picking"
+                    checked={!!form.libera_sem_saldo_picking}
+                    onCheckedChange={(v) => set("libera_sem_saldo_picking", v)}
+                  />
+                  <div>
+                    <label htmlFor="libera-sem-saldo-picking" className="text-sm text-foreground">Libera sem saldo no picking</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.libera_sem_saldo_picking
+                        ? `Libera a onda mesmo com item zerado no picking ou sem picking mapeado. O item aparece no coletor com aviso e só pode ser coletado após abastecimento/mapeamento, ou cortado.${form.gera_abastecimento_automatico ? " O abastecimento do pulmão para o picking é gerado automaticamente na liberação." : ""}`
+                        : "A onda só é liberada quando todos os itens têm saldo no picking"}
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>
                   <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
                     {["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"].map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {({
+                      NENHUMA: "Não gera volumes de expedição. Se o tipo realiza embarque, os volumes são gerados no próprio embarque.",
+                      "SEPARAÇÃO": "Os volumes e as etiquetas são gerados ao final da separação.",
+                      "CONFERÊNCIA": "Os volumes e as etiquetas são gerados ao final da conferência.",
+                      CARREGAMENTO: "Os volumes e as etiquetas são gerados no embarque, pelo operador no coletor.",
+                    } as Record<string, string>)[form.gera_volume_etapa || "CONFERÊNCIA"]}
+                  </p>
                 </div>
               </div>
             </div>
@@ -253,26 +279,53 @@ export function TiposSaidaPage() {
               <p className={sectionTitleClass}>Conferência</p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.realiza_conferencia} onCheckedChange={(v) => set("realiza_conferencia", v)} />
-                  <label className="text-sm text-foreground">Realiza conferência</label>
+                  <Switch
+                    id="realiza-conferencia"
+                    checked={!!form.realiza_conferencia}
+                    onCheckedChange={(v) => set("realiza_conferencia", v)}
+                  />
+                  <div>
+                    <label htmlFor="realiza-conferencia" className="text-sm text-foreground">Realiza conferência</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.realiza_conferencia
+                        ? "Depois da separação, a onda passa pela conferência no coletor"
+                        : "A onda não passa por conferência: segue direto da separação para a próxima etapa"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
+                    id="conferencia-checkout"
                     checked={!!form.conferencia_checkout}
                     onCheckedChange={(v) => set("conferencia_checkout", v)}
                     disabled={!form.realiza_conferencia}
                     className={!form.realiza_conferencia ? "opacity-50" : ""}
                   />
-                  <label className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência checkout</label>
+                  <div>
+                    <label htmlFor="conferencia-checkout" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência checkout</label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.conferencia_checkout
+                        ? "Cada leitura soma a quantidade da embalagem lida, sem digitar (vale para operadores com checkout liberado no cadastro de usuários)"
+                        : "O operador lê o produto e digita a quantidade conferida"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
+                    id="conferencia-cega"
                     checked={!!form.conferencia_cega}
                     onCheckedChange={(v) => set("conferencia_cega", v)}
                     disabled={!form.realiza_conferencia}
                     className={!form.realiza_conferencia ? "opacity-50" : ""}
                   />
-                  <label className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência cega</label>
+                  <div>
+                    <label htmlFor="conferencia-cega" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência cega</label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.conferencia_cega
+                        ? "O operador não vê a quantidade esperada; o sistema compara o que ele contou com o separado"
+                        : "O operador vê a quantidade esperada de cada item durante a conferência"}
+                    </p>
+                  </div>
                 </div>
                 <div className={`pt-1 ${!form.realiza_conferencia ? "opacity-50" : ""}`}>
                   <label htmlFor="momento-conferencia" className="text-xs text-muted-foreground mb-1 block">Modo de conferência</label>
@@ -320,16 +373,36 @@ export function TiposSaidaPage() {
               <p className={sectionTitleClass}>Embarque e conclusão</p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Switch id="realiza-embarque" checked={!!form.realiza_embarque} onCheckedChange={(v) => set("realiza_embarque", v)} />
-                  <label htmlFor="realiza-embarque" className="text-sm text-foreground">Realiza embarque (montagem de carga e bip no veículo)</label>
-                </div>
-                <div className="flex items-start gap-3 pl-1">
-                  <Switch id="exige-confirmacao-veiculo" checked={!!form.exige_confirmacao_veiculo} disabled={!form.realiza_embarque}
-                    onCheckedChange={(v) => set("exige_confirmacao_veiculo", v)} />
+                  <Switch
+                    id="realiza-embarque"
+                    checked={!!form.realiza_embarque}
+                    onCheckedChange={(v) => set("realiza_embarque", v)}
+                  />
                   <div>
-                    <label htmlFor="exige-confirmacao-veiculo" className="text-sm text-foreground">Exige confirmação do veículo no embarque</label>
+                    <label htmlFor="realiza-embarque" className="text-sm text-foreground">Realiza embarque</label>
                     <p className="text-xs text-muted-foreground">
-                      Em carga de veículo próprio, o operador bipa o QR da etiqueta do veículo antes de conferir os volumes. A etiqueta é impressa no cadastro de veículos.
+                      {form.realiza_embarque
+                        ? "As ondas entram na Montagem de Carga e os volumes são bipados no veículo pelo coletor"
+                        : "A onda é concluída sem montagem de carga nem embarque no coletor"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="exige-confirmacao-veiculo"
+                    checked={!!form.exige_confirmacao_veiculo}
+                    onCheckedChange={(v) => set("exige_confirmacao_veiculo", v)}
+                    disabled={!form.realiza_embarque}
+                    className={!form.realiza_embarque ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="exige-confirmacao-veiculo" className={`text-sm ${!form.realiza_embarque ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Exige confirmação do veículo no embarque</label>
+                    <p className={`text-xs ${!form.realiza_embarque ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque
+                        ? "Disponível quando o tipo realiza embarque"
+                        : form.exige_confirmacao_veiculo
+                        ? "Em carga de veículo próprio, o operador bipa o QR da etiqueta do veículo antes dos volumes (etiqueta impressa no cadastro de veículos)"
+                        : "O embarque começa direto pelos volumes, sem ler a etiqueta do veículo"}
                     </p>
                   </div>
                 </div>
@@ -425,12 +498,34 @@ export function TiposSaidaPage() {
               <p className={sectionTitleClass}>Automação</p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.gera_mov_automatico} onCheckedChange={(v) => set("gera_mov_automatico", v)} />
-                  <label className="text-sm text-foreground">Gera movimento automático</label>
+                  <Switch
+                    id="gera-mov-automatico"
+                    checked={!!form.gera_mov_automatico}
+                    onCheckedChange={(v) => set("gera_mov_automatico", v)}
+                  />
+                  <div>
+                    <label htmlFor="gera-mov-automatico" className="text-sm text-foreground">Gera movimento automático</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.gera_mov_automatico
+                        ? "O job das saídas agrupa os pedidos importados deste tipo em ondas (movimentos de saída) automaticamente"
+                        : "As ondas são geradas manualmente na tela Gerar Saídas"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.libera_mov_automatico} onCheckedChange={(v) => set("libera_mov_automatico", v)} />
-                  <label className="text-sm text-foreground">Libera movimento automático</label>
+                  <Switch
+                    id="libera-mov-automatico"
+                    checked={!!form.libera_mov_automatico}
+                    onCheckedChange={(v) => set("libera_mov_automatico", v)}
+                  />
+                  <div>
+                    <label htmlFor="libera-mov-automatico" className="text-sm text-foreground">Libera movimento automático</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.libera_mov_automatico
+                        ? "O job das saídas libera as ondas criadas para a separação no coletor, sem ação do supervisor"
+                        : "O supervisor libera cada onda para a separação"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
@@ -452,16 +547,32 @@ export function TiposSaidaPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.gera_abastecimento_automatico} onCheckedChange={(v) => set("gera_abastecimento_automatico", v)} />
-                  <label className="text-sm text-foreground">Gera abastecimento automático</label>
+                  <Switch
+                    id="gera-abastecimento-automatico"
+                    checked={!!form.gera_abastecimento_automatico}
+                    onCheckedChange={(v) => set("gera_abastecimento_automatico", v)}
+                  />
+                  <div>
+                    <label htmlFor="gera-abastecimento-automatico" className="text-sm text-foreground">Gera abastecimento automático</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.gera_abastecimento_automatico
+                        ? "Ao liberar a onda, gera abastecimento do pulmão para o picking quando o picking não tem saldo para os itens"
+                        : "O abastecimento do picking para esta onda é feito pelas regras normais de abastecimento"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* ── Status ── */}
             <div className="flex items-center gap-3 px-4">
-              <Switch checked={form.ativo !== false} onCheckedChange={(v) => set("ativo", v)} />
-              <label className="text-sm text-foreground font-medium">Ativo</label>
+              <Switch id="tipo-ativo" checked={form.ativo !== false} onCheckedChange={(v) => set("ativo", v)} />
+              <div>
+                <label htmlFor="tipo-ativo" className="text-sm text-foreground font-medium">Ativo</label>
+                <p className="text-xs text-muted-foreground">
+                  {form.ativo !== false ? "Pedidos deste tipo são aceitos e processados" : "Tipo inativo: não entra em geração nem liberação automática"}
+                </p>
+              </div>
             </div>
             </div>
           </div>
