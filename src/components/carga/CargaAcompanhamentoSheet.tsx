@@ -31,6 +31,7 @@ const EVENTO_LABEL: Record<string, string> = {
   PRIORIDADE_ALTERADA: "Prioridade alterada",
   RESPONSAVEIS_ALTERADOS: "Responsáveis alterados",
   RESERVA_EMBARQUE: "Carga reservada para o operador",
+  ONDA_STATUS_DEVOLVIDO: "Onda devolvida para a montagem",
 };
 const EVENTO_ALERTA = new Set(["VEICULO_DIVERGENTE", "VEICULO_CODIGO_INVALIDO", "VOLUME_DIGITADO", "CONFERENCIA_LIMPA"]);
 
@@ -227,6 +228,7 @@ export function CargaAcompanhamentoSheet({ cargaId, tenantId, onClose }: Props) 
                           {e.tipo === "PRIORIDADE_ALTERADA" && typeof e.dados.para === "string" ? `: ${String(e.dados.de ?? "")} → ${e.dados.para}` : ""}
                           {e.tipo === "CONFERENCIA_LIMPA" && typeof e.dados.motivo === "string" ? ` (${String(e.dados.volumes ?? 0)} volume(s)): ${e.dados.motivo}` : ""}
                           {e.tipo === "RESPONSAVEIS_ALTERADOS" && typeof e.dados.motivo === "string" ? `: ${e.dados.motivo}` : ""}
+                          {e.tipo === "ONDA_STATUS_DEVOLVIDO" && typeof e.dados.para === "string" ? `: onda ${String(e.dados.numero_onda ?? "")} → ${e.dados.para}` : ""}
                           {e.usuario_nome ? <span className="text-muted-foreground"> · {e.usuario_nome}</span> : null}
                         </span>
                       </li>
