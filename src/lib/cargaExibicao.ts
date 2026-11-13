@@ -193,3 +193,56 @@ export const PRIORIDADE_TOM: Record<PrioridadeCarga, string> = {
   NORMAL: "bg-blue-500/15 text-blue-400 border-blue-500/30",
   BAIXA: "bg-muted text-muted-foreground border-border",
 };
+
+/* ── Coletor · lista de cargas do embarque (F6.8) ── */
+
+export interface FiltrosCargaColetor { veiculo: string; box: string; motorista: string }
+export const FILTROS_CARGA_COLETOR_VAZIOS: FiltrosCargaColetor = { veiculo: "", box: "", motorista: "" };
+
+type CargaFiltravel = {
+  modalidade?: ModalidadeTransporte | null; veiculo?: string | null; transportadora?: string | null; placa?: string | null;
+  box?: string | null; motorista?: string | null;
+};
+
+const textoFiltro = (v: string | null | undefined) => (v ?? "").trim();
+
+/** Opções dos filtros do coletor montadas a partir da própria lista (como o tipo de saída na separação). */
+export function opcoesFiltroCargas(lista: CargaFiltravel[]) {
+  const unicos = (vals: string[]) => [...new Set(vals.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return {
+    veiculos: unicos(lista.map((c) => descreverTransporte(c))),
+    boxes: unicos(lista.map((c) => textoFiltro(c.box))),
+    motoristas: unicos(lista.map((c) => textoFiltro(c.motorista))),
+  };
+}
+
+export function contarFiltrosCarga(f: FiltrosCargaColetor): number {
+  return [f.veiculo, f.box, f.motorista].filter((v) => v.trim() !== "").length;
+}
+
+export function filtrarCargasColetor<T extends CargaFiltravel>(lista: T[], f: FiltrosCargaColetor): T[] {
+  if (contarFiltrosCarga(f) === 0) return lista;
+  return lista.filter((c) =>
+    (!f.veiculo || descreverTransporte(c) === f.veiculo)
+    && (!f.box || textoFiltro(c.box) === f.box)
+    && (!f.motorista || textoFiltro(c.motorista) === f.motorista));
+}
+
+export type TomResponsavel = "VOCE" | "OUTROS" | "LIVRE";
+
+/** Linha "com quem está a carga" do card — mesma leitura do "Disponível para assumir / Com: X" da separação. */
+export function descreverResponsavelCarga(c: {
+  convocado?: boolean; responsaveis?: string[] | null; operadores?: string[] | null;
+}): { tom: TomResponsavel; prefixo: string; nomes: string } {
+  const resp = c.responsaveis ?? [];
+  const ops = c.operadores ?? [];
+  if (resp.length > 0) {
+    if (c.convocado) {
+      const outros = resp.length - 1;
+      return { tom: "VOCE", prefixo: "Com você", nomes: outros > 0 ? `+ ${resp.length - 1} operador(es)` : "" };
+    }
+    return { tom: "OUTROS", prefixo: "Com:", nomes: resp.join(", ") };
+  }
+  if (ops.length > 0) return { tom: "OUTROS", prefixo: "Em carregamento com:", nomes: ops.join(", ") };
+  return { tom: "LIVRE", prefixo: "Disponível para assumir", nomes: "" };
+}

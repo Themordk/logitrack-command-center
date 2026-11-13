@@ -30,6 +30,7 @@ const EVENTO_LABEL: Record<string, string> = {
   CONFERENCIA_LIMPA: "Conferência do carregamento limpa",
   PRIORIDADE_ALTERADA: "Prioridade alterada",
   RESPONSAVEIS_ALTERADOS: "Responsáveis alterados",
+  RESERVA_EMBARQUE: "Carga reservada para o operador",
 };
 const EVENTO_ALERTA = new Set(["VEICULO_DIVERGENTE", "VEICULO_CODIGO_INVALIDO", "VOLUME_DIGITADO", "CONFERENCIA_LIMPA"]);
 

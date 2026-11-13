@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FILTROS_ONDAS_VAZIOS, agruparSugestao, descreverTransporte, filtrarOndas, ordenarOndas, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
+  FILTROS_CARGA_COLETOR_VAZIOS, FILTROS_ONDAS_VAZIOS, agruparSugestao, contarFiltrosCarga, descreverResponsavelCarga, filtrarCargasColetor, opcoesFiltroCargas, descreverTransporte, filtrarOndas, ordenarOndas, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
 } from "@/lib/cargaExibicao";
 import type { OndaSugerida } from "@/lib/cargaService";
 
@@ -93,5 +93,25 @@ describe("grid de ondas", () => {
     expect(ordenarOndas(lista, "peso_total", "desc").map((o) => o.numero_onda)).toEqual([1861, 1862]);
     expect(ordenarOndas(lista, "numero_onda", "asc").map((o) => o.numero_onda)).toEqual([1861, 1862]);
     expect(ordenarOndas(lista, "cidades", "asc").map((o) => o.numero_onda)).toEqual([1861, 1862]);
+  });
+});
+
+describe("lista de cargas do coletor", () => {
+  const cargas = [
+    { id: "1", modalidade: "PROPRIA" as const, veiculo: "CAMINHAO", placa: "QAS-123", transportadora: null, box: "BOX 01", motorista: "JOSE" },
+    { id: "2", modalidade: "TERCEIRO" as const, veiculo: null, placa: null, transportadora: "Rodo Log", box: null, motorista: "ANA" },
+  ];
+  it("monta as opções e filtra por veículo, box e motorista", () => {
+    const op = opcoesFiltroCargas(cargas);
+    expect(op.veiculos).toEqual(["CAMINHAO - QAS-123", "Rodo Log"]);
+    expect(op.boxes).toEqual(["BOX 01"]);
+    expect(filtrarCargasColetor(cargas, { ...FILTROS_CARGA_COLETOR_VAZIOS, veiculo: "Rodo Log" }).map((c) => c.id)).toEqual(["2"]);
+    expect(filtrarCargasColetor(cargas, { veiculo: "", box: "BOX 01", motorista: "ANA" })).toHaveLength(0);
+    expect(contarFiltrosCarga({ veiculo: "", box: "BOX 01", motorista: "ANA" })).toBe(2);
+  });
+  it("descreve com quem está a carga", () => {
+    expect(descreverResponsavelCarga({ convocado: false, responsaveis: [], operadores: [] }).tom).toBe("LIVRE");
+    expect(descreverResponsavelCarga({ convocado: true, responsaveis: ["Izaias"] })).toEqual({ tom: "VOCE", prefixo: "Com você", nomes: "" });
+    expect(descreverResponsavelCarga({ convocado: false, responsaveis: [], operadores: ["Paulo", "Ana"] }).nomes).toBe("Paulo, Ana");
   });
 });

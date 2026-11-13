@@ -92,7 +92,7 @@ export function TiposSaidaPage() {
     setEditItem(item);
     setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
-      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false,
+      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false, reserva_embarque_carga: false,
       momento_conferencia: "PRE_FATURAMENTO",
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
@@ -118,6 +118,10 @@ export function TiposSaidaPage() {
       payload.reserva_conferencia_movimento = true;
       payload.permite_mesmo_operador_sep_conf = true;
       payload.momento_conferencia = "PRE_FATURAMENTO";
+    }
+    if (!payload.realiza_embarque) {
+      payload.exige_confirmacao_veiculo = false;
+      payload.reserva_embarque_carga = false;
     }
     if (payload.momento_conferencia !== "POS_FATURAMENTO") {
       payload.momento_conferencia = "PRE_FATURAMENTO";
@@ -314,7 +318,7 @@ export function TiposSaidaPage() {
             <div className={sectionClass}>
               <p className={sectionTitleClass}>Reserva de tarefas</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Define se a onda inteira é reservada para 1 operador ou se múltiplos operadores podem trabalhar simultaneamente.
+                Define se a onda (ou a carga, no embarque) inteira é reservada para 1 operador ou se múltiplos operadores podem trabalhar simultaneamente.
               </p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -365,6 +369,27 @@ export function TiposSaidaPage() {
                       {form.permite_mesmo_operador_sep_conf !== false
                         ? "Quem separou a onda também pode conferi-la"
                         : "Quem separou a onda não pode conferi-la"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="reserva-embarque-carga"
+                    checked={!!form.reserva_embarque_carga}
+                    onCheckedChange={(v) => set("reserva_embarque_carga", v)}
+                    disabled={!form.realiza_embarque}
+                    className={!form.realiza_embarque ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="reserva-embarque-carga" className={`text-sm ${!form.realiza_embarque ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Reserva toda a carga no embarque
+                    </label>
+                    <p className={`text-xs ${!form.realiza_embarque ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque
+                        ? "Disponível quando o tipo realiza embarque"
+                        : form.reserva_embarque_carga
+                        ? "Apenas 1 operador embarca a carga: ela fica com quem iniciar o embarque"
+                        : "Múltiplos operadores podem embarcar a mesma carga"}
                     </p>
                   </div>
                 </div>

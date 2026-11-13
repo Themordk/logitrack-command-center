@@ -182,8 +182,14 @@ export interface CargaColetor {
   numero_carga: number;
   status: CargaStatus;
   prioridade: PrioridadeCarga;
-  /** O operador logado está convocado para esta carga. */
+  /** O operador logado está convocado (ou reservou) esta carga. */
   convocado: boolean;
+  /** Algum tipo de saída da carga reserva a carga inteira para quem iniciar o embarque. */
+  reserva_carga?: boolean;
+  /** Convocados/reservas ativos (nomes). Vazio = carga livre. */
+  responsaveis?: string[];
+  /** Quem já embarcou volumes nesta carga (nomes). */
+  operadores?: string[];
   unidade_embarque: UnidadeEmbarque | null;
   modalidade: ModalidadeTransporte;
   transportadora: string | null;
