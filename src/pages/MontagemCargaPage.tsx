@@ -36,9 +36,9 @@ const POR_PAGINA = 20;
 const FILTROS_CARGA: { valor: string; rotulo: string; status: CargaStatus[] | null }[] = [
   { valor: "ativas", rotulo: "Em aberto", status: ["EM_MONTAGEM", "LIBERADA", "EM_CARREGAMENTO"] },
   { valor: "EM_MONTAGEM", rotulo: "Em montagem", status: ["EM_MONTAGEM"] },
-  { valor: "LIBERADA", rotulo: "Liberada", status: ["LIBERADA"] },
+  { valor: "LIBERADA", rotulo: "Liberada p/ carregamento", status: ["LIBERADA"] },
   { valor: "EM_CARREGAMENTO", rotulo: "Em carregamento", status: ["EM_CARREGAMENTO"] },
-  { valor: "FECHADA", rotulo: "Fechada", status: ["FECHADA"] },
+  { valor: "FECHADA", rotulo: "Carregada", status: ["FECHADA"] },
   { valor: "CANCELADA", rotulo: "Cancelada", status: ["CANCELADA"] },
   { valor: "todas", rotulo: "Todas", status: null },
 ];

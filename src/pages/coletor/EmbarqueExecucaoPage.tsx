@@ -2,7 +2,7 @@
  * Fluxo de Expedição · F6.4 — execução do embarque no coletor.
  * 1) Confirmar o veículo pelo QR da etiqueta (quando o tipo de saída exige);
  * 2) Conferir volume a volume (pedido mostra conferidos/total; pedido sem volume gera os volumes aqui);
- * 3) Fechar a carga. Todas as regras vêm das RPCs embarque_* (cargaService).
+ * 3) Concluir o carregamento. Todas as regras vêm das RPCs embarque_* (cargaService).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Circle, Keyboard, Loader2, Lock, Package, PackagePlus, QrCode, Truck } from "lucide-react";
@@ -192,7 +192,7 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
       const r = await cargaService.fechar(tenantId, carga.id, usuarioId);
       feedback.success();
       sessionStorage.removeItem(EMBARQUE_CARGA_KEY);
-      result.showSuccess(r.mensagem ?? `Carga #${carga.numero_carga} fechada.`, {
+      result.showSuccess(r.mensagem ?? `Carregamento da carga #${carga.numero_carga} concluído.`, {
         details: "Avise o supervisor para imprimir o romaneio e colher a assinatura do motorista.",
         onClose: () => onNavigate("/coletor/embarque"),
       });
@@ -261,7 +261,7 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
   const passos = [
     ...(carga?.exige_confirmacao_veiculo ? [{ n: 1, rotulo: "Veículo" }] : []),
     { n: 2, rotulo: "Volumes" },
-    { n: 3, rotulo: "Fechar" },
+    { n: 3, rotulo: "Concluir" },
   ];
 
   return (
@@ -403,7 +403,7 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
               ) : (
                 <ActionButton variant="success" onClick={() => setConfirmarFechar(true)} disabled={!completa || enviando || bloqueado}>
                   <Lock size={18} aria-hidden="true" />{" "}
-                  {completa ? "Fechar carga"
+                  {completa ? "Concluir carregamento"
                     : semVolumes.length ? `${semVolumes.length} pedido(s) sem volume`
                     : `Faltam ${pendentes.length} volume(s)`}
                 </ActionButton>

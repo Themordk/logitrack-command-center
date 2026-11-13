@@ -213,7 +213,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                 {podeEditar && carga.acoes.fechar && (
                   <Button size="sm" variant="secondary" onClick={() => setConfirmar("fechar")}
                     disabled={ocupado || pendentes > 0 || pendenciasFechar.length > 0 || cabAlterado} title={tituloFechar}>
-                    <Lock size={14} /> Fechar carga
+                    <Lock size={14} /> Concluir carregamento
                   </Button>
                 )}
                 {podeEditar && carga.acoes.cancelar && (
@@ -250,7 +250,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                     <div className="h-full bg-green-500 transition-all" style={{ width: `${(carga.progresso.embarcadas / carga.progresso.total) * 100}%` }} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    {carga.fechada_em ? `Fechada em ${dataHora(carga.fechada_em)} por ${carga.fechada_por_nome ?? "—"}.`
+                    {carga.fechada_em ? `Carregada em ${dataHora(carga.fechada_em)} por ${carga.fechada_por_nome ?? "—"}.`
                       : carga.iniciada_em ? `Carregamento iniciado em ${dataHora(carga.iniciada_em)}.` : "Aguardando o primeiro bip no coletor."}
                   </p>
                 </div>
@@ -260,7 +260,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
               {pendenciasFechar.length > 0 && carga.acoes.fechar && (
                 <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200 flex gap-2" role="status">
                   <AlertTriangle size={16} className="shrink-0 mt-0.5 text-yellow-400" aria-hidden="true" />
-                  <span>Para fechar esta carga de transportadora, informe: <b>{pendenciasFechar.join(", ").toLowerCase()}</b>.</span>
+                  <span>Para concluir o carregamento desta carga de transportadora, informe: <b>{pendenciasFechar.join(", ").toLowerCase()}</b>.</span>
                 </div>
               )}
 
@@ -465,12 +465,12 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {confirmar === "liberar" && `Liberar a carga #${carga?.numero_carga} para o embarque?`}
-                {confirmar === "fechar" && `Fechar a carga #${carga?.numero_carga}?`}
+                {confirmar === "fechar" && `Concluir o carregamento da carga #${carga?.numero_carga}?`}
                 {confirmar === "cancelar" && `Cancelar a carga #${carga?.numero_carga}?`}
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {confirmar === "liberar" && "O coletor passa a mostrar a carga e as unidades a bipar seguem a ordem atual. Ainda dá para reordenar o que não foi bipado."}
-                {confirmar === "liberar" && pendenciasFechar.length > 0 && ` Antes de fechar, informe: ${pendenciasFechar.join(", ").toLowerCase()}.`}
+                {confirmar === "liberar" && pendenciasFechar.length > 0 && ` Antes de concluir o carregamento, informe: ${pendenciasFechar.join(", ").toLowerCase()}.`}
                 {confirmar === "fechar" && "As ondas desta carga ficam concluídas e o ERP recebe o aviso de saída expedida. Depois disso a carga não muda mais."}
                 {confirmar === "cancelar" && "As tarefas de embarque são canceladas e as ondas voltam para a montagem. Informe o motivo."}
               </AlertDialogDescription>
@@ -487,7 +487,7 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                 className={confirmar === "cancelar" ? "bg-red-600 hover:bg-red-700" : undefined}
               >
                 {acao.isPending && <Loader2 size={14} className="animate-spin" />}
-                {confirmar === "liberar" ? "Liberar" : confirmar === "fechar" ? "Fechar carga" : "Cancelar carga"}
+                {confirmar === "liberar" ? "Liberar" : confirmar === "fechar" ? "Concluir carregamento" : "Cancelar carga"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

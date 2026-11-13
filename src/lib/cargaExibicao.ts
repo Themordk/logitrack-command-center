@@ -6,9 +6,9 @@ import type { CargaDocumento, CargaStatus, ModalidadeTransporte, PrioridadeCarga
 
 export const CARGA_STATUS_LABEL: Record<CargaStatus, string> = {
   EM_MONTAGEM: "Em montagem",
-  LIBERADA: "Liberada",
+  LIBERADA: "Liberada p/ carregamento",
   EM_CARREGAMENTO: "Em carregamento",
-  FECHADA: "Fechada",
+  FECHADA: "Carregada",
   CANCELADA: "Cancelada",
 };
 

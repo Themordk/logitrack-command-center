@@ -61,7 +61,7 @@ export function CargaAcompanhamentoSheet({ cargaId, tenantId, onClose }: Props) 
     { rotulo: "Veículo confirmado", quando: d.carga.veiculo_confirmado_em, quem: d.carga.veiculo_confirmado_por_nome },
     { rotulo: "Início do carregamento", quando: d.carga.iniciada_em, quem: d.operadores[0]?.nome },
     { rotulo: "Última leitura", quando: d.carga.ultima_leitura_em },
-    { rotulo: "Carga fechada", quando: d.carga.fechada_em, quem: d.carga.fechada_por_nome },
+    { rotulo: "Carregamento concluído", quando: d.carga.fechada_em, quem: d.carga.fechada_por_nome },
   ] : [];
 
   return (

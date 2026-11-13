@@ -50,7 +50,7 @@ export function gerarRomaneioPdf(r: Romaneio): jsPDF {
     ["Box / doca", c.box?.descricao ?? "—"],
     ["Unidade de embarque", c.unidade_embarque ? UNIDADE_EMBARQUE_LABEL[c.unidade_embarque] : "—"],
     ["Liberada em", dataHora(c.liberada_em)],
-    ["Fechada em", dataHora(c.fechada_em)],
+    ["Carregada em", dataHora(c.fechada_em)],
     ["Peso total (kg)", formatarNumero(c.peso_total, 2)],
     ["Volume (m3)", formatarNumero(c.m3_total, 3)],
     ["Volumes", String(r.volumes_total ?? c.volumes_total)],
