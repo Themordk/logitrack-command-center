@@ -1,5 +1,6 @@
 import { Loader2, MapPin, Package, Smartphone, UserCheck, UserCog, UserRound, AlertTriangle } from "lucide-react";
 import type { ResumoEtapaColetor } from "@/lib/responsaveisOnda.types";
+import { descreverUnidades } from "@/lib/unidadeConferencia";
 
 interface Props {
   resumo: ResumoEtapaColetor | null;
@@ -58,6 +59,14 @@ export function ResumoEtapaPainel({ resumo, loading }: Props) {
             <p className="text-base font-bold text-white flex items-center justify-center gap-1"><MapPin size={13} />{t.enderecos}</p>
             <p className="text-[11px] text-[hsl(213,31%,55%)]">endereços</p>
           </div>
+        </div>
+      )}
+      {descreverUnidades(resumo.unidades, resumo.etapa?.codigo === "SEP-CONF" ? "SEP-CONF" : "SEP") && (
+        <div className="text-[11px] text-cyan-300 px-1">
+          <p>{descreverUnidades(resumo.unidades, resumo.etapa?.codigo === "SEP-CONF" ? "SEP-CONF" : "SEP")}</p>
+          {resumo.unidades?.minha && (
+            <p className="font-semibold">Sua unidade: {resumo.unidades.minha.sequencia}{resumo.unidades.minha.descricao ? ` · ${resumo.unidades.minha.descricao}` : ""}</p>
+          )}
         </div>
       )}
       {resumo.operadores && resumo.operadores.length > 0 && (

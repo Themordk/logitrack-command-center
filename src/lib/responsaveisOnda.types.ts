@@ -134,6 +134,8 @@ export interface ResumoEtapaColetor {
     quantidade_pendente: number;
   };
   operadores?: Array<{ nome: string; tarefas: number; origem: OrigemAtribuicao }>;
+  /** F5.4: grupos de separação (SEP) ou unidades de conferência (SEP-CONF) da onda. */
+  unidades?: import("@/lib/unidadeConferencia").ResumoUnidades;
 }
 
 export interface AcaoEtapaResult {
