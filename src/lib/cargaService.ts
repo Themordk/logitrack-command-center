@@ -93,6 +93,8 @@ export interface CargaResumo {
   created_at: string;
   liberada_em: string | null;
   fechada_em: string | null;
+  /** Números das NF-e dos pedidos da carga. */
+  nfes?: string[];
 }
 
 export interface CargaDocumento {
@@ -337,8 +339,9 @@ export const cargaService = {
   sugerir: (tenantId: string, empresaId: string) =>
     ler<SugestaoCarga>("carga_sugerir", { p_tenant_id: tenantId, p_empresa_id: empresaId }),
 
-  listar: (tenantId: string, empresaId: string, status: CargaStatus[] | null) =>
-    ler<CargaResumo[]>("carga_listar", { p_tenant_id: tenantId, p_empresa_id: empresaId, p_status: status, p_limite: 200 }),
+  /** nf = número da NF-e (contém) ou chave completa; filtrado no backend. */
+  listar: (tenantId: string, empresaId: string, status: CargaStatus[] | null, nf?: string) =>
+    ler<CargaResumo[]>("carga_listar", { p_tenant_id: tenantId, p_empresa_id: empresaId, p_status: status, p_limite: 200, p_nf: nf?.trim() || null }),
 
   obter: (tenantId: string, cargaId: string) =>
     ler<CargaDetalhe>("carga_obter", { p_tenant_id: tenantId, p_carga_id: cargaId }),

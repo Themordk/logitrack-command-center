@@ -250,9 +250,10 @@ export function descreverResponsavelCarga(c: {
 /* ── Web · filtros da aba Cargas da Montagem de Carga ── */
 
 export interface FiltrosCargas {
-  numero: string; prioridade: string; veiculo: string; box: string; criadaDe: string; criadaAte: string;
+  numero: string; nf: string; prioridade: string; veiculo: string; box: string; criadaDe: string; criadaAte: string;
 }
-export const FILTROS_CARGAS_VAZIOS: FiltrosCargas = { numero: "", prioridade: "", veiculo: "", box: "", criadaDe: "", criadaAte: "" };
+/** nf é aplicado no backend (carga_listar p_nf); os demais, localmente por filtrarCargas. */
+export const FILTROS_CARGAS_VAZIOS: FiltrosCargas = { numero: "", nf: "", prioridade: "", veiculo: "", box: "", criadaDe: "", criadaAte: "" };
 
 /** Data local (AAAA-MM-DD) de um timestamp, para comparar com o input type="date". */
 export function dataLocalIso(v: string | null | undefined): string {

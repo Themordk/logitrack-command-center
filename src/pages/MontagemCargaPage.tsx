@@ -76,6 +76,12 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
   const [aba, setAba] = useState<"ondas" | "cargas">("ondas");
   const [filtroCarga, setFiltroCarga] = useState("ativas");
   const [filtrosCargas, setFiltrosCargas] = useState<FiltrosCargas>(FILTROS_CARGAS_VAZIOS);
+  // NF-e é buscada no backend: espera o usuário parar de digitar.
+  const [nfBusca, setNfBusca] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setNfBusca(filtrosCargas.nf.trim()), 400);
+    return () => clearTimeout(t);
+  }, [filtrosCargas.nf]);
   const [cargaAberta, setCargaAberta] = useState<string | null>(null);
   const [acompanhando, setAcompanhando] = useState<string | null>(null);
   const [menuCarga, setMenuCarga] = useState<string | null>(null);
@@ -145,9 +151,10 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
 
   const statusFiltro = FILTROS_CARGA.find((f) => f.valor === filtroCarga)?.status ?? null;
   const cargas = useQuery({
-    queryKey: ["cargas", tenantId, empresaId, filtroCarga],
+    queryKey: ["cargas", tenantId, empresaId, filtroCarga, nfBusca],
     enabled: pronto,
-    queryFn: () => cargaService.listar(tenantId as string, empresaId as string, statusFiltro),
+    queryFn: () => cargaService.listar(tenantId as string, empresaId as string, statusFiltro, nfBusca),
+    placeholderData: (anterior) => anterior,
     refetchInterval: 30_000,
   });
 
@@ -427,6 +434,11 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                 onChange={(e) => mudarFiltroCarga("numero", e.target.value)} className={`${filtroInput} w-36`} />
             </div>
             <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-carga-nf" className={filtroLabel}>Nº NF-e</label>
+              <input id="filtro-carga-nf" type="text" placeholder="Número ou chave..." value={filtrosCargas.nf}
+                onChange={(e) => mudarFiltroCarga("nf", e.target.value)} className={`${filtroInput} w-36`} />
+            </div>
+            <div className="flex flex-col gap-1">
               <label htmlFor="filtro-carga-situacao" className={filtroLabel}>Situação</label>
               <select id="filtro-carga-situacao" value={filtroCarga} onChange={(e) => setFiltroCarga(e.target.value)} className={`${filtroInput} w-40`}>
                 {FILTROS_CARGA.map((f) => <option key={f.valor} value={f.valor}>{f.rotulo}</option>)}
@@ -489,6 +501,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                       <th className={`${th} text-center`}>Pedidos</th>
                       <th className={`${th} text-left w-44`}>Embarque</th>
                       <th className={`${th} text-left`}>Criada em</th>
+                      <th className={`${th} text-left`}>Carregada em</th>
                       <th className={`${th} text-right w-24`}>Ações</th>
                     </tr>
                   </thead>
@@ -513,7 +526,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                           </td>
                           <td className={`${td} text-xs text-muted-foreground`}>{c.box ?? "—"}</td>
                           <td className={`${td} text-center text-muted-foreground`}>{c.ondas}</td>
-                          <td className={`${td} text-center text-muted-foreground`}>{c.documentos}</td>
+                          <td className={`${td} text-center text-muted-foreground`} title={(c.nfes ?? []).length ? `NF-e: ${(c.nfes ?? []).join(", ")}` : undefined}>{c.documentos}</td>
                           <td className={td}>
                             {c.unidades_total > 0 ? (
                               <div className="flex items-center gap-2">
@@ -525,6 +538,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
                             ) : <span className="text-xs text-muted-foreground">{c.status === "EM_MONTAGEM" ? "Não liberada" : "—"}</span>}
                           </td>
                           <td className={`${td} text-xs text-muted-foreground`}>{dataHora(c.created_at)}</td>
+                          <td className={`${td} text-xs ${c.fechada_em ? "text-foreground" : "text-muted-foreground"}`}>{dataHora(c.fechada_em)}</td>
                           <td className={td} onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1 relative">
                               <button type="button" onClick={() => setAcompanhando(c.id)}
