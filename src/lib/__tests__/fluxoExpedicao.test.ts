@@ -40,3 +40,17 @@ describe("simulação", () => {
     expect(descreverAmostra({ ...base, origem: "PERIODO", pedidos: 12, dias: 15 })).toBe("12 pedido(s) dos últimos 15 dias (não há pendentes)");
   });
 });
+
+import { textoCobertura } from "@/lib/fluxoExpedicao";
+describe("critérios de produto no N3", () => {
+  it("mostra a cobertura do cadastro e alerta abaixo de 80%", () => {
+    expect(textoCobertura("GRUPO_PRODUTO", 49)).toEqual({ texto: '49% dos produtos têm a informação; os demais vão para "Sem grupo".', alerta: true });
+    expect(textoCobertura("MARCA", 100)?.alerta).toBe(false);
+    expect(textoCobertura("ZONA_ATIVIDADE", 10)).toBeNull();
+  });
+  it("frase e dica com marca e grupo", () => {
+    const c = { ...CONFIG_VAZIA, separacao: ["MARCA" as const, "GRUPO_PRODUTO" as const] };
+    expect(fraseNivel("separacao", c)).toBe("Dentro do movimento, um grupo de separação por armazém, marca e grupo de produto.");
+    expect(dicasNivel("separacao", { ...c, separacao: ["GRUPO_PRODUTO", "SUBGRUPO_PRODUTO"] })).toHaveLength(1);
+  });
+});

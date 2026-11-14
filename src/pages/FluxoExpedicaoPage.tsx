@@ -19,7 +19,7 @@ import { SimulacaoFunil } from "@/components/fluxo/SimulacaoFunil";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   CONFIG_VAZIA, CRITERIO_AJUDA, CRITERIO_CURTO, CRITERIO_LABEL, NIVEL_INFO, alternarCriterio, configDeDados, configIgual,
-  dicasNivel, fluxoExpedicaoService, fraseNivel, herdados, moverCriterio,
+  dicasNivel, fluxoExpedicaoService, fraseNivel, herdados, moverCriterio, textoCobertura,
   type ConfigFluxo, type CriterioFluxo, type NivelFluxo, type RoteiroAviso,
 } from "@/lib/fluxoExpedicao";
 
@@ -60,10 +60,11 @@ interface NivelProps {
   permitidos: CriterioFluxo[];
   podeEditar: boolean;
   onChange: (lista: CriterioFluxo[]) => void;
+  cobertura?: Partial<Record<CriterioFluxo, number>>;
   children?: React.ReactNode;
 }
 
-function BlocoNivel({ nivel, config, permitidos, podeEditar, onChange, children }: NivelProps) {
+function BlocoNivel({ nivel, config, permitidos, podeEditar, onChange, cobertura, children }: NivelProps) {
   const info = NIVEL_INFO[nivel];
   const selecionados = config[nivel];
   const [segregar, setSegregar] = useState(selecionados.length > 0);
@@ -118,6 +119,12 @@ function BlocoNivel({ nivel, config, permitidos, podeEditar, onChange, children 
                 <label htmlFor={`crit-${nivel}-${c}`} className="flex-1 min-w-0 cursor-pointer">
                   <span className="block text-sm text-foreground">{CRITERIO_LABEL[c]}</span>
                   {CRITERIO_AJUDA[c] && <span className="block text-[11px] text-muted-foreground">{CRITERIO_AJUDA[c]}</span>}
+                  {(() => {
+                    const cob = textoCobertura(c, cobertura?.[c]);
+                    return cob ? (
+                      <span className={`block text-[11px] ${cob.alerta ? "text-amber-400" : "text-emerald-400"}`}>Cadastro: {cob.texto}</span>
+                    ) : null;
+                  })()}
                 </label>
                 {marcado && (
                   <div className="flex items-center gap-1 shrink-0">
@@ -283,7 +290,8 @@ export function FluxoExpedicaoPage({ onNavigate }: Props) {
           <Conector />
           <BlocoNivel nivel="movimento" config={config} permitidos={permitidos.movimento} podeEditar={podeEditar} onChange={mudar("movimento")} />
           <Conector />
-          <BlocoNivel nivel="separacao" config={config} permitidos={permitidos.separacao} podeEditar={podeEditar} onChange={mudar("separacao")}>
+          <BlocoNivel nivel="separacao" config={config} permitidos={permitidos.separacao} podeEditar={podeEditar} onChange={mudar("separacao")}
+            cobertura={roteiro.data?.cobertura}>
             <div className="flex flex-wrap items-end gap-3 pt-1">
               <div className="flex flex-col gap-1">
                 <label htmlFor="max-sku" className="text-[11px] font-medium text-muted-foreground uppercase">Máximo de SKUs por grupo</label>

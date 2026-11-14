@@ -11,6 +11,7 @@ export type NivelFluxo = "movimento" | "separacao" | "conferencia" | "embarque";
 export type CriterioFluxo =
   | "DOCUMENTO" | "PARCEIRO" | "ROTA"
   | "ZONA_ATIVIDADE" | "TIPO_POSICAO" | "TIPO_SEPARACAO_SKU"
+  | "MARCA" | "GRUPO_PRODUTO" | "SUBGRUPO_PRODUTO"
   | "GRUPO_SEPARACAO" | "HU_VOLUME";
 
 export interface ConfigFluxo {
@@ -29,6 +30,8 @@ export interface RoteiroDados {
   embarque: CriterioFluxo[];
   limites: Record<string, number>;
   criterios_permitidos: Record<NivelFluxo, CriterioFluxo[]>;
+  /** % dos produtos ativos da empresa com a informação (critérios de produto do N3). */
+  cobertura?: Partial<Record<CriterioFluxo, number>> & { produtos?: number };
 }
 
 export interface RoteiroAviso { codigo: string; mensagem: string }
@@ -42,6 +45,9 @@ export const CRITERIO_LABEL: Record<CriterioFluxo, string> = {
   ZONA_ATIVIDADE: "Zona de atividade",
   TIPO_POSICAO: "Tipo de posição (pulmão / picking)",
   TIPO_SEPARACAO_SKU: "Tipo de separação do SKU",
+  MARCA: "Marca do produto",
+  GRUPO_PRODUTO: "Grupo de produto",
+  SUBGRUPO_PRODUTO: "Subgrupo de produto",
   GRUPO_SEPARACAO: "Grupo de separação",
   HU_VOLUME: "HU / volume",
 };
@@ -50,6 +56,7 @@ export const CRITERIO_LABEL: Record<CriterioFluxo, string> = {
 export const CRITERIO_CURTO: Record<CriterioFluxo, string> = {
   DOCUMENTO: "documento", PARCEIRO: "parceiro", ROTA: "rota",
   ZONA_ATIVIDADE: "zona", TIPO_POSICAO: "tipo de posição", TIPO_SEPARACAO_SKU: "tipo de separação",
+  MARCA: "marca", GRUPO_PRODUTO: "grupo de produto", SUBGRUPO_PRODUTO: "subgrupo de produto",
   GRUPO_SEPARACAO: "grupo de separação", HU_VOLUME: "HU/volume",
 };
 
@@ -60,6 +67,9 @@ export const CRITERIO_AJUDA: Partial<Record<CriterioFluxo, string>> = {
   ZONA_ATIVIDADE: "Cada zona de atividade do endereço vira um pacote de separação.",
   TIPO_POSICAO: "Separa o que sai do pulmão do que sai do picking.",
   TIPO_SEPARACAO_SKU: "Separa fracionado, embalagem total e caixaria.",
+  MARCA: "Cada marca vira um pacote (grafias diferentes da mesma marca são unidas).",
+  GRUPO_PRODUTO: "Cada grupo do cadastro de produtos vira um pacote.",
+  SUBGRUPO_PRODUTO: "Cada subgrupo do cadastro de produtos vira um pacote.",
   GRUPO_SEPARACAO: "Cada grupo de separação é conferido como uma unidade.",
   HU_VOLUME: "Cada HU ou volume coletado é conferido como uma unidade.",
 };
@@ -147,6 +157,9 @@ export function dicasNivel(nivel: NivelFluxo, config: ConfigFluxo): string[] {
       && config.separacao.length === 0 && !config.maxSku) {
     dicas.push("Sem critério nem limite na separação, cada movimento tem um grupo por armazém: a conferência por grupo só divide movimentos com mais de um armazém.");
   }
+  if (nivel === "separacao" && config.separacao.includes("GRUPO_PRODUTO") && config.separacao.includes("SUBGRUPO_PRODUTO")) {
+    dicas.push("Grupo e Subgrupo juntos: o subgrupo já pertence a um grupo, então marcar os dois não divide mais do que só o Subgrupo.");
+  }
   if (nivel === "separacao" && config.maxSku !== null && (!Number.isInteger(config.maxSku) || config.maxSku <= 0)) {
     dicas.push("O máximo de SKUs deve ser um número inteiro maior que zero.");
   }
@@ -232,3 +245,13 @@ export const fluxoExpedicaoService = {
     return { dados: r.dados as RoteiroDados, avisos: r.avisos ?? [], mensagem: r.mensagem ?? "Fluxo salvo." };
   },
 };
+
+/** Critérios que dependem do cadastro de produto: a tela mostra quanto do cadastro tem a informação. */
+export const CRITERIOS_CADASTRO: CriterioFluxo[] = ["MARCA", "GRUPO_PRODUTO", "SUBGRUPO_PRODUTO"];
+
+export function textoCobertura(criterio: CriterioFluxo, pct: number | undefined): { texto: string; alerta: boolean } | null {
+  if (!CRITERIOS_CADASTRO.includes(criterio) || pct === undefined || pct === null) return null;
+  const sem = criterio === "MARCA" ? "Sem marca" : criterio === "GRUPO_PRODUTO" ? "Sem grupo" : "Sem subgrupo";
+  if (pct >= 100) return { texto: "100% dos produtos têm a informação.", alerta: false };
+  return { texto: `${pct}% dos produtos têm a informação; os demais vão para "${sem}".`, alerta: pct < 80 };
+}
