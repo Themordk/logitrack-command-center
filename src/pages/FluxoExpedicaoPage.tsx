@@ -15,6 +15,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { parseError } from "@/lib/errorMapper";
 import { OrdemPercursoPanel } from "@/components/fluxo/OrdemPercursoPanel";
+import { SimulacaoFunil } from "@/components/fluxo/SimulacaoFunil";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   CONFIG_VAZIA, CRITERIO_AJUDA, CRITERIO_CURTO, CRITERIO_LABEL, NIVEL_INFO, alternarCriterio, configDeDados, configIgual,
@@ -333,10 +334,9 @@ export function FluxoExpedicaoPage({ onNavigate }: Props) {
                 </li>
               ))}
             </ol>
-            <p className="text-[11px] text-muted-foreground border-t border-border pt-2">
-              A simulação com pedidos reais (quantos movimentos, grupos e cargas) entra na próxima fase.
-            </p>
           </section>
+
+          <SimulacaoFunil tenantId={tenantId as string} empresaId={empresaId as string} config={config} />
 
           <section className="rounded-lg border border-border bg-card p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">

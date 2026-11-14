@@ -30,3 +30,13 @@ describe("fluxo de expedição", () => {
     expect(configIgual(CONFIG_VAZIA, { ...CONFIG_VAZIA })).toBe(true);
   });
 });
+
+import { descreverAmostra } from "@/lib/fluxoExpedicao";
+describe("simulação", () => {
+  const base = { dias: 7, itens: 1, skus: 1, movimentos: 1, grupos_separacao: 1, unidades_conferencia: 1, movimentos_conferidos: 1,
+    conferencia_por_hu: false, movimentos_com_embarque: 0, cargas_sugeridas: null, por_tipo: [] };
+  it("descreve a amostra usada", () => {
+    expect(descreverAmostra({ ...base, origem: "PENDENTES", pedidos: 74 })).toBe("74 pedido(s) pendente(s) de movimento");
+    expect(descreverAmostra({ ...base, origem: "PERIODO", pedidos: 12, dias: 15 })).toBe("12 pedido(s) dos últimos 15 dias (não há pendentes)");
+  });
+});

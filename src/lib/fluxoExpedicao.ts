@@ -196,9 +196,37 @@ async function chamar<T>(fn: string, args: Record<string, unknown>): Promise<Res
   return r;
 }
 
+export interface SimulacaoFluxo {
+  origem: "PENDENTES" | "PERIODO";
+  dias: number;
+  pedidos: number;
+  itens: number;
+  skus: number;
+  movimentos: number;
+  grupos_separacao: number;
+  unidades_conferencia: number;
+  movimentos_conferidos: number;
+  conferencia_por_hu: boolean;
+  movimentos_com_embarque: number;
+  /** null = sem critério no N5: a sugestão depende do veículo e box informados na geração da onda. */
+  cargas_sugeridas: number | null;
+  por_tipo: { tipo: string; pedidos: number; movimentos: number; grupos_separacao: number; unidades_conferencia: number }[];
+}
+
+export function descreverAmostra(s: SimulacaoFluxo): string {
+  return s.origem === "PENDENTES"
+    ? `${s.pedidos} pedido(s) pendente(s) de movimento`
+    : `${s.pedidos} pedido(s) dos últimos ${s.dias} dias (não há pendentes)`;
+}
+
 export const fluxoExpedicaoService = {
   obter: async (tenantId: string, empresaId: string) =>
     (await chamar<RoteiroDados>("roteiro_saida_obter", { p_tenant_id: tenantId, p_empresa_id: empresaId })).dados as RoteiroDados,
+  /** Somente leitura: aplica a configuração ainda não salva sobre pedidos reais. */
+  simular: async (tenantId: string, empresaId: string, config: ConfigFluxo, dias: number) =>
+    (await chamar<SimulacaoFluxo>("roteiro_saida_simular", {
+      p_tenant_id: tenantId, p_empresa_id: empresaId, p_config: payloadSalvar(config), p_dias: dias,
+    })).dados as SimulacaoFluxo,
   salvar: async (tenantId: string, empresaId: string, config: ConfigFluxo) => {
     const r = await chamar<RoteiroDados>("roteiro_saida_salvar", { p_tenant_id: tenantId, p_empresa_id: empresaId, p_config: payloadSalvar(config) });
     return { dados: r.dados as RoteiroDados, avisos: r.avisos ?? [], mensagem: r.mensagem ?? "Fluxo salvo." };
