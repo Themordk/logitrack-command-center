@@ -67,6 +67,8 @@ export interface OndaSugerida {
 
 export interface SugestaoCarga {
   criterio: "ROTA" | "PARCEIRO" | null;
+  /** Todos os critérios do N5, na ordem (o backend agrupa por todos). */
+  criterios?: ("ROTA" | "PARCEIRO")[];
   ondas: OndaSugerida[];
 }
 

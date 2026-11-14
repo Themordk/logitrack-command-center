@@ -249,6 +249,13 @@ export function descreverResponsavelCarga(c: {
 
 /* ── Web · filtros da aba Cargas da Montagem de Carga ── */
 
+/** Texto dos critérios do N5 usados pela sugestão de carga (carga_sugerir.criterios), na ordem. */
+export function descreverCriteriosSugestao(criterios: string[]): string {
+  const nomes = criterios.map((c) => (c === "ROTA" ? "rota" : c === "PARCEIRO" ? "parceiro" : c.toLowerCase()));
+  if (nomes.length === 0) return "transportadora ou veículo e box";
+  return nomes.length === 1 ? nomes[0] : `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
+}
+
 export interface FiltrosCargas {
   numero: string; nf: string; prioridade: string; veiculo: string; box: string; criadaDe: string; criadaAte: string;
 }

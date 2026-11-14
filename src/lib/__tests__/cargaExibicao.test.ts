@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FILTROS_CARGA_COLETOR_VAZIOS, FILTROS_CARGAS_VAZIOS, filtrarCargas, FILTROS_ONDAS_VAZIOS, agruparSugestao, contarFiltrosCarga, descreverResponsavelCarga, filtrarCargasColetor, opcoesFiltroCargas, descreverTransporte, filtrarOndas, ordenarOndas, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
+  FILTROS_CARGA_COLETOR_VAZIOS, FILTROS_CARGAS_VAZIOS, descreverCriteriosSugestao, filtrarCargas, FILTROS_ONDAS_VAZIOS, agruparSugestao, contarFiltrosCarga, descreverResponsavelCarga, filtrarCargasColetor, opcoesFiltroCargas, descreverTransporte, filtrarOndas, ordenarOndas, moverItem, nivelCapacidade, placaValida, proximoPedidoEmbarque, situacaoPedidoEmbarque,
 } from "@/lib/cargaExibicao";
 import type { OndaSugerida } from "@/lib/cargaService";
 
@@ -132,5 +132,13 @@ describe("filtros da aba Cargas", () => {
     expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, criadaDe: "2026-11-13" }).map((c) => c.numero_carga)).toEqual([24]);
     expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, criadaAte: "2026-11-12" }).map((c) => c.numero_carga)).toEqual([15]);
     expect(filtrarCargas(lista, { ...FILTROS_CARGAS_VAZIOS, criadaDe: "2026-11-12", criadaAte: "2026-11-13" })).toHaveLength(2);
+  });
+});
+
+describe("descreverCriteriosSugestao", () => {
+  it("lista todos os critérios na ordem", () => {
+    expect(descreverCriteriosSugestao([])).toBe("transportadora ou veículo e box");
+    expect(descreverCriteriosSugestao(["ROTA"])).toBe("rota");
+    expect(descreverCriteriosSugestao(["PARCEIRO", "ROTA"])).toBe("parceiro e rota");
   });
 });

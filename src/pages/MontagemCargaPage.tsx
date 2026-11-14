@@ -18,7 +18,7 @@ import { parseError } from "@/lib/errorMapper";
 import { cargaService, type CargaResumo, type CargaStatus, type OndaSugerida, type PrioridadeCarga } from "@/lib/cargaService";
 import {
   CARGA_STATUS_LABEL, FILTROS_CARGAS_VAZIOS, FILTROS_ONDAS_VAZIOS, MODALIDADE_LABEL, filtrarCargas, type FiltrosCargas, PRIORIDADES_CARGA, PRIORIDADE_TOM, TRANSPORTE_VAZIO, descreverTransporte, filtrarOndas,
-  formatarNumero, ordenarOndas, type ColunaOnda, type DirecaoOrdem, type FiltrosOndas, type TransporteValor,
+  formatarNumero, ordenarOndas, descreverCriteriosSugestao, type ColunaOnda, type DirecaoOrdem, type FiltrosOndas, type TransporteValor,
 } from "@/lib/cargaExibicao";
 import { useCargaCadastros } from "@/hooks/useCargaCadastros";
 import { CargaStatusBadge } from "@/components/carga/CargaStatusBadge";
@@ -420,7 +420,7 @@ export function MontagemCargaPage(_props: { onNavigate?: (path: string) => void 
           {sugestao.data && ordem.coluna === "sugestao" && (
             <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 -mt-2">
               <Route size={12} aria-hidden="true" />
-              Ordenado pela sugestão de agrupamento ({sugestao.data.criterio === "ROTA" ? "rota" : sugestao.data.criterio === "PARCEIRO" ? "parceiro" : "transportadora ou veículo e box"}). Clique numa coluna para mudar a ordem.
+              Ordenado pela sugestão de agrupamento ({descreverCriteriosSugestao(sugestao.data.criterios ?? (sugestao.data.criterio ? [sugestao.data.criterio] : []))}). Clique numa coluna para mudar a ordem.
             </p>
           )}
         </>
