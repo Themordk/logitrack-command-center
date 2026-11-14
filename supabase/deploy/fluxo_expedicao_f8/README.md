@@ -1,6 +1,6 @@
 # Fluxo de Expedição — pacote de publicação (F8)
 
-Pacote das fases F1 a F7 + correções do N5 (validadas no QA `pwynobnbftqcqygjtrdk` com a bateria de 93 cenários).
+Pacote das fases F1 a F7 + correções do N5 + F8.1 (validadas no QA `pwynobnbftqcqygjtrdk` com a bateria de 93 cenários e com os testes de isolamento entre clientes).
 Destino: produção `dcpmykhxysvxnpgmlyli`. **Nada aqui é aplicado automaticamente**: a pasta fica fora de
 `supabase/migrations` de propósito. Depois de publicado, os arquivos de `migrations/` são movidos para
 `supabase/migrations/`.
@@ -10,7 +10,7 @@ Destino: produção `dcpmykhxysvxnpgmlyli`. **Nada aqui é aplicado automaticame
 | Arquivo | Para quê |
 |---|---|
 | `00_foto_pre_deploy.sql` | Tira a foto do banco (schema fechado `deploy_f8`) imediatamente antes do pacote |
-| `migrations/` (33 arquivos) | As migrations, na ordem do nome, idênticas ao que foi aplicado no QA (conferido por hash, ignorando só comentários) |
+| `migrations/` (34 arquivos) | As migrations, na ordem do nome, idênticas ao que foi aplicado no QA (conferido por hash, ignorando só comentários) |
 | `99_reversao.sql` | Devolve o banco à foto: funções, gatilhos e permissões voltam; tabelas, colunas, índices, políticas, tipos, módulos e permissões novos saem. Uma transação só, com conferência final |
 
 ## Comparação QA × produção (14/11/2026)
@@ -22,13 +22,26 @@ Destino: produção `dcpmykhxysvxnpgmlyli`. **Nada aqui é aplicado automaticame
 - Os 6 clientes de produção agrupam ondas por Documento → viram "Movimento por Documento" no N2, sem mudança de comportamento.
 - Embarque e carga só entram em uso quando o tipo de saída liga "Realiza embarque" (padrão desligado).
 
+## Testes feitos no QA (14/11/2026)
+
+- **Bateria de fluxo** (`qa.fn_bateria_fluxo_expedicao`): 93 cenários, N2/N3/N4/N5, liberação, montagem e liberação da carga — 93/93.
+- **Isolamento entre clientes** (`qa.fn_teste_isolamento`): cria um cliente B completo dentro do teste e desfaz no fim.
+  - B chamando as 33 funções do pacote com o cliente A: 33/33 recusadas (42501).
+  - B com o próprio cliente e ids do A (carga, onda, veículo, volume): nada encontrado, nada alterado.
+  - Leitura e gravação direta nas tabelas novas e alteradas: sem linhas do outro cliente; gravação bloqueada.
+  - Sem login: tabelas e funções bloqueadas.
+  - Duas empresas do mesmo cliente: carga com onda de outra empresa recusada; simulação e sugestão sem mistura.
+  - Dados do cliente A idênticos antes e depois.
+- **F8.1** nasceu desses testes: cliente novo sem os módulos do fluxo/carga/embarque e sem N2 padrão; gravação direta do roteiro sem checagem de permissão; itens do verificador de segurança.
+- Verificador de segurança do Supabase: nada pendente nos objetos do pacote (as RPCs de tela rodam com direitos próprios de propósito, com checagem de cliente testada).
+
 ## Roteiro de publicação
 
 Janela: fora do horário de ondas (produção gera ondas das 7h às 18h). Sugestão: depois das 18h30 ou domingo.
 
-1. **Ensaio** (com aprovação): rodar `00` + as 33 migrations numa transação desfeita no fim, para provar que todas as trocas de trecho encontram o que procuram em produção.
+1. **Ensaio** (com aprovação): rodar `00` + as 34 migrations numa transação desfeita no fim, para provar que todas as trocas de trecho encontram o que procuram em produção.
 2. `00_foto_pre_deploy.sql`.
-3. As 33 migrations, uma a uma, na ordem do nome (a `f4_3a` precisa ser aplicada e confirmada antes da `f4_3b`: valor novo de enum).
+3. As 34 migrations, uma a uma, na ordem do nome (a `f4_3a` precisa ser aplicada e confirmada antes da `f4_3b`: valor novo de enum).
 4. Conferências: advisors de segurança; `roteiro_saida_obter` de cada tenant; `carga_sugerir`, `conferencia_buscar_ondas` e `separacao_buscar_ondas` respondendo; módulos `web.config.fluxo-expedicao` ativos e `web.armazem.roteiro-separacao` inativo.
 5. Publicar o frontend (`feat/armazenagem-fluxo`) na Vercel.
 6. Teste de fumaça no CORELOGITRACK: gerar onda → separar → conferir → (se embarque ligado) carga → embarque.
@@ -38,4 +51,4 @@ Janela: fora do horário de ondas (produção gera ondas das 7h às 18h). Sugest
 
 `99_reversao.sql` recusa rodar se houver carga liberada ou em carregamento (forçar: `SET logitrack.reversao_forcar = 'on'`).
 Apaga os dados das tabelas novas (cargas, grupos, roteiro). O frontend volta junto (deploy anterior na Vercel).
-Testada no QA em 14/11 com mudanças de todos os tipos: banco voltou idêntico à foto (funções, permissões, gatilhos, relações, colunas, índices, políticas, tipos e módulos).
+Testada no QA em 14/11 (cobre também a F8.1, que só altera funções e permissões) com mudanças de todos os tipos: banco voltou idêntico à foto (funções, permissões, gatilhos, relações, colunas, índices, políticas, tipos e módulos).
