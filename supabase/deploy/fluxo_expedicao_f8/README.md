@@ -51,4 +51,4 @@ Janela: fora do horário de ondas (produção gera ondas das 7h às 18h). Sugest
 
 `99_reversao.sql` recusa rodar se houver carga liberada ou em carregamento (forçar: `SET logitrack.reversao_forcar = 'on'`).
 Apaga os dados das tabelas novas (cargas, grupos, roteiro). O frontend volta junto (deploy anterior na Vercel).
-Testada no QA em 14/11 (cobre também a F8.1, que só altera funções e permissões) com mudanças de todos os tipos: banco voltou idêntico à foto (funções, permissões, gatilhos, relações, colunas, índices, políticas, tipos e módulos).
+Testada no QA em 14/11 com mudanças de todos os tipos (a F8.1 só altera funções e permissões, tipos de mudança cobertos pelo teste): banco voltou idêntico à foto (funções, permissões, gatilhos, relações, colunas, índices, políticas, tipos e módulos).
