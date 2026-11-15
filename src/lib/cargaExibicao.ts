@@ -285,3 +285,32 @@ export function filtrarCargas<T extends {
     && (!f.criadaDe || dataLocalIso(c.created_at) >= f.criadaDe)
     && (!f.criadaAte || (dataLocalIso(c.created_at) !== "" && dataLocalIso(c.created_at) <= f.criadaAte)));
 }
+
+/**
+ * Resultado da impressão das etiquetas geradas no embarque (embarque_gerar_volumes).
+ * Só afirma que foi para a impressora quando todas as etiquetas entraram na fila.
+ */
+export function resumoImpressaoVolumes(resultados: { ok: boolean; codigo?: string; mensagem?: string }[]): {
+  impressas: number;
+  total: number;
+  aviso: string | null;
+  detalhe: string;
+} {
+  const total = resultados.length;
+  const impressas = resultados.filter((r) => r.ok).length;
+  if (total === 0 || impressas === total) {
+    return { impressas, total, aviso: null, detalhe: "As etiquetas foram para a impressora. Cole cada uma e bipe ao carregar." };
+  }
+  const falha = resultados.find((r) => !r.ok);
+  const motivo =
+    falha?.codigo === "SEM_IMPRESSORA_CADASTRADA"
+      ? "Não há impressora cadastrada neste armazém."
+      : falha?.mensagem || "A impressora ou o agente de impressão não respondeu.";
+  const aviso = impressas === 0 ? "Etiquetas não impressas" : `${total - impressas} de ${total} etiqueta(s) não impressa(s)`;
+  return {
+    impressas,
+    total,
+    aviso,
+    detalhe: `${motivo}\nOs volumes foram gerados. Ligue a impressora e o agente de impressão e reimprima as etiquetas, ou digite o código do volume ao carregar.`,
+  };
+}
