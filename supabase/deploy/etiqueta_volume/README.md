@@ -26,6 +26,7 @@ O registro detalhado (testes, efeito em produção, roteiro) está na aba "Regis
 | `migrations/20261115223000_etq_f3_nota_fiscal.sql` | F3 |
 | `migrations/20261115224500_etq_f3c_template_chaves.sql` | B16 (textos anteriores em `ops.rollback_definicao`) |
 | `migrations/20261115231000_etq_f4_tela_volumes.sql` | F4 (bloco ROLLBACK no fim) |
+| `qa_teste_etiqueta_volume.sql` | A17 — bateria de regressão **só do QA** (não vai para produção): `SELECT qa.fn_teste_etiqueta_volume();`, 21 casos, desfaz tudo no fim |
 
 No QA, F1b foi aplicada em duas partes (`etq_f1b_cidade_uf` + `etq_f1c_revoke_trigger_fn`) e F3 recebeu o ajuste `etq_f3b_avisos_formato`; os arquivos daqui já têm a versão final.
 
@@ -33,6 +34,7 @@ Reversão: cada migration guarda as definições anteriores em `ops.rollback_def
 
 ## Publicação em produção (quando aprovada)
 
+0. No QA, `SELECT qa.fn_teste_etiqueta_volume();` com 0 falhas (rodar de novo depois de qualquer ajuste).
 1. Fora do pico (18h–20h), evitando segunda e sexta; backup (PITR) conferido.
 2. **Banco primeiro**: as 9 migrations na ordem dos arquivos. A tela Volumes nova depende da F4, que depende da F1 e da F3.
 3. **Frontend logo em seguida** (commits `feat(etiqueta-volume)`). Entre os dois passos, com o coletor antigo: onda com 2+ pedidos na conferência e geração no embarque fora da configuração ficam recusadas até o frontend subir (0 ondas com 2+ pedidos no histórico). A tela Volumes antiga continua funcionando com o banco novo.
