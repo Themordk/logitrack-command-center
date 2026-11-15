@@ -20,6 +20,7 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   CONF_SEM_CONFERENCIA: { title: "O tipo de saída desta onda não realiza conferência.", instruction: "Atualize a lista de ondas." },
   CONF_ONDA_NAO_ENCONTRADA: { title: "Onda não encontrada nesta empresa.", instruction: "Confira a empresa selecionada e atualize a lista." },
   CONF_PARAMETROS: { title: "Sessão incompleta no coletor.", instruction: "Saia e entre novamente no coletor." },
+  RESERVA_ACAO_INVALIDA: { title: "Esta ação não é permitida para este tipo de tarefa.", instruction: "Escolha uma das opções da lista." },
   CONF_ONDA_DESIGNADA: { title: "Esta conferência foi designada pelo gestor para outro operador.", instruction: "Escolha outra onda ou fale com o gestor." },
   CONF_FORA_DA_EQUIPE: { title: "Você não está na equipe de conferência desta onda.", instruction: "Escolha outra onda ou fale com o gestor." },
   CONF_MESMO_OPERADOR_SEPARACAO: { title: "Quem separou esta onda não pode conferi-la.", instruction: "Escolha outra onda." },

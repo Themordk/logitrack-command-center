@@ -75,6 +75,14 @@ describe("rótulos do card da onda", () => {
       { nome: "Lucas", sigla: "CONF" }, { nome: "Lucas", sigla: "SEP" }, { nome: "Ana", sigla: null },
     ])).toEqual(["Ana", "Lucas (SEP, CONF)"]);
   });
+  it("quem está com tarefa agora vem antes de quem só participou", () => {
+    expect(montarRotulosOperadores([
+      { nome: "Ana", sigla: "SEP", ativo: false },
+      { nome: "Zeca", sigla: "CONF", ativo: true },
+      { nome: "Bia", sigla: "SEP", ativo: false },
+      { nome: "Ana", sigla: "CONF", ativo: false },
+    ])).toEqual(["Zeca (CONF)", "Ana (SEP, CONF)", "Bia (SEP)"]);
+  });
   it("sigla das etapas", () => {
     expect(siglaEtapa("SEP")).toBe("SEP");
     expect(siglaEtapa("SEP-CONF")).toBe("CONF");

@@ -1,9 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
+
+/**
+ * Relatório Posição de Estoque — toda a regra roda na RPC
+ * `rpc_relatorio_posicao_estoque` (migration 20261112170618):
+ *  - posições de estoque_geral com filtros de endereço e de produto
+ *    (SKU parcial, EAN exato, marca, grupo, subgrupo, parceiro);
+ *  - apenas com saldo / apenas SKUs em 2+ endereços, no servidor;
+ *  - valor a custo, vencidas e posições sem atualização;
+ *  - ordem SKU → validade → endereço, paginada no servidor.
+ * A RPC devolve, em cada linha, o resumo do conjunto filtrado (cards).
+ */
 
 export interface EstoqueFilter {
   tenant_id: string;
-  empresa_id?: string;
+  empresa_id: string;
   armazem_id?: string;
   tipo_endereco?: string;
   sku?: string;
@@ -23,177 +33,188 @@ export interface EstoqueFilter {
   apto?: number;
 }
 
-const intersect = (a: string[] | null, b: string[]): string[] => {
-  if (a === null) return b;
-  const set = new Set(a);
-  return b.filter((x) => set.has(x));
-};
+export interface EstoqueRow {
+  id: string;
+  produto_id: string;
+  sku: string;
+  descricao: string;
+  marca: string;
+  fator_caixa: number | null;
+  preco_custo: number;
+  lote: string;
+  data_validade: string | null;
+  numero_serie: string;
+  endereco_id: string | null;
+  codigo_endereco: number | null;
+  endereco_descricao: string;
+  tipo_endereco: string;
+  armazem_id: string | null;
+  setor_id: string | null;
+  tipo_estoque_id: string | null;
+  rua: number | null;
+  predio: number | null;
+  nivel: number | null;
+  apto: number | null;
+  quantidade_disponivel: number;
+  quantidade_bloqueada: number;
+  quantidade_total: number;
+  valor_total: number;
+  vencido: boolean;
+  enderecos_do_sku: number;
+  atualizado_em: string | null;
+}
 
-export async function fetchEstoqueReport(filters: EstoqueFilter) {
-  const sku = filters.sku?.trim() || undefined;
-  const ean = filters.ean?.trim() || undefined;
-  const marca = filters.marca?.trim() || undefined;
+export interface EstoqueResumo {
+  total: number;
+  qtd_skus: number;
+  qtd_skus_multi: number;
+  qtd_enderecos: number;
+  pos_picking: number;
+  pos_pulmao: number;
+  saldo_total: number;
+  saldo_disponivel: number;
+  saldo_bloqueado: number;
+  pos_bloqueadas: number;
+  valor_estoque: number;
+  qtd_skus_sem_custo: number;
+  pos_vencidas: number;
+  saldo_vencido: number;
+  pos_sem_atualizacao: number;
+}
 
-  // ===== A. Resolver produto_id server-side =====
-  let produtoIds: string[] | null = null;
-  const hasProdutoFilter =
-    !!sku || !!ean || !!marca ||
-    !!filters.grupo_id || !!filters.subgrupo_id || !!filters.parceiro_id;
+export interface EstoquePage {
+  rows: EstoqueRow[];
+  resumo: EstoqueResumo;
+}
 
-  if (hasProdutoFilter) {
-    // EAN → produto_embalagem
-    if (ean) {
-      const embData = await fetchAllSelectRows<any>(
-        "produto_embalagem",
-        "produto_id",
-        (q) => q.eq("ean", ean),
-      );
-      const eanIds = embData.map((e: any) => e.produto_id);
-      if (eanIds.length === 0) return [];
-      produtoIds = intersect(produtoIds, eanIds);
+export const ESTOQUE_PAGE_SIZE = 100;
+/** Corte, em dias, para "posição sem atualização". */
+export const ESTOQUE_DIAS_SEM_ATUALIZACAO = 90;
+const EXPORT_PAGE_SIZE = 1000; // máximo aceito pela RPC
+const EXPORT_CONCORRENCIA = 4;
+
+const num = (v: unknown) => Number(v) || 0;
+const numOuNull = (v: unknown) => (v == null ? null : Number(v));
+
+export function resumoVazio(): EstoqueResumo {
+  return {
+    total: 0, qtd_skus: 0, qtd_skus_multi: 0, qtd_enderecos: 0,
+    pos_picking: 0, pos_pulmao: 0,
+    saldo_total: 0, saldo_disponivel: 0, saldo_bloqueado: 0, pos_bloqueadas: 0,
+    valor_estoque: 0, qtd_skus_sem_custo: 0,
+    pos_vencidas: 0, saldo_vencido: 0, pos_sem_atualizacao: 0,
+  };
+}
+
+function toParams(f: EstoqueFilter, limit: number, offset: number) {
+  return {
+    p_tenant_id: f.tenant_id,
+    p_empresa_id: f.empresa_id,
+    p_armazem_id: f.armazem_id || null,
+    p_tipo_endereco: f.tipo_endereco || null,
+    p_tipo_estoque_id: f.tipo_estoque_id || null,
+    p_setor_id: f.setor_id || null,
+    p_codigo_endereco: f.codigo_endereco ?? null,
+    p_rua: f.rua ?? null,
+    p_predio: f.predio ?? null,
+    p_nivel: f.nivel ?? null,
+    p_apto: f.apto ?? null,
+    p_grupo_id: f.grupo_id || null,
+    p_subgrupo_id: f.subgrupo_id || null,
+    p_marca: f.marca?.trim() || null,
+    p_parceiro_id: f.parceiro_id || null,
+    p_sku: f.sku?.trim() || null,
+    p_ean: f.ean?.trim() || null,
+    p_apenas_com_saldo: f.apenas_com_saldo ?? true,
+    p_apenas_multi_localizacao: !!f.apenas_multi_localizacao,
+    p_dias_sem_atualizacao: ESTOQUE_DIAS_SEM_ATUALIZACAO,
+    p_limit: limit,
+    p_offset: offset,
+  };
+}
+
+function mapRow(r: any): EstoqueRow {
+  return {
+    id: r.id,
+    produto_id: r.produto_id,
+    sku: r.sku ?? "",
+    descricao: r.descricao ?? "",
+    marca: r.marca ?? "",
+    fator_caixa: r.fator_caixa ?? null,
+    preco_custo: num(r.preco_custo),
+    lote: r.lote ?? "",
+    data_validade: r.data_validade ?? null,
+    numero_serie: r.numero_serie ?? "",
+    endereco_id: r.endereco_id ?? null,
+    codigo_endereco: numOuNull(r.codigo_endereco),
+    endereco_descricao: r.endereco_descricao ?? "",
+    tipo_endereco: r.tipo_endereco ?? "",
+    armazem_id: r.armazem_id ?? null,
+    setor_id: r.setor_id ?? null,
+    tipo_estoque_id: r.tipo_estoque_id ?? null,
+    rua: numOuNull(r.rua),
+    predio: numOuNull(r.predio),
+    nivel: numOuNull(r.nivel),
+    apto: numOuNull(r.apto),
+    quantidade_disponivel: num(r.quantidade_disponivel),
+    quantidade_bloqueada: num(r.quantidade_bloqueada),
+    quantidade_total: num(r.quantidade_total),
+    valor_total: num(r.valor_total),
+    vencido: !!r.vencido,
+    enderecos_do_sku: num(r.enderecos_do_sku),
+    atualizado_em: r.atualizado_em ?? null,
+  };
+}
+
+function mapResumo(r: any | undefined): EstoqueResumo {
+  if (!r) return resumoVazio();
+  return {
+    total: num(r.total_registros),
+    qtd_skus: num(r.qtd_skus),
+    qtd_skus_multi: num(r.qtd_skus_multi),
+    qtd_enderecos: num(r.qtd_enderecos),
+    pos_picking: num(r.pos_picking),
+    pos_pulmao: num(r.pos_pulmao),
+    saldo_total: num(r.saldo_total),
+    saldo_disponivel: num(r.saldo_disponivel),
+    saldo_bloqueado: num(r.saldo_bloqueado),
+    pos_bloqueadas: num(r.pos_bloqueadas),
+    valor_estoque: num(r.valor_estoque),
+    qtd_skus_sem_custo: num(r.qtd_skus_sem_custo),
+    pos_vencidas: num(r.pos_vencidas),
+    saldo_vencido: num(r.saldo_vencido),
+    pos_sem_atualizacao: num(r.pos_sem_atualizacao),
+  };
+}
+
+async function callRpc(f: EstoqueFilter, limit: number, offset: number): Promise<any[]> {
+  const { data, error } = await (supabase as any).rpc("rpc_relatorio_posicao_estoque", toParams(f, limit, offset));
+  if (error) throw error;
+  return (data as any[]) || [];
+}
+
+/** Uma página do relatório + resumo do conjunto filtrado. */
+export async function fetchEstoquePage(
+  filters: EstoqueFilter,
+  page: number,
+  pageSize = ESTOQUE_PAGE_SIZE,
+): Promise<EstoquePage> {
+  const data = await callRpc(filters, pageSize, page * pageSize);
+  return { rows: data.map(mapRow), resumo: mapResumo(data[0]) };
+}
+
+/** Todas as linhas (para Excel/PDF). Páginas de 1000, até 4 em paralelo. */
+export async function fetchEstoqueAll(filters: EstoqueFilter, total: number): Promise<EstoqueRow[]> {
+  const paginas = Math.ceil(total / EXPORT_PAGE_SIZE);
+  const resultado: EstoqueRow[][] = new Array(paginas);
+  let proxima = 0;
+  const worker = async () => {
+    while (proxima < paginas) {
+      const p = proxima++;
+      const data = await callRpc(filters, EXPORT_PAGE_SIZE, p * EXPORT_PAGE_SIZE);
+      resultado[p] = data.map(mapRow);
     }
-
-    // produto: sku/marca/grupo/subgrupo/parceiro
-    if (sku || marca || filters.grupo_id || filters.subgrupo_id || filters.parceiro_id) {
-      const prods = await fetchAllSelectRows<any>("produto", "id", (q) => {
-        q = q.eq("tenant_id", filters.tenant_id);
-        if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
-        if (sku) q = q.eq("sku", sku);
-        if (marca) q = q.ilike("marca", `%${marca}%`);
-        if (filters.grupo_id) q = q.eq("grupo_id", filters.grupo_id);
-        if (filters.subgrupo_id) q = q.eq("subgrupo_id", filters.subgrupo_id);
-        if (filters.parceiro_id) q = q.eq("parceiro_id", filters.parceiro_id);
-        return q;
-      });
-      const ids = prods.map((p: any) => p.id);
-      if (ids.length === 0) return [];
-      produtoIds = intersect(produtoIds, ids);
-      if (produtoIds.length === 0) return [];
-    }
-  }
-
-  // ===== B. Filtros de endereço direto no embed (!inner) — evita lista de IDs na URL =====
-  const hasEnderecoFilter =
-    !!filters.armazem_id || !!filters.tipo_endereco ||
-    !!filters.tipo_estoque_id || !!filters.setor_id ||
-    filters.codigo_endereco != null ||
-    filters.rua != null || filters.predio != null ||
-    filters.nivel != null || filters.apto != null;
-
-  const enderecoEmbed = hasEnderecoFilter ? "endereco:endereco_id!inner" : "endereco:endereco_id";
-
-  // ===== C. Query principal =====
-  const query = fetchAllSelectRows<any>(
-    "estoque_geral",
-    `
-      id,
-      lote,
-      data_validade,
-      numero_serie,
-      quantidade_disponivel,
-      quantidade_bloqueada,
-      quantidade_total,
-      atualizado_em,
-      produto:produto_id (
-        sku,
-        descricao,
-        marca,
-        fator_caixa,
-        grupo_id,
-        subgrupo_id,
-        parceiro_id
-      ),
-      ${enderecoEmbed} (
-        codigo_endereco,
-        descricao,
-        tipo_endereco,
-        armazem_id,
-        setor_id,
-        tipo_estoque_id,
-        rua,
-        predio,
-        nivel,
-        apto
-      )
-    `,
-    (q) => {
-      q = q
-        .eq("tenant_id", filters.tenant_id)
-        .order("atualizado_em", { ascending: false });
-      if (filters.empresa_id) q = q.eq("empresa_id", filters.empresa_id);
-      if (produtoIds) q = q.in("produto_id", produtoIds);
-      if (filters.armazem_id) q = q.eq("endereco.armazem_id", filters.armazem_id);
-      if (filters.tipo_endereco) q = q.eq("endereco.tipo_endereco", filters.tipo_endereco);
-      if (filters.tipo_estoque_id) q = q.eq("endereco.tipo_estoque_id", filters.tipo_estoque_id);
-      if (filters.setor_id) q = q.eq("endereco.setor_id", filters.setor_id);
-      if (filters.codigo_endereco != null) q = q.eq("endereco.codigo_endereco", filters.codigo_endereco);
-      if (filters.rua != null) q = q.eq("endereco.rua", filters.rua);
-      if (filters.predio != null) q = q.eq("endereco.predio", filters.predio);
-      if (filters.nivel != null) q = q.eq("endereco.nivel", filters.nivel);
-      if (filters.apto != null) q = q.eq("endereco.apto", filters.apto);
-      return q;
-    },
-  );
-
-  const data = await query;
-
-  let results = data.map((row: any) => ({
-    id: row.id,
-    sku: row.produto?.sku || "",
-    descricao: row.produto?.descricao || "",
-    marca: row.produto?.marca || "",
-    fator_caixa: row.produto?.fator_caixa ?? null,
-    lote: row.lote || "",
-    data_validade: row.data_validade,
-    numero_serie: row.numero_serie || "",
-    codigo_endereco: row.endereco?.codigo_endereco ?? null,
-    endereco_descricao: row.endereco?.descricao || "",
-    tipo_endereco: row.endereco?.tipo_endereco || "",
-    armazem_id: row.endereco?.armazem_id || "",
-    setor_id: row.endereco?.setor_id || "",
-    tipo_estoque_id: row.endereco?.tipo_estoque_id || "",
-    quantidade_disponivel: Number(row.quantidade_disponivel),
-    quantidade_bloqueada: Number(row.quantidade_bloqueada),
-    quantidade_total: Number(row.quantidade_total),
-    atualizado_em: row.atualizado_em,
-    grupo_id: row.produto?.grupo_id,
-    subgrupo_id: row.produto?.subgrupo_id,
-    parceiro_id: row.produto?.parceiro_id,
-  }));
-
-  // Filtro: apenas posições com saldo
-  if (filters.apenas_com_saldo) {
-    results = results.filter((r) => r.quantidade_total > 0);
-  }
-
-  // Sort: sku, descricao, data_validade, quantidade_total DESC
-  results.sort((a, b) => {
-    const c1 = a.sku.localeCompare(b.sku);
-    if (c1 !== 0) return c1;
-    const c2 = a.descricao.localeCompare(b.descricao);
-    if (c2 !== 0) return c2;
-    const c3 = (a.data_validade || "").localeCompare(b.data_validade || "");
-    if (c3 !== 0) return c3;
-    return b.quantidade_total - a.quantidade_total;
-  });
-
-  // Filtro: apenas SKUs com 2+ endereços distintos com saldo > 0
-  let finalResults = results;
-  if (filters.apenas_multi_localizacao) {
-    const skuEnderecos = new Map<string, Set<string>>();
-    for (const r of results) {
-      if (r.quantidade_total > 0 && r.sku) {
-        const key = r.codigo_endereco != null ? String(r.codigo_endereco) : (r.endereco_descricao || "");
-        if (!key) continue;
-        if (!skuEnderecos.has(r.sku)) skuEnderecos.set(r.sku, new Set());
-        skuEnderecos.get(r.sku)!.add(key);
-      }
-    }
-    const skusMulti = new Set(
-      Array.from(skuEnderecos.entries()).filter(([, s]) => s.size >= 2).map(([sku]) => sku),
-    );
-    finalResults = results.filter((r) => skusMulti.has(r.sku));
-  }
-
-  return finalResults;
+  };
+  await Promise.all(Array.from({ length: Math.min(EXPORT_CONCORRENCIA, paginas) }, worker));
+  return resultado.flat();
 }

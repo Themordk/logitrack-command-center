@@ -1,55 +1,85 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { toast } from "sonner";
 import {
-  fetchOcupacaoData,
+  fetchOcupacaoResumo,
+  fetchOcupacaoPage,
+  fetchOcupacaoAll,
   getOcupacaoColor,
   getOcupacaoProgressColor,
-  type OcupacaoData,
+  OCUPACAO_PAGE_SIZE,
+  STATUS_CORES,
+  type EnderecoOcupacao,
   type OcupacaoFilter,
+  type OcupacaoListaFilter,
+  type OcupacaoResumo,
   type SetorResumo,
+  type StatusOcupacao,
 } from "./ocupacao.service";
+import { exportToExcel, fmtDateTimeBR, fmtNumberBR, type ExportColumn } from "../utils/exporters";
 import {
   Warehouse,
   MapPin,
   Package,
   AlertTriangle,
-  TrendingUp,
-  TrendingDown,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   BarChart3,
   PieChart as PieChartIcon,
   Search,
+  FileSpreadsheet,
+  X,
 } from "lucide-react";
+
+const TODOS = "__all__";
+
+const SITUACAO_LABEL: Record<string, string> = {
+  LIVRE: "Livre",
+  OCUPADO: "Ocupado",
+  BLOQUEADO: "Bloqueado",
+  BLOQUEADO_INVENTARIO: "Bloq. inventário",
+};
+
+const fmtPerc = (v: number | null) => (v === null ? "—" : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
 
 export function OcupacaoReportPage() {
   const { tenantId, empresaId, empresaVersion } = useTenant();
 
-  // Filter state
+  // Filtros
   const [armazens, setArmazens] = useState<{ id: string; descricao: string }[]>([]);
   const [setores, setSetores] = useState<{ id: string; descricao: string }[]>([]);
   const [selectedArmazem, setSelectedArmazem] = useState("");
-  const [selectedSetor, setSelectedSetor] = useState("__all__");
-  const [selectedTipo, setSelectedTipo] = useState("__all__");
-  const [selectedStatus, setSelectedStatus] = useState("__all__");
+  const [selectedSetor, setSelectedSetor] = useState(TODOS);
+  const [selectedTipo, setSelectedTipo] = useState(TODOS);
+  const [selectedStatus, setSelectedStatus] = useState(TODOS);
+  const [apenasDivergentes, setApenasDivergentes] = useState(false);
 
-  // Data
-  const [data, setData] = useState<OcupacaoData | null>(null);
+  // Dados
+  const [resumo, setResumo] = useState<OcupacaoResumo | null>(null);
+  const [baseFilters, setBaseFilters] = useState<OcupacaoFilter | null>(null);
+  const [listaFilters, setListaFilters] = useState<OcupacaoListaFilter | null>(null);
+  const [rows, setRows] = useState<EnderecoOcupacao[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingLista, setLoadingLista] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [expandedSetor, setExpandedSetor] = useState<string | null>(null);
+  const reqId = useRef(0);
 
-  // Load armazens scoped by empresa
+  // Armazéns da empresa
   useEffect(() => {
     if (!tenantId || !empresaId) {
       setArmazens([]);
@@ -70,8 +100,9 @@ export function OcupacaoReportPage() {
       });
   }, [tenantId, empresaId, empresaVersion]);
 
-  // Load setores when armazem changes
+  // Setores do armazém
   useEffect(() => {
+    setSelectedSetor(TODOS);
     if (!tenantId || !selectedArmazem) { setSetores([]); return; }
     supabase
       .from("setor")
@@ -83,73 +114,131 @@ export function OcupacaoReportPage() {
       .then(({ data }) => setSetores(data || []));
   }, [tenantId, selectedArmazem]);
 
-  // Reset relatório e filtros ao trocar empresa
+  // Reset ao trocar empresa
   useEffect(() => {
-    setData(null);
+    setResumo(null);
+    setRows([]);
+    setTotal(0);
+    setBaseFilters(null);
+    setListaFilters(null);
     setExpandedSetor(null);
-    setSelectedSetor("__all__");
-    setSelectedTipo("__all__");
-    setSelectedStatus("__all__");
+    setSelectedTipo(TODOS);
+    setSelectedStatus(TODOS);
+    setApenasDivergentes(false);
   }, [empresaId, empresaVersion]);
 
+  const carregarLista = async (f: OcupacaoListaFilter, p: number) => {
+    const id = ++reqId.current;
+    setLoadingLista(true);
+    try {
+      const res = await fetchOcupacaoPage(f, p);
+      if (id !== reqId.current) return;
+      setRows(res.rows);
+      setTotal(res.total);
+      setPage(p);
+      setListaFilters(f);
+    } catch (err: any) {
+      if (id === reqId.current) toast.error(err?.message || "Erro ao carregar endereços.");
+    } finally {
+      if (id === reqId.current) setLoadingLista(false);
+    }
+  };
+
+  const montarLista = (base: OcupacaoFilter, setorDrill: string | null): OcupacaoListaFilter => ({
+    ...base,
+    setor_id: setorDrill ?? base.setor_id,
+    status_ocupacao: selectedStatus !== TODOS ? (selectedStatus as StatusOcupacao) : undefined,
+    apenas_divergentes: apenasDivergentes,
+  });
+
   const handleGenerate = async () => {
-    if (!tenantId || !empresaId || !selectedArmazem) {
+    if (!tenantId || !selectedArmazem) {
       toast.error("Selecione o armazém para gerar o relatório.");
       return;
     }
+    const base: OcupacaoFilter = {
+      tenant_id: tenantId,
+      armazem_id: selectedArmazem,
+      setor_id: selectedSetor !== TODOS ? selectedSetor : undefined,
+      tipo_endereco: selectedTipo !== TODOS ? selectedTipo : undefined,
+    };
     setLoading(true);
     setExpandedSetor(null);
     try {
-      const filters: OcupacaoFilter = {
-        tenant_id: tenantId,
-        empresa_id: empresaId,
-        armazem_id: selectedArmazem,
-        setor_id: selectedSetor !== "__all__" ? selectedSetor : undefined,
-        tipo_endereco: selectedTipo !== "__all__" ? selectedTipo : undefined,
-        status_ocupacao: selectedStatus !== "__all__" ? selectedStatus : undefined,
-      };
-      const result = await fetchOcupacaoData(filters);
-      setData(result);
-    } catch (err) {
+      const [res] = await Promise.all([fetchOcupacaoResumo(base), carregarLista(montarLista(base, null), 0)]);
+      setResumo(res);
+      setBaseFilters(base);
+    } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao carregar dados de ocupação.");
+      toast.error(err?.message || "Erro ao carregar dados de ocupação.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Drill-down enderecos for expanded setor
-  const drillDownEnderecos = useMemo(() => {
-    if (!data || !expandedSetor) return [];
-    return data.enderecos
-      .filter(e => e.setor_id === expandedSetor)
-      .sort((a, b) => b.quantidade_total - a.quantidade_total);
-  }, [data, expandedSetor]);
+  const toggleSetor = (setor: SetorResumo) => {
+    if (!baseFilters || !listaFilters) return;
+    const key = setor.setor_id ?? "__sem__";
+    const abrir = expandedSetor !== key;
+    setExpandedSetor(abrir ? key : null);
+    carregarLista({ ...listaFilters, setor_id: abrir ? setor.setor_id ?? undefined : baseFilters.setor_id }, 0);
+  };
 
-  // Chart config
+  const totalPaginas = Math.max(1, Math.ceil(total / OCUPACAO_PAGE_SIZE));
+  const setorAberto = resumo?.setores.find((s) => (s.setor_id ?? "__sem__") === expandedSetor);
+
+  const exportColumns: ExportColumn[] = [
+    { key: "descricao", label: "Endereço" },
+    { key: "setor_descricao", label: "Setor" },
+    { key: "tipo_endereco", label: "Tipo" },
+    { key: "situacao", label: "Situação (cadastro)", format: (r) => SITUACAO_LABEL[r.situacao] ?? r.situacao },
+    { key: "status_ocupacao", label: "Status" },
+    { key: "quantidade_total", label: "Saldo", format: (r) => fmtNumberBR(r.quantidade_total) },
+    { key: "skus_count", label: "SKUs" },
+    { key: "capacidade", label: "Capacidade (un)", format: (r) => (r.capacidade === null ? "" : fmtNumberBR(r.capacidade)) },
+    { key: "percentual_ocupacao", label: "% Capacidade", format: (r) => (r.percentual_ocupacao === null ? "" : `${r.percentual_ocupacao}%`) },
+    { key: "divergente", label: "Divergência", format: (r) => (r.divergente ? textoDivergencia(r) : "") },
+    { key: "ultima_atualizacao", label: "Última Atualização", format: (r) => fmtDateTimeBR(r.ultima_atualizacao) },
+  ];
+
+  const handleExcel = async () => {
+    if (!listaFilters || total === 0) return;
+    setExporting(true);
+    try {
+      const todas = await fetchOcupacaoAll(listaFilters, total);
+      exportToExcel("ocupacao_enderecos", exportColumns, todas);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao exportar.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const barChartConfig = useMemo(() => {
     const config: Record<string, { label: string; color: string }> = {};
-    data?.setores.forEach(s => {
-      config[s.setor_id] = { label: s.setor_descricao, color: getOcupacaoProgressColor(s.percentual_ocupacao) };
+    resumo?.setores.forEach((s) => {
+      config[s.setor_id ?? "__sem__"] = { label: s.setor_descricao, color: getOcupacaoProgressColor(s.percentual_ocupacao) };
     });
     return config;
-  }, [data]);
+  }, [resumo]);
 
   const pieChartConfig = {
-    Ocupado: { label: "Ocupado", color: "hsl(0 84% 60%)" },
-    Livre: { label: "Livre", color: "hsl(142 76% 36%)" },
-    Bloqueado: { label: "Bloqueado", color: "hsl(45 93% 47%)" },
+    Ocupado: { label: "Ocupado", color: STATUS_CORES.Ocupado },
+    Parcial: { label: "Parcial", color: STATUS_CORES.Parcial },
+    Livre: { label: "Livre", color: STATUS_CORES.Livre },
+    Bloqueado: { label: "Bloqueado", color: STATUS_CORES.Bloqueado },
   };
+
+  const k = resumo?.kpis;
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-foreground">Relatório Inteligente de Ocupação</h1>
         <p className="text-sm text-muted-foreground mt-1">Visão operacional da saúde de ocupação do armazém</p>
       </div>
 
-      {/* Filters */}
+      {/* Filtros */}
       <Card>
         <CardContent className="py-4 px-5">
           <div className="flex flex-wrap items-end gap-3">
@@ -158,7 +247,7 @@ export function OcupacaoReportPage() {
               <Select value={selectedArmazem} onValueChange={setSelectedArmazem}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
-                  {armazens.map(a => (
+                  {armazens.map((a) => (
                     <SelectItem key={a.id} value={a.id}>{a.descricao}</SelectItem>
                   ))}
                 </SelectContent>
@@ -170,8 +259,8 @@ export function OcupacaoReportPage() {
               <Select value={selectedSetor} onValueChange={setSelectedSetor}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">Todos</SelectItem>
-                  {setores.map(s => (
+                  <SelectItem value={TODOS}>Todos</SelectItem>
+                  {setores.map((s) => (
                     <SelectItem key={s.id} value={s.id}>{s.descricao}</SelectItem>
                   ))}
                 </SelectContent>
@@ -183,21 +272,19 @@ export function OcupacaoReportPage() {
               <Select value={selectedTipo} onValueChange={setSelectedTipo}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">Todos</SelectItem>
+                  <SelectItem value={TODOS}>Todos</SelectItem>
                   <SelectItem value="PICKING">Picking</SelectItem>
                   <SelectItem value="PULMAO">Pulmão</SelectItem>
-                  <SelectItem value="DOCK">Dock</SelectItem>
-                  <SelectItem value="AVARIA">Avaria</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex flex-col gap-1 min-w-[140px]">
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <label className="text-xs font-medium text-muted-foreground">Status (lista)</label>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">Todos</SelectItem>
+                  <SelectItem value={TODOS}>Todos</SelectItem>
                   <SelectItem value="LIVRE">Livre</SelectItem>
                   <SelectItem value="PARCIAL">Parcial</SelectItem>
                   <SelectItem value="OCUPADO">Ocupado</SelectItem>
@@ -205,6 +292,11 @@ export function OcupacaoReportPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <label className="flex items-center gap-2 h-9 text-xs text-muted-foreground cursor-pointer">
+              <Switch checked={apenasDivergentes} onCheckedChange={setApenasDivergentes} aria-label="Só divergências" />
+              Só divergências
+            </label>
 
             <Button onClick={handleGenerate} disabled={loading || !selectedArmazem} size="sm" className="h-9">
               <Search size={14} className="mr-1" />
@@ -214,155 +306,213 @@ export function OcupacaoReportPage() {
         </CardContent>
       </Card>
 
-      {/* Loading skeleton */}
       {loading && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-lg" />
+            <Skeleton key={i} className="h-16 rounded-lg" />
           ))}
         </div>
       )}
 
-      {/* Content */}
-      {data && !loading && (
+      {resumo && k && !loading && (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <KPICard
-              title="Total Endereços"
-              value={data.kpis.total_enderecos.toString()}
-              icon={<MapPin size={16} />}
-              color="text-primary"
+          {/* Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
+            <StatCard
+              label="Endereços ativos"
+              value={fmtNumberBR(k.total_enderecos)}
+              sub={`${resumo.setores.length} ${resumo.setores.length === 1 ? "setor" : "setores"}`}
             />
-            <KPICard
-              title="Ocupados"
-              value={`${data.kpis.percentual_ocupados}%`}
-              subtitle={`${data.kpis.enderecos_ocupados} end.`}
-              icon={<Package size={16} />}
-              color={getOcupacaoColor(data.kpis.percentual_ocupados)}
+            <StatCard
+              label="Ocupados"
+              value={`${k.percentual_ocupados}%`}
+              valueClass={getOcupacaoColor(k.percentual_ocupados)}
+              sub={`${fmtNumberBR(k.enderecos_ocupados)} end.${k.enderecos_parciais > 0 ? ` · ${fmtNumberBR(k.enderecos_parciais)} parciais` : ""}`}
             />
-            <KPICard
-              title="Livres"
-              value={`${data.kpis.percentual_livres}%`}
-              subtitle={`${data.kpis.enderecos_livres} end.`}
-              icon={<Warehouse size={16} />}
-              color="text-[hsl(var(--status-free))]"
+            <StatCard
+              label="Livres"
+              value={`${k.percentual_livres}%`}
+              valueClass="text-[hsl(var(--status-free))]"
+              sub={`${fmtNumberBR(k.enderecos_livres)} end. sem saldo`}
             />
-            <KPICard
-              title="Taxa Média Ocupação"
-              value={`${data.kpis.taxa_media_ocupacao}%`}
-              icon={<BarChart3 size={16} />}
-              color={getOcupacaoColor(data.kpis.taxa_media_ocupacao)}
+            <StatCard
+              label="Bloqueados"
+              value={fmtNumberBR(k.enderecos_bloqueados)}
+              sub={k.bloqueados_com_saldo > 0 ? `${fmtNumberBR(k.bloqueados_com_saldo)} com saldo` : `${k.percentual_bloqueados}% dos endereços`}
             />
-            <KPICard
-              title="Setor + Saturado"
-              value={data.kpis.setor_mais_saturado}
-              icon={<TrendingUp size={16} />}
-              color="text-[hsl(var(--status-blocked))]"
-              small
+            <StatCard
+              label="Ocupação da capacidade"
+              value={fmtPerc(k.ocupacao_capacidade)}
+              sub={
+                k.enderecos_com_capacidade > 0
+                  ? `${fmtNumberBR(k.enderecos_com_capacidade)} end. com capacidade${k.acima_capacidade > 0 ? ` · ${fmtNumberBR(k.acima_capacidade)} acima` : ""}`
+                  : "sem capacidade cadastrada"
+              }
             />
-            <KPICard
-              title="Setor + Ocioso"
-              value={data.kpis.setor_mais_ocioso}
-              icon={<TrendingDown size={16} />}
-              color="text-[hsl(var(--status-free))]"
-              small
+            <StatCard
+              label="Divergências"
+              value={fmtNumberBR(k.divergencias)}
+              valueClass={k.divergencias > 0 ? "text-[hsl(var(--status-busy))]" : undefined}
+              sub={
+                k.divergencias > 0
+                  ? `${fmtNumberBR(k.livre_com_saldo)} livre c/ saldo · ${fmtNumberBR(k.ocupado_sem_saldo)} ocup. s/ saldo`
+                  : "situação = estoque"
+              }
             />
           </div>
 
-          {/* Sector Map */}
+          {/* Mapa por setor */}
           <div>
-            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <MapPin size={14} className="text-primary" />
-              Mapa de Ocupação por Setor
-            </h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <MapPin size={14} className="text-primary" />
+                Mapa de Ocupação por Setor
+              </h2>
+              {(k.setor_mais_saturado || k.setor_mais_ocioso) && (
+                <span className="text-xs text-muted-foreground">
+                  {k.setor_mais_saturado && <>Mais saturado: <strong className="text-foreground">{k.setor_mais_saturado}</strong></>}
+                  {k.setor_mais_ocioso && <> · Mais ocioso: <strong className="text-foreground">{k.setor_mais_ocioso}</strong></>}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {data.setores.map(setor => (
+              {resumo.setores.map((setor) => (
                 <SetorCard
-                  key={setor.setor_id}
+                  key={setor.setor_id ?? "__sem__"}
                   setor={setor}
-                  isExpanded={expandedSetor === setor.setor_id}
-                  onClick={() => setExpandedSetor(expandedSetor === setor.setor_id ? null : setor.setor_id)}
+                  isExpanded={expandedSetor === (setor.setor_id ?? "__sem__")}
+                  onClick={() => toggleSetor(setor)}
                 />
               ))}
-              {data.setores.length === 0 && (
-                <p className="text-sm text-muted-foreground col-span-full text-center py-8">Nenhum setor encontrado.</p>
+              {resumo.setores.length === 0 && (
+                <p className="text-sm text-muted-foreground col-span-full text-center py-8">Nenhum endereço ativo encontrado.</p>
               )}
             </div>
           </div>
 
-          {/* Drill-Down Table */}
-          {expandedSetor && (
-            <Card className="animate-fade-in">
-              <CardHeader className="py-3 px-5">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Package size={14} className="text-primary" />
-                  Detalhes — {data.setores.find(s => s.setor_id === expandedSetor)?.setor_descricao}
-                  <Badge variant="secondary" className="ml-2 text-xs">{drillDownEnderecos.length} endereços</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-5 pb-4">
-                <div className="overflow-auto max-h-[400px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">Endereço</TableHead>
-                        <TableHead className="text-xs text-right">Qtd. Total</TableHead>
-                        <TableHead className="text-xs text-right">SKUs</TableHead>
-                        <TableHead className="text-xs">Tipo</TableHead>
-                        <TableHead className="text-xs">Situação</TableHead>
-                        <TableHead className="text-xs">Status</TableHead>
+          {/* Lista de endereços */}
+          <Card className="animate-fade-in">
+            <CardHeader className="py-3 px-5">
+              <CardTitle className="text-sm font-semibold flex flex-wrap items-center gap-2">
+                <Package size={14} className="text-primary" />
+                Endereços — {setorAberto ? setorAberto.setor_descricao : "todos os setores"}
+                <Badge variant="secondary" className="text-xs">{fmtNumberBR(total)} endereços</Badge>
+                {listaFilters?.status_ocupacao && <Badge variant="outline" className="text-xs">{listaFilters.status_ocupacao}</Badge>}
+                {listaFilters?.apenas_divergentes && <Badge variant="outline" className="text-xs">Só divergências</Badge>}
+                {setorAberto && (
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => toggleSetor(setorAberto)}>
+                    <X size={12} className="mr-1" /> Limpar setor
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 ml-auto text-xs"
+                  onClick={handleExcel}
+                  disabled={exporting || total === 0}
+                >
+                  <FileSpreadsheet size={12} className="mr-1" />
+                  {exporting ? "Exportando..." : "Excel"}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              <div className={`overflow-auto max-h-[480px] ${loadingLista ? "opacity-60" : ""}`}>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Endereço</TableHead>
+                      <TableHead className="text-xs">Setor</TableHead>
+                      <TableHead className="text-xs">Tipo</TableHead>
+                      <TableHead className="text-xs">Situação (cadastro)</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                      <TableHead className="text-xs text-right">Saldo</TableHead>
+                      <TableHead className="text-xs text-right">SKUs</TableHead>
+                      <TableHead className="text-xs text-right">Capacidade</TableHead>
+                      <TableHead className="text-xs text-right">% Cap.</TableHead>
+                      <TableHead className="text-xs">Última atualização</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((end) => (
+                      <TableRow key={end.id}>
+                        <TableCell className="text-xs font-mono whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1">
+                            {end.divergente && (
+                              <span title={textoDivergencia(end)} aria-label={textoDivergencia(end)}>
+                                <AlertTriangle size={12} className="text-[hsl(var(--status-busy))]" />
+                              </span>
+                            )}
+                            {end.descricao}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs">{end.setor_descricao}</TableCell>
+                        <TableCell className="text-xs">{end.tipo_endereco}</TableCell>
+                        <TableCell className={`text-xs ${end.divergente ? "text-[hsl(var(--status-busy))] font-medium" : ""}`}>
+                          {SITUACAO_LABEL[end.situacao] ?? end.situacao}
+                        </TableCell>
+                        <TableCell><StatusBadge status={end.status_ocupacao} /></TableCell>
+                        <TableCell className="text-xs text-right font-mono">{fmtNumberBR(end.quantidade_total)}</TableCell>
+                        <TableCell className="text-xs text-right">{end.skus_count}</TableCell>
+                        <TableCell className="text-xs text-right font-mono">{end.capacidade === null ? "—" : fmtNumberBR(end.capacidade)}</TableCell>
+                        <TableCell className="text-xs text-right font-mono">{fmtPerc(end.percentual_ocupacao)}</TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">{fmtDateTimeBR(end.ultima_atualizacao) || "—"}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {drillDownEnderecos.slice(0, 50).map(end => (
-                        <TableRow key={end.id}>
-                          <TableCell className="text-xs font-mono">{end.descricao}</TableCell>
-                          <TableCell className="text-xs text-right font-mono">{end.quantidade_total.toLocaleString("pt-BR")}</TableCell>
-                          <TableCell className="text-xs text-right">{end.skus_count}</TableCell>
-                          <TableCell className="text-xs">{end.tipo_endereco}</TableCell>
-                          <TableCell className="text-xs">{end.situacao}</TableCell>
-                          <TableCell>
-                            <StatusBadge status={end.status_ocupacao} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {drillDownEnderecos.length > 50 && (
-                    <p className="text-xs text-muted-foreground text-center mt-2">
-                      Exibindo 50 de {drillDownEnderecos.length} endereços
-                    </p>
-                  )}
+                    ))}
+                    {rows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={10} className="text-center text-xs text-muted-foreground py-6">
+                          Nenhum endereço para os filtros.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              {total > OCUPACAO_PAGE_SIZE && listaFilters && (
+                <div className="flex items-center justify-end gap-2 mt-3 text-xs text-muted-foreground">
+                  <span>Página {page + 1} de {totalPaginas}</span>
+                  <Button
+                    variant="outline" size="icon" className="h-7 w-7" aria-label="Página anterior"
+                    disabled={page === 0 || loadingLista}
+                    onClick={() => carregarLista(listaFilters, page - 1)}
+                  >
+                    <ChevronLeft size={14} />
+                  </Button>
+                  <Button
+                    variant="outline" size="icon" className="h-7 w-7" aria-label="Próxima página"
+                    disabled={page + 1 >= totalPaginas || loadingLista}
+                    onClick={() => carregarLista(listaFilters, page + 1)}
+                  >
+                    <ChevronRight size={14} />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Charts */}
+          {/* Gráficos */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Bar Chart - Ocupação por Setor */}
-            {data.setores.length > 0 && (
+            {resumo.setores.length > 0 && (
               <Card>
                 <CardHeader className="py-3 px-5">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <BarChart3 size={14} className="text-primary" />
-                    Ocupação por Setor
+                    Endereços ocupados por Setor
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-2 pb-4">
                   <ChartContainer config={barChartConfig} className="h-[280px] w-full">
-                    <BarChart data={data.setores.map(s => ({
+                    <BarChart data={resumo.setores.map((s) => ({
                       name: s.setor_descricao.length > 12 ? s.setor_descricao.slice(0, 12) + "…" : s.setor_descricao,
                       ocupacao: s.percentual_ocupacao,
-                      fill: getOcupacaoProgressColor(s.percentual_ocupacao),
                     }))}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 35% 18%)" />
                       <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} />
                       <YAxis tick={{ fontSize: 10, fill: "hsl(215 20% 55%)" }} domain={[0, 100]} unit="%" />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="ocupacao" name="Ocupação %" radius={[4, 4, 0, 0]}>
-                        {data.setores.map((s, i) => (
+                      <Bar dataKey="ocupacao" name="Ocupados %" radius={[4, 4, 0, 0]}>
+                        {resumo.setores.map((s, i) => (
                           <Cell key={i} fill={getOcupacaoProgressColor(s.percentual_ocupacao)} />
                         ))}
                       </Bar>
@@ -372,8 +522,7 @@ export function OcupacaoReportPage() {
               </Card>
             )}
 
-            {/* Pie Chart - Distribuição de Status */}
-            {data.statusDistribution.length > 0 && (
+            {resumo.statusDistribution.length > 0 && (
               <Card>
                 <CardHeader className="py-3 px-5">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -385,7 +534,7 @@ export function OcupacaoReportPage() {
                   <ChartContainer config={pieChartConfig} className="h-[280px] w-full">
                     <PieChart>
                       <Pie
-                        data={data.statusDistribution}
+                        data={resumo.statusDistribution}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -395,7 +544,7 @@ export function OcupacaoReportPage() {
                         nameKey="name"
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
-                        {data.statusDistribution.map((entry, i) => (
+                        {resumo.statusDistribution.map((entry, i) => (
                           <Cell key={i} fill={entry.fill} />
                         ))}
                       </Pie>
@@ -409,8 +558,7 @@ export function OcupacaoReportPage() {
         </>
       )}
 
-      {/* Empty state */}
-      {!data && !loading && (
+      {!resumo && !loading && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-4">
             <Warehouse size={28} className="text-muted-foreground" />
@@ -424,27 +572,21 @@ export function OcupacaoReportPage() {
   );
 }
 
-// ── Sub-components ──────────────────────────────────────────────
+// ── Sub-componentes ──────────────────────────────────────────────
 
-function KPICard({ title, value, subtitle, icon, color, small }: {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  color: string;
-  small?: boolean;
-}) {
+function textoDivergencia(e: Pick<EnderecoOcupacao, "situacao" | "quantidade_total">): string {
+  if (e.situacao === "LIVRE" && e.quantidade_total > 0) return "Cadastro LIVRE, mas o endereço tem saldo";
+  if (e.situacao === "OCUPADO" && e.quantidade_total === 0) return "Cadastro OCUPADO, mas o endereço está sem saldo";
+  return "Situação do cadastro diverge do estoque";
+}
+
+function StatCard({ label, value, sub, valueClass }: { label: string; value: string; sub?: string; valueClass?: string }) {
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground font-medium">{title}</span>
-          <span className={color}>{icon}</span>
-        </div>
-        <div className={`${small ? "text-sm" : "text-2xl"} font-bold ${color} leading-tight`}>{value}</div>
-        {subtitle && <span className="text-xs text-muted-foreground mt-0.5 block">{subtitle}</span>}
-      </CardContent>
-    </Card>
+    <div className="border border-border rounded-lg bg-card px-3 py-2">
+      <div className="text-[10px] uppercase text-muted-foreground tracking-wide">{label}</div>
+      <div className={`text-sm font-bold tabular-nums ${valueClass ?? "text-foreground"}`}>{value}</div>
+      {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+    </div>
   );
 }
 
@@ -457,8 +599,12 @@ function SetorCard({ setor, isExpanded, onClick }: {
 
   return (
     <Card
+      role="button"
+      tabIndex={0}
+      aria-expanded={isExpanded}
       className={`cursor-pointer transition-all hover:border-primary/40 ${isExpanded ? "border-primary ring-1 ring-primary/20" : ""}`}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
     >
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
@@ -469,7 +615,7 @@ function SetorCard({ setor, isExpanded, onClick }: {
         <div className="mb-2">
           <div className="flex items-baseline justify-between mb-1">
             <span className="text-2xl font-bold" style={{ color: progressColor }}>{setor.percentual_ocupacao}%</span>
-            <span className="text-xs text-muted-foreground">{setor.total_enderecos} end.</span>
+            <span className="text-xs text-muted-foreground">{fmtNumberBR(setor.total_enderecos)} end.</span>
           </div>
           <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
             <div
@@ -479,19 +625,25 @@ function SetorCard({ setor, isExpanded, onClick }: {
           </div>
         </div>
 
-        <div className="flex gap-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-[hsl(var(--status-blocked))]" />
-            {setor.enderecos_ocupados} ocup.
+            {fmtNumberBR(setor.enderecos_ocupados)} ocup.
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-[hsl(var(--status-free))]" />
-            {setor.enderecos_livres} livres
+            {fmtNumberBR(setor.enderecos_livres)} livres
           </span>
           {setor.enderecos_bloqueados > 0 && (
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-[hsl(var(--status-busy))]" />
-              {setor.enderecos_bloqueados} bloq.
+              {fmtNumberBR(setor.enderecos_bloqueados)} bloq.
+            </span>
+          )}
+          {setor.ocupacao_capacidade !== null && <span>Cap. {fmtPerc(setor.ocupacao_capacidade)}</span>}
+          {setor.divergencias > 0 && (
+            <span className="flex items-center gap-1 text-[hsl(var(--status-busy))]">
+              <AlertTriangle size={11} /> {fmtNumberBR(setor.divergencias)} diverg.
             </span>
           )}
         </div>
@@ -505,7 +657,7 @@ function StatusBadge({ status }: { status: string }) {
     LIVRE: "bg-[hsl(var(--status-free-bg))] text-[hsl(var(--status-free))] border-[hsl(var(--status-free))]/20",
     PARCIAL: "bg-[hsl(var(--status-busy-bg))] text-[hsl(var(--status-busy))] border-[hsl(var(--status-busy))]/20",
     OCUPADO: "bg-[hsl(var(--status-blocked-bg))] text-[hsl(var(--status-blocked))] border-[hsl(var(--status-blocked))]/20",
-    BLOQUEADO: "bg-[hsl(var(--status-busy-bg))] text-[hsl(var(--status-busy))] border-[hsl(var(--status-busy))]/20",
+    BLOQUEADO: "bg-muted text-muted-foreground border-border",
   };
 
   return (

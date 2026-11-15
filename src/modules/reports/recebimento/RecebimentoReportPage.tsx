@@ -15,10 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { ParceiroSearchInput } from "@/components/parceiro/ParceiroSearchInput";
+import { ParceiroFilter } from "../components/ParceiroFilter";
+import { toast } from "sonner";
 import { Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
+import { formatDate, formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
 import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
 
 export function RecebimentoReportPage() {
@@ -33,6 +34,8 @@ export function RecebimentoReportPage() {
   // Filtros
   const [filterArmazemId, setFilterArmazemId] = useState("");
   const [filterParceiroId, setFilterParceiroId] = useState("");
+  const [filterMovimento, setFilterMovimento] = useState("");
+  const [filterNota, setFilterNota] = useState("");
   const [filterDataInicio, setFilterDataInicio] = useState("");
   const [filterDataFim, setFilterDataFim] = useState("");
   const [filterStatusSla, setFilterStatusSla] = useState<"" | StatusSla>("");
@@ -58,11 +61,24 @@ export function RecebimentoReportPage() {
     setKpis(null);
     setGenerated(false);
     setGeneratedAt("");
-    setFilterArmazemId(""); setFilterParceiroId("");
+    setFilterArmazemId(""); setFilterParceiroId(""); setFilterParceiroNome("");
   }, [empresaId, empresaVersion]);
 
   const handleGenerate = async () => {
     if (!tenantId) return;
+    if (filterDataInicio && filterDataFim && filterDataFim < filterDataInicio) {
+      toast.error("A data final não pode ser anterior à data inicial.");
+      return;
+    }
+    const movTxt = filterMovimento.trim().replace(/^#/, "");
+    if (movTxt && !/^\d+$/.test(movTxt)) {
+      toast.error("Informe o número do movimento só com dígitos.");
+      return;
+    }
+    if (Number(slaHoras) <= 0) {
+      toast.error("O SLA deve ser maior que zero.");
+      return;
+    }
     setLoading(true);
     try {
       const filters: RecebimentoFilter = {
@@ -70,6 +86,8 @@ export function RecebimentoReportPage() {
         empresa_id: empresaId || undefined,
         armazem_id: filterArmazemId || undefined,
         parceiro_id: filterParceiroId || undefined,
+        numero_movimento: movTxt ? Number(movTxt) : undefined,
+        numero_nota: filterNota.trim() || undefined,
         data_inicio: filterDataInicio || undefined,
         data_fim: filterDataFim || undefined,
         status_sla: (filterStatusSla || undefined) as any,
@@ -83,13 +101,15 @@ export function RecebimentoReportPage() {
       setGenerated(true);
     } catch (err: any) {
       console.error(err);
+      toast.error(err?.message || "Erro ao gerar relatório.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleClear = () => {
-    setFilterArmazemId(""); setFilterParceiroId("");
+    setFilterArmazemId(""); setFilterParceiroId(""); setFilterParceiroNome("");
+    setFilterMovimento(""); setFilterNota("");
     setFilterDataInicio(""); setFilterDataFim("");
     setFilterStatusSla(""); setApenasConcluidos(false);
     setSlaHoras("24");
@@ -153,8 +173,10 @@ export function RecebimentoReportPage() {
   activeFilters["SLA alvo"] = `${slaHoras}h`;
   if (filterArmazemId) activeFilters["Armazém"] = armazens.find((a) => a.id === filterArmazemId)?.descricao || filterArmazemId;
   if (filterParceiroId) activeFilters["Fornecedor"] = filterParceiroNome || filterParceiroId;
-  if (filterDataInicio) activeFilters["De"] = filterDataInicio;
-  if (filterDataFim) activeFilters["Até"] = filterDataFim;
+  if (filterMovimento.trim()) activeFilters["Movimento"] = `#${filterMovimento.trim().replace(/^#/, "")}`;
+  if (filterNota.trim()) activeFilters["NF"] = filterNota.trim();
+  if (filterDataInicio) activeFilters["De"] = formatDate(filterDataInicio);
+  if (filterDataFim) activeFilters["Até"] = formatDate(filterDataFim);
   if (filterStatusSla) activeFilters["Status"] = filterStatusSla;
 
   if (generated && kpis) {
@@ -188,6 +210,69 @@ export function RecebimentoReportPage() {
     { key: "perc_sla", label: "% SLA", align: "right", format: (r) => r.perc_sla == null ? "" : `${r.perc_sla.toFixed(0)}%` },
     { key: "status_sla", label: "Status", format: (r) => statusSlaLabel(r.status_sla) },
   ];
+
+  const fmtInt = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const slaMin = (Number(slaHoras) || 24) * 60;
+  const tomSla = (pct: number | null) =>
+    pct == null ? "text-muted-foreground"
+      : pct >= 90 ? "text-[hsl(var(--status-free))]"
+      : pct >= 70 ? "text-[hsl(var(--status-busy))]"
+      : "text-[hsl(var(--status-blocked))]";
+  const etapaTempo: Record<string, number> = kpis ? {
+    "Liberação": kpis.tempo_medio_liberacao_min,
+    "Conferência": kpis.tempo_medio_conferencia_min,
+    "Armazenagem": kpis.tempo_medio_armazenagem_min,
+    "Ocioso": kpis.tempo_medio_ocioso_min,
+  } : {};
+  const pctOcioso = kpis && kpis.tempo_medio_total_min > 0
+    ? (kpis.tempo_medio_ocioso_min / kpis.tempo_medio_total_min) * 100
+    : null;
+
+  const resumoCards: { label: string; value: string; sub?: string; tone: string; hint?: string }[] = kpis ? [
+    {
+      label: "Recebimentos",
+      value: fmtInt(kpis.total_recebimentos),
+      sub: `${fmtInt(kpis.concluidos)} concluídos · ${fmtInt(kpis.em_andamento)} em andamento`,
+      tone: "text-foreground",
+    },
+    {
+      label: "Dentro do SLA",
+      value: kpis.perc_dentro_sla == null ? "—" : `${kpis.perc_dentro_sla.toFixed(1).replace(".", ",")}%`,
+      sub: `Alerta ${fmtInt(kpis.alerta_sla)} · Fora ${fmtInt(kpis.fora_sla)}`,
+      tone: tomSla(kpis.perc_dentro_sla),
+      hint: `Concluídos em até 80% do SLA de ${slaHoras}h. Alerta: 80–100%. Fora: acima do SLA.`,
+    },
+    {
+      label: "Dock-to-stock médio",
+      value: kpis.concluidos > 0 ? formatDuration(kpis.tempo_medio_total_min) : "—",
+      sub: kpis.concluidos > 0 ? `Mediana ${formatDuration(kpis.tempo_mediano_total_min)}` : "Sem concluídos",
+      tone: kpis.concluidos === 0 ? "text-muted-foreground"
+        : kpis.tempo_medio_total_min > slaMin ? "text-[hsl(var(--status-blocked))]"
+        : kpis.tempo_medio_total_min > slaMin * 0.8 ? "text-[hsl(var(--status-busy))]"
+        : "text-foreground",
+      hint: "Da chegada na doca (T0) ao produto disponível em estoque (T5), só recebimentos concluídos",
+    },
+    {
+      label: "Gargalo",
+      value: kpis.pior_etapa,
+      sub: kpis.pior_etapa !== "—" ? `Média ${formatDuration(etapaTempo[kpis.pior_etapa])}` : undefined,
+      tone: kpis.pior_etapa === "—" ? "text-muted-foreground" : "text-[hsl(var(--status-busy))]",
+      hint: "Etapa com maior tempo médio entre os concluídos",
+    },
+    {
+      label: "Tempo ocioso médio",
+      value: kpis.concluidos > 0 ? formatDuration(kpis.tempo_medio_ocioso_min) : "—",
+      sub: pctOcioso != null ? `${pctOcioso.toFixed(0)}% do dock-to-stock` : undefined,
+      tone: "text-foreground",
+      hint: "Espera entre liberação e início da conferência + entre fim da conferência e início da armazenagem",
+    },
+    {
+      label: "Volumes",
+      value: fmtInt(kpis.total_volumes),
+      sub: `${fmtInt(kpis.total_nfs)} NFs · ${fmtInt(kpis.total_fornecedores)} fornecedores`,
+      tone: "text-foreground",
+    },
+  ] : [];
 
   const canExport = generated && data.length > 0;
   const handleExcel = () => exportToExcel("recebimento_sla", exportColumns, data);
@@ -234,20 +319,31 @@ export function RecebimentoReportPage() {
               </div>
               <div className="space-y-1.5 lg:col-span-2">
                 <Label className="text-xs">Fornecedor</Label>
-                <ParceiroSearchInput
+                <ParceiroFilter
                   value={filterParceiroId || null}
+                  label={filterParceiroNome}
                   onChange={(id, parceiro) => { setFilterParceiroId(id ?? ""); setFilterParceiroNome(parceiro?.razaosocial ?? ""); }}
                   tenantId={tenantId}
                   empresaId={empresaId}
                 />
               </div>
               <div className="space-y-1.5">
+                <Label className="text-xs">Movimento</Label>
+                <Input className="h-8 text-xs" inputMode="numeric" placeholder="Nº do movimento" value={filterMovimento}
+                  onChange={(e) => setFilterMovimento(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">NF</Label>
+                <Input className="h-8 text-xs" placeholder="Número da NF..." value={filterNota}
+                  onChange={(e) => setFilterNota(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs">De</Label>
-                <Input type="date" className="h-8 text-xs" value={filterDataInicio} onChange={(e) => setFilterDataInicio(e.target.value)} />
+                <Input type="date" className="h-8 text-xs" value={filterDataInicio} max={filterDataFim || undefined} onChange={(e) => setFilterDataInicio(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Até</Label>
-                <Input type="date" className="h-8 text-xs" value={filterDataFim} onChange={(e) => setFilterDataFim(e.target.value)} />
+                <Input type="date" className="h-8 text-xs" value={filterDataFim} min={filterDataInicio || undefined} onChange={(e) => setFilterDataFim(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">SLA (horas)</Label>
@@ -288,6 +384,18 @@ export function RecebimentoReportPage() {
           </div>
         )}
       </div>
+
+      {generated && kpis && kpis.total_recebimentos > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
+          {resumoCards.map((c) => (
+            <div key={c.label} className="border border-border rounded-lg bg-card px-3 py-2" title={c.hint}>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+              <div className={cn("text-sm font-bold tabular-nums", c.tone)}>{c.value}</div>
+              {c.sub && <div className="text-[10px] text-muted-foreground tabular-nums truncate">{c.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {generated && <ReportTable columns={columns} data={data} loading={loading} emptyMessage="Nenhum recebimento encontrado para os filtros." />}
     </div>

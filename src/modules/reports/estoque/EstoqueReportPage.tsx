@@ -3,7 +3,16 @@ import { useTenant } from "@/contexts/TenantContext";
 import { ReportHeader } from "../components/ReportHeader";
 import { ReportTable, type ReportColumn } from "../components/ReportTable";
 import { colDescricaoProduto, exportColDescricao } from "../components/reportColumns";
-import { fetchEstoqueReport, type EstoqueFilter } from "./estoque.service";
+import {
+  fetchEstoquePage,
+  fetchEstoqueAll,
+  ESTOQUE_PAGE_SIZE,
+  ESTOQUE_DIAS_SEM_ATUALIZACAO,
+  type EstoqueFilter,
+  type EstoqueRow,
+  type EstoqueResumo,
+} from "./estoque.service";
+import { ParceiroFilter } from "../components/ParceiroFilter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -13,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { parseLocalizacao } from "../utils/parseInteiroOpcional";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { Filter, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTimeNaive, formatDate, nowDisplay } from "@/utils/dateTime";
 import {
@@ -46,8 +55,12 @@ function QtdComCaixa({ qtd, fator, modo, className }: { qtd: number; fator: numb
 
 export function EstoqueReportPage() {
   const { tenantId, empresaId, armazemId, empresaVersion, usuarioNome } = useTenant();
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<EstoqueRow[]>([]);
+  const [resumo, setResumo] = useState<EstoqueResumo | null>(null);
+  const [appliedFilters, setAppliedFilters] = useState<EstoqueFilter | null>(null);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [generatedAt, setGeneratedAt] = useState("");
   const [showFilters, setShowFilters] = useState(true);
@@ -68,6 +81,8 @@ export function EstoqueReportPage() {
   const [filterGrupoId, setFilterGrupoId] = useState("");
   const [filterSubgrupoId, setFilterSubgrupoId] = useState("");
   const [filterMarca, setFilterMarca] = useState("");
+  const [filterParceiroId, setFilterParceiroId] = useState("");
+  const [filterParceiroNome, setFilterParceiroNome] = useState("");
   const [filterMultiLocalizacao, setFilterMultiLocalizacao] = useState(false);
   const [filterApenasComSaldo, setFilterApenasComSaldo] = useState(true);
 
@@ -119,6 +134,9 @@ export function EstoqueReportPage() {
   // Reset relatório ao trocar empresa
   useEffect(() => {
     setData([]);
+    setResumo(null);
+    setAppliedFilters(null);
+    setPage(0);
     setGenerated(false);
     setGeneratedAt("");
     setFilterArmazemId("");
@@ -127,6 +145,7 @@ export function EstoqueReportPage() {
     setFilterGrupoId("");
     setFilterSubgrupoId("");
     setFilterMarca("");
+    setFilterParceiroId(""); setFilterParceiroNome("");
     setFilterCodigoEndereco("");
     setFilterRua(""); setFilterPredio(""); setFilterNivel(""); setFilterApto("");
     setFilterMultiLocalizacao(false);
@@ -146,8 +165,29 @@ export function EstoqueReportPage() {
     [filterGrupoId, subgrupos],
   );
 
+  const loadPage = async (filters: EstoqueFilter, pageIndex: number) => {
+    setLoading(true);
+    try {
+      const result = await fetchEstoquePage(filters, pageIndex);
+      setData(result.rows);
+      setResumo(result.resumo);
+      setPage(pageIndex);
+      return true;
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Erro ao gerar relatório.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!tenantId) return;
+    if (!empresaId) {
+      toast.error("Selecione uma empresa para gerar o relatório.");
+      return;
+    }
     const loc = parseLocalizacao(
       { rua: filterRua, predio: filterPredio, nivel: filterNivel, apto: filterApto },
       (m) => toast.error(m),
@@ -158,12 +198,11 @@ export function EstoqueReportPage() {
       toast.error("Código do endereço deve ser numérico.");
       return;
     }
-    setLoading(true);
-    try {
+    {
       const codigoNum = codigoTxt ? Number(codigoTxt) : undefined;
       const filters: EstoqueFilter = {
         tenant_id: tenantId,
-        empresa_id: empresaId || undefined,
+        empresa_id: empresaId,
         armazem_id: filterArmazemId || undefined,
         tipo_endereco: filterTipoEndereco || undefined,
         sku: filterSku || undefined,
@@ -173,19 +212,18 @@ export function EstoqueReportPage() {
         grupo_id: filterGrupoId || undefined,
         subgrupo_id: filterSubgrupoId || undefined,
         marca: filterMarca || undefined,
+        parceiro_id: filterParceiroId || undefined,
         codigo_endereco: Number.isFinite(codigoNum) ? codigoNum : undefined,
         apenas_multi_localizacao: filterMultiLocalizacao || undefined,
         apenas_com_saldo: filterApenasComSaldo,
         ...loc,
       };
-      const results = await fetchEstoqueReport(filters);
-      setData(results);
-      setGeneratedAt(nowDisplay());
-      setGenerated(true);
-    } catch (err: any) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      const ok = await loadPage(filters, 0);
+      if (ok) {
+        setAppliedFilters(filters);
+        setGeneratedAt(nowDisplay());
+        setGenerated(true);
+      }
     }
   };
 
@@ -201,14 +239,14 @@ export function EstoqueReportPage() {
     setFilterGrupoId("");
     setFilterSubgrupoId("");
     setFilterMarca("");
+    setFilterParceiroId(""); setFilterParceiroNome("");
     setFilterMultiLocalizacao(false);
     setFilterApenasComSaldo(true);
   };
 
-  const isExpired = (date: string) => {
-    if (!date || date === "1900-01-01") return false;
-    return new Date(date) < new Date();
-  };
+  const fmtInt = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  const fmtBRL = (v: number) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtPct = (v: number, base: number) => (base > 0 ? `${((v / base) * 100).toFixed(1).replace(".", ",")}%` : "0%");
 
   const columns: ReportColumn[] = [
     { key: "sku", label: "SKU", width: "100px" },
@@ -217,10 +255,10 @@ export function EstoqueReportPage() {
     { key: "lote", label: "Lote", width: "100px" },
     {
       key: "data_validade", label: "Validade", width: "100px",
-      render: (v) => {
+      render: (v, row) => {
         if (!v || v === "1900-01-01") return "—";
-        const expired = isExpired(v);
-        return <span className={cn(expired && "text-[hsl(var(--status-blocked))] font-semibold")}>{formatDate(v)}</span>;
+        // "vencido" vem da RPC (data no fuso America/Fortaleza)
+        return <span className={cn(row.vencido && "text-[hsl(var(--status-blocked))] font-semibold")}>{formatDate(v)}</span>;
       },
     },
     {
@@ -229,6 +267,15 @@ export function EstoqueReportPage() {
     },
     { key: "endereco_descricao", label: "Endereço", width: "140px", render: (v) => v || "—" },
     { key: "tipo_endereco", label: "Tipo Endereço", width: "110px" },
+    {
+      key: "enderecos_do_sku", label: "End. do SKU", align: "center", width: "85px",
+      render: (v) => (
+        <span className={cn(v > 1 ? "font-semibold text-[hsl(var(--status-busy))]" : "text-muted-foreground")}
+          title={v > 1 ? "SKU com saldo em mais de um endereço" : undefined}>
+          {Number(v).toLocaleString("pt-BR")}
+        </span>
+      ),
+    },
     {
       key: "quantidade_disponivel", label: "Disponível", align: "right", width: visualizarCaixa ? "130px" : "90px",
       render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) === 0 && "text-muted-foreground")} />,
@@ -240,6 +287,12 @@ export function EstoqueReportPage() {
     {
       key: "quantidade_total", label: "Total", align: "right", width: visualizarCaixa ? "130px" : "90px",
       render: (v, row) => <QtdComCaixa qtd={v} fator={row.fator_caixa} modo={visualizarCaixa} className={cn(Number(v) === 0 && "text-muted-foreground")} />,
+    },
+    {
+      key: "valor_total", label: "Valor (custo)", align: "right", width: "120px",
+      render: (v, row) => row.preco_custo > 0
+        ? fmtBRL(v)
+        : <span className="text-muted-foreground" title="Produto sem preço de custo">—</span>,
     },
     {
       key: "atualizado_em", label: "Última Atualização", width: "150px",
@@ -258,12 +311,19 @@ export function EstoqueReportPage() {
   if (filterGrupoId) activeFilters["Grupo"] = grupos.find(g => g.id === filterGrupoId)?.descricao || filterGrupoId;
   if (filterSubgrupoId) activeFilters["Subgrupo"] = subgrupos.find(s => s.id === filterSubgrupoId)?.descricao || filterSubgrupoId;
   if (filterMarca) activeFilters["Marca"] = filterMarca;
+  if (filterParceiroId) activeFilters["Parceiro"] = filterParceiroNome || filterParceiroId;
   if (filterRua.trim()) activeFilters["Rua"] = filterRua.trim();
   if (filterPredio.trim()) activeFilters["Prédio"] = filterPredio.trim();
   if (filterNivel.trim()) activeFilters["Nível"] = filterNivel.trim();
   if (filterApto.trim()) activeFilters["Apto"] = filterApto.trim();
   if (filterMultiLocalizacao) activeFilters["Multi-localização"] = "Sim";
   if (filterApenasComSaldo) activeFilters["Saldo"] = "> 0";
+  if (generated && resumo) {
+    activeFilters["SKUs"] = fmtInt(resumo.qtd_skus);
+    activeFilters["Saldo total"] = fmtInt(resumo.saldo_total);
+    activeFilters["Valor (custo)"] = fmtBRL(resumo.valor_estoque);
+    if (resumo.pos_vencidas > 0) activeFilters["Vencidas"] = fmtInt(resumo.pos_vencidas);
+  }
 
   // Export columns (texto puro)
   const exportColumns: ExportColumn[] = [
@@ -276,25 +336,97 @@ export function EstoqueReportPage() {
       format: (r) => (r.codigo_endereco == null ? "" : String(r.codigo_endereco)) },
     { key: "endereco_descricao", label: "Endereço" },
     { key: "tipo_endereco", label: "Tipo Endereço" },
+    { key: "enderecos_do_sku", label: "End. do SKU", align: "center", format: (r) => fmtNumberBR(r.enderecos_do_sku) },
     { key: "quantidade_disponivel", label: "Disponível", align: "right",
       format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_disponivel, r.fator_caixa) : fmtNumberBR(r.quantidade_disponivel)) },
     { key: "quantidade_bloqueada", label: "Bloqueado", align: "right",
       format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_bloqueada, r.fator_caixa) : fmtNumberBR(r.quantidade_bloqueada)) },
     { key: "quantidade_total", label: "Total", align: "right",
       format: (r) => (visualizarCaixa ? fmtCaixa(r.quantidade_total, r.fator_caixa) : fmtNumberBR(r.quantidade_total)) },
+    { key: "preco_custo", label: "Custo Unit.", align: "right", format: (r) => (r.preco_custo > 0 ? fmtBRL(r.preco_custo) : "") },
+    { key: "valor_total", label: "Valor (custo)", align: "right", format: (r) => (r.preco_custo > 0 ? fmtBRL(r.valor_total) : "") },
     { key: "atualizado_em", label: "Última Atualização", format: (r) => fmtDateTimeBR(r.atualizado_em) },
   ];
 
-  const canExport = generated && data.length > 0;
-  const handleExcel = () => exportToExcel("posicao_estoque", exportColumns, data);
-  const handlePdf = () =>
-    exportToPdf("posicao_estoque", exportColumns, data, {
-      title: "Posição de Estoque",
-      generatedAt,
-      usuario: usuarioNome || "—",
-      total: data.length,
-      filters: activeFilters,
-    });
+  const total = resumo?.total ?? 0;
+  const totalPaginas = Math.max(1, Math.ceil(total / ESTOQUE_PAGE_SIZE));
+  const canExport = generated && total > 0 && !exporting;
+
+  const loadAllForExport = async (): Promise<EstoqueRow[] | null> => {
+    if (!appliedFilters) return null;
+    if (total <= data.length) return data;
+    setExporting(true);
+    try {
+      return await fetchEstoqueAll(appliedFilters, total);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Erro ao carregar dados para exportação.");
+      return null;
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExcel = async () => {
+    const rows = await loadAllForExport();
+    if (rows) exportToExcel("posicao_estoque", exportColumns, rows);
+  };
+  const handlePdf = async () => {
+    const rows = await loadAllForExport();
+    if (rows) {
+      exportToPdf("posicao_estoque", exportColumns, rows, {
+        title: "Posição de Estoque",
+        generatedAt,
+        usuario: usuarioNome || "—",
+        total: rows.length,
+        filters: activeFilters,
+      });
+    }
+  };
+
+  const alerta = "text-[hsl(var(--status-blocked))]";
+  const atencao = "text-[hsl(var(--status-busy))]";
+  const resumoCards: { label: string; value: string; sub?: string; tone: string; hint?: string }[] = resumo ? [
+    {
+      label: "Posições",
+      value: fmtInt(resumo.total),
+      sub: `Picking ${fmtInt(resumo.pos_picking)} · Pulmão ${fmtInt(resumo.pos_pulmao)}`,
+      tone: "text-foreground",
+    },
+    {
+      label: "SKUs",
+      value: fmtInt(resumo.qtd_skus),
+      sub: `${fmtInt(resumo.qtd_skus_multi)} em 2+ endereços`,
+      tone: "text-foreground",
+      hint: "SKUs com saldo em mais de um endereço (fragmentação)",
+    },
+    {
+      label: "Endereços ocupados",
+      value: fmtInt(resumo.qtd_enderecos),
+      sub: `${(resumo.qtd_enderecos > 0 ? resumo.total / resumo.qtd_enderecos : 0).toFixed(1).replace(".", ",")} posições/end.`,
+      tone: "text-foreground",
+    },
+    {
+      label: "Saldo total (un.)",
+      value: fmtInt(resumo.saldo_total),
+      sub: `Bloqueado ${fmtInt(resumo.saldo_bloqueado)} (${fmtPct(resumo.saldo_bloqueado, resumo.saldo_total)})`,
+      tone: "text-foreground",
+    },
+    {
+      label: "Valor em estoque (custo)",
+      value: fmtBRL(resumo.valor_estoque),
+      sub: resumo.qtd_skus_sem_custo > 0 ? `${fmtInt(resumo.qtd_skus_sem_custo)} SKUs sem custo` : "Todos os SKUs com custo",
+      tone: "text-foreground",
+      hint: "Saldo × preço de custo do cadastro. SKUs sem custo não entram no valor.",
+    },
+    {
+      label: "Alertas",
+      value: `${fmtInt(resumo.pos_vencidas)} vencidas`,
+      sub: `${fmtInt(resumo.pos_sem_atualizacao)} sem movimento +${ESTOQUE_DIAS_SEM_ATUALIZACAO}d · ${fmtInt(resumo.pos_bloqueadas)} bloqueadas`,
+      tone: resumo.pos_vencidas > 0 ? alerta : resumo.pos_sem_atualizacao > 0 ? atencao : "text-foreground",
+      hint: "Posições com validade vencida, sem atualização há mais de 90 dias e com saldo bloqueado",
+    },
+  ] : [];
   const handlePrint = () => window.print();
 
   return (
@@ -303,7 +435,7 @@ export function EstoqueReportPage() {
         title="Posição de Estoque"
         subtitle="Relatório analítico de saldos por endereço"
         generatedAt={generated ? generatedAt : "—"}
-        total={generated ? data.length : undefined}
+        total={generated ? total : undefined}
         filters={generated ? activeFilters : undefined}
         onExportExcel={canExport ? handleExcel : undefined}
         onExportPdf={canExport ? handlePdf : undefined}
@@ -392,9 +524,10 @@ export function EstoqueReportPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Marca</Label>
                 {marcas.length > 0 ? (
-                  <Select value={filterMarca} onValueChange={setFilterMarca}>
+                  <Select value={filterMarca || "__all__"} onValueChange={(v) => setFilterMarca(v === "__all__" ? "" : v)}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__all__">Todas</SelectItem>
                       {marcas.map(m => (<SelectItem key={m} value={m}>{m}</SelectItem>))}
                     </SelectContent>
                   </Select>
@@ -408,7 +541,17 @@ export function EstoqueReportPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">EAN</Label>
-                <Input className="h-8 text-xs" placeholder="Buscar por EAN..." value={filterEan} onChange={e => setFilterEan(e.target.value)} />
+                <Input className="h-8 text-xs" placeholder="EAN exato..." value={filterEan} onChange={e => setFilterEan(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Parceiro / Fornecedor</Label>
+                <ParceiroFilter
+                  value={filterParceiroId || null}
+                  label={filterParceiroNome}
+                  onChange={(id, parceiro) => { setFilterParceiroId(id ?? ""); setFilterParceiroNome(parceiro?.razaosocial ?? ""); }}
+                  tenantId={tenantId}
+                  empresaId={empresaId}
+                />
               </div>
               {([
                 ["Rua", filterRua, setFilterRua, "Todas"],
@@ -469,8 +612,38 @@ export function EstoqueReportPage() {
         )}
       </div>
 
+      {generated && resumo && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
+          {resumoCards.map((c) => (
+            <div key={c.label} className="border border-border rounded-lg bg-card px-3 py-2" title={c.hint}>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+              <div className={cn("text-sm font-bold tabular-nums", c.tone)}>{c.value}</div>
+              {c.sub && <div className="text-[10px] text-muted-foreground tabular-nums truncate">{c.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Table */}
-      {generated && <ReportTable columns={columns} data={data} loading={loading} />}
+      {generated && <ReportTable columns={columns} data={data} loading={loading || exporting} />}
+
+      {generated && total > ESTOQUE_PAGE_SIZE && appliedFilters && (
+        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground print:hidden">
+          <span>
+            {(page * ESTOQUE_PAGE_SIZE + 1).toLocaleString("pt-BR")}–
+            {Math.min((page + 1) * ESTOQUE_PAGE_SIZE, total).toLocaleString("pt-BR")} de {total.toLocaleString("pt-BR")}
+          </span>
+          <Button size="sm" variant="outline" className="h-7 px-2" disabled={loading || page === 0}
+            onClick={() => loadPage(appliedFilters, page - 1)}>
+            <ChevronLeft size={14} />
+          </Button>
+          <span>Página {page + 1} de {totalPaginas}</span>
+          <Button size="sm" variant="outline" className="h-7 px-2" disabled={loading || page + 1 >= totalPaginas}
+            onClick={() => loadPage(appliedFilters, page + 1)}>
+            <ChevronRight size={14} />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

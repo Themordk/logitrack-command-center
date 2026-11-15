@@ -7,9 +7,11 @@ export interface RecebimentoFilter {
   tenant_id: string;
   empresa_id?: string;
   armazem_id?: string;
-  parceiro_id?: string;
-  data_inicio?: string; // ISO (created_at >=)
-  data_fim?: string;    // ISO (created_at <=)
+  parceiro_id?: string;      // qualquer NF do movimento (no servidor)
+  numero_movimento?: number; // exato (no servidor)
+  numero_nota?: string;      // parcial, qualquer NF do movimento (no servidor)
+  data_inicio?: string;      // AAAA-MM-DD, data local de chegada (T0)
+  data_fim?: string;         // AAAA-MM-DD, inclusive
   status_sla?: StatusSla;
   apenas_concluidos?: boolean; // default false
   sla_horas?: number; // default 24h
@@ -56,6 +58,11 @@ export interface RecebimentoKpis {
   tempo_medio_armazenagem_min: number;
   tempo_medio_ocioso_min: number;
   pior_etapa: "Liberação" | "Conferência" | "Armazenagem" | "Ocioso" | "—";
+  perc_dentro_sla: number | null;   // dentro / concluídos (null sem concluídos)
+  tempo_mediano_total_min: number;
+  total_volumes: number;
+  total_nfs: number;
+  total_fornecedores: number;
 }
 
 export async function fetchRecebimentoReport(filters: RecebimentoFilter): Promise<{ rows: RecebimentoRow[]; kpis: RecebimentoKpis }> {
@@ -70,6 +77,9 @@ export async function fetchRecebimentoReport(filters: RecebimentoFilter): Promis
       p_data_inicio: filters.data_inicio || null,
       p_data_fim: filters.data_fim || null,
       p_sla_horas: sla,
+      p_parceiro_id: filters.parceiro_id || null,
+      p_numero_movimento: filters.numero_movimento ?? null,
+      p_numero_nota: filters.numero_nota?.trim() || null,
     },
   );
   if (data.length === 0) return { rows: [], kpis: emptyKpis() };
@@ -99,7 +109,7 @@ export async function fetchRecebimentoReport(filters: RecebimentoFilter): Promis
     perc_sla: r.perc_sla != null ? Number(r.perc_sla) : null,
   }));
 
-  if (filters.parceiro_id) rows = rows.filter((r) => r.parceiro_id === filters.parceiro_id);
+  // Fornecedor, movimento e NF já vêm filtrados da RPC (fornecedor em qualquer NF do movimento).
   if (filters.status_sla) rows = rows.filter((r) => r.status_sla === filters.status_sla);
   if (filters.apenas_concluidos) rows = rows.filter((r) => r.status_sla !== "EM_ANDAMENTO");
 
@@ -128,6 +138,19 @@ export async function fetchRecebimentoReport(filters: RecebimentoFilter): Promis
     ["Armazenagem", m_armz],
     ["Ocioso", m_ocio],
   ];
+  const mediana = (arr: (number | null)[]) => {
+    const v = arr.filter((x): x is number => x != null && !isNaN(x)).sort((a, b) => a - b);
+    if (v.length === 0) return 0;
+    const meio = Math.floor(v.length / 2);
+    return v.length % 2 ? v[meio] : (v[meio - 1] + v[meio]) / 2;
+  };
+  const split = (txt: string) => txt.split(",").map((x) => x.trim()).filter((x) => x && x !== "—");
+  const nfs = new Set<string>();
+  const fornecedores = new Set<string>();
+  for (const r of rows) {
+    split(r.documento).forEach((n) => nfs.add(n));
+    split(r.fornecedor).forEach((f) => fornecedores.add(f));
+  }
   const max = etapas.reduce((acc, e) => (e[1] > acc[1] ? e : acc), etapas[0]);
   if (max[1] > 0) pior = max[0];
 
@@ -144,6 +167,13 @@ export async function fetchRecebimentoReport(filters: RecebimentoFilter): Promis
     tempo_medio_armazenagem_min: m_armz,
     tempo_medio_ocioso_min: m_ocio,
     pior_etapa: pior,
+    perc_dentro_sla: concluidos.length > 0
+      ? (rows.filter((r) => r.status_sla === "DENTRO").length / concluidos.length) * 100
+      : null,
+    tempo_mediano_total_min: mediana(concluidos.map((r) => r.tempo_total_min)),
+    total_volumes: rows.reduce((acc, r) => acc + (Number(r.total_volume) || 0), 0),
+    total_nfs: nfs.size,
+    total_fornecedores: fornecedores.size,
   };
 
   return { rows, kpis };
@@ -163,6 +193,11 @@ function emptyKpis(): RecebimentoKpis {
     tempo_medio_armazenagem_min: 0,
     tempo_medio_ocioso_min: 0,
     pior_etapa: "—",
+    perc_dentro_sla: null,
+    tempo_mediano_total_min: 0,
+    total_volumes: 0,
+    total_nfs: 0,
+    total_fornecedores: 0,
   };
 }
 

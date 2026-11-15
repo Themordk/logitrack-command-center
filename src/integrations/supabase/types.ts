@@ -8474,6 +8474,8 @@ export type Database = {
           meta_unidades_hora: number | null
           peso_produtividade: number
           prioridade_padrao: number | null
+          reserva_acao: string
+          reserva_expira_min: number
           tempo_estimado_segundos: number | null
           tenant_id: string
           tipo_movimento: number | null
@@ -8499,6 +8501,8 @@ export type Database = {
           meta_unidades_hora?: number | null
           peso_produtividade?: number
           prioridade_padrao?: number | null
+          reserva_acao?: string
+          reserva_expira_min?: number
           tempo_estimado_segundos?: number | null
           tenant_id: string
           tipo_movimento?: number | null
@@ -8524,6 +8528,8 @@ export type Database = {
           meta_unidades_hora?: number | null
           peso_produtividade?: number
           prioridade_padrao?: number | null
+          reserva_acao?: string
+          reserva_expira_min?: number
           tempo_estimado_segundos?: number | null
           tenant_id?: string
           tipo_movimento?: number | null
@@ -10820,6 +10826,10 @@ export type Database = {
       }
     }
     Functions: {
+      fn_tipo_tarefa_reserva_acoes: {
+        Args: { p_codigo: string }
+        Returns: string[]
+      }
       rpc_coletor_assumir_etapa: {
         Args: { p_empresa_id: string; p_etapa: string; p_movimento_saida_id: string; p_tenant_id: string; p_usuario_id: string }
         Returns: Json

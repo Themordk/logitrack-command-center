@@ -277,3 +277,73 @@ export function getPrioridadeColor(p: string | null): string {
     default: return "bg-secondary text-secondary-foreground";
   }
 }
+
+export interface MovimentacoesResumo {
+  total: number;
+  entradas_qtd: number;        // soma do que aumentou o saldo global do SKU
+  entradas_mov: number;
+  saidas_qtd: number;          // soma do que reduziu o saldo global do SKU
+  saidas_mov: number;
+  internas_mov: number;        // não alteram o saldo global (transferência, armazenagem…)
+  inventario_mov: number;
+  inventario_liquido: number;  // efeito líquido dos ajustes de inventário
+  estornos_mov: number;
+  saldo_inicial: number | null; // saldo global antes do 1º movimento listado
+  saldo_final: number | null;   // saldo global depois do último movimento listado
+  ultimo_movimento: string | null;
+  usuarios: number;
+}
+
+/**
+ * Indicadores do histórico, calculados sobre as linhas já retornadas pela RPC
+ * (o relatório exige SKU, então a tela já tem o conjunto completo do período).
+ * Entrada/saída/interna pelo efeito no saldo global do SKU
+ * (saldo_global_posterior − saldo_global_anterior). A RPC ordena do mais
+ * recente para o mais antigo; a função não depende dessa ordem.
+ */
+export function calcularResumoMovimentacoes(rows: any[]): MovimentacoesResumo {
+  const r: MovimentacoesResumo = {
+    total: rows.length,
+    entradas_qtd: 0, entradas_mov: 0,
+    saidas_qtd: 0, saidas_mov: 0,
+    internas_mov: 0,
+    inventario_mov: 0, inventario_liquido: 0,
+    estornos_mov: 0,
+    saldo_inicial: null, saldo_final: null,
+    ultimo_movimento: null,
+    usuarios: 0,
+  };
+  if (rows.length === 0) return r;
+
+  const usuarios = new Set<string>();
+  let primeiro: any = null;
+  let ultimo: any = null;
+  // Ordena por instante (Date.parse) e desempata por id, como a RPC.
+  const antes = (a: any, b: any) => {
+    const ta = Date.parse(a.criado_em ?? "") || 0;
+    const tb = Date.parse(b.criado_em ?? "") || 0;
+    return ta !== tb ? ta < tb : String(a.id ?? "") < String(b.id ?? "");
+  };
+
+  for (const row of rows) {
+    const ant = row.saldo_global_anterior;
+    const pos = row.saldo_global_posterior;
+    const efeito = ant != null && pos != null ? Number(pos) - Number(ant) : 0;
+    if (efeito > 0) { r.entradas_qtd += efeito; r.entradas_mov++; }
+    else if (efeito < 0) { r.saidas_qtd += -efeito; r.saidas_mov++; }
+    else r.internas_mov++;
+
+    if (Number(row.tipo_movimento) === 6) { r.inventario_mov++; r.inventario_liquido += efeito; }
+    if (Number(row.tipo_movimento) === 99 || row.estorno_da_execucao_id) r.estornos_mov++;
+    if (row.usuario && row.usuario !== "—") usuarios.add(row.usuario);
+
+    if (!primeiro || antes(row, primeiro)) primeiro = row;
+    if (!ultimo || antes(ultimo, row)) ultimo = row;
+  }
+
+  r.usuarios = usuarios.size;
+  r.saldo_inicial = primeiro?.saldo_global_anterior != null ? Number(primeiro.saldo_global_anterior) : null;
+  r.saldo_final = ultimo?.saldo_global_posterior != null ? Number(ultimo.saldo_global_posterior) : null;
+  r.ultimo_movimento = ultimo?.criado_em ?? null;
+  return r;
+}
