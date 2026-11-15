@@ -20,6 +20,8 @@ import { retornosKeys } from "../retornosKeys";
 import { MODO_EXECUCAO_UI } from "../retornosUi";
 import { useEnviarAoErp } from "./useEnviarAoErp";
 import { ConfirmarEnvioErpDialog } from "./ConfirmarEnvioErpDialog";
+import { IntegracaoDocumentoStatus } from "@/components/integracao/IntegracaoDocumentoStatus";
+import { useIntegracaoDocumento } from "@/hooks/useIntegracaoDocumento";
 
 interface Props { entidade: EntidadeDocumento; documentoId: string }
 
@@ -53,7 +55,7 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
     enabled: podeEditar,
   });
 
-  const statusIntegracao = (ctx.data?.documento as { status_integracao?: string | null } | undefined)?.status_integracao ?? null;
+  const integracao = useIntegracaoDocumento(entidade, documentoId, tenantId);
 
   const fluxosServem = useMemo(() => {
     const evEntidade = new Map((catalogo?.eventos ?? []).map((e) => [e.codigo, e.entidade]));
@@ -65,7 +67,8 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
   const recarregar = useCallback(() => {
     qc.invalidateQueries({ queryKey: chave });
     qc.invalidateQueries({ queryKey: ["retorno-execucoes"] });
-  }, [qc, chave]);
+    qc.invalidateQueries({ queryKey: ["integracao-documento", entidade] });
+  }, [qc, chave, entidade]);
   const numeroDoc = (ctx.data?.documento as { numero?: string | number | null } | undefined)?.numero;
 
   const envio = useEnviarAoErp(documentoId, recarregar);
@@ -88,9 +91,7 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
       <div className="px-4 py-2.5 border-b border-border bg-secondary/30 flex items-center gap-2">
         <History size={14} className="text-primary" aria-hidden />
         <h3 className="text-sm font-semibold text-foreground">Retornos ao ERP</h3>
-        <Badge variant="outline" className="text-[10px] bg-sky-500/15 text-sky-400 border-sky-500/30">
-          Integração: {statusIntegracao || "—"}
-        </Badge>
+        <IntegracaoDocumentoStatus integracao={integracao.data} />
         <div className="ml-auto flex gap-2">
           <Button size="sm" variant="ghost" onClick={() => irPara(`/config/integracao/retornos?${new URLSearchParams({ aba: "execucoes", ...(numeroDoc != null ? { busca: String(numeroDoc) } : {}) }).toString()}`)}>Ver todas</Button>
           {ultimaErro && (

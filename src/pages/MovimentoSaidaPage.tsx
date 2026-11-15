@@ -22,7 +22,8 @@ import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuid
 import { ResponsaveisOndaModal } from "@/components/movimentos/ResponsaveisOndaModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
-import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
+import { ErpStatusBadge, erpBadgeApplies, atendeFiltroErp, OPCOES_FILTRO_ERP, type FiltroErp } from "@/components/movimentos/ErpStatusBadge";
+import { useIntegracaoResumo } from "@/hooks/useIntegracaoResumo";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 import { ChipPendenciaPicking } from "@/components/movimentos/ChipPendenciaPicking";
 import { listarPendenciasPicking, quantidadeAbastecimento } from "@/lib/pendenciasPickingService";
@@ -87,6 +88,8 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
 
 interface MovSaida {
   id: string;
+  /** S1: pior estado de integração dos pedidos da onda (movimento_saida.integracao_resumo). */
+  integracao_resumo?: string | null;
   numero_onda: number;
   status: string;
   data_emissao: string;
@@ -194,7 +197,7 @@ export function MovimentoSaidaPage() {
   const [filterDateTo, setFilterDateTo] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Fortaleza" }));
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [filterErp, setFilterErp] = useState<"" | "EXPORTADO" | "AGUARDANDO" | "SEM">("");
+  const [filterErp, setFilterErp] = useState<FiltroErp>("");
   const [filterNumeroDocumento, setFilterNumeroDocumento] = useState("");
   const [filterTipoSaidaId, setFilterTipoSaidaId] = useState("");
   const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
@@ -405,8 +408,11 @@ export function MovimentoSaidaPage() {
     staleTime: 30_000,
   });
 
+  const integracaoQuery = useIntegracaoResumo("movimento_saida", tenantId, movIdsKey ? movIdsKey.split(",") : []);
+
   const movimentos: MovSaida[] = useMemo(() => {
     const opsMap = opsQuery.data || new Map<string, string[]>();
+    const intMap = integracaoQuery.data || new Map<string, string>();
     const tsMap = tipoSaidaMapQuery.data || new Map<string, string>();
     return listRows.map((r) => ({
       id: r.id,
@@ -437,8 +443,9 @@ export function MovimentoSaidaPage() {
       total_separado: Number(r.total_separado || 0),
       total_conferido: Number(r.total_conferido || 0),
       total_cortado: Number(r.total_cortado || 0),
+      integracao_resumo: intMap.get(r.id) ?? null,
     }));
-  }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, empresaId]);
+  }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, integracaoQuery.data, empresaId]);
 
   // Mantém o cabeçalho/aba Informações da onda selecionada em sincronia com a lista
   // recarregada (status e totais mudam após limpezas, liberação, corte etc.).
@@ -452,11 +459,7 @@ export function MovimentoSaidaPage() {
 
   const filteredMovimentos = useMemo(() => {
     if (!filterErp) return movimentos;
-    return movimentos.filter((m) => {
-      if (filterErp === "EXPORTADO") return m.status === "EXPORTADA_ERP";
-      if (filterErp === "AGUARDANDO") return m.status === "CONCLUIDA";
-      return !erpBadgeApplies(m.status, "saida");
-    });
+    return movimentos.filter((m) => atendeFiltroErp(m.integracao_resumo, filterErp));
   }, [movimentos, filterErp]);
 
   const fetchMovimentos = useCallback(() => {
@@ -923,11 +926,9 @@ export function MovimentoSaidaPage() {
         {hasErp && (
           <div>
             <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status ERP</label>
-            <select value={filterErp} onChange={(e) => setFilterErp(e.target.value as any)} className={cn(inputClass, "w-36")}>
+            <select value={filterErp} onChange={(e) => setFilterErp(e.target.value as FiltroErp)} className={cn(inputClass, "w-36")} aria-label="Status ERP">
               <option value="">Todos</option>
-              <option value="EXPORTADO">Exportado ERP</option>
-              <option value="AGUARDANDO">Aguardando ERP</option>
-              <option value="SEM">Sem indicador</option>
+              {OPCOES_FILTRO_ERP.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
             </select>
           </div>
         )}
@@ -1005,7 +1006,7 @@ export function MovimentoSaidaPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-semibold text-foreground">Onda #{mov.numero_onda}</span>
                       <div className="flex items-center gap-1">
-                        {hasErp && <ErpStatusBadge status={mov.status} tipo="saida" compact />}
+                        {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
                         <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                         {aguardandoNf.has(mov.id) && (
                           <span
@@ -1291,12 +1292,12 @@ export function MovimentoSaidaPage() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-semibold text-foreground uppercase">Dados do Movimento</h3>
-                        {hasErp && erpBadgeApplies(selectedMov.status, "saida") && (
+                        {hasErp && (erpBadgeApplies(selectedMov.integracao_resumo) || selectedMov.status === "EXPORTADA_ERP") && (
                           <div className="flex items-center gap-2">
-                            <ErpStatusBadge status={selectedMov.status} tipo="saida" />
+                            <ErpStatusBadge resumo={selectedMov.integracao_resumo} />
                             {selectedMov.status === "EXPORTADA_ERP" && selectedMov.updated_at && (
                               <span className="text-[10px] text-muted-foreground">
-                                em {formatDate(selectedMov.updated_at)}
+                                exportada em {formatDate(selectedMov.updated_at)}
                               </span>
                             )}
                           </div>

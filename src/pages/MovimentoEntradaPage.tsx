@@ -21,7 +21,8 @@ import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarArmazenagemModal";
 import { LiberarErroTransporteModal } from "@/components/movimento-entrada/LiberarErroTransporteModal";
 import { parseError } from "@/lib/errorMapper";
-import { ErpStatusBadge, erpBadgeApplies } from "@/components/movimentos/ErpStatusBadge";
+import { ErpStatusBadge, erpBadgeApplies, atendeFiltroErp, OPCOES_FILTRO_ERP, type FiltroErp } from "@/components/movimentos/ErpStatusBadge";
+import { useIntegracaoResumo } from "@/hooks/useIntegracaoResumo";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 import { DescricaoCell } from "@/components/DescricaoCell";
 import { useTableSort } from "@/hooks/useTableSort";
@@ -82,6 +83,8 @@ const STATUS_ITEM_MAP: Record<string, { label: string; class: string }> = {
 
 interface MovEntry {
   id: string;
+  /** S1: pior estado de integração das NFs do recebimento (movimento_entrada.integracao_resumo). */
+  integracao_resumo?: string | null;
   numero_movimento: number | null;
   status: string;
   created_at: string;
@@ -199,7 +202,7 @@ export function MovimentoEntradaPage() {
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("");
-  const [filterErp, setFilterErp] = useState<"" | "EXPORTADO" | "AGUARDANDO" | "SEM">("");
+  const [filterErp, setFilterErp] = useState<FiltroErp>("");
   const [filterNumero, setFilterNumero] = useState("");
   const [filterDocumento, setFilterDocumento] = useState("");
   const [filterSku, setFilterSku] = useState("");
@@ -321,8 +324,11 @@ export function MovimentoEntradaPage() {
     staleTime: 30_000,
   });
 
+  const integracaoQuery = useIntegracaoResumo("movimento_entrada", tenantId, movIdsKey ? movIdsKey.split(",") : []);
+
   const movements: MovEntry[] = useMemo(() => {
     const opsMap = opsQuery.data || new Map<string, string[]>();
+    const intMap = integracaoQuery.data || new Map<string, string>();
     return listRows.map((r) => ({
       id: r.id,
       numero_movimento: r.numero_movimento,
@@ -332,8 +338,9 @@ export function MovimentoEntradaPage() {
       parceiro_nome: r.parceiro_nome || "—",
       tipo_entrada_descricao: (r as any).tipo_entrada_descricao || "—",
       operadores_atribuidos: opsMap.get(r.id) || [],
+      integracao_resumo: intMap.get(r.id) ?? null,
     }));
-  }, [listRows, opsQuery.data]);
+  }, [listRows, opsQuery.data, integracaoQuery.data]);
 
   // Mantém o status do movimento selecionado em sincronia com a lista recarregada
   // (controla as ações disponíveis; antes ficava com o valor fixo passado após cada ação).
@@ -344,14 +351,11 @@ export function MovimentoEntradaPage() {
   }, [movements, selectedMov]);
 
   const hasErp = useTenantHasErp(tenantId);
+  const resumoSelecionado = movements.find((m) => m.id === selectedMov)?.integracao_resumo ?? null;
 
   const filteredMovements = useMemo(() => {
     if (!filterErp) return movements;
-    return movements.filter((m) => {
-      if (filterErp === "EXPORTADO") return m.status === "EXPORTADO";
-      if (filterErp === "AGUARDANDO") return m.status === "ARMAZENADO";
-      return !erpBadgeApplies(m.status, "entrada");
-    });
+    return movements.filter((m) => atendeFiltroErp(m.integracao_resumo, filterErp));
   }, [movements, filterErp]);
 
   const fetchMovements = useCallback(() => {
@@ -715,11 +719,9 @@ export function MovimentoEntradaPage() {
         {hasErp && (
           <div>
             <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Status ERP</label>
-            <select value={filterErp} onChange={(e) => setFilterErp(e.target.value as any)} className={cn(inputClass, "w-36")}>
+            <select value={filterErp} onChange={(e) => setFilterErp(e.target.value as FiltroErp)} className={cn(inputClass, "w-36")} aria-label="Status ERP">
               <option value="">Todos</option>
-              <option value="EXPORTADO">Exportado ERP</option>
-              <option value="AGUARDANDO">Aguardando ERP</option>
-              <option value="SEM">Sem indicador</option>
+              {OPCOES_FILTRO_ERP.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
             </select>
           </div>
         )}
@@ -780,7 +782,7 @@ export function MovimentoEntradaPage() {
                           MOV-{mov.numero_movimento ?? "—"}
                         </span>
                         <div className="flex items-center gap-1">
-                          {hasErp && <ErpStatusBadge status={mov.status} tipo="entrada" compact />}
+                          {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
                           <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                         </div>
                       </div>
@@ -1022,14 +1024,14 @@ export function MovimentoEntradaPage() {
                           <p className="text-xs text-muted-foreground">Tipo de Entrada</p>
                           <p className="text-sm font-medium text-foreground">{movimentoInfo.tipo_entrada_descricao || "—"}</p>
                         </div>
-                        {hasErp && erpBadgeApplies(movimentoInfo.status, "entrada") && (
+                        {hasErp && (erpBadgeApplies(resumoSelecionado) || movimentoInfo.status === "EXPORTADO") && (
                           <div>
                             <p className="text-xs text-muted-foreground">Status ERP</p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <ErpStatusBadge status={movimentoInfo.status} tipo="entrada" />
+                              <ErpStatusBadge resumo={resumoSelecionado} />
                               {movimentoInfo.status === "EXPORTADO" && movimentoInfo.updated_at && (
                                 <span className="text-[11px] text-muted-foreground">
-                                  em {fmtDateTime(movimentoInfo.updated_at)}
+                                  exportado em {fmtDateTime(movimentoInfo.updated_at)}
                                 </span>
                               )}
                             </div>

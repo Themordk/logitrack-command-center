@@ -1,3 +1,4 @@
+import { rotuloResultadoIntegracao } from "@/lib/integracaoStatus";
 import type { Catalogo, Destino, Regra, TipoNo } from "../retornos.types";
 
 function valorTexto(v: Regra["valor"]): string {
@@ -46,7 +47,7 @@ export function resumoNo(
     case "acao.provedor":
       return catalogo?.operacoes_provedor.find((o) => o.operacao === c.operacao)?.nome ?? String(c.operacao ?? "Escolha a operação");
     case "acao.atualizar_documento":
-      return `status = ${String(c.status_integracao ?? "—")}`;
+      return `${rotuloResultadoIntegracao(c.resultado_integracao)} · marcador ${String(c.status_integracao || "—")}`;
     case "acao.notificar":
       return String(c.titulo ?? "Sem título");
     default:
