@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { preencherZpl } from "@/lib/etiquetaPreenchimento";
 
 /**
  * Hook de preview térmico via API pública Labelary.
@@ -38,17 +39,13 @@ function hashKey(input: string): string {
   return (h >>> 0).toString(36) + "_" + input.length.toString(36);
 }
 
-/** Substitui {{chave}} pelos valores; sobras viram "---". */
+/** Substitui {{chave}} pelos valores (com a proteção do agente); sobras viram "---". */
 export function aplicarPlaceholders(
   zpl: string,
   dados: Record<string, string | number | null | undefined> = {},
 ): string {
-  let out = zpl;
-  for (const [chave, valor] of Object.entries(dados)) {
-    const v = valor === null || valor === undefined ? "" : String(valor);
-    out = out.split(`{{${chave}}}`).join(v);
-  }
-  return out.replace(/\{\{[^}]+\}\}/g, "---");
+  // Mesma regra do agente de impressão: a prévia mostra o que a impressora vai receber.
+  return preencherZpl(zpl, dados);
 }
 
 /** Libera todos os objectURLs em cache (uso opcional). */
