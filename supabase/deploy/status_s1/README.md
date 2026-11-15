@@ -2,6 +2,7 @@
 
 Plano: "Plano — Status operacional, de entrega e de integração" (decisões aprovadas em 15/11/2026, todas na recomendação).
 Aplicado no QA `pwynobnbftqcqygjtrdk` em 15/11/2026. **Produção ainda não** (precisa de aprovação).
+Como no F8, as migrations ficam em `deploy/status_s1/migrations` (fora de `supabase/migrations`) até a publicação; depois são movidas.
 
 ## O que muda
 
@@ -16,11 +17,11 @@ Aplicado no QA `pwynobnbftqcqygjtrdk` em 15/11/2026. **Produção ainda não** (
 
 | Arquivo | Para quê |
 |---|---|
-| `migrations/20261115210000_status_s1_1_colunas_integracao.sql` | Colunas, restrições e índices (só acréscimos) |
-| `migrations/20261115210100_status_s1_2_recalculo_integracao.sql` | Cálculo, resumo, gatilho, `svc_atualizar_documento` com resultado, leitura para telas |
-| `migrations/20261115210200_status_s1_3_carga_inicial_integracao.sql` | Carga inicial a partir do histórico (sem mexer em `updated_at`, sem exportar ondas) |
-| `migrations/20261115210300_status_s1_4_eventos_documento_integracao.sql` | `integracao_documento_eventos` devolve `documento.integracao` |
-| `migrations/20261115210400_status_s1_5_no_atualizar_documento.sql` | Descrição do nó no catálogo |
+| `deploy/status_s1/migrations/20261115210000_status_s1_1_colunas_integracao.sql` | Colunas, restrições e índices (só acréscimos) |
+| `deploy/status_s1/migrations/20261115210100_status_s1_2_recalculo_integracao.sql` | Cálculo, resumo, gatilho, `svc_atualizar_documento` com resultado, leitura para telas |
+| `deploy/status_s1/migrations/20261115210200_status_s1_3_carga_inicial_integracao.sql` | Carga inicial a partir do histórico (sem mexer em `updated_at`, sem exportar ondas) |
+| `deploy/status_s1/migrations/20261115210300_status_s1_4_eventos_documento_integracao.sql` | `integracao_documento_eventos` devolve `documento.integracao` |
+| `deploy/status_s1/migrations/20261115210400_status_s1_5_no_atualizar_documento.sql` | Descrição do nó no catálogo |
 | `functions/retorno-dispatcher` | Código de produção (v5) + envio de `p_resultado`/`p_mensagem`. Sem o deploy, o dispatcher atual continua funcionando (parâmetros novos têm padrão) |
 | `deploy/status_s1/qa_teste_status_s1.sql` | Bateria do QA (`SELECT qa.fn_teste_status_s1();`) — não vai para produção |
 | `deploy/status_s1/99_reversao.sql` | Reversão em uma transação, com conferência |
