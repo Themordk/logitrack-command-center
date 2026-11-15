@@ -28,7 +28,8 @@ interface Props {
 }
 
 type Rpc = (nome: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-const rpc = supabase.rpc as unknown as Rpc;
+// .call(supabase, …): sem o this o supabase-js falha antes de enviar a requisição
+const rpc: Rpc = (nome, args) => (supabase.rpc as unknown as Rpc).call(supabase, nome, args);
 
 export function ImprimirVolumesDialog({ open, volumes, onClose, onImpresso }: Props) {
   const { empresaId, armazemId } = useTenant();

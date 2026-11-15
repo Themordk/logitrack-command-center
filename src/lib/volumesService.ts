@@ -141,7 +141,7 @@ export class VolumeRpcError extends Error {
 async function chamar<T>(fn: string, args: Record<string, unknown>): Promise<RespostaVolume<T>> {
   // RPCs novas ainda não estão nos tipos gerados do Supabase.
   const rpc = supabase.rpc as unknown as (nome: string, parametros: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-  const { data, error } = await rpc(fn, args);
+  const { data, error } = await rpc.call(supabase, fn, args);
   if (error) throw error;
   const r = (typeof data === "string" ? JSON.parse(data) : data) as RespostaVolume<T> | null;
   if (!r || typeof r !== "object") throw new VolumeRpcError("RESPOSTA_INVALIDA", "O servidor devolveu uma resposta inesperada.");
