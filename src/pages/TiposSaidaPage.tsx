@@ -13,6 +13,11 @@ import { Save, Loader2 } from "lucide-react";
 const ETAPA_CONCLUSAO_LABEL = { SEPARACAO: "Separação", CONFERENCIA: "Conferência", EMBARQUE: "Embarque" } as const;
 
 /** Espelha a regra do banco (tg_tipo_saida_etapa_conclusao) só para exibir antes de salvar. */
+/** Etapas de geração de volume possíveis para as etapas que o tipo executa (mesma regra do banco — A10). */
+function etapasVolumePermitidas(t: { realiza_conferencia?: boolean | null; realiza_embarque?: boolean | null }): string[] {
+  return ["NENHUMA", "SEPARAÇÃO", ...(t.realiza_conferencia ? ["CONFERÊNCIA"] : []), ...(t.realiza_embarque ? ["CARREGAMENTO"] : [])];
+}
+
 function etapaConclusao(t: { realiza_embarque?: boolean | null; realiza_conferencia?: boolean | null }): keyof typeof ETAPA_CONCLUSAO_LABEL {
   if (t.realiza_embarque) return "EMBARQUE";
   if (t.realiza_conferencia) return "CONFERENCIA";
@@ -78,7 +83,7 @@ export function TiposSaidaPage() {
     { key: "conferencia_cega", label: "Conf. Cega", type: "custom", render: (row) => boolBadge(row.conferencia_cega) },
     { key: "gera_volume_etapa", label: "Gera Volume Em", type: "custom", render: (row) => (
       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-500">
-        {row.gera_volume_etapa || "CONFERÊNCIA"}
+        {row.gera_volume_etapa || "NENHUMA"}
       </span>
     ) },
     { key: "gera_abastecimento_automatico", label: "Abast. Automático", type: "custom", render: (row) => boolBadge(row.gera_abastecimento_automatico) },
@@ -95,6 +100,7 @@ export function TiposSaidaPage() {
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false, reserva_embarque_carga: false, permite_mesmo_operador_conf_emb: true, libera_embarque_automatico: false,
       momento_conferencia: "PRE_FATURAMENTO",
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
+      reimprime_volume_nf: false, divergencia_volume_nf: "AVISAR",
       gera_mov_automatico: false, libera_mov_automatico: false,
       gera_abastecimento_automatico: false,
       libera_sem_saldo_picking: false,
@@ -125,6 +131,9 @@ export function TiposSaidaPage() {
       payload.reserva_embarque_carga = false;
       payload.permite_mesmo_operador_conf_emb = true;
       payload.libera_embarque_automatico = false;
+    }
+    if (!etapasVolumePermitidas(payload).includes(payload.gera_volume_etapa || "NENHUMA")) {
+      payload.gera_volume_etapa = "NENHUMA";
     }
     if (payload.momento_conferencia !== "POS_FATURAMENTO") {
       payload.momento_conferencia = "PRE_FATURAMENTO";
@@ -259,8 +268,10 @@ export function TiposSaidaPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>
-                  <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
-                    {["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  <select aria-label="Gera volume na etapa"
+                    value={etapasVolumePermitidas(form).includes(form.gera_volume_etapa || "NENHUMA") ? (form.gera_volume_etapa || "NENHUMA") : "NENHUMA"}
+                    onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
+                    {etapasVolumePermitidas(form).map((v) => <option key={v} value={v}>{v}</option>)}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
                     {({
@@ -268,7 +279,40 @@ export function TiposSaidaPage() {
                       "SEPARAÇÃO": "Os volumes e as etiquetas são gerados ao final da separação.",
                       "CONFERÊNCIA": "Os volumes e as etiquetas são gerados ao final da conferência.",
                       CARREGAMENTO: "Os volumes e as etiquetas são gerados no embarque, pelo operador no coletor.",
-                    } as Record<string, string>)[form.gera_volume_etapa || "CONFERÊNCIA"]}
+                    } as Record<string, string>)[etapasVolumePermitidas(form).includes(form.gera_volume_etapa || "NENHUMA") ? (form.gera_volume_etapa || "NENHUMA") : "NENHUMA"]}
+                    {!form.realiza_conferencia && !form.realiza_embarque && " Conferência e carregamento aparecem aqui quando a etapa correspondente está ligada."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="reimprime-volume-nf"
+                    checked={!!form.reimprime_volume_nf}
+                    onCheckedChange={(v) => set("reimprime_volume_nf", v)}
+                  />
+                  <div>
+                    <label htmlFor="reimprime-volume-nf" className="text-sm text-foreground">Reimprimir etiqueta de volume quando a NF for autorizada</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.reimprime_volume_nf
+                        ? "As etiquetas já impressas sem a NF saem de novo, com número e chave da NF, na mesma impressora. Volumes já expedidos ficam de fora."
+                        : "As etiquetas não são reimpressas. A NF só aparece nas etiquetas impressas depois da autorização."}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Volumes diferentes da NF</label>
+                  <select aria-label="Volumes diferentes da NF"
+                    value={form.divergencia_volume_nf || "AVISAR"}
+                    onChange={(e) => set("divergencia_volume_nf", e.target.value)} className={inputClass}>
+                    <option value="AVISAR">Avisar</option>
+                    <option value="BLOQUEAR">Bloquear</option>
+                    <option value="IGNORAR">Ignorar</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {({
+                      AVISAR: "Quando a quantidade de volumes do WMS difere da NF autorizada, o operador é avisado e uma ocorrência é registrada.",
+                      BLOQUEAR: "Não deixa gerar volumes em quantidade diferente da NF autorizada nem fechar a carga com divergência. Uma ocorrência é registrada.",
+                      IGNORAR: "Não compara a quantidade de volumes com a NF.",
+                    } as Record<string, string>)[form.divergencia_volume_nf || "AVISAR"]}
                   </p>
                 </div>
               </div>

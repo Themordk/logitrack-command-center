@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mesclarCamposComCatalogo, VARIAVEIS_ENDERECO } from "../etiquetaVariaveis";
+import { mesclarCamposComCatalogo, VARIAVEIS_ENDERECO, variaveisPorTipo, variaveisDesconhecidas } from "../etiquetaVariaveis";
 
 describe("mesclarCamposComCatalogo", () => {
   it("template vazio recebe todo o catálogo inativo", () => {
@@ -31,5 +31,23 @@ describe("mesclarCamposComCatalogo", () => {
   it("tipo sem catálogo retorna igual", () => {
     const salvos = [{ chave: "sku", label: "SKU", ativo: true, ordem: 1 }];
     expect(mesclarCamposComCatalogo("PRODUTO", salvos)).toBe(salvos);
+  });
+});
+
+describe("catálogo de VOLUME", () => {
+  it("tem as chaves de NF enviadas pelo servidor", () => {
+    const chaves = (variaveisPorTipo("VOLUME") ?? []).map((x) => x.chave);
+    for (const c of ["nota_fiscal", "nf_numero", "nf_serie", "nf_chave", "nf_data_emissao", "nf_qtd_volumes",
+                     "nf_especie_volumes", "nf_peso_bruto", "identificacao_volume", "cidade_uf", "numero_carga"]) {
+      expect(chaves).toContain(c);
+    }
+    expect(new Set(chaves).size).toBe(chaves.length);
+  });
+
+  it("aponta variáveis que o servidor não preenche", () => {
+    const zpl = "^XA^FD{{codigo_volume}}^FS^FD{{ trasportadora }}^FS^FD{{total_volume}}^FS^FD{{total_volume}}^FS^XZ";
+    expect(variaveisDesconhecidas(zpl, "VOLUME")).toEqual(["trasportadora", "total_volume"]);
+    expect(variaveisDesconhecidas("^XA^FD{{nf_chave}}^FS^XZ", "VOLUME")).toEqual([]);
+    expect(variaveisDesconhecidas(zpl, "PRODUTO")).toEqual([]);
   });
 });

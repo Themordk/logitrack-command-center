@@ -52,6 +52,9 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
   const [confirmarFechar, setConfirmarFechar] = useState(false);
   const [gerarPara, setGerarPara] = useState<CargaDocumento | null>(null);
   const [qtdVolumes, setQtdVolumes] = useState("");
+  /** Mensagem do servidor pedindo motivo (exceção D3); null = não é exceção. */
+  const [motivoPedido, setMotivoPedido] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState("");
   const [digitarAberto, setDigitarAberto] = useState(false);
   const [codigoDigitado, setCodigoDigitado] = useState("");
   const emVoo = useRef(false);
@@ -158,7 +161,12 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
     }
     setEnviando(true);
     try {
-      const r = await cargaService.gerarVolumes(tenantId, carga.id, usuarioId, gerarPara.carga_documento_id, qtd);
+      if (motivoPedido !== null && motivo.trim().length < 5) {
+        result.showWarning("Motivo obrigatório", { instruction: "Descreva em pelo menos 5 caracteres por que os volumes estão sendo gerados no embarque." });
+        return;
+      }
+      const r = await cargaService.gerarVolumes(tenantId, carga.id, usuarioId, gerarPara.carga_documento_id, qtd,
+        motivoPedido !== null ? motivo.trim() : undefined);
       // espera a fila de impressão: sem impressora/agente online o operador precisa saber que nada saiu
       const impressao = resumoImpressaoVolumes(await Promise.all((r.dados?.volumes ?? []).map((v) =>
         solicitarComResultado({
@@ -172,18 +180,30 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
           tipoDocumentoOrigem: "volume_expedicao",
           prioridade: 5,
         }))));
+      const avisoNf = (r.avisos ?? []).map((av) => av.mensagem).filter(Boolean).join(" ");
       if (impressao.aviso) {
         feedback.error();
         toast.warning(impressao.aviso, { description: impressao.detalhe.split("\n")[0], duration: 6000, id: "impressao-falha" });
         result.showWarning(r.mensagem ?? "Volumes gerados.", { details: `${impressao.aviso}. ${impressao.detalhe}` });
+      } else if (avisoNf) {
+        // volumes gerados com quantidade diferente da NF (regra AVISAR): a mensagem já traz o aviso
+        feedback.error();
+        result.showWarning(r.mensagem ?? "Volumes gerados.", { details: impressao.detalhe });
       } else {
         feedback.success();
         result.showSuccess(r.mensagem ?? "Volumes gerados.", { details: impressao.detalhe });
       }
       setGerarPara(null);
       setQtdVolumes("");
+      setMotivoPedido(null);
+      setMotivo("");
       await carregar();
     } catch (e) {
+      // Pedido de tipo de saída que não gera volume no carregamento: pede o motivo e tenta de novo
+      if (e instanceof CargaRpcError && e.codigo === "EMBARQUE_MOTIVO_OBRIGATORIO") {
+        setMotivoPedido(e.mensagem || "Informe o motivo para gerar os volumes no embarque.");
+        return;
+      }
       feedback.error();
       result.showError(e, { context: "embarque-gerar-volumes" });
     } finally {
@@ -197,12 +217,20 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
     setEnviando(true);
     try {
       const r = await cargaService.fechar(tenantId, carga.id, usuarioId);
-      feedback.success();
       sessionStorage.removeItem(EMBARQUE_CARGA_KEY);
-      result.showSuccess(r.mensagem ?? `Carregamento da carga #${carga.numero_carga} concluído.`, {
+      const opcoesFechamento = {
         details: "Avise o supervisor para imprimir o romaneio e colher a assinatura do motorista.",
         onClose: () => onNavigate("/coletor/embarque"),
-      });
+      };
+      const mensagemFechamento = r.mensagem ?? `Carregamento da carga #${carga.numero_carga} concluído.`;
+      if ((r.avisos ?? []).length > 0) {
+        // carga fechada com volumes diferentes da NF (regra AVISAR): a mensagem já traz quais pedidos
+        feedback.error();
+        result.showWarning(mensagemFechamento, opcoesFechamento);
+      } else {
+        feedback.success();
+        result.showSuccess(mensagemFechamento, opcoesFechamento);
+      }
     } catch (e) {
       feedback.error();
       result.showError(e, { context: "embarque-fechar" });
@@ -218,7 +246,7 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
     const sit = situacaoPedidoEmbarque(d);
     if (sit === "SEM_VOLUMES") {
       return aberta && !precisaVeiculo ? (
-        <button type="button" onClick={() => { setGerarPara(d); setQtdVolumes(""); }} disabled={enviando || bloqueado}
+        <button type="button" onClick={() => { setGerarPara(d); setQtdVolumes(""); setMotivoPedido(null); setMotivo(""); }} disabled={enviando || bloqueado}
           className="h-12 px-3 rounded-xl bg-[hsl(217,91%,45%)] text-white text-sm font-bold inline-flex items-center gap-1.5 active:scale-95 disabled:opacity-40 shrink-0"
           aria-label={`Gerar volumes do pedido ${d.numero_pedido ?? ""}`}>
           <PackagePlus size={18} aria-hidden="true" /> Gerar volumes
@@ -437,10 +465,19 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
                 onChange={(e) => setQtdVolumes(e.target.value)} placeholder="0"
                 className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-2xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]" />
             </div>
+            {motivoPedido !== null && (
+              <div className="space-y-2">
+                <p className="text-sm text-yellow-300 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3" role="alert">{motivoPedido}</p>
+                <label htmlFor="motivo-volumes" className="text-xs text-[hsl(213,31%,65%)] block uppercase font-medium">Motivo</label>
+                <textarea id="motivo-volumes" value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} autoFocus
+                  placeholder="Ex.: volumes não foram gerados na conferência"
+                  className="w-full px-3 py-2 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-base outline-none focus:border-[hsl(217,91%,50%)]" />
+              </div>
+            )}
             <div className="flex gap-2">
-              <ActionButton variant="secondary" onClick={() => setGerarPara(null)} disabled={enviando}>Cancelar</ActionButton>
-              <ActionButton variant="success" onClick={() => void gerarVolumes()} loading={enviando} disabled={!qtdVolumes || Number(qtdVolumes) <= 0}>
-                Gerar e imprimir
+              <ActionButton variant="secondary" onClick={() => { setGerarPara(null); setMotivoPedido(null); setMotivo(""); }} disabled={enviando}>Cancelar</ActionButton>
+              <ActionButton variant="success" onClick={() => void gerarVolumes()} loading={enviando} disabled={!qtdVolumes || Number(qtdVolumes) <= 0 || (motivoPedido !== null && motivo.trim().length < 5)}>
+                {motivoPedido !== null ? "Registrar motivo e gerar" : "Gerar e imprimir"}
               </ActionButton>
             </div>
           </div>

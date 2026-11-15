@@ -423,10 +423,16 @@ export const cargaService = {
     agir<CargaDetalhe>("embarque_confirmar_veiculo", { p_tenant_id: tenantId, p_carga_id: cargaId, p_usuario_id: usuarioId, p_codigo: codigo }),
 
   /** Pedido sem volume: gera os volumes no embarque (as etiquetas vão para a fila de impressão). */
-  gerarVolumes: (tenantId: string, cargaId: string, usuarioId: string, cargaDocumentoId: string, quantidade: number) =>
-    agir<{ volumes: VolumeGerado[] }>("embarque_gerar_volumes", {
+  /**
+   * motivo: só quando o servidor responde EMBARQUE_MOTIVO_OBRIGATORIO (pedido de tipo de
+   * saída que não gera volume no carregamento — exceção registrada como ocorrência, D3).
+   * Não é enviado sem valor, para continuar compatível com o banco anterior.
+   */
+  gerarVolumes: (tenantId: string, cargaId: string, usuarioId: string, cargaDocumentoId: string, quantidade: number, motivo?: string) =>
+    agir<{ volumes: VolumeGerado[]; excecao?: boolean }>("embarque_gerar_volumes", {
       p_tenant_id: tenantId, p_carga_id: cargaId, p_usuario_id: usuarioId,
       p_carga_documento_id: cargaDocumentoId, p_quantidade: quantidade,
+      ...(motivo ? { p_motivo: motivo } : {}),
     }),
 
   /** Novo código do QR do veículo (a etiqueta anterior deixa de valer). */

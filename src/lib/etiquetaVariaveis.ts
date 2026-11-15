@@ -1,7 +1,8 @@
 import type { CampoEtiqueta, TipoEtiquetaConfig } from "@/hooks/useEtiquetaTemplate";
 
 export type GrupoVariavel =
-  | "Identificação" | "Classificação" | "Localização" | "Dimensões e capacidade" | "Sistema";
+  | "Identificação" | "Classificação" | "Localização" | "Dimensões e capacidade"
+  | "Pedido e cliente" | "Nota fiscal" | "Transporte" | "Sistema";
 
 export interface VariavelEtiqueta {
   chave: string;
@@ -12,7 +13,8 @@ export interface VariavelEtiqueta {
 }
 
 export const GRUPOS_ORDEM: GrupoVariavel[] = [
-  "Identificação", "Classificação", "Localização", "Dimensões e capacidade", "Sistema",
+  "Identificação", "Classificação", "Localização", "Dimensões e capacidade",
+  "Pedido e cliente", "Nota fiscal", "Transporte", "Sistema",
 ];
 
 const v = (chave: string, label: string, grupo: GrupoVariavel, exemplo: string, descricao?: string): VariavelEtiqueta =>
@@ -58,9 +60,54 @@ export const VARIAVEIS_ENDERECO: VariavelEtiqueta[] = [
   v("usuario_impressao", "Usuário que Imprimiu", "Sistema", "Leonardo Sena"),
 ];
 
-/** Catálogo por tipo. Por ora só ENDERECO usa o catálogo; os demais retornam null. */
+/**
+ * Etiqueta de volume de expedição. As chaves são exatamente as que o servidor
+ * preenche no job (_fn_etiqueta_volume_dados): o que está aqui sai impresso.
+ * Campos de NF ficam vazios até a NF do pedido ser autorizada.
+ */
+export const VARIAVEIS_VOLUME: VariavelEtiqueta[] = [
+  v("codigo_volume", "Código do Volume", "Identificação", "VOL-000123", "Ideal para código de barras"),
+  v("numero_volume", "Nº do Volume", "Identificação", "01", "Sequência dentro do pedido"),
+  v("total_volumes", "Total de Volumes do Pedido", "Identificação", "03"),
+  v("identificacao_volume", "Volume / Total", "Identificação", "01/03"),
+  v("numero_onda", "Nº da Onda", "Identificação", "1612"),
+  v("peso", "Peso do Volume (kg)", "Identificação", "12.500"),
+  v("pedido", "Nº do Pedido", "Pedido e cliente", "2000000069"),
+  v("parceiro_nome", "Cliente (Razão Social)", "Pedido e cliente", "DISTRIBUIDORA CENTRAL LTDA"),
+  v("cidade_uf", "Cidade / UF do Cliente", "Pedido e cliente", "SOBRAL / CE"),
+  v("destino_carga", "Destino da Onda", "Pedido e cliente", "ROTA NORTE", "Texto da onda; para o endereço do cliente use Cidade / UF"),
+  v("observacao", "Observação do Pedido", "Pedido e cliente", "Entregar pela manhã"),
+  v("nota_fiscal", "NF (número-série)", "Nota fiscal", "9901-1", "Vazio até a NF ser autorizada"),
+  v("nf_numero", "Nº da NF", "Nota fiscal", "9901"),
+  v("nf_serie", "Série da NF", "Nota fiscal", "1"),
+  v("nf_chave", "Chave de Acesso da NF-e", "Nota fiscal", "23261100000000000000550010000099011000000001", "44 dígitos; ideal para código de barras"),
+  v("nf_data_emissao", "Data de Emissão da NF", "Nota fiscal", "15/11/2026"),
+  v("nf_qtd_volumes", "Qtd. de Volumes na NF", "Nota fiscal", "3"),
+  v("nf_especie_volumes", "Espécie dos Volumes (NF)", "Nota fiscal", "CAIXA"),
+  v("nf_peso_bruto", "Peso Bruto da NF (kg)", "Nota fiscal", "37.500"),
+  v("transportadora", "Transportadora", "Transporte", "TRANSPORTES RAPIDO LTDA", "Da carga; se não houver, a do pedido"),
+  v("numero_carga", "Nº da Carga", "Transporte", "26", "Preenchido quando o volume está numa carga"),
+  v("data_hora", "Data/Hora de Criação do Volume", "Sistema", "15/11/2026 10:47"),
+  v("usuario", "Usuário que Gerou o Volume", "Sistema", "LEONARDO SENA"),
+];
+
+/** Catálogo por tipo. ENDERECO e VOLUME usam o catálogo; os demais retornam null. */
 export function variaveisPorTipo(tipo: TipoEtiquetaConfig | string): VariavelEtiqueta[] | null {
-  return tipo === "ENDERECO" ? VARIAVEIS_ENDERECO : null;
+  if (tipo === "ENDERECO") return VARIAVEIS_ENDERECO;
+  if (tipo === "VOLUME") return VARIAVEIS_VOLUME;
+  return null;
+}
+
+/** Variáveis {{chave}} usadas no código do template que não existem no catálogo do tipo (sem repetição). */
+export function variaveisDesconhecidas(codigo: string | null | undefined, tipo: string): string[] {
+  const cat = variaveisPorTipo(tipo);
+  if (!cat || !codigo) return [];
+  const conhecidas = new Set(cat.map((x) => x.chave));
+  const out = new Set<string>();
+  for (const m of codigo.matchAll(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g)) {
+    if (!conhecidas.has(m[1])) out.add(m[1]);
+  }
+  return [...out];
 }
 
 /** Dados de exemplo { chave: exemplo } a partir do catálogo. */

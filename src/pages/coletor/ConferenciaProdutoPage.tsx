@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
+import { VolumesExpedicaoDialog, type PedidoVolume, type QuantidadePedido } from "@/components/coletor/VolumesExpedicaoDialog";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { toast } from "sonner";
 import { Package, CheckCircle, XCircle, BoxIcon, MoreVertical, List } from "lucide-react";
@@ -44,6 +45,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
   const [modoCego, setModoCego] = useState(false);
   const [showVolumeDialog, setShowVolumeDialog] = useState(false);
   const [volumeQtd, setVolumeQtd] = useState("");
+  const [pedidosVolume, setPedidosVolume] = useState<PedidoVolume[] | null>(null);
   const [volumeSaving, setVolumeSaving] = useState(false);
   const { solicitar } = useSolicitarImpressao();
   const { execute: executeOffline } = useOfflineAction();
@@ -443,9 +445,9 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
     }
   };
 
-  const handleSalvarVolumes = async () => {
+  const handleSalvarVolumes = async (porPedido?: QuantidadePedido[]) => {
     const qtd = Number(volumeQtd);
-    if (!qtd || qtd <= 0) {
+    if (!porPedido && (!qtd || qtd <= 0)) {
       result.showWarning("Quantidade inválida", {
         instruction: "Informe uma quantidade válida.",
       });
@@ -457,19 +459,32 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         p_tenant_id: tenantId,
         p_empresa_id: localStorage.getItem("core_empresa_id"),
         p_movimento_saida_id: movimentoId,
-        p_quantidade_volumes: qtd,
+        p_quantidade_volumes: porPedido ? null : qtd,
         p_etapa_origem: "CONFERÊNCIA",
+        // só enviado quando o servidor pediu: o banco antigo não conhece este parâmetro
+        ...(porPedido ? { p_quantidades: porPedido } : {}),
       });
       if (error) throw error;
       let rpcVolumes: any = data;
       if (typeof data === "string") {
         try { rpcVolumes = JSON.parse(data); } catch { /* keep */ }
       }
+      // Onda com 2+ pedidos: o servidor devolve a lista e o diálogo pede a quantidade de cada um (D1)
+      if (rpcVolumes?.sucesso === false && rpcVolumes?.codigo === "INFORMAR_VOLUMES_POR_PEDIDO" && Array.isArray(rpcVolumes?.pedidos)) {
+        setPedidosVolume(rpcVolumes.pedidos as PedidoVolume[]);
+        return;
+      }
       if (rpcVolumes?.sucesso === false) {
         result.showError(new Error(rpcVolumes.mensagem || "Erro ao gerar volumes."), { context: "conferencia-volumes" });
         return;
       }
-      toast.success(rpcVolumes?.mensagem || `${qtd} volume(s) gerado(s)!`);
+      toast.success(rpcVolumes?.mensagem || `${rpcVolumes?.total_volumes ?? qtd} volume(s) gerado(s)!`);
+      // Divergência com a NF já autorizada (regra AVISAR do tipo de saída): gera, mas avisa
+      if (Array.isArray(rpcVolumes?.avisos)) {
+        for (const av of rpcVolumes.avisos as { codigo?: string; mensagem?: string }[]) {
+          if (av?.mensagem) toast.warning(av.mensagem, { duration: 8000 });
+        }
+      }
       // Fire-and-forget: impressão automática das etiquetas de volume
       if (rpcVolumes?.volumes && Array.isArray(rpcVolumes.volumes)) {
         for (const vol of rpcVolumes.volumes) {
@@ -478,7 +493,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
             dados: {
               codigo_volume: vol.codigo_volume || "",
               numero_volume: String(vol.numero_volume || ""),
-              total_volumes: String(qtd),
+              total_volumes: String(vol.total_volumes ?? qtd),
             },
             origem: "CONFERENCIA_SAIDA",
             documentoOrigemId: vol.id || undefined,
@@ -498,6 +513,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         });
       }
       setShowVolumeDialog(false);
+      setPedidosVolume(null);
       onNavigate("/coletor/conferencia/iniciar");
     } catch (err: any) {
       result.showError(err, { context: "conferencia-volumes" });
@@ -659,43 +675,16 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
         )}
       </div>
 
-      {showVolumeDialog && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[hsl(222,40%,10%)] border border-[hsl(222,35%,22%)] rounded-2xl p-5 space-y-4">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center">
-                <Package size={24} className="text-[hsl(217,91%,60%)]" />
-              </div>
-              <h3 className="text-base font-bold text-white text-center">Volumes de Expedição</h3>
-              <p className="text-xs text-[hsl(213,31%,55%)] text-center">
-                Conferência finalizada! Informe a quantidade de volumes gerados para esta onda.
-              </p>
-            </div>
-            <div>
-              <label className="text-xs text-[hsl(213,31%,55%)] mb-1 block uppercase font-medium">
-                Quantidade de volumes
-              </label>
-              <input
-                type="number"
-                value={volumeQtd}
-                onChange={(e) => setVolumeQtd(e.target.value)}
-                className="w-full h-14 px-4 rounded-2xl bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] text-white text-2xl font-bold text-center outline-none focus:border-[hsl(217,91%,50%)]"
-                placeholder="0"
-                min="1"
-                autoFocus
-              />
-            </div>
-            <ActionButton
-              onClick={handleSalvarVolumes}
-              disabled={!volumeQtd || Number(volumeQtd) <= 0}
-              loading={volumeSaving}
-              variant="success"
-            >
-              Confirmar Volumes
-            </ActionButton>
-          </div>
-        </div>
-      )}
+      <VolumesExpedicaoDialog
+        open={showVolumeDialog}
+        etapa="Conferência"
+        saving={volumeSaving}
+        quantidade={volumeQtd}
+        onQuantidadeChange={setVolumeQtd}
+        pedidos={pedidosVolume}
+        onConfirmarUnico={() => void handleSalvarVolumes()}
+        onConfirmarPorPedido={(itens) => void handleSalvarVolumes(itens)}
+      />
 
       <ResultDialog {...result.dialogProps} />
 
