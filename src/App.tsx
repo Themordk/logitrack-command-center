@@ -61,7 +61,8 @@ import { MovimentoSaidaPage } from "./pages/MovimentoSaidaPage";
 import { OperadoresAtivosPage } from "./pages/OperadoresAtivosPage";
 import { ScorecardOperadorPage } from "@/pages/ScorecardOperadorPage";
 import { TarefasAtivasPage } from "./pages/TarefasAtivasPage";
-import { RoteiroSeparacaoPage } from "./pages/RoteiroSeparacaoPage";
+import { FluxoExpedicaoPage } from "./pages/FluxoExpedicaoPage";
+import { MontagemCargaPage } from "./pages/MontagemCargaPage";
 import { InventarioPage } from "./pages/InventarioPage";
 import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
@@ -146,6 +147,8 @@ import { SeparacaoOcorrenciasPage } from "./pages/coletor/SeparacaoOcorrenciasPa
 import { ConferenciaIniciarPage } from "./pages/coletor/ConferenciaIniciarPage";
 import { ConferenciaProdutoPage } from "./pages/coletor/ConferenciaProdutoPage";
 import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
+import { EmbarqueCargasPage } from "./pages/coletor/EmbarqueCargasPage";
+import { EmbarqueExecucaoPage } from "./pages/coletor/EmbarqueExecucaoPage";
 import { InventarioListPage } from "./pages/coletor/InventarioListPage";
 import { InventarioEnderecoPage } from "./pages/coletor/InventarioEnderecoPage";
 import { InventarioProdutoPage } from "./pages/coletor/InventarioProdutoPage";
@@ -201,11 +204,13 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/movimentos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada" }],
   "/atividades/saidas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Documentos de Saída" }],
   "/atividades/mov-saida": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ondas de Carregamento" }],
+  "/atividades/montagem-carga": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Montagem de Carga" }],
   "/atividades/ocorrencias": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Ocorrências Operacionais" }],
   "/atividades/operadores-ativos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Operadores Ativos" }],
   "/atividades/scorecard": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Scorecard Operador" }],
   "/atividades/tarefas-ativas": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Tarefas Ativas" }],
-  "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Armazém" }, { label: "Roteiro de Separação" }],
+  "/armazem/roteiro-separacao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Fluxo de Expedição" }],
+  "/config/fluxo-expedicao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Fluxo de Expedição" }],
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
@@ -350,10 +355,13 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/atividades/movimentos": return <MovimentoEntradaPage />;
     case "/atividades/saidas": return <SaidasPage />;
     case "/atividades/mov-saida": return <MovimentoSaidaPage />;
+    case "/atividades/embarque": // link antigo do menu
+    case "/atividades/montagem-carga": return <MontagemCargaPage onNavigate={onNavigate} />;
     case "/atividades/ocorrencias": return <OcorrenciasOperacionaisPage onNavigate={onNavigate} />;
     case "/atividades/operadores-ativos": return <OperadoresAtivosPage onNavigate={onNavigate} />;
     case "/atividades/tarefas-ativas": return <TarefasAtivasPage onNavigate={onNavigate} />;
-    case "/armazem/roteiro-separacao": return <RoteiroSeparacaoPage />;
+    case "/armazem/roteiro-separacao": // rota antiga: mesma tela
+    case "/config/fluxo-expedicao": return <FluxoExpedicaoPage onNavigate={onNavigate} />;
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage onNavigate={onNavigate} />;
@@ -543,6 +551,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/conferencia/iniciar": return <ConferenciaIniciarPage onNavigate={onNavigate} />;
     case "/coletor/conferencia/produto": return <ConferenciaProdutoPage onNavigate={onNavigate} />;
     case "/coletor/conferencia/itens": return <ConferenciaItensPage onNavigate={onNavigate} />;
+    case "/coletor/embarque": return <EmbarqueCargasPage onNavigate={onNavigate} />;
+    case "/coletor/embarque/carga": return <EmbarqueExecucaoPage onNavigate={onNavigate} />;
     case "/coletor/inventario": return <InventarioListPage onNavigate={onNavigate} />;
     case "/coletor/inventario/endereco": return <InventarioEnderecoPage onNavigate={onNavigate} />;
     case "/coletor/inventario/produto": return <InventarioProdutoPage onNavigate={onNavigate} />;

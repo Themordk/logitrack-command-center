@@ -9,6 +9,8 @@ import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { unidadeDasTarefas } from "@/lib/unidadeConferencia";
+import { UnidadeConferenciaBadge } from "@/components/coletor/UnidadeConferenciaBadge";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -92,6 +94,7 @@ export function ConferenciaItensPage({ onNavigate }: Props) {
     <ColetorLayout title={`Itens - Onda #${numeroOnda}`} onNavigate={onNavigate} showBack backPath="/coletor/conferencia/produto">
       <ResultDialog {...result.dialogProps} />
       <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
+        <UnidadeConferenciaBadge unidade={unidadeDasTarefas(tarefas)} />
         {tarefas.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm text-[hsl(213,31%,55%)]">Nenhum item encontrado.</p>

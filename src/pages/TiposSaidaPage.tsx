@@ -10,6 +10,15 @@ import { PADRAO_EXIBICAO_COLETOR } from "@/lib/exibicaoColetor";
 import { MOMENTO_CONFERENCIA_LABEL, MOMENTO_CONFERENCIA_OPCOES, type MomentoConferencia } from "@/lib/momentoConferencia";
 import { Save, Loader2 } from "lucide-react";
 
+const ETAPA_CONCLUSAO_LABEL = { SEPARACAO: "Separação", CONFERENCIA: "Conferência", EMBARQUE: "Embarque" } as const;
+
+/** Espelha a regra do banco (tg_tipo_saida_etapa_conclusao) só para exibir antes de salvar. */
+function etapaConclusao(t: { realiza_embarque?: boolean | null; realiza_conferencia?: boolean | null }): keyof typeof ETAPA_CONCLUSAO_LABEL {
+  if (t.realiza_embarque) return "EMBARQUE";
+  if (t.realiza_conferencia) return "CONFERENCIA";
+  return "SEPARACAO";
+}
+
 export function TiposSaidaPage() {
   const { tenantId, empresaId } = useTenant();
   const crud = useCrud({ table: "tipo_saida", tenantId, orderBy: "descricao" });
@@ -39,6 +48,12 @@ export function TiposSaidaPage() {
     { key: "descricao", label: "Descrição" },
     { key: "codigo_erp", label: "Código ERP" },
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
+    { key: "realiza_embarque", label: "Realiza Embarque", type: "custom", render: (row) => boolBadge(row.realiza_embarque) },
+    { key: "etapa_conclusao", label: "Conclui em", type: "custom", render: (row) => (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-green-500">
+        {ETAPA_CONCLUSAO_LABEL[etapaConclusao(row)]}
+      </span>
+    ) },
     { key: "momento_conferencia", label: "Modo Conferência", type: "custom", render: (row) => (
       row.realiza_conferencia
         ? <span className="text-xs text-foreground">{MOMENTO_CONFERENCIA_LABEL[row.momento_conferencia as MomentoConferencia] ?? MOMENTO_CONFERENCIA_LABEL.PRE_FATURAMENTO}</span>
@@ -77,7 +92,7 @@ export function TiposSaidaPage() {
     setEditItem(item);
     setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
-      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false,
+      realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false, reserva_embarque_carga: false, permite_mesmo_operador_conf_emb: true, libera_embarque_automatico: false,
       momento_conferencia: "PRE_FATURAMENTO",
       separa_pulmao: false, ...PADRAO_EXIBICAO_COLETOR, gera_volume_etapa: "CONFERÊNCIA",
       gera_mov_automatico: false, libera_mov_automatico: false,
@@ -96,12 +111,20 @@ export function TiposSaidaPage() {
     if (!form.descricao) return;
     setSaving(true);
     const payload: any = { ...PADRAO_EXIBICAO_COLETOR, ...form, empresa_id: empresaId };
+    delete payload.etapa_conclusao; // calculada no banco (gatilho) a partir das etapas ligadas
     if (!payload.realiza_conferencia) {
       payload.conferencia_checkout = false;
       payload.conferencia_cega = false;
       payload.reserva_conferencia_movimento = true;
       payload.permite_mesmo_operador_sep_conf = true;
+      payload.permite_mesmo_operador_conf_emb = true;
       payload.momento_conferencia = "PRE_FATURAMENTO";
+    }
+    if (!payload.realiza_embarque) {
+      payload.exige_confirmacao_veiculo = false;
+      payload.reserva_embarque_carga = false;
+      payload.permite_mesmo_operador_conf_emb = true;
+      payload.libera_embarque_automatico = false;
     }
     if (payload.momento_conferencia !== "POS_FATURAMENTO") {
       payload.momento_conferencia = "PRE_FATURAMENTO";
@@ -164,81 +187,17 @@ export function TiposSaidaPage() {
                   </select>
                 </div>
               </div>
-            </div>
-
-            {/* ── Conferência ── */}
-            <div className={sectionClass}>
-              <p className={sectionTitleClass}>Conferência</p>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Switch checked={!!form.realiza_conferencia} onCheckedChange={(v) => set("realiza_conferencia", v)} />
-                  <label className="text-sm text-foreground">Realiza conferência</label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={!!form.conferencia_checkout}
-                    onCheckedChange={(v) => set("conferencia_checkout", v)}
-                    disabled={!form.realiza_conferencia}
-                    className={!form.realiza_conferencia ? "opacity-50" : ""}
-                  />
-                  <label className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência checkout</label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={!!form.conferencia_cega}
-                    onCheckedChange={(v) => set("conferencia_cega", v)}
-                    disabled={!form.realiza_conferencia}
-                    className={!form.realiza_conferencia ? "opacity-50" : ""}
-                  />
-                  <label className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência cega</label>
-                </div>
-                <div className={`pt-1 ${!form.realiza_conferencia ? "opacity-50" : ""}`}>
-                  <label htmlFor="momento-conferencia" className="text-xs text-muted-foreground mb-1 block">Modo de conferência</label>
-                  <select
-                    id="momento-conferencia"
-                    value={form.realiza_conferencia ? (form.momento_conferencia || "PRE_FATURAMENTO") : "PRE_FATURAMENTO"}
-                    onChange={(e) => set("momento_conferencia", e.target.value)}
-                    disabled={!form.realiza_conferencia}
-                    className={inputClass}
-                  >
-                    {MOMENTO_CONFERENCIA_OPCOES.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {form.momento_conferencia === "POS_FATURAMENTO" && form.realiza_conferencia
-                      ? "A onda só aparece na conferência do coletor depois que todos os pedidos tiverem NF autorizada vinculada (enviada pelo ERP)."
-                      : "A onda aparece na conferência assim que a separação termina, antes da emissão da NF."}
-                  </p>
-                </div>
+              <div className="mt-4 rounded-md border border-border bg-background/40 px-3 py-2">
+                <p className="text-sm text-foreground">
+                  Este tipo conclui ao fim da: <b>{ETAPA_CONCLUSAO_LABEL[etapaConclusao(form)]}</b>
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  A onda fica concluída na última etapa ligada (separação → conferência → embarque). Ondas já liberadas mantêm a regra da liberação.
+                </p>
               </div>
             </div>
 
-            {/* ── Separação ── */}
-            <div className={sectionClass}>
-              <p className={sectionTitleClass}>Separação e volume</p>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Switch checked={!!form.separa_pulmao} onCheckedChange={(v) => set("separa_pulmao", v)} />
-                  <label className="text-sm text-foreground">Separa pulmão</label>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <Switch id="libera-sem-saldo-picking" checked={!!form.libera_sem_saldo_picking} onCheckedChange={(v) => set("libera_sem_saldo_picking", v)} />
-                    <label htmlFor="libera-sem-saldo-picking" className="text-sm text-foreground">Libera sem saldo no picking</label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Libera a onda mesmo com item zerado no picking ou sem picking mapeado. O item aparece no coletor com aviso e só pode ser coletado após abastecimento/mapeamento, ou cortado.</p>
-                  {form.libera_sem_saldo_picking && form.gera_abastecimento_automatico && <p className="text-xs text-muted-foreground">O abastecimento do pulmão para o picking será gerado automaticamente na liberação.</p>}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>
-                  <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
-                    {["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"].map((v) => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
+            {/* ── Informações exibidas no coletor ── */}
             <div className={sectionClass}>
               <p className={sectionTitleClass}>Informações exibidas no coletor</p>
               <p className="text-xs text-muted-foreground">Escolha o que o operador vê ao escolher a onda no coletor.</p>
@@ -264,11 +223,218 @@ export function TiposSaidaPage() {
               <p className="text-[11px] text-muted-foreground">Em ondas com pedidos de tipos diferentes, a informação só aparece se todos os tipos permitirem.</p>
             </div>
 
+            {/* ── Separação ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Separação e volume</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="separa-pulmao"
+                    checked={!!form.separa_pulmao}
+                    onCheckedChange={(v) => set("separa_pulmao", v)}
+                  />
+                  <div>
+                    <label htmlFor="separa-pulmao" className="text-sm text-foreground">Separa pulmão</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.separa_pulmao
+                        ? "A separação também pode buscar o produto direto nos endereços de pulmão quando o picking não tiver saldo"
+                        : "A separação busca o produto somente nos endereços de picking"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="libera-sem-saldo-picking"
+                    checked={!!form.libera_sem_saldo_picking}
+                    onCheckedChange={(v) => set("libera_sem_saldo_picking", v)}
+                  />
+                  <div>
+                    <label htmlFor="libera-sem-saldo-picking" className="text-sm text-foreground">Libera sem saldo no picking</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.libera_sem_saldo_picking
+                        ? `Libera a onda mesmo com item zerado no picking ou sem picking mapeado. O item aparece no coletor com aviso e só pode ser coletado após abastecimento/mapeamento, ou cortado.${form.gera_abastecimento_automatico ? " O abastecimento do pulmão para o picking é gerado automaticamente na liberação." : ""}`
+                        : "A onda só é liberada quando todos os itens têm saldo no picking"}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Gera volume na etapa</label>
+                  <select value={form.gera_volume_etapa || "CONFERÊNCIA"} onChange={(e) => set("gera_volume_etapa", e.target.value)} className={inputClass}>
+                    {["NENHUMA", "SEPARAÇÃO", "CONFERÊNCIA", "CARREGAMENTO"].map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {({
+                      NENHUMA: "Não gera volumes de expedição. Se o tipo realiza embarque, os volumes são gerados no próprio embarque.",
+                      "SEPARAÇÃO": "Os volumes e as etiquetas são gerados ao final da separação.",
+                      "CONFERÊNCIA": "Os volumes e as etiquetas são gerados ao final da conferência.",
+                      CARREGAMENTO: "Os volumes e as etiquetas são gerados no embarque, pelo operador no coletor.",
+                    } as Record<string, string>)[form.gera_volume_etapa || "CONFERÊNCIA"]}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Conferência ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Conferência</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="realiza-conferencia"
+                    checked={!!form.realiza_conferencia}
+                    onCheckedChange={(v) => set("realiza_conferencia", v)}
+                  />
+                  <div>
+                    <label htmlFor="realiza-conferencia" className="text-sm text-foreground">Realiza conferência</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.realiza_conferencia
+                        ? "Depois da separação, a onda passa pela conferência no coletor"
+                        : "A onda não passa por conferência: segue direto da separação para a próxima etapa"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="conferencia-checkout"
+                    checked={!!form.conferencia_checkout}
+                    onCheckedChange={(v) => set("conferencia_checkout", v)}
+                    disabled={!form.realiza_conferencia}
+                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="conferencia-checkout" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência checkout</label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.conferencia_checkout
+                        ? "Cada leitura soma a quantidade da embalagem lida, sem digitar (vale para operadores com checkout liberado no cadastro de usuários)"
+                        : "O operador lê o produto e digita a quantidade conferida"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="conferencia-cega"
+                    checked={!!form.conferencia_cega}
+                    onCheckedChange={(v) => set("conferencia_cega", v)}
+                    disabled={!form.realiza_conferencia}
+                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="conferencia-cega" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Conferência cega</label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.conferencia_cega
+                        ? "O operador não vê a quantidade esperada; o sistema compara o que ele contou com o separado"
+                        : "O operador vê a quantidade esperada de cada item durante a conferência"}
+                    </p>
+                  </div>
+                </div>
+                <div className={`pt-1 ${!form.realiza_conferencia ? "opacity-50" : ""}`}>
+                  <label htmlFor="momento-conferencia" className="text-xs text-muted-foreground mb-1 block">Modo de conferência</label>
+                  <select
+                    id="momento-conferencia"
+                    value={form.realiza_conferencia ? (form.momento_conferencia || "PRE_FATURAMENTO") : "PRE_FATURAMENTO"}
+                    onChange={(e) => set("momento_conferencia", e.target.value)}
+                    disabled={!form.realiza_conferencia}
+                    className={inputClass}
+                  >
+                    {MOMENTO_CONFERENCIA_OPCOES.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {form.momento_conferencia === "POS_FATURAMENTO" && form.realiza_conferencia
+                      ? "A onda só aparece na conferência do coletor depois que todos os pedidos tiverem NF autorizada vinculada (enviada pelo ERP)."
+                      : "A onda aparece na conferência assim que a separação termina, antes da emissão da NF."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="permite-mesmo-operador"
+                    checked={form.permite_mesmo_operador_sep_conf !== false}
+                    onCheckedChange={(v) => set("permite_mesmo_operador_sep_conf", v)}
+                    disabled={!form.realiza_conferencia}
+                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="permite-mesmo-operador" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Permite o mesmo operador separar e conferir
+                    </label>
+                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {form.permite_mesmo_operador_sep_conf !== false
+                        ? "Quem separou a onda também pode conferi-la"
+                        : "Quem separou a onda não pode conferi-la"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Embarque e conclusão ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Embarque e conclusão</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="realiza-embarque"
+                    checked={!!form.realiza_embarque}
+                    onCheckedChange={(v) => set("realiza_embarque", v)}
+                  />
+                  <div>
+                    <label htmlFor="realiza-embarque" className="text-sm text-foreground">Realiza embarque</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.realiza_embarque
+                        ? "As ondas entram na Montagem de Carga e os volumes são bipados no veículo pelo coletor"
+                        : "A onda é concluída sem montagem de carga nem embarque no coletor"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="exige-confirmacao-veiculo"
+                    checked={!!form.exige_confirmacao_veiculo}
+                    onCheckedChange={(v) => set("exige_confirmacao_veiculo", v)}
+                    disabled={!form.realiza_embarque}
+                    className={!form.realiza_embarque ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="exige-confirmacao-veiculo" className={`text-sm ${!form.realiza_embarque ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Exige confirmação do veículo no embarque</label>
+                    <p className={`text-xs ${!form.realiza_embarque ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque
+                        ? "Disponível quando o tipo realiza embarque"
+                        : form.exige_confirmacao_veiculo
+                        ? "Em carga de veículo próprio, o operador bipa o QR da etiqueta do veículo antes dos volumes (etiqueta impressa no cadastro de veículos)"
+                        : "O embarque começa direto pelos volumes, sem ler a etiqueta do veículo"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="permite-mesmo-operador-conf-emb"
+                    checked={form.permite_mesmo_operador_conf_emb !== false}
+                    onCheckedChange={(v) => set("permite_mesmo_operador_conf_emb", v)}
+                    disabled={!form.realiza_embarque || !form.realiza_conferencia}
+                    className={!form.realiza_embarque || !form.realiza_conferencia ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="permite-mesmo-operador-conf-emb" className={`text-sm ${!form.realiza_embarque || !form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Permite o mesmo operador conferir e embarcar
+                    </label>
+                    <p className={`text-xs ${!form.realiza_embarque || !form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque || !form.realiza_conferencia
+                        ? "Disponível quando o tipo realiza conferência e embarque"
+                        : form.permite_mesmo_operador_conf_emb !== false
+                        ? "Quem conferiu a onda também pode embarcá-la"
+                        : "Quem conferiu a onda não pode embarcar a carga dela"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* ── Reserva de tarefas ── */}
             <div className={sectionClass}>
               <p className={sectionTitleClass}>Reserva de tarefas</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Define se a onda inteira é reservada para 1 operador ou se múltiplos operadores podem trabalhar simultaneamente.
+                Define se a onda (ou a carga, no embarque) inteira é reservada para 1 operador ou se múltiplos operadores podem trabalhar simultaneamente.
               </p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -305,20 +471,22 @@ export function TiposSaidaPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch
-                    id="permite-mesmo-operador"
-                    checked={form.permite_mesmo_operador_sep_conf !== false}
-                    onCheckedChange={(v) => set("permite_mesmo_operador_sep_conf", v)}
-                    disabled={!form.realiza_conferencia}
-                    className={!form.realiza_conferencia ? "opacity-50" : ""}
+                    id="reserva-embarque-carga"
+                    checked={!!form.reserva_embarque_carga}
+                    onCheckedChange={(v) => set("reserva_embarque_carga", v)}
+                    disabled={!form.realiza_embarque}
+                    className={!form.realiza_embarque ? "opacity-50" : ""}
                   />
                   <div>
-                    <label htmlFor="permite-mesmo-operador" className={`text-sm ${!form.realiza_conferencia ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
-                      Permite o mesmo operador separar e conferir
+                    <label htmlFor="reserva-embarque-carga" className={`text-sm ${!form.realiza_embarque ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Reserva toda a carga no embarque
                     </label>
-                    <p className={`text-xs ${!form.realiza_conferencia ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
-                      {form.permite_mesmo_operador_sep_conf !== false
-                        ? "Quem separou a onda também pode conferi-la"
-                        : "Quem separou a onda não pode conferi-la"}
+                    <p className={`text-xs ${!form.realiza_embarque ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque
+                        ? "Disponível quando o tipo realiza embarque"
+                        : form.reserva_embarque_carga
+                        ? "Apenas 1 operador embarca a carga: ela fica com quem iniciar o embarque"
+                        : "Múltiplos operadores podem embarcar a mesma carga"}
                     </p>
                   </div>
                 </div>
@@ -330,24 +498,81 @@ export function TiposSaidaPage() {
               <p className={sectionTitleClass}>Automação</p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.gera_mov_automatico} onCheckedChange={(v) => set("gera_mov_automatico", v)} />
-                  <label className="text-sm text-foreground">Gera movimento automático</label>
+                  <Switch
+                    id="gera-mov-automatico"
+                    checked={!!form.gera_mov_automatico}
+                    onCheckedChange={(v) => set("gera_mov_automatico", v)}
+                  />
+                  <div>
+                    <label htmlFor="gera-mov-automatico" className="text-sm text-foreground">Gera movimento automático</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.gera_mov_automatico
+                        ? "O job das saídas agrupa os pedidos importados deste tipo em ondas (movimentos de saída) automaticamente"
+                        : "As ondas são geradas manualmente na tela Gerar Saídas"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.libera_mov_automatico} onCheckedChange={(v) => set("libera_mov_automatico", v)} />
-                  <label className="text-sm text-foreground">Libera movimento automático</label>
+                  <Switch
+                    id="libera-mov-automatico"
+                    checked={!!form.libera_mov_automatico}
+                    onCheckedChange={(v) => set("libera_mov_automatico", v)}
+                  />
+                  <div>
+                    <label htmlFor="libera-mov-automatico" className="text-sm text-foreground">Libera movimento automático</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.libera_mov_automatico
+                        ? "O job das saídas libera as ondas criadas para a separação no coletor, sem ação do supervisor"
+                        : "O supervisor libera cada onda para a separação"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Switch checked={!!form.gera_abastecimento_automatico} onCheckedChange={(v) => set("gera_abastecimento_automatico", v)} />
-                  <label className="text-sm text-foreground">Gera abastecimento automático</label>
+                  <Switch
+                    id="libera-embarque-automatico"
+                    checked={!!form.libera_embarque_automatico}
+                    onCheckedChange={(v) => set("libera_embarque_automatico", v)}
+                    disabled={!form.realiza_embarque}
+                    className={!form.realiza_embarque ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="libera-embarque-automatico" className={`text-sm ${!form.realiza_embarque ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Libera embarque automático
+                    </label>
+                    <p className={`text-xs ${!form.realiza_embarque ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque
+                        ? "Disponível quando o tipo realiza embarque"
+                        : "A carga montada com veículo (ou transportadora) é liberada para o coletor pelo job das saídas, 2 minutos após a última alteração"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="gera-abastecimento-automatico"
+                    checked={!!form.gera_abastecimento_automatico}
+                    onCheckedChange={(v) => set("gera_abastecimento_automatico", v)}
+                  />
+                  <div>
+                    <label htmlFor="gera-abastecimento-automatico" className="text-sm text-foreground">Gera abastecimento automático</label>
+                    <p className="text-xs text-muted-foreground">
+                      {form.gera_abastecimento_automatico
+                        ? "Ao liberar a onda, gera abastecimento do pulmão para o picking quando o picking não tem saldo para os itens"
+                        : "O abastecimento do picking para esta onda é feito pelas regras normais de abastecimento"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* ── Status ── */}
             <div className="flex items-center gap-3 px-4">
-              <Switch checked={form.ativo !== false} onCheckedChange={(v) => set("ativo", v)} />
-              <label className="text-sm text-foreground font-medium">Ativo</label>
+              <Switch id="tipo-ativo" checked={form.ativo !== false} onCheckedChange={(v) => set("ativo", v)} />
+              <div>
+                <label htmlFor="tipo-ativo" className="text-sm text-foreground font-medium">Ativo</label>
+                <p className="text-xs text-muted-foreground">
+                  {form.ativo !== false ? "Pedidos deste tipo são aceitos e processados" : "Tipo inativo: não entra em geração nem liberação automática"}
+                </p>
+              </div>
             </div>
             </div>
           </div>

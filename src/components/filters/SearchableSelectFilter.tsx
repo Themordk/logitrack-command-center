@@ -27,6 +27,14 @@ interface SearchableSelectFilterProps {
   className?: string;
   disabled?: boolean;
   title?: string;
+  /** id do botão (para associar a um <label htmlFor>). */
+  id?: string;
+  /** Texto do campo de busca (padrão "Buscar..."). */
+  searchPlaceholder?: string;
+  /** Classes do painel; por padrão 16rem de largura. */
+  contentClassName?: string;
+  /** false = sem a opção vazia (null) no topo da lista. */
+  allowEmpty?: boolean;
 }
 
 /** Combobox com busca para filtros com muitas opções (grupos, marcas...). */
@@ -39,6 +47,10 @@ export function SearchableSelectFilter({
   className,
   disabled = false,
   title,
+  id,
+  searchPlaceholder = "Buscar...",
+  contentClassName,
+  allowEmpty = true,
 }: SearchableSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
@@ -47,8 +59,11 @@ export function SearchableSelectFilter({
     <Popover open={open && !disabled} onOpenChange={(valor) => setOpen(!disabled && valor)}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           type="button"
           variant="ghost"
+          role="combobox"
+          aria-expanded={open}
           disabled={disabled}
           title={title}
           className={cn(
@@ -62,12 +77,13 @@ export function SearchableSelectFilter({
           <ChevronsUpDown size={13} className="shrink-0 opacity-60" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-0" align="start">
+      <PopoverContent className={cn("w-64 p-0", contentClassName)} align="start">
         <Command>
-          <CommandInput placeholder="Buscar..." />
+          <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
             <CommandEmpty>Nenhuma opção encontrada.</CommandEmpty>
             <CommandGroup>
+              {allowEmpty && (
               <CommandItem
                 value="__todos__"
                 onSelect={() => {
@@ -78,10 +94,11 @@ export function SearchableSelectFilter({
                 <Check size={13} className={cn("mr-2", !value ? "opacity-100" : "opacity-0")} />
                 {emptyLabel}
               </CommandItem>
+              )}
               {options.map((o) => (
                 <CommandItem
                   key={o.value}
-                  value={`${o.label} ${o.value}`}
+                  value={`${o.label} ${o.description ?? ""} ${o.value}`}
                   onSelect={() => {
                     onChange(o.value);
                     setOpen(false);

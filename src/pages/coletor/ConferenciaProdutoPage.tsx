@@ -15,6 +15,8 @@ import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { parseRpcResult } from "@/lib/errorMapper";
 import { useOffline } from "@/contexts/OfflineContext";
 import { getEanFromCache, saveEanToCache, type EanCacheEntry } from "@/lib/offlineEanCache";
+import { unidadeDasTarefas } from "@/lib/unidadeConferencia";
+import { UnidadeConferenciaBadge } from "@/components/coletor/UnidadeConferenciaBadge";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -399,11 +401,16 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
           pendingNextRef.current = { idx: nextIdx, tarefas: newTarefas };
           showOverlay({ type: "success", message: "Item conferido — próximo", duration: 600 });
         } else {
-          // All tasks completed
-          showOverlay({ type: "success", message: "Onda finalizada!", duration: 800 });
+          // All tasks completed (com unidades de conferência: só a unidade do operador)
+          const unidadeAtual = unidadeDasTarefas(newTarefas);
+          showOverlay({ type: "success", message: unidadeAtual ? `Unidade ${unidadeAtual.sequencia} conferida!` : "Onda finalizada!", duration: 800 });
           setTimeout(() => {
             if (geraVolumeEtapa === "CONFERÊNCIA") {
               setShowVolumeDialog(true);
+            } else if (unidadeAtual) {
+              result.showSuccess(`Unidade ${unidadeAtual.sequencia} de ${unidadeAtual.total} da Onda #${numeroOnda} conferida. Selecione a onda de novo para pegar a próxima unidade livre.`, {
+                onClose: () => onNavigate("/coletor/conferencia/iniciar"),
+              });
             } else {
               result.showSuccess(`Conferência da Onda #${numeroOnda} finalizada com sucesso`, {
                 onClose: () => onNavigate("/coletor/conferencia/iniciar"),
@@ -525,6 +532,7 @@ export function ConferenciaProdutoPage({ onNavigate }: Props) {
       backPath="/coletor/conferencia/iniciar"
     >
       <div className="flex flex-col gap-3 flex-1">
+        <UnidadeConferenciaBadge unidade={unidadeDasTarefas(tarefas)} />
         {/* Options button */}
         <div className="flex justify-end relative">
           <button
