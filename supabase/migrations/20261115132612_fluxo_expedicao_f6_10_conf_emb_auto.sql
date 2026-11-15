@@ -137,6 +137,10 @@ BEGIN
                                               JOIN public.tipo_saida ts ON ts.id = ms.tipo_saida
                                              WHERE cd.carga_id = c.id AND cd.ativo AND ts.libera_embarque_automatico));
       IF NOT v_tem_docs AND NOT v_tem_criadas AND NOT v_tem_cargas THEN CONTINUE; END IF;$b$);
+  -- produção grava esta função com quebra de linha CRLF: normaliza a linha procurada antes da troca
+  n := replace(n, $a$      PERFORM set_config('request.jwt.claims', json_build_object('sub', v_auth_user_id::text)::text, true);$a$ || E'\r\n',
+                  $a$      PERFORM set_config('request.jwt.claims', json_build_object('sub', v_auth_user_id::text)::text, true);
+$a$);
   n := replace(n, $a$      PERFORM set_config('request.jwt.claims', json_build_object('sub', v_auth_user_id::text)::text, true);
 $a$, $b$      PERFORM set_config('request.jwt.claims', json_build_object('sub', v_auth_user_id::text)::text, true);
       IF v_tem_cargas THEN
