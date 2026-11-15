@@ -47,6 +47,29 @@ Janela: fora do horário de ondas (produção gera ondas das 7h às 18h). Sugest
 6. Teste de fumaça no CORELOGITRACK: gerar onda → separar → conferir → (se embarque ligado) carga → embarque.
 7. Mover `migrations/*` para `supabase/migrations/`.
 
+## Publicação em produção — 15/11/2026 (domingo, 10h)
+
+- Pré-checagem: sem ondas, entradas e usuários ativos nas 2 horas anteriores; nenhuma migration nova desde a comparação.
+- `00_foto_pre_deploy.sql` às 10h03 (507 funções, 191 gatilhos, 161 relações, 386 módulos em `deploy_f8`).
+- As 34 migrations foram aplicadas uma a uma, das 10h04 às 10h30. Agora estão em `supabase/migrations/`, com a versão que ganharam em produção (`20261115130458` … `20261115133011`). O nome original continua no fim do arquivo.
+- **Ajuste na F6.10:** em produção, `cron_liberar_separacao_automatica` está gravada com quebra de linha CRLF.
+  - Por isso a troca do trecho de várias linhas não encontrava o texto, e a migration foi recusada inteira (nada ficou aplicado).
+  - A migration agora normaliza a linha antes da troca. O resultado é idêntico ao QA.
+  - As demais funções que o pacote altera por trecho usam LF em produção.
+- **F8.2 (só produção):** três empresas ficaram sem critério no N2, porque o roteiro antigo delas não tinha linha por empresa.
+  - Todas estão sem pedidos e sem ondas.
+  - Receberam "Movimento por Documento", o mesmo padrão de cliente novo.
+- **Conferência pós-publicação:**
+  - **Funções:** 93 funções novas ou alteradas, comparadas com o QA (hash ignorando comentários e espaços). 92 estão idênticas. Em `fn_provisionar_tenant_completo`, a única diferença já existia antes (PED-CAN com `gera_movimento_estoque` false em produção).
+  - **Por cliente (6):**
+    - `web.config.fluxo-expedicao` ativo e `web.armazem.roteiro-separacao` inativo;
+    - Montagem de Carga e Embarque criados, com as 10 permissões do ADMINISTRADOR;
+    - `roteiro_saida_obter`, `carga_sugerir` e `roteiro_saida_simular` respondendo em todas as empresas;
+    - tipo de tarefa EMB criado.
+  - **Ondas abertas:** a etapa de embarque está desligada em todas, então elas seguem o fluxo de antes. Nenhum tipo de saída tem "Realiza embarque".
+  - **Verificador de segurança:** nada novo. As funções do pacote aparecem só como "SECURITY DEFINER chamável por authenticated", o que é proposital e tem checagem de cliente testada. O `search_path` de `fn_provisionar_tenant_completo` já estava assim antes.
+- O schema `deploy_f8` (foto) fica em produção até a validação no CORELOGITRACK; depois pode ser apagado.
+
 ## Reversão
 
 `99_reversao.sql` recusa rodar se houver carga liberada ou em carregamento (forçar: `SET logitrack.reversao_forcar = 'on'`).

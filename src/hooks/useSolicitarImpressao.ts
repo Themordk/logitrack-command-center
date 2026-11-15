@@ -15,16 +15,24 @@ interface SolicitarImpressaoParams {
   setorUso?: string | null;
 }
 
+export interface ResultadoImpressao {
+  ok: boolean;
+  /** Código do solicitar_impressao (SEM_IMPRESSORA_ONLINE, IMPRESSORA_OFFLINE, SEM_IMPRESSORA_CADASTRADA...). */
+  codigo?: string;
+  mensagem?: string;
+}
+
 /**
  * Hook para solicitar impressão de etiquetas via fila automatizada.
  * Silencioso quando não há impressora configurada (não bloqueia o fluxo).
+ * `solicitarComResultado` devolve o motivo da falha para a tela não afirmar que imprimiu.
  */
 export function useSolicitarImpressao() {
-  const solicitar = useCallback(async (params: SolicitarImpressaoParams): Promise<boolean> => {
+  const solicitarComResultado = useCallback(async (params: SolicitarImpressaoParams): Promise<ResultadoImpressao> => {
     const armazemId = localStorage.getItem("core_armazem_id");
     if (!armazemId) {
       console.warn("[Impressão] Armazém não definido, ignorando impressão");
-      return false;
+      return { ok: false, codigo: "SEM_ARMAZEM", mensagem: "Armazém não definido no coletor." };
     }
 
     try {
@@ -52,19 +60,25 @@ export function useSolicitarImpressao() {
           duration: 2000,
         });
         if (result.aviso) toast.warning(result.aviso, { duration: 4000, id: "impressao-aviso-tamanho" });
-        return true;
+        return { ok: true };
       } else {
         console.warn("[Impressão] Sem impressora/template:", result?.error);
-        if (result?.codigo === "SEM_IMPRESSORA_CADASTRADA") return false;
+        const falha = { ok: false, codigo: result?.codigo as string | undefined, mensagem: result?.error as string | undefined };
+        if (result?.codigo === "SEM_IMPRESSORA_CADASTRADA") return falha;
         toast.warning("Etiqueta não impressa", { description: result?.error, duration: 5000, id: "impressao-falha" });
-        return false;
+        return falha;
       }
     } catch (err: any) {
       console.warn("[Impressão] Erro ao solicitar:", err?.message);
       toast.error("Falha ao enviar etiqueta", { description: err?.message, id: "impressao-erro" });
-      return false;
+      return { ok: false, codigo: "ERRO_ENVIO", mensagem: err?.message };
     }
   }, []);
 
-  return { solicitar };
+  const solicitar = useCallback(
+    async (params: SolicitarImpressaoParams): Promise<boolean> => (await solicitarComResultado(params)).ok,
+    [solicitarComResultado],
+  );
+
+  return { solicitar, solicitarComResultado };
 }

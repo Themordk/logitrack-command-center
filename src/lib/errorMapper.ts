@@ -652,6 +652,36 @@ function findBusinessError(
 /**
  * Analisa qualquer erro e retorna um objeto estruturado com mensagem amigável.
  */
+const fmtQtd = (v: string) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toLocaleString("pt-BR", { maximumFractionDigits: 4 }) : v;
+};
+
+/**
+ * Detalhe vindo do banco para um erro de negócio conhecido.
+ * SALDO_INSUFICIENTE com "Disponível: X, solicitado: Y" vira duas linhas com os números formatados.
+ */
+export function detalheErroNegocio(codigo: string, mensagem: string | undefined, titulo: string): string | undefined {
+  const msg = mensagem?.trim();
+  if (!msg || msg === titulo) return undefined;
+  if (codigo === "SALDO_INSUFICIENTE") {
+    const disp = /dispon[ií]vel:\s*(-?\d+(?:[.,]\d+)?)/i.exec(msg)?.[1];
+    const sol = /solicitad[oa]:\s*(-?\d+(?:[.,]\d+)?)/i.exec(msg)?.[1];
+    if (disp && sol) return `Saldo disponível: ${fmtQtd(disp.replace(",", "."))}\nQuantidade solicitada: ${fmtQtd(sol.replace(",", "."))}`;
+  }
+  return msg;
+}
+
+/** Mensagem do banco no formato JSON {"codigo","mensagem"} (RAISE com objeto). */
+function mensagemJson(raw: string): string | undefined {
+  try {
+    const p = JSON.parse(raw) as { mensagem?: unknown };
+    return typeof p?.mensagem === "string" ? p.mensagem : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function parseError(error: unknown, context?: string): ParsedError {
   if (context?.startsWith("armazenagem")) {
     const mensagem = extractMessage(error);
@@ -674,7 +704,7 @@ export function parseError(error: unknown, context?: string): ParsedError {
         type: "business",
         title: mapped?.title ?? msg,
         instruction: mapped?.instruction ?? "",
-        details: mapped && msg && msg !== mapped.title ? msg : undefined,
+        details: mapped ? detalheErroNegocio(code, msg, mapped.title) : undefined,
         errorCode: code || undefined,
         technicalMessage: context ? `[${context}] ${msg || code}` : msg || code,
       };
@@ -686,12 +716,13 @@ export function parseError(error: unknown, context?: string): ParsedError {
   const businessMatch = findBusinessError(rawMessage);
   if (businessMatch) {
     // RAISE '<CODIGO>: <mensagem>' -> a mensagem do banco vira detalhe (ex.: nº da onda, operador)
-    const detalheBanco = rawMessage.split(`${businessMatch.code}: `)[1]?.trim();
+    // ou RAISE com JSON {"codigo","mensagem"} -> a mensagem do JSON vira detalhe
+    const detalheBanco = mensagemJson(rawMessage) ?? rawMessage.split(`${businessMatch.code}: `)[1]?.trim();
     return {
       type: "business",
       title: businessMatch.title,
       instruction: businessMatch.instruction,
-      details: detalheBanco && detalheBanco !== businessMatch.title ? detalheBanco : undefined,
+      details: detalheErroNegocio(businessMatch.code, detalheBanco, businessMatch.title),
       errorCode: businessMatch.code,
       technicalMessage: context ? `[${context}] ${rawMessage}` : rawMessage,
     };

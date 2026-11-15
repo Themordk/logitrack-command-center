@@ -15,12 +15,13 @@ import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/Onl
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useFeedback } from "@/hooks/useFeedback";
+import { toast } from "sonner";
 import { useSolicitarImpressao } from "@/hooks/useSolicitarImpressao";
 import { parseError } from "@/lib/errorMapper";
 import {
   CargaRpcError, cargaService, type CargaDocumento, type CargaEmbarque, type UnidadeEmbarqueItem,
 } from "@/lib/cargaService";
-import { descreverTransporte, nomeTransportadora, proximoPedidoEmbarque, situacaoPedidoEmbarque } from "@/lib/cargaExibicao";
+import { descreverTransporte, nomeTransportadora, proximoPedidoEmbarque, resumoImpressaoVolumes, situacaoPedidoEmbarque } from "@/lib/cargaExibicao";
 import { EMBARQUE_CARGA_KEY } from "@/pages/coletor/EmbarqueCargasPage";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -40,7 +41,7 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
   const feedback = useFeedback();
   const result = useResultDialog({ coletorMode: true });
   const { showError } = result;
-  const { solicitar } = useSolicitarImpressao();
+  const { solicitarComResultado } = useSolicitarImpressao();
 
   const [carga, setCarga] = useState<CargaEmbarque | null>(null);
   const [loading, setLoading] = useState(true);
@@ -158,8 +159,9 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
     setEnviando(true);
     try {
       const r = await cargaService.gerarVolumes(tenantId, carga.id, usuarioId, gerarPara.carga_documento_id, qtd);
-      for (const v of r.dados?.volumes ?? []) {
-        void solicitar({
+      // espera a fila de impressão: sem impressora/agente online o operador precisa saber que nada saiu
+      const impressao = resumoImpressaoVolumes(await Promise.all((r.dados?.volumes ?? []).map((v) =>
+        solicitarComResultado({
           tipoEtiqueta: "VOLUME",
           dados: {
             codigo_volume: v.codigo_volume, numero_volume: String(v.numero_volume), total_volumes: String(v.total_volumes),
@@ -169,10 +171,15 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
           documentoOrigemId: v.id,
           tipoDocumentoOrigem: "volume_expedicao",
           prioridade: 5,
-        });
+        }))));
+      if (impressao.aviso) {
+        feedback.error();
+        toast.warning(impressao.aviso, { description: impressao.detalhe.split("\n")[0], duration: 6000, id: "impressao-falha" });
+        result.showWarning(r.mensagem ?? "Volumes gerados.", { details: `${impressao.aviso}. ${impressao.detalhe}` });
+      } else {
+        feedback.success();
+        result.showSuccess(r.mensagem ?? "Volumes gerados.", { details: impressao.detalhe });
       }
-      feedback.success();
-      result.showSuccess(r.mensagem ?? "Volumes gerados.", { details: "As etiquetas foram para a impressora. Cole cada uma e bipe ao carregar." });
       setGerarPara(null);
       setQtdVolumes("");
       await carregar();
