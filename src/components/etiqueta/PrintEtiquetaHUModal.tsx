@@ -51,21 +51,15 @@ interface PrintEtiquetaHUModalProps {
   onNavigate?: (path: string) => void;
 }
 
-function dadosDaHU(hu: HURow) {
-  return {
-    codigo_hu: hu.codigo_hu || "",
-    tipo_hu: hu.tipo_hu || "",
-    tamanho: hu.tamanho || "",
-    parceiro_nome: hu.parceiro_nome || "",
-    numero_movimento: hu.numero_movimento || "",
-    numero_nota: hu.numero_nota || "",
-    data_entrada: hu.data_entrada || "",
-    lote_principal: hu.lote_principal || "",
-    validade_proxima: hu.validade_proxima || "",
-    total_quantidade: hu.total_quantidade != null ? String(hu.total_quantidade) : "",
-    total_itens: hu.total_itens != null ? String(hu.total_itens) : "",
-    peso_bruto: hu.peso_bruto != null ? String(hu.peso_bruto) : "",
-  };
+/** Prévia: as mesmas chaves que o servidor grava no job (dados_etiqueta_hu → _fn_etiqueta_hu_dados). */
+function dadosDaHU(hu: HURow): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(hu as unknown as Record<string, unknown>)) {
+    if (k === "id" || k === "hu_id" || k === "itens" || val === null || val === undefined || typeof val === "object") continue;
+    out[k] = String(val);
+  }
+  out.codigo_hu = hu.codigo_hu || "";
+  return out;
 }
 
 const identificadorLegivel = (hu: HURow) => hu.codigo_hu ?? String(hu.id);
@@ -231,7 +225,8 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
         const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
           p_armazem_id: armazemId,
           p_tipo_etiqueta: "HU",
-          p_dados: dadosDaHU(hu),
+          // hu-h4: o servidor preenche os dados no job (_fn_etiqueta_hu_dados); o código vai só como referência
+          p_dados: { codigo_hu: hu.codigo_hu || "" },
           p_origem: "PAINEL_ADMINISTRATIVO",
           p_documento_origem_id: String(hu.id),
           p_tipo_documento_origem: "hu",
@@ -306,7 +301,7 @@ export function PrintEtiquetaHUModal({ open, onClose, hus, onNavigate }: PrintEt
       const { data, error } = await (supabase.rpc as any)("solicitar_impressao", {
         p_armazem_id: armazemId,
         p_tipo_etiqueta: "HU",
-        p_dados: dadosDaHU(huAtual),
+        p_dados: { codigo_hu: huAtual.codigo_hu || "" },
         p_origem: "PAINEL_ADMINISTRATIVO",
         p_documento_origem_id: String(huAtual.id),
         p_tipo_documento_origem: "hu",

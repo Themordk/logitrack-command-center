@@ -41,6 +41,90 @@ export interface ResumoHUArmazenagem {
 /** Código lido no coletor que é de HU (o resto é EAN/endereço). */
 export const pareceCodigoHU = (codigo: string): boolean => /^HU-\d+$/i.test(String(codigo ?? "").trim());
 
+/* ───────────── Tela Atividades › HU (H5) ───────────── */
+
+export type SituacaoHU = "AGUARDANDO_ARMAZENAGEM" | "VAZIA" | "DIVERGENTE" | "NUNCA_IMPRESSA" | "PARADA";
+
+export interface FiltrosHU {
+  status?: StatusHU | "";
+  situacao?: SituacaoHU | "";
+  tipo_hu?: string;
+  movimento?: string;
+  nf?: string;
+  fornecedor?: string;
+  sku?: string;
+  endereco?: string;
+  data_de?: string;
+  data_ate?: string;
+  busca?: string;
+}
+
+export interface HULinha {
+  id: string;
+  codigo_hu: string;
+  tipo_hu: string | null;
+  tamanho: string | null;
+  status: StatusHU;
+  disponibilidade: string | null;
+  peso_bruto: number | null;
+  m3: number | null;
+  altura: number | null;
+  created_at: string;
+  criado_por_nome: string | null;
+  armazem: string | null;
+  endereco: string | null;
+  numero_movimento: number | null;
+  nfs: string | null;
+  fornecedores: string | null;
+  qtd_skus: number;
+  qtd_total: number;
+  sku_principal: string | null;
+  descricao_principal: string | null;
+  estoque_total: number;
+  estoque_enderecos: number;
+  ultimo_evento: string | null;
+  ultimo_evento_em: string | null;
+  etiqueta_impressoes: number;
+  etiqueta_ultimo_status: string | null;
+  etiqueta_ultima_em: string | null;
+  horas_parada: number;
+  vazia: boolean;
+  aguardando_armazenagem: boolean;
+  divergente: boolean;
+  nunca_impressa: boolean;
+  parada: boolean;
+  encerrada: boolean;
+}
+
+export interface ResumoHUs {
+  abertas: number; aguardando_armazenagem: number; armazenadas: number; vazias: number;
+  divergentes: number; nunca_impressas: number; paradas: number; encerradas: number;
+}
+
+export interface ListaHUs { linhas: HULinha[]; total: number; pagina: number; tamanho: number; resumo: ResumoHUs }
+
+export interface DetalheHU {
+  hu: HULinha;
+  itens: { hu_item_id: string; sku: string; descricao: string; quantidade: number; lote: string | null; validade: string | null;
+           conferido_por: string | null; conferido_em: string }[];
+  estoque: { endereco: string | null; sku: string; descricao: string; lote: string | null; validade: string | null;
+             quantidade: number; disponivel: number }[];
+  eventos: (Omit<EventoHU, "id">)[];
+  impressoes: { id: string; status: string; criado_em: string; impresso_em: string | null; erro: string | null;
+                impressora: string | null; origem: string | null; copias: number }[];
+  acoes: { editar: boolean; fechar: boolean; reabrir: boolean; desmontar: boolean; descartar: boolean; imprimir: boolean };
+}
+
+/** Só manda os filtros preenchidos (sem espaços nas pontas). */
+export function limparFiltrosHU(f: FiltrosHU): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(f)) {
+    const t = String(v ?? "").trim();
+    if (t) out[k] = t;
+  }
+  return out;
+}
+
 export class HuRpcError extends Error {
   constructor(public codigo: string, message: string) {
     super(message);
@@ -96,6 +180,21 @@ export const huService = {
     return chamar<Retorno & { status: StatusHU; endereco: string; itens: number }>("rpc_coletor_armazenar_hu", {
       p_hu_id: huId, p_endereco_destino_id: enderecoId,
     });
+  },
+  async listar(empresaId: string | null, filtros: FiltrosHU, pagina = 1, tamanho = 50): Promise<ListaHUs> {
+    const r = await chamar<Retorno & { dados: ListaHUs }>("rpc_hus_listar", {
+      p_empresa_id: empresaId, p_filtros: limparFiltrosHU(filtros), p_pagina: pagina, p_tamanho: tamanho,
+    });
+    return r.dados;
+  },
+  async listarTodos(empresaId: string | null, filtros: FiltrosHU): Promise<HULinha[]> {
+    return (await huService.listar(empresaId, filtros, 1, 5000)).linhas;
+  },
+  async detalhe(huId: string): Promise<DetalheHU> {
+    return (await chamar<Retorno & { dados: DetalheHU }>("rpc_hu_detalhe", { p_hu_id: huId })).dados;
+  },
+  desmontar(huId: string, motivo: string) {
+    return chamar("rpc_hu_desmontar", { p_hu_id: huId, p_observacao: motivo.trim() });
   },
   async eventos(huId: string): Promise<EventoHU[]> {
     const r = await chamar<Retorno & { eventos: EventoHU[] }>("rpc_hu_eventos", { p_hu_id: huId });
