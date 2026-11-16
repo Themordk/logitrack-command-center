@@ -17,7 +17,7 @@ import {
   gerarTsplAutomatico,
   type LinguagemEtiqueta,
 } from "@/lib/etiquetaLinguagens";
-import { GRUPOS_ORDEM, variaveisPorTipo, mesclarCamposComCatalogo } from "@/lib/etiquetaVariaveis";
+import { GRUPOS_ORDEM, variaveisPorTipo, mesclarCamposComCatalogo, variaveisDesconhecidas } from "@/lib/etiquetaVariaveis";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MapPin,
@@ -37,6 +37,7 @@ import {
   
   Printer,
   Copy,
+  AlertTriangle,
 } from "lucide-react";
 
 interface Props {
@@ -1154,8 +1155,22 @@ export function EtiquetaTemplatesPage({ onNavigate }: Props) {
                 const vars = variaveisPorTipo(tipo)!.filter(
                   (x) => !q || normTxt(x.chave).includes(q) || normTxt(x.label).includes(q),
                 );
+                // VOLUME: o servidor só preenche as chaves do catálogo; qualquer outra sai vazia na etiqueta
+                const desconhecidas = tipo === "VOLUME" ? variaveisDesconhecidas(
+                  abaLinguagem === "ZPL" ? zplCode : abaLinguagem === "EPL" ? eplCode : tsplCode, tipo,
+                ) : [];
                 return (
                   <div className="mt-2">
+                    {desconhecidas.length > 0 && (
+                      <div role="alert" className="mb-2 flex items-start gap-2 rounded border border-yellow-500/30 bg-yellow-500/15 px-2 py-1.5 text-[11px] text-yellow-400">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+                        <span>
+                          Variável sem dado no servidor (vai sair vazia):{" "}
+                          <span className="font-mono">{desconhecidas.map((c) => `{{${c}}}`).join(", ")}</span>.
+                          Use uma das variáveis abaixo.
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                         Campos disponíveis ({vars.length})

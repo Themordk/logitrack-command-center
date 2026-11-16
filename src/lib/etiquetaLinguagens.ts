@@ -60,16 +60,10 @@ export const DADOS_EXEMPLO: Record<string, Record<string, string>> = {
     peso_bruto: "45.5",
   },
   VOLUME: {
-    codigo_volume: "VOL-000001",
-    pedido: "PED-12345",
+    ...dadosExemploDoCatalogo("VOLUME"),
+    // chaves antigas mantidas para templates que ainda as usam
     cliente: "DISTRIBUIDORA CENTRAL LTDA",
-    parceiro_nome: "DISTRIBUIDORA CENTRAL LTDA",
-    volumes: "1/3",
-    transportadora: "TRANSP. RAPIDA",
-    numero_onda: "42",
-    numero_volume: "01",
-    total_volumes: "05",
-    destino_carga: "SAO PAULO / SP",
+    volumes: "01/03",
   },
 };
 

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import JsBarcode from "jsbarcode";
 import qrcode from "qrcode-generator";
 import { AlertTriangle } from "lucide-react";
+import { preencherTexto } from "@/lib/etiquetaPreenchimento";
 
 const DOTS_PER_MM = 8;
 
@@ -27,12 +28,8 @@ export function aplicarPlaceholders(
   code: string,
   dados: Record<string, string | number | null | undefined> = {},
 ): string {
-  let out = code;
-  for (const [chave, valor] of Object.entries(dados)) {
-    const v = valor === null || valor === undefined ? "" : String(valor);
-    out = out.split(`{{${chave}}}`).join(v);
-  }
-  return out.replace(/\{\{[^}]+\}\}/g, "---");
+  // Mesma regra do agente de impressão: a prévia mostra o que a impressora vai receber.
+  return preencherTexto(code, dados);
 }
 
 const EPL_FONTS: Record<string, number> = { "1": 12, "2": 16, "3": 20, "4": 24, "5": 48 };
