@@ -38,7 +38,8 @@ describe("catálogo de VOLUME", () => {
   it("tem as chaves de NF enviadas pelo servidor", () => {
     const chaves = (variaveisPorTipo("VOLUME") ?? []).map((x) => x.chave);
     for (const c of ["nota_fiscal", "nf_numero", "nf_serie", "nf_chave", "nf_data_emissao", "nf_qtd_volumes",
-                     "nf_especie_volumes", "nf_peso_bruto", "identificacao_volume", "cidade_uf", "numero_carga"]) {
+                     "nf_especie_volumes", "nf_peso_bruto", "identificacao_volume", "cidade_uf", "numero_carga",
+                     "remetente_nome", "remetente_cnpj", "remetente"]) {
       expect(chaves).toContain(c);
     }
     expect(new Set(chaves).size).toBe(chaves.length);
