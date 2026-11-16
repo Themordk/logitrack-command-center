@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { huService, HuRpcError, acoesHU } from "../huService";
+import { huService, HuRpcError, acoesHU, pareceCodigoHU } from "../huService";
 import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -47,5 +47,24 @@ describe("acoesHU", () => {
     expect(acoesHU("FECHADA")).toEqual({ editar: true, fechar: false, reabrir: true, descartar: false });
     expect(acoesHU("ARMAZENADA")).toEqual({ editar: true, fechar: false, reabrir: false, descartar: false });
     expect(acoesHU("DESCARTADA")).toEqual({ editar: false, fechar: false, reabrir: false, descartar: false });
+  });
+});
+
+describe("armazenagem da HU (H2)", () => {
+  beforeEach(() => rpcMock.mockReset());
+
+  it("resumo manda o código em maiúsculas e armazenar manda HU e endereço", async () => {
+    rpcMock.mockResolvedValue({ data: { sucesso: true, hu: {}, itens: [], pode_armazenar: false, motivo: null }, error: null });
+    await huService.armazenagemResumo(" hu-000000012 ");
+    expect(rpcMock).toHaveBeenLastCalledWith("rpc_coletor_hu_armazenagem", { p_codigo_hu: "HU-000000012" });
+    await huService.armazenar("h1", "e1");
+    expect(rpcMock).toHaveBeenLastCalledWith("rpc_coletor_armazenar_hu", { p_hu_id: "h1", p_endereco_destino_id: "e1" });
+  });
+
+  it("reconhece código de HU", () => {
+    expect(pareceCodigoHU("HU-000000012")).toBe(true);
+    expect(pareceCodigoHU(" hu-12 ")).toBe(true);
+    expect(pareceCodigoHU("7891234567895")).toBe(false);
+    expect(pareceCodigoHU("HU-ABC")).toBe(false);
   });
 });
