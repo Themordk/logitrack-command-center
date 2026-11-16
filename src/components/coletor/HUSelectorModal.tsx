@@ -29,6 +29,7 @@ interface HuBusca {
   status: string;
   disponibilidade: string;
   qtd_itens: number;
+  aceita_itens?: boolean;
   mensagem: string;
 }
 
@@ -84,6 +85,11 @@ export function HUSelectorModal({
       }
       if (!r.disponivel) {
         setScanError(r.mensagem || "HU não está disponível");
+        return;
+      }
+      // hu-h1: só HU Aberta recebe itens da conferência (o banco recusa as demais com HU_NAO_ABERTA)
+      if (r.aceita_itens === false) {
+        setScanError(`HU ${r.codigo_hu} está ${String(r.status).toLowerCase()} e não aceita itens. Reabra a HU ou use outra.`);
         return;
       }
       setScanResult(r);

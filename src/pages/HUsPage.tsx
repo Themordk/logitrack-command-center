@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
-import { supabase } from "@/integrations/supabase/client";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
-import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Printer, Save, Loader2, AlertCircle } from "lucide-react";
+import { Printer, Save, Loader2, AlertCircle, Lock, LockOpen, Ban } from "lucide-react";
 import { PrintEtiquetaHUModal } from "@/components/etiqueta/PrintEtiquetaHUModal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { huService, acoesHU } from "@/lib/huService";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
-  const { tenantId, empresaId } = useTenant();
+  const { tenantId, empresaId, armazemId } = useTenant();
   const crud = useCrud({
     table: "hu",
     tenantId,
@@ -22,7 +22,10 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [deleteItem, setDeleteItem] = useState<any>(null);
+  // Ações com motivo (reabrir / descartar) — regra e permissão no banco (rpc_hu_*)
+  const [acaoMotivo, setAcaoMotivo] = useState<{ tipo: "reabrir" | "descartar"; row: any } | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [executando, setExecutando] = useState(false);
 
   // Selection & Print
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -53,6 +56,36 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
     ARMAZENADA: { color: "text-green-400", label: "Armazenada" },
     EXPEDIDA: { color: "text-gray-400", label: "Expedida" },
     DESCARTADA: { color: "text-red-400", label: "Descartada" },
+    DESMONTADA: { color: "text-gray-400", label: "Desmontada" },
+  };
+
+  const executarFechar = async (row: any) => {
+    try {
+      const r = await huService.fechar(row.id);
+      toast.success(r.mensagem || "HU fechada.");
+      await crud.refresh();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const executarAcaoMotivo = async () => {
+    if (!acaoMotivo) return;
+    if (!motivo.trim()) { toast.error("Informe o motivo."); return; }
+    setExecutando(true);
+    try {
+      const r = acaoMotivo.tipo === "reabrir"
+        ? await huService.reabrir(acaoMotivo.row.id, motivo)
+        : await huService.descartar(acaoMotivo.row.id, motivo);
+      toast.success(r.mensagem || "Feito.");
+      setAcaoMotivo(null);
+      setMotivo("");
+      await crud.refresh();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setExecutando(false);
+    }
   };
 
   const columns: ColumnSpec[] = [
@@ -82,8 +115,6 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
       altura: "",
       peso_bruto: "",
       m3: "",
-      status: "ABERTA",
-      disponibilidade: "DISPONIVEL",
       quantidade: 1,
     });
     setErrors({});
@@ -91,6 +122,10 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
   };
 
   const openEditModal = (row: any) => {
+    if (!acoesHU(row.status).editar) {
+      toast.info(`A HU ${row.codigo_hu} está encerrada e não pode ser editada.`);
+      return;
+    }
     setEditItem(row);
     setForm({
       tipo_hu: row.tipo_hu || "",
@@ -98,8 +133,6 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
       altura: row.altura ?? "",
       peso_bruto: row.peso_bruto ?? "",
       m3: row.m3 ?? "",
-      status: row.status || "ABERTA",
-      disponibilidade: row.disponibilidade || "DISPONIVEL",
       quantidade: 1,
     });
     setErrors({});
@@ -109,25 +142,6 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
   const set = (name: string, value: any) => {
     setForm((p) => ({ ...p, [name]: value }));
     setErrors((e) => { const n = { ...e }; delete n[name]; return n; });
-  };
-
-  const generateCodigoHU = async (count: number): Promise<string[]> => {
-    const { data } = await (supabase as any)
-      .from("hu")
-      .select("codigo_hu")
-      .eq("tenant_id", tenantId!)
-      .like("codigo_hu", "HU-%")
-      .order("codigo_hu", { ascending: false })
-      .limit(1);
-
-    let nextNum = 1;
-    if (data && data.length > 0 && data[0].codigo_hu) {
-      const match = data[0].codigo_hu.match(/HU-(\d+)/);
-      if (match) nextNum = parseInt(match[1], 10) + 1;
-    }
-    return Array.from({ length: count }, (_, i) =>
-      `HU-${String(nextNum + i).padStart(9, "0")}`
-    );
   };
 
   const handleSave = async () => {
@@ -143,32 +157,22 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
 
     setSaving(true);
     try {
-      const baseData: Record<string, any> = {
+      // Código, autor e histórico ficam no banco: rpc_hu_gerar / rpc_hu_editar (status não muda por aqui)
+      const dados = {
         tipo_hu: form.tipo_hu,
         tamanho: form.tamanho,
-        status: form.status || "ABERTA",
-        disponibilidade: form.disponibilidade || "DISPONIVEL",
-        altura: form.altura !== "" ? Number(form.altura) : null,
-        peso_bruto: form.peso_bruto !== "" ? Number(form.peso_bruto) : null,
-        m3: form.m3 !== "" ? Number(form.m3) : null,
+        altura: form.altura,
+        peso_bruto: form.peso_bruto,
+        m3: form.m3,
       };
-
       if (editItem) {
-        const { error } = await (supabase as any).from("hu").update(baseData).eq("id", editItem.id);
-        if (error) throw error;
+        await huService.editar(editItem.id, dados);
         toast.success("HU atualizada com sucesso!");
       } else {
+        if (!empresaId) throw new Error("Selecione a empresa antes de gerar HUs.");
         const qty = parseInt(form.quantidade, 10) || 1;
-        const codigos = await generateCodigoHU(qty);
-        const records = codigos.map((codigo) => ({
-          ...baseData,
-          codigo_hu: codigo,
-          tenant_id: tenantId,
-          empresa_id: empresaId,
-        }));
-        const { error } = await (supabase as any).from("hu").insert(records);
-        if (error) throw error;
-        toast.success(`${qty} HU(s) gerada(s) com sucesso!`);
+        const r = await huService.gerar({ ...dados, quantidade: qty, empresa_id: empresaId, armazem_id: armazemId });
+        toast.success(r.mensagem || `${qty} HU(s) gerada(s) com sucesso!`);
       }
       await crud.refresh();
       setModalOpen(false);
@@ -201,7 +205,8 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
         onPageChange={crud.setPage}
         onNew={openNewModal}
         onEdit={openEditModal}
-        onDelete={(row) => setDeleteItem(row)}
+        onDelete={() => undefined}
+        canDelete={false}
         newLabel="Nova HU"
         searchPlaceholder="Buscar HU..."
         selectable
@@ -218,15 +223,36 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
             </button>
           ) : undefined
         }
-        extraRowActions={(row) => (
-          <button
-            onClick={() => handlePrintSingle(row)}
-            className="w-7 h-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
-            title="Imprimir etiqueta HU"
-          >
-            <Printer size={13} />
-          </button>
-        )}
+        extraRowActions={(row) => {
+          const acoes = acoesHU(row.status);
+          const btn = "w-7 h-7 rounded hover:bg-secondary text-muted-foreground transition-colors flex items-center justify-center";
+          return (
+            <>
+              <button onClick={() => handlePrintSingle(row)} className={cn(btn, "hover:text-foreground")}
+                title="Imprimir etiqueta HU" aria-label="Imprimir etiqueta HU">
+                <Printer size={13} />
+              </button>
+              {acoes.fechar && (
+                <button onClick={() => executarFechar(row)} className={cn(btn, "hover:text-foreground")}
+                  title="Fechar HU" aria-label="Fechar HU">
+                  <Lock size={13} />
+                </button>
+              )}
+              {acoes.reabrir && (
+                <button onClick={() => { setMotivo(""); setAcaoMotivo({ tipo: "reabrir", row }); }}
+                  className={cn(btn, "hover:text-foreground")} title="Reabrir HU" aria-label="Reabrir HU">
+                  <LockOpen size={13} />
+                </button>
+              )}
+              {acoes.descartar && (
+                <button onClick={() => { setMotivo(""); setAcaoMotivo({ tipo: "descartar", row }); }}
+                  className={cn(btn, "hover:text-destructive")} title="Descartar HU vazia" aria-label="Descartar HU vazia">
+                  <Ban size={13} />
+                </button>
+              )}
+            </>
+          );
+        }}
       />
 
       {/* Custom Sheet */}
@@ -282,26 +308,6 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
               <input type="number" step="any" value={form.m3 ?? ""} onChange={(e) => set("m3", e.target.value)} placeholder="m³" className={fieldClass("m3")} />
             </div>
 
-            {/* Status */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Status</label>
-              <select value={form.status || "ABERTA"} onChange={(e) => set("status", e.target.value)}
-                className={cn(fieldClass("status"), "cursor-pointer")}>
-                {["ABERTA", "FECHADA", "EM_TRANSITO", "ARMAZENADA", "EXPEDIDA", "DESCARTADA"].map((v) => (
-                  <option key={v} value={v}>{v.replace(/_/g, " ")}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Disponibilidade */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">Disponibilidade</label>
-              <select value={form.disponibilidade || "DISPONIVEL"} onChange={(e) => set("disponibilidade", e.target.value)}
-                className={cn(fieldClass("disponibilidade"), "cursor-pointer")}>
-                {["DISPONIVEL", "RESERVADA", "BLOQUEADA", "EM_MOVIMENTO", "DESCARTADA"].map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
-
             {/* Quantidade - only for new */}
             {!editItem && (
               <div className="md:col-span-2">
@@ -333,11 +339,35 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
       </Sheet>
 
 
-      <DeleteConfirmDialog
-        open={!!deleteItem}
-        onClose={() => setDeleteItem(null)}
-        onConfirm={async () => deleteItem ? crud.remove(deleteItem.id) : false}
-      />
+      <Dialog open={!!acaoMotivo} onOpenChange={(v) => { if (!v && !executando) setAcaoMotivo(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {acaoMotivo?.tipo === "reabrir" ? "Reabrir HU" : "Descartar HU"} {acaoMotivo?.row?.codigo_hu}
+            </DialogTitle>
+            <DialogDescription>
+              {acaoMotivo?.tipo === "reabrir"
+                ? "A HU volta a aceitar itens na conferência. O motivo fica no histórico da HU."
+                : "Só HU aberta e vazia pode ser descartada. Ela deixa de poder ser usada e o motivo fica no histórico."}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo (obrigatório)"
+            aria-label="Motivo" rows={3} />
+          <DialogFooter>
+            <button onClick={() => setAcaoMotivo(null)} disabled={executando}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              Cancelar
+            </button>
+            <button onClick={executarAcaoMotivo} disabled={executando || !motivo.trim()}
+              className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors",
+                acaoMotivo?.tipo === "descartar" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90")}>
+              {executando && <Loader2 size={14} className="animate-spin" />}
+              {acaoMotivo?.tipo === "reabrir" ? "Reabrir" : "Descartar"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <PrintEtiquetaHUModal
         open={printOpen}
         onClose={() => { setPrintOpen(false); setPrintHUs([]); }}
