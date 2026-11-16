@@ -20,6 +20,27 @@ export interface EventoHU {
   created_at: string;
 }
 
+export interface ItemHUArmazenagem {
+  hu_item_id: string;
+  produto_id: string;
+  sku: string;
+  descricao: string;
+  quantidade: number;
+  lote: string | null;
+  validade: string | null;
+  liberado: boolean;
+}
+
+export interface ResumoHUArmazenagem {
+  hu: { hu_id: string; codigo_hu: string; tipo_hu: string | null; tamanho: string | null; status: StatusHU; endereco: string | null };
+  itens: ItemHUArmazenagem[];
+  pode_armazenar: boolean;
+  motivo: string | null;
+}
+
+/** Código lido no coletor que é de HU (o resto é EAN/endereço). */
+export const pareceCodigoHU = (codigo: string): boolean => /^HU-\d+$/i.test(String(codigo ?? "").trim());
+
 export class HuRpcError extends Error {
   constructor(public codigo: string, message: string) {
     super(message);
@@ -65,6 +86,16 @@ export const huService = {
   },
   descartar(huId: string, motivo: string) {
     return chamar("rpc_hu_descartar", { p_hu_id: huId, p_observacao: motivo.trim() });
+  },
+  /** H2: o que a HU tem e se já pode ser armazenada (coletor). */
+  armazenagemResumo(codigoHu: string) {
+    return chamar<Retorno & ResumoHUArmazenagem>("rpc_coletor_hu_armazenagem", { p_codigo_hu: codigoHu.trim().toUpperCase() });
+  },
+  /** H2: armazena a HU inteira num endereço (picking desmonta a HU; regra no banco). */
+  armazenar(huId: string, enderecoId: string) {
+    return chamar<Retorno & { status: StatusHU; endereco: string; itens: number }>("rpc_coletor_armazenar_hu", {
+      p_hu_id: huId, p_endereco_destino_id: enderecoId,
+    });
   },
   async eventos(huId: string): Promise<EventoHU[]> {
     const r = await chamar<Retorno & { eventos: EventoHU[] }>("rpc_hu_eventos", { p_hu_id: huId });

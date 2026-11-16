@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { pareceCodigoHU } from "@/lib/huService";
+import { CHAVE_HU_ARMAZENAGEM } from "./ArmazenagemHUPage";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
@@ -134,44 +136,6 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
   const buscarTarefaOnline = async (code: string): Promise<TarefaResult> => {
     if (!tenantId || !empresaId) throw new Error("Tenant/empresa não identificados");
 
-    if (code.startsWith("HU-") || code.startsWith("hu-")) {
-      const { data: huResult, error: huErr } = await (supabase as any).rpc("buscar_hu_por_codigo", {
-        p_tenant_id: tenantId,
-        p_codigo_hu: code,
-      });
-      if (huErr) throw huErr;
-      const hu = typeof huResult === "string" ? JSON.parse(huResult) : huResult;
-      if (!hu?.encontrada) throw new Error("HU não encontrada: " + code);
-
-      const { data: huItens, error: huItensErr } = await (supabase as any).rpc("listar_itens_hu", {
-        p_tenant_id: tenantId,
-        p_hu_id: hu.hu_id,
-      });
-      if (huItensErr) throw huItensErr;
-      const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
-      if (!itensResult?.itens || itensResult.itens.length === 0) throw new Error("HU " + code + " está vazia.");
-
-      const firstItem = itensResult.itens[0];
-      const { data: eanData } = await (supabase as any)
-        .from("produto_embalagem")
-        .select("ean")
-        .eq("produto_id", firstItem.produto_id)
-        .limit(1);
-      if (!eanData || eanData.length === 0) throw new Error("Produto da HU sem EAN cadastrado.");
-
-      sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
-      sessionStorage.setItem("coletor_armazenagem_hu_codigo", hu.codigo_hu);
-
-      const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
-        p_tenant_id: tenantId,
-        p_empresa_ids: [empresaId],
-        p_ean: eanData[0].ean,
-      });
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error("Nenhuma tarefa de armazenagem para o produto da HU");
-      return data[0] as TarefaResult;
-    }
-
     const { data, error } = await supabase.rpc("fn_buscar_dados_armazenagem" as any, {
       p_tenant_id: tenantId,
       p_empresa_ids: [empresaId],
@@ -184,6 +148,12 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
 
   const handleScan = async (code: string) => {
     setLastScanned(code);
+    // hu-h2: HU é armazenada inteira num endereço (tela própria)
+    if (!cancelamento && pareceCodigoHU(code)) {
+      sessionStorage.setItem(CHAVE_HU_ARMAZENAGEM, code.trim().toUpperCase());
+      onNavigate("/coletor/armazenagem/hu");
+      return;
+    }
 
     // Se já tem tarefa pré-carregada do sessionStorage, o scan é OBRIGATÓRIO para conferência
     if (tarefa && preloadedTarefa) {

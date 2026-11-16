@@ -131,7 +131,9 @@ describe("lista de itens da armazenagem com leitura de EAN", () => {
     expect(ss("tarefa_id")).toBe("t1");
     expect(ss("fator")).toBe("12");
     expect(JSON.parse(ss("ean_confirmado") || "{}")).toEqual({ tarefa_id: "t1", codigo: "17891234567897" });
-    expect(ss("hu_codigo")).toBe("HU-0001");
+    // hu-h2: na entrada o avulso nunca leva HU (a HU se armazena inteira pela tela própria)
+    expect(ss("hu_codigo")).toBeNull();
+    expect(sessionStorage.getItem("coletor_armazenagem_hu")).toBeNull();
   });
 
   it("SKU não é aceito: avisa e não navega", async () => {
@@ -189,12 +191,12 @@ describe("lista de itens da armazenagem com leitura de EAN", () => {
     expect(cards()).toHaveLength(3);
   });
 
-  it("HU localiza a tarefa mas não confirma o EAN", async () => {
+  it("HU vai para a armazenagem da HU inteira (H2), sem escolher tarefa", async () => {
     await montar();
     await bipar("hu-0001");
-    expect(mocks.navegar).toHaveBeenCalledWith("/coletor/armazenagem/iniciar");
-    expect(ss("tarefa_id")).toBe("t1");
-    expect(ss("ean_confirmado")).toBeNull();
+    expect(mocks.navegar).toHaveBeenCalledWith("/coletor/armazenagem/hu");
+    expect(sessionStorage.getItem("coletor_armazenagem_hu_leitura")).toBe("HU-0001");
+    expect(ss("tarefa_id")).toBeNull();
   });
 
   it("toque no card sem bipe mantém o fluxo atual e limpa conferência antiga", async () => {

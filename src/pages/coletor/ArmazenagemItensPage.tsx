@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { pareceCodigoHU } from "@/lib/huService";
+import { CHAVE_HU_ARMAZENAGEM } from "./ArmazenagemHUPage";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
@@ -218,7 +220,8 @@ export function ArmazenagemItensPage({ onNavigate, origem = "ENTRADA" }: Props) 
       sessionStorage.removeItem("coletor_armazenagem_movimento_numero");
       Object.entries({ origem_id: item.endereco_origem_id || "", origem_desc: item.endereco_origem_desc || "", status_prazo: item.status_prazo || "NO_PRAZO", entrada_em: item.entrada_em || "", saldo_origem: String(item.saldo_origem ?? 0), prazo_horas: String(item.prazo_horas ?? 2), horas_parado: String(item.horas_parado ?? 0) }).forEach(([chave, valor]) => sessionStorage.setItem(`coletor_armazenagem_canc_${chave}`, valor));
     }
-    const hu = huMap[item.tarefa_id];
+    // hu-h2: na entrada, HU só se armazena inteira pela tela da HU; o avulso vai sem HU
+    const hu = cancelamento ? huMap[item.tarefa_id] : undefined;
     if (hu) {
       sessionStorage.setItem("coletor_armazenagem_hu", hu.hu_id);
       sessionStorage.setItem("coletor_armazenagem_hu_codigo", hu.codigo_hu);
@@ -253,6 +256,12 @@ export function ArmazenagemItensPage({ onNavigate, origem = "ENTRADA" }: Props) 
 
   const handleScan = async (code: string) => {
     setLastScanned(code);
+    // hu-h2: HU é armazenada inteira num endereço (tela própria); o EAN continua aqui
+    if (!cancelamento && pareceCodigoHU(code)) {
+      sessionStorage.setItem(CHAVE_HU_ARMAZENAGEM, code.trim().toUpperCase());
+      onNavigate("/coletor/armazenagem/hu");
+      return;
+    }
     const r = resolverLeituraArmazenagem(code, itens, eanMap, huMap);
 
     if (r.tipo === "NAO_ENCONTRADO" || r.tipo === "FORA_DO_MOVIMENTO") {

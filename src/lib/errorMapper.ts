@@ -431,6 +431,22 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "HU de outro recebimento.",
     instruction: "Cada HU guarda itens de um recebimento só. Use uma HU deste recebimento ou crie uma nova.",
   },
+  ITEM_EM_HU: {
+    title: "Parte deste item está numa HU.",
+    instruction: "Leia a HU para armazená-la inteira. Avulso, armazene só o que está fora da HU.",
+  },
+  ARMAZENAR_PELA_HU: {
+    title: "HU se armazena inteira.",
+    instruction: "Volte à lista de itens e leia a etiqueta da HU.",
+  },
+  HU_ITEM_NAO_LIBERADO: {
+    title: "A HU tem item ainda não liberado para armazenagem.",
+    instruction: "Finalize a conferência do recebimento e libere a armazenagem.",
+  },
+  HU_JA_ARMAZENADA: {
+    title: "Esta HU já foi armazenada.",
+    instruction: "Confira a etiqueta da HU.",
+  },
   HU_OUTRA_EMPRESA: {
     title: "HU de outra empresa.",
     instruction: "Use uma HU da empresa deste recebimento.",
