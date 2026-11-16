@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { pareceCodigoHU } from "@/lib/huService";
+import { normalizarCodigoHU, pareceCodigoHU } from "@/lib/huService";
 import { CHAVE_HU_ARMAZENAGEM } from "./ArmazenagemHUPage";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
@@ -150,7 +150,7 @@ export function ArmazenagemIniciarPage({ onNavigate }: Props) {
     setLastScanned(code);
     // hu-h2: HU é armazenada inteira num endereço (tela própria)
     if (!cancelamento && pareceCodigoHU(code)) {
-      sessionStorage.setItem(CHAVE_HU_ARMAZENAGEM, code.trim().toUpperCase());
+      sessionStorage.setItem(CHAVE_HU_ARMAZENAGEM, normalizarCodigoHU(code));
       onNavigate("/coletor/armazenagem/hu");
       return;
     }

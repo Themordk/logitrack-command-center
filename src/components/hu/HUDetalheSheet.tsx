@@ -1,10 +1,10 @@
 /** Painel de detalhe da HU (H5): conteúdo, estoque atual, origem, histórico, impressões e ações permitidas. */
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Ban, Loader2, Lock, LockOpen, PackageOpen, Pencil, Printer } from "lucide-react";
+import { AlertTriangle, Ban, Combine, Loader2, Lock, LockOpen, PackageOpen, Pencil, Printer, Split } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { parseError } from "@/lib/errorMapper";
 import { formatDate as fmtDateBR } from "@/utils/dateTime";
-import { huService, HuRpcError, type HULinha } from "@/lib/huService";
+import { huService, HuRpcError, type DetalheHU, type HULinha } from "@/lib/huService";
 import { EVENTO_HU_LABEL, STATUS_HU, motivoDivergencia, textoConteudo, textoIdade } from "@/lib/huExibicao";
 import { STATUS_IMPRESSAO } from "@/lib/volumesExibicao";
 
@@ -16,6 +16,8 @@ interface Props {
   onImprimir: (hus: HULinha[]) => void;
   onEditar: (hu: HULinha) => void;
   onAcao: (acao: AcaoHU, hu: HULinha) => void;
+  onDividir: (hu: HULinha, itens: DetalheHU["itens"]) => void;
+  onJuntar: (hu: HULinha) => void;
 }
 
 const dataHora = (v: string | null | undefined) => (v ? new Date(v).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—");
@@ -50,6 +52,10 @@ const td = "px-2 py-1.5 align-top";
 /** Resumo legível dos dados do evento (endereço, item, motivo). */
 function detalheEvento(e: { evento: string; dados: Record<string, unknown> }): string {
   const d = e.dados || {};
+  if (e.evento === "VERIFICADA") return `${d.confere ? "confere" : "não confere"} em ${d.endereco ?? "—"}`;
+  if (d.hu_nova) return `HU nova ${d.hu_nova}`;
+  if (d.hu_destino) return `para ${d.hu_destino}`;
+  if (d.hu_origem) return `de ${d.hu_origem}`;
   if (d.endereco) return String(d.endereco);
   if (d.sku) return `${d.sku} · ${num(d.quantidade)} un.${d.lote ? ` · lote ${d.lote}` : ""}`;
   if (Array.isArray(d.itens)) return `${d.itens.length} item(ns)`;
@@ -57,7 +63,7 @@ function detalheEvento(e: { evento: string; dados: Record<string, unknown> }): s
   return "";
 }
 
-export function HUDetalheSheet({ huId, onClose, onImprimir, onEditar, onAcao }: Props) {
+export function HUDetalheSheet({ huId, onClose, onImprimir, onEditar, onAcao, onDividir, onJuntar }: Props) {
   const q = useQuery({
     queryKey: ["hu-detalhe", huId],
     enabled: !!huId,
@@ -99,6 +105,8 @@ export function HUDetalheSheet({ huId, onClose, onImprimir, onEditar, onAcao }: 
               </button>
               {d.acoes.fechar && <button type="button" className={botao} onClick={() => onAcao("fechar", h)}><Lock size={14} /> Fechar</button>}
               {d.acoes.reabrir && <button type="button" className={botao} onClick={() => onAcao("reabrir", h)}><LockOpen size={14} /> Reabrir</button>}
+              {d.acoes.dividir && <button type="button" className={botao} onClick={() => onDividir(h, d.itens)}><Split size={14} /> Dividir</button>}
+              {d.acoes.juntar && <button type="button" className={botao} onClick={() => onJuntar(h)}><Combine size={14} /> Juntar em outra HU</button>}
               {d.acoes.desmontar && <button type="button" className={botao} onClick={() => onAcao("desmontar", h)}><PackageOpen size={14} /> Desmontar</button>}
               {d.acoes.descartar && (
                 <button type="button" className={`${botao} text-red-400`} onClick={() => onAcao("descartar", h)}><Ban size={14} /> Descartar</button>

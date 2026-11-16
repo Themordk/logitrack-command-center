@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { huService, HuRpcError, acoesHU, pareceCodigoHU } from "../huService";
+import { huService, HuRpcError, acoesHU, pareceCodigoHU, normalizarCodigoHU } from "../huService";
 import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -66,5 +66,26 @@ describe("armazenagem da HU (H2)", () => {
     expect(pareceCodigoHU(" hu-12 ")).toBe(true);
     expect(pareceCodigoHU("7891234567895")).toBe(false);
     expect(pareceCodigoHU("HU-ABC")).toBe(false);
+  });
+});
+
+describe("código da HU com SSCC (H7)", () => {
+  it("normaliza como o banco", () => {
+    expect(normalizarCodigoHU("]C100106141411234567897")).toBe("106141411234567897");
+    expect(normalizarCodigoHU("(00) 106141411234567897")).toBe("106141411234567897");
+    expect(normalizarCodigoHU(" hu-000000012 ")).toBe("HU-000000012");
+  });
+  it("reconhece SSCC como HU e deixa EAN de fora", () => {
+    expect(pareceCodigoHU("106141411234567897")).toBe(true);
+    expect(pareceCodigoHU("(00)106141411234567897")).toBe(true);
+    expect(pareceCodigoHU("17891234567895")).toBe(false);
+  });
+  it("dividir e juntar mandam itens, destino normalizado e motivo", async () => {
+    rpcMock.mockReset();
+    rpcMock.mockResolvedValue({ data: { sucesso: true, hu_id: "n", codigo_hu: "HU-2" }, error: null });
+    await huService.dividir("h1", [{ hu_item_id: "i1", quantidade: 2 }], " pallet alto ");
+    expect(rpcMock).toHaveBeenLastCalledWith("rpc_hu_dividir", { p_hu_id: "h1", p_itens: [{ hu_item_id: "i1", quantidade: 2 }], p_observacao: "pallet alto" });
+    await huService.juntar("h1", "(00)106141411234567897", "consolidar");
+    expect(rpcMock).toHaveBeenLastCalledWith("rpc_hu_juntar", { p_hu_origem_id: "h1", p_codigo_destino: "106141411234567897", p_observacao: "consolidar" });
   });
 });

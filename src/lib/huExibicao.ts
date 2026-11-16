@@ -23,6 +23,7 @@ export const EVENTO_HU_LABEL: Record<string, string> = {
   CRIADA: "Criada", EDITADA: "Editada", ITEM_ADICIONADO: "Item adicionado", ITEM_REMOVIDO: "Item retirado",
   FECHADA: "Fechada", REABERTA: "Reaberta", ARMAZENADA: "Armazenada", MOVIDA: "Mudou de endereço",
   DESMONTADA: "Desmontada", EXPEDIDA: "Expedida", DESCARTADA: "Descartada", IMPRESSA: "Etiqueta enviada",
+  VERIFICADA: "Local verificado", DIVIDIDA: "Dividida", JUNTADA: "Juntada",
 };
 
 export interface CardResumoHU {

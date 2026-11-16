@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { pareceCodigoHU } from "@/lib/huService";
+import { normalizarCodigoHU, pareceCodigoHU } from "@/lib/huService";
 import { CHAVE_HU_ARMAZENAGEM } from "./ArmazenagemHUPage";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
@@ -258,7 +258,7 @@ export function ArmazenagemItensPage({ onNavigate, origem = "ENTRADA" }: Props) 
     setLastScanned(code);
     // hu-h2: HU é armazenada inteira num endereço (tela própria); o EAN continua aqui
     if (!cancelamento && pareceCodigoHU(code)) {
-      sessionStorage.setItem(CHAVE_HU_ARMAZENAGEM, code.trim().toUpperCase());
+      sessionStorage.setItem(CHAVE_HU_ARMAZENAGEM, normalizarCodigoHU(code));
       onNavigate("/coletor/armazenagem/hu");
       return;
     }

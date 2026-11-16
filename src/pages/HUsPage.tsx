@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { PrintEtiquetaHUModal } from "@/components/etiqueta/PrintEtiquetaHUModal";
 import { HUDetalheSheet, type AcaoHU } from "@/components/hu/HUDetalheSheet";
-import { huService, HuRpcError, type FiltrosHU, type HULinha, type SituacaoHU, type StatusHU } from "@/lib/huService";
+import { huService, HuRpcError, type DetalheHU, type FiltrosHU, type HULinha, type SituacaoHU, type StatusHU } from "@/lib/huService";
 import {
   CARDS_RESUMO_HU, EVENTO_HU_LABEL, SITUACAO_HU_LABEL, STATUS_HU, motivoDivergencia, textoConteudo, textoEtiquetaHU, textoIdade,
 } from "@/lib/huExibicao";
@@ -116,6 +116,10 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
   const [acao, setAcao] = useState<{ tipo: Exclude<AcaoHU, "fechar">; hu: HULinha } | null>(null);
   const [motivo, setMotivo] = useState("");
   const [executando, setExecutando] = useState(false);
+  // H9: dividir / juntar
+  const [dividir, setDividir] = useState<{ hu: HULinha; itens: DetalheHU["itens"]; qtd: Record<string, string> } | null>(null);
+  const [juntar, setJuntar] = useState<{ hu: HULinha; destino: string } | null>(null);
+  const [motivoH9, setMotivoH9] = useState("");
 
   const recarregar = () => {
     void qc.invalidateQueries({ queryKey: ["hus"] });
@@ -203,6 +207,29 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
       toast.success(r.mensagem || "Feito.");
       setAcao(null); recarregar();
     } catch (e) { toast.error(erroTexto(e, `${acao.tipo}-hu`)); } finally { setExecutando(false); }
+  };
+
+  const confirmarDividir = async () => {
+    if (!dividir || !motivoH9.trim()) return;
+    const itens = Object.entries(dividir.qtd).map(([id, q]) => ({ hu_item_id: id, quantidade: Number(q) })).filter((x) => x.quantidade > 0);
+    if (itens.length === 0) { toast.error("Informe quanto de algum item vai para a HU nova."); return; }
+    setExecutando(true);
+    try {
+      const r = await huService.dividir(dividir.hu.id, itens, motivoH9);
+      const nova = { id: r.hu_id, codigo_hu: r.codigo_hu, tipo_hu: dividir.hu.tipo_hu, tamanho: dividir.hu.tamanho } as HULinha;
+      toast.success(r.mensagem || "HU dividida.", { action: { label: "Imprimir etiqueta", onClick: () => setImprimir([nova]) }, duration: 10000 });
+      setDividir(null); recarregar();
+    } catch (e) { toast.error(erroTexto(e, "dividir-hu")); } finally { setExecutando(false); }
+  };
+  const confirmarJuntar = async () => {
+    if (!juntar || !juntar.destino.trim() || !motivoH9.trim()) return;
+    setExecutando(true);
+    try {
+      const r = await huService.juntar(juntar.hu.id, juntar.destino, motivoH9);
+      const destino = { id: r.hu_id, codigo_hu: r.codigo_hu, tipo_hu: null, tamanho: null } as HULinha;
+      toast.success(r.mensagem || "HUs juntadas.", { action: { label: "Reimprimir etiqueta", onClick: () => setImprimir([destino]) }, duration: 10000 });
+      setJuntar(null); setDetalheId(r.hu_id); recarregar();
+    } catch (e) { toast.error(erroTexto(e, "juntar-hu")); } finally { setExecutando(false); }
   };
 
   const fieldClass = (name: string) => cn(
@@ -427,7 +454,72 @@ export function HUsPage({ onNavigate }: { onNavigate?: (path: string) => void } 
       </div>
 
       <HUDetalheSheet huId={detalheId} onClose={() => setDetalheId(null)} onImprimir={(hs) => setImprimir(hs)}
-        onEditar={abrirEditar} onAcao={(t, h) => void executarAcao(t, h)} />
+        onEditar={abrirEditar} onAcao={(t, h) => void executarAcao(t, h)}
+        onDividir={(h, itens) => { setMotivoH9(""); setDividir({ hu: h, itens, qtd: {} }); }}
+        onJuntar={(h) => { setMotivoH9(""); setJuntar({ hu: h, destino: "" }); }} />
+
+      {/* H9: dividir */}
+      <Dialog open={!!dividir} onOpenChange={(v) => { if (!v && !executando) setDividir(null); }}>
+        <DialogContent className="max-w-lg">
+          {dividir && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Dividir HU {dividir.hu.codigo_hu}</DialogTitle>
+                <DialogDescription>Informe quanto de cada item vai para uma HU nova (gerada agora). A HU original fica com o resto.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {dividir.itens.map((i) => (
+                  <div key={i.hu_item_id} className="flex items-center gap-3 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-mono text-xs">{i.sku}{i.lote ? ` · lote ${i.lote}` : ""}</div>
+                      <div className="text-xs text-muted-foreground truncate">{i.descricao} · tem {Number(i.quantidade).toLocaleString("pt-BR")}</div>
+                    </div>
+                    <input type="number" min={0} max={Number(i.quantidade)} step="any" aria-label={`Quantidade de ${i.sku} para a HU nova`}
+                      value={dividir.qtd[i.hu_item_id] ?? ""} placeholder="0"
+                      onChange={(e) => setDividir((d) => (d ? { ...d, qtd: { ...d.qtd, [i.hu_item_id]: e.target.value } } : d))}
+                      className="w-24 h-9 px-2 rounded-lg border border-border bg-background text-right tabular-nums" />
+                  </div>
+                ))}
+              </div>
+              <Textarea value={motivoH9} onChange={(e) => setMotivoH9(e.target.value)} placeholder="Motivo (obrigatório)" aria-label="Motivo" rows={2} />
+              <DialogFooter>
+                <button onClick={() => setDividir(null)} disabled={executando}
+                  className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary">Cancelar</button>
+                <button onClick={() => void confirmarDividir()} disabled={executando || !motivoH9.trim()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {executando && <Loader2 size={14} className="animate-spin" />} Dividir
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* H9: juntar */}
+      <Dialog open={!!juntar} onOpenChange={(v) => { if (!v && !executando) setJuntar(null); }}>
+        <DialogContent>
+          {juntar && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Juntar HU {juntar.hu.codigo_hu} em outra</DialogTitle>
+                <DialogDescription>Todos os itens vão para a HU de destino (aberta ou fechada, do mesmo recebimento). A HU {juntar.hu.codigo_hu} fica desmontada.</DialogDescription>
+              </DialogHeader>
+              <input value={juntar.destino} onChange={(e) => setJuntar((j) => (j ? { ...j, destino: e.target.value } : j))}
+                placeholder="Código da HU de destino" aria-label="Código da HU de destino"
+                className="h-10 px-3 rounded-lg border border-border bg-background text-sm font-mono" />
+              <Textarea value={motivoH9} onChange={(e) => setMotivoH9(e.target.value)} placeholder="Motivo (obrigatório)" aria-label="Motivo" rows={2} />
+              <DialogFooter>
+                <button onClick={() => setJuntar(null)} disabled={executando}
+                  className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary">Cancelar</button>
+                <button onClick={() => void confirmarJuntar()} disabled={executando || !motivoH9.trim() || !juntar.destino.trim()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {executando && <Loader2 size={14} className="animate-spin" />} Juntar
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Gerar / editar */}
       <Sheet open={!!form} onOpenChange={(v) => !v && !salvando && setForm(null)}>

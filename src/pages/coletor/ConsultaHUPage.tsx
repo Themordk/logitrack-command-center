@@ -1,237 +1,174 @@
+/**
+ * Consulta de HU no coletor (Plano HU — H8). Os dados vêm de rpc_coletor_hu_consulta (huService.consultaColetor),
+ * com cache para consulta sem sinal. "Verificar local" lê o endereço onde a HU está de fato e registra o evento
+ * VERIFICADA (confere ou divergência) por rpc_coletor_hu_verificar_local — precisa de conexão.
+ */
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useTenant } from "@/contexts/TenantContext";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ScanField } from "@/components/coletor/ScanField";
-import { Loader2, Archive, Package, Database } from "lucide-react";
+import { ActionButton } from "@/components/coletor/ActionButton";
+import { ResultDialog } from "@/components/feedback/ResultDialog";
+import { useResultDialog } from "@/hooks/useResultDialog";
+import { useFeedback } from "@/hooks/useFeedback";
+import { Loader2, Archive, Package, Database, MapPin, CircleCheck, AlertTriangle } from "lucide-react";
 import { formatDateTime, formatDate as fmtDateUtil } from "@/utils/dateTime";
-import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useOffline } from "@/contexts/OfflineContext";
+import { huService, HuRpcError, normalizarCodigoHU, type ConsultaHUColetor } from "@/lib/huService";
+import { EVENTO_HU_LABEL, STATUS_HU, motivoDivergencia, textoConteudo } from "@/lib/huExibicao";
 
 interface Props { onNavigate: (path: string) => void; }
 
-interface ConsultaHUData {
-  huInfo: any;
-  estoqueInfo: any[];
-  execInfo: any[];
-  huItensInfo: any[];
-}
+const num = (v: unknown) => Number(v ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+const dataPura = (d: string | null) => (!d || d === "1900-01-01" ? "—" : fmtDateUtil(d));
 
 export function ConsultaHUPage({ onNavigate }: Props) {
-  const { tenantId, empresaId } = useTenant();
+  const tenantId = localStorage.getItem("core_tenant_id");
   const [scanned, setScanned] = useState("");
+  const [verificando, setVerificando] = useState(false);
+  const [mostrarVerificar, setMostrarVerificar] = useState(false);
+  const [ultimoEndereco, setUltimoEndereco] = useState("");
   const { isOnline } = useOffline();
+  const result = useResultDialog({ coletorMode: true });
+  const feedback = useFeedback();
 
-  const fetchConsulta = useCallback(async (): Promise<ConsultaHUData> => {
-    const { data: hus } = await (supabase as any)
-      .from("hu")
-      .select("id, codigo_hu, tipo_hu, tamanho, disponibilidade, peso_bruto, status")
-      .eq("codigo_hu", scanned)
-      .limit(1);
-
-    if (!hus || hus.length === 0) {
-      throw new Error("HU_NAO_ENCONTRADA");
-    }
-
-    const hu = hus[0];
-
-    let estoqueQuery = (supabase as any)
-      .from("estoque_geral")
-      .select("quantidade_disponivel, quantidade_total, lote, data_validade, data_fabricacao, endereco:endereco_id(descricao, tipo_endereco), produto:produto_id(sku, descricao, fator_caixa)")
-      .eq("hu_id", hu.id);
-
-    if (tenantId) estoqueQuery = estoqueQuery.eq("tenant_id", tenantId);
-    if (empresaId) estoqueQuery = estoqueQuery.eq("empresa_id", empresaId);
-
-    const { data: estoque } = await estoqueQuery;
-
-    const { data: huItens } = await (supabase as any).rpc("listar_itens_hu", {
-      p_tenant_id: tenantId,
-      p_hu_id: hu.id,
-    });
-    const itensResult = typeof huItens === "string" ? JSON.parse(huItens) : huItens;
-
-    const { data: execs } = await (supabase as any)
-      .from("tarefa_execucao")
-      .select("id, status, concluido_em, endereco_destino_id, endereco_origem_id, quantidade_executada")
-      .eq("hu", hu.id)
-      .order("concluido_em", { ascending: false })
-      .limit(3);
-
-    return {
-      huInfo: hu,
-      estoqueInfo: estoque || [],
-      execInfo: execs || [],
-      huItensInfo: itensResult?.itens || [],
-    };
-  }, [scanned, tenantId, empresaId]);
-
-  const { data, loading, isFromCache, error } = useOfflineCache<ConsultaHUData>(
-    `consulta_hu_${scanned}`,
-    fetchConsulta,
-    60,
-    !!scanned,
+  const fetchConsulta = useCallback(() => huService.consultaColetor(scanned), [scanned]);
+  const { data, loading, isFromCache, error, refetch } = useOfflineCache<ConsultaHUColetor>(
+    `consulta_hu_v2_${scanned}`, fetchConsulta, 60, !!scanned,
   );
 
-  const huInfo = data?.huInfo ?? null;
-  const estoqueInfo = data?.estoqueInfo ?? [];
-  const execInfo = data?.execInfo ?? [];
-  const huItensInfo = data?.huItensInfo ?? [];
+  const hu = data?.hu ?? null;
+  const st = hu ? STATUS_HU[hu.status] ?? { label: hu.status, cls: "" } : null;
+  const divergencia = hu ? motivoDivergencia(hu) : null;
 
   const handleScan = (code: string) => {
-    setScanned(code);
+    setMostrarVerificar(false);
+    setScanned(normalizarCodigoHU(code));
+  };
+
+  const verificar = async (code: string) => {
+    if (!hu) return;
+    setUltimoEndereco(code);
+    const numero = Number(String(code).trim());
+    if (!Number.isFinite(numero)) { feedback.error(); result.showWarning("Leia a etiqueta do endereço"); return; }
+    setVerificando(true);
+    try {
+      const { data: ends, error: e } = await supabase.from("endereco").select("id, descricao")
+        .eq("codigo_endereco", numero).eq("tenant_id", tenantId ?? "").limit(1);
+      if (e) throw e;
+      const end = ends?.[0];
+      if (!end) { feedback.error(); result.showWarning("Endereço não encontrado"); return; }
+      const r = await huService.verificarLocal(hu.id, end.id);
+      if (r.confere) { feedback.success(); result.showSuccess(r.mensagem || "HU confere no endereço."); }
+      else { feedback.error(); result.showWarning(r.mensagem || "Divergência registrada."); }
+      setMostrarVerificar(false);
+      void refetch();
+    } catch (err) {
+      feedback.error();
+      if (err instanceof HuRpcError) result.showWarning(err.message);
+      else result.showError(err, { context: "hu-verificar-local" });
+    } finally { setVerificando(false); }
   };
 
   const semConexaoESemCache = !!scanned && !loading && !data && !isOnline;
-  const errorMessage = error === "HU_NAO_ENCONTRADA"
-    ? "HU não encontrada."
-    : error
-      ? "Erro ao consultar."
-      : "";
-
-  const dispLabel: Record<string, string> = {
-    DISPONIVEL: "Disponível",
-    OCUPADO: "Ocupado",
-    BLOQUEADO: "Bloqueado",
-  };
-
-  const dispColor: Record<string, string> = {
-    DISPONIVEL: "text-green-400",
-    OCUPADO: "text-yellow-400",
-    BLOQUEADO: "text-red-400",
-  };
-
-  const formatDate = (d: string | null) => {
-    if (!d || d === "1900-01-01") return "—";
-    return fmtDateUtil(d);
-  };
+  const naoEncontrada = !!error && /não encontrada/i.test(String(error));
 
   return (
     <ColetorLayout title="Consulta HU" onNavigate={onNavigate} showBack backPath="/coletor/consulta">
+      <ResultDialog {...result.dialogProps} />
       <ScanField label="Escanear Código HU" onScan={handleScan} lastScanned={scanned} />
 
       {loading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[hsl(217,91%,60%)]" size={32} /></div>}
 
       {!loading && semConexaoESemCache && (
-        <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">
-          Sem conexão e sem dados em cache para esta consulta.
-        </div>
+        <div className="text-center text-sm text-[hsl(213,31%,55%)] py-8">Sem conexão e sem dados em cache para esta consulta.</div>
+      )}
+      {!loading && !data && error && !semConexaoESemCache && (
+        <div className="text-center text-sm text-red-400 py-6">{naoEncontrada ? "HU não encontrada." : String(error)}</div>
       )}
 
-      {!loading && !semConexaoESemCache && errorMessage && (
-        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm text-center">{errorMessage}</div>
-      )}
-
-      {huInfo && !loading && (
-        <div className="flex flex-col gap-3">
+      {!loading && hu && (
+        <div className="flex flex-col gap-3 pb-4">
           {isFromCache && (
-            <span className="self-start flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
-              <Database size={10} /> Cache
-            </span>
+            <div className="flex items-center gap-1.5 text-xs text-yellow-400"><Database size={12} /> Dados do cache (sem conexão)</div>
           )}
-          {/* HU Details */}
-          <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl p-3">
-            <div className="flex items-center gap-3 mb-2">
-              <Archive size={24} className="text-[hsl(45,93%,47%)]" />
-              <span className="text-base font-bold text-white">{huInfo.codigo_hu}</span>
+          <div className="rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-3 text-white">
+            <div className="flex items-center gap-2">
+              <Archive size={18} className="text-[hsl(217,91%,60%)]" />
+              <span className="font-mono text-lg font-bold break-all">{hu.codigo_hu}</span>
+              {st && <span className={`ml-auto px-2 py-0.5 rounded border text-xs font-bold ${st.cls}`}>{st.label}</span>}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Tipo</span><p className="text-xs text-white">{huInfo.tipo_hu || "—"}</p></div>
-              <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Tamanho</span><p className="text-xs text-white">{huInfo.tamanho || "—"}</p></div>
-              <div><span className="text-[10px] text-[hsl(213,31%,55%)]">Peso Bruto</span><p className="text-xs text-white">{huInfo.peso_bruto ?? "—"}</p></div>
-              <div>
-                <span className="text-[10px] text-[hsl(213,31%,55%)]">Status</span>
-                <p className="text-xs font-bold text-white">{huInfo.status || "—"}</p>
-              </div>
-              <div className="col-span-2">
-                <span className="text-[10px] text-[hsl(213,31%,55%)]">Disponibilidade</span>
-                <p className={`text-xs font-bold ${dispColor[huInfo.disponibilidade] || "text-white"}`}>
-                  {dispLabel[huInfo.disponibilidade] || huInfo.disponibilidade || "—"}
-                </p>
-              </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+              <div><div className="text-[11px] uppercase text-[hsl(213,31%,55%)]">Tipo</div>{[hu.tipo_hu, hu.tamanho].filter(Boolean).join(" ") || "—"}</div>
+              <div><div className="text-[11px] uppercase text-[hsl(213,31%,55%)]">Conteúdo</div>{textoConteudo(hu)}</div>
+              <div><div className="text-[11px] uppercase text-[hsl(213,31%,55%)]">Endereço</div><span className="font-mono">{hu.endereco ?? "—"}</span></div>
+              <div><div className="text-[11px] uppercase text-[hsl(213,31%,55%)]">Recebimento</div>{hu.numero_movimento ?? "—"}{hu.nfs ? ` · NF ${hu.nfs}` : ""}</div>
+              <div className="col-span-2"><div className="text-[11px] uppercase text-[hsl(213,31%,55%)]">Último evento</div>
+                {hu.ultimo_evento ? `${EVENTO_HU_LABEL[hu.ultimo_evento] ?? hu.ultimo_evento} · ${formatDateTime(hu.ultimo_evento_em)}` : "—"}</div>
             </div>
           </div>
 
-          {huItensInfo.length > 0 && (
-            <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl overflow-hidden">
-              <div className="px-3 py-2 border-b border-[hsl(222,35%,22%)] flex items-center gap-2">
-                <Package size={16} className="text-[hsl(45,93%,47%)]" />
-                <span className="text-sm font-bold text-white">Itens Agrupados ({huItensInfo.length})</span>
-              </div>
-              {huItensInfo.map((it: any, i: number) => (
-                <div key={i} className="px-3 py-2 border-b border-[hsl(222,35%,18%)] last:border-0">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-mono text-[hsl(217,91%,60%)]">{it.sku || it.produto_sku}</span>
-                    <QtdEmCaixa qtd={Number(it.quantidade)} fatorCaixa={it.fator_caixa ?? null} size="sm" />
-                  </div>
-                  <p className="text-[11px] text-[hsl(213,31%,80%)] truncate">{it.descricao || it.produto_descricao}</p>
-                </div>
-              ))}
+          {divergencia && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" /> {divergencia}
             </div>
           )}
 
-          {/* Products in HU */}
-          {estoqueInfo.length > 0 && (
-            <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl overflow-hidden">
-              <div className="px-3 py-2 border-b border-[hsl(222,35%,22%)] flex items-center gap-2">
-                <Package size={16} className="text-[hsl(217,91%,60%)]" />
-                <span className="text-sm font-bold text-white">Produtos na HU</span>
-              </div>
-              {estoqueInfo.map((e: any, i: number) => (
-                <div key={i} className="px-3 py-2.5 border-b border-[hsl(222,35%,18%)] last:border-0">
-                  <div className="flex justify-between items-start mb-1">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-white truncate">{e.produto?.sku} - {e.produto?.descricao}</p>
-                    </div>
-                    <div className="ml-2 shrink-0"><QtdEmCaixa qtd={Number(e.quantidade_disponivel)} fatorCaixa={e.produto?.fator_caixa ?? null} size="md" /></div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-1">
-                    <div>
-                      <span className="text-[10px] text-[hsl(213,31%,50%)]">Lote</span>
-                      <p className="text-[11px] text-[hsl(213,31%,80%)] font-medium">{e.lote || "—"}</p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[hsl(213,31%,50%)]">Validade</span>
-                      <p className="text-[11px] text-[hsl(213,31%,80%)] font-medium">{formatDate(e.data_validade)}</p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[hsl(213,31%,50%)]">Fabricação</span>
-                      <p className="text-[11px] text-[hsl(213,31%,80%)] font-medium">{formatDate(e.data_fabricacao)}</p>
-                    </div>
-                  </div>
-                  {e.endereco && (
-                    <div className="mt-1.5 flex items-center gap-1">
-                      <span className="text-[10px] text-[hsl(213,31%,50%)]">Endereço:</span>
-                      <span className="text-[11px] text-[hsl(45,93%,47%)] font-bold">{e.endereco.descricao}</span>
-                      <span className="text-[10px] text-[hsl(213,31%,50%)]">({e.endereco.tipo_endereco})</span>
-                    </div>
-                  )}
-                </div>
-              ))}
+          {data.ultima_verificacao && (
+            <div className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${data.ultima_verificacao.confere ? "border-green-500/30 bg-green-500/10 text-green-300" : "border-yellow-500/30 bg-yellow-500/10 text-yellow-300"}`}>
+              {data.ultima_verificacao.confere ? <CircleCheck size={16} className="mt-0.5 shrink-0" /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" />}
+              Última verificação: {data.ultima_verificacao.confere ? "conferiu" : "não conferiu"} em {data.ultima_verificacao.endereco ?? "—"}
+              {" · "}{formatDateTime(data.ultima_verificacao.created_at)}{data.ultima_verificacao.usuario ? ` · ${data.ultima_verificacao.usuario}` : ""}
             </div>
           )}
 
-          {/* Last executions */}
-          {execInfo.length > 0 && (
-            <div className="bg-[hsl(222,40%,12%)] border border-[hsl(222,35%,22%)] rounded-xl overflow-hidden">
-              <div className="px-3 py-2 border-b border-[hsl(222,35%,22%)]">
-                <span className="text-sm font-bold text-white">Últimas Execuções</span>
-              </div>
-              {execInfo.map((e: any, i: number) => (
-                <div key={i} className="px-3 py-2 border-b border-[hsl(222,35%,18%)] last:border-0 flex justify-between items-center">
-                  <div>
-                    <p className="text-xs text-white">{e.status}</p>
-                    <p className="text-[10px] text-[hsl(213,31%,55%)]">Qtd: {e.quantidade_executada ?? "—"}</p>
-                  </div>
-                  <span className="text-[10px] text-[hsl(213,31%,55%)]">{formatDateTime(e.concluido_em)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-3">
+            <div className="flex items-center gap-2 text-white text-sm font-bold mb-2"><Package size={16} /> Itens da HU ({data.itens.length})</div>
+            {data.itens.length === 0 ? <p className="text-sm text-[hsl(213,31%,55%)]">A HU não tem itens.</p> : (
+              <ul className="divide-y divide-[hsl(222,35%,18%)]">
+                {data.itens.map((i, n) => (
+                  <li key={`${i.sku}-${n}`} className="flex items-start gap-2 py-2 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-white">{i.descricao}</div>
+                      <div className="text-[hsl(213,31%,65%)]">SKU {i.sku}{i.lote ? ` · Lote ${i.lote}` : ""}{i.validade ? ` · Val. ${dataPura(i.validade)}` : ""}</div>
+                    </div>
+                    <span className="font-mono text-base font-bold text-white">{num(i.quantidade)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-          {estoqueInfo.length === 0 && execInfo.length === 0 && (
-            <div className="text-center text-sm text-[hsl(213,31%,55%)] py-4">Nenhum registro de estoque ou execução.</div>
+          <div className="rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-3">
+            <div className="flex items-center gap-2 text-white text-sm font-bold mb-2"><MapPin size={16} /> Estoque da HU ({data.estoque.length})</div>
+            {data.estoque.length === 0 ? (
+              <p className="text-sm text-[hsl(213,31%,55%)]">{hu.status === "ARMAZENADA" ? "Sem saldo com esta HU." : "Ainda não armazenada."}</p>
+            ) : (
+              <ul className="divide-y divide-[hsl(222,35%,18%)]">
+                {data.estoque.map((e, n) => (
+                  <li key={`${e.endereco}-${e.sku}-${n}`} className="flex items-start gap-2 py-2 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-mono text-white">{e.endereco ?? "—"}</div>
+                      <div className="text-[hsl(213,31%,65%)] truncate">{e.sku} · {e.descricao}{e.lote ? ` · Lote ${e.lote}` : ""}</div>
+                    </div>
+                    <span className="font-mono text-base font-bold text-white">{num(e.quantidade)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {!mostrarVerificar ? (
+            <ActionButton variant="secondary" onClick={() => setMostrarVerificar(true)} disabled={!isOnline || isFromCache}>
+              <MapPin size={18} /> VERIFICAR LOCAL DA HU
+            </ActionButton>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <ScanField label="Leia o endereço onde a HU está" onScan={verificar} lastScanned={ultimoEndereco} disabled={verificando} />
+              {verificando && <div className="flex justify-center"><Loader2 className="animate-spin text-white" /></div>}
+              <ActionButton variant="secondary" onClick={() => setMostrarVerificar(false)}>CANCELAR</ActionButton>
+            </div>
           )}
         </div>
       )}
