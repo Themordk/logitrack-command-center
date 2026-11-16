@@ -48,6 +48,8 @@ export function HUSelectorModal({
   const [tipoHu, setTipoHu] = useState<string>("PALLET");
   const [tamanho, setTamanho] = useState<string>("M");
   const [creating, setCreating] = useState(false);
+  // hu-h7: SSCC já colado no pallet pelo fornecedor (opcional); vazio = o sistema gera o código
+  const [ssccFornecedor, setSsccFornecedor] = useState("");
   const { solicitar } = useSolicitarImpressao();
 
   useEffect(() => {
@@ -128,6 +130,7 @@ export function HUSelectorModal({
         p_tamanho: tamanho,
         p_movimento_entrada_id: movimentoEntradaId || null,
         p_usuario_id: usuarioId,
+        p_codigo_externo: ssccFornecedor.trim() || null,
       });
       if (error) throw error;
       const r = typeof data === "string" ? JSON.parse(data) : data;
@@ -136,8 +139,9 @@ export function HUSelectorModal({
         return;
       }
       toast.success(`HU ${r.codigo_hu} criada!`);
-      // Fire-and-forget: impressão automática da etiqueta HU
-      solicitar({
+      setSsccFornecedor("");
+      // Fire-and-forget: impressão automática da etiqueta HU (não imprime quando o pallet já veio com SSCC do fornecedor)
+      if (!r.sscc_fornecedor) solicitar({
         tipoEtiqueta: "HU",
         dados: {
           codigo_hu: r.codigo_hu,
@@ -253,6 +257,16 @@ export function HUSelectorModal({
                   ))}
                 </select>
               </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="hu-sscc-fornecedor" className="text-[10px] uppercase tracking-wider text-[hsl(213,31%,55%)] font-bold">
+                SSCC do fornecedor (opcional)
+              </label>
+              <input id="hu-sscc-fornecedor" value={ssccFornecedor} onChange={(e) => setSsccFornecedor(e.target.value)}
+                placeholder="Leia a etiqueta GS1 do pallet" inputMode="numeric" autoComplete="off" className={selectClass} />
+              <span className="text-[11px] text-[hsl(213,31%,55%)]">
+                Com o SSCC do pallet, a HU usa esse código e não imprime etiqueta nova.
+              </span>
             </div>
             <ActionButton onClick={handleCreate} loading={creating} variant="success">
               CRIAR HU

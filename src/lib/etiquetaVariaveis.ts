@@ -101,6 +101,8 @@ export const VARIAVEIS_VOLUME: VariavelEtiqueta[] = [
  */
 export const VARIAVEIS_HU: VariavelEtiqueta[] = [
   v("codigo_hu", "Código da HU", "Identificação", "HU-000000123", "Ideal para código de barras ou QR Code"),
+  v("codigo_hu_legivel", "Código da HU (legível)", "Identificação", "(00) 378912340000001109", "Com SSCC, sai com (00) na frente; senão, igual ao código"),
+  v("sscc", "SSCC (GS1)", "Identificação", "378912340000001109", "18 dígitos; vazio quando a HU não usa SSCC. Para GS1-128 use >;>8 00 + este valor"),
   v("tipo_hu", "Tipo da HU", "Identificação", "PALLET"),
   v("tamanho", "Tamanho", "Identificação", "M"),
   v("status", "Status da HU", "Identificação", "FECHADA"),

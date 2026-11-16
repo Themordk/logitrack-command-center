@@ -70,10 +70,10 @@ BEGIN
       AND NOT has_table_privilege('authenticated', 'public.hu_evento', 'INSERT')
       AND has_table_privilege('authenticated', 'public.hu', 'SELECT')
       AND NOT has_function_privilege('authenticated', 'public._fn_hu_evento(uuid,uuid,text,text,text,uuid,text,jsonb,uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('authenticated', 'public._fn_hu_proximo_codigo(uuid)', 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', 'public._fn_hu_proximo_codigo(uuid,uuid)', 'EXECUTE')
       AND NOT has_function_privilege('authenticated', 'public._fn_hu_contexto(text[])', 'EXECUTE')
       AND NOT has_function_privilege('anon', 'public.rpc_hu_gerar(int,text,text,uuid,uuid,numeric,numeric,numeric)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.criar_hu_recebimento(uuid,uuid,uuid,text,text,uuid,uuid)', 'EXECUTE');
+      AND NOT has_function_privilege('anon', 'public.criar_hu_recebimento(uuid,uuid,uuid,text,text,uuid,uuid,text)', 'EXECUTE');
     v_res := v_res || jsonb_build_object('caso', 'T01 privilégios de API', 'ok', ok);
 
     -- T02 escrita direta recusada como authenticated

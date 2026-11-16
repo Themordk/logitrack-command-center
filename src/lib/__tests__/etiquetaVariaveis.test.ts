@@ -57,7 +57,7 @@ describe("catálogo da etiqueta de HU (H4)", () => {
   it("lista exatamente as chaves que o servidor grava no job (_fn_etiqueta_hu_dados)", async () => {
     const { VARIAVEIS_HU } = await import("../etiquetaVariaveis");
     const servidor = [
-      "codigo_hu", "tipo_hu", "tamanho", "status", "peso_bruto", "m3", "altura", "numero_movimento", "data_entrada",
+      "codigo_hu", "codigo_hu_legivel", "sscc", "tipo_hu", "tamanho", "status", "peso_bruto", "m3", "altura", "numero_movimento", "data_entrada",
       "data_entrada_hora", "parceiro_nome", "numero_nota", "qtd_notas", "lote_principal", "lote", "validade_proxima",
       "validade", "total_itens", "total_quantidade", "sku", "descricao_produto", "endereco", "armazem", "empresa",
       "criado_em", "usuario",

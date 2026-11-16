@@ -38,8 +38,21 @@ export interface ResumoHUArmazenagem {
   motivo: string | null;
 }
 
-/** Código lido no coletor que é de HU (o resto é EAN/endereço). */
-export const pareceCodigoHU = (codigo: string): boolean => /^HU-\d+$/i.test(String(codigo ?? "").trim());
+/**
+ * Leitura do código da HU como o banco faz (_fn_hu_normalizar_codigo): tira o prefixo ]C1 do GS1-128,
+ * espaços, parênteses e o separador FNC1; "(00)" + 18 dígitos vira o SSCC de 18 dígitos (H7).
+ */
+export function normalizarCodigoHU(codigo: string): string {
+  // eslint-disable-next-line no-control-regex -- \x1d é o FNC1/GS do GS1-128 que alguns leitores enviam
+  const c = String(codigo ?? "").replace(/^\]C1/, "").replace(/[\s()\x1d]/g, "").toUpperCase();
+  return /^(00)?\d{18}$/.test(c) ? c.slice(-18) : c;
+}
+
+/** Código lido no coletor que é de HU: HU-000000001 ou SSCC (o resto é EAN/endereço). */
+export const pareceCodigoHU = (codigo: string): boolean => {
+  const c = normalizarCodigoHU(codigo);
+  return /^HU-\d+$/.test(c) || /^\d{18}$/.test(c);
+};
 
 /* ───────────── Tela Atividades › HU (H5) ───────────── */
 
@@ -112,7 +125,8 @@ export interface DetalheHU {
   eventos: (Omit<EventoHU, "id">)[];
   impressoes: { id: string; status: string; criado_em: string; impresso_em: string | null; erro: string | null;
                 impressora: string | null; origem: string | null; copias: number }[];
-  acoes: { editar: boolean; fechar: boolean; reabrir: boolean; desmontar: boolean; descartar: boolean; imprimir: boolean };
+  acoes: { editar: boolean; fechar: boolean; reabrir: boolean; desmontar: boolean; descartar: boolean; imprimir: boolean;
+           dividir?: boolean; juntar?: boolean };
 }
 
 /** Só manda os filtros preenchidos (sem espaços nas pontas). */
@@ -123,6 +137,13 @@ export function limparFiltrosHU(f: FiltrosHU): Record<string, string> {
     if (t) out[k] = t;
   }
   return out;
+}
+
+export interface ConsultaHUColetor {
+  hu: HULinha;
+  itens: { sku: string; descricao: string; quantidade: number; lote: string | null; validade: string | null }[];
+  estoque: { endereco: string | null; sku: string; descricao: string; lote: string | null; quantidade: number }[];
+  ultima_verificacao: { created_at: string; usuario: string | null; endereco: string | null; confere: boolean } | null;
 }
 
 export class HuRpcError extends Error {
@@ -173,7 +194,35 @@ export const huService = {
   },
   /** H2: o que a HU tem e se já pode ser armazenada (coletor). */
   armazenagemResumo(codigoHu: string) {
-    return chamar<Retorno & ResumoHUArmazenagem>("rpc_coletor_hu_armazenagem", { p_codigo_hu: codigoHu.trim().toUpperCase() });
+    return chamar<Retorno & ResumoHUArmazenagem>("rpc_coletor_hu_armazenagem", { p_codigo_hu: normalizarCodigoHU(codigoHu) });
+  },
+  /** H8: consulta da HU no coletor (conteúdo, estoque, última verificação). */
+  async consultaColetor(codigoHu: string): Promise<ConsultaHUColetor> {
+    return (await chamar<Retorno & { dados: ConsultaHUColetor }>("rpc_coletor_hu_consulta", { p_codigo_hu: normalizarCodigoHU(codigoHu) })).dados;
+  },
+  /** H8: a HU está no endereço lido? Registra o evento VERIFICADA (confere ou não). */
+  verificarLocal(huId: string, enderecoId: string) {
+    return chamar<Retorno & { confere: boolean; endereco: string; endereco_sistema: string | null }>("rpc_coletor_hu_verificar_local", {
+      p_hu_id: huId, p_endereco_id: enderecoId,
+    });
+  },
+  /** H8: quanto do produto da tarefa de inventário a HU guarda no endereço (contar sem abrir). */
+  inventarioHU(codigoHu: string, tarefaId: string) {
+    return chamar<Retorno & { hu_id: string; codigo_hu: string; quantidade: number; outros_produtos: number }>("rpc_coletor_inventario_hu", {
+      p_codigo_hu: normalizarCodigoHU(codigoHu), p_tarefa_id: tarefaId,
+    });
+  },
+  /** H9: parte dos itens vai para uma HU nova (só HU não armazenada). */
+  dividir(huId: string, itens: { hu_item_id: string; quantidade: number }[], motivo: string) {
+    return chamar<Retorno & { hu_id: string; codigo_hu: string }>("rpc_hu_dividir", {
+      p_hu_id: huId, p_itens: itens, p_observacao: motivo.trim(),
+    });
+  },
+  /** H9: todos os itens da HU vão para a HU de destino; a origem fica Desmontada. */
+  juntar(huOrigemId: string, codigoDestino: string, motivo: string) {
+    return chamar<Retorno & { hu_id: string; codigo_hu: string }>("rpc_hu_juntar", {
+      p_hu_origem_id: huOrigemId, p_codigo_destino: normalizarCodigoHU(codigoDestino), p_observacao: motivo.trim(),
+    });
   },
   /** H2: armazena a HU inteira num endereço (picking desmonta a HU; regra no banco). */
   armazenar(huId: string, enderecoId: string) {
