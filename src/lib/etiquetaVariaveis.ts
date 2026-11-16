@@ -2,7 +2,7 @@ import type { CampoEtiqueta, TipoEtiquetaConfig } from "@/hooks/useEtiquetaTempl
 
 export type GrupoVariavel =
   | "Identificação" | "Classificação" | "Localização" | "Dimensões e capacidade"
-  | "Pedido e cliente" | "Nota fiscal" | "Transporte" | "Sistema";
+  | "Pedido e cliente" | "Remetente" | "Nota fiscal" | "Transporte" | "Sistema";
 
 export interface VariavelEtiqueta {
   chave: string;
@@ -14,7 +14,7 @@ export interface VariavelEtiqueta {
 
 export const GRUPOS_ORDEM: GrupoVariavel[] = [
   "Identificação", "Classificação", "Localização", "Dimensões e capacidade",
-  "Pedido e cliente", "Nota fiscal", "Transporte", "Sistema",
+  "Pedido e cliente", "Remetente", "Nota fiscal", "Transporte", "Sistema",
 ];
 
 const v = (chave: string, label: string, grupo: GrupoVariavel, exemplo: string, descricao?: string): VariavelEtiqueta =>
@@ -77,6 +77,9 @@ export const VARIAVEIS_VOLUME: VariavelEtiqueta[] = [
   v("cidade_uf", "Cidade / UF do Cliente", "Pedido e cliente", "SOBRAL / CE"),
   v("destino_carga", "Destino da Onda", "Pedido e cliente", "ROTA NORTE", "Texto da onda; para o endereço do cliente use Cidade / UF"),
   v("observacao", "Observação do Pedido", "Pedido e cliente", "Entregar pela manhã"),
+  v("remetente_nome", "Remetente (Razão Social)", "Remetente", "FJG DISTRIBUIDORA", "Empresa que fatura o pedido"),
+  v("remetente_cnpj", "CNPJ do Remetente", "Remetente", "12.345.678/0001-90", "Vazio se o CNPJ da empresa não tiver 14 dígitos"),
+  v("remetente", "Remetente (Razão Social - CNPJ)", "Remetente", "FJG DISTRIBUIDORA - 12.345.678/0001-90", "Nome e CNPJ numa linha só"),
   v("nota_fiscal", "NF (número-série)", "Nota fiscal", "9901-1", "Vazio até a NF ser autorizada"),
   v("nf_numero", "Nº da NF", "Nota fiscal", "9901"),
   v("nf_serie", "Série da NF", "Nota fiscal", "1"),
