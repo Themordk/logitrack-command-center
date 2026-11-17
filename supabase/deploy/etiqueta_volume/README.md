@@ -26,6 +26,7 @@ O registro detalhado (testes, efeito em produção, roteiro) está na aba "Regis
 | `migrations/20261115223000_etq_f3_nota_fiscal.sql` | F3 |
 | `migrations/20261115224500_etq_f3c_template_chaves.sql` | B16 (textos anteriores em `ops.rollback_definicao`) |
 | `migrations/20261115231000_etq_f4_tela_volumes.sql` | F4 (bloco ROLLBACK no fim) |
+| `migrations/20261115233000_etq_f5_remetente.sql` | F5 — remetente na etiqueta (`remetente_nome`, `remetente_cnpj`, `remetente`), empresa que fatura o pedido |
 | `qa_teste_etiqueta_volume.sql` | A17 — bateria de regressão **só do QA** (não vai para produção): `SELECT qa.fn_teste_etiqueta_volume();`, 21 casos, desfaz tudo no fim |
 
 No QA, F1b foi aplicada em duas partes (`etq_f1b_cidade_uf` + `etq_f1c_revoke_trigger_fn`) e F3 recebeu o ajuste `etq_f3b_avisos_formato`; os arquivos daqui já têm a versão final.
