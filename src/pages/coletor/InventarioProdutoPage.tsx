@@ -11,6 +11,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { useOfflineAction } from "@/hooks/useOfflineAction";
+import { huService, HuRpcError, normalizarCodigoHU } from "@/lib/huService";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -29,6 +30,11 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
   const [quantidade, setQuantidade] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [showZeroConfirm, setShowZeroConfirm] = useState(false);
+  // hu-h8: HUs armazenadas lidas na contagem; cada uma soma o que o sistema registra dentro dela (contar sem abrir)
+  const [husLidas, setHusLidas] = useState<{ codigo: string; quantidade: number }[]>([]);
+  const [lendoHu, setLendoHu] = useState(false);
+  const [ultimaHu, setUltimaHu] = useState("");
+  const somaHU = husLidas.reduce((t, h) => t + h.quantidade, 0);
   const result = useResultDialog({ coletorMode: true });
   const { execute: executeOffline } = useOfflineAction();
 
@@ -96,18 +102,19 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
     setEmbalagemInfo(null);
     setEanConfirmado(false);
     setQuantidade("");
+    setHusLidas([]);
   };
 
   const handleConfirmar = async () => {
-    if (!tarefa || quantidade === "" || !usuarioId) return;
-    const qtd = Number(quantidade);
+    if (!tarefa || (quantidade === "" && somaHU === 0) || !usuarioId) return;
+    const qtd = quantidade === "" ? 0 : Number(quantidade);
     if (isNaN(qtd) || qtd < 0) {
       result.showWarning("Informe uma quantidade válida.");
       return;
     }
 
     // Confirmação para contagem zero
-    if (qtd === 0 && !showZeroConfirm) {
+    if (qtd === 0 && somaHU === 0 && !showZeroConfirm) {
       setShowZeroConfirm(true);
       return;
     }
@@ -116,7 +123,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
 
 
     const fator = embalagemInfo?.fator || 1;
-    const qtdFinal = qtd * fator;
+    const qtdFinal = qtd * fator + somaHU;
 
     setConfirming(true);
     try {
@@ -177,6 +184,23 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
     }
   };
 
+  const lerHu = async (code: string) => {
+    const codigo = normalizarCodigoHU(code);
+    setUltimaHu(codigo);
+    if (!tarefa) return;
+    if (husLidas.some((h) => h.codigo === codigo)) { toast.info("Esta HU já foi lida nesta contagem."); return; }
+    if (!navigator.onLine) { result.showWarning("Contar por HU precisa de conexão. Conte as unidades."); return; }
+    setLendoHu(true);
+    try {
+      const r = await huService.inventarioHU(codigo, tarefa.tarefa_id || tarefa.id);
+      setHusLidas((l) => [...l, { codigo: r.codigo_hu, quantidade: Number(r.quantidade) }]);
+      toast.success(r.mensagem || `HU ${r.codigo_hu} somada.`);
+    } catch (err) {
+      if (err instanceof HuRpcError) result.showWarning(err.message);
+      else result.showError(err, { context: "inventario-hu" });
+    } finally { setLendoHu(false); }
+  };
+
   const advanceToNext = () => {
     const tarefas = JSON.parse(sessionStorage.getItem("coletor_inventario_tarefas") || "[]");
     const idx = Number(sessionStorage.getItem("coletor_inventario_tarefa_idx") || "0");
@@ -203,6 +227,7 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
       setEmbalagemInfo(null);
       setEanConfirmado(false);
       setQuantidade("");
+      setHusLidas([]);
       toast.success("Próximo produto no mesmo endereço");
       return;
     }
@@ -262,6 +287,32 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
           </div>
         )}
 
+        {/* hu-h8: contar HU fechada sem abrir */}
+        <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4 space-y-2">
+          <ScanField
+            label="Ler HU fechada (soma o conteúdo, opcional)"
+            lastScanned={ultimaHu}
+            onScan={lerHu}
+            placeholder="Etiqueta da HU"
+            disabled={lendoHu}
+          />
+          {husLidas.length > 0 && (
+            <ul className="text-xs space-y-1">
+              {husLidas.map((h) => (
+                <li key={h.codigo} className="flex items-center justify-between text-[hsl(213,31%,75%)]">
+                  <span className="font-mono">{h.codigo}</span>
+                  <span className="flex items-center gap-2">
+                    <b className="text-white">{h.quantidade.toLocaleString("pt-BR")} un.</b>
+                    <button type="button" aria-label={`Tirar HU ${h.codigo} da contagem`} className="text-red-400"
+                      onClick={() => setHusLidas((l) => l.filter((x) => x.codigo !== h.codigo))}><XCircle size={14} /></button>
+                  </span>
+                </li>
+              ))}
+              <li className="text-[hsl(213,31%,55%)]">Some abaixo só as unidades soltas, fora das HUs. Total em HU: <b className="text-white">{somaHU.toLocaleString("pt-BR")} un.</b></li>
+            </ul>
+          )}
+        </div>
+
         {/* Quantity input */}
         <div className="bg-[hsl(222,40%,12%)] rounded-2xl border border-[hsl(222,35%,22%)] p-4">
           <label className="text-xs text-[hsl(213,31%,55%)] block mb-2">Informar Quantidade</label>
@@ -276,9 +327,9 @@ export function InventarioProdutoPage({ onNavigate }: Props) {
 
         {/* Confirm */}
         {(() => {
-          const qtdNum = Number(quantidade);
+          const qtdNum = quantidade === "" ? 0 : Number(quantidade);
           const podeConfirmar =
-            quantidade !== "" &&
+            (quantidade !== "" || somaHU > 0) &&
             !isNaN(qtdNum) &&
             (qtdNum === 0 || eanConfirmado);
           return (

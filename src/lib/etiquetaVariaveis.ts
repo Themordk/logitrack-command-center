@@ -2,7 +2,7 @@ import type { CampoEtiqueta, TipoEtiquetaConfig } from "@/hooks/useEtiquetaTempl
 
 export type GrupoVariavel =
   | "Identificação" | "Classificação" | "Localização" | "Dimensões e capacidade"
-  | "Pedido e cliente" | "Remetente" | "Nota fiscal" | "Transporte" | "Sistema";
+  | "Pedido e cliente" | "Remetente" | "Nota fiscal" | "Transporte" | "Conteúdo" | "Origem" | "Sistema";
 
 export interface VariavelEtiqueta {
   chave: string;
@@ -14,7 +14,7 @@ export interface VariavelEtiqueta {
 
 export const GRUPOS_ORDEM: GrupoVariavel[] = [
   "Identificação", "Classificação", "Localização", "Dimensões e capacidade",
-  "Pedido e cliente", "Remetente", "Nota fiscal", "Transporte", "Sistema",
+  "Pedido e cliente", "Remetente", "Nota fiscal", "Transporte", "Conteúdo", "Origem", "Sistema",
 ];
 
 const v = (chave: string, label: string, grupo: GrupoVariavel, exemplo: string, descricao?: string): VariavelEtiqueta =>
@@ -94,10 +94,47 @@ export const VARIAVEIS_VOLUME: VariavelEtiqueta[] = [
   v("usuario", "Usuário que Gerou o Volume", "Sistema", "LEONARDO SENA"),
 ];
 
-/** Catálogo por tipo. ENDERECO e VOLUME usam o catálogo; os demais retornam null. */
+/**
+ * Etiqueta de HU (Plano HU — H4). As chaves são exatamente as que o servidor preenche no job
+ * (_fn_etiqueta_hu_dados, aplicado pelo gatilho de fila_impressao): o que está aqui sai impresso.
+ * NFs e fornecedores são todos os do recebimento da HU; conteúdo vem dos itens conferidos na HU.
+ */
+export const VARIAVEIS_HU: VariavelEtiqueta[] = [
+  v("codigo_hu", "Código da HU", "Identificação", "HU-000000123", "Ideal para código de barras ou QR Code"),
+  v("codigo_hu_legivel", "Código da HU (legível)", "Identificação", "(00) 378912340000001109", "Com SSCC, sai com (00) na frente; senão, igual ao código"),
+  v("sscc", "SSCC (GS1)", "Identificação", "378912340000001109", "18 dígitos; vazio quando a HU não usa SSCC. Para GS1-128 use >;>8 00 + este valor"),
+  v("tipo_hu", "Tipo da HU", "Identificação", "PALLET"),
+  v("tamanho", "Tamanho", "Identificação", "M"),
+  v("status", "Status da HU", "Identificação", "FECHADA"),
+  v("sku", "SKU", "Conteúdo", "SKU-001234", "SKU do produto; VÁRIOS quando a HU tem mais de um"),
+  v("descricao_produto", "Descrição do Produto", "Conteúdo", "PARAFUSO SEXTAVADO 10X25MM", "VÁRIOS PRODUTOS (n) quando tem mais de um"),
+  v("total_itens", "Qtd. de SKUs", "Conteúdo", "1"),
+  v("total_quantidade", "Quantidade Total", "Conteúdo", "150"),
+  v("lote_principal", "Lote Principal", "Conteúdo", "L2026-A", "Lote com mais unidades na HU"),
+  v("lote", "Lote", "Conteúdo", "L2026-A", "Mesmo que Lote Principal"),
+  v("validade_proxima", "Validade mais Próxima", "Conteúdo", "15/12/2026"),
+  v("validade", "Validade", "Conteúdo", "15/12/2026", "Mesmo que Validade mais Próxima"),
+  v("numero_movimento", "Nº do Recebimento", "Origem", "131"),
+  v("numero_nota", "NF(s) de Entrada", "Origem", "250, 251", "Todas as NFs do recebimento"),
+  v("qtd_notas", "Qtd. de NFs", "Origem", "2"),
+  v("parceiro_nome", "Fornecedor(es)", "Origem", "FORNECEDOR EXEMPLO LTDA", "Todos do recebimento, separados por /"),
+  v("data_entrada", "Data do Recebimento", "Origem", "21/07/2026"),
+  v("data_entrada_hora", "Data/Hora do Recebimento", "Origem", "21/07/2026 08:15"),
+  v("empresa", "Empresa", "Origem", "FJG DISTRIBUIDORA"),
+  v("armazem", "Armazém", "Localização", "ARMAZEM PRINCIPAL"),
+  v("endereco", "Endereço", "Localização", "R05-P01-N01-A01", "Vazio até a HU ser armazenada"),
+  v("peso_bruto", "Peso Bruto (kg)", "Dimensões e capacidade", "45.5"),
+  v("m3", "Cubagem (m³)", "Dimensões e capacidade", "1.2"),
+  v("altura", "Altura", "Dimensões e capacidade", "1.6"),
+  v("criado_em", "Data/Hora de Criação da HU", "Sistema", "21/07/2026 08:10"),
+  v("usuario", "Usuário que Criou a HU", "Sistema", "LEONARDO SENA"),
+];
+
+/** Catálogo por tipo. ENDERECO, VOLUME e HU usam o catálogo; os demais retornam null. */
 export function variaveisPorTipo(tipo: TipoEtiquetaConfig | string): VariavelEtiqueta[] | null {
   if (tipo === "ENDERECO") return VARIAVEIS_ENDERECO;
   if (tipo === "VOLUME") return VARIAVEIS_VOLUME;
+  if (tipo === "HU") return VARIAVEIS_HU;
   return null;
 }
 

@@ -423,6 +423,38 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
     title: "HU não encontrada ou inativa.",
     instruction: "Verifique o código da HU e tente novamente.",
   },
+  HU_NAO_ABERTA: {
+    title: "Esta HU não aceita mais itens.",
+    instruction: "A HU já foi fechada ou encerrada. Peça ao supervisor para reabrir ou use outra HU.",
+  },
+  HU_OUTRO_MOVIMENTO: {
+    title: "HU de outro recebimento.",
+    instruction: "Cada HU guarda itens de um recebimento só. Use uma HU deste recebimento ou crie uma nova.",
+  },
+  ITEM_EM_HU: {
+    title: "Parte deste item está numa HU.",
+    instruction: "Leia a HU para armazená-la inteira. Avulso, armazene só o que está fora da HU.",
+  },
+  ARMAZENAR_PELA_HU: {
+    title: "HU se armazena inteira.",
+    instruction: "Volte à lista de itens e leia a etiqueta da HU.",
+  },
+  HU_ITEM_NAO_LIBERADO: {
+    title: "A HU tem item ainda não liberado para armazenagem.",
+    instruction: "Finalize a conferência do recebimento e libere a armazenagem.",
+  },
+  HU_JA_ARMAZENADA: {
+    title: "Esta HU já foi armazenada.",
+    instruction: "Confira a etiqueta da HU.",
+  },
+  HU_OUTRA_EMPRESA: {
+    title: "HU de outra empresa.",
+    instruction: "Use uma HU da empresa deste recebimento.",
+  },
+  HU_OUTRO_ARMAZEM: {
+    title: "HU de outro armazém.",
+    instruction: "Use uma HU do armazém deste recebimento.",
+  },
   MOVIMENTO_NAO_ENCONTRADO: {
     title: "Movimento de entrada não encontrado.",
     instruction: "Volte à lista de movimentos.",
