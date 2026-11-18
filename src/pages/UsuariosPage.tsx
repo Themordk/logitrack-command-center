@@ -131,6 +131,8 @@ export function UsuariosPage() {
     { name: "senha", label: "Senha", type: "text", placeholder: "Senha de acesso (mín. 6 caracteres)" },
     { name: "habilidade", label: "Habilidade", type: "enum", enumValues: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"] },
     { name: "tipo_operacao", label: "Tipo de Operação", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "MOVIMENTOS", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "AUDITORIA"] },
+    { name: "tipo_usuario", label: "Tipo de Usuário", type: "enum", enumValues: ["OPERADOR", "GESTOR", "ADMINISTRADOR"] },
+    { name: "participa_lms", label: "Participa da Produtividade (LMS)", type: "switch", defaultValue: true },
     { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Opcional" },
     {
       name: "zona_atividade_separacao",

@@ -85,64 +85,27 @@ export function TransferenciaDestinoPage({ onNavigate }: Props) {
         }
       }
 
-      // Buscar tipo de tarefa TRANSFERÊNCIA do tenant logado
-      const { data: tipoTarefa, error: errTipo } = await (supabase as any)
-        .from("tipo_tarefa")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("codigo", "TRANF")
-        .eq("ativo", true)
-        .limit(1)
-        .maybeSingle();
-      if (errTipo) throw errTipo;
-      if (!tipoTarefa) {
-        result.showWarning("Tipo de tarefa TRANSFERÊNCIA não configurado para este tenant.");
+      // Fase 1.1 (LMS): a transferência é gravada pelo servidor (tarefa + execução,
+      // relógio do servidor). O cliente não escreve mais direto nas tabelas de tarefa.
+      const { data: confirmacao, error: errConf } = await (supabase as any).rpc("rpc_transferencia_confirmar", {
+        p_tenant_id: tenantId,
+        p_empresa_id: empresaId,
+        p_usuario_id: usuarioId,
+        p_produto_id: produtoId,
+        p_quantidade: quantidade,
+        p_origem_id: origemId,
+        p_destino_id: destinoId,
+        p_lote: lote || null,
+        p_validade: validade && validade !== "1900-01-01" ? validade : null,
+        p_fabricacao: fabricacao && fabricacao !== "1900-01-01" ? fabricacao : null,
+        p_hu_id: huId || null,
+      });
+      if (errConf) throw errConf;
+      if (!confirmacao?.sucesso) {
+        result.showWarning(confirmacao?.mensagem || "Não foi possível registrar a transferência.");
         setLoading(false);
         return;
       }
-
-      const now = new Date().toISOString();
-
-      // Create tarefa
-      const { data: tarefa, error: errTarefa } = await (supabase as any)
-        .from("tarefa")
-        .insert({
-          tenant_id: tenantId,
-          empresa_id: empresaId,
-          tipo_tarefa_id: tipoTarefa.id,
-          produto_id: produtoId,
-          quantidade_requerida: quantidade,
-          status: "CONCLUIDA",
-          prioridade_tarefa: "NORMAL",
-          criado_em: now,
-          id_local_origem: origemId,
-          id_local_destino: destinoId,
-        })
-        .select("id")
-        .single();
-
-      if (errTarefa) throw errTarefa;
-
-      // Create tarefa_execucao
-      const { error: errExec } = await (supabase as any)
-        .from("tarefa_execucao")
-        .insert({
-          tenant_id: tenantId,
-          tarefa_id: tarefa.id,
-          usuario_id: usuarioId,
-          status: "CONCLUIDA",
-          quantidade_executada: quantidade,
-          endereco_origem_id: origemId,
-          endereco_destino_id: destinoId,
-          lote: lote || null,
-          validade: validade && validade !== "1900-01-01" ? validade : null,
-          fabricacao: fabricacao && fabricacao !== "1900-01-01" ? fabricacao : null,
-          hu: huId || null,
-          iniciado_em: now,
-          concluido_em: now,
-        });
-
-      if (errExec) throw errExec;
 
       // Store success data
       sessionStorage.setItem("transf_destino_desc", destinoDesc);

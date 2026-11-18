@@ -217,22 +217,15 @@ export function AbastecimentoGeracaoPage({ onNavigate, tipo, armazemId }: Abaste
           .eq("id_documento_origem", abastId);
 
         if (tarefas && tarefas.length > 0) {
-          const atribuicoes = tarefas.map((t: any) => ({
-            tenant_id: tenantId,
-            empresa_id: empresaId,
-            tarefa_id: t.id,
-            usuario_id: selectedUsuario,
-            tipo_convocacao: "CONVOCACAO_GESTOR",
-            status: "ATRIBUIDA",
-          }));
-          await (supabase as any).from("tarefa_atribuicao").insert(atribuicoes);
-
-          // Update task status to ATRIBUIDA
-          const ids = tarefas.map((t: any) => t.id);
-          await (supabase as any)
-            .from("tarefa")
-            .update({ status: "ATRIBUIDA" })
-            .in("id", ids);
+          // Fase 1.1 (LMS): atribuição gravada pelo servidor
+          const { data: atrib, error: errAtrib } = await (supabase as any).rpc("rpc_tarefa_atribuir_gestor", {
+            p_tenant_id: tenantId,
+            p_tarefa_ids: tarefas.map((t: any) => t.id),
+            p_usuario_id: selectedUsuario,
+          });
+          if (errAtrib || !atrib?.sucesso) {
+            toast.warning(atrib?.mensagem || "Tarefas geradas, mas a atribuição ao operador falhou.");
+          }
         }
       }
 

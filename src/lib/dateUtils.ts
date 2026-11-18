@@ -26,3 +26,15 @@ export function nowBrasilia(): string {
     second: "2-digit",
   }).replace(" ", "T");
 }
+
+/**
+ * Data (yyyy-MM-dd) no fuso local do aparelho. Use no lugar de
+ * `new Date().toISOString().slice(0, 10)`, que devolve a data em UTC
+ * (depois das 21h em Brasília/Fortaleza já vira o dia seguinte).
+ */
+export function dataLocalISO(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}

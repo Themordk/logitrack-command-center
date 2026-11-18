@@ -1,58 +1,20 @@
-import { supabase } from "@/integrations/supabase/client";
-
-
 /**
- * Marks `iniciado_em` on tarefa_execucao when the operator starts working.
- * Should be called on the FIRST scan/action in each execution page.
- * Uses a sessionStorage flag to avoid duplicate calls.
+ * Marcação de início de tarefa (LMS).
+ *
+ * Fase 1.1: estas funções faziam UPDATE direto em tarefa_execucao.iniciado_em, numa
+ * execução que ainda não existe no primeiro bipe; por isso nunca gravavam nada, e o
+ * cliente não pode mais escrever nas tabelas de tarefa (Fase 1.2).
+ * Ficam como no-op para não mexer nas telas que já as chamam. Na Fase 2 elas passam
+ * a chamar a RPC rpc_tarefa_iniciar, que grava o início real no servidor.
  */
-export async function markTarefaIniciada(tarefaExecucaoId: string | null | undefined): Promise<void> {
-  if (!tarefaExecucaoId) return;
 
-  const flagKey = `lms_iniciado_${tarefaExecucaoId}`;
-  if (sessionStorage.getItem(flagKey)) return; // Already marked
-
-  try {
-    const { error } = await (supabase as any)
-      .from("tarefa_execucao")
-      .update({ iniciado_em: new Date().toISOString() })
-      .eq("id", tarefaExecucaoId)
-      .is("iniciado_em", null); // Only set if not already set
-
-    if (!error) {
-      sessionStorage.setItem(flagKey, "1");
-    }
-  } catch (err) {
-    console.error("LMS: erro ao marcar iniciado_em", err);
-  }
+export async function markTarefaIniciada(_tarefaExecucaoId: string | null | undefined): Promise<void> {
+  // no-op até a Fase 2 (rpc_tarefa_iniciar)
 }
 
-/**
- * Marks `iniciado_em` for a tarefa (not execucao) - finds execucao by tarefa_id + usuario_id.
- */
 export async function markTarefaIniciadaByTarefa(
-  tarefaId: string | null | undefined,
-  usuarioId: string | null | undefined
+  _tarefaId: string | null | undefined,
+  _usuarioId: string | null | undefined
 ): Promise<void> {
-  if (!tarefaId || !usuarioId) return;
-
-  const flagKey = `lms_iniciado_tarefa_${tarefaId}`;
-  if (sessionStorage.getItem(flagKey)) return;
-
-  try {
-    const { data } = await (supabase as any)
-      .from("tarefa_execucao")
-      .select("id")
-      .eq("tarefa_id", tarefaId)
-      .eq("usuario_id", usuarioId)
-      .is("iniciado_em", null)
-      .limit(1);
-
-    if (data && data.length > 0) {
-      await markTarefaIniciada(data[0].id);
-    }
-    sessionStorage.setItem(flagKey, "1");
-  } catch (err) {
-    console.error("LMS: erro ao marcar iniciado_em por tarefa", err);
-  }
+  // no-op até a Fase 2 (rpc_tarefa_iniciar)
 }

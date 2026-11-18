@@ -1,3 +1,4 @@
+import { dataLocalISO } from "@/lib/dateUtils";
 import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,12 +57,12 @@ function corBarraOcupacao(taxa: number): string {
 }
 
 function hoje(): string {
-  return new Date().toISOString().slice(0, 10);
+  return dataLocalISO();
 }
 function diasAtras(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return dataLocalISO(d);
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -176,7 +177,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     if (preset === "hoje") ini = hoje();
     else if (preset === "7") ini = diasAtras(7);
     else if (preset === "15") ini = diasAtras(15);
-    else if (preset === "mes") ini = startOfMonth(new Date()).toISOString().slice(0, 10);
+    else if (preset === "mes") ini = dataLocalISO(startOfMonth(new Date()));
     setDataInicio(ini); setDataFim(fim);
     buscar({ dataInicio: ini, dataFim: fim });
   };

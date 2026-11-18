@@ -69,6 +69,8 @@ Deno.serve(async (req) => {
       perfil_id,
       codigo_erp,
       ativo,
+      tipo_usuario,
+      participa_lms,
     } = body;
 
     if (!empresa_id || !nome || !login || !tipo_operacao) {
@@ -162,6 +164,9 @@ Deno.serve(async (req) => {
         codigo_erp: codigo_erp || null,
         ativo: ativo !== false,
         auth_user_id: authUserId,
+        // Fase 1.4 (LMS): sem tipo informado, o banco classifica pelo perfil ao gravar usuario_perfil
+        ...(["OPERADOR", "GESTOR", "ADMINISTRADOR"].includes(tipo_usuario) ? { tipo_usuario } : {}),
+        ...(typeof participa_lms === "boolean" ? { participa_lms } : {}),
       })
       .select("id, nome, auth_user_id")
       .single();

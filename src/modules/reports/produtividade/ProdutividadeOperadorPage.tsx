@@ -1,3 +1,4 @@
+import { dataLocalISO } from "@/lib/dateUtils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
@@ -49,8 +50,8 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   const [turnoInfo, setTurnoInfo] = useState<{ descricao: string; inicio: string; fim: string } | null>(null);
   const [generatedAt, setGeneratedAt] = useState("");
 
-  const inicio = dataInicio || new Date().toISOString().split("T")[0];
-  const fim = dataFim || new Date().toISOString().split("T")[0];
+  const inicio = dataInicio || dataLocalISO();
+  const fim = dataFim || dataLocalISO();
 
   useEffect(() => {
     loadData();

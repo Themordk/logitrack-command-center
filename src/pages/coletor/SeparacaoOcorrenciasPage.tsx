@@ -203,22 +203,15 @@ export function SeparacaoOcorrenciasPage({ onNavigate }: Props) {
         result.showSuccess("Ocorrência registrada e saldo cortado com sucesso!", { onClose: advanceToNext });
         setShowMotivoModal(null);
       } else {
-        // Abastecimento
-        const payload: any = {
-          tarefa_id: tarefa.tarefa_id,
-          tipo_evento: "SOLICITAR_ABASTECIMENTO",
-          carga_util: JSON.stringify({
-            motivo_ocorrencia_id: selectedMotivo,
-            produto_id: tarefa.produto_id,
-            usuario_id: usuarioId,
-            observacao: observacao || null,
-          }),
-          tenant_id: tenantId,
-          execucao_tarefa_id: tarefa.tarefa_execucao_id || tarefa.tarefa_id,
-        };
-        const { error } = await (supabase as any)
-          .from("tarefa_evento_execucao")
-          .insert(payload);
+        // Abastecimento — Fase 1.1 (LMS): evento gravado pelo servidor
+        const { data: solic, error } = await (supabase as any).rpc("rpc_separacao_solicitar_abastecimento", {
+          p_tenant_id: tenantId,
+          p_tarefa_id: tarefa.tarefa_id,
+          p_motivo_ocorrencia_id: selectedMotivo,
+          p_observacao: observacao || null,
+          p_usuario_id: usuarioId,
+        });
+        if (!error && !solic?.sucesso) throw new Error(solic?.mensagem || "Não foi possível registrar a solicitação.");
         if (error) throw error;
 
         result.showSuccess("Solicitação de abastecimento registrada com sucesso!", { onClose: advanceToNext });

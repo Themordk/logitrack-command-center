@@ -1,3 +1,4 @@
+import { dataLocalISO } from "@/lib/dateUtils";
 import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,10 +37,10 @@ const PAGE_SIZE = 20;
 function diasAtras(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return dataLocalISO(d);
 }
 function hojeISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return dataLocalISO();
 }
 
 function formatDuracao(seg: number | null | undefined): string {
