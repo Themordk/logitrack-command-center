@@ -8,6 +8,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { enderecoCancelamentoComTarefa } from "@/lib/armazenagemService";
 import { definirOrigemArmazenagem } from "@/lib/armazenagemOrigem";
 import { Loader2 } from "lucide-react";
+import { iniciarContexto } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -68,6 +69,8 @@ export function TransferenciaOrigemPage({ onNavigate }: Props) {
       }
       sessionStorage.setItem("transf_origem_id", data[0].id);
       sessionStorage.setItem("transf_origem_desc", data[0].descricao);
+      // LMS (Fase 2): o bipe da origem é o início; a tarefa só nasce na confirmação
+      void iniciarContexto("TRANSFERENCIA", data[0].id);
 
       // Produto pré-carregado da Consulta: chave principal é produtoId (EAN opcional)
       const consulta = fromConsultaRef.current;

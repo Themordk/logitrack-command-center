@@ -5,6 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { Loader2 } from "lucide-react";
+import { iniciarContexto } from "@/lib/lmsTimestamp";
 import {
   MUDPICK_KEYS,
   buscarEnderecoPorCodigo,
@@ -41,6 +42,8 @@ export function MudancaPickingOrigemPage({ onNavigate }: Props) {
       sessionStorage.setItem(MUDPICK_KEYS.origemId, endereco.id);
       sessionStorage.setItem(MUDPICK_KEYS.origemDesc, endereco.descricao);
       sessionStorage.setItem(MUDPICK_KEYS.preview, JSON.stringify(preview));
+      // LMS (Fase 2): bipe da origem = início da mudança de picking
+      void iniciarContexto("MUDANCA_PICKING", endereco.id);
       onNavigate("/coletor/movimentos/mudanca-picking/lista");
     } catch (err) {
       result.showError(err, { context: "mudanca-picking" });

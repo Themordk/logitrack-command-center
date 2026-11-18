@@ -5,7 +5,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { StatusOverlay, OverlayType } from "@/components/coletor/StatusOverlay";
 import { Archive, MapPin, AlertTriangle, CircleCheck, Minus, Plus } from "lucide-react";
-import { markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
+import { iniciarTarefas, markTarefaIniciadaByTarefa } from "@/lib/lmsTimestamp";
 import type { OcorrenciaContexto } from "@/components/ocorrencia/RegistrarOcorrenciaModal";
 import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import { ProdutoHeader } from "@/components/coletor/ProdutoHeader";
@@ -56,6 +56,12 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
   const [docCanceladoInline, setDocCanceladoInline] = useState(false);
   const { cancelamento } = useCancelamentoListener(cancelamentoOrigem ? null : documentoEntradaId, tenantId);
   const { error: feedbackError } = useFeedback();
+
+  // LMS (Fase 2): a tarefa abre depois do bipe do produto/item na origem (doca ou endereço
+  // de cancelamento); o deslocamento até o destino faz parte da execução (putaway).
+  useEffect(() => {
+    if (tarefaId) void iniciarTarefas([tarefaId], "BIPE_ORIGEM", usuarioId);
+  }, [tarefaId]);
 
   // Resolve o documento de entrada vinculado ao movimento da tarefa
   useEffect(() => {
@@ -220,7 +226,7 @@ export function ArmazenagemExecucaoPage({ onNavigate }: Props) {
     setEnderecoTipo("");
 
     // LMS: mark task as started on first address scan
-    markTarefaIniciadaByTarefa(tarefaId, usuarioId);
+    markTarefaIniciadaByTarefa(tarefaId, usuarioId, "BIPE_ORIGEM");
     try {
       let endData: { id: string; descricao: string; situacao: string; tipo_endereco: string } | null = null;
 

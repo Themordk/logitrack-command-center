@@ -8,6 +8,7 @@ import { MapPin } from "lucide-react";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useOffline } from "@/contexts/OfflineContext";
+import { iniciarContexto } from "@/lib/lmsTimestamp";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -65,6 +66,8 @@ export function InventarioLivreEnderecoPage({ onNavigate }: Props) {
       sessionStorage.setItem("coletor_inventario_livre_endereco_id", String(found.id));
       sessionStorage.setItem("coletor_inventario_livre_endereco_codigo", String(found.codigo_endereco ?? ""));
       sessionStorage.setItem("coletor_inventario_livre_endereco_descricao", String(found.descricao ?? ""));
+      // LMS (Fase 2): bipe do endereço = início da contagem livre (a tarefa nasce na confirmação)
+      void iniciarContexto("CONTAGEM_LIVRE", String(found.id));
 
       // Track distinct addresses visited in session
       try {
