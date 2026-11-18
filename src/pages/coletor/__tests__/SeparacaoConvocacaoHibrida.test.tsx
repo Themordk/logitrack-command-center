@@ -57,10 +57,13 @@ async function clicar(texto: RegExp) {
 const chamadas = (nome: string) => mocks.rpc.mock.calls.filter(([n]) => n === nome);
 
 function responder(resumo: Record<string, unknown>, extra: Record<string, unknown> = {}) {
-  mocks.rpc.mockImplementation(async (nome: string) => {
+  mocks.rpc.mockImplementation(async (nome: string, args?: Record<string, unknown>) => {
     if (nome === "separacao_verificar_itens_cancelados") return { data: { tem_itens_cancelados: false }, error: null };
     if (nome === "rpc_coletor_onda_resumo") return { data: { sucesso: true, totais: { tarefas_abertas: 3, tarefas_livres: 3, minhas_tarefas: 0, itens: 3, enderecos: 2, quantidade_pendente: 35 }, operadores: [], ...resumo }, error: null };
-    if (nome in extra) return { data: extra[nome], error: null };
+    if (nome in extra) {
+      const v = extra[nome];
+      return { data: typeof v === "function" ? (v as (a?: Record<string, unknown>) => unknown)(args) : v, error: null };
+    }
     if (nome === "separacao_buscar_tarefas") return { data: [{ tarefa_id: "t1", produto_id: "p1" }], error: null };
     return { data: null, error: null };
   });
@@ -120,14 +123,26 @@ describe("coletor — convocação híbrida na separação", () => {
   it("assumida pelo próprio operador: pode sair da etapa", async () => {
     responder(
       { pode_assumir: true, ja_e_meu: true, convocado_pelo_gestor: false, totais: { tarefas_abertas: 3, tarefas_livres: 0, minhas_tarefas: 3, itens: 3, enderecos: 2, quantidade_pendente: 35 } },
-      { rpc_coletor_sair_etapa: { sucesso: true, codigo: "ETAPA_DEVOLVIDA", mensagem: "3 tarefa(s) devolvida(s) para a fila." } },
+      {
+        rpc_coletor_sair_etapa: (a?: Record<string, unknown>) => a?.p_simular
+          ? { sucesso: true, codigo: "SIMULACAO", resumo: { total: 3, nao_iniciadas: 2, em_execucao: 1, com_progresso: 0, produto_em_maos: 0, devolve_nao_iniciadas: 2, devolve_todas: 3 } }
+          : { sucesso: true, codigo: "ETAPA_DEVOLVIDA", mensagem: "2 tarefa(s) devolvida(s) para a fila. 1 continua(m) com você.", tarefas_devolvidas: 2, tarefas_mantidas: 1 },
+      },
     );
     await montar();
     await clicar(/Onda #10/);
     expect(botao(/Continuar separação/)).toBeTruthy();
     await clicar(/Sair da etapa/);
+    // a folha mostra a prévia do banco: 2 não iniciadas e 1 em execução, padrão "só não iniciadas"
     expect(chamadas("rpc_coletor_sair_etapa")).toHaveLength(1);
-    expect(mocks.sucesso).toHaveBeenCalledWith("3 tarefa(s) devolvida(s) para a fila.");
+    expect(chamadas("rpc_coletor_sair_etapa")[0][1]).toEqual(expect.objectContaining({
+      p_contexto_tipo: "ONDA", p_contexto_id: "onda-1", p_etapa: "SEP", p_simular: true,
+    }));
+    expect(container.textContent).toMatch(/em execução/);
+    await clicar(/Devolver 2 tarefa/);
+    expect(chamadas("rpc_coletor_sair_etapa")).toHaveLength(2);
+    expect(chamadas("rpc_coletor_sair_etapa")[1][1]).toEqual(expect.objectContaining({ p_modo: "NAO_INICIADAS", p_simular: false }));
+    expect(mocks.sucesso).toHaveBeenCalledWith("2 tarefa(s) devolvida(s) para a fila. 1 continua(m) com você.");
   });
 
   it("convocada pelo gestor: não oferece sair", async () => {

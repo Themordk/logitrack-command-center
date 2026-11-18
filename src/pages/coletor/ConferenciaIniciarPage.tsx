@@ -16,7 +16,9 @@ import { parseError } from "@/lib/errorMapper";
 import { deveExibirNomeColetor } from "@/lib/exibicaoColetor";
 import { useResumoEtapaColetor } from "@/hooks/useResumoEtapaColetor";
 import { ResumoEtapaPainel } from "@/components/coletor/ResumoEtapaPainel";
-import { acaoColetor, assumirEtapaColetor, sairEtapaColetor } from "@/lib/responsaveisOndaService";
+import { acaoColetor, assumirEtapaColetor } from "@/lib/responsaveisOndaService";
+import { SairEtapaSheet } from "@/components/coletor/SairEtapaSheet";
+import type { ParamsSair, ResultadoSair } from "@/lib/sairEtapaService";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -134,22 +136,22 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
     await handleIniciar();
   };
 
-  const handleSair = async () => {
-    if (!etapaInfo.contexto) return;
+  // Fase 5.3: a folha "Sair da etapa" mostra a prévia do banco e deixa escolher o que devolver
+  const [sairAberto, setSairAberto] = useState(false);
+  const paramsSair: ParamsSair | null = etapaInfo.contexto
+    ? { tenantId: etapaInfo.contexto.tenantId, empresaId: etapaInfo.contexto.empresaId, usuarioId: etapaInfo.contexto.usuarioId,
+        contextoTipo: "ONDA", contextoId: etapaInfo.contexto.movimentoSaidaId, etapa: etapaInfo.contexto.etapa }
+    : null;
+  const handleSair = () => { if (etapaInfo.contexto) setSairAberto(true); };
+  const aposSair = async (r: ResultadoSair) => {
+    setSairAberto(false);
     setSaindo(true);
     try {
-      const r = await sairEtapaColetor(etapaInfo.contexto);
-      if (!r.sucesso) {
-        result.showError(r, { context: "conferencia-sair" });
-        return;
-      }
       // Tarefas devolvidas não podem continuar no cache offline deste aparelho
-      await cacheData(`tarefas_conferencia_${selectedId}`, [], 1).catch(() => {});
+      if (!r.tarefas_mantidas) await cacheData(`tarefas_conferencia_${selectedId}`, [], 1).catch(() => {});
       result.showSuccess(r.mensagem || "Etapa devolvida para a fila.");
-      setSelectedId(null);
+      if (!r.tarefas_mantidas) setSelectedId(null);
       void refetch();
-    } catch (err: unknown) {
-      result.showError(err, { context: "conferencia-sair" });
     } finally {
       setSaindo(false);
     }
@@ -365,6 +367,7 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
               Sair da etapa
             </ActionButton>
           )}
+          <SairEtapaSheet open={sairAberto} params={paramsSair} onClose={() => setSairAberto(false)} onSaiu={aposSair} />
           <ActionButton
             onClick={handlePrincipal}
             disabled={!selectedId || acao?.tipo === "BLOQUEADA" || (isOnline && etapaInfo.loading)}

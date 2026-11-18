@@ -313,6 +313,45 @@ export async function fetchQualidadeDado(filters: ProdutividadeFilters): Promise
   return data as QualidadeDado;
 }
 
+// Fase 5.5 · indicadores de troca de dono (rpc_lms_trocas_dono)
+
+export interface TrocaDonoOperador {
+  usuario_id: string;
+  nome: string;
+  interrupcoes: number;
+  segundos_interrompidos: number;
+  saidas_etapa: number;
+  etapas_assumidas: number;
+  taxa_saida_pct: number | null;
+  reatribuicoes_perdidas: number;
+  reatribuicoes_recebidas: number;
+}
+
+export interface TrocasDono {
+  total: {
+    interrupcoes: number; segundos_interrompidos: number;
+    reatribuicoes_gestor: number; movimentos_com_reatribuicao: number; movimentos_trabalhados: number;
+    reatribuicoes_por_movimento: number | null;
+    saidas_etapa: number; etapas_assumidas: number; taxa_saida_pct: number | null;
+    liberacoes_sem_motivo: number;
+  };
+  troca_de_dono: { trocas: number; trocas_com_inicio: number; medio_seg: number | null; mediana_seg: number | null; p90_seg: number | null };
+  por_motivo: { motivo: string; interrupcoes: number; segundos: number }[];
+  por_operador: TrocaDonoOperador[];
+}
+
+export async function fetchTrocasDono(filters: ProdutividadeFilters): Promise<TrocasDono> {
+  const { data, error } = await sb.rpc("rpc_lms_trocas_dono", {
+    p_tenant_id: filters.tenantId,
+    p_data_ini: filters.dataInicio,
+    p_data_fim: filters.dataFim,
+    p_armazem_id: filters.armazemId || null,
+  });
+  if (error) throw new Error(error.message);
+  if (data?.sucesso === false) throw new Error(data.mensagem || "Não foi possível medir as trocas de dono.");
+  return data as TrocasDono;
+}
+
 export async function fetchOperadores(
   tenantId: string,
 ): Promise<{ id: string; nome: string }[]> {

@@ -9,22 +9,29 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { parseError } from "@/lib/errorMapper";
 import {
+  FONTE_ONDA,
   STATUS_ETAPA_LABEL,
+  descreverPreviaOperadores,
   descreverResumo,
+  listarOperadoresElegiveis,
   montarAlteracoes,
   obterResponsaveisOnda,
   rotuloModo,
   salvarResponsaveisOnda,
+  type FonteResponsaveis,
 } from "@/lib/responsaveisOndaService";
 import type { EtapaOnda } from "@/lib/responsaveisOnda.types";
 import { SeletorConvocados } from "./SeletorConvocados";
 
 interface Props {
   open: boolean;
+  /** Id do documento (onda de saída ou, com fonte de entrada, movimento de entrada). */
   movimentoSaidaId: string | null;
   numeroOnda: number | null;
   onClose: () => void;
   onSuccess: () => void;
+  /** Fase 5.1: de onde ler/gravar. Padrão: onda de saída. */
+  fonte?: FonteResponsaveis;
 }
 
 const STATUS_COR: Record<EtapaOnda["status"], string> = {
@@ -33,6 +40,14 @@ const STATUS_COR: Record<EtapaOnda["status"], string> = {
   AGUARDANDO: "bg-blue-500/15 text-blue-400 border-blue-500/30",
   EM_ANDAMENTO: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
   CONCLUIDA: "bg-green-500/15 text-green-400 border-green-500/30",
+};
+
+/** Fonte padrão (onda) montada com as funções importadas aqui, para valer o mesmo serviço da tela. */
+const FONTE_PADRAO: FonteResponsaveis = {
+  ...FONTE_ONDA,
+  obter: (id) => obterResponsaveisOnda(id),
+  listarElegiveis: (id, tipo, busca) => listarOperadoresElegiveis(id, tipo, busca),
+  salvar: ({ id, ...r }) => salvarResponsaveisOnda({ movimentoSaidaId: id, ...r }),
 };
 
 /** Atraso para simular no banco depois que o gestor para de mexer. */
@@ -44,7 +59,7 @@ const ATRASO_SIMULACAO_MS = 350;
  * Toda regra (modo da etapa, elegibilidade, R9, progresso) é decidida pelas RPCs;
  * a tela mostra a prévia calculada pelo banco (modo simular) antes de aplicar.
  */
-export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onClose, onSuccess }: Props) {
+export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onClose, onSuccess, fonte = FONTE_PADRAO }: Props) {
   const [selecao, setSelecao] = useState<Record<string, string[]>>({});
   const [nomes, setNomes] = useState<Record<string, string>>({});
   const [motivo, setMotivo] = useState("");
@@ -52,8 +67,8 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
   const [salvando, setSalvando] = useState(false);
 
   const dadosQuery = useQuery({
-    queryKey: ["onda-responsaveis", movimentoSaidaId],
-    queryFn: () => obterResponsaveisOnda(movimentoSaidaId!),
+    queryKey: [`${fonte.chave}-responsaveis`, movimentoSaidaId],
+    queryFn: () => fonte.obter(movimentoSaidaId!),
     enabled: open && !!movimentoSaidaId,
     staleTime: 0,
   });
@@ -88,10 +103,10 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
   }, [chaveAlteracoes]);
 
   const simulacaoQuery = useQuery({
-    queryKey: ["onda-responsaveis-simular", movimentoSaidaId, chaveSimulada],
+    queryKey: [`${fonte.chave}-responsaveis-simular`, movimentoSaidaId, chaveSimulada],
     queryFn: () =>
-      salvarResponsaveisOnda({
-        movimentoSaidaId: movimentoSaidaId!,
+      fonte.salvar({
+        id: movimentoSaidaId!,
         alteracoes: JSON.parse(chaveSimulada),
         confirmarProgresso: true,
         simular: true,
@@ -102,7 +117,11 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
   const simulacao = chaveSimulada === chaveAlteracoes && alteracoes.length > 0 ? simulacaoQuery.data : undefined;
   const simulando = alteracoes.length > 0 && (chaveSimulada !== chaveAlteracoes || simulacaoQuery.isFetching);
   const comProgresso = simulacao?.sucesso ? simulacao.com_progresso ?? 0 : 0;
+  const emExecucao = simulacao?.sucesso ? simulacao.em_execucao ?? 0 : 0;
+  const sensiveis = comProgresso + emExecucao;
+  const motivoObrigatorio = !!simulacao?.sucesso && (simulacao.motivo_obrigatorio ?? sensiveis > 0);
   const linhasResumo = simulacao?.sucesso ? descreverResumo(simulacao.resumo) : [];
+  const linhasPrevia = simulacao?.sucesso ? descreverPreviaOperadores(simulacao.resumo) : [];
 
   useEffect(() => { setConfirmaProgresso(false); }, [chaveAlteracoes]);
 
@@ -112,14 +131,15 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
     alteracoes.length > 0 &&
     !simulando &&
     !!simulacao?.sucesso &&
-    (comProgresso === 0 || confirmaProgresso);
+    (sensiveis === 0 || confirmaProgresso) &&
+    (!motivoObrigatorio || motivo.trim().length > 0);
 
   const aplicar = async () => {
     if (!movimentoSaidaId || !podeAplicar) return;
     setSalvando(true);
     try {
-      const r = await salvarResponsaveisOnda({
-        movimentoSaidaId,
+      const r = await fonte.salvar({
+        id: movimentoSaidaId,
         alteracoes,
         confirmarProgresso: confirmaProgresso,
         motivo,
@@ -129,7 +149,7 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
         void dadosQuery.refetch();
         return;
       }
-      toast.success(`Responsáveis da onda #${numeroOnda ?? ""} atualizados.`);
+      toast.success(`${fonte.titulo} #${numeroOnda ?? ""} atualizados.`);
       onSuccess();
       onClose();
     } catch (err) {
@@ -147,11 +167,9 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserCog size={18} className="text-primary" />
-            Responsáveis da onda{numeroOnda ? ` #${numeroOnda}` : ""}
+            {fonte.titulo}{numeroOnda ? ` #${numeroOnda}` : ""}
           </DialogTitle>
-          <DialogDescription>
-            Convoque quem executa cada etapa. Etapa livre: qualquer operador habilitado pode assumir pelo coletor.
-          </DialogDescription>
+          <DialogDescription>{fonte.descricao}</DialogDescription>
         </DialogHeader>
 
         {dadosQuery.isLoading ? (
@@ -219,7 +237,8 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
                           >
                             {op.origem === "GESTOR" ? <UserCog size={10} /> : <Smartphone size={10} />}
                             {op.nome} · {op.tarefas}
-                            {op.com_progresso > 0 && <span className="text-yellow-400">({op.com_progresso} em andamento)</span>}
+                            {(op.em_execucao ?? 0) > 0 && <span className="text-orange-400">({op.em_execucao} executando agora)</span>}
+                            {op.com_progresso > 0 && <span className="text-yellow-400">({op.com_progresso} com progresso)</span>}
                           </span>
                         ))}
                       </div>
@@ -244,6 +263,8 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
                       </div>
                     ) : (
                       <SeletorConvocados
+                        listar={fonte.listarElegiveis}
+                        chaveFonte={fonte.chave}
                         movimentoSaidaId={movimentoSaidaId!}
                         etapa={etapa}
                         selecionados={selecao[etapa.tipo_tarefa_id] ?? []}
@@ -285,12 +306,24 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
                   </ul>
                 )}
 
-                {comProgresso > 0 && !simulando && (
+                {linhasPrevia.length > 0 && !simulando && (
+                  <ul className="space-y-1 rounded-md border border-border p-2" aria-label="Quem perde tarefas">
+                    {linhasPrevia.map((l, i) => (
+                      <li key={i} className="text-xs text-foreground flex items-start gap-1.5">
+                        <AlertTriangle size={12} className="mt-0.5 shrink-0 text-orange-400" /> {l}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {sensiveis > 0 && !simulando && (
                   <label className="flex items-start gap-2 p-2 rounded-md bg-orange-500/10 border border-orange-500/30 cursor-pointer">
                     <Checkbox checked={confirmaProgresso} onCheckedChange={(v) => setConfirmaProgresso(!!v)} className="mt-0.5" />
                     <span className="text-xs text-orange-300">
-                      Confirmo: <strong>{comProgresso}</strong> tarefa(s) já começada(s) mudarão de dono e o novo
-                      responsável continua de onde parou. Nada é zerado.
+                      Confirmo:{emExecucao > 0 && <> <strong>{emExecucao}</strong> tarefa(s) em execução agora serão interrompidas (o tempo conta como indireto de quem sai)</>}
+                      {emExecucao > 0 && comProgresso > 0 && " e"}
+                      {comProgresso > 0 && <> <strong>{comProgresso}</strong> tarefa(s) com progresso mudarão de dono e o novo responsável continua de onde parou</>}.
+                      Nada é zerado. O operador que sai é avisado no coletor ao confirmar.
                     </span>
                   </label>
                 )}
@@ -298,7 +331,8 @@ export function ResponsaveisOndaModal({ open, movimentoSaidaId, numeroOnda, onCl
                 <input
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
-                  placeholder="Motivo (opcional)"
+                  placeholder={motivoObrigatorio ? "Motivo (obrigatório)" : "Motivo (opcional)"}
+                  aria-required={motivoObrigatorio}
                   aria-label="Motivo da alteração"
                   maxLength={200}
                   className="w-full h-9 px-3 rounded-md border border-border bg-secondary/40 text-sm outline-none focus:border-primary"

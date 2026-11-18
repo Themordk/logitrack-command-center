@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Activity, Trophy, Clock, Table as TableIcon, BarChart3, Loader2, FileSpreadsheet, FileText,
-  ChevronUp, ChevronDown, ChevronsUpDown, AlertTriangle, Info, ShieldCheck, User,
+  ChevronUp, ChevronDown, ChevronsUpDown, AlertTriangle, Info, ShieldCheck, User, Users,
 } from "lucide-react";
 import { format, parseISO, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,9 +16,10 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  fetchLmsMetricas, fetchFaixasArmazem, fetchOperadores, fetchTurnos, fetchQualidadeDado,
-  type LmsLinha, type LmsTotal, type LmsTipoLinha, type ProdutividadeFilters, type QualidadeDado,
+  fetchLmsMetricas, fetchFaixasArmazem, fetchOperadores, fetchTurnos, fetchQualidadeDado, fetchTrocasDono,
+  type LmsLinha, type LmsTotal, type LmsTipoLinha, type ProdutividadeFilters, type QualidadeDado, type TrocasDono,
 } from "./produtividade.service";
+import { TrocasDonoPanel } from "./TrocasDonoPanel";
 import {
   FAIXAS_PADRAO, COR_FAIXA, CLASSE_FAIXA, ROTULO_FAIXA, LIMITE_AUDITAR_SET, faixaDe, dominioEixo,
   janelaPaginas, qualidadePct, tipoDominante, composicaoHoras, formatarPct, formatarTempo, type FaixasArmazem,
@@ -76,6 +77,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
   const [total, setTotal] = useState<LmsTotal | null>(null);
   const [faixas, setFaixas] = useState<FaixasArmazem>(FAIXAS_PADRAO);
   const [qualidade, setQualidade] = useState<QualidadeDado | null>(null);
+  const [trocas, setTrocas] = useState<TrocasDono | null>(null);
   const [loading, setLoading] = useState(false);
   const [carregado, setCarregado] = useState(false);
 
@@ -119,12 +121,13 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     if (f.dataFim < f.dataInicio) { toast.error("A data final é anterior à inicial."); return; }
     setLoading(true);
     try {
-      const [dia, op, tipo, fx, q] = await Promise.all([
+      const [dia, op, tipo, fx, q, tr] = await Promise.all([
         fetchLmsMetricas<LmsLinha>(f, "OPERADOR_DIA"),
         fetchLmsMetricas<LmsLinha>(f, "OPERADOR"),
         fetchLmsMetricas<LmsTipoLinha>(f, "TIPO"),
         fetchFaixasArmazem(tenantId, f.armazemId),
         fetchQualidadeDado(f).catch(() => null),
+        fetchTrocasDono(f).catch(() => null),
       ]);
       setLinhasDia(dia.linhas);
       setPorOperador(op.linhas.filter((l) => l.tempo_disponivel > 0 || l.tempo_direto > 0));
@@ -132,6 +135,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
       setPorTipo(tipo.linhas);
       setFaixas(fx);
       setQualidade(q);
+      setTrocas(tr);
       setPage(1);
       setCarregado(true);
     } catch (e: unknown) {
@@ -554,6 +558,18 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
             <span className="text-xs text-muted-foreground ml-auto">o quanto dá para confiar nos tempos acima</span>
           </div>
           <QualidadeDadoPanel dados={qualidade} />
+        </div>
+      )}
+
+      {/* Troca de dono (Fase 5.5) */}
+      {trocas && (
+        <div className="rounded-lg border border-border bg-card">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <Users size={16} className="text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Troca de dono</h3>
+            <span className="text-xs text-muted-foreground ml-auto">reatribuições, saídas da etapa e tempo interrompido</span>
+          </div>
+          <TrocasDonoPanel dados={trocas} />
         </div>
       )}
     </div>

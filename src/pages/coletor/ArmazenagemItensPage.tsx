@@ -31,6 +31,7 @@ import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import * as OfflineStore from "@/lib/offlineStore";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 import { assumirTarefas } from "@/lib/lmsTimestamp";
+import { SairEtapaCabecalho } from "@/components/coletor/SairEtapaSheet";
 
 interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
@@ -342,7 +343,11 @@ export function ArmazenagemItensPage({ onNavigate, origem = "ENTRADA" }: Props) 
   const vencidos = itens.filter(i => calcularPrazo(i.entrada_em, Number(i.horas_parado ?? 0), Number(i.prazo_horas ?? 2), agora).status === "VENCIDO").length;
 
   return (
-    <ColetorLayout title={title} onNavigate={onNavigate} showBack backPath={cancelamento ? "/coletor/armazenagem" : "/coletor/armazenagem/movimentos"}>
+    <ColetorLayout title={title} onNavigate={onNavigate} showBack backPath={cancelamento ? "/coletor/armazenagem" : "/coletor/armazenagem/movimentos"}
+      titleBadge={!cancelamento && movimentoId ? <SairEtapaCabecalho
+        params={{ tenantId: tenantId ?? "", empresaId: empresaId ?? "", usuarioId: localStorage.getItem("core_usuario_id") ?? "",
+                  contextoTipo: "MOVIMENTO_ENTRADA", contextoId: movimentoId, etapa: "ENTR-ARMZ" }}
+        onSaiu={() => onNavigate("/coletor/armazenagem/movimentos")} /> : undefined}>
       <StatusOverlay type={overlay} message={overlayMsg} onDone={handleOverlayDone} />
       <ResultDialog {...result.dialogProps} />
       <EtapaIndicador etapa={1} />

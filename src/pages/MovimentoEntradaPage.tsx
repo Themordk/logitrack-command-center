@@ -9,7 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "sonner";
-import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw, FileWarning, Eye, Unlink } from "lucide-react";
+import { Loader2, MoreVertical, Search, ChevronLeft, ChevronRight, Package, AlertTriangle, Ban, Unlock, Lock, Truck, RefreshCw, FileWarning, Eye, Unlink, UserCog } from "lucide-react";
+import { ResponsaveisOndaModal } from "@/components/movimentos/ResponsaveisOndaModal";
+import { FONTE_ENTRADA } from "@/lib/responsaveisOndaService";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -178,6 +180,8 @@ export function MovimentoEntradaPage() {
   const [conferenciaItems, setConferenciaItems] = useState<ConferenciaItem[]>([]);
   const [armazenagemItems, setArmazenagemItems] = useState<ArmazenagemItem[]>([]);
   const [movimentoInfo, setMovimentoInfo] = useState<MovimentoInfo | null>(null);
+  // Fase 5.1: responsáveis do movimento (conferência e armazenagem)
+  const [responsaveisMov, setResponsaveisMov] = useState<{ id: string; numero: number | null } | null>(null);
   const [docsVinculados, setDocsVinculados] = useState<DocVinculado[]>([]);
   const { can } = usePermissions();
   const queryClient = useQueryClient();
@@ -812,6 +816,9 @@ export function MovimentoEntradaPage() {
                         <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>
                           <Truck size={14} className="mr-2" /> Liberar recebimento com erro no transporte
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setResponsaveisMov({ id: mov.id, numero: mov.numero_movimento ?? null })}>
+                          <UserCog size={14} className="mr-2" /> Responsáveis
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>
                           <RefreshCw size={14} className="mr-2" /> Atualizar ERP
                         </DropdownMenuItem>
@@ -1263,6 +1270,15 @@ export function MovimentoEntradaPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ResponsaveisOndaModal
+        open={!!responsaveisMov}
+        fonte={FONTE_ENTRADA}
+        movimentoSaidaId={responsaveisMov?.id || null}
+        numeroOnda={responsaveisMov?.numero ?? null}
+        onClose={() => setResponsaveisMov(null)}
+        onSuccess={() => { listQuery.refetch(); opsQuery.refetch(); }}
+      />
     </div>
   );
 }

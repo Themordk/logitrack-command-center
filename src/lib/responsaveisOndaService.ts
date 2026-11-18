@@ -62,6 +62,87 @@ export async function salvarResponsaveisOnda(params: {
 }
 
 /* =========================================================================
+ * Web — "Responsáveis do movimento de entrada" (Fase 5.1, mesmo contrato)
+ * ========================================================================= */
+
+export async function obterResponsaveisEntrada(movimentoEntradaId: string): Promise<ResponsaveisOnda> {
+  const { data, error } = await supabase.rpc("rpc_movimento_entrada_responsaveis_obter" as never, {
+    p_movimento_entrada_id: movimentoEntradaId,
+  } as never);
+  if (error) throw error;
+  return lerJson<ResponsaveisOnda>(data);
+}
+
+export async function listarElegiveisEntrada(movimentoEntradaId: string, tipoTarefaId: string, busca?: string): Promise<OperadorElegivel[]> {
+  const { data, error } = await supabase.rpc("rpc_movimento_entrada_operadores_elegiveis" as never, {
+    p_movimento_entrada_id: movimentoEntradaId, p_tipo_tarefa_id: tipoTarefaId, p_busca: busca?.trim() || null,
+  } as never);
+  if (error) throw error;
+  return lerJson<OperadorElegivel[]>(data) ?? [];
+}
+
+export async function salvarResponsaveisEntrada(params: {
+  movimentoEntradaId: string; alteracoes: AlteracaoEtapa[]; confirmarProgresso?: boolean; motivo?: string | null; simular?: boolean;
+}): Promise<SalvarResponsaveisResult> {
+  const { data, error } = await supabase.rpc("rpc_movimento_entrada_responsaveis_salvar" as never, {
+    p_movimento_entrada_id: params.movimentoEntradaId,
+    p_alteracoes: params.alteracoes,
+    p_confirmar_progresso: params.confirmarProgresso ?? false,
+    p_motivo: params.motivo?.trim() || null,
+    p_simular: params.simular ?? false,
+  } as never);
+  if (error) throw error;
+  return lerJson<SalvarResponsaveisResult>(data);
+}
+
+/** De onde o modal de responsáveis lê e grava: onda de saída ou movimento de entrada. */
+export interface FonteResponsaveis {
+  chave: "onda" | "entrada";
+  titulo: string;
+  descricao: string;
+  obter: (id: string) => Promise<ResponsaveisOnda>;
+  listarElegiveis: (id: string, tipoTarefaId: string, busca?: string) => Promise<OperadorElegivel[]>;
+  salvar: (p: { id: string; alteracoes: AlteracaoEtapa[]; confirmarProgresso?: boolean; motivo?: string | null; simular?: boolean }) => Promise<SalvarResponsaveisResult>;
+}
+
+export const FONTE_ONDA: FonteResponsaveis = {
+  chave: "onda",
+  titulo: "Responsáveis da onda",
+  descricao: "Convoque quem executa cada etapa. Etapa livre: qualquer operador habilitado pode assumir pelo coletor.",
+  obter: obterResponsaveisOnda,
+  listarElegiveis: listarOperadoresElegiveis,
+  salvar: ({ id, ...r }) => salvarResponsaveisOnda({ movimentoSaidaId: id, ...r }),
+};
+
+export const FONTE_ENTRADA: FonteResponsaveis = {
+  chave: "entrada",
+  titulo: "Responsáveis do movimento",
+  descricao: "Conferência e armazenagem: um responsável recebe todas as tarefas abertas; vários dividem; livre, quem abrir no coletor assume.",
+  obter: obterResponsaveisEntrada,
+  listarElegiveis: listarElegiveisEntrada,
+  salvar: ({ id, ...r }) => salvarResponsaveisEntrada({ movimentoEntradaId: id, ...r }),
+};
+
+/** Linhas da prévia por operador (o que cada um perde agora). */
+export function descreverPreviaOperadores(resumo: ResumoAlteracaoEtapa[] | undefined): string[] {
+  const linhas: string[] = [];
+  for (const r of resumo ?? []) {
+    for (const o of r.por_operador ?? []) {
+      const partes: string[] = [];
+      if (o.em_execucao) partes.push(`${o.em_execucao} em execução agora${o.minutos_em_execucao != null ? ` (há ${o.minutos_em_execucao} min)` : ""}`);
+      if (o.com_progresso) partes.push(`${o.com_progresso} com progresso`);
+      if (o.so_atribuidas) partes.push(`${o.so_atribuidas} só atribuída(s)`);
+      if (!partes.length) continue;
+      linhas.push(`${o.nome}: ${partes.join(", ")}.`);
+      if (o.produto_em_maos) {
+        linhas.push(`${o.nome} está com produto de ${o.produto_em_maos} tarefa(s) em mãos: as parciais continuam dele; combine a entrega física.`);
+      }
+    }
+  }
+  return linhas;
+}
+
+/* =========================================================================
  * Coletor — autoconvocação (resumo sem reserva, assumir, sair)
  * ========================================================================= */
 

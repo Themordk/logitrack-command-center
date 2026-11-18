@@ -24,6 +24,7 @@ import {
 import { descreverTransporte, nomeTransportadora, proximoPedidoEmbarque, resumoImpressaoVolumes, situacaoPedidoEmbarque } from "@/lib/cargaExibicao";
 import { EMBARQUE_CARGA_KEY } from "@/pages/coletor/EmbarqueCargasPage";
 import { iniciarContexto } from "@/lib/lmsTimestamp";
+import { SairEtapaCabecalho } from "@/components/coletor/SairEtapaSheet";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -309,7 +310,15 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout
       title="Embarque"
-      titleBadge={carga ? <span className="text-sm font-mono font-bold text-white/90">#{carga.numero_carga}</span> : undefined}
+      titleBadge={carga ? (
+        <>
+          <span className="text-sm font-mono font-bold text-white/90">#{carga.numero_carga}</span>
+          <SairEtapaCabecalho
+            params={{ tenantId, empresaId: localStorage.getItem("core_empresa_id") ?? "", usuarioId,
+                      contextoTipo: "CARGA", contextoId: carga.id, etapa: "EMB" }}
+            onSaiu={() => onNavigate("/coletor/embarque")} />
+        </>
+      ) : undefined}
       onNavigate={onNavigate}
       showBack
       backPath="/coletor/embarque"

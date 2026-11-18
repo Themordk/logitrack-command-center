@@ -10,6 +10,7 @@ import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useOffline } from "@/contexts/OfflineContext";
 import { iniciarTarefas } from "@/lib/lmsTimestamp";
+import { SairEtapaCabecalho } from "@/components/coletor/SairEtapaSheet";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -211,7 +212,12 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
   const progress = `${currentIdx + 1}/${tarefas.length}`;
 
   return (
-    <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario">
+    <ColetorLayout title={`Inventário #${numero}`} onNavigate={onNavigate} showBack backPath="/coletor/inventario"
+      titleBadge={<SairEtapaCabecalho
+        params={{ tenantId: localStorage.getItem("core_tenant_id") ?? "", empresaId: localStorage.getItem("core_empresa_id") ?? "",
+                  usuarioId: localStorage.getItem("core_usuario_id") ?? "", contextoTipo: "INVENTARIO",
+                  contextoId: sessionStorage.getItem("coletor_inventario_id") ?? "", etapa: null }}
+        onSaiu={() => { sessionStorage.removeItem("coletor_inventario_tarefas"); onNavigate("/coletor/inventario"); }} />}>
       {(() => {
         const contagem = Number(sessionStorage.getItem("coletor_inventario_contagem") || "1");
         if (contagem > 1) {
