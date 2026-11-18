@@ -7,13 +7,29 @@
  * UPH do tipo dominante. Nada de média de percentuais no navegador (F2/F3).
  */
 
+import { FAIXAS_PADRAO_LISTA, PALETA, classificar, type FaixaLms } from "@/modules/lms/faixas";
+
 export interface FaixasArmazem {
   excelente: number;
+  /** meta (faixa marcada com estrela no LMS) */
   bom: number;
   atencao: number;
+  /** Fase 7.5: conjunto configurável (nome, cor, limite, meta) */
+  lista?: FaixaLms[];
 }
 
-export const FAIXAS_PADRAO: FaixasArmazem = { excelente: 110, bom: 90, atencao: 70 };
+export const FAIXAS_PADRAO: FaixasArmazem = { excelente: 110, bom: 90, atencao: 70, lista: FAIXAS_PADRAO_LISTA };
+
+/** Fase 7.5: classe de texto, cor e nome pela faixa configurada. */
+export function classeFaixa(pct: number | null | undefined, f: FaixasArmazem = FAIXAS_PADRAO): string {
+  return PALETA[classificar(pct, f.lista).cor].texto;
+}
+export function corFaixa(pct: number | null | undefined, f: FaixasArmazem = FAIXAS_PADRAO): string {
+  return PALETA[classificar(pct, f.lista).cor].hex;
+}
+export function nomeFaixa(pct: number | null | undefined, f: FaixasArmazem = FAIXAS_PADRAO): string {
+  return classificar(pct, f.lista).nome;
+}
 
 export type Faixa = "EXCELENTE" | "BOM" | "ATENCAO" | "CRITICO" | "SEM_DADOS";
 

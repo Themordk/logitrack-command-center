@@ -21,10 +21,11 @@ import {
 } from "./produtividade.service";
 import { TrocasDonoPanel } from "./TrocasDonoPanel";
 import {
-  FAIXAS_PADRAO, COR_FAIXA, CLASSE_FAIXA, ROTULO_FAIXA, LIMITE_AUDITAR_SET, faixaDe, dominioEixo,
+  FAIXAS_PADRAO, LIMITE_AUDITAR_SET, classeFaixa, corFaixa, nomeFaixa, dominioEixo,
   janelaPaginas, qualidadePct, tipoDominante, composicaoHoras, formatarPct, formatarTempo, type FaixasArmazem,
 } from "./produtividadeCalculo";
 import { QualidadeDadoPanel } from "./QualidadeDadoPanel";
+import { PALETA, intervalos } from "@/modules/lms/faixas";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
@@ -329,9 +330,9 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <Kpi label="Utilização" value={formatarPct(total?.utilizacao_pct)}
             dica="Tempo direto ÷ tempo disponível" sub={total ? `${formatarTempo(total.tempo_direto)} de ${formatarTempo(total.tempo_disponivel)}` : undefined} />
-          <Kpi label="Performance" value={formatarPct(total?.performance_pct)} colorClass={CLASSE_FAIXA[faixaDe(total?.performance_pct, faixas)]}
-            dica="Horas-padrão ganhas ÷ tempo direto" sub={ROTULO_FAIXA[faixaDe(total?.performance_pct, faixas)]} />
-          <Kpi label="Eficiência" value={formatarPct(total?.eficiencia_pct)} colorClass={CLASSE_FAIXA[faixaDe(total?.eficiencia_pct, faixas)]}
+          <Kpi label="Performance" value={formatarPct(total?.performance_pct)} colorClass={classeFaixa(total?.performance_pct, faixas)}
+            dica="Horas-padrão ganhas ÷ tempo direto" sub={nomeFaixa(total?.performance_pct, faixas)} />
+          <Kpi label="Eficiência" value={formatarPct(total?.eficiencia_pct)} colorClass={classeFaixa(total?.eficiencia_pct, faixas)}
             dica="Horas-padrão ganhas ÷ tempo disponível" sub={`Meta ${faixas.bom}%`} />
           <Kpi label="Tarefas" value={numero(total?.tarefas || 0)}
             sub={total?.canceladas ? `${numero(total.canceladas)} canceladas` : "Nenhuma cancelada"} />
@@ -386,7 +387,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                   <Bar dataKey="valor" radius={[0, 4, 4, 0]} cursor="pointer"
                     onClick={(d: any) => abrirOperador(d?.usuario_id)}>
                     {ranking.map((r) => (
-                      <Cell key={r.usuario_id ?? r.nome} fill={COR_FAIXA[faixaDe(r.valor, faixas)]} fillOpacity={r.amostra ? 1 : 0.5} />
+                      <Cell key={r.usuario_id ?? r.nome} fill={corFaixa(r.valor, faixas)} fillOpacity={r.amostra ? 1 : 0.5} />
                     ))}
                     <LabelList dataKey="valor" position="right" formatter={(v: number) => formatarPct(v)} style={{ fill: "#e5e7eb", fontSize: 11 }} />
                   </Bar>
@@ -489,8 +490,8 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(r.tempo_indireto)}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{formatarTempo(r.tempo_ocioso)}</td>
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(r.utilizacao_pct)}</td>
-                      <td className={`px-3 py-2.5 text-center font-mono ${CLASSE_FAIXA[faixaDe(r.performance_pct, faixas)]}`}>{formatarPct(r.performance_pct)}</td>
-                      <td className={`px-3 py-2.5 text-center font-mono ${CLASSE_FAIXA[faixaDe(r.eficiencia_pct, faixas)]}`}>{formatarPct(r.eficiencia_pct)}</td>
+                      <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.performance_pct, faixas)}`}>{formatarPct(r.performance_pct)}</td>
+                      <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.eficiencia_pct, faixas)}`}>{formatarPct(r.eficiencia_pct)}</td>
                       <td className="px-3 py-2.5 text-center"><OrigemBadge origem={r.origem} pct={r.pct_inicio_real} /></td>
                       <td className="px-2 py-2.5 text-right">
                         <button aria-label={`Ver período de ${r.nome}`} title="Ver o período deste operador"
@@ -514,8 +515,8 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(total.tempo_indireto)}</td>
                       <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(total.tempo_ocioso)}</td>
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(total.utilizacao_pct)}</td>
-                      <td className={`px-3 py-2.5 text-center font-mono ${CLASSE_FAIXA[faixaDe(total.performance_pct, faixas)]}`}>{formatarPct(total.performance_pct)}</td>
-                      <td className={`px-3 py-2.5 text-center font-mono ${CLASSE_FAIXA[faixaDe(total.eficiencia_pct, faixas)]}`}>{formatarPct(total.eficiencia_pct)}</td>
+                      <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.performance_pct, faixas)}`}>{formatarPct(total.performance_pct)}</td>
+                      <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.eficiencia_pct, faixas)}`}>{formatarPct(total.eficiencia_pct)}</td>
                       <td className="px-3 py-2.5 text-center"><OrigemBadge origem={total.origem} pct={total.pct_inicio_real} /></td>
                       <td />
                     </tr>
@@ -633,15 +634,11 @@ function OrigemBadge({ origem, pct }: { origem: "REAL" | "ESTIMADO"; pct: number
 }
 
 function LegendaFaixas({ faixas }: { faixas: FaixasArmazem }) {
-  const itens: Array<[keyof typeof COR_FAIXA, string]> = [
-    ["CRITICO", `< ${faixas.atencao}%`], ["ATENCAO", `${faixas.atencao}–${faixas.bom}%`],
-    ["BOM", `${faixas.bom}–${faixas.excelente}%`], ["EXCELENTE", `≥ ${faixas.excelente}%`],
-  ];
   return (
     <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-muted-foreground">
-      {itens.map(([f, t]) => (
-        <span key={f} className="inline-flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: COR_FAIXA[f] }} />{ROTULO_FAIXA[f]} {t}
+      {intervalos(faixas.lista).slice().reverse().map(({ faixa, texto }) => (
+        <span key={faixa.codigo} className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-sm" style={{ background: PALETA[faixa.cor].hex }} />{faixa.nome} {texto}
         </span>
       ))}
       <span>· barra clara = amostra pequena</span>

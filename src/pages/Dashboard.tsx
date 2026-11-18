@@ -393,7 +393,9 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
               <KPICardPro
                 title="Distribuição de Faixas"
                 value={`${kpis.lms.operadores_avaliados}`}
-                subtitle={`${kpis.lms.distribuicao_faixas.excelente}★ ${kpis.lms.distribuicao_faixas.bom}✓ ${kpis.lms.distribuicao_faixas.atencao}⚠ ${kpis.lms.distribuicao_faixas.critico}✗`}
+                subtitle={kpis.lms.faixas_distribuicao
+                  ? kpis.lms.faixas_distribuicao.map((f) => `${f.nome} ${f.quantidade}`).join(" · ") || "Sem operadores avaliados"
+                  : `${kpis.lms.distribuicao_faixas.excelente}★ ${kpis.lms.distribuicao_faixas.bom}✓ ${kpis.lms.distribuicao_faixas.atencao}⚠ ${kpis.lms.distribuicao_faixas.critico}✗`}
                 icon={<Users size={20} />}
                 severity="neutral"
                 unit="operadores"

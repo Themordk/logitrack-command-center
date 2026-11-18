@@ -4,6 +4,7 @@
  * pelas RPCs rpc_lms_config_*; a tela só exibe e envia a alteração.
  */
 import { supabase } from "@/integrations/supabase/client";
+import type { CorFaixa, FaixaLms } from "../faixas";
 
 const sb = supabase as unknown as {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
@@ -67,8 +68,17 @@ export interface RegraSistema {
   observacao: string | null;
 }
 
+export interface FaixasConfig {
+  paleta: CorFaixa[];
+  efetivo: { lista: FaixaLms[]; nivel: NivelRegra; vigente_desde: string | null };
+  herdado: { lista: FaixaLms[]; nivel: NivelRegra };
+  agendados: Array<{ id: string; herdar: boolean; lista: FaixaLms[] | null; vigente_desde: string }>;
+}
+
 export interface HistoricoRegra {
-  tipo: "PARAMETRO" | "PADRAO_TEMPO";
+  tipo: "PARAMETRO" | "PADRAO_TEMPO" | "FAIXAS";
+  faixas?: FaixaLms[] | null;
+  herdar?: boolean;
   chave: string;
   rotulo: string;
   valor: number | null;
@@ -89,6 +99,7 @@ export interface ConfigLms {
   pode_reprocessar: boolean;
   parametros: ParametroConfig[];
   padroes_tempo: PadraoTempoConfig[];
+  faixas: FaixasConfig;
   regras_sistema: RegraSistema[];
   historico: HistoricoRegra[];
 }
@@ -144,7 +155,40 @@ export async function salvarRegraLms(i: SalvarRegraInput): Promise<SalvarRegraRe
   return exigirSucesso<SalvarRegraResultado>(data, error);
 }
 
-export async function excluirRegraAgendada(tenantId: string, tipo: "PARAMETRO" | "PADRAO_TEMPO", id: string): Promise<void> {
+export interface FaixaEntrada { nome: string; cor: CorFaixa; a_partir_de_pct: number; eh_meta: boolean }
+
+/** Grava o conjunto de faixas do nível (null = volta a herdar a partir da data). */
+export async function salvarFaixasLms(i: {
+  tenantId: string; empresaId: string; armazemId: string | null;
+  faixas: FaixaEntrada[] | null; vigenteDesde: string; motivo?: string;
+}): Promise<SalvarRegraResultado> {
+  const { data, error } = await sb.rpc("rpc_lms_config_salvar_faixas", {
+    p_tenant_id: i.tenantId, p_empresa_id: i.empresaId, p_armazem_id: i.armazemId,
+    p_faixas: i.faixas, p_vigente_desde: i.vigenteDesde, p_motivo: i.motivo?.trim() || null,
+  });
+  return exigirSucesso<SalvarRegraResultado>(data, error);
+}
+
+/** Mesmas regras do banco, para retorno imediato no editor. */
+export function validarFaixas(faixas: FaixaEntrada[]): string | null {
+  if (faixas.length < 2 || faixas.length > 6) return "Use de 2 a 6 faixas.";
+  const nomes = new Set<string>();
+  const limites = new Set<number>();
+  for (const f of faixas) {
+    const nome = f.nome.trim();
+    if (!nome || nome.length > 30) return "Cada faixa precisa de um nome de até 30 caracteres.";
+    if (nomes.has(nome.toLowerCase())) return `O nome "${nome}" está repetido.`;
+    nomes.add(nome.toLowerCase());
+    if (!Number.isFinite(f.a_partir_de_pct) || f.a_partir_de_pct < 0 || f.a_partir_de_pct > 300) return `"${nome}": o limite deve ficar entre 0% e 300%.`;
+    if (limites.has(f.a_partir_de_pct)) return "Duas faixas não podem começar no mesmo percentual.";
+    limites.add(f.a_partir_de_pct);
+  }
+  if (faixas.filter((f) => f.a_partir_de_pct === 0).length !== 1) return "A faixa mais baixa precisa começar em 0%.";
+  if (faixas.filter((f) => f.eh_meta).length !== 1) return "Marque exatamente uma faixa como meta.";
+  return null;
+}
+
+export async function excluirRegraAgendada(tenantId: string, tipo: "PARAMETRO" | "PADRAO_TEMPO" | "FAIXAS", id: string): Promise<void> {
   const { data, error } = await sb.rpc("rpc_lms_config_excluir_agendada", { p_tenant_id: tenantId, p_tipo: tipo, p_id: id });
   exigirSucesso(data, error);
 }

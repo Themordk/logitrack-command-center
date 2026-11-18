@@ -90,16 +90,26 @@ vi.mock("../configuracao/lmsConfig.service", async (orig) => {
       sucesso: true, nivel: "EMPRESA", empresa_id: "e1", armazem_id: null, data: "2026-11-18", hoje: "2026-11-18",
       pode_editar: true, pode_reprocessar: true,
       parametros: [{
-        codigo: "faixa_bom_pct", grupo: "CLASSIFICACAO", rotulo: "Faixa Bom a partir de", ajuda: "ajuda", unidade: "PERCENTUAL",
-        padrao_sistema: 90, minimo: 30, maximo: 300, niveis: ["EMPRESA", "ARMAZEM"], editavel_neste_nivel: true,
-        efetivo: { valor: 90, nivel: "SISTEMA", vigente_desde: null }, herdado: { valor: 90, nivel: "SISTEMA" },
-        proprio: null, agendados: [{ id: "x", valor: 95, vigente_desde: "2026-12-01" }],
+        codigo: "pct_inicio_real_min", grupo: "QUALIDADE", rotulo: "Início real mínimo", ajuda: "ajuda", unidade: "PERCENTUAL",
+        padrao_sistema: 95, minimo: 50, maximo: 100, niveis: ["EMPRESA"], editavel_neste_nivel: true,
+        efetivo: { valor: 95, nivel: "SISTEMA", vigente_desde: null }, herdado: { valor: 95, nivel: "SISTEMA" },
+        proprio: null, agendados: [{ id: "x", valor: 90, vigente_desde: "2026-12-01" }],
       }],
       padroes_tempo: [{
         tipo_tarefa_id: "tt1", codigo: "SEP", descricao: "SEPARAÇÃO", unidade_medida: "Unidade", categoria: "SEPARACAO",
         efetivo: { tempo_fixo_seg: 90, nivel: "EMPRESA", vigente_desde: "2000-01-01", origem: "MIGRADO" },
         herdado: { tempo_fixo_seg: 90, nivel: "CADASTRO" }, proprio: null, agendados: [],
       }],
+      faixas: {
+        paleta: ["verde", "azul"],
+        efetivo: { lista: [
+          { ordem: 1, codigo: "ELITE", nome: "Elite", cor: "roxo", a_partir_de_pct: 120, eh_meta: false },
+          { ordem: 2, codigo: "META", nome: "Na meta", cor: "azul", a_partir_de_pct: 90, eh_meta: true },
+          { ordem: 3, codigo: "ABAIXO", nome: "Abaixo", cor: "vermelho", a_partir_de_pct: 0, eh_meta: false },
+        ], nivel: "EMPRESA", vigente_desde: "2026-11-18" },
+        herdado: { lista: [], nivel: "SISTEMA" },
+        agendados: [],
+      },
       regras_sistema: [{ tipo_codigo: "SEP", captura_ativa: true, teto_ciclo_seg: 600, observacao: "Início: abertura" }],
       historico: [],
     }),
@@ -112,9 +122,12 @@ describe("Fase 7 · painel de configurações", () => {
     render(<LmsConfiguracaoPage />);
     expect(await screen.findByText("SEPARAÇÃO")).toBeInTheDocument();
     expect(screen.getByText("1 min 30 s")).toBeInTheDocument();
-    expect(screen.getByText("Definido na empresa")).toBeInTheDocument();
-    expect(screen.getByText("Faixa Bom a partir de")).toBeInTheDocument();
-    expect(screen.getByText(/95% em/)).toBeInTheDocument();
+    expect(screen.getAllByText("Definido na empresa").length).toBeGreaterThan(0);
+    expect(screen.getByText("Início real mínimo")).toBeInTheDocument();
+    expect(screen.getByText(/90% em/)).toBeInTheDocument();
+    expect(screen.getByText("Elite")).toBeInTheDocument();
+    expect(screen.getByText("90–120%")).toBeInTheDocument();
+    expect(screen.getByText("Meta")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Alterar tempo padrão de SEP"));
     expect(screen.getByLabelText(/Novo valor \(segundos\)/)).toHaveValue("90");
   });

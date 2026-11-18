@@ -1,3 +1,4 @@
+import { PALETA, classificar, type FaixaLms } from "@/modules/lms/faixas";
 import { formatDate } from "@/utils/dateTime";
 
 interface EvolucaoEntry {
@@ -10,14 +11,13 @@ interface EvolucaoEntry {
 interface Props {
   evolucao: EvolucaoEntry[];
   faixas: { excelente: number; bom: number; atencao: number };
+  lista?: FaixaLms[];
 }
 
-function faixaCor(score: number, faixas: Props["faixas"]): { bar: string; text: string } {
-  if (score >= faixas.excelente) return { bar: "bg-green-500/70", text: "text-green-400" };
-  if (score >= faixas.bom) return { bar: "bg-blue-500/70", text: "text-blue-400" };
-  if (score >= faixas.atencao) return { bar: "bg-yellow-500/70", text: "text-yellow-400" };
-  if (score > 0) return { bar: "bg-red-500/70", text: "text-red-400" };
-  return { bar: "bg-[hsl(222,35%,22%)]", text: "text-[hsl(213,31%,55%)]" };
+function faixaCor(score: number, lista?: FaixaLms[]): { bar: string; text: string } {
+  if (!(score > 0)) return { bar: "bg-[hsl(222,35%,22%)]", text: "text-[hsl(213,31%,55%)]" };
+  const e = PALETA[classificar(score, lista).cor];
+  return { bar: e.barra, text: e.texto };
 }
 
 function fmtData(value: string) {
@@ -25,7 +25,7 @@ function fmtData(value: string) {
   return formatted === "—" ? value : formatted.slice(0, 5);
 }
 
-export function MetasEvolucaoTab({ evolucao, faixas }: Props) {
+export function MetasEvolucaoTab({ evolucao, lista }: Props) {
   if (evolucao.length === 0) {
     return <div className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] px-4 py-10 text-center text-sm text-[hsl(213,31%,55%)]">Sem registros de evolução no período.</div>;
   }
@@ -38,7 +38,7 @@ export function MetasEvolucaoTab({ evolucao, faixas }: Props) {
         <h3 className="mb-4 text-xs font-bold uppercase text-[hsl(213,31%,75%)]">Score diário</h3>
         <div className="flex h-40 items-end gap-1.5 overflow-x-auto pb-1">
           {evolucao.map((entry, index) => {
-            const cor = faixaCor(entry.score, faixas);
+            const cor = faixaCor(entry.score, lista);
             const height = Math.max(5, Math.round((entry.score / maxScore) * 112));
             return (
               <div key={`${entry.data}-${index}`} className="flex min-w-8 flex-1 flex-col items-center justify-end gap-1">
@@ -54,7 +54,7 @@ export function MetasEvolucaoTab({ evolucao, faixas }: Props) {
         <h3 className="mb-3 text-xs font-bold uppercase text-[hsl(213,31%,75%)]">Detalhamento diário</h3>
         <div className="space-y-2">
           {[...evolucao].reverse().map((entry, index) => {
-            const cor = faixaCor(entry.score, faixas);
+            const cor = faixaCor(entry.score, lista);
             return (
               <div key={`${entry.data}-${index}`} className="flex items-center justify-between rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-3">
                 <div>

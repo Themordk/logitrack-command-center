@@ -6,14 +6,28 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { EditarRegraDialog, type RegraEmEdicao } from "./EditarRegraDialog";
+import { EditarFaixasDialog } from "./EditarFaixasDialog";
+import { PALETA, intervalos, type FaixaLms } from "../faixas";
 import {
   LmsConfigErro, ROTULO_GRUPO, descreverOrigem, excluirRegraAgendada, formatarValor, listarArmazens, listarEmpresas, obterConfigLms,
-  reprocessarLms, salvarRegraLms, type ConfigLms, type GrupoParametro, type NivelRegra,
+  reprocessarLms, salvarFaixasLms, salvarRegraLms, type ConfigLms, type FaixaEntrada, type GrupoParametro, type NivelRegra,
 } from "./lmsConfig.service";
 
 interface Opcao { id: string; nome: string }
 
-const GRUPOS: GrupoParametro[] = ["CLASSIFICACAO", "JORNADA", "QUALIDADE"];
+const GRUPOS: GrupoParametro[] = ["JORNADA", "QUALIDADE"];
+
+function ChipsFaixas({ lista }: { lista: FaixaLms[] }) {
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {[...lista].sort((a, b) => b.a_partir_de_pct - a.a_partir_de_pct).map((f) => (
+        <span key={f.codigo} className={cn("rounded-full border px-1.5 text-[10px]", PALETA[f.cor]?.fundo, PALETA[f.cor]?.texto, PALETA[f.cor]?.borda)}>
+          {f.nome} ≥ {f.a_partir_de_pct}%
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function OrigemBadge({ nivel, nivelTela }: { nivel: NivelRegra; nivelTela: "EMPRESA" | "ARMAZEM" }) {
   const proprio = nivel === nivelTela;
@@ -63,6 +77,7 @@ export function LmsConfiguracaoPage() {
   const [edicao, setEdicao] = useState<RegraEmEdicao | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [reprocessarDe, setReprocessarDe] = useState<string | null>(null);
+  const [editandoFaixas, setEditandoFaixas] = useState(false);
   const [reprocessando, setReprocessando] = useState(false);
 
   useEffect(() => { if (!empresaId && empresaSessao) setEmpresaId(empresaSessao); }, [empresaSessao, empresaId]);
@@ -122,7 +137,22 @@ export function LmsConfiguracaoPage() {
     }
   }
 
-  async function excluirAgendada(tipo: "PARAMETRO" | "PADRAO_TEMPO", id: string) {
+  async function salvarFaixas(faixas: FaixaEntrada[] | null, vigenteDesde: string, motivo: string) {
+    if (!tenantId || !empresaId) return;
+    setSalvando(true);
+    try {
+      const r = await salvarFaixasLms({ tenantId, empresaId, armazemId, faixas, vigenteDesde, motivo });
+      toast.success(r.mensagem);
+      setEditandoFaixas(false);
+      await carregar();
+    } catch (e) {
+      toast.error(e instanceof LmsConfigErro ? e.message : "Não foi possível salvar as faixas.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function excluirAgendada(tipo: "PARAMETRO" | "PADRAO_TEMPO" | "FAIXAS", id: string) {
     if (!tenantId) return;
     try {
       await excluirRegraAgendada(tenantId, tipo, id);
@@ -271,6 +301,49 @@ export function LmsConfiguracaoPage() {
             </div>
           </section>
 
+          {/* Faixas de classificação */}
+          <section className="rounded-lg border border-border bg-card" data-testid="lms-faixas">
+            <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Classificação</h2>
+                <p className="text-xs text-muted-foreground">Faixas de performance usadas no relatório, nos painéis e no coletor. A faixa com estrela é a meta.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <OrigemBadge nivel={config.faixas.efetivo.nivel} nivelTela={nivelTela} />
+                {podeEditar && (
+                  <Button size="sm" variant="outline" onClick={() => setEditandoFaixas(true)}>
+                    <Pencil size={14} className="mr-1" /> Editar faixas
+                  </Button>
+                )}
+              </div>
+            </header>
+            <ul>
+              {intervalos(config.faixas.efetivo.lista).map(({ faixa, texto }) => (
+                <li key={faixa.codigo} className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-0">
+                  <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: PALETA[faixa.cor]?.hex }} />
+                  <span className={cn("min-w-[140px] text-sm font-medium", PALETA[faixa.cor]?.texto)}>{faixa.nome}</span>
+                  <span className="text-sm tabular-nums text-foreground">{texto}</span>
+                  {faixa.eh_meta && <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-600 dark:text-amber-400">Meta</span>}
+                </li>
+              ))}
+            </ul>
+            {config.faixas.agendados.length > 0 && (
+              <div className="border-t border-border px-4 py-2">
+                {config.faixas.agendados.map((a) => (
+                  <div key={a.id} className="flex flex-wrap items-center gap-2 py-1 text-xs text-amber-600 dark:text-amber-400">
+                    <CalendarClock size={12} /> Em {formatDate(a.vigente_desde)}:
+                    {a.herdar || !a.lista ? <span>volta a herdar</span> : <ChipsFaixas lista={a.lista} />}
+                    {podeEditar && (
+                      <button type="button" aria-label="Cancelar agendamento das faixas" onClick={() => excluirAgendada("FAIXAS", a.id)} className="hover:text-destructive">
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           {/* Parâmetros por grupo */}
           {GRUPOS.map((g) => {
             const itens = parametrosPorGrupo.get(g) ?? [];
@@ -355,7 +428,7 @@ export function LmsConfiguracaoPage() {
                     <li key={`${h.chave}-${h.vigente_desde}-${i}`} className="px-4 py-2 text-xs">
                       <span className="font-medium text-foreground">{h.rotulo}</span>{" "}
                       <span className="text-muted-foreground">
-                        → {h.valor === null ? "volta a herdar" : formatarValor(h.valor, h.tipo === "PADRAO_TEMPO" ? "TEMPO" : unidadeDe.get(h.chave) ?? "MULTIPLO")}
+                        → {h.tipo === "FAIXAS" ? (h.herdar || !h.faixas ? "volta a herdar" : <ChipsFaixas lista={h.faixas} />) : h.valor === null ? "volta a herdar" : formatarValor(h.valor, h.tipo === "PADRAO_TEMPO" ? "TEMPO" : unidadeDe.get(h.chave) ?? "MULTIPLO")}
                         {" "}a partir de {formatDate(h.vigente_desde)} · {h.criado_por ?? "Sistema"} em {formatDateTime(h.criado_em)}
                         {h.motivo ? ` · ${h.motivo}` : ""}
                       </span>
@@ -366,6 +439,21 @@ export function LmsConfiguracaoPage() {
             </div>
           </details>
         </>
+      )}
+
+      {config && (
+        <EditarFaixasDialog
+          aberto={editandoFaixas}
+          nivelTela={nivelTela}
+          atual={config.faixas.efetivo.lista}
+          herdado={config.faixas.herdado}
+          temProprio={config.faixas.efetivo.nivel === nivelTela}
+          hoje={config.hoje}
+          podeRetroativo={config.pode_reprocessar}
+          salvando={salvando}
+          onCancelar={() => setEditandoFaixas(false)}
+          onSalvar={salvarFaixas}
+        />
       )}
 
       {config && (

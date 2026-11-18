@@ -11,20 +11,13 @@ import {
   corFaixaPerformance,
   type ScorecardOperador,
 } from "@/pages/dashboard/dashboard.service";
+import { PALETA, classificar, type FaixaLms } from "@/modules/lms/faixas";
 
-function faixaPorScore(score: number): string {
-  if (score >= 95) return "EXCELENTE";
-  if (score >= 80) return "BOM";
-  if (score >= 60) return "ATENCAO";
-  return "CRITICO";
-}
 
-function corPerformance(pct: number | null): string {
+function corPerformance(pct: number | null, lista?: FaixaLms[]): string {
   if (pct === null || pct === undefined) return "bg-secondary/30 text-muted-foreground border-border/50";
-  if (pct >= 110) return "bg-green-500/15 text-green-400 border-green-500/30";
-  if (pct >= 90) return "bg-blue-500/15 text-blue-400 border-blue-500/30";
-  if (pct >= 70) return "bg-yellow-500/15 text-yellow-400 border-yellow-500/30";
-  return "bg-red-500/15 text-red-400 border-red-500/30";
+  const e = PALETA[classificar(pct, lista).cor];
+  return `${e.fundo} ${e.texto} ${e.borda}`;
 }
 
 function fmtData(d: string) {
@@ -70,7 +63,7 @@ export function ScorecardOperadorPage({
 
   const op = data?.operador;
   const m = data?.metricas_periodo;
-  const faixa = corFaixaPerformance(m?.faixa_performance || "");
+  const faixa = corFaixaPerformance(m?.faixa_performance || "", m?.faixa_cor, m?.faixa_nome);
 
   const evolucao = data?.evolucao_diaria || [];
   const maxScore = Math.max(1, ...evolucao.map((e) => e.score_dia || 0));
@@ -161,7 +154,8 @@ export function ScorecardOperadorPage({
               <div className="overflow-x-auto">
                 <div className="flex items-end gap-2 min-w-max h-44">
                   {evolucao.map((e) => {
-                    const f = corFaixaPerformance(faixaPorScore(e.score_dia || 0));
+                    const fx = classificar(e.score_dia || 0, m?.faixas_lista);
+                    const f = corFaixaPerformance(fx.codigo, fx.cor, fx.nome);
                     const h = Math.max(4, Math.round(((e.score_dia || 0) / maxScore) * 140));
                     return (
                       <div key={e.data} className="flex flex-col items-center justify-end gap-1 w-12">
@@ -211,7 +205,7 @@ export function ScorecardOperadorPage({
                         <td className="px-4 py-3 text-right tabular-nums">{formatarTempoEspera(t.tempo_medio_seg || 0)}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{formatarTempoEspera(t.tempo_estimado_seg || 0)}</td>
                         <td className="px-4 py-3 text-right">
-                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corPerformance(t.performance_pct))}>
+                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corPerformance(t.performance_pct, m?.faixas_lista))}>
                             {t.performance_pct !== null && t.performance_pct !== undefined ? `${t.performance_pct.toFixed(0)}%` : "—"}
                           </span>
                         </td>

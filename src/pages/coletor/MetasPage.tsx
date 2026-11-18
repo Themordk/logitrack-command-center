@@ -10,6 +10,7 @@ import { MetasResumoTab } from "@/pages/coletor/metas/MetasResumoTab";
 import { MetasScoreRing } from "@/pages/coletor/metas/MetasScoreRing";
 import { MetasStreakBadge } from "@/pages/coletor/metas/MetasStreakBadge";
 import { abasDisponiveis, type Tab } from "@/pages/coletor/metas/metasAbas";
+import { estiloFaixa, type FaixaLms } from "@/modules/lms/faixas";
 
 const sb = supabase as any;
 
@@ -18,7 +19,7 @@ type Periodo = "hoje" | "7d" | "30d";
 
 interface MetasData {
   erro?: string;
-  operador: { nome: string; habilidade: string | null; turno: string; faixa_performance: string };
+  operador: { nome: string; habilidade: string | null; turno: string; faixa_performance: string; faixa_nome?: string; faixa_cor?: string };
   indicadores: { eficiencia_pct?: number | null; utilizacao_pct?: number | null; performance_pct?: number | null; origem?: "REAL" | "ESTIMADO"; score_medio: number; total_tarefas: number; taxa_ocupacao: number; produtividade_hora: number; tempo_produtivo: number; tempo_transito: number; tempo_ocioso: number; dias_trabalhados: number };
   ranking: { posicao: number; total_operadores: number; top: Array<{ iniciais: string; score: number; posicao: number; sou_eu: boolean }> } | null;
   streak: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
@@ -26,19 +27,19 @@ interface MetasData {
   detalhamento_tipo: Array<{ tipo: string; codigo: string; tarefas: number; quantidade_total: number; tempo_medio_seg: number; performance_pct: number | null }>;
   variacao_vs_anterior: number | null;
   faixas: { excelente: number; bom: number; atencao: number };
+  faixas_lista?: FaixaLms[];
 }
 
 const PERIODO_LABELS: Record<Periodo, string> = { hoje: "Hoje", "7d": "7 dias", "30d": "30 dias" };
 const TAB_LABELS: Record<Tab, string> = { resumo: "Resumo", ranking: "Ranking", evolucao: "Evolução" };
 
-function faixaColor(faixa: string) {
-  switch (faixa) {
-    case "EXCELENTE": return { bg: "bg-green-500/15", text: "text-green-400", border: "border-green-500/30", ring: "hsl(142 71% 45%)", label: "Excelente" };
-    case "BOM": return { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/30", ring: "hsl(217 91% 60%)", label: "Bom" };
-    case "ATENCAO": return { bg: "bg-yellow-500/15", text: "text-yellow-400", border: "border-yellow-500/30", ring: "hsl(48 96% 53%)", label: "Atenção" };
-    case "CRITICO": return { bg: "bg-red-500/15", text: "text-red-400", border: "border-red-500/30", ring: "hsl(0 84% 60%)", label: "Crítico" };
-    default: return { bg: "bg-[hsl(222,35%,18%)]/50", text: "text-[hsl(213,31%,55%)]", border: "border-[hsl(222,35%,22%)]", ring: "hsl(215 16% 47%)", label: "Sem dados" };
+// Fase 7.5: nome e cor da faixa vêm do conjunto configurado no LMS
+function faixaColor(faixa: string, cor?: string | null, nome?: string | null) {
+  if (!faixa || faixa === "SEM_DADOS") {
+    return { bg: "bg-[hsl(222,35%,18%)]/50", text: "text-[hsl(213,31%,55%)]", border: "border-[hsl(222,35%,22%)]", ring: "hsl(215 16% 47%)", label: "Sem dados" };
   }
+  const e = estiloFaixa(faixa, cor, nome);
+  return { bg: e.fundo, text: e.texto, border: e.borda, ring: e.hex, label: e.nome };
 }
 
 export function MetasPage({ onNavigate }: Props) {
@@ -78,7 +79,7 @@ export function MetasPage({ onNavigate }: Props) {
   // Fase 6 (decisão 5): o operador vê só os próprios números; o banco só manda ranking para quem gere a equipe.
   const abas = abasDisponiveis(Boolean(data?.ranking));
   const variacao = data?.variacao_vs_anterior;
-  const faixa = faixaColor(data?.operador?.faixa_performance || "");
+  const faixa = faixaColor(data?.operador?.faixa_performance || "", data?.operador?.faixa_cor, data?.operador?.faixa_nome);
 
   return (
     <ColetorLayout title="Metas & Resultados" onNavigate={onNavigate} showBack backPath="/coletor/home">
@@ -146,9 +147,9 @@ export function MetasPage({ onNavigate }: Props) {
             ))}
           </div>
 
-          {tab === "resumo" && <MetasResumoTab indicadores={ind} detalhamento={data.detalhamento_tipo || []} faixas={data.faixas} />}
-          {tab === "ranking" && data.ranking && <MetasRankingTab ranking={data.ranking} faixas={data.faixas} />}
-          {tab === "evolucao" && <MetasEvolucaoTab evolucao={data.evolucao || []} faixas={data.faixas} />}
+          {tab === "resumo" && <MetasResumoTab indicadores={ind} detalhamento={data.detalhamento_tipo || []} faixas={data.faixas} lista={data.faixas_lista} />}
+          {tab === "ranking" && data.ranking && <MetasRankingTab ranking={data.ranking} faixas={data.faixas} lista={data.faixas_lista} />}
+          {tab === "evolucao" && <MetasEvolucaoTab evolucao={data.evolucao || []} faixas={data.faixas} lista={data.faixas_lista} />}
         </div>
       )}
     </ColetorLayout>

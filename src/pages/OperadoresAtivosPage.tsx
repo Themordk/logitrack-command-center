@@ -49,6 +49,8 @@ interface OperadorAtivo {
   // LMS
   score_dia: number;
   faixa_performance: string;
+  faixa_nome?: string;
+  faixa_cor?: string;
   taxa_ocupacao: number;
   produtividade_hora: number;
   lms_faixa_excelente_pct: number;
@@ -313,7 +315,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                       {/* ── COL 3: Score LMS ── */}
                       <td className="px-4 py-3 text-right tabular-nums">
                         {o.score_dia > 0 ? (
-                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corFaixaPerformance(o.faixa_performance).bg, corFaixaPerformance(o.faixa_performance).text, corFaixaPerformance(o.faixa_performance).border)}>
+                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corFaixaPerformance(o.faixa_performance, o.faixa_cor, o.faixa_nome).bg, corFaixaPerformance(o.faixa_performance, o.faixa_cor, o.faixa_nome).text, corFaixaPerformance(o.faixa_performance, o.faixa_cor, o.faixa_nome).border)}>
                             {o.score_dia.toFixed(0)}%
                           </span>
                         ) : (

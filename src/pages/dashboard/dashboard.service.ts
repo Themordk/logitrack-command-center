@@ -1,3 +1,4 @@
+import { estiloFaixa, type FaixaLms } from "@/modules/lms/faixas";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface DashboardFilters {
@@ -63,6 +64,8 @@ export interface KpisResult {
       atencao: number;
       critico: number;
     };
+    /** Fase 7.5: contagem por faixa configurada */
+    faixas_distribuicao?: Array<{ codigo: string; nome: string; cor: string; quantidade: number }>;
   };
   // Novas seções da Torre de Controle reestruturada
   taxa_corte: {
@@ -107,7 +110,9 @@ export interface OperadorRanking {
   tempo_medio_seg: number;
   // Novos campos LMS:
   score_composto: number;
-  faixa_performance: string; // "EXCELENTE" | "BOM" | "ATENCAO" | "CRITICO"
+  faixa_performance: string; // código da faixa (padrão: EXCELENTE | BOM | ATENCAO | CRITICO)
+  faixa_nome?: string;
+  faixa_cor?: string;
   quantidade_total: number;
   score_tendencia_5d: number;
   tendencia: string; // "SUBINDO" | "ESTAVEL" | "CAINDO" | "SEM_HISTORICO"
@@ -157,6 +162,9 @@ export interface ScorecardOperador {
     tempo_ocioso_total: number;
     dias_trabalhados: number;
     faixa_performance: string;
+    faixa_nome?: string;
+    faixa_cor?: string;
+    faixas_lista?: FaixaLms[];
   };
   detalhamento_tipo: Array<{
     tipo_tarefa_codigo: string;
@@ -273,14 +281,13 @@ export function formatarTempoEspera(segundos: number): string {
 }
 
 // ── Helper: cor da faixa de performance LMS ──
-export function corFaixaPerformance(faixa: string): { bg: string; text: string; border: string; label: string } {
-  switch (faixa) {
-    case "EXCELENTE": return { bg: "bg-green-500/15", text: "text-green-400", border: "border-green-500/30", label: "Excelente" };
-    case "BOM":       return { bg: "bg-blue-500/15",  text: "text-blue-400",  border: "border-blue-500/30",  label: "Bom" };
-    case "ATENCAO":   return { bg: "bg-yellow-500/15", text: "text-yellow-400", border: "border-yellow-500/30", label: "Atenção" };
-    case "CRITICO":   return { bg: "bg-red-500/15",   text: "text-red-400",   border: "border-red-500/30",   label: "Crítico" };
-    default:          return { bg: "bg-secondary/30",  text: "text-muted-foreground", border: "border-border/50", label: "Sem dados" };
+// Fase 7.5: faixas configuráveis — o banco manda código, nome e cor; sem cor/nome, cai no legado.
+export function corFaixaPerformance(faixa: string, cor?: string | null, nome?: string | null): { bg: string; text: string; border: string; label: string } {
+  if (!faixa || faixa === "SEM_DADOS") {
+    return { bg: "bg-secondary/30", text: "text-muted-foreground", border: "border-border/50", label: "Sem dados" };
   }
+  const e = estiloFaixa(faixa, cor, nome);
+  return { bg: e.fundo, text: e.texto, border: e.borda, label: e.nome };
 }
 
 export function iconeTendencia(tendencia: string): { icon: string; color: string } {

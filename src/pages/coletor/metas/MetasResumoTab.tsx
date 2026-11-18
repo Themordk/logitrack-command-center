@@ -1,3 +1,4 @@
+import { PALETA, classificar, type FaixaLms } from "@/modules/lms/faixas";
 interface Indicadores {
   tempo_produtivo: number;
   tempo_transito: number;
@@ -18,6 +19,7 @@ interface Props {
   indicadores: Indicadores;
   detalhamento: DetalheTipo[];
   faixas: { excelente: number; bom: number; atencao: number };
+  lista?: FaixaLms[];
 }
 
 function formatTempo(seg: number): string {
@@ -27,15 +29,13 @@ function formatTempo(seg: number): string {
   return h > 0 ? `${h}h ${m}min` : `${m}min`;
 }
 
-function perfColor(pct: number | null, faixas: Props["faixas"]): string {
+function perfColor(pct: number | null, lista?: FaixaLms[]): string {
   if (pct === null || pct === undefined) return "bg-[hsl(222,35%,18%)] text-[hsl(213,31%,55%)]";
-  if (pct >= faixas.excelente) return "bg-green-500/15 text-green-400";
-  if (pct >= faixas.bom) return "bg-blue-500/15 text-blue-400";
-  if (pct >= faixas.atencao) return "bg-yellow-500/15 text-yellow-400";
-  return "bg-red-500/15 text-red-400";
+  const e = PALETA[classificar(pct, lista).cor];
+  return `${e.fundo} ${e.texto}`;
 }
 
-export function MetasResumoTab({ indicadores, detalhamento, faixas }: Props) {
+export function MetasResumoTab({ indicadores, detalhamento, lista }: Props) {
   const total = indicadores.tempo_produtivo + indicadores.tempo_transito + indicadores.tempo_ocioso;
   const pct = (value: number) => (total > 0 ? (value / total) * 100 : 0);
   const tempos = [
@@ -80,7 +80,7 @@ export function MetasResumoTab({ indicadores, detalhamento, faixas }: Props) {
                     {item.tarefas} tarefas · {item.quantidade_total} un · {formatTempo(item.tempo_medio_seg)} médio
                   </p>
                 </div>
-                <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-bold tabular-nums ${perfColor(item.performance_pct, faixas)}`}>
+                <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-bold tabular-nums ${perfColor(item.performance_pct, lista)}`}>
                   {item.performance_pct === null ? "—" : `${item.performance_pct.toFixed(0)}%`}
                 </span>
               </div>

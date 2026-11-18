@@ -10,6 +10,8 @@ interface Operador {
   tempo_medio_seg?: number;
   score_composto?: number;
   faixa_performance?: string;
+  faixa_nome?: string;
+  faixa_cor?: string;
   tendencia?: string;
   score_tendencia_5d?: number;
   eficiencia_pct?: number | null;
@@ -82,8 +84,8 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium truncate">{op.nome}</p>
                     {op.faixa_performance && (
-                      <span className={cn("inline-flex items-center px-1.5 py-px rounded-full text-[10px] border shrink-0", corFaixaPerformance(op.faixa_performance).bg, corFaixaPerformance(op.faixa_performance).text, corFaixaPerformance(op.faixa_performance).border)}>
-                        {corFaixaPerformance(op.faixa_performance).label}
+                      <span className={cn("inline-flex items-center px-1.5 py-px rounded-full text-[10px] border shrink-0", corFaixaPerformance(op.faixa_performance, op.faixa_cor, op.faixa_nome).bg, corFaixaPerformance(op.faixa_performance, op.faixa_cor, op.faixa_nome).text, corFaixaPerformance(op.faixa_performance, op.faixa_cor, op.faixa_nome).border)}>
+                        {corFaixaPerformance(op.faixa_performance, op.faixa_cor, op.faixa_nome).label}
                       </span>
                     )}
                   </div>

@@ -1,3 +1,4 @@
+import { FAIXAS_PADRAO, type FaixasArmazem } from "./produtividadeCalculo";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
 import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
@@ -243,15 +244,16 @@ export async function fetchLmsMetricas<L = LmsLinha>(
 export async function fetchFaixasArmazem(
   tenantId: string,
   armazemId: string | null,
-): Promise<{ excelente: number; bom: number; atencao: number }> {
-  // Fase 7: faixas vêm da cascata do LMS (armazém → empresa → padrão do sistema)
-  const padrao = { excelente: 110, bom: 90, atencao: 70 };
+): Promise<FaixasArmazem> {
+  // Fase 7/7.5: faixas vêm da cascata do LMS (armazém → empresa → padrão do sistema)
+  const padrao = FAIXAS_PADRAO;
   const { data, error } = await sb.rpc("rpc_lms_faixas", { p_tenant_id: tenantId, p_armazem_id: armazemId });
   if (error || !data?.sucesso) return padrao;
   return {
     excelente: Number(data.excelente ?? padrao.excelente),
     bom: Number(data.bom ?? padrao.bom),
     atencao: Number(data.atencao ?? padrao.atencao),
+    lista: Array.isArray(data.lista) && data.lista.length > 0 ? data.lista : padrao.lista,
   };
 }
 
