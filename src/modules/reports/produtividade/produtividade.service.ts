@@ -244,21 +244,14 @@ export async function fetchFaixasArmazem(
   tenantId: string,
   armazemId: string | null,
 ): Promise<{ excelente: number; bom: number; atencao: number }> {
+  // Fase 7: faixas vêm da cascata do LMS (armazém → empresa → padrão do sistema)
   const padrao = { excelente: 110, bom: 90, atencao: 70 };
-  if (!armazemId) return padrao;
-  const { data } = await sb
-    .from("armazem_config")
-    .select("lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct")
-    .eq("tenant_id", tenantId)
-    .eq("armazem_id", armazemId)
-    .eq("ativo", true)
-    .limit(1)
-    .maybeSingle();
-  if (!data) return padrao;
+  const { data, error } = await sb.rpc("rpc_lms_faixas", { p_tenant_id: tenantId, p_armazem_id: armazemId });
+  if (error || !data?.sucesso) return padrao;
   return {
-    excelente: Number(data.lms_faixa_excelente_pct ?? 110),
-    bom: Number(data.lms_faixa_bom_pct ?? 90),
-    atencao: Number(data.lms_faixa_atencao_pct ?? 70),
+    excelente: Number(data.excelente ?? padrao.excelente),
+    bom: Number(data.bom ?? padrao.bom),
+    atencao: Number(data.atencao ?? padrao.atencao),
   };
 }
 

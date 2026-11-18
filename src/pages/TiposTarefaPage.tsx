@@ -117,10 +117,6 @@ export function TiposTarefaPage() {
       render: (r) => <span className="text-sm text-muted-foreground">{tipoMovLabel(r.tipo_movimento)}</span>,
     },
     {
-      key: "tempo_estimado_segundos", label: "SET (s)",
-      render: (r) => <span className="text-sm text-muted-foreground">{r.tempo_estimado_segundos ?? "—"}</span>,
-    },
-    {
       key: "meta_unidades_hora", label: "Meta un./hora",
       render: (r) => (
         <span className="text-sm text-muted-foreground">
@@ -223,7 +219,6 @@ function TipoTarefaEditModal({
       categoria: form.categoria || null,
       tipo_movimento: form.tipo_movimento ? Number(form.tipo_movimento) : null,
       ativo: form.ativo !== false,
-      tempo_estimado_segundos: form.tempo_estimado_segundos === null || form.tempo_estimado_segundos === undefined || form.tempo_estimado_segundos === ("" as any) ? null : Number(form.tempo_estimado_segundos),
       meta_unidades_hora: form.meta_unidades_hora === null || form.meta_unidades_hora === undefined || form.meta_unidades_hora === ("" as any) ? null : Number(form.meta_unidades_hora),
       meta_tarefas_hora: form.meta_tarefas_hora === null || form.meta_tarefas_hora === undefined || form.meta_tarefas_hora === ("" as any) ? null : Number(form.meta_tarefas_hora),
       unidade_medida: form.unidade_medida || null,
@@ -296,15 +291,10 @@ function TipoTarefaEditModal({
             <h3 className={sectionTitle}>Parâmetros de produtividade (LMS)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Tempo estimado (segundos)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.tempo_estimado_segundos ?? ""}
-                  onChange={(e) => set("tempo_estimado_segundos", e.target.value)}
-                  placeholder="Ex: 120"
-                  className={inputClass}
-                />
+                <label className={labelClass}>Tempo padrão</label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Definido em Produtividade (LMS) › Configurações, por empresa e armazém, com data de vigência.
+                </p>
               </div>
               <div>
                 <label className={labelClass}>Meta de unidades/hora</label>
