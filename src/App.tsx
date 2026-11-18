@@ -83,6 +83,8 @@ import { ProdutosMapeadosReportPage } from "./modules/reports/produtos-mapeados/
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 import { TarefasColaboradorPage } from "./modules/reports/produtividade/TarefasColaboradorPage";
+import { LmsModuloPage } from "./modules/lms/LmsModuloPage";
+import { LmsGate } from "./modules/lms/LmsGate";
 import { CortesReportPage } from "./modules/reports/cortes/CortesReportPage";
 import { CurvaAbcReportPage } from "./modules/reports/curva-abc/CurvaAbcReportPage";
 import { ValidadeLoteReportPage } from "./modules/reports/validade-lote/ValidadeLoteReportPage";
@@ -237,6 +239,9 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
   "/relatorios/produtos-mapeados": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtos Mapeados em Picking" }],
   "/relatorios/produtividade": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtividade Operacional" }],
+  "/lms/acompanhamento": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Acompanhamento" }],
+  "/lms/metas": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Metas" }],
+  "/lms/configuracao": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Configurações" }],
   "/relatorios/cortes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cortes de Separação" }],
   "/relatorios/curva-abc": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Curva ABC" }],
   "/relatorios/validade-lote": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Validade & Lote" }],
@@ -387,6 +392,9 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
     case "/relatorios/produtos-mapeados": return <ProdutosMapeadosReportPage onNavigate={onNavigate} />;
     case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
+    case "/lms/acompanhamento": return <LmsModuloPage area="acompanhamento" onNavigate={onNavigate} />;
+    case "/lms/metas": return <LmsModuloPage area="metas" onNavigate={onNavigate} />;
+    case "/lms/configuracao": return <LmsModuloPage area="configuracao" onNavigate={onNavigate} />;
     case "/relatorios/cortes": return <CortesReportPage />;
     case "/relatorios/curva-abc": return <CurvaAbcReportPage />;
     case "/relatorios/validade-lote": return <ValidadeLoteReportPage />;
@@ -522,7 +530,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/mapear-picking": return <MapearPickingPage onNavigate={onNavigate} />;
     
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
-    case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
+    case "/coletor/metas": return <LmsGate area="coletor" onNavigate={onNavigate} voltarPara="/coletor/home"><MetasPage onNavigate={onNavigate} /></LmsGate>;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
     case "/coletor/offline-status": return (
       <Suspense fallback={null}>

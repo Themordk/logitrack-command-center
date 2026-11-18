@@ -23,6 +23,7 @@ import {
   MapPin,
   Boxes,
   LayoutDashboard,
+  Gauge,
   
   LogOut,
 } from "lucide-react";
@@ -103,6 +104,15 @@ const navItems: NavItem[] = [
       { label: "Tempo de Ciclo de Pedido", path: "/relatorios/ciclo-pedido" },
       { label: "Cancelamentos de Tarefas", path: "/relatorios/cancelamentos" },
       { label: "Documentos Cancelados", path: "/relatorios/documentos-cancelados" },
+    ],
+  },
+  {
+    label: "Produtividade (LMS)",
+    icon: <Gauge size={15} />,
+    children: [
+      { label: "Acompanhamento", path: "/lms/acompanhamento" },
+      { label: "Metas", path: "/lms/metas" },
+      { label: "Configurações", path: "/lms/configuracao" },
     ],
   },
   {

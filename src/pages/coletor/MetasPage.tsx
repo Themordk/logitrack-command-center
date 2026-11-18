@@ -9,12 +9,12 @@ import { MetasRankingTab } from "@/pages/coletor/metas/MetasRankingTab";
 import { MetasResumoTab } from "@/pages/coletor/metas/MetasResumoTab";
 import { MetasScoreRing } from "@/pages/coletor/metas/MetasScoreRing";
 import { MetasStreakBadge } from "@/pages/coletor/metas/MetasStreakBadge";
+import { abasDisponiveis, type Tab } from "@/pages/coletor/metas/metasAbas";
 
 const sb = supabase as any;
 
 interface Props { onNavigate: (path: string) => void; }
 type Periodo = "hoje" | "7d" | "30d";
-type Tab = "resumo" | "ranking" | "evolucao";
 
 interface MetasData {
   erro?: string;
@@ -75,6 +75,8 @@ export function MetasPage({ onNavigate }: Props) {
   useEffect(() => { carregar(); }, [carregar]);
 
   const ind = data?.indicadores;
+  // Fase 6 (decisão 5): o operador vê só os próprios números; o banco só manda ranking para quem gere a equipe.
+  const abas = abasDisponiveis(Boolean(data?.ranking));
   const variacao = data?.variacao_vs_anterior;
   const faixa = faixaColor(data?.operador?.faixa_performance || "");
 
@@ -129,11 +131,15 @@ export function MetasPage({ onNavigate }: Props) {
             <MetasKpiCard label="Tarefas" value={String(ind.total_tarefas || 0)} subtitle="concluídas no período" icon="tasks" />
             <MetasKpiCard label="Utilização" value={`${(ind.taxa_ocupacao || 0).toFixed(0)}%`} subtitle="tempo em tarefa" icon="clock" />
             <MetasKpiCard label="Eficiência" value={ind.eficiencia_pct != null ? `${Number(ind.eficiencia_pct).toFixed(0)}%` : "—"} subtitle="horas-padrão ÷ tempo disponível" icon="speed" />
-            <MetasKpiCard label="Na equipe" value={data.ranking?.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={data.ranking ? `entre ${data.ranking.total_operadores} · eficiência` : "sem ranking"} icon="trophy" />
+            {data.ranking ? (
+              <MetasKpiCard label="Na equipe" value={data.ranking.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={`entre ${data.ranking.total_operadores} · eficiência`} icon="trophy" />
+            ) : (
+              <MetasKpiCard label="Performance" value={ind.performance_pct != null ? `${Number(ind.performance_pct).toFixed(0)}%` : "—"} subtitle="horas-padrão ÷ tempo em tarefa" icon="trophy" />
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-1 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-1" role="tablist">
-            {(Object.keys(TAB_LABELS) as Tab[]).map((item) => (
+          <div className={`grid ${abas.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-1 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-1`} role="tablist">
+            {abas.map((item) => (
               <Button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)} className={`h-9 rounded-lg px-1 text-xs font-semibold ${tab === item ? "bg-[hsl(222,40%,18%)] text-white hover:bg-[hsl(222,40%,18%)]" : "bg-transparent text-[hsl(213,31%,55%)] hover:bg-transparent"}`}>
                 {TAB_LABELS[item]}
               </Button>
@@ -141,7 +147,7 @@ export function MetasPage({ onNavigate }: Props) {
           </div>
 
           {tab === "resumo" && <MetasResumoTab indicadores={ind} detalhamento={data.detalhamento_tipo || []} faixas={data.faixas} />}
-          {tab === "ranking" && <MetasRankingTab ranking={data.ranking} faixas={data.faixas} />}
+          {tab === "ranking" && data.ranking && <MetasRankingTab ranking={data.ranking} faixas={data.faixas} />}
           {tab === "evolucao" && <MetasEvolucaoTab evolucao={data.evolucao || []} faixas={data.faixas} />}
         </div>
       )}

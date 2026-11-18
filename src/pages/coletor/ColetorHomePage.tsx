@@ -44,6 +44,9 @@ export function ColetorHomePage({ onNavigate }: Props) {
   const empresaId = localStorage.getItem("core_empresa_id");
   const armazemId = localStorage.getItem("core_armazem_id");
 
+  // Módulo LMS (Fase 6): a tela de metas do coletor depende de coletor.lms.metas
+  const podeVerMetas = can("coletor.lms.metas", "READ");
+
   // Filter modules by permission
   const allowedModules = modules.filter(
     (m) => !m.permModulo || can(m.permModulo, "READ") || can(m.permModulo, "EXECUTE")
@@ -143,13 +146,13 @@ export function ColetorHomePage({ onNavigate }: Props) {
             <Search size={22} className="text-[hsl(217,91%,60%)]" />
             <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Consultas</span>
           </button>
-          <button
+          {podeVerMetas && <button
             onClick={() => onNavigate("/coletor/metas")}
             className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
           >
             <BarChart3 size={22} className="text-[hsl(280,70%,55%)]" />
             <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Metas</span>
-          </button>
+          </button>}
           <button
             onClick={() => onNavigate("/coletor/configuracoes")}
             className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"

@@ -49,6 +49,9 @@ const routeToModuleMap: Record<string, string> = {
   "/relatorios/recebimento": "web.relatorios.recebimento",
   "/relatorios/ciclo-pedido": "web.relatorios.ciclo-pedido",
   "/relatorios/cancelamentos": "web.relatorios.cancelamentos",
+  "/lms/acompanhamento": "web.lms.acompanhamento",
+  "/lms/metas": "web.lms.metas",
+  "/lms/configuracao": "web.lms.configuracao",
   "/config/empresas": "web.config.empresas",
   "/config/usuarios": "web.config.usuarios",
   "/config/integracao": "web.config.integracao",
@@ -69,6 +72,7 @@ const coletorModuleMap: Record<string, string> = {
   "/coletor/embarque/carga": "coletor.embarque",
   "/coletor/inventario": "coletor.inventario",
   "/coletor/consulta": "coletor.consulta",
+  "/coletor/metas": "coletor.lms.metas",
 };
 
 export function getModuleForRoute(path: string): string | null {
