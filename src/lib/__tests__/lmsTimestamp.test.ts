@@ -5,7 +5,7 @@ const enqueueAction = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
 vi.mock("@/lib/offlineStore", () => ({ enqueueAction: (...a: unknown[]) => enqueueAction(...a) }));
 
-import { iniciarContexto, iniciarHU, iniciarTarefas, limparInicioRecentes, markTarefaIniciadaByTarefa } from "../lmsTimestamp";
+import { assumirTarefas, iniciarContexto, iniciarHU, iniciarTarefas, limparInicioRecentes, markTarefaIniciadaByTarefa } from "../lmsTimestamp";
 
 const online = (v: boolean) => Object.defineProperty(window.navigator, "onLine", { value: v, configurable: true });
 
@@ -64,6 +64,14 @@ describe("lmsTimestamp — início real no servidor (Fase 2)", () => {
     const [nome, params] = rpc.mock.calls[0];
     expect(nome).toBe("rpc_contexto_iniciar");
     expect(params).toMatchObject({ p_tenant_id: "tenant-1", p_contexto_tipo: "TRANSFERENCIA", p_contexto_chave: "end-1" });
+  });
+
+  it("assumir na lista grava a atribuição com o horário da escolha", async () => {
+    await assumirTarefas(["t7"]);
+    const [nome, params] = rpc.mock.calls[0];
+    expect(nome).toBe("rpc_tarefa_assumir");
+    expect(params.p_tarefa_ids).toEqual(["t7"]);
+    expect(params.p_ocorrido_em).toBeTruthy();
   });
 
   it("início por HU delega ao servidor", async () => {

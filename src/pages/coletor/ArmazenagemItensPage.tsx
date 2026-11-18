@@ -30,6 +30,7 @@ import { QtdEmCaixa } from "@/components/coletor/QtdEmCaixa";
 import { EtapaIndicador } from "@/components/coletor/EtapaIndicador";
 import * as OfflineStore from "@/lib/offlineStore";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
+import { assumirTarefas } from "@/lib/lmsTimestamp";
 
 interface HUInfo { hu_id: string; codigo_hu: string; tipo_hu: string; tamanho: string; }
 
@@ -197,6 +198,8 @@ export function ArmazenagemItensPage({ onNavigate, origem = "ENTRADA" }: Props) 
 
   const handleSelectItem = (item: ItemArmazenagem, conferencia: ConferenciaLista | null = null) => {
     sessionStorage.setItem("coletor_armazenagem_tarefa_id", item.tarefa_id);
+    // LMS (Fase 2): escolher o item na lista é a atribuição (o início vem no bipe da origem)
+    void assumirTarefas([item.tarefa_id]);
     sessionStorage.setItem("coletor_armazenagem_produto_id", item.produto_id);
     sessionStorage.setItem("coletor_armazenagem_produto_desc", item.descricao);
     sessionStorage.setItem("coletor_armazenagem_produto_sku", item.sku || "");

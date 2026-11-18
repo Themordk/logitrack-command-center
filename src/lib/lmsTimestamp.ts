@@ -99,6 +99,24 @@ export async function iniciarContexto(
   });
 }
 
+/**
+ * Autoatendimento: o operador escolheu a tarefa na lista — grava a atribuição (espera = início − escolha).
+ * Vai com o horário da escolha, para a fila offline não criar a atribuição depois do bipe de início.
+ */
+export async function assumirTarefas(
+  tarefaIds: Array<string | null | undefined>,
+  usuarioId?: string | null,
+): Promise<void> {
+  const ids = [...new Set(tarefaIds.filter((id): id is string => !!id))];
+  if (ids.length === 0) return;
+  if (jaEnviado(`a:${ids.slice().sort().join(",")}`)) return;
+  await enviar("rpc_tarefa_assumir", {
+    p_tarefa_ids: ids,
+    p_usuario_id: usuarioId || sessao().usuarioId || null,
+    p_ocorrido_em: new Date().toISOString(),
+  });
+}
+
 /** Armazenagem por HU: o servidor resolve as tarefas da HU (HU mista = mesmo início para todas). */
 export async function iniciarHU(huId: string | null | undefined): Promise<void> {
   if (!huId) return;
