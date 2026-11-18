@@ -78,6 +78,24 @@ describe("Fase 7.5 · editor de faixas", () => {
     fireEvent.change(screen.getByLabelText("Nome da faixa 5"), { target: { value: "Elite" } });
     fireEvent.change(screen.getByLabelText("A partir de (faixa 5)"), { target: { value: "130" } });
     expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
-    expect(screen.getByLabelText("Prévia da classificação")).toHaveTextContent("130% → Elite");
+    const previa = screen.getByLabelText("Prévia da classificação");
+    expect(previa).toHaveTextContent("Elite ≥ 130%");
+    expect(previa).toHaveTextContent("Crítico < 70%");
+  });
+
+  it("prévia mostra todas as faixas, inclusive as mais baixas", () => {
+    const seisFaixas = [
+      { ordem: 1, codigo: "A", nome: "Excelente", cor: "verde" as const, a_partir_de_pct: 110, eh_meta: false },
+      { ordem: 2, codigo: "B", nome: "Bom", cor: "azul" as const, a_partir_de_pct: 90, eh_meta: true },
+      { ordem: 3, codigo: "C", nome: "Atenção", cor: "ciano" as const, a_partir_de_pct: 70, eh_meta: false },
+      { ordem: 4, codigo: "D", nome: "Crítico", cor: "roxo" as const, a_partir_de_pct: 60, eh_meta: false },
+      { ordem: 5, codigo: "E", nome: "Ruim", cor: "amarelo" as const, a_partir_de_pct: 50, eh_meta: false },
+      { ordem: 6, codigo: "F", nome: "Teste", cor: "laranja" as const, a_partir_de_pct: 0, eh_meta: false },
+    ];
+    render(<EditarFaixasDialog {...props} atual={seisFaixas} onSalvar={() => {}} />);
+    const previa = screen.getByLabelText("Prévia da classificação");
+    expect(previa).toHaveTextContent("Ruim 50–60%");
+    expect(previa).toHaveTextContent("Teste < 50%");
+    expect(previa.querySelectorAll("span.rounded-full")).toHaveLength(6);
   });
 });

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dateTime";
-import { CORES, PALETA, classificar, type CorFaixa, type FaixaLms } from "../faixas";
+import { CORES, PALETA, intervalos, type CorFaixa, type FaixaLms } from "../faixas";
 import { ehRetroativa, validarFaixas, type FaixaEntrada, type NivelRegra } from "./lmsConfig.service";
 
 interface Linha extends FaixaEntrada { chave: number }
@@ -65,9 +65,10 @@ export function EditarFaixasDialog({
     return validarFaixas(entradas);
   }, [vigencia, minData, podeRetroativo, retro, motivo, herdar, entradas]);
 
+  // Prévia: uma etiqueta por faixa, com o intervalo que ela cobre (todas aparecem, inclusive as mais baixas)
   const previa = useMemo(() => {
-    const lista: FaixaLms[] = entradas.map((f, i) => ({ ...f, ordem: i + 1, codigo: f.nome }));
-    return [130, 105, 95, 80, 60].map((pct) => ({ pct, faixa: classificar(pct, lista) }));
+    const lista: FaixaLms[] = entradas.map((f, i) => ({ ...f, ordem: i + 1, codigo: `${i}` }));
+    return intervalos(lista);
   }, [entradas]);
 
   function alterar(chave: number, campo: Partial<FaixaEntrada>) {
@@ -168,9 +169,10 @@ export function EditarFaixasDialog({
               {!validarFaixas(entradas) && (
                 <div className="flex flex-wrap gap-1.5 text-xs" aria-label="Prévia da classificação">
                   <span className="text-muted-foreground">Prévia:</span>
-                  {previa.map(({ pct, faixa }) => (
-                    <span key={pct} className={cn("rounded-full border px-2 py-0.5", PALETA[faixa.cor].fundo, PALETA[faixa.cor].texto, PALETA[faixa.cor].borda)}>
-                      {pct}% → {faixa.nome}
+                  {previa.map(({ faixa, texto }) => (
+                    <span key={faixa.codigo} className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5", PALETA[faixa.cor].fundo, PALETA[faixa.cor].texto, PALETA[faixa.cor].borda)}>
+                      {faixa.eh_meta && <Star size={10} fill="currentColor" aria-label="meta" />}
+                      {faixa.nome} {texto}
                     </span>
                   ))}
                 </div>
