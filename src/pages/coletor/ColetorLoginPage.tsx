@@ -12,6 +12,7 @@ import { ForcePasswordChangeModal } from "@/components/ForcePasswordChangeModal"
 import { useTenant } from "@/contexts/TenantContext";
 import { useTenantBoot } from "@/contexts/TenantBootContext";
 import logoUrl from "@/assets/corelogitrack-logo.png";
+import { abrirSessaoColetor } from "@/lib/sessaoColetor";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -117,14 +118,8 @@ export function ColetorLoginPage({ onNavigate }: Props) {
     localStorage.setItem("core_usuario_nome", usuario.nome);
     syncTenantSession(usuario.tipo_usuario || "");
 
-    const { data: sessao } = await (supabase as any).from("log_sessao_usuario").insert({
-      tenant_id: usuario.tenant_id,
-      usuario_id: usuario.id,
-      inicio_sessao: new Date().toISOString(),
-      ultimo_heartbeat: new Date().toISOString(),
-    }).select("id").single();
-
-    if (sessao?.id) localStorage.setItem("coletor_session_id", sessao.id);
+    // LMS (Fase 3.1): uma sessão ativa por operador, aberta pelo servidor
+    await abrirSessaoColetor(usuario.tenant_id, usuario.id);
 
     toast.success(`Bem-vindo, ${usuario.nome}!`);
     onNavigate("/coletor/home");

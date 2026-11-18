@@ -6,6 +6,7 @@ import { OcorrenciaFAB } from "@/components/ocorrencia/OcorrenciaFAB";
 import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
 
 import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
+import { encerrarSessaoColetor, heartbeatSessaoColetor } from "@/lib/sessaoColetor";
 
 
 interface ColetorLayoutProps {
@@ -29,8 +30,9 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
     const sid = sessionIdRef.current;
     if (!sid) return;
     const iv = setInterval(async () => {
-      if (!onlineRef.current) return;
-      await (supabase as any).from("log_sessao_usuario").update({ ultimo_heartbeat: new Date().toISOString() }).eq("id", sid);
+      if (!onlineRef.current || !sessionIdRef.current) return;
+      // LMS (Fase 3.1): heartbeat pelo servidor; se a sessão tiver sido encerrada, continua numa nova
+      sessionIdRef.current = await heartbeatSessaoColetor(sessionIdRef.current);
     }, 30000);
     return () => clearInterval(iv);
   }, []);
@@ -38,10 +40,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
 
   const handleLogout = async () => {
     const sid = sessionIdRef.current;
-    if (sid) {
-      await (supabase as any).from("log_sessao_usuario").update({ fim_sessao: new Date().toISOString() }).eq("id", sid);
-      localStorage.removeItem("coletor_session_id");
-    }
+    if (sid) await encerrarSessaoColetor(sid);
     await supabase.auth.signOut();
     localStorage.removeItem("core_tenant_id");
     localStorage.removeItem("core_empresa_id");
