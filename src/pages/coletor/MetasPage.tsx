@@ -19,7 +19,7 @@ type Tab = "resumo" | "ranking" | "evolucao";
 interface MetasData {
   erro?: string;
   operador: { nome: string; habilidade: string | null; turno: string; faixa_performance: string };
-  indicadores: { score_medio: number; total_tarefas: number; taxa_ocupacao: number; produtividade_hora: number; tempo_produtivo: number; tempo_transito: number; tempo_ocioso: number; dias_trabalhados: number };
+  indicadores: { eficiencia_pct?: number | null; utilizacao_pct?: number | null; performance_pct?: number | null; origem?: "REAL" | "ESTIMADO"; score_medio: number; total_tarefas: number; taxa_ocupacao: number; produtividade_hora: number; tempo_produtivo: number; tempo_transito: number; tempo_ocioso: number; dias_trabalhados: number };
   ranking: { posicao: number; total_operadores: number; top: Array<{ iniciais: string; score: number; posicao: number; sou_eu: boolean }> } | null;
   streak: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
   evolucao: Array<{ data: string; score: number; tarefas: number; taxa_ocupacao: number }>;
@@ -127,9 +127,9 @@ export function MetasPage({ onNavigate }: Props) {
 
           <div className="grid grid-cols-2 gap-2">
             <MetasKpiCard label="Tarefas" value={String(ind.total_tarefas || 0)} subtitle="concluídas no período" icon="tasks" />
-            <MetasKpiCard label="Ocupação" value={`${(ind.taxa_ocupacao || 0).toFixed(0)}%`} subtitle="tempo em operação" icon="clock" />
-            <MetasKpiCard label="Produtividade" value={(ind.produtividade_hora || 0).toFixed(1)} subtitle="unidades por hora" icon="speed" />
-            <MetasKpiCard label="Na equipe" value={data.ranking?.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={data.ranking ? `entre ${data.ranking.total_operadores}` : "sem ranking"} icon="trophy" />
+            <MetasKpiCard label="Utilização" value={`${(ind.taxa_ocupacao || 0).toFixed(0)}%`} subtitle="tempo em tarefa" icon="clock" />
+            <MetasKpiCard label="Eficiência" value={ind.eficiencia_pct != null ? `${Number(ind.eficiencia_pct).toFixed(0)}%` : "—"} subtitle="horas-padrão ÷ tempo disponível" icon="speed" />
+            <MetasKpiCard label="Na equipe" value={data.ranking?.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={data.ranking ? `entre ${data.ranking.total_operadores} · eficiência` : "sem ranking"} icon="trophy" />
           </div>
 
           <div className="grid grid-cols-3 gap-1 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-1" role="tablist">

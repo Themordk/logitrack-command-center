@@ -50,6 +50,13 @@ export interface KpisResult {
     taxa_ocupacao_media: number;
     produtividade_hora_media: number;
     operadores_avaliados: number;
+    // Fase 4 · fonte única (ponderado; null quando não há tempo)
+    utilizacao_pct?: number | null;
+    performance_pct?: number | null;
+    eficiencia_pct?: number | null;
+    tempo_disponivel?: number;
+    tempo_direto?: number;
+    origem?: "REAL" | "ESTIMADO";
     distribuicao_faixas: {
       excelente: number;
       bom: number;
@@ -104,6 +111,14 @@ export interface OperadorRanking {
   quantidade_total: number;
   score_tendencia_5d: number;
   tendencia: string; // "SUBINDO" | "ESTAVEL" | "CAINDO" | "SEM_HISTORICO"
+  // Fase 4 · fonte única (lms_metrica_diaria v3). score_composto = performance_pct.
+  performance_pct?: number | null;
+  utilizacao_pct?: number | null;
+  eficiencia_pct?: number | null;
+  uph?: number | null;
+  origem?: "REAL" | "ESTIMADO";
+  amostra_suficiente?: boolean;
+  criterio_ordem?: "EFICIENCIA";
 }
 
 export interface ScorecardOperador {
@@ -120,6 +135,15 @@ export interface ScorecardOperador {
     turno_fim: string | null;
   };
   metricas_periodo: {
+    // Fase 4 · fonte única (ponderado)
+    performance_pct?: number | null;
+    utilizacao_pct?: number | null;
+    eficiencia_pct?: number | null;
+    origem?: "REAL" | "ESTIMADO";
+    amostra_suficiente?: boolean;
+    tempo_disponivel_total?: number;
+    tempo_direto_total?: number;
+    tempo_indireto_total?: number;
     score_medio: number;
     taxa_ocupacao_media: number;
     produtividade_hora_media: number;

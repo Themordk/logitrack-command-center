@@ -7,9 +7,13 @@ import { toast } from "sonner";
 import { Loader2, Clock, TrendingUp, CheckCircle, ArrowLeft } from "lucide-react";
 import {
   fetchTimelineOperador,
+  fetchLmsMetricas,
   formatSegundos,
   type TimelineEntry,
+  type LmsLinha,
+  type LmsTipoLinha,
 } from "./produtividade.service";
+import { formatarPct, formatarTempo, tipoDominante } from "./produtividadeCalculo";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
@@ -49,6 +53,9 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   const [operadorNome, setOperadorNome] = useState("");
   const [turnoInfo, setTurnoInfo] = useState<{ descricao: string; inicio: string; fim: string } | null>(null);
   const [generatedAt, setGeneratedAt] = useState("");
+  // Fase 4: números do período vêm da fonte única (rpc_lms_metricas), iguais ao relatório e ao Scorecard
+  const [resumo, setResumo] = useState<LmsLinha | null>(null);
+  const [tipos, setTipos] = useState<LmsTipoLinha[]>([]);
 
   const inicio = dataInicio || dataLocalISO();
   const fim = dataFim || dataLocalISO();
@@ -80,8 +87,18 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         }
       }
 
-      const data = await fetchTimelineOperador(usuarioId, inicio, fim);
+      const filtros = {
+        tenantId: tenantId as string, empresaId: empresaId || null, armazemId: null,
+        dataInicio: inicio, dataFim: fim, usuarioId, turnoId: null,
+      };
+      const [data, op, tp] = await Promise.all([
+        fetchTimelineOperador(usuarioId, inicio, fim),
+        tenantId ? fetchLmsMetricas<LmsLinha>(filtros, "OPERADOR") : Promise.resolve({ linhas: [], total: null }),
+        tenantId ? fetchLmsMetricas<LmsTipoLinha>(filtros, "TIPO") : Promise.resolve({ linhas: [], total: null }),
+      ]);
       setTimeline(data);
+      setResumo(op.linhas.find((l) => l.usuario_id === usuarioId) ?? null);
+      setTipos(tp.linhas);
       setGeneratedAt(nowDisplay());
     } catch (err: any) {
       toast.error((() => { const p = parseError(err, "produtividade-operador-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao carregar dados." : p.title; })());
@@ -92,29 +109,14 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
 
   // Calculate summary
   const concluidas = timeline.filter((t) => t.status === "CONCLUIDA");
-  const tempoProdutivo = concluidas.reduce((s, t) => s + (t.duracao_segundos || 0), 0);
-  const qtdTotal = concluidas.reduce((s, t) => s + t.quantidade_executada, 0);
-  const horasProdutivas = tempoProdutivo / 3600;
-  const produtividadeHora = horasProdutivas > 0 ? Math.round(qtdTotal / horasProdutivas) : 0;
+  const dominante = tipoDominante(tipos);
 
-  const comMeta = concluidas.filter((t) => t.aderencia_meta_pct != null);
-  const aderenciaMedia = comMeta.length > 0
-    ? Math.round(comMeta.reduce((s, t) => s + (t.aderencia_meta_pct || 0), 0) / comMeta.length)
-    : null;
-
-  // Gantt data - group by tipo_tarefa for bar chart
-  const porTipo = new Map<string, { codigo: string; desc: string; corInterface: string | null; tempo: number; count: number; qtd: number }>();
-  for (const t of concluidas) {
-    const key = t.tipo_tarefa_codigo;
-    if (!porTipo.has(key)) porTipo.set(key, { codigo: key, desc: t.tipo_tarefa_descricao, corInterface: t.cor_interface ?? null, tempo: 0, count: 0, qtd: 0 });
-    const entry = porTipo.get(key)!;
-    entry.tempo += t.duracao_segundos || 0;
-    entry.count++;
-    entry.qtd += t.quantidade_executada;
-  }
-  const porTipoData = Array.from(porTipo.values()).map((t) => ({
-    ...t,
-    tempoMedio: t.count > 0 ? Math.round(t.tempo / t.count) : 0,
+  // Tempo médio por tipo: tempo direto consolidado ÷ tarefas (mesma regra da fonte única)
+  const corPorCodigo = new Map(concluidas.map((t) => [t.tipo_tarefa_codigo, t.cor_interface ?? null]));
+  const porTipoData = tipos.filter((t) => t.tarefas > 0).map((t) => ({
+    codigo: t.codigo, desc: t.descricao, corInterface: corPorCodigo.get(t.codigo) ?? null,
+    tempo: t.tempo_direto, count: t.tarefas, qtd: t.quantidade,
+    tempoMedio: t.tarefas > 0 ? Math.round(t.tempo_direto / t.tarefas) : 0,
   }));
 
   // Gantt timeline bars
@@ -189,45 +191,18 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         </div>
       ) : (
         <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 text-primary mb-1">
-                <CheckCircle size={16} />
-                <span className="text-xs text-muted-foreground">Tarefas Concluídas</span>
-              </div>
-              <span className="text-2xl font-bold text-foreground">{concluidas.length}</span>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 mb-1" style={{ color: "hsl(142, 71%, 45%)" }}>
-                <Clock size={16} />
-                <span className="text-xs text-muted-foreground">Tempo Produtivo</span>
-              </div>
-              <span className="text-2xl font-bold text-foreground">{formatSegundos(tempoProdutivo)}</span>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 mb-1" style={{ color: "hsl(45, 93%, 47%)" }}>
-                <TrendingUp size={16} />
-                <span className="text-xs text-muted-foreground">Itens Movimentados</span>
-              </div>
-              <span className="text-2xl font-bold text-foreground">{qtdTotal}</span>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-2 mb-1" style={{ color: "hsl(280, 70%, 55%)" }}>
-                <TrendingUp size={16} />
-                <span className="text-xs text-muted-foreground">Produtividade</span>
-              </div>
-              <span className="text-2xl font-bold text-foreground">{produtividadeHora} itens/h</span>
-            </div>
-            {aderenciaMedia != null && (
-              <div className="rounded-xl border border-border bg-card p-4">
-                <div className="flex items-center gap-2 mb-1" style={{ color: aderenciaMedia >= 100 ? "hsl(142, 71%, 45%)" : aderenciaMedia >= 80 ? "hsl(45, 93%, 47%)" : "hsl(0, 84%, 60%)" }}>
-                  <TrendingUp size={16} />
-                  <span className="text-xs text-muted-foreground">Aderência à Meta</span>
-                </div>
-                <span className="text-2xl font-bold text-foreground">{aderenciaMedia}%</span>
-              </div>
-            )}
+          {/* KPIs (fonte única) */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <OpKpi icon={<CheckCircle size={16} />} label="Tarefas Concluídas" value={String(resumo?.tarefas ?? 0)} />
+            <OpKpi icon={<Clock size={16} />} label="Tempo Direto" value={formatarTempo(resumo?.tempo_direto)}
+              sub={resumo ? `de ${formatarTempo(resumo.tempo_disponivel)} disponível` : undefined} />
+            <OpKpi icon={<TrendingUp size={16} />} label="Utilização" value={formatarPct(resumo?.utilizacao_pct)} />
+            <OpKpi icon={<TrendingUp size={16} />} label="Performance" value={formatarPct(resumo?.performance_pct)} />
+            <OpKpi icon={<TrendingUp size={16} />} label="Eficiência" value={formatarPct(resumo?.eficiencia_pct)}
+              sub={resumo?.origem === "ESTIMADO" ? "estimado" : resumo ? "real" : undefined} />
+            <OpKpi icon={<TrendingUp size={16} />} label={dominante ? `UPH · ${dominante.codigo}` : "UPH"}
+              value={dominante?.uph != null ? dominante.uph.toFixed(1).replace(".", ",") : "—"}
+              sub={dominante ? `${dominante.unidade_medida || "un"}/h direta` : undefined} />
           </div>
 
           {/* Gantt Timeline */}
@@ -379,4 +354,17 @@ function formatMinutes(min: number): string {
   const h = Math.floor((min % (24 * 60)) / 60);
   const m = min % 60;
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+}
+
+function OpKpi({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 text-primary mb-1">
+        {icon}
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+      <span className="text-2xl font-bold text-foreground">{value}</span>
+      {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}
+    </div>
+  );
 }

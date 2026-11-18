@@ -75,9 +75,10 @@ export function ScorecardOperadorPage({
   const evolucao = data?.evolucao_diaria || [];
   const maxScore = Math.max(1, ...evolucao.map((e) => e.score_dia || 0));
 
+  // Fase 4: direto + indireto + ocioso = tempo disponível (o gap já está dentro do ocioso)
   const tempos = {
-    produtivo: m?.tempo_produtivo_total || 0,
-    transito: m?.tempo_transito_total || 0,
+    produtivo: m?.tempo_direto_total ?? m?.tempo_produtivo_total ?? 0,
+    transito: m?.tempo_indireto_total ?? 0,
     ocioso: m?.tempo_ocioso_total || 0,
   };
   const totalTempo = tempos.produtivo + tempos.transito + tempos.ocioso;
@@ -140,13 +141,13 @@ export function ScorecardOperadorPage({
         <>
           {/* Resumo */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Mini label="Score Médio" value={`${(m.score_medio || 0).toFixed(0)}%`} />
-            <Mini label="Taxa Ocupação Média" value={`${(m.taxa_ocupacao_media || 0).toFixed(0)}%`} />
-            <Mini label="Produtividade Média" value={`${(m.produtividade_hora_media || 0).toFixed(1)} un/h`} />
+            <Mini label="Performance" value={`${(m.score_medio || 0).toFixed(0)}%`} />
+            <Mini label="Utilização" value={`${(m.taxa_ocupacao_media || 0).toFixed(0)}%`} />
+            <Mini label="Eficiência" value={m.eficiencia_pct != null ? `${Number(m.eficiencia_pct).toFixed(0)}%` : "—"} />
             <Mini label="Total de Tarefas" value={String(m.total_tarefas || 0)} />
             <Mini label="Dias Trabalhados" value={String(m.dias_trabalhados || 0)} />
             <Mini
-              label="Posição na Equipe"
+              label="Posição na Equipe (eficiência)"
               value={comp ? `${comp.posicao}º de ${comp.total_operadores}` : "—"}
             />
           </div>
@@ -231,8 +232,8 @@ export function ScorecardOperadorPage({
               <div className="bg-red-500/70 h-full" style={{ width: `${pctT(tempos.ocioso)}%` }} />
             </div>
             <div className="flex flex-wrap gap-5 mt-3 text-xs">
-              <Legenda cor="bg-green-500/70" label="Produtivo" valor={formatarTempoEspera(tempos.produtivo)} pct={pctT(tempos.produtivo)} />
-              <Legenda cor="bg-yellow-500/70" label="Trânsito" valor={formatarTempoEspera(tempos.transito)} pct={pctT(tempos.transito)} />
+              <Legenda cor="bg-green-500/70" label="Direto" valor={formatarTempoEspera(tempos.produtivo)} pct={pctT(tempos.produtivo)} />
+              <Legenda cor="bg-yellow-500/70" label="Indireto" valor={formatarTempoEspera(tempos.transito)} pct={pctT(tempos.transito)} />
               <Legenda cor="bg-red-500/70" label="Ocioso" valor={formatarTempoEspera(tempos.ocioso)} pct={pctT(tempos.ocioso)} />
             </div>
           </div>
@@ -252,7 +253,7 @@ export function ScorecardOperadorPage({
                 />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                <Mini label="Score do Operador" value={`${(m.score_medio || 0).toFixed(0)}%`} />
+                <Mini label="Performance do Operador" value={`${(m.score_medio || 0).toFixed(0)}%`} />
                 <Mini label="Média da Equipe" value={`${(comp.score_equipe_media || 0).toFixed(0)}%`} />
                 <Mini label="Maior da Equipe" value={`${(comp.score_equipe_max || 0).toFixed(0)}%`} />
                 <Mini label="Menor da Equipe" value={`${(comp.score_equipe_min || 0).toFixed(0)}%`} />

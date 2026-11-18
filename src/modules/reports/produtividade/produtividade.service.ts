@@ -34,6 +34,18 @@ export interface MetricaDiariaRow {
   skus_distintos: number;
   taxa_ocupacao: number;
   produtividade_hora: number;
+  score_dia?: number | null;
+  tempo_transito?: number | null;
+  // v3 (Fase 3/4)
+  tempo_disponivel?: number | null;
+  tempo_direto?: number | null;
+  tempo_indireto?: number | null;
+  horas_padrao_seg?: number | null;
+  utilizacao_pct?: number | null;
+  performance_pct?: number | null;
+  eficiencia_pct?: number | null;
+  estimado?: boolean | null;
+  versao_regra?: number | null;
   usuario?: { id: string; nome: string } | null;
   turno?: { descricao: string } | null;
 }
@@ -109,6 +121,196 @@ export async function fetchDetalheTipoTarefa(
     },
   );
   return data as DetalheTipoTarefaRow[];
+}
+
+// ----------------------------------------------------------------------------
+// Fase 4 · fonte única: rpc_lms_metricas (v3, ponderada no banco)
+// ----------------------------------------------------------------------------
+
+export type Granularidade = "OPERADOR" | "DIA" | "OPERADOR_DIA" | "TOTAL" | "TIPO";
+export type OrigemMetrica = "REAL" | "ESTIMADO";
+
+export interface LmsLinha {
+  chave: string;
+  usuario_id: string | null;
+  nome: string | null;
+  data: string | null;
+  operadores: number;
+  dias: number;
+  tempo_disponivel: number;
+  tempo_direto: number;
+  tempo_indireto: number;
+  tempo_ocioso: number;
+  tempo_gap: number;
+  maior_gap: number;
+  tempo_espera: number;
+  horas_padrao_seg: number;
+  utilizacao_pct: number | null;
+  performance_pct: number | null;
+  eficiencia_pct: number | null;
+  tarefas: number;
+  canceladas: number;
+  quantidade: number;
+  cortes: number;
+  ocorrencias: number;
+  execucoes: number;
+  execucoes_inicio_real: number;
+  pct_inicio_real: number | null;
+  origem: OrigemMetrica;
+  dias_estimados: number;
+  fonte_disponivel: string | null;
+  amostra_suficiente: boolean;
+}
+
+export interface LmsTotal {
+  operadores: number;
+  dias: number;
+  tempo_disponivel: number;
+  tempo_direto: number;
+  tempo_indireto: number;
+  tempo_ocioso: number;
+  horas_padrao_seg: number;
+  tarefas: number;
+  quantidade: number;
+  canceladas: number;
+  cortes: number;
+  utilizacao_pct: number | null;
+  performance_pct: number | null;
+  eficiencia_pct: number | null;
+  pct_inicio_real: number | null;
+  origem: OrigemMetrica;
+  dias_estimados: number;
+}
+
+export interface LmsTipoLinha {
+  tipo_tarefa_id: string;
+  codigo: string;
+  descricao: string;
+  unidade_medida: string | null;
+  tarefas: number;
+  quantidade: number;
+  tempo_direto: number;
+  horas_padrao_seg: number;
+  uph: number | null;
+  tarefas_hora: number | null;
+  performance_pct: number | null;
+  pct_inicio_real: number | null;
+  origem: OrigemMetrica;
+}
+
+export interface LmsResultado<L> {
+  linhas: L[];
+  total: LmsTotal | null;
+}
+
+const NUM_LINHA = [
+  "operadores", "dias", "tempo_disponivel", "tempo_direto", "tempo_indireto", "tempo_ocioso", "tempo_gap",
+  "maior_gap", "tempo_espera", "horas_padrao_seg", "tarefas", "canceladas", "quantidade", "cortes",
+  "ocorrencias", "execucoes", "execucoes_inicio_real", "dias_estimados",
+] as const;
+const PCT = ["utilizacao_pct", "performance_pct", "eficiencia_pct", "pct_inicio_real", "uph", "tarefas_hora"] as const;
+
+function normalizar<T>(o: any): T {
+  const r: any = { ...o };
+  for (const k of NUM_LINHA) if (k in r) r[k] = Number(r[k] ?? 0);
+  for (const k of PCT) if (k in r) r[k] = r[k] == null ? null : Number(r[k]);
+  return r as T;
+}
+
+export async function fetchLmsMetricas<L = LmsLinha>(
+  filters: ProdutividadeFilters,
+  granularidade: Granularidade,
+): Promise<LmsResultado<L>> {
+  const { data, error } = await sb.rpc("rpc_lms_metricas", {
+    p_tenant_id: filters.tenantId,
+    p_data_ini: filters.dataInicio,
+    p_data_fim: filters.dataFim,
+    p_armazem_id: filters.armazemId || null,
+    p_usuario_ids: filters.usuarioId ? [filters.usuarioId] : null,
+    p_tipo_tarefa_ids: null,
+    p_granularidade: granularidade,
+    p_empresa_id: filters.empresaId || null,
+    p_turno_id: filters.turnoId || null,
+  });
+  if (error) throw new Error(error.message);
+  if (data?.sucesso === false) throw new Error(data.mensagem || "Não foi possível calcular as métricas.");
+  return {
+    linhas: ((data?.linhas as any[]) || []).map((l) => normalizar<L>(l)),
+    total: data?.total ? normalizar<LmsTotal>(data.total) : null,
+  };
+}
+
+export async function fetchFaixasArmazem(
+  tenantId: string,
+  armazemId: string | null,
+): Promise<{ excelente: number; bom: number; atencao: number }> {
+  const padrao = { excelente: 110, bom: 90, atencao: 70 };
+  if (!armazemId) return padrao;
+  const { data } = await sb
+    .from("armazem_config")
+    .select("lms_faixa_excelente_pct, lms_faixa_bom_pct, lms_faixa_atencao_pct")
+    .eq("tenant_id", tenantId)
+    .eq("armazem_id", armazemId)
+    .eq("ativo", true)
+    .limit(1)
+    .maybeSingle();
+  if (!data) return padrao;
+  return {
+    excelente: Number(data.lms_faixa_excelente_pct ?? 110),
+    bom: Number(data.lms_faixa_bom_pct ?? 90),
+    atencao: Number(data.lms_faixa_atencao_pct ?? 70),
+  };
+}
+
+// Fase 4.3 · qualidade do dado (rpc_lms_qualidade_dado)
+
+export interface QualidadeTipo {
+  tipo_tarefa_id: string;
+  codigo: string;
+  descricao: string;
+  execucoes: number;
+  inicio_real: number;
+  pct_inicio_real: number;
+  fora_de_ordem: number;
+  duracao_fora_padrao: number;
+  pct_fora_padrao: number;
+  por_origem: Record<string, number> | null;
+  ok: boolean;
+}
+
+export interface QualidadeCaso {
+  execucao_id: string;
+  tarefa_id: string;
+  operador: string | null;
+  tipo: string;
+  iniciado_em: string | null;
+  concluido_em: string | null;
+  duracao_seg: number | null;
+  set_seg: number | null;
+  origem: string;
+  motivo: "FORA_DE_ORDEM" | "DURACAO_FORA_PADRAO";
+}
+
+export interface QualidadeDado {
+  metas: { pct_inicio_real_min: number; fora_de_ordem_max: number; pct_fora_padrao_max: number; atribuicoes_abertas_max: number; limite_duracao_seg: number; multiplo_set: number };
+  total: { execucoes: number; inicio_real: number; pct_inicio_real: number | null; fora_de_ordem: number; duracao_fora_padrao: number; pct_fora_padrao: number | null };
+  por_tipo: QualidadeTipo[];
+  casos: QualidadeCaso[];
+  atribuicoes_abertas: { total: number; mais_antiga: string | null };
+  contextos_pre_inicio: { criados: number; consumidos: number; expirados: number; pct_expirados: number | null };
+  liberacoes: { total: number; sem_motivo: number };
+}
+
+export async function fetchQualidadeDado(filters: ProdutividadeFilters): Promise<QualidadeDado> {
+  const { data, error } = await sb.rpc("rpc_lms_qualidade_dado", {
+    p_tenant_id: filters.tenantId,
+    p_data_ini: filters.dataInicio,
+    p_data_fim: filters.dataFim,
+    p_armazem_id: filters.armazemId || null,
+  });
+  if (error) throw new Error(error.message);
+  if (data?.sucesso === false) throw new Error(data.mensagem || "Não foi possível medir a qualidade do dado.");
+  return data as QualidadeDado;
 }
 
 export async function fetchOperadores(

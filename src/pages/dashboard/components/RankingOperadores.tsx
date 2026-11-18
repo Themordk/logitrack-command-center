@@ -12,7 +12,13 @@ interface Operador {
   faixa_performance?: string;
   tendencia?: string;
   score_tendencia_5d?: number;
+  eficiencia_pct?: number | null;
+  utilizacao_pct?: number | null;
+  origem?: "REAL" | "ESTIMADO";
+  amostra_suficiente?: boolean;
 }
+
+const fmtPct = (v: number | null | undefined) => (v == null ? "—" : `${Number(v).toFixed(1).replace(".", ",")}%`);
 
 function initials(nome: string) {
   const parts = (nome || "").trim().split(/\s+/).filter(Boolean);
@@ -29,12 +35,14 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
     "bg-orange-500/15 text-orange-400 border-orange-500/30",
   ];
   const podioIcon = [Trophy, Medal, Award];
-  const max = Math.max(1, ...safeData.map((d) => d.score_composto || d.tarefas));
+  // Ordem e barra = eficiência (horas-padrão ÷ tempo disponível), a mesma do relatório de produtividade.
+  const valor = (d: Operador) => d.eficiencia_pct ?? 0;
+  const max = Math.max(1, ...safeData.map(valor));
 
   return (
     <div className="card-surface p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Ranking LMS</h3>
+        <h3 className="text-sm font-semibold text-foreground" title="Ordenado por eficiência: horas-padrão ganhas ÷ tempo disponível">Ranking LMS · eficiência</h3>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">{safeData.length} operadores</span>
           {onNavigate && safeData.length > 0 && (
@@ -56,7 +64,7 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
           {safeData.map((op, idx) => {
             const isPodio = idx < 3;
             const Icon = isPodio ? podioIcon[idx] : null;
-            const pct = Math.max(6, Math.round(((op.score_composto || op.tarefas) / max) * 100));
+            const pct = Math.max(6, Math.round((valor(op) / max) * 100));
             return (
               <button
                 key={op.usuario_id}
@@ -80,7 +88,9 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
                     )}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {op.tarefas} tarefas · {op.produtividade} tarefas/h
+                    {op.tarefas} tarefas · perf. {fmtPct(op.score_composto)} · util. {fmtPct(op.utilizacao_pct)}
+                    {op.origem === "ESTIMADO" && <span className="ml-1.5 text-amber-400" title="Menos de 95% das execuções com início real">estimado</span>}
+                    {op.amostra_suficiente === false && <span className="ml-1.5 text-muted-foreground" title="Menos de 8 h diretas no período">· amostra pequena</span>}
                     {op.tendencia && op.tendencia !== "SEM_HISTORICO" && (
                       <span className={cn("ml-1.5 font-medium", iconeTendencia(op.tendencia).color)}>
                         {iconeTendencia(op.tendencia).icon}
@@ -90,7 +100,7 @@ export function RankingOperadores({ data, loading, onNavigate }: { data: Operado
                 </div>
                 <div className="flex items-center gap-3 w-[200px] shrink-0">
                   <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap ml-auto">
-                    {op.score_composto ? `${op.score_composto}%` : `${op.tarefas}`}
+                    {fmtPct(op.eficiencia_pct)}
                   </span>
                   <div className="w-24 h-1.5 rounded-full bg-secondary/60 overflow-hidden">
                     <div

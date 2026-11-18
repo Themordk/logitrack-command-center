@@ -9,8 +9,11 @@ import { DESCRICAO_PDF_WIDTH_MM } from "../components/reportColumns";
 import { DescricaoCell } from "@/components/DescricaoCell";
 import {
   fetchTarefasColaborador,
+  fetchLmsMetricas,
   type TarefaColaboradorRow,
+  type LmsLinha,
 } from "./produtividade.service";
+import { formatarPct, formatarTempo } from "./produtividadeCalculo";
 import {
   exportToExcel,
   exportToPdf,
@@ -92,6 +95,8 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
   const [sortKey, setSortKey] = useState<SortKey>("atribuido_em");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
+  // Fase 4: consolidado do operador no período, da fonte única (igual ao relatório e ao Scorecard)
+  const [consolidado, setConsolidado] = useState<LmsLinha | null>(null);
 
   // Carrega tipos de tarefa
   useEffect(() => {
@@ -127,6 +132,12 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
       setRows(data);
       setGeneratedAt(nowDisplay());
       setPage(1);
+      fetchLmsMetricas<LmsLinha>({
+        tenantId, empresaId: empresaId || null, armazemId: armazemId || null,
+        dataInicio, dataFim, usuarioId, turnoId: null,
+      }, "OPERADOR")
+        .then((r) => setConsolidado(r.linhas.find((l) => l.usuario_id === usuarioId) ?? null))
+        .catch(() => setConsolidado(null));
     } catch (e: any) {
       const parsed = parseError(e, "carregar tarefas-colaborador");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
@@ -317,9 +328,21 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi icon={<CheckCircle size={16} className="text-primary" />} label="Total de Tarefas" value={fmtNumberBR(kpis.total)} />
         <Kpi icon={<Package size={16} className="text-blue-400" />} label="Itens Movimentados" value={fmtNumberBR(Math.round(kpis.itens))} />
-        <Kpi icon={<Clock size={16} className="text-emerald-400" />} label="Tempo Produtivo" value={formatDuracao(kpis.tempo)} />
-        <Kpi icon={<Zap size={16} className="text-yellow-400" />} label="Produtividade/Hora" value={kpis.prodHora.toFixed(1).replace(".", ",")} />
+        <Kpi icon={<Clock size={16} className="text-emerald-400" />} label="Duração somada da lista" value={formatDuracao(kpis.tempo)} />
+        <Kpi icon={<Zap size={16} className="text-yellow-400" />} label="Itens/hora da lista" value={kpis.prodHora.toFixed(1).replace(".", ",")} />
       </div>
+      {consolidado && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-xs text-muted-foreground flex flex-wrap gap-x-6 gap-y-1"
+          title="Consolidado LMS do operador no período (sobreposições contadas uma vez): os mesmos números do relatório de Produtividade e do Scorecard">
+          <span className="font-semibold text-foreground">Consolidado LMS</span>
+          <span>Disponível <b className="text-foreground font-mono">{formatarTempo(consolidado.tempo_disponivel)}</b></span>
+          <span>Direto <b className="text-foreground font-mono">{formatarTempo(consolidado.tempo_direto)}</b></span>
+          <span>Utilização <b className="text-foreground font-mono">{formatarPct(consolidado.utilizacao_pct)}</b></span>
+          <span>Performance <b className="text-foreground font-mono">{formatarPct(consolidado.performance_pct)}</b></span>
+          <span>Eficiência <b className="text-foreground font-mono">{formatarPct(consolidado.eficiencia_pct)}</b></span>
+          <span className={consolidado.origem === "REAL" ? "text-green-400" : "text-amber-400"}>{consolidado.origem === "REAL" ? "Real" : "Estimado"}</span>
+        </div>
+      )}
 
       {/* Tabela */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
