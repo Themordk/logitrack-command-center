@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   fetchScorecardOperador,
+  ehRecusaScorecard,
   formatarTempoEspera,
   corFaixaPerformance,
   type ScorecardOperador,
@@ -41,6 +42,7 @@ export function ScorecardOperadorPage({
   const { tenantId, empresaVersion } = useTenant();
   const [dias, setDias] = useState("0");
   const [data, setData] = useState<ScorecardOperador | null>(null);
+  const [recusa, setRecusa] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(async () => {
@@ -57,7 +59,13 @@ export function ScorecardOperadorPage({
       format(ini, "yyyy-MM-dd"),
       format(fim, "yyyy-MM-dd"),
     );
-    setData(res);
+    if (ehRecusaScorecard(res)) {
+      setData(null);
+      setRecusa(res.mensagem);
+    } else {
+      setData(res);
+      setRecusa(null);
+    }
     setLoading(false);
   }, [tenantId, usuarioId, dias]);
 
@@ -135,7 +143,7 @@ export function ScorecardOperadorPage({
       ) : !data || !m ? (
         <div className="card-surface flex flex-col items-center justify-center py-16 text-muted-foreground">
           <BarChart3 size={40} className="mb-3 opacity-40" />
-          <p className="text-sm">Nenhum dado de performance encontrado para este operador no período.</p>
+          <p className="text-sm">{recusa ?? "Nenhum dado de performance encontrado para este operador no período."}</p>
         </div>
       ) : (
         <>

@@ -424,12 +424,19 @@ export async function fetchTendencia(f: DashboardFilters): Promise<TendenciaItem
 
 // ── RPC 5: Scorecard individual do operador ──
 
+/** Recusa do banco (Fase 10.3: a ficha confere a permissão). */
+export interface ScorecardRecusa { sucesso: false; codigo: string; mensagem: string }
+
+export function ehRecusaScorecard(d: unknown): d is ScorecardRecusa {
+  return Boolean(d && typeof d === "object" && (d as { sucesso?: unknown }).sucesso === false);
+}
+
 export async function fetchScorecardOperador(
   tenantId: string,
   usuarioId: string,
   dataIni: string,
   dataFim: string,
-): Promise<ScorecardOperador | null> {
+): Promise<ScorecardOperador | ScorecardRecusa | null> {
   const { data, error } = await sb.rpc("dashboard_scorecard_operador", {
     p_tenant_id: tenantId,
     p_usuario_id: usuarioId,
@@ -440,5 +447,5 @@ export async function fetchScorecardOperador(
     console.error("dashboard_scorecard_operador error:", error);
     return null;
   }
-  return data as ScorecardOperador;
+  return data as ScorecardOperador | ScorecardRecusa;
 }

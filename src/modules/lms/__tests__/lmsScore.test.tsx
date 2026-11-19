@@ -11,6 +11,7 @@ import { ScoreBadge, ScoreDetalhe } from "../score/ScoreDetalhe";
 import { validarMeta, type MetaEntrada, type MetricaInfo } from "../metas/metas.service";
 import { RankingOperadores } from "@/pages/dashboard/components/RankingOperadores";
 import { MetasListaTab } from "@/pages/coletor/metas/MetasListaTab";
+import { ehRecusaScorecard, fetchScorecardOperador } from "@/pages/dashboard/dashboard.service";
 
 const metrica = (o: Partial<MetricaScore>): MetricaScore => ({
   meta_id: "m1", nome: "UPH separação", metrica: "UPH", rotulo_metrica: "Unidades por hora", unidade: "POR_HORA", direcao: "MAIOR",
@@ -104,5 +105,15 @@ describe("Fase 10 · telas do score", () => {
     unmount();
     render(<MetasListaTab ficha={{ ...FICHA, metricas: [] }} />);
     expect(screen.getByText(/ainda não tem metas/)).toBeInTheDocument();
+  });
+});
+
+describe("Fase 10.3 · ficha do operador confere a permissão", () => {
+  it("reconhece a recusa do banco e a repassa à tela", async () => {
+    rpc.mockResolvedValueOnce({ data: { sucesso: false, codigo: "SOMENTE_PROPRIOS_DADOS", mensagem: "Você só pode ver os seus próprios números." }, error: null });
+    const r = await fetchScorecardOperador("t", "u", "2026-11-13", "2026-11-19");
+    expect(ehRecusaScorecard(r)).toBe(true);
+    expect(ehRecusaScorecard({ operador: {}, metricas_periodo: {} })).toBe(false);
+    expect(ehRecusaScorecard(null)).toBe(false);
   });
 });
