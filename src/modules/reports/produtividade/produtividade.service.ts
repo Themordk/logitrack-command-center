@@ -449,10 +449,21 @@ export async function fetchTimelineOperador(
   }));
 }
 
+/**
+ * Duração de uma execução. Execuções de coletor costumam durar segundos, então abaixo de
+ * 1 hora mostra minutos e segundos ("34s", "2min 05s"); acima, horas e minutos ("1h02m").
+ */
 export function formatSegundos(s: number): string {
-  if (!s || s <= 0) return "0h00m";
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
+  const total = Math.round(Number(s) || 0);
+  if (total <= 0) return "0s";
+  if (total < 60) return `${total}s`;
+  if (total < 3600) {
+    const m = Math.floor(total / 60);
+    const seg = total % 60;
+    return seg ? `${m}min ${seg.toString().padStart(2, "0")}s` : `${m}min`;
+  }
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
   return `${h}h${m.toString().padStart(2, "0")}m`;
 }
 

@@ -132,7 +132,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         endMinutes: end.getHours() * 60 + end.getMinutes(),
         durationMinutes: (t.duracao_segundos || 0) / 60,
         color: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo),
-        label: `${t.tipo_tarefa_descricao} (${Math.round((t.duracao_segundos || 0) / 60)}min)`,
+        label: `${t.tipo_tarefa_descricao} (${formatSegundos(t.duracao_segundos || 0)})`,
       };
     });
 

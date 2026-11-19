@@ -18,7 +18,8 @@ function exigir<T>(data: any, error: any, padrao: string): T {
 
 // ── Painel do turno ──
 
-export type StatusOperador = "EM_TAREFA" | "INDIRETA" | "SEM_TAREFA" | "SEM_SESSAO";
+/** TAREFA_PARADA: tem tarefa atribuída, mas sem atividade dentro de tempo_inatividade_tarefa_seg (decidido no banco). */
+export type StatusOperador = "EM_TAREFA" | "TAREFA_PARADA" | "INDIRETA" | "SEM_TAREFA" | "SEM_SESSAO";
 
 export interface MetaPainel {
   meta_id: string; nome: string; metrica: Metrica; rotulo_metrica: string; unidade: UnidadeMetrica; direcao: "MAIOR" | "MENOR";
@@ -31,7 +32,7 @@ export interface MetaPainel {
 
 export interface OperadorPainel {
   usuario_id: string; nome: string; status: StatusOperador; status_desde: string | null;
-  tarefa: { desde: string; tipo: string | null; descricao: string | null } | null;
+  tarefa: { desde: string; tipo: string | null; descricao: string | null; em_andamento?: boolean; ultima_atividade?: string | null } | null;
   indireta: { desde: string; atividade: string; tipo: "INDIRETA" | "EXCECAO" } | null;
   tarefas: number; quantidade: number; tempo_disponivel: number; tempo_direto: number; tempo_indireto: number;
   utilizacao_pct: number | null; performance_pct: number | null; eficiencia_pct: number | null; origem: "REAL" | "ESTIMADO" | null;
@@ -44,7 +45,7 @@ export interface PainelTurno {
   turno: { id: string | null; descricao: string; inicio: string; fim: string; intervalo_min: number; fracao_decorrida: number };
   turnos: Array<{ id: string; descricao: string; hora_inicio: string; hora_fim: string }>;
   resumo: {
-    operadores: number; em_tarefa: number; indireta: number; sem_tarefa: number; sem_sessao: number;
+    operadores: number; em_tarefa: number; indireta: number; sem_tarefa: number; sem_sessao: number; tarefa_parada?: number;
     tarefas: number; quantidade: number; utilizacao_pct: number | null; performance_pct: number | null; eficiencia_pct: number | null;
     score_medio: number | null; metas: number; metas_no_caminho: number; metas_em_risco: number;
   };
@@ -61,6 +62,7 @@ export async function obterPainelTurno(tenantId: string, armazemId: string, turn
 
 export const ROTULO_STATUS_OPERADOR: Record<StatusOperador, { texto: string; classe: string }> = {
   EM_TAREFA:  { texto: "Em tarefa",          classe: "border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-400" },
+  TAREFA_PARADA: { texto: "Tarefa parada",   classe: "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400" },
   INDIRETA:   { texto: "Atividade indireta", classe: "border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400" },
   SEM_TAREFA: { texto: "Sem tarefa",         classe: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400" },
   SEM_SESSAO: { texto: "Sem sessão",         classe: "border-border bg-muted/40 text-muted-foreground" },

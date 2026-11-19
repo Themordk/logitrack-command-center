@@ -9,6 +9,7 @@ import { PainelTurnoView } from "../acompanhamento/PainelTurnoView";
 import { AtingimentoView } from "../acompanhamento/AtingimentoView";
 import { VisaoEmpresaView } from "../acompanhamento/VisaoEmpresaView";
 import { mensagemMeta } from "../score/score.service";
+import { formatSegundos } from "@/modules/reports/produtividade/produtividade.service";
 
 const PAINEL: PainelTurno = {
   data: "2026-11-19", atualizado_em: "2026-11-19T20:30:00Z", agora: "2026-11-19T20:31:00Z",
@@ -64,6 +65,25 @@ describe("Fase 10 · acompanhamento (regras de exibição)", () => {
     rpc.mockResolvedValueOnce({ data: { sucesso: false, mensagem: "Seu perfil não tem acesso ao acompanhamento do LMS." }, error: null });
     await expect(obterPainelTurno("t", "a", null)).rejects.toThrow("acompanhamento");
     expect(rpc).toHaveBeenCalledWith("rpc_lms_painel_turno", { p_tenant_id: "t", p_armazem_id: "a", p_turno_id: null });
+  });
+});
+
+describe("Fase 10 · ajustes do teste com execuções reais", () => {
+  it("duração curta não aparece zerada", () => {
+    expect(formatSegundos(0)).toBe("0s");
+    expect(formatSegundos(12.4)).toBe("12s");
+    expect(formatSegundos(65)).toBe("1min 05s");
+    expect(formatSegundos(120)).toBe("2min");
+    expect(formatSegundos(3725)).toBe("1h02m");
+  });
+  it("tarefa parada aparece como parada, não como em tarefa", async () => {
+    const op = { ...PAINEL.operadores[0], usuario_id: "u3", nome: "Carlos Dias", status: "TAREFA_PARADA" as const,
+      status_desde: "2026-11-18T19:28:00Z", tarefa: { desde: "2026-11-18T19:28:00Z", tipo: "ENTR-ARMZ", descricao: "Armazenagem", em_andamento: false } };
+    rpc.mockResolvedValueOnce({ data: { sucesso: true, ...PAINEL, resumo: { ...PAINEL.resumo, tarefa_parada: 1 }, operadores: [op] }, error: null });
+    render(<PainelTurnoView tenantId="t" armazemId="a" onNavigate={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Tarefa parada")).toBeInTheDocument());
+    expect(screen.getByText(/ENTR-ARMZ sem atividade/)).toBeInTheDocument();
+    expect(screen.getByText(/1 parada/)).toBeInTheDocument();
   });
 });
 

@@ -83,7 +83,7 @@ export function PainelTurnoView({ tenantId, armazemId, onNavigate }: Props) {
       {erro && <p className="text-xs text-red-400">{erro}</p>}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Kpi rotulo="Operadores" valor={String(r.operadores)} sub={`${r.em_tarefa} em tarefa · ${r.sem_tarefa} sem tarefa`} />
+        <Kpi rotulo="Operadores" valor={String(r.operadores)} sub={`${r.em_tarefa} em tarefa${r.tarefa_parada ? ` · ${r.tarefa_parada} parada` : ""} · ${r.sem_tarefa} sem tarefa`} />
         <Kpi rotulo="Atividade indireta" valor={String(r.indireta)} sub={`${r.sem_sessao} sem sessão`} />
         <Kpi rotulo="Tarefas no dia" valor={r.tarefas.toLocaleString("pt-BR")} sub={`${Number(r.quantidade).toLocaleString("pt-BR")} unidades`} />
         <Kpi rotulo="Utilização" valor={pct(r.utilizacao_pct)} sub={`performance ${pct(r.performance_pct)}`} />
@@ -156,8 +156,10 @@ export function PainelTurnoView({ tenantId, armazemId, onNavigate }: Props) {
               </tr></thead>
               <tbody>
                 {painel.operadores.map((o) => {
-                  const st = ROTULO_STATUS_OPERADOR[o.status];
-                  const detalhe = o.tarefa ? o.tarefa.tipo : o.indireta ? o.indireta.atividade : null;
+                  const st = ROTULO_STATUS_OPERADOR[o.status] ?? ROTULO_STATUS_OPERADOR.SEM_SESSAO;
+                  const detalhe = o.status === "INDIRETA" && o.indireta ? o.indireta.atividade
+                    : o.tarefa ? (o.status === "TAREFA_PARADA" ? `${o.tarefa.tipo ?? "tarefa"} sem atividade` : o.tarefa.tipo)
+                    : null;
                   return (
                     <tr key={o.usuario_id} className="border-t border-border hover:bg-muted/30 cursor-pointer"
                       onClick={() => onNavigate(`/atividades/scorecard/${o.usuario_id}`)} title="Abrir a ficha do operador">
