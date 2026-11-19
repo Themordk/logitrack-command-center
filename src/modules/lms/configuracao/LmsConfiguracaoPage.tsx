@@ -18,7 +18,7 @@ import {
 
 interface Opcao { id: string; nome: string }
 
-const GRUPOS: GrupoParametro[] = ["JORNADA", "QUALIDADE", "CALIBRACAO"];
+const GRUPOS: GrupoParametro[] = ["JORNADA", "QUALIDADE", "CALIBRACAO", "METAS"];
 
 function ChipsFaixas({ lista }: { lista: FaixaLms[] }) {
   return (

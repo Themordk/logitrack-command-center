@@ -29,8 +29,8 @@ export async function listarArmazens(tenantId: string, empresaId: string): Promi
 }
 
 export type NivelRegra = "SISTEMA" | "CADASTRO" | "EMPRESA" | "ARMAZEM";
-export type UnidadeParametro = "PERCENTUAL" | "SEGUNDOS" | "MULTIPLO" | "DIAS" | "QUANTIDADE";
-export type GrupoParametro = "CLASSIFICACAO" | "JORNADA" | "QUALIDADE" | "CALIBRACAO";
+export type UnidadeParametro = "PERCENTUAL" | "SEGUNDOS" | "MULTIPLO" | "DIAS" | "QUANTIDADE" | "SIM_NAO";
+export type GrupoParametro = "CLASSIFICACAO" | "JORNADA" | "QUALIDADE" | "CALIBRACAO" | "METAS";
 
 export interface ParametroConfig {
   codigo: string;
@@ -217,6 +217,7 @@ export const ROTULO_GRUPO: Record<GrupoParametro, { titulo: string; descricao: s
   JORNADA: { titulo: "Tempo e jornada", descricao: "Como o painel de operadores interpreta trânsito, ociosidade e tarefa parada." },
   QUALIDADE: { titulo: "Qualidade do dado", descricao: "Quando os números contam como reais e quando uma execução é suspeita." },
   CALIBRACAO: { titulo: "Sugestão de tempo padrão", descricao: "Quanto histórico a sugestão analisa e quantas execuções reais ela exige." },
+  METAS: { titulo: "Metas", descricao: "Regras do cadastro de metas da empresa." },
 };
 
 export const ROTULO_NIVEL: Record<NivelRegra, string> = {
@@ -239,6 +240,7 @@ export function formatarValor(valor: number | null | undefined, unidade: Unidade
   const v = Number(valor);
   if (unidade === "PERCENTUAL") return `${v.toLocaleString("pt-BR")}%`;
   if (unidade === "MULTIPLO") return `${v.toLocaleString("pt-BR")}×`;
+  if (unidade === "SIM_NAO") return v === 1 ? "Sim" : "Não";
   if (unidade === "DIAS") return `${v.toLocaleString("pt-BR")} ${v === 1 ? "dia" : "dias"}`;
   if (unidade === "QUANTIDADE") return `${v.toLocaleString("pt-BR")} ${v === 1 ? "execução" : "execuções"}`;
   return formatarSegundos(v);

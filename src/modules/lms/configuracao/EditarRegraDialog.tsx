@@ -76,7 +76,7 @@ export function EditarRegraDialog({ regra, nivelTela, hoje, podeRetroativo, salv
 
   if (!regra) return null;
   const sufixo = regra.unidade === "PERCENTUAL" ? "%" : regra.unidade === "MULTIPLO" ? "×"
-    : regra.unidade === "DIAS" ? "dias" : regra.unidade === "QUANTIDADE" ? "execuções" : "segundos";
+    : regra.unidade === "DIAS" ? "dias" : regra.unidade === "QUANTIDADE" ? "execuções" : regra.unidade === "SIM_NAO" ? "1 = sim, 0 = não" : "segundos";
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o && !salvando) onCancelar(); }}>
