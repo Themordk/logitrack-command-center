@@ -122,7 +122,6 @@ const navItems: NavItem[] = [
       { label: "Empresas", path: "/config/empresas" },
       { label: "Usuários", path: "/config/usuarios" },
       { label: "Perfis de Acesso", path: "/config/perfis" },
-      { label: "Tipos de Tarefa", path: "/config/tipos-tarefa" },
       { label: "Motivos de Ocorrência", path: "/config/motivos-ocorrencia" },
       { label: "Templates de Etiqueta", path: "/config/etiquetas" },
       { label: "Impressão", path: "/config/impressao" },

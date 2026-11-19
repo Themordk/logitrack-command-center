@@ -397,3 +397,89 @@ export function codigoDeNome(nome: string): string {
   return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase()
     .replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 30);
 }
+
+// ── Fase 10.10 · cadastro de tipo de tarefa (antes em Configurações › Tipos de Tarefa) ──
+// Lista e gravação só pelas RPCs rpc_lms_tipos_tarefa / rpc_lms_tipo_tarefa_salvar (módulo
+// web.lms.configuracao); ações de reserva permitidas, limites e histórico vêm do banco.
+
+export type ReservaAcaoTipo = "LIBERAR" | "LIBERAR_SEM_EXECUCAO" | "ALERTAR" | "NUNCA";
+
+export interface TipoTarefaLms {
+  id: string;
+  codigo: string;
+  descricao: string;
+  ativo: boolean;
+  categoria: string | null;
+  tipo_movimento: number | null;
+  unidade_medida: string | null;
+  peso_produtividade: number;
+  cor_interface: string | null;
+  reserva_acao: ReservaAcaoTipo;
+  reserva_expira_min: number;
+  acoes_reserva: ReservaAcaoTipo[];
+}
+
+export interface HistoricoTipoTarefa {
+  tipo_tarefa_id: string;
+  codigo: string;
+  antes: Partial<TipoTarefaLms>;
+  depois: Partial<TipoTarefaLms>;
+  motivo: string | null;
+  alterado_por: string | null;
+  alterado_em: string;
+}
+
+export interface TiposTarefaLms { pode_editar: boolean; tipos: TipoTarefaLms[]; historico: HistoricoTipoTarefa[] }
+
+export async function listarTiposTarefaLms(tenantId: string): Promise<TiposTarefaLms> {
+  const { data, error } = await sb.rpc("rpc_lms_tipos_tarefa", { p_tenant_id: tenantId });
+  return exigirSucesso<TiposTarefaLms>(data, error);
+}
+
+export type DadosTipoTarefa = Partial<Pick<TipoTarefaLms,
+  "ativo" | "categoria" | "tipo_movimento" | "unidade_medida" | "peso_produtividade" | "cor_interface" | "reserva_acao" | "reserva_expira_min">>;
+
+export async function salvarTipoTarefaLms(i: { tenantId: string; tipoTarefaId: string; dados: DadosTipoTarefa; motivo?: string | null }):
+  Promise<{ tipo: TipoTarefaLms; alterou: boolean }> {
+  const { data, error } = await sb.rpc("rpc_lms_tipo_tarefa_salvar", {
+    p_tenant_id: i.tenantId, p_tipo_tarefa_id: i.tipoTarefaId, p_dados: i.dados, p_motivo: i.motivo ?? null,
+  });
+  return exigirSucesso<{ tipo: TipoTarefaLms; alterou: boolean }>(data, error);
+}
+
+export const CATEGORIAS_TIPO_TAREFA = [
+  "RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO",
+  "CONFERENCIA", "EXPEDICAO", "INVENTARIO", "AUDITORIA", "OUTROS",
+] as const;
+
+export const TIPOS_MOVIMENTO: Array<{ value: number; label: string }> = [
+  { value: 1, label: "Entrada" },
+  { value: 2, label: "Saída" },
+  { value: 3, label: "Transferência" },
+  { value: 6, label: "Inventário (ajuste)" },
+];
+
+export function rotuloMovimento(v: number | null | undefined): string {
+  return TIPOS_MOVIMENTO.find((o) => o.value === Number(v))?.label ?? "—";
+}
+
+const ROTULO_CAMPO_TIPO: Record<string, string> = {
+  ativo: "Ativo", categoria: "Categoria", tipo_movimento: "Movimento", unidade_medida: "Unidade",
+  peso_produtividade: "Peso", cor_interface: "Cor", reserva_acao: "Reserva sem atividade", reserva_expira_min: "Prazo sem atividade",
+};
+
+/** "Prazo sem atividade: 4h → 1h · Ativo: sim → não" a partir do histórico do banco. */
+export function descreverMudancaTipo(h: Pick<HistoricoTipoTarefa, "antes" | "depois">, rotuloAcao: (a: string) => string): string {
+  const fmt = (k: string, v: unknown): string => {
+    if (v === null || v === undefined || v === "") return "—";
+    if (k === "ativo") return v ? "sim" : "não";
+    if (k === "reserva_acao") return rotuloAcao(String(v));
+    if (k === "reserva_expira_min") { const m = Number(v); return m % 60 === 0 ? `${m / 60}h` : `${m} min`; }
+    if (k === "tipo_movimento") return rotuloMovimento(Number(v));
+    return String(v);
+  };
+  return Object.keys(ROTULO_CAMPO_TIPO)
+    .filter((k) => JSON.stringify((h.antes as Record<string, unknown>)[k]) !== JSON.stringify((h.depois as Record<string, unknown>)[k]))
+    .map((k) => `${ROTULO_CAMPO_TIPO[k]}: ${fmt(k, (h.antes as Record<string, unknown>)[k])} → ${fmt(k, (h.depois as Record<string, unknown>)[k])}`)
+    .join(" · ");
+}

@@ -68,7 +68,6 @@ import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
-import { TiposTarefaPage } from "./pages/TiposTarefaPage";
 
 import { AbastecimentoPage } from "./pages/AbastecimentoPage";
 import { AbastecimentoGeracaoPage } from "./pages/AbastecimentoGeracaoPage";
@@ -232,7 +231,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
   "/integracao/padroes-produto": [{ label: "CORE LogiTrack" }, { label: "Integração" }, { label: "Padrões de cadastro de produto" }],
   "/config/perfis": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Perfis de Acesso" }],
-  "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Tipos de Tarefa" }],
+  "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Configurações" }],
   "/config/motivos-ocorrencia": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Motivos de Ocorrência" }],
 
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
@@ -385,7 +384,8 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/config/integracao": return <IntegracaoPage onNavigate={onNavigate} />;
     case "/integracao/padroes-produto": return <ProdutoPadroesPage onNavigate={onNavigate} />;
     case "/config/perfis": return <PerfisAcessoPage />;
-    case "/config/tipos-tarefa": return <TiposTarefaPage />;
+    case "/config/tipos-tarefa": // Fase 10.10: o cadastro mudou para Produtividade (LMS) › Configurações
+      return <LmsModuloPage area="configuracao" onNavigate={onNavigate} />;
     
 
     case "/relatorios/estoque": return <EstoqueReportPage />;

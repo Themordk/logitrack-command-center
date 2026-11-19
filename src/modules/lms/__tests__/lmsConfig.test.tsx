@@ -86,6 +86,7 @@ vi.mock("../configuracao/lmsConfig.service", async (orig) => {
     ...real,
     listarEmpresas: vi.fn().mockResolvedValue([{ id: "e1", nome: "Empresa Um" }]),
     listarArmazens: vi.fn().mockResolvedValue([{ id: "a1", nome: "CD Fortaleza" }]),
+    listarTiposTarefaLms: vi.fn().mockResolvedValue({ pode_editar: true, tipos: [], historico: [] }),
     listarAtividadesLms: vi.fn().mockResolvedValue({ pode_editar: true, atividades: [
       { id: "a1", codigo: "LIMPEZA", nome: "Limpeza e organização (5S)", tipo: "INDIRETA", duracao_max_min: 60, ativo: true, ordem: 10, usos_30d: 2 },
       { id: "a2", codigo: "SISTEMA_FORA", nome: "Sistema fora do ar", tipo: "EXCECAO", duracao_max_min: 120, ativo: true, ordem: 60, usos_30d: 0 },

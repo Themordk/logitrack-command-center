@@ -9,6 +9,7 @@ import { EditarRegraDialog, type RegraEmEdicao } from "./EditarRegraDialog";
 import { EditarFaixasDialog } from "./EditarFaixasDialog";
 import { EditarPadraoDialog, type PartesEntrada } from "./EditarPadraoDialog";
 import { AtividadesIndiretasSection } from "./AtividadesIndiretasSection";
+import { TiposTarefaSection } from "./TiposTarefaSection";
 import { PALETA, intervalos, type FaixaLms } from "../faixas";
 import {
   LmsConfigErro, ROTULO_GRUPO, descreverOrigem, descreverPadrao, excluirRegraAgendada, formatarValor, listarArmazens, listarEmpresas, obterConfigLms,
@@ -265,6 +266,15 @@ export function LmsConfiguracaoPage() {
 
       {config && (
         <>
+          {/* Fase 10.10: cadastro de tipo de tarefa (antes em Configurações › Tipos de Tarefa) */}
+          {tenantId && (
+            <TiposTarefaSection tenantId={tenantId} padroes={config.padroes_tempo} nomeNivel={nomeNivel}
+              onEditarPadrao={(p) => {
+                if (podeEditar) setEditandoPadrao(p);
+                else toast.error("Seu perfil não pode alterar o tempo padrão.");
+              }} />
+          )}
+
           {/* Tempos padrão */}
           <section className="rounded-lg border border-border bg-card">
             <header className="flex items-start gap-2 border-b border-border p-4">
