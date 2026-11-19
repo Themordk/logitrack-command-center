@@ -235,6 +235,9 @@ export function LmsMetasPage() {
                               mín. {formatarValorMeta(m.minimo, info?.unidade)} · exc. {formatarValorMeta(m.excelencia, info?.unidade)}
                             </span>
                           )}
+                          {m.peso != null && Number(m.peso) !== 1 && (
+                            <span className="block text-[11px] text-muted-foreground">peso {Number(m.peso).toLocaleString("pt-BR")}</span>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">
                           {formatDate(m.vigente_desde)}{m.vigente_ate ? ` a ${formatDate(m.vigente_ate)}` : " em diante"}

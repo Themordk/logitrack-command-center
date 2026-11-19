@@ -4,6 +4,8 @@ import { Award, Medal, Trophy } from "lucide-react";
 interface RankingEntry {
   iniciais: string;
   score: number;
+  /** Fase 10: score global das metas (ordem do ranking). */
+  score_global?: number | null;
   posicao: number;
   sou_eu: boolean;
 }
@@ -51,7 +53,9 @@ export function MetasRankingTab({ ranking, lista }: Props) {
               <PosicaoIcon posicao={operador.posicao} />
               <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold ${operador.sou_eu ? "bg-blue-500 text-white" : "bg-[hsl(222,35%,22%)] text-[hsl(213,31%,75%)]"}`}>{operador.iniciais}</span>
               <span className="flex-1 text-sm font-semibold text-white">{operador.sou_eu ? "Você" : operador.iniciais}</span>
-              <span className={`text-sm font-bold tabular-nums ${faixaCorScore(operador.score, lista)}`}>{operador.score.toFixed(0)}</span>
+              <span className={`text-sm font-bold tabular-nums ${operador.score_global != null ? faixaCorScore(operador.score_global, lista) : "text-[hsl(213,31%,55%)]"}`}>
+                {operador.score_global != null ? `${operador.score_global.toFixed(0)}%` : "—"}
+              </span>
             </div>
           ))}
         </div>

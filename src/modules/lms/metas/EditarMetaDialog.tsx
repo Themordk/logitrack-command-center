@@ -47,6 +47,7 @@ export function EditarMetaDialog({ aberto, modo, inicial, catalogo, tenantId, em
   const [alvo, setAlvo] = useState("");
   const [minimo, setMinimo] = useState("");
   const [excelencia, setExcelencia] = useState("");
+  const [peso, setPeso] = useState("1");
   const [desde, setDesde] = useState(catalogo.hoje);
   const [ate, setAte] = useState("");
   const [escopo, setEscopo] = useState<EscopoItem[]>([]);
@@ -72,6 +73,7 @@ export function EditarMetaDialog({ aberto, modo, inicial, catalogo, tenantId, em
     setAlvo(m ? String(m.alvo) : "");
     setMinimo(m?.minimo != null ? String(m.minimo) : "");
     setExcelencia(m?.excelencia != null ? String(m.excelencia) : "");
+    setPeso(m?.peso != null ? String(m.peso).replace(".", ",") : "1");
     setDesde(modo === "NOVA_VERSAO" && m ? (maisUmDia(catalogo.hoje) > m.vigente_desde ? maisUmDia(catalogo.hoje) : maisUmDia(m.vigente_desde)) : m?.vigente_desde ?? catalogo.hoje);
     setAte(m?.vigente_ate && modo !== "NOVA_VERSAO" ? m.vigente_ate : "");
     setEscopo(m?.escopo ?? []);
@@ -104,6 +106,7 @@ export function EditarMetaDialog({ aberto, modo, inicial, catalogo, tenantId, em
     alvo: num(alvo) ?? NaN,
     minimo: num(minimo),
     excelencia: num(excelencia),
+    peso: num(peso) ?? NaN,
     vigente_desde: desde,
     vigente_ate: ate || null,
     escopo,
@@ -301,6 +304,16 @@ export function EditarMetaDialog({ aberto, modo, inicial, catalogo, tenantId, em
                 <Label htmlFor="meta-excelencia">Excelência</Label>
                 <Input id="meta-excelencia" inputMode="decimal" value={excelencia} onChange={(e) => { setExcelencia(e.target.value); setOrigemAssistente(false); }} />
               </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="meta-peso">Peso no score</Label>
+                <Input id="meta-peso" inputMode="decimal" value={peso} onChange={(e) => setPeso(e.target.value)} />
+              </div>
+              <p className="sm:col-span-2 self-end text-xs text-muted-foreground">
+                O score do operador é a média do atingimento das metas dele, ponderada por este peso (de 0,1 a 10).
+                Use peso maior para a meta que mais importa.
+              </p>
             </div>
             <p className="text-xs text-muted-foreground">
               {info?.direcao === "MENOR" ? "Nesta métrica menor é melhor." : "Faixas do resultado: abaixo do mínimo, aceitável, na meta e excelente."}

@@ -12,6 +12,8 @@ import {
   type ScorecardOperador,
 } from "@/pages/dashboard/dashboard.service";
 import { PALETA, classificar, type FaixaLms } from "@/modules/lms/faixas";
+import { ScoreOperadorCard } from "@/modules/lms/score/ScoreOperadorCard";
+import { estiloClassificacao, formatarScore, textoSemScore } from "@/modules/lms/score/score.service";
 
 
 function corPerformance(pct: number | null, lista?: FaixaLms[]): string {
@@ -63,7 +65,6 @@ export function ScorecardOperadorPage({
 
   const op = data?.operador;
   const m = data?.metricas_periodo;
-  const faixa = corFaixaPerformance(m?.faixa_performance || "", m?.faixa_cor, m?.faixa_nome);
 
   const evolucao = data?.evolucao_diaria || [];
   const maxScore = Math.max(1, ...evolucao.map((e) => e.score_dia || 0));
@@ -78,6 +79,12 @@ export function ScorecardOperadorPage({
   const pctT = (v: number) => (totalTempo > 0 ? (v / totalTempo) * 100 : 0);
 
   const comp = data?.comparativo_equipe;
+  // Fase 10: a classificação do operador é a do score global das metas
+  const score = data?.score;
+  const posScore = data?.posicao_score;
+  const estiloScore = estiloClassificacao(score?.classificacao);
+  const temScore = score?.score !== null && score?.score !== undefined;
+  const periodoIni = score?.periodo?.inicio;
   const range = comp ? Math.max(1, comp.score_equipe_max - comp.score_equipe_min) : 1;
   const posRel = comp && m ? ((m.score_medio - comp.score_equipe_min) / range) * 100 : 0;
 
@@ -101,10 +108,10 @@ export function ScorecardOperadorPage({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {m && (
-            <div className={cn("px-4 py-2 rounded-xl border text-center", faixa.bg, faixa.border)}>
-              <div className={cn("text-2xl font-bold tabular-nums", faixa.text)}>{(m.score_medio || 0).toFixed(0)}%</div>
-              <div className={cn("text-[11px]", faixa.text)}>{faixa.label}</div>
+          {score && (
+            <div className={cn("px-4 py-2 rounded-xl border text-center", estiloScore.fundo, estiloScore.borda)} title="Score global das metas do período">
+              <div className={cn("text-2xl font-bold tabular-nums", estiloScore.texto)}>{temScore ? formatarScore(score.score) : "—"}</div>
+              <div className={cn("text-[11px]", estiloScore.texto)}>{temScore ? estiloScore.nome : textoSemScore(score.situacao)}</div>
             </div>
           )}
           <Select value={dias} onValueChange={setDias}>
@@ -140,10 +147,15 @@ export function ScorecardOperadorPage({
             <Mini label="Total de Tarefas" value={String(m.total_tarefas || 0)} />
             <Mini label="Dias Trabalhados" value={String(m.dias_trabalhados || 0)} />
             <Mini
-              label="Posição na Equipe (eficiência)"
-              value={comp ? `${comp.posicao}º de ${comp.total_operadores}` : "—"}
+              label={posScore ? "Posição na Equipe (score)" : "Posição na Equipe (eficiência)"}
+              value={posScore ? (posScore.posicao ? `${posScore.posicao}º de ${posScore.total_com_score}` : "Sem score")
+                : comp ? `${comp.posicao}º de ${comp.total_operadores}` : "—"}
             />
           </div>
+
+          {score && periodoIni && (
+            <ScoreOperadorCard tenantId={tenantId} usuarioId={usuarioId} dataIni={periodoIni} dataFim={score.periodo.fim} ficha={score} />
+          )}
 
           {/* Evolução diária */}
           <div className="card-surface p-5">

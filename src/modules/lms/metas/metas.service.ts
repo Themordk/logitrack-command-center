@@ -76,6 +76,8 @@ export interface Meta {
   tipo_tarefa_id: string | null; tipo_codigo: string | null; categoria: string | null;
   armazem_id: string | null; armazem_nome: string | null;
   periodicidade: Periodicidade; alvo: number; minimo: number | null; excelencia: number | null;
+  /** Fase 10: peso da meta no score global do operador (0,1 a 10; padrão 1). */
+  peso?: number;
   vigente_desde: string; vigente_ate: string | null; status: StatusMeta; origem: string;
   rampa_base: "PRIMEIRA_EXECUCAO" | "CADASTRO"; observacao: string | null; motivo_status: string | null;
   versao_anterior_id: string | null; criado_por: string | null; criado_em: string;
@@ -98,6 +100,7 @@ export interface MetaEntrada {
   alvo: number;
   minimo?: number | null;
   excelencia?: number | null;
+  peso?: number | null;
   vigente_desde?: string;
   vigente_ate?: string | null;
   escopo?: EscopoItem[];
@@ -257,6 +260,7 @@ export function validarMeta(e: MetaEntrada, info: MetricaInfo | undefined): stri
   if (!menor && ((min !== null && min > e.alvo) || (exc !== null && exc < e.alvo))) return "Use mínimo ≤ alvo ≤ excelência.";
   if (menor && ((min !== null && min < e.alvo) || (exc !== null && exc > e.alvo))) return "Nesta métrica menor é melhor: use mínimo ≥ alvo ≥ excelência.";
   if (info.unidade === "PCT" && [e.alvo, min, exc].some((v) => v !== null && v > 300)) return "Percentuais devem ficar entre 0% e 300%.";
+  if (e.peso !== undefined && e.peso !== null && (!Number.isFinite(e.peso) || e.peso < 0.1 || e.peso > 10)) return "O peso da meta vai de 0,1 a 10.";
   if (e.periodicidade === "PERSONALIZADO" && !e.vigente_ate) return "Período personalizado precisa de data de fim.";
   if (e.vigente_ate && e.vigente_desde && e.vigente_ate < e.vigente_desde) return "A data de fim é anterior ao início.";
   if (e.rampa?.length) {

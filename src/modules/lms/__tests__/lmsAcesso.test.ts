@@ -50,7 +50,7 @@ describe("Fase 6 · acesso ao módulo LMS", () => {
   });
 
   it("coletor esconde a aba Ranking quando o banco não manda ranking", () => {
-    expect(abasDisponiveis(false)).toEqual(["resumo", "evolucao"]);
-    expect(abasDisponiveis(true)).toEqual(["resumo", "ranking", "evolucao"]);
+    expect(abasDisponiveis(false)).toEqual(["metas", "resumo", "evolucao"]);
+    expect(abasDisponiveis(true)).toEqual(["metas", "resumo", "ranking", "evolucao"]);
   });
 });

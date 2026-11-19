@@ -1,5 +1,6 @@
 import { FAIXAS_PADRAO, type FaixasArmazem } from "./produtividadeCalculo";
 import { supabase } from "@/integrations/supabase/client";
+import type { ClassificacaoScore, SituacaoScore } from "@/modules/lms/score/score.service";
 import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
 import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
@@ -161,6 +162,12 @@ export interface LmsLinha {
   dias_estimados: number;
   fonte_disponivel: string | null;
   amostra_suficiente: boolean;
+  // Fase 10 · score global das metas (granularidades OPERADOR e OPERADOR_DIA)
+  score?: number | null;
+  score_situacao?: SituacaoScore;
+  score_metas_total?: number;
+  score_metas_contadas?: number;
+  classificacao?: ClassificacaoScore;
 }
 
 export interface LmsTotal {
@@ -181,6 +188,9 @@ export interface LmsTotal {
   pct_inicio_real: number | null;
   origem: OrigemMetrica;
   dias_estimados: number;
+  // Fase 10 · média simples do score de quem tem score (só na granularidade OPERADOR)
+  score_medio?: number | null;
+  operadores_com_score?: number;
 }
 
 export interface LmsTipoLinha {
@@ -209,7 +219,7 @@ const NUM_LINHA = [
   "maior_gap", "tempo_espera", "horas_padrao_seg", "tarefas", "canceladas", "quantidade", "cortes",
   "ocorrencias", "execucoes", "execucoes_inicio_real", "dias_estimados",
 ] as const;
-const PCT = ["utilizacao_pct", "performance_pct", "eficiencia_pct", "pct_inicio_real", "uph", "tarefas_hora"] as const;
+const PCT = ["utilizacao_pct", "performance_pct", "eficiencia_pct", "pct_inicio_real", "uph", "tarefas_hora", "score", "score_medio"] as const;
 
 function normalizar<T>(o: any): T {
   const r: any = { ...o };

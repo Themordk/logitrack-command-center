@@ -5,12 +5,14 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { MetasEvolucaoTab } from "@/pages/coletor/metas/MetasEvolucaoTab";
 import { MetasKpiCard } from "@/pages/coletor/metas/MetasKpiCard";
+import { MetasListaTab } from "@/pages/coletor/metas/MetasListaTab";
 import { MetasRankingTab } from "@/pages/coletor/metas/MetasRankingTab";
 import { MetasResumoTab } from "@/pages/coletor/metas/MetasResumoTab";
 import { MetasScoreRing } from "@/pages/coletor/metas/MetasScoreRing";
 import { MetasStreakBadge } from "@/pages/coletor/metas/MetasStreakBadge";
 import { abasDisponiveis, type Tab } from "@/pages/coletor/metas/metasAbas";
 import { estiloFaixa, type FaixaLms } from "@/modules/lms/faixas";
+import { estiloClassificacao, textoSemScore, type FichaScore } from "@/modules/lms/score/score.service";
 
 const sb = supabase as any;
 
@@ -21,8 +23,11 @@ interface MetasData {
   erro?: string;
   operador: { nome: string; habilidade: string | null; turno: string; faixa_performance: string; faixa_nome?: string; faixa_cor?: string };
   indicadores: { eficiencia_pct?: number | null; utilizacao_pct?: number | null; performance_pct?: number | null; origem?: "REAL" | "ESTIMADO"; score_medio: number; total_tarefas: number; taxa_ocupacao: number; produtividade_hora: number; tempo_produtivo: number; tempo_transito: number; tempo_ocioso: number; dias_trabalhados: number };
-  ranking: { posicao: number; total_operadores: number; top: Array<{ iniciais: string; score: number; posicao: number; sou_eu: boolean }> } | null;
+  ranking: { posicao: number; total_operadores: number; top: Array<{ iniciais: string; score: number; score_global?: number | null; posicao: number; sou_eu: boolean }> } | null;
   streak: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
+  // Fase 10 · score global das metas do operador e a sequência de dias com score na meta
+  metas?: FichaScore | null;
+  streak_score?: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
   evolucao: Array<{ data: string; score: number; tarefas: number; taxa_ocupacao: number }>;
   detalhamento_tipo: Array<{ tipo: string; codigo: string; tarefas: number; quantidade_total: number; tempo_medio_seg: number; performance_pct: number | null }>;
   variacao_vs_anterior: number | null;
@@ -31,7 +36,7 @@ interface MetasData {
 }
 
 const PERIODO_LABELS: Record<Periodo, string> = { hoje: "Hoje", "7d": "7 dias", "30d": "30 dias" };
-const TAB_LABELS: Record<Tab, string> = { resumo: "Resumo", ranking: "Ranking", evolucao: "Evolução" };
+const TAB_LABELS: Record<Tab, string> = { metas: "Metas", resumo: "Resumo", ranking: "Ranking", evolucao: "Evolução" };
 
 // Fase 7.5: nome e cor da faixa vêm do conjunto configurado no LMS
 function faixaColor(faixa: string, cor?: string | null, nome?: string | null) {
@@ -44,7 +49,7 @@ function faixaColor(faixa: string, cor?: string | null, nome?: string | null) {
 
 export function MetasPage({ onNavigate }: Props) {
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
-  const [tab, setTab] = useState<Tab>("resumo");
+  const [tab, setTab] = useState<Tab>("metas");
   const [data, setData] = useState<MetasData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -79,7 +84,15 @@ export function MetasPage({ onNavigate }: Props) {
   // Fase 6 (decisão 5): o operador vê só os próprios números; o banco só manda ranking para quem gere a equipe.
   const abas = abasDisponiveis(Boolean(data?.ranking));
   const variacao = data?.variacao_vs_anterior;
-  const faixa = faixaColor(data?.operador?.faixa_performance || "", data?.operador?.faixa_cor, data?.operador?.faixa_nome);
+  // Fase 10: o anel e a classificação mostram o score global das metas (não mais a performance)
+  const ficha = data?.metas ?? null;
+  const scoreGlobal = ficha?.score ?? null;
+  const faixa = (() => {
+    if (scoreGlobal === null) return { ...faixaColor(""), label: textoSemScore(ficha?.situacao) };
+    const e = estiloClassificacao(ficha?.classificacao);
+    return { bg: e.fundo, text: e.texto, border: e.borda, ring: e.hex, label: e.nome };
+  })();
+  const streak = data?.streak_score ?? null;
 
   return (
     <ColetorLayout title="Metas & Resultados" onNavigate={onNavigate} showBack backPath="/coletor/home">
@@ -110,7 +123,7 @@ export function MetasPage({ onNavigate }: Props) {
 
           <section className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-3">
             <div className="flex items-center gap-3">
-              <MetasScoreRing score={ind.score_medio || 0} maxScore={Math.max(data.faixas.excelente, 120)} faixa={faixa} />
+              <MetasScoreRing score={scoreGlobal} maxScore={Math.max(data.faixas.excelente, ficha?.teto_pct ?? 120)} faixa={faixa} />
               <div className="min-w-0 flex-1 space-y-2">
                 <div>
                   <p className="truncate text-sm font-bold text-white">{data.operador.nome}</p>
@@ -120,12 +133,12 @@ export function MetasPage({ onNavigate }: Props) {
                 {variacao !== null && variacao !== undefined && (
                   <div className={`flex items-center gap-1 text-xs font-semibold tabular-nums ${variacao > 0 ? "text-green-400" : variacao < 0 ? "text-red-400" : "text-[hsl(213,31%,55%)]"}`}>
                     {variacao > 0 ? <TrendingUp size={14} /> : variacao < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
-                    {variacao > 0 ? "+" : ""}{variacao.toFixed(1)} vs anterior
+                    {variacao > 0 ? "+" : ""}{variacao.toFixed(1)} de performance vs anterior
                   </div>
                 )}
               </div>
             </div>
-            {data.streak && data.streak.dias_consecutivos > 0 && <div className="mt-3"><MetasStreakBadge diasConsecutivos={data.streak.dias_consecutivos} melhorStreak={data.streak.melhor_streak} /></div>}
+            {streak && streak.dias_consecutivos > 0 && <div className="mt-3"><MetasStreakBadge diasConsecutivos={streak.dias_consecutivos} melhorStreak={streak.melhor_streak} /></div>}
           </section>
 
           <div className="grid grid-cols-2 gap-2">
@@ -133,13 +146,13 @@ export function MetasPage({ onNavigate }: Props) {
             <MetasKpiCard label="Utilização" value={`${(ind.taxa_ocupacao || 0).toFixed(0)}%`} subtitle="tempo em tarefa" icon="clock" />
             <MetasKpiCard label="Eficiência" value={ind.eficiencia_pct != null ? `${Number(ind.eficiencia_pct).toFixed(0)}%` : "—"} subtitle="horas-padrão ÷ tempo disponível" icon="speed" />
             {data.ranking ? (
-              <MetasKpiCard label="Na equipe" value={data.ranking.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={`entre ${data.ranking.total_operadores} · eficiência`} icon="trophy" />
+              <MetasKpiCard label="Na equipe" value={data.ranking.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={`entre ${data.ranking.total_operadores} · score`} icon="trophy" />
             ) : (
               <MetasKpiCard label="Performance" value={ind.performance_pct != null ? `${Number(ind.performance_pct).toFixed(0)}%` : "—"} subtitle="horas-padrão ÷ tempo em tarefa" icon="trophy" />
             )}
           </div>
 
-          <div className={`grid ${abas.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-1 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-1`} role="tablist">
+          <div className={`grid ${abas.length === 4 ? "grid-cols-4" : "grid-cols-3"} gap-1 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-1`} role="tablist">
             {abas.map((item) => (
               <Button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)} className={`h-9 rounded-lg px-1 text-xs font-semibold ${tab === item ? "bg-[hsl(222,40%,18%)] text-white hover:bg-[hsl(222,40%,18%)]" : "bg-transparent text-[hsl(213,31%,55%)] hover:bg-transparent"}`}>
                 {TAB_LABELS[item]}
@@ -147,6 +160,7 @@ export function MetasPage({ onNavigate }: Props) {
             ))}
           </div>
 
+          {tab === "metas" && <MetasListaTab ficha={ficha} />}
           {tab === "resumo" && <MetasResumoTab indicadores={ind} detalhamento={data.detalhamento_tipo || []} faixas={data.faixas} lista={data.faixas_lista} />}
           {tab === "ranking" && data.ranking && <MetasRankingTab ranking={data.ranking} faixas={data.faixas} lista={data.faixas_lista} />}
           {tab === "evolucao" && <MetasEvolucaoTab evolucao={data.evolucao || []} faixas={data.faixas} lista={data.faixas_lista} />}

@@ -26,6 +26,7 @@ import {
 } from "./produtividadeCalculo";
 import { QualidadeDadoPanel } from "./QualidadeDadoPanel";
 import { PALETA, intervalos } from "@/modules/lms/faixas";
+import { textoSemScore } from "@/modules/lms/score/score.service";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
@@ -56,8 +57,9 @@ const numero = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n
 
 type SortKey =
   | "data" | "nome" | "tarefas" | "canceladas" | "quantidade" | "tempo_disponivel" | "tempo_direto"
-  | "tempo_indireto" | "tempo_ocioso" | "utilizacao_pct" | "performance_pct" | "eficiencia_pct";
-type MetricaRanking = "eficiencia_pct" | "performance_pct";
+  | "tempo_indireto" | "tempo_ocioso" | "utilizacao_pct" | "performance_pct" | "eficiencia_pct" | "score";
+type MetricaRanking = "score" | "eficiencia_pct" | "performance_pct";
+const ROTULO_RANKING: Record<MetricaRanking, string> = { score: "Score", eficiencia_pct: "Eficiência", performance_pct: "Performance" };
 
 export function ProdutividadeDashboardPage({ onNavigate }: Props) {
   const { tenantId, empresaId, empresaVersion, armazemId: armazemTenant } = useTenant();
@@ -82,7 +84,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
   const [loading, setLoading] = useState(false);
   const [carregado, setCarregado] = useState(false);
 
-  const [metricaRanking, setMetricaRanking] = useState<MetricaRanking>("eficiencia_pct");
+  const [metricaRanking, setMetricaRanking] = useState<MetricaRanking>("score");
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -166,14 +168,16 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
   const tiposAuditar = useMemo(() => porTipo.filter((t) => (t.performance_pct ?? 0) > LIMITE_AUDITAR_SET), [porTipo]);
 
   const ranking = useMemo(() => [...porOperador]
-    .filter((l) => l.tempo_direto > 0)
+    .filter((l) => l.tempo_direto > 0 && (metricaRanking !== "score" || l.score != null))
     .sort((a, b) => (b[metricaRanking] ?? -1) - (a[metricaRanking] ?? -1))
     .map((l) => ({
       usuario_id: l.usuario_id, nome: l.nome || "—",
       valor: l[metricaRanking] ?? 0,
       eficiencia: l.eficiencia_pct, performance: l.performance_pct, utilizacao: l.utilizacao_pct,
-      tarefas: l.tarefas, amostra: l.amostra_suficiente, origem: l.origem,
+      tarefas: l.tarefas, amostra: metricaRanking === "score" ? true : l.amostra_suficiente, origem: l.origem,
+      score: l.score ?? null, metas: l.score_metas_total ?? 0, contadas: l.score_metas_contadas ?? 0,
     })), [porOperador, metricaRanking]);
+  const semScore = useMemo(() => porOperador.filter((l) => l.tempo_direto > 0 && l.score == null).length, [porOperador]);
   const dominioRanking = useMemo(() => dominioEixo(ranking.map((r) => r.valor), faixas.bom), [ranking, faixas]);
 
   const composicao = useMemo(() => [...porOperador]
@@ -215,6 +219,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     "Disponível (min)": Math.round(d.tempo_disponivel / 60), "Direto (min)": Math.round(d.tempo_direto / 60),
     "Indireto (min)": Math.round(d.tempo_indireto / 60), "Ocioso (min)": Math.round(d.tempo_ocioso / 60),
     "Utilização (%)": d.utilizacao_pct, "Performance (%)": d.performance_pct, "Eficiência (%)": d.eficiencia_pct,
+    "Score (%)": d.score ?? null,
     "Origem": d.origem === "REAL" ? "Real" : "Estimado",
   }));
   const exportarExcel = () => {
@@ -228,7 +233,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     doc.setFontSize(16); doc.text("Produtividade Operacional", 14, 15);
     doc.setFontSize(10);
     doc.text(`Período: ${dataBR(dataInicio)} a ${dataBR(dataFim)} · Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 22);
-    if (total) doc.text(`Utilização ${formatarPct(total.utilizacao_pct)} · Performance ${formatarPct(total.performance_pct)} · Eficiência ${formatarPct(total.eficiencia_pct)} · ${total.origem === "REAL" ? "Real" : "Estimado"}`, 14, 28);
+    if (total) doc.text(`Score da equipe ${formatarPct(total.score_medio)} · Utilização ${formatarPct(total.utilizacao_pct)} · Performance ${formatarPct(total.performance_pct)} · Eficiência ${formatarPct(total.eficiencia_pct)} · ${total.origem === "REAL" ? "Real" : "Estimado"}`, 14, 28);
     const linhas = linhasExport();
     autoTable(doc, {
       startY: 34,
@@ -323,11 +328,14 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
 
       {/* KPIs */}
       {loading && !carregado ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="animate-pulse bg-muted rounded-lg h-24" />)}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          {Array.from({ length: 7 }).map((_, i) => <div key={i} className="animate-pulse bg-muted rounded-lg h-24" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <Kpi label="Score da equipe" value={formatarPct(total?.score_medio)} colorClass={classeFaixa(total?.score_medio, faixas)}
+            dica="Média do score global dos operadores com metas no período (média ponderada do atingimento das metas de cada um)"
+            sub={total ? `${total.operadores_com_score ?? 0} de ${porOperador.length} com score · esperado ${faixas.bom}%` : undefined} />
           <Kpi label="Utilização" value={formatarPct(total?.utilizacao_pct)}
             dica="Tempo direto ÷ tempo disponível" sub={total ? `${formatarTempo(total.tempo_direto)} de ${formatarTempo(total.tempo_disponivel)}` : undefined} />
           <Kpi label="Performance" value={formatarPct(total?.performance_pct)} colorClass={classeFaixa(total?.performance_pct, faixas)}
@@ -351,17 +359,17 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
           <div className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-center gap-2 mb-3">
               <Trophy size={16} className="text-yellow-400" />
-              <h3 className="text-sm font-semibold text-foreground">Ranking por {metricaRanking === "eficiencia_pct" ? "eficiência" : "performance"}</h3>
+              <h3 className="text-sm font-semibold text-foreground">Ranking por {ROTULO_RANKING[metricaRanking].toLowerCase()}</h3>
               <div className="ml-auto inline-flex rounded-md border border-border p-0.5" role="group" aria-label="Métrica do ranking">
-                {(["eficiencia_pct", "performance_pct"] as MetricaRanking[]).map((m) => (
+                {(["score", "eficiencia_pct", "performance_pct"] as MetricaRanking[]).map((m) => (
                   <button key={m} onClick={() => setMetricaRanking(m)} aria-pressed={metricaRanking === m}
                     className={`h-7 px-2.5 rounded text-xs ${metricaRanking === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                    {m === "eficiencia_pct" ? "Eficiência" : "Performance"}
+                    {ROTULO_RANKING[m]}
                   </button>
                 ))}
               </div>
             </div>
-            {ranking.length === 0 ? <EmptyMini>Nenhum operador com tempo direto no período</EmptyMini> : (
+            {ranking.length === 0 ? <EmptyMini>{metricaRanking === "score" ? "Nenhum operador com score no período (sem metas ou sem amostra)" : "Nenhum operador com tempo direto no período"}</EmptyMini> : (
               <ResponsiveContainer width="100%" height={Math.max(240, ranking.length * 30 + 50)}>
                 <BarChart data={ranking} layout="vertical" margin={{ top: 4, right: 44, left: 8, bottom: 4 }}>
                   <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
@@ -375,6 +383,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                     return (
                       <div className="rounded-md border border-border bg-card p-2 text-xs space-y-0.5">
                         <div className="font-semibold text-foreground">{it.nome}</div>
+                        {it.score != null && <div>Score: <span className="font-mono">{formatarPct(it.score)}</span> ({it.contadas} de {it.metas} metas)</div>}
                         <div>Eficiência: <span className="font-mono">{formatarPct(it.eficiencia)}</span></div>
                         <div>Performance: <span className="font-mono">{formatarPct(it.performance)}</span></div>
                         <div>Utilização: <span className="font-mono">{formatarPct(it.utilizacao)}</span></div>
@@ -395,6 +404,9 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
               </ResponsiveContainer>
             )}
             <LegendaFaixas faixas={faixas} />
+            {metricaRanking === "score" && semScore > 0 && (
+              <p className="mt-1 text-[11px] text-muted-foreground">{semScore} operador(es) sem score no período (sem metas ou sem amostra) ficam fora deste ranking.</p>
+            )}
           </div>
 
           <div className="rounded-lg border border-border bg-card p-4">
@@ -472,6 +484,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                     <Th k="utilizacao_pct" s={sortKey} d={sortDir} on={toggleSort} align="center">Utilização</Th>
                     <Th k="performance_pct" s={sortKey} d={sortDir} on={toggleSort} align="center">Performance</Th>
                     <Th k="eficiencia_pct" s={sortKey} d={sortDir} on={toggleSort} align="center">Eficiência</Th>
+                    <Th k="score" s={sortKey} d={sortDir} on={toggleSort} align="center" title="Score global das metas no dia">Score</Th>
                     <th className="px-3 py-2.5 font-medium text-center">Origem</th>
                     <th className="px-2 py-2.5" aria-label="Ações" />
                   </tr>
@@ -492,6 +505,10 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(r.utilizacao_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.performance_pct, faixas)}`}>{formatarPct(r.performance_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.eficiencia_pct, faixas)}`}>{formatarPct(r.eficiencia_pct)}</td>
+                      <td className={`px-3 py-2.5 text-center font-mono ${r.score != null ? classeFaixa(r.score, faixas) : "text-muted-foreground text-xs"}`}
+                        title={r.score != null ? `${r.score_metas_contadas ?? 0} de ${r.score_metas_total ?? 0} metas contam` : undefined}>
+                        {r.score != null ? formatarPct(r.score) : textoSemScore(r.score_situacao)}
+                      </td>
                       <td className="px-3 py-2.5 text-center"><OrigemBadge origem={r.origem} pct={r.pct_inicio_real} /></td>
                       <td className="px-2 py-2.5 text-right">
                         <button aria-label={`Ver período de ${r.nome}`} title="Ver o período deste operador"
@@ -517,6 +534,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(total.utilizacao_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.performance_pct, faixas)}`}>{formatarPct(total.performance_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.eficiencia_pct, faixas)}`}>{formatarPct(total.eficiencia_pct)}</td>
+                      <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.score_medio, faixas)}`} title="Média do score dos operadores no período">{formatarPct(total.score_medio)}</td>
                       <td className="px-3 py-2.5 text-center"><OrigemBadge origem={total.origem} pct={total.pct_inicio_real} /></td>
                       <td />
                     </tr>

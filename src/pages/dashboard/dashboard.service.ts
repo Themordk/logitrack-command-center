@@ -1,3 +1,4 @@
+import type { ClassificacaoScore, FichaScore, SituacaoScore } from "@/modules/lms/score/score.service";
 import { estiloFaixa, type FaixaLms } from "@/modules/lms/faixas";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -123,10 +124,20 @@ export interface OperadorRanking {
   uph?: number | null;
   origem?: "REAL" | "ESTIMADO";
   amostra_suficiente?: boolean;
-  criterio_ordem?: "EFICIENCIA";
+  criterio_ordem?: "EFICIENCIA" | "SCORE";
+  // Fase 10 · score global das metas (ordem do ranking)
+  score?: number | null;
+  score_situacao?: SituacaoScore;
+  score_metas_total?: number;
+  score_metas_contadas?: number;
+  score_anterior?: number | null;
+  classificacao?: ClassificacaoScore;
 }
 
 export interface ScorecardOperador {
+  // Fase 10 · score global das metas e posição pelo score no armazém
+  score?: FichaScore;
+  posicao_score?: { total_com_score: number; posicao: number | null; score_medio_equipe: number | null; criterio_posicao: "SCORE" };
   operador: {
     usuario_id: string;
     nome: string;

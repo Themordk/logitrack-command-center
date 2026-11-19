@@ -20,6 +20,7 @@ import {
 import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
 import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
 import { parseError } from "@/lib/errorMapper";
+import { ScoreOperadorCard } from "@/modules/lms/score/ScoreOperadorCard";
 
 interface Props {
   usuarioId: string;
@@ -204,6 +205,9 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
               value={dominante?.uph != null ? dominante.uph.toFixed(1).replace(".", ",") : "—"}
               sub={dominante ? `${dominante.unidade_medida || "un"}/h direta` : undefined} />
           </div>
+
+          {/* Fase 10: score global das metas, com o detalhe por meta */}
+          <ScoreOperadorCard tenantId={tenantId} usuarioId={usuarioId} dataIni={inicio} dataFim={fim} />
 
           {/* Gantt Timeline */}
           {ganttData.length > 0 && (
