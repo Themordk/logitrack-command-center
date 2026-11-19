@@ -5,7 +5,7 @@ import { LmsGate } from "./LmsGate";
 import { LMS_ROTAS, useLmsAcesso, type LmsArea } from "./lmsAcesso";
 import { LmsConfiguracaoPage } from "./configuracao/LmsConfiguracaoPage";
 
-type AreaWeb = Exclude<LmsArea, "coletor">;
+type AreaWeb = Exclude<LmsArea, "coletor" | "atividades">;
 
 interface Props {
   area: AreaWeb;

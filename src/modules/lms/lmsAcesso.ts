@@ -9,7 +9,8 @@
 import { useCallback, useMemo } from "react";
 import { usePermissions } from "@/contexts/PermissionsContext";
 
-export type LmsArea = "configuracao" | "metas" | "acompanhamento" | "coletor";
+export type LmsArea = "configuracao" | "metas" | "acompanhamento" | "coletor" | "atividades";
+type AreaColetor = "coletor" | "atividades";
 export type LmsAcao = "READ" | "CREATE" | "UPDATE" | "DELETE" | "EXECUTE";
 
 export const LMS_MODULOS: Record<LmsArea, string> = {
@@ -17,16 +18,18 @@ export const LMS_MODULOS: Record<LmsArea, string> = {
   metas: "web.lms.metas",
   acompanhamento: "web.lms.acompanhamento",
   coletor: "coletor.lms.metas",
+  /** Fase 8: apontar atividade indireta / parada no coletor */
+  atividades: "coletor.lms.atividades",
 };
 
 /** Rotas web do módulo, na ordem das abas. */
-export const LMS_ROTAS: Array<{ area: Exclude<LmsArea, "coletor">; path: string; label: string }> = [
+export const LMS_ROTAS: Array<{ area: Exclude<LmsArea, AreaColetor>; path: string; label: string }> = [
   { area: "acompanhamento", path: "/lms/acompanhamento", label: "Acompanhamento" },
   { area: "metas", path: "/lms/metas", label: "Metas" },
   { area: "configuracao", path: "/lms/configuracao", label: "Configurações" },
 ];
 
-export function areaDaRota(path: string): Exclude<LmsArea, "coletor"> | null {
+export function areaDaRota(path: string): Exclude<LmsArea, AreaColetor> | null {
   return LMS_ROTAS.find((r) => path === r.path || path.startsWith(`${r.path}/`))?.area ?? null;
 }
 

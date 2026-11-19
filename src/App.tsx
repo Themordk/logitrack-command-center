@@ -120,6 +120,7 @@ import { ConsultaHUPage } from "./pages/coletor/ConsultaHUPage";
 import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
 import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
+import { AtividadesIndiretasPage } from "./pages/coletor/atividades/AtividadesIndiretasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
 const OfflineStatusPage = lazy(() =>
   import("./pages/coletor/OfflineStatusPage").then((m) => ({ default: m.OfflineStatusPage })),
@@ -531,6 +532,7 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
     case "/coletor/metas": return <LmsGate area="coletor" onNavigate={onNavigate} voltarPara="/coletor/home"><MetasPage onNavigate={onNavigate} /></LmsGate>;
+    case "/coletor/atividades": return <LmsGate area="atividades" onNavigate={onNavigate} voltarPara="/coletor/home"><AtividadesIndiretasPage onNavigate={onNavigate} /></LmsGate>;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
     case "/coletor/offline-status": return (
       <Suspense fallback={null}>

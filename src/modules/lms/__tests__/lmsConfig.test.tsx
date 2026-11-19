@@ -86,6 +86,10 @@ vi.mock("../configuracao/lmsConfig.service", async (orig) => {
     ...real,
     listarEmpresas: vi.fn().mockResolvedValue([{ id: "e1", nome: "Empresa Um" }]),
     listarArmazens: vi.fn().mockResolvedValue([{ id: "a1", nome: "CD Fortaleza" }]),
+    listarAtividadesLms: vi.fn().mockResolvedValue({ pode_editar: true, atividades: [
+      { id: "a1", codigo: "LIMPEZA", nome: "Limpeza e organização (5S)", tipo: "INDIRETA", duracao_max_min: 60, ativo: true, ordem: 10, usos_30d: 2 },
+      { id: "a2", codigo: "SISTEMA_FORA", nome: "Sistema fora do ar", tipo: "EXCECAO", duracao_max_min: 120, ativo: true, ordem: 60, usos_30d: 0 },
+    ] }),
     obterConfigLms: vi.fn().mockResolvedValue({
       sucesso: true, nivel: "EMPRESA", empresa_id: "e1", armazem_id: null, data: "2026-11-18", hoje: "2026-11-18",
       pode_editar: true, pode_reprocessar: true,
@@ -129,6 +133,10 @@ describe("Fase 7 · painel de configurações", () => {
     expect(screen.getByText("90–120%")).toBeInTheDocument();
     expect(screen.getByText("Meta")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Alterar tempo padrão de SEP"));
-    expect(screen.getByLabelText(/Novo valor \(segundos\)/)).toHaveValue("90");
+    expect(screen.getByLabelText("Por tarefa (s)")).toHaveValue("90");
+    expect(screen.getByLabelText("Folga PFD (%)")).toHaveValue("0");
+    // Fase 8: catálogo de atividades indiretas e paradas
+    expect(await screen.findByText("Limpeza e organização (5S)")).toBeInTheDocument();
+    expect(screen.getByText("Parada fora do controle do operador")).toBeInTheDocument();
   });
 });

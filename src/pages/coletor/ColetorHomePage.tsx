@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { usePermissions } from "@/contexts/PermissionsContext";
-import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2, Cloud, Truck } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpFromLine, Repeat, ClipboardCheck, BarChart3, Search, Settings, Loader2, Cloud, Truck, Coffee } from "lucide-react";
+import { toast } from "sonner";
+import { AtividadeEmAndamentoBanner } from "@/pages/coletor/atividades/AtividadeEmAndamentoBanner";
+import { encerrarIndireto, obterEstadoIndireto, type ApontamentoAberto } from "@/pages/coletor/atividades/atividadesIndiretas.service";
 import { useOffline } from "@/contexts/OfflineContext";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
 
@@ -46,6 +49,36 @@ export function ColetorHomePage({ onNavigate }: Props) {
 
   // Módulo LMS (Fase 6): a tela de metas do coletor depende de coletor.lms.metas
   const podeVerMetas = can("coletor.lms.metas", "READ");
+  // Fase 8: atividade indireta / parada apontada no coletor
+  const podeApontar = can("coletor.lms.atividades", "READ");
+  const [aberto, setAberto] = useState<{ ap: ApontamentoAberto; recebidoEm: number } | null>(null);
+  const [encerrando, setEncerrando] = useState(false);
+
+  useEffect(() => {
+    if (!podeApontar || !tenantId) { setAberto(null); return; }
+    let cancelado = false;
+    const buscar = () => obterEstadoIndireto(tenantId)
+      .then((e) => { if (!cancelado) setAberto(e.aberto ? { ap: e.aberto, recebidoEm: Date.now() } : null); })
+      .catch(() => { /* sem bloqueio: a home continua funcionando */ });
+    buscar();
+    const onVisibility = () => { if (document.visibilityState === "visible") buscar(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => { cancelado = true; document.removeEventListener("visibilitychange", onVisibility); };
+  }, [podeApontar, tenantId]);
+
+  async function encerrarAtividade() {
+    if (!tenantId) return;
+    setEncerrando(true);
+    try {
+      const r = await encerrarIndireto(tenantId);
+      toast.success(r.mensagem);
+      setAberto(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível encerrar.");
+    } finally {
+      setEncerrando(false);
+    }
+  }
 
   // Filter modules by permission
   const allowedModules = modules.filter(
@@ -99,6 +132,12 @@ export function ColetorHomePage({ onNavigate }: Props) {
         )}
       </div>
 
+      {aberto && (
+        <div className="shrink-0 mb-2">
+          <AtividadeEmAndamentoBanner aberto={aberto.ap} recebidoEm={aberto.recebidoEm} encerrando={encerrando}
+            onEncerrar={encerrarAtividade} onAbrir={() => onNavigate("/coletor/atividades")} />
+        </div>
+      )}
 
       {permLoading ? (
         <div className="flex-1 min-h-0 flex items-center justify-center">
@@ -152,6 +191,13 @@ export function ColetorHomePage({ onNavigate }: Props) {
           >
             <BarChart3 size={22} className="text-[hsl(280,70%,55%)]" />
             <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Metas</span>
+          </button>}
+          {podeApontar && <button
+            onClick={() => onNavigate("/coletor/atividades")}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl active:bg-[hsl(222,35%,16%)] transition-all"
+          >
+            <Coffee size={22} className="text-[hsl(187,85%,53%)]" />
+            <span className="text-[10px] text-[hsl(213,31%,75%)] font-semibold">Sem tarefa</span>
           </button>}
           <button
             onClick={() => onNavigate("/coletor/configuracoes")}

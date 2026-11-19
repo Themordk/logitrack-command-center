@@ -73,6 +73,7 @@ const coletorModuleMap: Record<string, string> = {
   "/coletor/inventario": "coletor.inventario",
   "/coletor/consulta": "coletor.consulta",
   "/coletor/metas": "coletor.lms.metas",
+  "/coletor/atividades": "coletor.lms.atividades",
 };
 
 export function getModuleForRoute(path: string): string | null {

@@ -7,15 +7,18 @@ import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { EditarRegraDialog, type RegraEmEdicao } from "./EditarRegraDialog";
 import { EditarFaixasDialog } from "./EditarFaixasDialog";
+import { EditarPadraoDialog, type PartesEntrada } from "./EditarPadraoDialog";
+import { AtividadesIndiretasSection } from "./AtividadesIndiretasSection";
 import { PALETA, intervalos, type FaixaLms } from "../faixas";
 import {
-  LmsConfigErro, ROTULO_GRUPO, descreverOrigem, excluirRegraAgendada, formatarValor, listarArmazens, listarEmpresas, obterConfigLms,
-  reprocessarLms, salvarFaixasLms, salvarRegraLms, type ConfigLms, type FaixaEntrada, type GrupoParametro, type NivelRegra,
+  LmsConfigErro, ROTULO_GRUPO, descreverOrigem, descreverPadrao, excluirRegraAgendada, formatarValor, listarArmazens, listarEmpresas, obterConfigLms,
+  reprocessarLms, salvarFaixasLms, salvarPadraoLms, salvarRegraLms, type ConfigLms, type FaixaEntrada, type GrupoParametro, type NivelRegra,
+  type PadraoTempoConfig,
 } from "./lmsConfig.service";
 
 interface Opcao { id: string; nome: string }
 
-const GRUPOS: GrupoParametro[] = ["JORNADA", "QUALIDADE"];
+const GRUPOS: GrupoParametro[] = ["JORNADA", "QUALIDADE", "CALIBRACAO"];
 
 function ChipsFaixas({ lista }: { lista: FaixaLms[] }) {
   return (
@@ -42,7 +45,7 @@ function OrigemBadge({ nivel, nivelTela }: { nivel: NivelRegra; nivelTela: "EMPR
 }
 
 function Agendados({ itens, unidade, podeEditar, onExcluir }: {
-  itens: Array<{ id: string; valor: number | null; vigente_desde: string }>;
+  itens: Array<{ id: string; valor: number | null; texto?: string; vigente_desde: string }>;
   unidade: Parameters<typeof formatarValor>[1];
   podeEditar: boolean;
   onExcluir: (id: string) => void;
@@ -53,7 +56,7 @@ function Agendados({ itens, unidade, podeEditar, onExcluir }: {
       {itens.map((a) => (
         <span key={a.id} className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-600 dark:text-amber-400">
           <CalendarClock size={11} />
-          {a.valor === null ? "volta a herdar" : formatarValor(a.valor, unidade)} em {formatDate(a.vigente_desde)}
+          {a.valor === null ? "volta a herdar" : a.texto ?? formatarValor(a.valor, unidade)} em {formatDate(a.vigente_desde)}
           {podeEditar && (
             <button type="button" aria-label="Cancelar agendamento" onClick={() => onExcluir(a.id)} className="hover:text-destructive">
               <X size={11} />
@@ -78,6 +81,7 @@ export function LmsConfiguracaoPage() {
   const [salvando, setSalvando] = useState(false);
   const [reprocessarDe, setReprocessarDe] = useState<string | null>(null);
   const [editandoFaixas, setEditandoFaixas] = useState(false);
+  const [editandoPadrao, setEditandoPadrao] = useState<PadraoTempoConfig | null>(null);
   const [reprocessando, setReprocessando] = useState(false);
 
   useEffect(() => { if (!empresaId && empresaSessao) setEmpresaId(empresaSessao); }, [empresaSessao, empresaId]);
@@ -132,6 +136,24 @@ export function LmsConfiguracaoPage() {
       await carregar();
     } catch (e) {
       toast.error(e instanceof LmsConfigErro ? e.message : "Não foi possível salvar a regra.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function salvarPadrao(partes: PartesEntrada | null, origem: "MANUAL" | "CALIBRADO", vigenteDesde: string, motivo: string) {
+    if (!editandoPadrao || !tenantId || !empresaId || !config) return;
+    setSalvando(true);
+    try {
+      const r = await salvarPadraoLms({
+        tenantId, empresaId, armazemId, tipoTarefaId: editandoPadrao.tipo_tarefa_id, partes, origem, vigenteDesde, motivo,
+      });
+      toast.success(r.mensagem);
+      setEditandoPadrao(null);
+      if (r.requer_reprocessamento && config.pode_reprocessar) setReprocessarDe(r.vigente_desde);
+      await carregar();
+    } catch (e) {
+      toast.error(e instanceof LmsConfigErro ? e.message : "Não foi possível salvar o padrão.");
     } finally {
       setSalvando(false);
     }
@@ -249,7 +271,7 @@ export function LmsConfiguracaoPage() {
               <Timer size={18} className="mt-0.5 text-primary" />
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Tempo padrão por tipo de tarefa</h2>
-                <p className="text-xs text-muted-foreground">Quanto uma tarefa deve levar. É a base da performance e da eficiência.</p>
+                <p className="text-xs text-muted-foreground">Quanto uma tarefa deve levar: um tempo por tarefa, mais um tempo por unidade (opcional), mais a folga (PFD). É a base da performance e da eficiência.</p>
               </div>
             </header>
             <div className="overflow-x-auto">
@@ -270,26 +292,21 @@ export function LmsConfiguracaoPage() {
                         <span className="font-mono text-xs text-muted-foreground">{p.codigo}</span>{" "}
                         <span className="text-foreground">{p.descricao}</span>
                         <Agendados
-                          itens={p.agendados.map((a) => ({ id: a.id, valor: a.tempo_fixo_seg, vigente_desde: a.vigente_desde }))}
+                          itens={p.agendados.map((a) => ({ id: a.id, valor: a.tempo_fixo_seg, texto: a.tempo_fixo_seg === null ? undefined : descreverPadrao({ ...a, tempo_fixo_seg: a.tempo_fixo_seg }, p.unidade_medida), vigente_desde: a.vigente_desde }))}
                           unidade="TEMPO" podeEditar={podeEditar} onExcluir={(id) => excluirAgendada("PADRAO_TEMPO", id)}
                         />
                       </td>
                       <td className="px-4 py-2 text-muted-foreground">{p.unidade_medida ?? "—"}</td>
                       <td className="px-4 py-2 text-right font-semibold tabular-nums text-foreground">
-                        {p.efetivo.tempo_fixo_seg > 0 ? formatarValor(p.efetivo.tempo_fixo_seg, "TEMPO") : <span className="text-muted-foreground">sem padrão</span>}
+                        {p.efetivo.tempo_fixo_seg > 0 || Number(p.efetivo.tempo_unidade_seg ?? 0) > 0
+                          ? descreverPadrao(p.efetivo, p.unidade_medida) : <span className="text-muted-foreground">sem padrão</span>}
+                        {p.efetivo.origem === "CALIBRADO" && <span className="block text-[10px] font-normal text-muted-foreground">calibrado pelo histórico</span>}
                       </td>
                       <td className="px-4 py-2"><OrigemBadge nivel={p.efetivo.nivel} nivelTela={nivelTela} /></td>
                       <td className="px-4 py-2 text-right">
                         {podeEditar && (
                           <Button size="sm" variant="ghost" aria-label={`Alterar tempo padrão de ${p.codigo}`}
-                            onClick={() => setEdicao({
-                              tipo: "PADRAO_TEMPO", chave: p.tipo_tarefa_id, rotulo: `Tempo padrão · ${p.codigo} ${p.descricao}`,
-                              ajuda: "Tempo esperado para um operador treinado concluir uma tarefa deste tipo, em ritmo normal.",
-                              unidade: "TEMPO", minimo: 0, maximo: 86400,
-                              valorEfetivo: p.efetivo.tempo_fixo_seg, nivelEfetivo: p.efetivo.nivel,
-                              valorHerdado: p.herdado.tempo_fixo_seg, nivelHerdado: p.herdado.nivel,
-                              temProprio: p.efetivo.nivel === nivelTela,
-                            })}>
+                            onClick={() => setEditandoPadrao(p)}>
                             <Pencil size={14} />
                           </Button>
                         )}
@@ -300,6 +317,12 @@ export function LmsConfiguracaoPage() {
               </table>
             </div>
           </section>
+
+          {/* Atividades indiretas e paradas (catálogo da empresa) */}
+          {tenantId && empresaId && (
+            <AtividadesIndiretasSection tenantId={tenantId} empresaId={empresaId} nivelTela={nivelTela}
+              nomeEmpresa={empresas.find((e) => e.id === empresaId)?.nome ?? "empresa"} />
+          )}
 
           {/* Faixas de classificação */}
           <section className="rounded-lg border border-border bg-card" data-testid="lms-faixas">
@@ -428,7 +451,8 @@ export function LmsConfiguracaoPage() {
                     <li key={`${h.chave}-${h.vigente_desde}-${i}`} className="px-4 py-2 text-xs">
                       <span className="font-medium text-foreground">{h.rotulo}</span>{" "}
                       <span className="text-muted-foreground">
-                        → {h.tipo === "FAIXAS" ? (h.herdar || !h.faixas ? "volta a herdar" : <ChipsFaixas lista={h.faixas} />) : h.valor === null ? "volta a herdar" : formatarValor(h.valor, h.tipo === "PADRAO_TEMPO" ? "TEMPO" : unidadeDe.get(h.chave) ?? "MULTIPLO")}
+                        → {h.tipo === "FAIXAS" ? (h.herdar || !h.faixas ? "volta a herdar" : <ChipsFaixas lista={h.faixas} />) : h.valor === null ? "volta a herdar" : h.tipo === "PADRAO_TEMPO" ? descreverPadrao({ tempo_fixo_seg: h.valor, tempo_unidade_seg: h.tempo_unidade_seg ?? 0, pfd_pct: h.pfd_pct ?? 0 }) : formatarValor(h.valor, unidadeDe.get(h.chave) ?? "MULTIPLO")}
+                        {h.origem === "CALIBRADO" ? " (calibrado)" : ""}
                         {" "}a partir de {formatDate(h.vigente_desde)} · {h.criado_por ?? "Sistema"} em {formatDateTime(h.criado_em)}
                         {h.motivo ? ` · ${h.motivo}` : ""}
                       </span>
@@ -453,6 +477,19 @@ export function LmsConfiguracaoPage() {
           salvando={salvando}
           onCancelar={() => setEditandoFaixas(false)}
           onSalvar={salvarFaixas}
+        />
+      )}
+
+      {config && tenantId && empresaId && (
+        <EditarPadraoDialog
+          padrao={editandoPadrao}
+          nivelTela={nivelTela}
+          hoje={config.hoje}
+          podeRetroativo={config.pode_reprocessar}
+          salvando={salvando}
+          contexto={{ tenantId, empresaId, armazemId }}
+          onCancelar={() => setEditandoPadrao(null)}
+          onSalvar={salvarPadrao}
         />
       )}
 
