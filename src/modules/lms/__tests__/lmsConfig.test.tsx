@@ -86,7 +86,10 @@ vi.mock("../configuracao/lmsConfig.service", async (orig) => {
     ...real,
     listarEmpresas: vi.fn().mockResolvedValue([{ id: "e1", nome: "Empresa Um" }]),
     listarArmazens: vi.fn().mockResolvedValue([{ id: "a1", nome: "CD Fortaleza" }]),
-    listarTiposTarefaLms: vi.fn().mockResolvedValue({ pode_editar: true, tipos: [], historico: [] }),
+    listarTiposTarefaLms: vi.fn().mockResolvedValue({ pode_editar: true, historico: [], tipos: [{
+      id: "tt1", codigo: "SEP", descricao: "SEPARAÇÃO", ativo: true, categoria: "SEPARACAO", tipo_movimento: 2, unidade_medida: "Unidade",
+      peso_produtividade: 1, cor_interface: null, reserva_acao: "LIBERAR_SEM_EXECUCAO", reserva_expira_min: 240,
+      acoes_reserva: ["LIBERAR_SEM_EXECUCAO", "ALERTAR", "NUNCA"] }] }),
     listarAtividadesLms: vi.fn().mockResolvedValue({ pode_editar: true, atividades: [
       { id: "a1", codigo: "LIMPEZA", nome: "Limpeza e organização (5S)", tipo: "INDIRETA", duracao_max_min: 60, ativo: true, ordem: 10, usos_30d: 2 },
       { id: "a2", codigo: "SISTEMA_FORA", nome: "Sistema fora do ar", tipo: "EXCECAO", duracao_max_min: 120, ativo: true, ordem: 60, usos_30d: 0 },
@@ -133,9 +136,16 @@ describe("Fase 7 · painel de configurações", () => {
     expect(screen.getByText("Elite")).toBeInTheDocument();
     expect(screen.getByText("90–120%")).toBeInTheDocument();
     expect(screen.getByText("Meta")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Alterar tempo padrão de SEP"));
-    expect(screen.getByLabelText("Por tarefa (s)")).toHaveValue("90");
+    // Fase 10.11: tempo padrão fica dentro do painel do tipo de tarefa
+    expect(screen.queryByText("Tempo padrão por tipo de tarefa")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Regras do sistema/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Editar SEP"));
+    const aba = screen.getByRole("tab", { name: /Tempo padrão/ });
+    fireEvent.mouseDown(aba, { button: 0 });
+    fireEvent.click(aba);
+    expect(await screen.findByLabelText("Por tarefa (s)")).toHaveValue("90");
     expect(screen.getByLabelText("Folga PFD (%)")).toHaveValue("0");
+    expect(screen.getByTestId("lms-regra-sistema")).toHaveTextContent("Início: abertura");
     // Fase 8: catálogo de atividades indiretas e paradas
     expect(await screen.findByText("Limpeza e organização (5S)")).toBeInTheDocument();
     expect(screen.getByText("Parada fora do controle do operador")).toBeInTheDocument();

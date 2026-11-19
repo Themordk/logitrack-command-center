@@ -1,28 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { History, ListChecks, Loader2, Lock, Pencil, Save, Search, Timer } from "lucide-react";
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { CalendarClock, ListChecks, Loader2, Lock, Pencil, Save, Search } from "lucide-react";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatDateTime } from "@/utils/dateTime";
+import { formatDate, formatDateTime } from "@/utils/dateTime";
 import {
   RESERVA_ACAO_AJUDA, RESERVA_EXPIRA_MAX_HORAS, RESERVA_EXPIRA_MIN_HORAS, formatarHoras, reservaAcaoLabel,
 } from "@/lib/reservaTarefa";
 import {
-  CATEGORIAS_TIPO_TAREFA, LmsConfigErro, TIPOS_MOVIMENTO, descreverMudancaTipo, descreverPadrao, listarTiposTarefaLms,
-  rotuloMovimento, salvarTipoTarefaLms, type HistoricoTipoTarefa, type PadraoTempoConfig, type ReservaAcaoTipo, type TipoTarefaLms,
+  CATEGORIAS_TIPO_TAREFA, LmsConfigErro, TIPOS_MOVIMENTO, descreverHistoricoTipo, descreverOrigem, descreverPadrao, listarTiposTarefaLms,
+  rotuloMovimento, salvarTipoTarefaCompleto, type DadosTipoTarefa, type HistoricoTipoTarefa, type PadraoParaSalvar, type PadraoTempoConfig,
+  type RegraSistema, type ReservaAcaoTipo, type TipoTarefaLms,
 } from "./lmsConfig.service";
+import { PadraoTempoCampos, edicaoPadraoInicial, partesDaEdicao, validarEdicaoPadrao, type EdicaoPadrao } from "./PadraoTempoCampos";
 
+/**
+ * Fase 10.11 · tipo de tarefa e tempo padrão numa tela só.
+ * Cadastro e "sem atividade" valem para todas as empresas; o tempo padrão vale para o nível
+ * escolhido no topo da tela (empresa ou armazém). Um Salvar grava tudo junto, no banco, em uma
+ * transação (rpc_lms_tipo_tarefa_salvar_completo).
+ */
 interface Props {
   tenantId: string;
-  /** tempos padrão do nível em tela (empresa ou armazém), para mostrar ao lado do cadastro */
-  padroes: PadraoTempoConfig[];
+  empresaId: string;
+  armazemId: string | null;
+  nivelTela: "EMPRESA" | "ARMAZEM";
   nomeNivel: string;
-  onEditarPadrao: (p: PadraoTempoConfig) => void;
+  hoje: string;
+  padroes: PadraoTempoConfig[];
+  regrasSistema: RegraSistema[];
+  podeRetroativo: boolean;
+  /** depois de salvar: a página recarrega as regras e, se a data foi no passado, oferece reprocessar */
+  onSalvo: (r: { requerReprocessamento: boolean; vigenteDesde: string | null }) => void;
+  onExcluirAgendado: (id: string) => void;
 }
 
-interface Form {
+interface FormCadastro {
   ativo: boolean;
   categoria: string;
   tipo_movimento: string;
@@ -31,12 +47,13 @@ interface Form {
   cor_interface: string;
   reserva_acao: ReservaAcaoTipo;
   reserva_horas: string;
-  motivo: string;
 }
+
+type Aba = "cadastro" | "tempo" | "reserva" | "historico";
 
 const COR_PADRAO = "#6366f1";
 
-function paraForm(t: TipoTarefaLms): Form {
+function paraForm(t: TipoTarefaLms): FormCadastro {
   return {
     ativo: t.ativo,
     categoria: t.categoria ?? "",
@@ -46,12 +63,32 @@ function paraForm(t: TipoTarefaLms): Form {
     cor_interface: t.cor_interface ?? "",
     reserva_acao: t.reserva_acao,
     reserva_horas: String((t.reserva_expira_min ?? 240) / 60),
-    motivo: "",
   };
 }
 
-/** Valida o formulário antes de enviar; o banco valida de novo. */
-export function validarFormTipo(f: Pick<Form, "peso_produtividade" | "reserva_acao" | "reserva_horas" | "cor_interface">): string | null {
+function dadosDoForm(f: FormCadastro, t: TipoTarefaLms): DadosTipoTarefa {
+  return {
+    ativo: f.ativo,
+    categoria: f.categoria || null,
+    tipo_movimento: f.tipo_movimento ? Number(f.tipo_movimento) : null,
+    unidade_medida: f.unidade_medida.trim() || null,
+    peso_produtividade: Number(f.peso_produtividade),
+    cor_interface: f.cor_interface || null,
+    reserva_acao: f.reserva_acao,
+    reserva_expira_min: f.reserva_acao === "NUNCA" ? t.reserva_expira_min : Math.round(Number(f.reserva_horas) * 60),
+  };
+}
+
+/** O cadastro mudou em relação ao que veio do banco? (se não, o Salvar não manda essa parte) */
+export function cadastroAlterado(f: FormCadastro, t: TipoTarefaLms): boolean {
+  const d = dadosDoForm(f, t);
+  return d.ativo !== t.ativo || d.categoria !== (t.categoria ?? null) || d.tipo_movimento !== (t.tipo_movimento ?? null)
+    || d.unidade_medida !== (t.unidade_medida ?? null) || Number(d.peso_produtividade) !== Number(t.peso_produtividade)
+    || d.cor_interface !== (t.cor_interface ?? null) || d.reserva_acao !== t.reserva_acao || d.reserva_expira_min !== t.reserva_expira_min;
+}
+
+/** Valida o cadastro antes de enviar; o banco valida de novo. */
+export function validarFormTipo(f: Pick<FormCadastro, "peso_produtividade" | "reserva_acao" | "reserva_horas" | "cor_interface">): string | null {
   const peso = Number(f.peso_produtividade);
   if (!Number.isFinite(peso) || peso < 0.1 || peso > 10) return "O peso de produtividade vai de 0,1 a 10.";
   if (f.cor_interface && !/^#[0-9a-fA-F]{6}$/.test(f.cor_interface)) return "Cor inválida.";
@@ -64,20 +101,35 @@ export function validarFormTipo(f: Pick<Form, "peso_produtividade" | "reserva_ac
   return null;
 }
 
-export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadrao }: Props) {
+function OrigemPadrao({ p, nivelTela }: { p: PadraoTempoConfig; nivelTela: "EMPRESA" | "ARMAZEM" }) {
+  const proprio = p.efetivo.nivel === nivelTela;
+  return (
+    <span className={cn("ml-1.5 inline-flex rounded-full border px-1.5 text-[10px]",
+      proprio ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-muted/40 text-muted-foreground")}>
+      {descreverOrigem(p.efetivo.nivel, nivelTela)}{p.efetivo.origem === "CALIBRADO" ? " · calibrado" : ""}
+    </span>
+  );
+}
+
+export function TiposTarefaSection({
+  tenantId, empresaId, armazemId, nivelTela, nomeNivel, hoje, padroes, regrasSistema, podeRetroativo, onSalvo, onExcluirAgendado,
+}: Props) {
   const [tipos, setTipos] = useState<TipoTarefaLms[]>([]);
   const [historico, setHistorico] = useState<HistoricoTipoTarefa[]>([]);
   const [podeEditar, setPodeEditar] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [busca, setBusca] = useState("");
   const [editando, setEditando] = useState<TipoTarefaLms | null>(null);
-  const [form, setForm] = useState<Form | null>(null);
+  const [aba, setAba] = useState<Aba>("cadastro");
+  const [form, setForm] = useState<FormCadastro | null>(null);
+  const [edPadrao, setEdPadrao] = useState<EdicaoPadrao | null>(null);
+  const [motivo, setMotivo] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      const r = await listarTiposTarefaLms(tenantId);
+      const r = await listarTiposTarefaLms(tenantId, empresaId, armazemId);
       setTipos(r.tipos);
       setHistorico(r.historico);
       setPodeEditar(r.pode_editar);
@@ -86,52 +138,63 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
     } finally {
       setCarregando(false);
     }
-  }, [tenantId]);
+  }, [tenantId, empresaId, armazemId]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
   const padraoPorTipo = useMemo(() => new Map(padroes.map((p) => [p.tipo_tarefa_id, p])), [padroes]);
+  const regraPorCodigo = useMemo(() => new Map(regrasSistema.map((r) => [r.tipo_codigo, r])), [regrasSistema]);
   const filtrados = useMemo(() => {
     const s = busca.trim().toLowerCase();
     return s ? tipos.filter((t) => t.codigo.toLowerCase().includes(s) || t.descricao.toLowerCase().includes(s)) : tipos;
   }, [tipos, busca]);
 
-  function abrir(t: TipoTarefaLms) {
+  function abrir(t: TipoTarefaLms, abaInicial: Aba = "cadastro") {
     setEditando(t);
     setForm(paraForm(t));
+    setEdPadrao(edicaoPadraoInicial(padraoPorTipo.get(t.id), hoje));
+    setMotivo("");
+    setAba(abaInicial);
   }
 
   function fechar() {
     setEditando(null);
     setForm(null);
+    setEdPadrao(null);
   }
 
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
+  const set = <K extends keyof FormCadastro>(k: K, v: FormCadastro[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
+
+  const padraoEditando = editando ? padraoPorTipo.get(editando.id) : undefined;
+  const mudouCadastro = !!(editando && form && cadastroAlterado(form, editando));
+  const mudouPadrao = !!(edPadrao?.alterado && padraoEditando);
+  const erroCadastro = form && mudouCadastro ? validarFormTipo(form) : null;
+  const erroPadrao = edPadrao && mudouPadrao ? validarEdicaoPadrao(edPadrao, { hoje, podeRetroativo, motivo }) : null;
+  const erro = erroCadastro ?? erroPadrao;
 
   async function salvar() {
-    if (!editando || !form) return;
-    const erro = validarFormTipo(form);
-    if (erro) { toast.error(erro); return; }
+    if (!editando || !form || !edPadrao) return;
+    if (!mudouCadastro && !mudouPadrao) { toast.info("Nada mudou."); return; }
+    if (erroCadastro) { setAba(erroCadastro.includes("prazo") ? "reserva" : "cadastro"); toast.error(erroCadastro); return; }
+    if (erroPadrao) { setAba("tempo"); toast.error(erroPadrao); return; }
+    let padrao: PadraoParaSalvar | null = null;
+    if (mudouPadrao) {
+      const p = partesDaEdicao(edPadrao);
+      padrao = {
+        empresa_id: empresaId, armazem_id: armazemId, herdar: edPadrao.herdar, origem: edPadrao.origem, vigente_desde: edPadrao.vigencia,
+        ...(edPadrao.herdar ? {} : { tempo_fixo_seg: p.fixo, tempo_unidade_seg: p.unidade, pfd_pct: p.pfd }),
+      };
+    }
     setSalvando(true);
     try {
-      const r = await salvarTipoTarefaLms({
-        tenantId,
-        tipoTarefaId: editando.id,
-        motivo: form.motivo.trim() || null,
-        dados: {
-          ativo: form.ativo,
-          categoria: form.categoria || null,
-          tipo_movimento: form.tipo_movimento ? Number(form.tipo_movimento) : null,
-          unidade_medida: form.unidade_medida.trim() || null,
-          peso_produtividade: Number(form.peso_produtividade),
-          cor_interface: form.cor_interface || null,
-          reserva_acao: form.reserva_acao,
-          reserva_expira_min: form.reserva_acao === "NUNCA" ? editando.reserva_expira_min : Math.round(Number(form.reserva_horas) * 60),
-        },
+      const r = await salvarTipoTarefaCompleto({
+        tenantId, tipoTarefaId: editando.id, motivo: motivo.trim() || null,
+        cadastro: mudouCadastro ? dadosDoForm(form, editando) : null, padrao,
       });
-      toast.success(r.alterou ? "Tipo de tarefa atualizado." : "Nada mudou.");
+      toast.success(r.mensagem || "Tipo de tarefa atualizado.");
       fechar();
       await carregar();
+      onSalvo({ requerReprocessamento: r.requer_reprocessamento, vigenteDesde: r.vigente_desde });
     } catch (e) {
       toast.error(e instanceof LmsConfigErro ? e.message : "Não foi possível salvar o tipo de tarefa.");
     } finally {
@@ -139,9 +202,10 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
     }
   }
 
-  const padraoEditando = editando ? padraoPorTipo.get(editando.id) : undefined;
+  const historicoDoTipo = editando ? historico.filter((h) => h.tipo_tarefa_id === editando.id) : [];
   const inputClass = "w-full h-9 rounded-md border border-border bg-background px-2 text-sm disabled:opacity-60";
   const labelClass = "block text-xs font-medium text-muted-foreground mb-1";
+  const alcanceTodas = <p className="mb-3 text-xs text-muted-foreground">Vale para <b>todas as empresas</b>.</p>;
 
   return (
     <section className="rounded-lg border border-border bg-card" data-testid="lms-tipos-tarefa">
@@ -151,7 +215,8 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
           <div>
             <h2 className="text-sm font-semibold text-foreground">Tipos de tarefa</h2>
             <p className="text-xs text-muted-foreground">
-              Cadastro de cada tipo de tarefa e o que fazer quando o operador fica com a tarefa sem atividade. Vale para todas as empresas.
+              Cadastro, tempo padrão e o que fazer quando o operador fica sem atividade. O tempo padrão é o de <b>{nomeNivel}</b>
+              {" "}(troque o nível no topo da tela); o restante vale para todas as empresas.
             </p>
           </div>
         </div>
@@ -172,7 +237,7 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
                 <th className="px-4 py-2 text-left font-medium">Tipo de tarefa</th>
                 <th className="px-4 py-2 text-left font-medium">Categoria</th>
                 <th className="px-4 py-2 text-left font-medium">Movimento</th>
-                <th className="px-4 py-2 text-right font-medium">Tempo padrão · {nomeNivel}</th>
+                <th className="px-4 py-2 text-left font-medium">Tempo padrão</th>
                 <th className="px-4 py-2 text-left font-medium">Sem atividade</th>
                 <th className="px-4 py-2 text-left font-medium">Situação</th>
                 <th className="px-4 py-2" />
@@ -190,9 +255,22 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
                     </td>
                     <td className="px-4 py-2 text-muted-foreground">{t.categoria ?? "—"}</td>
                     <td className="px-4 py-2 text-muted-foreground">{rotuloMovimento(t.tipo_movimento)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-foreground">
-                      {p && (p.efetivo.tempo_fixo_seg > 0 || Number(p.efetivo.tempo_unidade_seg ?? 0) > 0)
-                        ? descreverPadrao(p.efetivo, p.unidade_medida) : <span className="text-muted-foreground">sem padrão</span>}
+                    <td className="px-4 py-2">
+                      {p ? (
+                        <>
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {p.efetivo.tempo_fixo_seg > 0 || Number(p.efetivo.tempo_unidade_seg ?? 0) > 0
+                              ? descreverPadrao(p.efetivo, p.unidade_medida) : "sem padrão"}
+                          </span>
+                          <OrigemPadrao p={p} nivelTela={nivelTela} />
+                          {p.agendados.length > 0 && (
+                            <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400"
+                              title={p.agendados.map((a) => formatDate(a.vigente_desde)).join(", ")}>
+                              <CalendarClock size={11} /> {p.agendados.length} agendado(s)
+                            </span>
+                          )}
+                        </>
+                      ) : <span className="text-xs text-muted-foreground">tipo inativo</span>}
                     </td>
                     <td className="px-4 py-2 text-muted-foreground">
                       {reservaAcaoLabel(t.reserva_acao)}{t.reserva_acao !== "NUNCA" ? ` · ${formatarHoras(t.reserva_expira_min)}` : ""}
@@ -204,11 +282,9 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
                       </span>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      {podeEditar ? (
-                        <Button size="sm" variant="ghost" aria-label={`Editar ${t.codigo}`} onClick={() => abrir(t)}><Pencil size={14} /></Button>
-                      ) : (
-                        <span title="Somente leitura" className="inline-flex text-muted-foreground"><Lock size={13} /></span>
-                      )}
+                      <Button size="sm" variant="ghost" aria-label={`${podeEditar ? "Editar" : "Ver"} ${t.codigo}`} onClick={() => abrir(t)}>
+                        {podeEditar ? <Pencil size={14} /> : <Lock size={13} />}
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -221,35 +297,24 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
         </div>
       )}
 
-      {historico.length > 0 && (
-        <details className="border-t border-border">
-          <summary className="flex cursor-pointer items-center gap-2 px-4 py-2.5 text-xs font-medium text-muted-foreground">
-            <History size={14} /> Alterações no cadastro
-          </summary>
-          <ul className="divide-y divide-border">
-            {historico.map((h, i) => (
-              <li key={`${h.tipo_tarefa_id}-${h.alterado_em}-${i}`} className="px-4 py-2 text-xs">
-                <span className="font-mono text-foreground">{h.codigo}</span>{" "}
-                <span className="text-muted-foreground">
-                  {descreverMudancaTipo(h, reservaAcaoLabel)} · {h.alterado_por ?? "Sistema"} em {formatDateTime(h.alterado_em)}
-                  {h.motivo ? ` · ${h.motivo}` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      <Sheet open={!!editando} onOpenChange={(v) => !v && fechar()}>
+      <Sheet open={!!editando} onOpenChange={(v) => !v && !salvando && fechar()}>
         <SheetContent side="right" className="w-full sm:max-w-2xl !p-0 flex flex-col gap-0">
           <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
-            <SheetTitle>Editar tipo de tarefa</SheetTitle>
+            <SheetTitle>{editando ? `${editando.codigo} · ${editando.descricao}` : "Tipo de tarefa"}</SheetTitle>
+            <SheetDescription>{podeEditar ? "Altere o que precisar nas abas e salve uma vez." : "Somente leitura: só o gerente altera as regras do LMS."}</SheetDescription>
           </SheetHeader>
-          {editando && form && (
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-              <div>
-                <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Cadastro</h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {editando && form && edPadrao && (
+            <Tabs value={aba} onValueChange={(v) => setAba(v as Aba)} className="flex-1 overflow-y-auto px-6 py-4">
+              <TabsList className="mb-4">
+                <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
+                <TabsTrigger value="tempo">Tempo padrão{mudouPadrao ? " •" : ""}</TabsTrigger>
+                <TabsTrigger value="reserva">Sem atividade</TabsTrigger>
+                <TabsTrigger value="historico">Histórico</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="cadastro">
+                {alcanceTodas}
+                <fieldset disabled={!podeEditar} className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div><span className={labelClass}>Código</span><input value={editando.codigo} disabled className={inputClass} /></div>
                   <div><span className={labelClass}>Descrição</span><input value={editando.descricao} disabled className={inputClass} /></div>
                   <label>
@@ -266,34 +331,6 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
                       {TIPOS_MOVIMENTO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </label>
-                  <div className="flex items-center gap-3 md:col-span-2">
-                    <Switch checked={form.ativo} onCheckedChange={(v) => set("ativo", v)} aria-label="Ativo" />
-                    <span className="text-sm text-foreground">Ativo</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-5">
-                <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Produtividade</h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="md:col-span-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
-                    <span className="flex items-center gap-2 text-sm">
-                      <Timer size={14} className="text-primary" />
-                      Tempo padrão ({nomeNivel}):{" "}
-                      <strong className="tabular-nums">
-                        {padraoEditando && (padraoEditando.efetivo.tempo_fixo_seg > 0 || Number(padraoEditando.efetivo.tempo_unidade_seg ?? 0) > 0)
-                          ? descreverPadrao(padraoEditando.efetivo, padraoEditando.unidade_medida) : "sem padrão"}
-                      </strong>
-                    </span>
-                    {padraoEditando && (
-                      <Button size="sm" variant="outline" onClick={() => { const p = padraoEditando; fechar(); onEditarPadrao(p); }}>
-                        Alterar tempo padrão
-                      </Button>
-                    )}
-                  </div>
-                  <p className="md:col-span-2 -mt-2 text-xs text-muted-foreground">
-                    Metas por hora agora são definidas em Produtividade (LMS) › Metas.
-                  </p>
                   <label>
                     <span className={labelClass}>Unidade de medida</span>
                     <input className={inputClass} value={form.unidade_medida} maxLength={30} placeholder="Ex: caixas, pallets, SKUs"
@@ -313,12 +350,31 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
                       <span className="font-mono text-xs text-muted-foreground">{form.cor_interface || COR_PADRAO}</span>
                     </div>
                   </div>
-                </div>
-              </div>
+                  <div className="flex items-center gap-3 self-end">
+                    <Switch checked={form.ativo} onCheckedChange={(v) => set("ativo", v)} aria-label="Ativo" disabled={!podeEditar} />
+                    <span className="text-sm text-foreground">Ativo</span>
+                  </div>
+                </fieldset>
+                <p className="mt-4 text-xs text-muted-foreground">Metas por hora são definidas em Produtividade (LMS) › Metas.</p>
+              </TabsContent>
 
-              <div className="border-t border-border pt-5">
-                <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">Reserva sem atividade</h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <TabsContent value="tempo">
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Vale para <b>{nomeNivel}</b>{nivelTela === "EMPRESA" ? " e os armazéns dela sem regra própria" : ""}.
+                </p>
+                {padraoEditando ? (
+                  <PadraoTempoCampos padrao={padraoEditando} edicao={edPadrao} onChange={setEdPadrao}
+                    motivo={motivo} onMotivo={setMotivo} hoje={hoje} podeRetroativo={podeRetroativo} podeEditar={podeEditar}
+                    regraSistema={regraPorCodigo.get(editando.codigo) ?? null}
+                    contexto={{ tenantId, empresaId, armazemId }} onExcluirAgendado={onExcluirAgendado} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Tipo inativo: ative-o no Cadastro para ver e definir o tempo padrão.</p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="reserva">
+                {alcanceTodas}
+                <fieldset disabled={!podeEditar} className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label>
                     <span className={labelClass}>Quando o operador ficar sem atividade</span>
                     <select className={inputClass} value={form.reserva_acao}
@@ -337,21 +393,52 @@ export function TiposTarefaSection({ tenantId, padroes, nomeNivel, onEditarPadra
                     deste tipo no mesmo documento. Verificado a cada 10 minutos; designações feitas pelo gestor e coletas pendentes
                     nunca são liberadas sozinhas (geram aviso ao supervisor).
                   </p>
-                </div>
-              </div>
+                </fieldset>
+              </TabsContent>
 
-              <label className="block border-t border-border pt-5">
-                <span className={labelClass}>Motivo da alteração (opcional)</span>
-                <input className={inputClass} value={form.motivo} maxLength={200} onChange={(e) => set("motivo", e.target.value)} />
+              <TabsContent value="historico">
+                <p className="mb-3 text-xs text-muted-foreground">Cadastro (todas as empresas) e tempo padrão de {nomeNivel}.</p>
+                {historicoDoTipo.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma alteração registrada.</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {historicoDoTipo.map((h, i) => (
+                      <li key={`${h.tipo}-${h.alterado_em}-${i}`} className="px-3 py-2 text-xs">
+                        <span className={cn("mr-1.5 rounded-full border px-1.5 text-[10px]",
+                          h.tipo === "PADRAO_TEMPO" ? "border-primary/40 text-primary" : "border-border text-muted-foreground")}>
+                          {h.tipo === "PADRAO_TEMPO" ? "Tempo padrão" : "Cadastro"}
+                        </span>
+                        <span className="text-foreground">{descreverHistoricoTipo(h, reservaAcaoLabel, editando.unidade_medida)}</span>
+                        <span className="block text-muted-foreground">
+                          {h.alterado_por ?? "Sistema"} em {formatDateTime(h.alterado_em)}{h.motivo ? ` · ${h.motivo}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
+          {podeEditar && (
+            <div className="border-t border-border px-6 pt-3 shrink-0">
+              <label className="block">
+                <span className={labelClass}>
+                  Motivo da alteração {edPadrao && mudouPadrao && edPadrao.vigencia < hoje ? "(obrigatório: data no passado)" : "(opcional)"}
+                </span>
+                <input className={inputClass} value={motivo} maxLength={200} onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Ex.: estudo de tempos de outubro" />
               </label>
+              {erro && <p className="mt-2 text-xs text-destructive" role="alert">{erro}</p>}
             </div>
           )}
-          <SheetFooter className="px-6 py-4 border-t border-border shrink-0 flex-row justify-end gap-2">
-            <Button variant="outline" onClick={fechar} disabled={salvando}>Cancelar</Button>
-            <Button onClick={salvar} disabled={salvando}>
-              {salvando ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Save size={14} className="mr-1" />}
-              {salvando ? "Salvando..." : "Salvar"}
-            </Button>
+          <SheetFooter className="px-6 py-4 shrink-0 flex-row justify-end gap-2">
+            <Button variant="outline" onClick={fechar} disabled={salvando}>{podeEditar ? "Cancelar" : "Fechar"}</Button>
+            {podeEditar && (
+              <Button onClick={salvar} disabled={salvando || !!erro || (!mudouCadastro && !mudouPadrao)}>
+                {salvando ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Save size={14} className="mr-1" />}
+                {salvando ? "Salvando..." : "Salvar"}
+              </Button>
+            )}
           </SheetFooter>
         </SheetContent>
       </Sheet>

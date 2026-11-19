@@ -5,9 +5,8 @@ const rpc = vi.fn();
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a), from: vi.fn() } }));
 
 import {
-  codigoDeNome, descreverPadrao, horasPadraoSeg, validarPadrao, type PadraoTempoConfig,
+  codigoDeNome, descreverPadrao, horasPadraoSeg, validarPadrao,
 } from "../configuracao/lmsConfig.service";
-import { EditarPadraoDialog } from "../configuracao/EditarPadraoDialog";
 import { criarAcessoLms } from "../lmsAcesso";
 import { formatarDecorrido, segundosDesde } from "@/pages/coletor/atividades/atividadesIndiretas.service";
 
@@ -32,67 +31,6 @@ describe("Fase 8 · padrão em três partes", () => {
     expect(validarPadrao({ fixo: 0, unidade: 0, pfd: 0 })).toMatch("por tarefa ou o tempo por unidade");
     expect(validarPadrao({ fixo: 30, unidade: 0, pfd: 60 })).toMatch("entre 0% e 50%");
     expect(validarPadrao({ fixo: 30, unidade: 4000, pfd: 0 })).toMatch("3.600");
-  });
-});
-
-const padrao: PadraoTempoConfig = {
-  tipo_tarefa_id: "tt-1", codigo: "SEP-CONF", descricao: "Conferência", unidade_medida: "UN", categoria: null,
-  efetivo: { tempo_fixo_seg: 120, tempo_unidade_seg: 0, pfd_pct: 0, nivel: "EMPRESA", vigente_desde: "2000-01-01", origem: "MIGRADO" },
-  herdado: { tempo_fixo_seg: 120, tempo_unidade_seg: 0, pfd_pct: 0, nivel: "CADASTRO" },
-  proprio: null, agendados: [],
-};
-const ctx = { tenantId: "t", empresaId: "e", armazemId: null };
-
-describe("Fase 8 · diálogo do tempo padrão", () => {
-  beforeEach(() => rpc.mockReset());
-
-  it("grava as três partes", () => {
-    const onSalvar = vi.fn();
-    render(<EditarPadraoDialog padrao={padrao} nivelTela="EMPRESA" hoje="2026-11-19" podeRetroativo={false}
-      salvando={false} contexto={ctx} onCancelar={() => {}} onSalvar={onSalvar} />);
-    fireEvent.change(screen.getByLabelText("Por tarefa (s)"), { target: { value: "30" } });
-    fireEvent.change(screen.getByLabelText("Por un (s)"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Folga PFD (%)"), { target: { value: "10" } });
-    expect(screen.getByTestId("lms-padrao-previa")).toHaveTextContent("10 un = 1 min 6 s");
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(onSalvar).toHaveBeenCalledWith({ fixo: 30, unidade: 3, pfd: 10 }, "MANUAL", "2026-11-19", "");
-  });
-
-  it("amostra insuficiente: avisa e não oferece sugestão", async () => {
-    rpc.mockResolvedValue({ data: {
-      sucesso: true, suficiente: false, mensagem: "Amostra insuficiente: 3 execução(ões) com início real nos últimos 30 dias; são necessárias pelo menos 10.",
-      amostra: { dias: 30, de: "", ate: "", encontradas: 3, usadas: 3, descartadas: 0, minimo: 10, operadores: 1 },
-      observado: null, atual: padrao.efetivo, sugestao: null, impacto: null,
-    }, error: null });
-    render(<EditarPadraoDialog padrao={padrao} nivelTela="EMPRESA" hoje="2026-11-19" podeRetroativo={false}
-      salvando={false} contexto={ctx} onCancelar={() => {}} onSalvar={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sugerir" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Amostra insuficiente");
-    expect(screen.queryByRole("button", { name: "Usar sugestão" })).toBeNull();
-  });
-
-  it("usar sugestão preenche os campos e grava como CALIBRADO", async () => {
-    rpc.mockResolvedValue({ data: {
-      sucesso: true, suficiente: true, mensagem: "Sugestão feita com 24 execuções reais de 1 operador(es) nos últimos 30 dias.",
-      amostra: { dias: 30, de: "", ate: "", encontradas: 25, usadas: 24, descartadas: 1, minimo: 10, operadores: 1 },
-      observado: { mediana_seg: 63, p25_seg: 48, p75_seg: 78, quantidade_media: 10.5, variacao_quantidade: 0.55 },
-      atual: padrao.efetivo,
-      sugestao: { modelo: "FIXO_MAIS_UNIDADE", tempo_fixo_seg: 27.5, tempo_unidade_seg: 2.72, pfd_pct: 10, r2: 0.99 },
-      impacto: { atual: { performance_mediana_pct: 216.7, performance_total_pct: 206.9 }, sugerido: { performance_mediana_pct: 100.1, performance_total_pct: 100.3 } },
-    }, error: null });
-    const onSalvar = vi.fn();
-    render(<EditarPadraoDialog padrao={padrao} nivelTela="EMPRESA" hoje="2026-11-19" podeRetroativo={false}
-      salvando={false} contexto={ctx} onCancelar={() => {}} onSalvar={onSalvar} />);
-    fireEvent.click(screen.getByRole("button", { name: "Sugerir" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Usar sugestão" }));
-    expect(screen.getByTestId("lms-sugestao")).toHaveTextContent("216,7%");
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(onSalvar).toHaveBeenCalled());
-    const [partes, origem, , motivo] = onSalvar.mock.calls[0];
-    expect(partes).toEqual({ fixo: 27.5, unidade: 2.72, pfd: 10 });
-    expect(origem).toBe("CALIBRADO");
-    expect(motivo).toMatch("24 execuções reais");
-    expect(rpc).toHaveBeenCalledWith("rpc_lms_padrao_sugerir", expect.objectContaining({ p_tipo_tarefa_id: "tt-1" }));
   });
 });
 

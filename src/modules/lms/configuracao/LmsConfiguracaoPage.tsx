@@ -1,20 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarClock, History, Info, Loader2, Lock, Pencil, RefreshCw, ShieldCheck, Timer, X } from "lucide-react";
+import { CalendarClock, History, Info, Loader2, Lock, Pencil, RefreshCw, X } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import { EditarRegraDialog, type RegraEmEdicao } from "./EditarRegraDialog";
 import { EditarFaixasDialog } from "./EditarFaixasDialog";
-import { EditarPadraoDialog, type PartesEntrada } from "./EditarPadraoDialog";
 import { AtividadesIndiretasSection } from "./AtividadesIndiretasSection";
 import { TiposTarefaSection } from "./TiposTarefaSection";
 import { PALETA, intervalos, type FaixaLms } from "../faixas";
 import {
   LmsConfigErro, ROTULO_GRUPO, descreverOrigem, descreverPadrao, excluirRegraAgendada, formatarValor, listarArmazens, listarEmpresas, obterConfigLms,
-  reprocessarLms, salvarFaixasLms, salvarPadraoLms, salvarRegraLms, type ConfigLms, type FaixaEntrada, type GrupoParametro, type NivelRegra,
-  type PadraoTempoConfig,
+  reprocessarLms, salvarFaixasLms, salvarRegraLms, type ConfigLms, type FaixaEntrada, type GrupoParametro, type NivelRegra,
 } from "./lmsConfig.service";
 
 interface Opcao { id: string; nome: string }
@@ -82,7 +80,6 @@ export function LmsConfiguracaoPage() {
   const [salvando, setSalvando] = useState(false);
   const [reprocessarDe, setReprocessarDe] = useState<string | null>(null);
   const [editandoFaixas, setEditandoFaixas] = useState(false);
-  const [editandoPadrao, setEditandoPadrao] = useState<PadraoTempoConfig | null>(null);
   const [reprocessando, setReprocessando] = useState(false);
 
   useEffect(() => { if (!empresaId && empresaSessao) setEmpresaId(empresaSessao); }, [empresaSessao, empresaId]);
@@ -142,24 +139,6 @@ export function LmsConfiguracaoPage() {
     }
   }
 
-  async function salvarPadrao(partes: PartesEntrada | null, origem: "MANUAL" | "CALIBRADO", vigenteDesde: string, motivo: string) {
-    if (!editandoPadrao || !tenantId || !empresaId || !config) return;
-    setSalvando(true);
-    try {
-      const r = await salvarPadraoLms({
-        tenantId, empresaId, armazemId, tipoTarefaId: editandoPadrao.tipo_tarefa_id, partes, origem, vigenteDesde, motivo,
-      });
-      toast.success(r.mensagem);
-      setEditandoPadrao(null);
-      if (r.requer_reprocessamento && config.pode_reprocessar) setReprocessarDe(r.vigente_desde);
-      await carregar();
-    } catch (e) {
-      toast.error(e instanceof LmsConfigErro ? e.message : "Não foi possível salvar o padrão.");
-    } finally {
-      setSalvando(false);
-    }
-  }
-
   async function salvarFaixas(faixas: FaixaEntrada[] | null, vigenteDesde: string, motivo: string) {
     if (!tenantId || !empresaId) return;
     setSalvando(true);
@@ -201,6 +180,8 @@ export function LmsConfiguracaoPage() {
   }
 
   const podeEditar = !!config?.pode_editar;
+  // tempo padrão tem histórico próprio em cada tipo de tarefa (Fase 10.11)
+  const historicoGeral = useMemo(() => (config?.historico ?? []).filter((h) => h.tipo !== "PADRAO_TEMPO"), [config]);
   const unidadeDe = useMemo(() => new Map((config?.parametros ?? []).map((p) => [p.codigo, p.unidade])), [config]);
 
   return (
@@ -266,67 +247,17 @@ export function LmsConfiguracaoPage() {
 
       {config && (
         <>
-          {/* Fase 10.10: cadastro de tipo de tarefa (antes em Configurações › Tipos de Tarefa) */}
-          {tenantId && (
-            <TiposTarefaSection tenantId={tenantId} padroes={config.padroes_tempo} nomeNivel={nomeNivel}
-              onEditarPadrao={(p) => {
-                if (podeEditar) setEditandoPadrao(p);
-                else toast.error("Seu perfil não pode alterar o tempo padrão.");
-              }} />
+          {/* Fase 10.11: tipo de tarefa e tempo padrão numa seção só (cadastro + tempo do nível + sem atividade) */}
+          {tenantId && empresaId && (
+            <TiposTarefaSection tenantId={tenantId} empresaId={empresaId} armazemId={armazemId} nivelTela={nivelTela}
+              nomeNivel={nomeNivel} hoje={config.hoje} padroes={config.padroes_tempo} regrasSistema={config.regras_sistema}
+              podeRetroativo={config.pode_reprocessar}
+              onSalvo={async ({ requerReprocessamento, vigenteDesde }) => {
+                if (requerReprocessamento && vigenteDesde && config.pode_reprocessar) setReprocessarDe(vigenteDesde);
+                await carregar();
+              }}
+              onExcluirAgendado={(id) => excluirAgendada("PADRAO_TEMPO", id)} />
           )}
-
-          {/* Tempos padrão */}
-          <section className="rounded-lg border border-border bg-card">
-            <header className="flex items-start gap-2 border-b border-border p-4">
-              <Timer size={18} className="mt-0.5 text-primary" />
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">Tempo padrão por tipo de tarefa</h2>
-                <p className="text-xs text-muted-foreground">Quanto uma tarefa deve levar: um tempo por tarefa, mais um tempo por unidade (opcional), mais a folga (PFD). É a base da performance e da eficiência.</p>
-              </div>
-            </header>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr className="border-b border-border">
-                    <th className="px-4 py-2 text-left font-medium">Tipo de tarefa</th>
-                    <th className="px-4 py-2 text-left font-medium">Unidade</th>
-                    <th className="px-4 py-2 text-right font-medium">Tempo padrão</th>
-                    <th className="px-4 py-2 text-left font-medium">Origem</th>
-                    <th className="px-4 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {config.padroes_tempo.map((p) => (
-                    <tr key={p.tipo_tarefa_id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-2">
-                        <span className="font-mono text-xs text-muted-foreground">{p.codigo}</span>{" "}
-                        <span className="text-foreground">{p.descricao}</span>
-                        <Agendados
-                          itens={p.agendados.map((a) => ({ id: a.id, valor: a.tempo_fixo_seg, texto: a.tempo_fixo_seg === null ? undefined : descreverPadrao({ ...a, tempo_fixo_seg: a.tempo_fixo_seg }, p.unidade_medida), vigente_desde: a.vigente_desde }))}
-                          unidade="TEMPO" podeEditar={podeEditar} onExcluir={(id) => excluirAgendada("PADRAO_TEMPO", id)}
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">{p.unidade_medida ?? "—"}</td>
-                      <td className="px-4 py-2 text-right font-semibold tabular-nums text-foreground">
-                        {p.efetivo.tempo_fixo_seg > 0 || Number(p.efetivo.tempo_unidade_seg ?? 0) > 0
-                          ? descreverPadrao(p.efetivo, p.unidade_medida) : <span className="text-muted-foreground">sem padrão</span>}
-                        {p.efetivo.origem === "CALIBRADO" && <span className="block text-[10px] font-normal text-muted-foreground">calibrado pelo histórico</span>}
-                      </td>
-                      <td className="px-4 py-2"><OrigemBadge nivel={p.efetivo.nivel} nivelTela={nivelTela} /></td>
-                      <td className="px-4 py-2 text-right">
-                        {podeEditar && (
-                          <Button size="sm" variant="ghost" aria-label={`Alterar tempo padrão de ${p.codigo}`}
-                            onClick={() => setEditandoPadrao(p)}>
-                            <Pencil size={14} />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
 
           {/* Atividades indiretas e paradas (catálogo da empresa) */}
           {tenantId && empresaId && (
@@ -424,40 +355,17 @@ export function LmsConfiguracaoPage() {
             );
           })}
 
-          {/* Regras do sistema */}
-          <details className="rounded-lg border border-border bg-card">
-            <summary className="flex cursor-pointer items-center gap-2 p-4 text-sm font-semibold text-foreground">
-              <ShieldCheck size={16} className="text-muted-foreground" /> Regras do sistema (captura de tempo, só leitura)
-            </summary>
-            <div className="border-t border-border p-4 text-xs text-muted-foreground space-y-2">
-              <p>A captura dos tempos faz parte do núcleo do WMS e vale para todos os clientes. O teto de ciclo é usado só quando uma execução não tem início registrado.</p>
-              <table className="w-full">
-                <thead><tr className="text-left"><th className="py-1 font-medium">Tipo</th><th className="py-1 font-medium">Captura</th><th className="py-1 font-medium">Teto de ciclo</th><th className="py-1 font-medium">Como o início é registrado</th></tr></thead>
-                <tbody>
-                  {config.regras_sistema.map((r) => (
-                    <tr key={r.tipo_codigo} className="border-t border-border">
-                      <td className="py-1 font-mono">{r.tipo_codigo}</td>
-                      <td className="py-1">{r.captura_ativa ? "Ativa" : "Desligada"}</td>
-                      <td className="py-1">{formatarValor(r.teto_ciclo_seg, "SEGUNDOS")}</td>
-                      <td className="py-1">{r.observacao ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
-
           {/* Histórico */}
           <details className="rounded-lg border border-border bg-card">
             <summary className="flex cursor-pointer items-center gap-2 p-4 text-sm font-semibold text-foreground">
               <History size={16} className="text-muted-foreground" /> Histórico de alterações · {nomeNivel}
             </summary>
             <div className="border-t border-border">
-              {config.historico.length === 0 ? (
+              {historicoGeral.length === 0 ? (
                 <p className="p-4 text-xs text-muted-foreground">Nenhuma alteração neste nível.</p>
               ) : (
                 <ul className="divide-y divide-border">
-                  {config.historico.map((h, i) => (
+                  {historicoGeral.map((h, i) => (
                     <li key={`${h.chave}-${h.vigente_desde}-${i}`} className="px-4 py-2 text-xs">
                       <span className="font-medium text-foreground">{h.rotulo}</span>{" "}
                       <span className="text-muted-foreground">
@@ -487,19 +395,6 @@ export function LmsConfiguracaoPage() {
           salvando={salvando}
           onCancelar={() => setEditandoFaixas(false)}
           onSalvar={salvarFaixas}
-        />
-      )}
-
-      {config && tenantId && empresaId && (
-        <EditarPadraoDialog
-          padrao={editandoPadrao}
-          nivelTela={nivelTela}
-          hoje={config.hoje}
-          podeRetroativo={config.pode_reprocessar}
-          salvando={salvando}
-          contexto={{ tenantId, empresaId, armazemId }}
-          onCancelar={() => setEditandoPadrao(null)}
-          onSalvar={salvarPadrao}
         />
       )}
 

@@ -419,11 +419,16 @@ export interface TipoTarefaLms {
   acoes_reserva: ReservaAcaoTipo[];
 }
 
+/** Fase 10.11: o histórico do tipo junta cadastro (vale para todas as empresas) e tempo padrão (do nível em tela). */
 export interface HistoricoTipoTarefa {
+  tipo?: "CADASTRO" | "PADRAO_TEMPO";
   tipo_tarefa_id: string;
   codigo: string;
-  antes: Partial<TipoTarefaLms>;
-  depois: Partial<TipoTarefaLms>;
+  antes?: Partial<TipoTarefaLms>;
+  depois?: Partial<TipoTarefaLms>;
+  padrao?: PartesPadrao & { tempo_fixo_seg: number | null };
+  origem?: string;
+  vigente_desde?: string;
   motivo: string | null;
   alterado_por: string | null;
   alterado_em: string;
@@ -431,9 +436,40 @@ export interface HistoricoTipoTarefa {
 
 export interface TiposTarefaLms { pode_editar: boolean; tipos: TipoTarefaLms[]; historico: HistoricoTipoTarefa[] }
 
-export async function listarTiposTarefaLms(tenantId: string): Promise<TiposTarefaLms> {
-  const { data, error } = await sb.rpc("rpc_lms_tipos_tarefa", { p_tenant_id: tenantId });
+export async function listarTiposTarefaLms(tenantId: string, empresaId: string | null = null, armazemId: string | null = null): Promise<TiposTarefaLms> {
+  const { data, error } = await sb.rpc("rpc_lms_tipos_tarefa", { p_tenant_id: tenantId, p_empresa_id: empresaId, p_armazem_id: armazemId });
   return exigirSucesso<TiposTarefaLms>(data, error);
+}
+
+export interface PadraoParaSalvar {
+  empresa_id: string;
+  armazem_id: string | null;
+  herdar: boolean;
+  tempo_fixo_seg?: number;
+  tempo_unidade_seg?: number;
+  pfd_pct?: number;
+  origem: "MANUAL" | "CALIBRADO";
+  vigente_desde: string;
+}
+
+export interface ResultadoSalvarCompleto {
+  alterou: boolean;
+  mensagem: string;
+  requer_reprocessamento: boolean;
+  vigente_desde: string | null;
+}
+
+/**
+ * Grava cadastro e tempo padrão juntos (tudo ou nada, rpc_lms_tipo_tarefa_salvar_completo).
+ * Passe null na parte que não mudou. Se uma parte recusar, nada é gravado e o erro diz qual.
+ */
+export async function salvarTipoTarefaCompleto(i: {
+  tenantId: string; tipoTarefaId: string; cadastro: DadosTipoTarefa | null; padrao: PadraoParaSalvar | null; motivo?: string | null;
+}): Promise<ResultadoSalvarCompleto> {
+  const { data, error } = await sb.rpc("rpc_lms_tipo_tarefa_salvar_completo", {
+    p_tenant_id: i.tenantId, p_tipo_tarefa_id: i.tipoTarefaId, p_cadastro: i.cadastro, p_padrao: i.padrao, p_motivo: i.motivo ?? null,
+  });
+  return exigirSucesso<ResultadoSalvarCompleto>(data, error);
 }
 
 export type DadosTipoTarefa = Partial<Pick<TipoTarefaLms,
@@ -470,6 +506,7 @@ const ROTULO_CAMPO_TIPO: Record<string, string> = {
 
 /** "Prazo sem atividade: 4h → 1h · Ativo: sim → não" a partir do histórico do banco. */
 export function descreverMudancaTipo(h: Pick<HistoricoTipoTarefa, "antes" | "depois">, rotuloAcao: (a: string) => string): string {
+  const antes = h.antes ?? {}; const depois = h.depois ?? {};
   const fmt = (k: string, v: unknown): string => {
     if (v === null || v === undefined || v === "") return "—";
     if (k === "ativo") return v ? "sim" : "não";
@@ -479,7 +516,16 @@ export function descreverMudancaTipo(h: Pick<HistoricoTipoTarefa, "antes" | "dep
     return String(v);
   };
   return Object.keys(ROTULO_CAMPO_TIPO)
-    .filter((k) => JSON.stringify((h.antes as Record<string, unknown>)[k]) !== JSON.stringify((h.depois as Record<string, unknown>)[k]))
-    .map((k) => `${ROTULO_CAMPO_TIPO[k]}: ${fmt(k, (h.antes as Record<string, unknown>)[k])} → ${fmt(k, (h.depois as Record<string, unknown>)[k])}`)
+    .filter((k) => JSON.stringify((antes as Record<string, unknown>)[k]) !== JSON.stringify((depois as Record<string, unknown>)[k]))
+    .map((k) => `${ROTULO_CAMPO_TIPO[k]}: ${fmt(k, (antes as Record<string, unknown>)[k])} → ${fmt(k, (depois as Record<string, unknown>)[k])}`)
     .join(" · ");
+}
+
+/** Linha do histórico do tipo de tarefa, cadastro ou tempo padrão. */
+export function descreverHistoricoTipo(h: HistoricoTipoTarefa, rotuloAcao: (a: string) => string, unidadeMedida?: string | null): string {
+  if (h.tipo === "PADRAO_TEMPO" && h.padrao) {
+    const valor = h.padrao.tempo_fixo_seg === null ? "volta a herdar" : descreverPadrao({ ...h.padrao, tempo_fixo_seg: h.padrao.tempo_fixo_seg }, unidadeMedida);
+    return `Tempo padrão → ${valor}${h.origem === "CALIBRADO" ? " (calibrado)" : ""}${h.vigente_desde ? ` a partir de ${h.vigente_desde.split("-").reverse().join("/")}` : ""}`;
+  }
+  return descreverMudancaTipo(h, rotuloAcao) || "Sem mudança de valores";
 }
