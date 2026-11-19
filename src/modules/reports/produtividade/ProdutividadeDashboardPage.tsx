@@ -347,7 +347,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
           <Kpi label={dominante ? `UPH · ${dominante.codigo}` : "UPH"}
             value={dominante?.uph != null ? dominante.uph.toFixed(1).replace(".", ",") : "—"}
             dica="Quantidade ÷ hora direta do tipo com mais tempo no período (unidades diferentes não se somam)"
-            sub={dominante ? `${dominante.unidade_medida || "un"}/h direta` : undefined} />
+            sub={dominante ? "un/h direta" : undefined} />
           <Kpi label="Qualidade" value={formatarPct(qualidadeKpi)} dica="Tarefas concluídas sem ocorrência registrada"
             sub={total?.cortes ? `${numero(total.cortes)} cortes` : "Sem cortes"} />
         </div>

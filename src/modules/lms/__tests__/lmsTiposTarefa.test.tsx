@@ -60,7 +60,7 @@ describe("Fase 10.11 · regras do painel", () => {
     expect(validarFormTipo({ ...ok, peso_produtividade: "0" })).toMatch("peso");
     expect(validarFormTipo({ ...ok, reserva_horas: "0.1" })).toMatch("15 minutos");
     expect(validarFormTipo({ ...ok, reserva_acao: "NUNCA", reserva_horas: "0" })).toBeNull();
-    const f = { ativo: true, categoria: "ARMAZENAGEM", tipo_movimento: "1", unidade_medida: "UN", peso_produtividade: "1.1",
+    const f = { ativo: true, categoria: "ARMAZENAGEM", tipo_movimento: "1", peso_produtividade: "1.1",
       cor_interface: "#0004ff", reserva_acao: "LIBERAR_SEM_EXECUCAO" as const, reserva_horas: "4" };
     expect(cadastroAlterado(f, ARMZ)).toBe(false);
     expect(cadastroAlterado({ ...f, reserva_horas: "1" }, ARMZ)).toBe(true);
@@ -105,6 +105,9 @@ describe("Fase 10.11 · tipo de tarefa e tempo padrão numa tela só", () => {
     await waitFor(() => expect(salvar).toHaveBeenCalled());
     const arg = salvar.mock.calls[0][0];
     expect(arg.padrao).toBeNull();
+    // Fase 10.12: "unidade de medida" saiu do cadastro e não é mais enviada
+    expect(arg.cadastro).not.toHaveProperty("unidade_medida");
+    expect(screen.queryByText("Unidade de medida")).not.toBeInTheDocument();
     expect(arg.cadastro).toMatchObject({ reserva_acao: "LIBERAR_SEM_EXECUCAO", reserva_expira_min: 60, categoria: "ARMAZENAGEM" });
   });
 

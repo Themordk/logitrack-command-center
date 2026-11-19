@@ -42,7 +42,6 @@ interface FormCadastro {
   ativo: boolean;
   categoria: string;
   tipo_movimento: string;
-  unidade_medida: string;
   peso_produtividade: string;
   cor_interface: string;
   reserva_acao: ReservaAcaoTipo;
@@ -58,7 +57,6 @@ function paraForm(t: TipoTarefaLms): FormCadastro {
     ativo: t.ativo,
     categoria: t.categoria ?? "",
     tipo_movimento: t.tipo_movimento != null ? String(t.tipo_movimento) : "",
-    unidade_medida: t.unidade_medida ?? "",
     peso_produtividade: String(t.peso_produtividade ?? 1),
     cor_interface: t.cor_interface ?? "",
     reserva_acao: t.reserva_acao,
@@ -71,7 +69,6 @@ function dadosDoForm(f: FormCadastro, t: TipoTarefaLms): DadosTipoTarefa {
     ativo: f.ativo,
     categoria: f.categoria || null,
     tipo_movimento: f.tipo_movimento ? Number(f.tipo_movimento) : null,
-    unidade_medida: f.unidade_medida.trim() || null,
     peso_produtividade: Number(f.peso_produtividade),
     cor_interface: f.cor_interface || null,
     reserva_acao: f.reserva_acao,
@@ -83,7 +80,7 @@ function dadosDoForm(f: FormCadastro, t: TipoTarefaLms): DadosTipoTarefa {
 export function cadastroAlterado(f: FormCadastro, t: TipoTarefaLms): boolean {
   const d = dadosDoForm(f, t);
   return d.ativo !== t.ativo || d.categoria !== (t.categoria ?? null) || d.tipo_movimento !== (t.tipo_movimento ?? null)
-    || d.unidade_medida !== (t.unidade_medida ?? null) || Number(d.peso_produtividade) !== Number(t.peso_produtividade)
+    || Number(d.peso_produtividade) !== Number(t.peso_produtividade)
     || d.cor_interface !== (t.cor_interface ?? null) || d.reserva_acao !== t.reserva_acao || d.reserva_expira_min !== t.reserva_expira_min;
 }
 
@@ -330,11 +327,6 @@ export function TiposTarefaSection({
                       <option value="">Não se aplica</option>
                       {TIPOS_MOVIMENTO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                  </label>
-                  <label>
-                    <span className={labelClass}>Unidade de medida</span>
-                    <input className={inputClass} value={form.unidade_medida} maxLength={30} placeholder="Ex: caixas, pallets, SKUs"
-                      onChange={(e) => set("unidade_medida", e.target.value)} />
                   </label>
                   <label>
                     <span className={labelClass}>Peso de produtividade</span>

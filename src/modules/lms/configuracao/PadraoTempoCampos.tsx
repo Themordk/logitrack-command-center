@@ -79,7 +79,7 @@ export function PadraoTempoCampos({
   const [erroSugestao, setErroSugestao] = useState<string | null>(null);
 
   const partes = partesDaEdicao(edicao);
-  const un = (padrao.unidade_medida || "un").toLowerCase();
+  const un = "un"; // a parte variável conta a quantidade registrada na tarefa (Fase 10.12)
   const retro = ehRetroativa(edicao.vigencia, hoje);
   const minData = podeRetroativo ? menosDias(hoje, 92) : hoje;
   const mudar = (p: Partial<EdicaoPadrao>) => onChange({ ...edicao, alterado: true, ...p });

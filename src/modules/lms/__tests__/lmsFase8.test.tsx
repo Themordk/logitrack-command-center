@@ -21,7 +21,8 @@ describe("Fase 8 · padrão em três partes", () => {
 
   it("descreve o padrão do jeito que o gerente lê", () => {
     expect(descreverPadrao({ tempo_fixo_seg: 120 })).toBe("2 min");
-    expect(descreverPadrao({ tempo_fixo_seg: 30, tempo_unidade_seg: 3, pfd_pct: 10 }, "CX")).toBe("30 s + 3 s/cx · folga 10%");
+    // Fase 10.12: o rótulo livre saiu; a parte variável é sempre por unidade da quantidade da tarefa
+    expect(descreverPadrao({ tempo_fixo_seg: 30, tempo_unidade_seg: 3, pfd_pct: 10 }, "CX")).toBe("30 s + 3 s/un · folga 10%");
     expect(descreverPadrao({ tempo_fixo_seg: 0, tempo_unidade_seg: 1.5 })).toBe("1,5 s/un");
     expect(descreverPadrao({ tempo_fixo_seg: 0 })).toBe("sem padrão");
   });

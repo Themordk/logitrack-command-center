@@ -203,7 +203,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
               sub={resumo?.origem === "ESTIMADO" ? "estimado" : resumo ? "real" : undefined} />
             <OpKpi icon={<TrendingUp size={16} />} label={dominante ? `UPH · ${dominante.codigo}` : "UPH"}
               value={dominante?.uph != null ? dominante.uph.toFixed(1).replace(".", ",") : "—"}
-              sub={dominante ? `${dominante.unidade_medida || "un"}/h direta` : undefined} />
+              sub={dominante ? "un/h direta" : undefined} />
           </div>
 
           {/* Fase 10: score global das metas, com o detalhe por meta */}

@@ -276,14 +276,19 @@ export function formatarSegundosCurto(v: number): string {
 }
 
 /** "2 min + 3 s/un · folga 10%" — mesma leitura em todas as telas. */
-export function descreverPadrao(p: PartesPadrao | null | undefined, unidadeMedida?: string | null): string {
+/**
+ * Texto do padrão ("30 s + 3 s/un · folga 10%"). A parte variável é sempre "por unidade" da quantidade
+ * registrada na tarefa, que é o que o cálculo usa (Fase 10.12: o rótulo livre "unidade de medida" saiu
+ * do cadastro porque não mudava a conta e podia desmentir o número). O 2º argumento é ignorado.
+ */
+export function descreverPadrao(p: PartesPadrao | null | undefined, _unidadeMedida?: string | null): string {
   if (!p) return "—";
   const fixo = Number(p.tempo_fixo_seg ?? 0);
   const un = Number(p.tempo_unidade_seg ?? 0);
   const pfd = Number(p.pfd_pct ?? 0);
   const partes: string[] = [];
   if (fixo > 0) partes.push(formatarSegundos(fixo));
-  if (un > 0) partes.push(`${formatarSegundosCurto(un)}/${(unidadeMedida || "un").toLowerCase()}`);
+  if (un > 0) partes.push(`${formatarSegundosCurto(un)}/un`);
   if (partes.length === 0) return "sem padrão";
   return partes.join(" + ") + (pfd > 0 ? ` · folga ${pfd.toLocaleString("pt-BR")}%` : "");
 }
