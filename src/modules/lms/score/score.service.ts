@@ -6,7 +6,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { estiloFaixa, type FaixaLms } from "@/modules/lms/faixas";
-import type { FaixaMeta, Metrica, Periodicidade, UnidadeMetrica } from "@/modules/lms/metas/metas.service";
+import { formatarValorMeta, type FaixaMeta, type Metrica, type Periodicidade, type UnidadeMetrica } from "@/modules/lms/metas/metas.service";
 
 const sb = supabase as any;
 
@@ -131,4 +131,23 @@ export function participacaoPeso(m: Pick<MetricaScore, "conta" | "peso">, pesoTo
 export function descreverRegraScore(teto: number): string {
   return `Média ponderada pelo peso do atingimento de cada meta; cada meta conta no máximo ${teto}%. `
     + "Metas sem amostra ou com resultado estimado ficam fora da conta.";
+}
+
+/**
+ * Fase 10.7 · mensagem curta do coletor para uma meta (último período).
+ * Volume: quanto falta. Taxas: ritmo atual contra o alvo. "Menor é melhor": dentro ou acima do limite.
+ */
+export function mensagemMeta(m: Pick<MetricaScore, "metrica" | "unidade" | "direcao" | "ultimo">): string {
+  const r = m.ultimo?.realizado;
+  const alvo = m.ultimo?.alvo;
+  const u = m.unidade ?? undefined;
+  if (r === null || r === undefined || alvo === null || alvo === undefined) return "Ainda sem dados neste período.";
+  if (m.metrica === "VOLUME_UNIDADES" || m.metrica === "VOLUME_TAREFAS") {
+    const falta = Number(alvo) - Number(r);
+    return falta <= 0 ? "Meta batida!" : `Faltam ${formatarValorMeta(falta, u)} para a meta.`;
+  }
+  if (m.direcao === "MENOR") {
+    return Number(r) <= Number(alvo) ? "Dentro da meta." : `Acima do limite: ${formatarValorMeta(r, u)} (meta até ${formatarValorMeta(alvo, u)}).`;
+  }
+  return Number(r) >= Number(alvo) ? "Ritmo na meta." : `Ritmo ${formatarValorMeta(r, u)} · meta ${formatarValorMeta(alvo, u)}.`;
 }

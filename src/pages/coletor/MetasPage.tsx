@@ -28,6 +28,9 @@ interface MetasData {
   // Fase 10 · score global das metas do operador e a sequência de dias com score na meta
   metas?: FichaScore | null;
   streak_score?: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
+  // Fase 10.7 · progresso do turno e gamificação (sequência de dias) desligável na Configuração
+  gamificacao?: boolean;
+  turno_progresso?: { descricao: string; inicio: string; fim: string; fracao_decorrida: number } | null;
   evolucao: Array<{ data: string; score: number; tarefas: number; taxa_ocupacao: number }>;
   detalhamento_tipo: Array<{ tipo: string; codigo: string; tarefas: number; quantidade_total: number; tempo_medio_seg: number; performance_pct: number | null }>;
   variacao_vs_anterior: number | null;
@@ -92,7 +95,10 @@ export function MetasPage({ onNavigate }: Props) {
     const e = estiloClassificacao(ficha?.classificacao);
     return { bg: e.fundo, text: e.texto, border: e.borda, ring: e.hex, label: e.nome };
   })();
-  const streak = data?.streak_score ?? null;
+  const streak = data?.gamificacao ? data?.streak_score ?? null : null;
+  const turno = data?.turno_progresso ?? null;
+  const fracTurno = turno ? Math.round(Number(turno.fracao_decorrida) * 100) : null;
+  const horaCurta = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
     <ColetorLayout title="Metas & Resultados" onNavigate={onNavigate} showBack backPath="/coletor/home">
@@ -138,6 +144,17 @@ export function MetasPage({ onNavigate }: Props) {
                 )}
               </div>
             </div>
+            {turno && fracTurno !== null && (
+              <div className="mt-3" data-testid="coletor-turno">
+                <div className="flex justify-between text-[10px] text-[hsl(213,31%,55%)]">
+                  <span>{turno.descricao} · {horaCurta(turno.inicio)}–{horaCurta(turno.fim)}</span>
+                  <span>{fracTurno}% do turno</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[hsl(222,35%,18%)]" role="progressbar" aria-valuenow={fracTurno} aria-valuemin={0} aria-valuemax={100}>
+                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${fracTurno}%` }} />
+                </div>
+              </div>
+            )}
             {streak && streak.dias_consecutivos > 0 && <div className="mt-3"><MetasStreakBadge diasConsecutivos={streak.dias_consecutivos} melhorStreak={streak.melhor_streak} /></div>}
           </section>
 

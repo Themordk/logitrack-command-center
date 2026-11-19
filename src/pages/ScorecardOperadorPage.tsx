@@ -165,6 +165,25 @@ export function ScorecardOperadorPage({
             <ScoreOperadorCard tenantId={tenantId} usuarioId={usuarioId} dataIni={periodoIni} dataFim={score.periodo.fim} ficha={score} />
           )}
 
+          {(data.metas_periodo?.length ?? 0) > 0 && <EvolucaoMetas metas={data.metas_periodo ?? []} />}
+
+          {((data.indiretas?.length ?? 0) > 0 || (data.tempo_excecao_total ?? 0) > 0) && (
+            <div className="card-surface p-5" data-testid="ficha-indiretas">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Atividades indiretas e exceções</h3>
+              <ul className="divide-y divide-border/50 text-sm">
+                {(data.indiretas ?? []).map((i) => (
+                  <li key={`${i.tipo}-${i.atividade}`} className="flex items-center justify-between py-1.5">
+                    <span>{i.atividade} <span className="text-[11px] text-muted-foreground">· {i.tipo === "EXCECAO" ? "exceção (sai do tempo disponível)" : "indireta"} · {i.vezes}x</span></span>
+                    <span className="font-mono">{formatarTempoEspera(i.segundos)}</span>
+                  </li>
+                ))}
+              </ul>
+              {(data.tempo_excecao_total ?? 0) > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">Exceções no período: {formatarTempoEspera(data.tempo_excecao_total ?? 0)} fora do tempo disponível.</p>
+              )}
+            </div>
+          )}
+
           {/* Evolução diária */}
           <div className="card-surface p-5">
             <h3 className="text-sm font-semibold text-foreground mb-4">Evolução Diária do Score</h3>
@@ -296,6 +315,38 @@ function Legenda({ cor, label, valor, pct }: { cor: string; label: string; valor
       <span className="text-muted-foreground">{label}</span>
       <span className="text-foreground tabular-nums">{valor}</span>
       <span className="text-muted-foreground tabular-nums">({pct.toFixed(0)}%)</span>
+    </div>
+  );
+}
+
+const COR_FAIXA_META: Record<string, string> = {
+  EXCELENTE: "bg-green-500/80", NA_META: "bg-blue-500/80", ACEITAVEL: "bg-amber-500/80", ABAIXO: "bg-red-500/80",
+  SEM_DADOS: "bg-secondary/60", ESTIMADO: "bg-secondary/60",
+};
+
+/** Fase 10.7: evolução de cada meta no período (um quadrado por período, na cor da faixa). */
+function EvolucaoMetas({ metas }: { metas: NonNullable<ScorecardOperador["metas_periodo"]> }) {
+  return (
+    <div className="card-surface p-5" data-testid="ficha-evolucao-metas">
+      <h3 className="text-sm font-semibold text-foreground mb-3">Evolução das metas</h3>
+      <div className="space-y-2">
+        {metas.map((m) => (
+          <div key={m.meta_id} className="flex flex-wrap items-center gap-3">
+            <div className="w-64 min-w-0">
+              <p className="truncate text-sm text-foreground">{m.nome}</p>
+              <p className="text-[11px] text-muted-foreground">{m.na_meta} de {m.periodos} período(s) na meta{m.contados < m.periodos ? ` · ${m.periodos - m.contados} sem dados` : ""}</p>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {m.serie.map((p) => (
+                <span key={p.data} className={cn("h-5 min-w-[36px] rounded px-1 text-center text-[10px] leading-5 text-white", COR_FAIXA_META[p.faixa] ?? COR_FAIXA_META.SEM_DADOS)}
+                  title={`${fmtData(p.data)}: ${p.atingimento_pct != null ? `${Math.round(Number(p.atingimento_pct))}% do alvo` : "sem dados"}`}>
+                  {p.atingimento_pct != null ? `${Math.round(Number(p.atingimento_pct))}%` : "—"}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

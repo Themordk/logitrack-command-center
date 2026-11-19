@@ -1,6 +1,6 @@
 import { Target } from "lucide-react";
 import { formatarValorMeta, ROTULO_FAIXA, ROTULO_PERIODICIDADE, type FaixaMeta } from "@/modules/lms/metas/metas.service";
-import { explicacaoSemScore, formatarScore, type FichaScore } from "@/modules/lms/score/score.service";
+import { explicacaoSemScore, formatarScore, mensagemMeta, type FichaScore } from "@/modules/lms/score/score.service";
 
 /** Cores da faixa da meta no tema escuro do coletor. */
 const COR_FAIXA: Record<FaixaMeta, string> = {
@@ -48,6 +48,12 @@ export function MetasListaTab({ ficha }: { ficha: FichaScore | null | undefined 
               {m.ultimo?.parcial ? " · parcial" : ""}
             </span>
           </div>
+          <p className="mt-1.5 text-xs font-medium text-[hsl(213,31%,85%)]">{mensagemMeta(m)}</p>
+          {m.direcao !== "MENOR" && m.ultimo?.alvo ? (
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[hsl(222,35%,18%)]" aria-hidden>
+              <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(100, Math.max(0, (Number(m.ultimo.realizado ?? 0) / Number(m.ultimo.alvo)) * 100))}%` }} />
+            </div>
+          ) : null}
           {m.limitado && <p className="mt-1 text-[10px] text-[hsl(213,31%,55%)]">Conta no máximo {m.teto}% no score (real {formatarScore(m.atingimento_bruto_pct)}).</p>}
           {m.motivo && <p className="mt-1 text-[10px] text-amber-300/80">{m.motivo}</p>}
         </section>

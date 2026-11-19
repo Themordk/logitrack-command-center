@@ -138,6 +138,14 @@ export interface ScorecardOperador {
   // Fase 10 · score global das metas e posição pelo score no armazém
   score?: FichaScore;
   posicao_score?: { total_com_score: number; posicao: number | null; score_medio_equipe: number | null; criterio_posicao: "SCORE" };
+  // Fase 10.7 · evolução por meta, atividades indiretas e exceções
+  metas_periodo?: Array<{
+    meta_id: string; nome: string; metrica: string; rotulo_metrica: string | null; unidade: "PCT" | "POR_HORA" | "QTD" | null;
+    periodicidade: string; peso: number; periodos: number; na_meta: number; contados: number;
+    serie: Array<{ data: string; realizado: number | null; alvo: number | null; atingimento_pct: number | null; faixa: string }>;
+  }>;
+  indiretas?: Array<{ atividade: string; tipo: "INDIRETA" | "EXCECAO"; vezes: number; segundos: number }>;
+  tempo_excecao_total?: number;
   operador: {
     usuario_id: string;
     nome: string;

@@ -5,6 +5,7 @@ import { LmsGate } from "./LmsGate";
 import { LMS_ROTAS, useLmsAcesso, type LmsArea } from "./lmsAcesso";
 import { LmsConfiguracaoPage } from "./configuracao/LmsConfiguracaoPage";
 import { LmsMetasPage } from "./metas/LmsMetasPage";
+import { LmsAcompanhamentoPage } from "./acompanhamento/LmsAcompanhamentoPage";
 
 type AreaWeb = Exclude<LmsArea, "coletor" | "atividades">;
 
@@ -91,7 +92,8 @@ export function LmsModuloPage({ area, onNavigate }: Props) {
       </nav>
 
       <LmsGate area={area} onNavigate={onNavigate}>
-        {area === "configuracao" ? <LmsConfiguracaoPage /> : area === "metas" ? <LmsMetasPage /> : (
+        {area === "configuracao" ? <LmsConfiguracaoPage /> : area === "metas" ? <LmsMetasPage />
+          : area === "acompanhamento" ? <LmsAcompanhamentoPage onNavigate={onNavigate} /> : (
         <section className="rounded-lg border border-border bg-card p-5 space-y-4" data-testid={`lms-area-${area}`}>
           <div>
             <div className="flex items-center gap-2">
