@@ -240,7 +240,9 @@ export function LmsMetasPage() {
                           )}
                         </td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">
-                          {formatDate(m.vigente_desde)}{m.vigente_ate ? ` a ${formatDate(m.vigente_ate)}` : " em diante"}
+                          {m.vigente_ate && m.vigente_ate < m.vigente_desde
+                            ? "Não chegou a valer"
+                            : <>{formatDate(m.vigente_desde)}{m.vigente_ate ? ` a ${formatDate(m.vigente_ate)}` : " em diante"}</>}
                         </td>
                         <td className="px-3 py-2 text-xs">
                           {m.ultimo ? (
@@ -342,9 +344,12 @@ function PerguntaDialog({ pergunta, hoje, onCancelar, onConfirmar }: {
         <div className="space-y-3 text-sm">
           {pergunta.acao === "ENCERRAR" && (
             <div className="space-y-1.5">
-              <Label htmlFor="enc-data">Último dia em que a meta vale</Label>
+              <Label htmlFor="enc-data">Deixa de valer a partir de</Label>
               <Input id="enc-data" type="date" value={data} min={pergunta.meta.vigente_desde} onChange={(e) => setData(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Os resultados até esse dia ficam no histórico.</p>
+              <p className="text-xs text-muted-foreground">
+                Encerrar hoje tira a meta já de hoje, no coletor e no score. Os resultados dos dias anteriores ficam no histórico.
+                {data <= pergunta.meta.vigente_desde && " Como a meta ainda não tinha começado a valer, ela fica sem resultados."}
+              </p>
             </div>
           )}
           {pergunta.acao === "EXCLUIR" ? (
