@@ -14,7 +14,7 @@ vi.mock("../configuracao/lmsConfig.service", async (orig) => {
   };
 });
 
-import { TiposTarefaSection, cadastroAlterado, validarFormTipo } from "../configuracao/TiposTarefaSection";
+import { TiposTarefaSection, cadastroAlterado, ordenarTipos, validarFormTipo } from "../configuracao/TiposTarefaSection";
 import { edicaoPadraoInicial, validarEdicaoPadrao } from "../configuracao/PadraoTempoCampos";
 import { descreverHistoricoTipo, descreverMudancaTipo, type PadraoTempoConfig, type TipoTarefaLms } from "../configuracao/lmsConfig.service";
 import { reservaAcaoLabel } from "@/lib/reservaTarefa";
@@ -82,6 +82,39 @@ describe("Fase 10.11 · regras do painel", () => {
     expect(descreverHistoricoTipo({ tipo: "PADRAO_TEMPO", tipo_tarefa_id: "x", codigo: "X", padrao: { tempo_fixo_seg: 30, tempo_unidade_seg: 3, pfd_pct: 10 },
       origem: "CALIBRADO", vigente_desde: "2026-11-19", motivo: null, alterado_por: null, alterado_em: "" }, reservaAcaoLabel, "UN"))
       .toBe("Tempo padrão → 30 s + 3 s/un · folga 10% (calibrado) a partir de 19/11/2026");
+  });
+});
+
+const SEP: TipoTarefaLms = { ...ARMZ, id: "tt-sep", codigo: "SEP", descricao: "SEPARAÇÃO", categoria: "SEPARACAO", tipo_movimento: 2,
+  reserva_acao: "ALERTAR", ativo: false };
+const EMB: TipoTarefaLms = { ...ARMZ, id: "tt-emb", codigo: "EMB", descricao: "EMBARQUE", categoria: "EXPEDICAO", tipo_movimento: null };
+const P_SEP: PadraoTempoConfig = { ...PADRAO, tipo_tarefa_id: "tt-sep", efetivo: { ...PADRAO.efetivo, tempo_fixo_seg: 90 } };
+
+describe("Fase 10.12 · ordenação da grade", () => {
+  const mapa = new Map([[PADRAO.tipo_tarefa_id, PADRAO], [P_SEP.tipo_tarefa_id, P_SEP]]);
+  const cod = (l: TipoTarefaLms[]) => l.map((t) => t.codigo);
+  it("ordena A→Z e Z→A, com vazios sempre no fim", () => {
+    const l = [SEP, EMB, ARMZ];
+    expect(cod(ordenarTipos(l, { coluna: "tipo", direcao: "asc" }, mapa))).toEqual(["EMB", "ENTR-ARMZ", "SEP"]);
+    expect(cod(ordenarTipos(l, { coluna: "tipo", direcao: "desc" }, mapa))).toEqual(["SEP", "ENTR-ARMZ", "EMB"]);
+    expect(cod(ordenarTipos(l, { coluna: "categoria", direcao: "asc" }, mapa))).toEqual(["ENTR-ARMZ", "EMB", "SEP"]);
+    expect(cod(ordenarTipos(l, { coluna: "movimento", direcao: "asc" }, mapa))).toEqual(["ENTR-ARMZ", "SEP", "EMB"]);
+    expect(cod(ordenarTipos(l, { coluna: "movimento", direcao: "desc" }, mapa))).toEqual(["SEP", "ENTR-ARMZ", "EMB"]);
+    expect(cod(ordenarTipos(l, { coluna: "tempo", direcao: "asc" }, mapa))).toEqual(["SEP", "ENTR-ARMZ", "EMB"]);
+    expect(cod(ordenarTipos(l, { coluna: "tempo", direcao: "desc" }, mapa))).toEqual(["ENTR-ARMZ", "SEP", "EMB"]);
+    expect(cod(ordenarTipos(l, { coluna: "situacao", direcao: "desc" }, mapa))).toEqual(["SEP", "EMB", "ENTR-ARMZ"]);
+  });
+  it("clicar no título alterna A→Z e Z→A", async () => {
+    listar.mockResolvedValue({ pode_editar: true, tipos: [SEP, EMB, ARMZ], historico: [] });
+    montar({ padroes: [PADRAO, P_SEP] });
+    await screen.findByText("EMBARQUE");
+    const ordemNaTela = () => screen.getAllByRole("row").slice(1).map((r) => r.querySelector("td span.font-mono")?.textContent);
+    expect(ordemNaTela()).toEqual(["EMB", "ENTR-ARMZ", "SEP"]);
+    fireEvent.click(screen.getByRole("button", { name: /Tipo de tarefa/ }));
+    expect(ordemNaTela()).toEqual(["SEP", "ENTR-ARMZ", "EMB"]);
+    fireEvent.click(screen.getByRole("button", { name: /Categoria/ }));
+    expect(ordemNaTela()).toEqual(["ENTR-ARMZ", "EMB", "SEP"]);
+    expect(screen.getByRole("columnheader", { name: /Categoria/ })).toHaveAttribute("aria-sort", "ascending");
   });
 });
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarClock, ListChecks, Loader2, Lock, Pencil, Save, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarClock, ListChecks, Loader2, Lock, Pencil, Save, Search } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -98,6 +98,45 @@ export function validarFormTipo(f: Pick<FormCadastro, "peso_produtividade" | "re
   return null;
 }
 
+// ── ordenação da grade (clique no título: A→Z, de novo: Z→A) ──
+export type ColunaOrdem = "tipo" | "categoria" | "movimento" | "tempo" | "reserva" | "situacao";
+export interface Ordem { coluna: ColunaOrdem; direcao: "asc" | "desc" }
+
+const comparaTexto = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
+
+/** Tempo de 1 tarefa de 1 unidade no padrão, para ordenar; sem padrão vai para o fim. */
+function segundosPadrao(p: PadraoTempoConfig | undefined): number | null {
+  if (!p) return null;
+  const fixo = Number(p.efetivo.tempo_fixo_seg ?? 0); const un = Number(p.efetivo.tempo_unidade_seg ?? 0);
+  if (fixo <= 0 && un <= 0) return null;
+  return (fixo + un) * (1 + Number(p.efetivo.pfd_pct ?? 0) / 100);
+}
+
+export function ordenarTipos(tipos: TipoTarefaLms[], ordem: Ordem, padraoPorTipo: Map<string, PadraoTempoConfig>): TipoTarefaLms[] {
+  const fator = ordem.direcao === "asc" ? 1 : -1;
+  const vazio = (v: string | null | undefined) => v === null || v === undefined || v === "" || v === "—";
+  const texto = (t: TipoTarefaLms): string | null => {
+    switch (ordem.coluna) {
+      case "tipo": return `${t.codigo} ${t.descricao}`;
+      case "categoria": return t.categoria;
+      case "movimento": { const m = rotuloMovimento(t.tipo_movimento); return m === "—" ? null : m; }
+      case "reserva": return `${reservaAcaoLabel(t.reserva_acao)} ${String(t.reserva_expira_min).padStart(6, "0")}`;
+      case "situacao": return t.ativo ? "Ativo" : "Inativo";
+      default: return null;
+    }
+  };
+  return [...tipos].sort((a, b) => {
+    if (ordem.coluna === "tempo") {
+      const x = segundosPadrao(padraoPorTipo.get(a.id)); const y = segundosPadrao(padraoPorTipo.get(b.id));
+      if (x === null || y === null) return x === y ? comparaTexto(a.codigo, b.codigo) : x === null ? 1 : -1; // sem padrão sempre no fim
+      return (x - y) * fator || comparaTexto(a.codigo, b.codigo);
+    }
+    const x = texto(a); const y = texto(b);
+    if (vazio(x) || vazio(y)) return vazio(x) === vazio(y) ? comparaTexto(a.codigo, b.codigo) : vazio(x) ? 1 : -1; // vazios no fim
+    return comparaTexto(x as string, y as string) * fator || comparaTexto(a.codigo, b.codigo);
+  });
+}
+
 function OrigemPadrao({ p, nivelTela }: { p: PadraoTempoConfig; nivelTela: "EMPRESA" | "ARMAZEM" }) {
   const proprio = p.efetivo.nivel === nivelTela;
   return (
@@ -122,6 +161,7 @@ export function TiposTarefaSection({
   const [edPadrao, setEdPadrao] = useState<EdicaoPadrao | null>(null);
   const [motivo, setMotivo] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [ordem, setOrdem] = useState<Ordem>({ coluna: "tipo", direcao: "asc" });
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -143,8 +183,26 @@ export function TiposTarefaSection({
   const regraPorCodigo = useMemo(() => new Map(regrasSistema.map((r) => [r.tipo_codigo, r])), [regrasSistema]);
   const filtrados = useMemo(() => {
     const s = busca.trim().toLowerCase();
-    return s ? tipos.filter((t) => t.codigo.toLowerCase().includes(s) || t.descricao.toLowerCase().includes(s)) : tipos;
-  }, [tipos, busca]);
+    const lista = s ? tipos.filter((t) => t.codigo.toLowerCase().includes(s) || t.descricao.toLowerCase().includes(s)) : tipos;
+    return ordenarTipos(lista, ordem, padraoPorTipo);
+  }, [tipos, busca, ordem, padraoPorTipo]);
+
+  const ordenarPor = (coluna: ColunaOrdem) =>
+    setOrdem((o) => (o.coluna === coluna ? { coluna, direcao: o.direcao === "asc" ? "desc" : "asc" } : { coluna, direcao: "asc" }));
+
+  function Titulo({ coluna, children }: { coluna: ColunaOrdem; children: string }) {
+    const ativo = ordem.coluna === coluna;
+    const Icone = !ativo ? ArrowUpDown : ordem.direcao === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <th className="px-4 py-2 text-left font-medium" aria-sort={ativo ? (ordem.direcao === "asc" ? "ascending" : "descending") : "none"}>
+        <button type="button" onClick={() => ordenarPor(coluna)}
+          className={cn("inline-flex items-center gap-1 hover:text-foreground", ativo && "text-foreground")}
+          title={ativo && ordem.direcao === "asc" ? "Ordenar de Z a A" : "Ordenar de A a Z"}>
+          {children} <Icone size={12} className={cn(!ativo && "opacity-40")} />
+        </button>
+      </th>
+    );
+  }
 
   function abrir(t: TipoTarefaLms, abaInicial: Aba = "cadastro") {
     setEditando(t);
@@ -231,12 +289,12 @@ export function TiposTarefaSection({
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="px-4 py-2 text-left font-medium">Tipo de tarefa</th>
-                <th className="px-4 py-2 text-left font-medium">Categoria</th>
-                <th className="px-4 py-2 text-left font-medium">Movimento</th>
-                <th className="px-4 py-2 text-left font-medium">Tempo padrão</th>
-                <th className="px-4 py-2 text-left font-medium">Sem atividade</th>
-                <th className="px-4 py-2 text-left font-medium">Situação</th>
+                <Titulo coluna="tipo">Tipo de tarefa</Titulo>
+                <Titulo coluna="categoria">Categoria</Titulo>
+                <Titulo coluna="movimento">Movimento</Titulo>
+                <Titulo coluna="tempo">Tempo padrão</Titulo>
+                <Titulo coluna="reserva">Sem atividade</Titulo>
+                <Titulo coluna="situacao">Situação</Titulo>
                 <th className="px-4 py-2" />
               </tr>
             </thead>
