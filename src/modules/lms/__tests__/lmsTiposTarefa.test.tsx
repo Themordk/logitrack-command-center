@@ -21,7 +21,7 @@ import { reservaAcaoLabel } from "@/lib/reservaTarefa";
 
 const ARMZ: TipoTarefaLms = {
   id: "tt-armz", codigo: "ENTR-ARMZ", descricao: "ARMAZENAGEM_ENTRADA", ativo: true, categoria: "ARMAZENAGEM", tipo_movimento: 1,
-  unidade_medida: "UN", peso_produtividade: 1.1, cor_interface: "#0004ff",
+  unidade_medida: "UN", peso_produtividade: 1.1, cor_interface: "#0004ff", somente_sistema: false,
   reserva_acao: "LIBERAR_SEM_EXECUCAO", reserva_expira_min: 240, acoes_reserva: ["LIBERAR_SEM_EXECUCAO", "ALERTAR", "NUNCA"],
 };
 const PADRAO: PadraoTempoConfig = {
@@ -61,9 +61,10 @@ describe("Fase 10.11 · regras do painel", () => {
     expect(validarFormTipo({ ...ok, reserva_horas: "0.1" })).toMatch("15 minutos");
     expect(validarFormTipo({ ...ok, reserva_acao: "NUNCA", reserva_horas: "0" })).toBeNull();
     const f = { ativo: true, categoria: "ARMAZENAGEM", tipo_movimento: "1", peso_produtividade: "1.1",
-      cor_interface: "#0004ff", reserva_acao: "LIBERAR_SEM_EXECUCAO" as const, reserva_horas: "4" };
+      cor_interface: "#0004ff", somente_sistema: false, reserva_acao: "LIBERAR_SEM_EXECUCAO" as const, reserva_horas: "4" };
     expect(cadastroAlterado(f, ARMZ)).toBe(false);
     expect(cadastroAlterado({ ...f, reserva_horas: "1" }, ARMZ)).toBe(true);
+    expect(cadastroAlterado({ ...f, somente_sistema: true }, ARMZ)).toBe(true);
   });
 
   it("validação do tempo padrão como o banco", () => {
@@ -142,6 +143,17 @@ describe("Fase 10.11 · tipo de tarefa e tempo padrão numa tela só", () => {
     expect(arg.cadastro).not.toHaveProperty("unidade_medida");
     expect(screen.queryByText("Unidade de medida")).not.toBeInTheDocument();
     expect(arg.cadastro).toMatchObject({ reserva_acao: "LIBERAR_SEM_EXECUCAO", reserva_expira_min: 60, categoria: "ARMAZENAGEM" });
+  });
+
+  it("Fase 10.14: marcar 'Executado só pelo sistema' envia a marca no cadastro", async () => {
+    montar();
+    fireEvent.click(await screen.findByLabelText("Editar ENTR-ARMZ"));
+    fireEvent.click(await screen.findByRole("switch", { name: "Executado só pelo sistema" }));
+    fireEvent.click(screen.getByRole("button", { name: /Salvar/ }));
+    await waitFor(() => expect(salvar).toHaveBeenCalled());
+    const arg = salvar.mock.calls[0][0];
+    expect(arg.padrao).toBeNull();
+    expect(arg.cadastro).toMatchObject({ somente_sistema: true });
   });
 
   it("só o tempo mudou: envia o tempo do nível em tela e não mexe no cadastro", async () => {

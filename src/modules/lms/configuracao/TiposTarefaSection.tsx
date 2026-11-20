@@ -44,6 +44,7 @@ interface FormCadastro {
   tipo_movimento: string;
   peso_produtividade: string;
   cor_interface: string;
+  somente_sistema: boolean;
   reserva_acao: ReservaAcaoTipo;
   reserva_horas: string;
 }
@@ -59,6 +60,7 @@ function paraForm(t: TipoTarefaLms): FormCadastro {
     tipo_movimento: t.tipo_movimento != null ? String(t.tipo_movimento) : "",
     peso_produtividade: String(t.peso_produtividade ?? 1),
     cor_interface: t.cor_interface ?? "",
+    somente_sistema: !!t.somente_sistema,
     reserva_acao: t.reserva_acao,
     reserva_horas: String((t.reserva_expira_min ?? 240) / 60),
   };
@@ -71,6 +73,7 @@ function dadosDoForm(f: FormCadastro, t: TipoTarefaLms): DadosTipoTarefa {
     tipo_movimento: f.tipo_movimento ? Number(f.tipo_movimento) : null,
     peso_produtividade: Number(f.peso_produtividade),
     cor_interface: f.cor_interface || null,
+    somente_sistema: f.somente_sistema,
     reserva_acao: f.reserva_acao,
     reserva_expira_min: f.reserva_acao === "NUNCA" ? t.reserva_expira_min : Math.round(Number(f.reserva_horas) * 60),
   };
@@ -81,7 +84,7 @@ export function cadastroAlterado(f: FormCadastro, t: TipoTarefaLms): boolean {
   const d = dadosDoForm(f, t);
   return d.ativo !== t.ativo || d.categoria !== (t.categoria ?? null) || d.tipo_movimento !== (t.tipo_movimento ?? null)
     || Number(d.peso_produtividade) !== Number(t.peso_produtividade)
-    || d.cor_interface !== (t.cor_interface ?? null) || d.reserva_acao !== t.reserva_acao || d.reserva_expira_min !== t.reserva_expira_min;
+    || d.cor_interface !== (t.cor_interface ?? null) || d.somente_sistema !== !!t.somente_sistema || d.reserva_acao !== t.reserva_acao || d.reserva_expira_min !== t.reserva_expira_min;
 }
 
 /** Valida o cadastro antes de enviar; o banco valida de novo. */
@@ -405,6 +408,17 @@ export function TiposTarefaSection({
                     <span className="text-sm text-foreground">Ativo</span>
                   </div>
                 </fieldset>
+                <div className="mt-4 flex items-start gap-3 rounded-md border border-border p-3">
+                  <Switch checked={form.somente_sistema} onCheckedChange={(v) => set("somente_sistema", v)}
+                    aria-label="Executado só pelo sistema" disabled={!podeEditar} />
+                  <div>
+                    <span className="text-sm text-foreground">Executado só pelo sistema</span>
+                    <p className="text-xs text-muted-foreground">
+                      Para tarefas feitas pela máquina, sem operador (ex.: separação automática). As execuções desse tipo ficam
+                      fora de produtividade, relatórios de colaborador e Dashboard. Vale para as execuções feitas a partir de agora.
+                    </p>
+                  </div>
+                </div>
                 <p className="mt-4 text-xs text-muted-foreground">Metas por hora são definidas em Produtividade (LMS) › Metas.</p>
               </TabsContent>
 

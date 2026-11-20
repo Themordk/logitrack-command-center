@@ -419,6 +419,8 @@ export interface TipoTarefaLms {
   unidade_medida: string | null;
   peso_produtividade: number;
   cor_interface: string | null;
+  /** Fase 10.14: tarefa feita só pela máquina; as execuções ficam fora de métricas, relatórios e Dashboard. */
+  somente_sistema: boolean;
   reserva_acao: ReservaAcaoTipo;
   reserva_expira_min: number;
   acoes_reserva: ReservaAcaoTipo[];
@@ -478,7 +480,7 @@ export async function salvarTipoTarefaCompleto(i: {
 }
 
 export type DadosTipoTarefa = Partial<Pick<TipoTarefaLms,
-  "ativo" | "categoria" | "tipo_movimento" | "unidade_medida" | "peso_produtividade" | "cor_interface" | "reserva_acao" | "reserva_expira_min">>;
+  "ativo" | "categoria" | "tipo_movimento" | "unidade_medida" | "peso_produtividade" | "cor_interface" | "somente_sistema" | "reserva_acao" | "reserva_expira_min">>;
 
 export async function salvarTipoTarefaLms(i: { tenantId: string; tipoTarefaId: string; dados: DadosTipoTarefa; motivo?: string | null }):
   Promise<{ tipo: TipoTarefaLms; alterou: boolean }> {
@@ -506,7 +508,7 @@ export function rotuloMovimento(v: number | null | undefined): string {
 
 const ROTULO_CAMPO_TIPO: Record<string, string> = {
   ativo: "Ativo", categoria: "Categoria", tipo_movimento: "Movimento", unidade_medida: "Unidade",
-  peso_produtividade: "Peso", cor_interface: "Cor", reserva_acao: "Reserva sem atividade", reserva_expira_min: "Prazo sem atividade",
+  peso_produtividade: "Peso", cor_interface: "Cor", somente_sistema: "Executado só pelo sistema", reserva_acao: "Reserva sem atividade", reserva_expira_min: "Prazo sem atividade",
 };
 
 /** "Prazo sem atividade: 4h → 1h · Ativo: sim → não" a partir do histórico do banco. */
@@ -514,7 +516,7 @@ export function descreverMudancaTipo(h: Pick<HistoricoTipoTarefa, "antes" | "dep
   const antes = h.antes ?? {}; const depois = h.depois ?? {};
   const fmt = (k: string, v: unknown): string => {
     if (v === null || v === undefined || v === "") return "—";
-    if (k === "ativo") return v ? "sim" : "não";
+    if (k === "ativo" || k === "somente_sistema") return v ? "sim" : "não";
     if (k === "reserva_acao") return rotuloAcao(String(v));
     if (k === "reserva_expira_min") { const m = Number(v); return m % 60 === 0 ? `${m / 60}h` : `${m} min`; }
     if (k === "tipo_movimento") return rotuloMovimento(Number(v));
