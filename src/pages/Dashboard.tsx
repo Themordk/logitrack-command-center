@@ -198,7 +198,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
             <KPICardPro
               title="Produtividade"
               value={pr ? `${pr.valor}` : "—"}
-              subtitle={pr ? (pr.tarefas > 0 ? `${pr.tarefas} tarefas em ${pr.horas}h` : "Sem atividade no período") : "Carregando..."}
+              subtitle={pr ? (pr.tarefas > 0 ? `${pr.tarefas} tarefas em ${pr.horas}h de tempo direto` : "Sem atividade no período") : "Carregando..."}
               icon={<Activity size={20} />}
               severity={sevProd}
               trend={trendProd}

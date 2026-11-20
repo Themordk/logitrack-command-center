@@ -6,10 +6,12 @@ import { ReportHeader } from "../components/ReportHeader";
 import { toast } from "sonner";
 import { Loader2, Clock, TrendingUp, CheckCircle, ArrowLeft } from "lucide-react";
 import {
-  fetchTimelineOperador,
+  fetchExecucoesOperador,
   fetchLmsMetricas,
   formatSegundos,
-  type TimelineEntry,
+  formatarLocalCurto,
+  minutosDoDiaLocal,
+  type ExecucaoOperador,
   type LmsLinha,
   type LmsTipoLinha,
 } from "./produtividade.service";
@@ -17,8 +19,8 @@ import { formatarPct, formatarTempo, tipoDominante } from "./produtividadeCalcul
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
-import { formatDateTimeShort, nowDisplay } from "@/utils/dateTime";
-import { exportToExcel, exportToPdf, fmtDateTimeBR, type ExportColumn } from "../utils/exporters";
+import { nowDisplay } from "@/utils/dateTime";
+import { exportToExcel, exportToPdf, type ExportColumn } from "../utils/exporters";
 import { parseError } from "@/lib/errorMapper";
 import { ScoreOperadorCard } from "@/modules/lms/score/ScoreOperadorCard";
 
@@ -50,7 +52,7 @@ function getTaskColor(corInterface: string | null | undefined, codigo: string): 
 export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, dataFim }: Props) {
   const { tenantId, empresaId, usuarioNome } = useTenant();
   const [loading, setLoading] = useState(true);
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [timeline, setTimeline] = useState<ExecucaoOperador[]>([]);
   const [operadorNome, setOperadorNome] = useState("");
   const [turnoInfo, setTurnoInfo] = useState<{ descricao: string; inicio: string; fim: string } | null>(null);
   const [generatedAt, setGeneratedAt] = useState("");
@@ -93,11 +95,11 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         dataInicio: inicio, dataFim: fim, usuarioId, turnoId: null,
       };
       const [data, op, tp] = await Promise.all([
-        fetchTimelineOperador(usuarioId, inicio, fim),
+        tenantId ? fetchExecucoesOperador(tenantId, usuarioId, inicio, fim) : Promise.resolve({ linhas: [], fuso: null }),
         tenantId ? fetchLmsMetricas<LmsLinha>(filtros, "OPERADOR") : Promise.resolve({ linhas: [], total: null }),
         tenantId ? fetchLmsMetricas<LmsTipoLinha>(filtros, "TIPO") : Promise.resolve({ linhas: [], total: null }),
       ]);
-      setTimeline(data);
+      setTimeline(data.linhas);
       setResumo(op.linhas.find((l) => l.usuario_id === usuarioId) ?? null);
       setTipos(tp.linhas);
       setGeneratedAt(nowDisplay());
@@ -109,7 +111,9 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   };
 
   // Calculate summary
-  const concluidas = timeline.filter((t) => t.status === "CONCLUIDA");
+  // Fase 10.15: a lista já vem só com execuções concluídas que entram na conta
+  const concluidas = timeline;
+  const somaEfetiva = timeline.reduce((a, t) => a + t.duracao_efetiva_seg, 0);
   const dominante = tipoDominante(tipos);
 
   // Tempo médio por tipo: tempo direto consolidado ÷ tarefas (mesma regra da fonte única)
@@ -121,20 +125,17 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   }));
 
   // Gantt timeline bars
+  // Barras na hora local do armazém (não do navegador), com a duração que entra na conta
   const ganttData = concluidas
-    .filter((t) => t.iniciado_em && t.concluido_em)
-    .map((t) => {
-      const start = new Date(t.iniciado_em!);
-      const end = new Date(t.concluido_em!);
-      return {
-        ...t,
-        startMinutes: start.getHours() * 60 + start.getMinutes(),
-        endMinutes: end.getHours() * 60 + end.getMinutes(),
-        durationMinutes: (t.duracao_segundos || 0) / 60,
-        color: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo),
-        label: `${t.tipo_tarefa_descricao} (${formatSegundos(t.duracao_segundos || 0)})`,
-      };
-    });
+    .filter((t) => t.duracao_bruta_seg > 0)
+    .map((t) => ({
+      ...t,
+      startMinutes: minutosDoDiaLocal(t.inicio_local),
+      endMinutes: minutosDoDiaLocal(t.fim_local),
+      durationMinutes: t.duracao_bruta_seg / 60,
+      color: getTaskColor(t.cor_interface, t.tipo_tarefa_codigo),
+      label: `${t.tipo_tarefa_descricao} (${formatSegundos(t.duracao_efetiva_seg)})`,
+    }));
 
   // Turno range
   const turnoStartMin = turnoInfo ? parseTime(turnoInfo.inicio) : 6 * 60;
@@ -143,11 +144,11 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
 
   const exportColumns: ExportColumn[] = [
     { key: "tipo_tarefa_descricao", label: "Tipo" },
-    { key: "status", label: "Status" },
-    { key: "quantidade_executada", label: "Qtd Exec.", align: "right" },
-    { key: "duracao_segundos", label: "Duração", align: "right", format: (r) => r.duracao_segundos != null ? formatSegundos(r.duracao_segundos) : "" },
-    { key: "iniciado_em", label: "Início", format: (r) => r.iniciado_em ? fmtDateTimeBR(r.iniciado_em) : "" },
-    { key: "concluido_em", label: "Conclusão", format: (r) => r.concluido_em ? fmtDateTimeBR(r.concluido_em) : "" },
+    { key: "quantidade", label: "Qtd Exec.", align: "right" },
+    { key: "duracao_efetiva_seg", label: "Tempo na conta", align: "right", format: (r) => formatSegundos(r.duracao_efetiva_seg) },
+    { key: "tempo_padrao_seg", label: "Tempo padrão", align: "right", format: (r) => formatSegundos(r.tempo_padrao_seg) },
+    { key: "inicio_real", label: "Início", format: (r) => `${formatarLocalCurto(r.inicio_local)}${r.inicio_real ? "" : " (estimado)"}` },
+    { key: "fim_local", label: "Conclusão", format: (r) => formatarLocalCurto(r.fim_local) },
   ];
   const exportFilters: Record<string, string> = {
     Operador: operadorNome || "—",
@@ -289,6 +290,11 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="p-4 border-b border-border">
               <h3 className="text-sm font-semibold text-foreground">Execuções Detalhadas ({timeline.length})</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                "Tempo na conta" é o tempo direto de cada execução: sem pausas e sem contar duas vezes o tempo em que
+                duas tarefas correram juntas. A soma ({formatSegundos(somaEfetiva)}) é o Tempo Direto do cartão.
+                Horários na hora local do armazém.
+              </p>
             </div>
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
               <table className="w-full text-sm">
@@ -296,9 +302,9 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-3 font-medium text-muted-foreground">Tipo</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Categoria</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Qtd Exec.</th>
-                    <th className="text-right p-3 font-medium text-muted-foreground">Duração</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Tempo na conta</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Tempo padrão</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Início</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Conclusão</th>
                   </tr>
@@ -313,22 +319,20 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                         </div>
                       </td>
                       <td className="p-3 text-xs text-muted-foreground">{t.tipo_tarefa_categoria || "—"}</td>
-                      <td className="p-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          t.status === "CONCLUIDA" ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"
-                        }`}>
-                          {t.status}
-                        </span>
+                      <td className="p-3 text-right text-foreground">{t.quantidade}</td>
+                      <td className="p-3 text-right text-foreground" title={
+                        [t.pausa_seg > 0 ? `pausa ${formatSegundos(t.pausa_seg)}` : "",
+                         t.sobreposicao_seg > 0 ? `${formatSegundos(t.sobreposicao_seg)} junto com outra tarefa` : ""].filter(Boolean).join(" · ") || undefined
+                      }>
+                        {formatSegundos(t.duracao_efetiva_seg)}
                       </td>
-                      <td className="p-3 text-right text-foreground">{t.quantidade_executada}</td>
-                      <td className="p-3 text-right text-muted-foreground">
-                        {t.duracao_segundos != null ? formatSegundos(t.duracao_segundos) : "—"}
+                      <td className="p-3 text-right text-muted-foreground">{formatSegundos(t.tempo_padrao_seg)}</td>
+                      <td className="p-3 text-muted-foreground text-xs">
+                        {formatarLocalCurto(t.inicio_local)}
+                        {!t.inicio_real && <span className="ml-1 text-[10px]" title="Sem leitura de início: estimado pelo fim da tarefa anterior">(estimado)</span>}
                       </td>
                       <td className="p-3 text-muted-foreground text-xs">
-                        {formatDateTimeShort(t.iniciado_em)}
-                      </td>
-                      <td className="p-3 text-muted-foreground text-xs">
-                        {formatDateTimeShort(t.concluido_em)}
+                        {formatarLocalCurto(t.fim_local)}
                       </td>
                     </tr>
                   ))}

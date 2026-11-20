@@ -382,71 +382,69 @@ export async function fetchTurnos(
 }
 
 // ----------------------------------------------------------------------------
-// Mantido para compatibilidade com ProdutividadeOperadorPage (drill-down).
+// Fase 10.15 (P3): execuções detalhadas da ficha com o tempo que entra na conta.
+// Vem de rpc_lms_execucoes_operador, que usa a mesma regra da consolidação:
+// a soma de duracao_efetiva_seg do dia é o "Tempo direto" do cartão.
+// Horários vêm no fuso do armazém (inicio_local / fim_local, sem fuso).
 // ----------------------------------------------------------------------------
 
-export interface TimelineEntry {
+export interface ExecucaoOperador {
   execucao_id: string;
   tarefa_id: string;
+  dia: string;
   tipo_tarefa_codigo: string;
   tipo_tarefa_descricao: string;
-  status: string;
-  atribuido_em: string;
-  iniciado_em: string | null;
-  concluido_em: string | null;
-  quantidade_executada: number;
-  quantidade_cortada: number;
-  quantidade_requerida: number;
-  duracao_segundos: number | null;
-  espera_segundos: number | null;
-  tempo_estimado_segundos: number | null;
   tipo_tarefa_categoria: string | null;
-  meta_unidades_hora: number | null;
-  meta_tarefas_hora: number | null;
-  peso_produtividade: number | null;
   cor_interface: string | null;
-  unidade_medida: string | null;
-  aderencia_meta_pct: number | null;
+  inicio_local: string;
+  fim_local: string;
+  inicio_real: boolean;
+  pausa_seg: number;
+  duracao_bruta_seg: number;
+  sobreposicao_seg: number;
+  duracao_efetiva_seg: number;
+  tempo_padrao_seg: number;
+  quantidade: number;
+  quantidade_requerida: number;
+  quantidade_cortada: number;
 }
 
-export async function fetchTimelineOperador(
+export async function fetchExecucoesOperador(
+  tenantId: string,
   usuarioId: string,
   dataInicio: string,
   dataFim: string,
-): Promise<TimelineEntry[]> {
-  const data = await fetchAllSelectRows(
-    "vw_lms_timeline_operador",
-    "*",
-    (q) => q
-      .eq("usuario_id", usuarioId)
-      .gte("concluido_em", dataInicio)
-      .lte("concluido_em", dataFim + "T23:59:59")
-      .order("concluido_em", { ascending: true }),
-  );
+): Promise<{ linhas: ExecucaoOperador[]; fuso: string | null }> {
+  const { data, error } = await sb.rpc("rpc_lms_execucoes_operador", {
+    p_tenant_id: tenantId, p_usuario_id: usuarioId, p_data_ini: dataInicio, p_data_fim: dataFim,
+  });
+  if (error) throw new Error(error.message);
+  if (data?.sucesso === false) throw new Error(data.mensagem || "Não foi possível carregar as execuções.");
+  const num = (v: unknown) => Number(v ?? 0) || 0;
+  return {
+    fuso: data?.fuso ?? null,
+    linhas: ((data?.linhas as any[]) || []).map((d) => ({
+      execucao_id: d.execucao_id, tarefa_id: d.tarefa_id, dia: d.dia,
+      tipo_tarefa_codigo: d.tipo_tarefa_codigo, tipo_tarefa_descricao: d.tipo_tarefa_descricao,
+      tipo_tarefa_categoria: d.tipo_tarefa_categoria ?? null, cor_interface: d.cor_interface ?? null,
+      inicio_local: d.inicio_local, fim_local: d.fim_local, inicio_real: !!d.inicio_real,
+      pausa_seg: num(d.pausa_seg), duracao_bruta_seg: num(d.duracao_bruta_seg), sobreposicao_seg: num(d.sobreposicao_seg),
+      duracao_efetiva_seg: num(d.duracao_efetiva_seg), tempo_padrao_seg: num(d.tempo_padrao_seg),
+      quantidade: num(d.quantidade), quantidade_requerida: num(d.quantidade_requerida), quantidade_cortada: num(d.quantidade_cortada),
+    })),
+  };
+}
 
-  return data.map((d: any) => ({
-    execucao_id: d.execucao_id,
-    tarefa_id: d.tarefa_id,
-    tipo_tarefa_codigo: d.tipo_tarefa_codigo,
-    tipo_tarefa_descricao: d.tipo_tarefa_descricao,
-    status: d.status,
-    atribuido_em: d.atribuido_em,
-    iniciado_em: d.iniciado_em,
-    concluido_em: d.concluido_em,
-    quantidade_executada: Number(d.quantidade_executada || 0),
-    quantidade_cortada: Number(d.quantidade_cortada || 0),
-    quantidade_requerida: Number(d.quantidade_requerida || 0),
-    duracao_segundos: d.duracao_segundos ? Number(d.duracao_segundos) : null,
-    espera_segundos: d.espera_segundos ? Number(d.espera_segundos) : null,
-    tempo_estimado_segundos: d.tempo_estimado_segundos ? Number(d.tempo_estimado_segundos) : null,
-    tipo_tarefa_categoria: d.tipo_tarefa_categoria ?? null,
-    meta_unidades_hora: d.meta_unidades_hora != null ? Number(d.meta_unidades_hora) : null,
-    meta_tarefas_hora: d.meta_tarefas_hora != null ? Number(d.meta_tarefas_hora) : null,
-    peso_produtividade: d.peso_produtividade != null ? Number(d.peso_produtividade) : null,
-    cor_interface: d.cor_interface ?? null,
-    unidade_medida: d.unidade_medida ?? null,
-    aderencia_meta_pct: d.aderencia_meta_pct != null ? Number(d.aderencia_meta_pct) : null,
-  }));
+/** "2026-11-18T11:53:59" (hora local do armazém) → minutos desde 00:00, sem passar pelo fuso do navegador. */
+export function minutosDoDiaLocal(local: string): number {
+  const m = /T(\d{2}):(\d{2})/.exec(local || "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
+}
+
+/** "2026-11-18T11:53:59" → "18/11 11:53" (hora local do armazém). */
+export function formatarLocalCurto(local: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local || "");
+  return m ? `${m[3]}/${m[2]} ${m[4]}:${m[5]}` : "—";
 }
 
 /**
