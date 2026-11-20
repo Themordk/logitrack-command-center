@@ -9,6 +9,7 @@ import { formatarScore, textoSemScore } from "@/modules/lms/score/score.service"
 import {
   ROTULO_STATUS_OPERADOR, obterPainelTurno, semaforo, tempoDesde, type PainelTurno,
 } from "./acompanhamento.service";
+import { TermoAjuda } from "@/modules/lms/glossario";
 
 const ATUALIZAR_MS = 60_000;
 const hora = (iso: string | null | undefined) =>
@@ -87,7 +88,7 @@ export function PainelTurnoView({ tenantId, armazemId, onNavigate }: Props) {
         <Kpi rotulo="Atividade indireta" valor={String(r.indireta)} sub={`${r.sem_sessao} sem sessão`} />
         <Kpi rotulo="Tarefas no dia" valor={r.tarefas.toLocaleString("pt-BR")} sub={`${Number(r.quantidade).toLocaleString("pt-BR")} unidades`} />
         <Kpi rotulo="Utilização" valor={pct(r.utilizacao_pct)} sub={`performance ${pct(r.performance_pct)}`} />
-        <Kpi rotulo="Score médio do dia" valor={r.score_medio != null ? formatarScore(r.score_medio) : "—"} sub={`esperado ${pct(painel.score_esperado)}`} />
+        <Kpi rotulo="Score das metas · média do dia" valor={r.score_medio != null ? formatarScore(r.score_medio) : "—"} sub={`esperado ${pct(painel.score_esperado)}`} />
         <Kpi rotulo="Metas do dia" valor={`${r.metas_no_caminho}/${r.metas}`} sub={r.metas_em_risco ? `${r.metas_em_risco} em risco` : "no caminho"} />
       </div>
 
@@ -150,9 +151,9 @@ export function PainelTurnoView({ tenantId, armazemId, onNavigate }: Props) {
                 <th className="px-3 py-2 text-left font-medium">Agora</th>
                 <th className="px-3 py-2 text-right font-medium">Tarefas</th>
                 <th className="px-3 py-2 text-right font-medium">Unidades</th>
-                <th className="px-3 py-2 text-right font-medium">Utilização</th>
-                <th className="px-3 py-2 text-right font-medium">Performance</th>
-                <th className="px-3 py-2 text-center font-medium">Score do dia</th>
+                <th className="px-3 py-2 text-right font-medium"><span className="inline-flex items-center gap-1">Utilização <TermoAjuda termo="utilizacao" /></span></th>
+                <th className="px-3 py-2 text-right font-medium"><span className="inline-flex items-center gap-1">Performance <TermoAjuda termo="performance" /></span></th>
+                <th className="px-3 py-2 text-center font-medium"><span className="inline-flex items-center gap-1">Score das metas (dia) <TermoAjuda termo="score" /></span></th>
               </tr></thead>
               <tbody>
                 {painel.operadores.map((o) => {

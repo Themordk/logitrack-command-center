@@ -14,6 +14,7 @@ import {
   CATEGORIAS_TIPO_TAREFA, LmsConfigErro, TIPOS_MOVIMENTO, descreverHistoricoTipo, descreverOrigem, descreverPadrao, listarTiposTarefaLms,
   rotuloMovimento, salvarTipoTarefaCompleto, type DadosTipoTarefa, type HistoricoTipoTarefa, type PadraoParaSalvar, type PadraoTempoConfig,
   type RegraSistema, type ReservaAcaoTipo, type TipoTarefaLms,
+  padraoCalibrado,
 } from "./lmsConfig.service";
 import { PadraoTempoCampos, edicaoPadraoInicial, partesDaEdicao, validarEdicaoPadrao, type EdicaoPadrao } from "./PadraoTempoCampos";
 
@@ -150,6 +151,17 @@ function OrigemPadrao({ p, nivelTela }: { p: PadraoTempoConfig; nivelTela: "EMPR
   );
 }
 
+/** Fase 10.20 (P12): o padrão migrado ou digitado ainda não foi conferido com a operação real. */
+function SeloNaoCalibrado({ origem }: { origem: string | null | undefined }) {
+  if (padraoCalibrado(origem)) return null;
+  return (
+    <span className="ml-1.5 inline-flex rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-600 dark:text-amber-400"
+      title="Este tempo padrão ainda não foi conferido com execuções reais. Abra o tipo e use &quot;Sugerir pelo histórico&quot;.">
+      Não calibrado
+    </span>
+  );
+}
+
 export function TiposTarefaSection({
   tenantId, empresaId, armazemId, nivelTela, nomeNivel, hoje, padroes, regrasSistema, podeRetroativo, onSalvo, onExcluirAgendado,
 }: Props) {
@@ -266,7 +278,7 @@ export function TiposTarefaSection({
   const alcanceTodas = <p className="mb-3 text-xs text-muted-foreground">Vale para <b>todas as empresas</b>.</p>;
 
   return (
-    <section className="rounded-lg border border-border bg-card" data-testid="lms-tipos-tarefa">
+    <section id="lms-tipos-tarefa" className="scroll-mt-20 rounded-lg border border-border bg-card" data-testid="lms-tipos-tarefa">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
         <div className="flex items-start gap-2">
           <ListChecks size={18} className="mt-0.5 text-primary" />
@@ -321,6 +333,7 @@ export function TiposTarefaSection({
                               ? descreverPadrao(p.efetivo, p.unidade_medida) : "sem padrão"}
                           </span>
                           <OrigemPadrao p={p} nivelTela={nivelTela} />
+                          <SeloNaoCalibrado origem={p.efetivo.origem} />
                           {p.agendados.length > 0 && (
                             <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400"
                               title={p.agendados.map((a) => formatDate(a.vigente_desde)).join(", ")}>

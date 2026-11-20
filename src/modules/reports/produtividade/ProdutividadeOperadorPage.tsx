@@ -26,6 +26,7 @@ import { nowDisplay } from "@/utils/dateTime";
 import { exportToExcel, exportToPdf, type ExportColumn } from "../utils/exporters";
 import { parseError } from "@/lib/errorMapper";
 import { ScoreOperadorCard } from "@/modules/lms/score/ScoreOperadorCard";
+import { TermoAjuda, definicaoTermo, type TermoLms } from "@/modules/lms/glossario";
 
 interface Props {
   usuarioId: string;
@@ -207,11 +208,11 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
           {/* KPIs (fonte única) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <OpKpi icon={<CheckCircle size={16} />} label="Tarefas Concluídas" value={String(resumo?.tarefas ?? 0)} />
-            <OpKpi icon={<Clock size={16} />} label="Tempo Direto" value={formatarTempo(resumo?.tempo_direto)}
+            <OpKpi icon={<Clock size={16} />} label="Tempo Direto" termo="tempo_direto" value={formatarTempo(resumo?.tempo_direto)}
               sub={resumo ? `de ${formatarTempo(resumo.tempo_disponivel)} disponível` : undefined} />
-            <OpKpi icon={<TrendingUp size={16} />} label="Utilização" value={formatarPct(resumo?.utilizacao_pct)} />
-            <OpKpi icon={<TrendingUp size={16} />} label="Performance" value={formatarPct(resumo?.performance_pct)} />
-            <OpKpi icon={<TrendingUp size={16} />} label="Eficiência" value={formatarPct(resumo?.eficiencia_pct)}
+            <OpKpi icon={<TrendingUp size={16} />} label="Utilização" termo="utilizacao" value={formatarPct(resumo?.utilizacao_pct)} />
+            <OpKpi icon={<TrendingUp size={16} />} label="Performance" termo="performance" value={formatarPct(resumo?.performance_pct)} />
+            <OpKpi icon={<TrendingUp size={16} />} label="Eficiência" termo="eficiencia" value={formatarPct(resumo?.eficiencia_pct)}
               sub={resumo?.origem === "ESTIMADO" ? "estimado" : resumo ? "real" : undefined} />
             <OpKpi icon={<TrendingUp size={16} />} label={dominante ? `UPH · ${dominante.codigo}` : "UPH"}
               value={dominante?.uph != null ? dominante.uph.toFixed(1).replace(".", ",") : "—"}
@@ -315,7 +316,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                     <th className="text-left p-3 font-medium text-muted-foreground">Categoria</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Qtd Exec.</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Tempo na conta</th>
-                    <th className="text-right p-3 font-medium text-muted-foreground">Tempo padrão</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground" title={definicaoTermo("tempo_padrao")}>Tempo padrão</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Início</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Conclusão</th>
                   </tr>
@@ -375,12 +376,13 @@ function formatMinutes(min: number): string {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 }
 
-function OpKpi({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
+function OpKpi({ icon, label, value, sub, termo }: { icon: React.ReactNode; label: string; value: string; sub?: string; termo?: TermoLms }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-primary mb-1">
         {icon}
         <span className="text-xs text-muted-foreground">{label}</span>
+        {termo && <TermoAjuda termo={termo} />}
       </div>
       <span className="text-2xl font-bold text-foreground">{value}</span>
       {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}

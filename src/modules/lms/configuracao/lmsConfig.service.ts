@@ -35,6 +35,8 @@ export type GrupoParametro = "CLASSIFICACAO" | "JORNADA" | "QUALIDADE" | "CALIBR
 export interface ParametroConfig {
   codigo: string;
   grupo: GrupoParametro;
+  /** Fase 10.20 (P11): parâmetro que mexe no cálculo; a tela mostra recolhido no grupo "Avançado". */
+  avancado?: boolean;
   rotulo: string;
   ajuda: string;
   unidade: UnidadeParametro;
@@ -535,4 +537,38 @@ export function descreverHistoricoTipo(h: HistoricoTipoTarefa, rotuloAcao: (a: s
     return `Tempo padrão → ${valor}${h.origem === "CALIBRADO" ? " (calibrado)" : ""}${h.vigente_desde ? ` a partir de ${h.vigente_desde.split("-").reverse().join("/")}` : ""}`;
   }
   return descreverMudancaTipo(h, rotuloAcao) || "Sem mudança de valores";
+}
+
+// ----------------------------------------------------------------------------
+// Fase 10.20 (P9): primeiros passos e saúde da configuração, calculados no banco.
+// ----------------------------------------------------------------------------
+
+export type SituacaoPasso = "OK" | "PENDENTE" | "ATENCAO" | "OPCIONAL";
+
+export interface PassoConfig {
+  codigo: "TURNOS" | "TEMPOS" | "FAIXAS" | "METAS" | "CAPTURA";
+  ordem: number;
+  titulo: string;
+  descricao: string;
+  situacao: SituacaoPasso;
+  detalhe: string;
+  /** Rota de outra tela ("/lms/metas") ou seção desta página ("#lms-faixas"). */
+  destino: string;
+  acao: string;
+  itens?: string[];
+}
+
+export interface SaudeConfig { pronto: boolean; passos: PassoConfig[] }
+
+export async function obterSaudeConfig(tenantId: string, empresaId: string, armazemId: string | null): Promise<SaudeConfig> {
+  const { data, error } = await sb.rpc("rpc_lms_saude_config", {
+    p_tenant_id: tenantId, p_empresa_id: empresaId, p_armazem_id: armazemId,
+  });
+  const r = exigirSucesso<{ pronto: boolean; passos: PassoConfig[] }>(data, error);
+  return { pronto: !!r.pronto, passos: [...(r.passos ?? [])].sort((a, b) => a.ordem - b.ordem) };
+}
+
+/** P12: mesma regra do banco (fn_lms_padrao_calibrado). */
+export function padraoCalibrado(origem: string | null | undefined): boolean {
+  return origem === "CALIBRADO" || origem === "ENGENHARIA";
 }

@@ -9,6 +9,7 @@ import {
   ROTULO_NIVEL, descreverPadrao, ehRetroativa, formatarSegundos, formatarValor, horasPadraoSeg, sugerirPadraoLms, validarPadrao,
   type PadraoTempoConfig, type RegraSistema, type SugestaoPadrao,
 } from "./lmsConfig.service";
+import { TermoAjuda } from "../glossario";
 
 /** Fase 10.11: campos do tempo padrão dentro do painel do tipo de tarefa (antes, diálogo próprio). */
 export interface EdicaoPadrao {
@@ -156,7 +157,7 @@ export function PadraoTempoCampos({
                   <Input id="lms-unidade" inputMode="decimal" value={edicao.unidade} onChange={(e) => editarNumero("unidade")(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="lms-pfd">Folga PFD (%)</Label>
+                  <span className="inline-flex items-center gap-1"><Label htmlFor="lms-pfd">Tolerância PFD (%)</Label><TermoAjuda termo="pfd" /></span>
                   <Input id="lms-pfd" inputMode="decimal" value={edicao.pfd} onChange={(e) => editarNumero("pfd")(e.target.value)} />
                 </div>
               </div>

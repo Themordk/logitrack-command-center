@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CalendarClock, History, Info, Loader2, Lock, Pencil, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, SlidersHorizontal, History, Info, Loader2, Lock, Pencil, RefreshCw, X } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { EditarRegraDialog, type RegraEmEdicao } from "./EditarRegraDialog";
 import { EditarFaixasDialog } from "./EditarFaixasDialog";
 import { AtividadesIndiretasSection } from "./AtividadesIndiretasSection";
 import { TiposTarefaSection } from "./TiposTarefaSection";
+import { PrimeirosPassosPanel } from "./PrimeirosPassosPanel";
 import { PALETA, intervalos, type FaixaLms } from "../faixas";
 import {
   LmsConfigErro, ROTULO_GRUPO, descreverOrigem, descreverPadrao, excluirRegraAgendada, formatarValor, listarArmazens, listarEmpresas, obterConfigLms,
@@ -67,7 +68,7 @@ function Agendados({ itens, unidade, podeEditar, onExcluir }: {
   );
 }
 
-export function LmsConfiguracaoPage() {
+export function LmsConfiguracaoPage({ onNavigate }: { onNavigate?: (path: string) => void } = {}) {
   const { tenantId, empresaId: empresaSessao } = useTenant();
   const [empresas, setEmpresas] = useState<Opcao[]>([]);
   const [armazens, setArmazens] = useState<Opcao[]>([]);
@@ -81,6 +82,10 @@ export function LmsConfiguracaoPage() {
   const [reprocessarDe, setReprocessarDe] = useState<string | null>(null);
   const [editandoFaixas, setEditandoFaixas] = useState(false);
   const [reprocessando, setReprocessando] = useState(false);
+  // Fase 10.20 (P14): reprocessar fica sempre à mão, não só logo após salvar
+  const [reprocessoAberto, setReprocessoAberto] = useState(false);
+  const [reprocessoData, setReprocessoData] = useState("");
+  const [versaoSaude, setVersaoSaude] = useState(0);
 
   useEffect(() => { if (!empresaId && empresaSessao) setEmpresaId(empresaSessao); }, [empresaSessao, empresaId]);
 
@@ -101,6 +106,7 @@ export function LmsConfiguracaoPage() {
     setErro(null);
     try {
       setConfig(await obterConfigLms(tenantId, empresaId, armazemId));
+      setVersaoSaude((v) => v + 1);
     } catch (e) {
       setConfig(null);
       setErro(e instanceof Error ? e.message : "Não foi possível carregar as regras.");
@@ -114,11 +120,13 @@ export function LmsConfiguracaoPage() {
   const nivelTela = config?.nivel ?? (armazemId ? "ARMAZEM" : "EMPRESA");
   const nomeNivel = armazemId ? armazens.find((a) => a.id === armazemId)?.nome ?? "armazém" : empresas.find((e) => e.id === empresaId)?.nome ?? "empresa";
 
-  const parametrosPorGrupo = useMemo(() => {
-    const m = new Map<GrupoParametro, ConfigLms["parametros"]>();
-    for (const g of GRUPOS) m.set(g, []);
-    for (const p of config?.parametros ?? []) m.get(p.grupo)?.push(p);
-    return m;
+  // Fase 10.20 (P11): os parâmetros marcados como avançados no banco ficam num grupo recolhido
+  const { basicosPorGrupo, avancadosPorGrupo, totalAvancados } = useMemo(() => {
+    const b = new Map<GrupoParametro, ConfigLms["parametros"]>();
+    const a = new Map<GrupoParametro, ConfigLms["parametros"]>();
+    for (const g of GRUPOS) { b.set(g, []); a.set(g, []); }
+    for (const p of config?.parametros ?? []) (p.avancado ? a : b).get(p.grupo)?.push(p);
+    return { basicosPorGrupo: b, avancadosPorGrupo: a, totalAvancados: (config?.parametros ?? []).filter((p) => p.avancado).length };
   }, [config]);
 
   async function salvar(valor: number | null, vigenteDesde: string, motivo: string) {
@@ -165,13 +173,14 @@ export function LmsConfiguracaoPage() {
     }
   }
 
-  async function reprocessar() {
-    if (!tenantId || !reprocessarDe) return;
+  async function reprocessar(desde: string | null = reprocessarDe) {
+    if (!tenantId || !desde) return;
     setReprocessando(true);
     try {
-      const r = await reprocessarLms(tenantId, reprocessarDe);
+      const r = await reprocessarLms(tenantId, desde);
       toast.success(`Reprocessado: ${r.dias} dia(s).`);
       setReprocessarDe(null);
+      setReprocessoAberto(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível reprocessar.");
     } finally {
@@ -183,6 +192,38 @@ export function LmsConfiguracaoPage() {
   // tempo padrão tem histórico próprio em cada tipo de tarefa (Fase 10.11)
   const historicoGeral = useMemo(() => (config?.historico ?? []).filter((h) => h.tipo !== "PADRAO_TEMPO"), [config]);
   const unidadeDe = useMemo(() => new Map((config?.parametros ?? []).map((p) => [p.codigo, p.unidade])), [config]);
+
+  const linhaParametro = (p: ConfigLms["parametros"][number]) => (
+    <li key={p.codigo} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+      <div className="min-w-[240px] flex-1">
+        <p className="text-sm text-foreground">{p.rotulo}</p>
+        <p className="text-xs text-muted-foreground">{p.ajuda}</p>
+        <Agendados itens={p.agendados} unidade={p.unidade} podeEditar={podeEditar}
+          onExcluir={(id) => excluirAgendada("PARAMETRO", id)} />
+      </div>
+      <span className="w-28 text-right text-sm font-semibold tabular-nums text-foreground">
+        {formatarValor(p.efetivo.valor, p.unidade)}
+      </span>
+      <span className="w-44"><OrigemBadge nivel={p.efetivo.nivel} nivelTela={nivelTela} /></span>
+      <span className="w-9 text-right">
+        {podeEditar && p.editavel_neste_nivel && (
+          <Button size="sm" variant="ghost" aria-label={`Alterar ${p.rotulo}`}
+            onClick={() => setEdicao({
+              tipo: "PARAMETRO", chave: p.codigo, rotulo: p.rotulo, ajuda: p.ajuda, unidade: p.unidade,
+              minimo: p.minimo, maximo: p.maximo,
+              valorEfetivo: p.efetivo.valor, nivelEfetivo: p.efetivo.nivel,
+              valorHerdado: p.herdado.valor, nivelHerdado: p.herdado.nivel,
+              temProprio: p.efetivo.nivel === nivelTela,
+            })}>
+            <Pencil size={14} />
+          </Button>
+        )}
+        {podeEditar && !p.editavel_neste_nivel && (
+          <span title="Esta regra só é definida no nível da empresa." className="inline-flex text-muted-foreground"><Lock size={13} /></span>
+        )}
+      </span>
+    </li>
+  );
 
   return (
     <div className="space-y-5" data-testid="lms-configuracao">
@@ -214,7 +255,29 @@ export function LmsConfiguracaoPage() {
           <Button variant="outline" size="sm" onClick={carregar} disabled={carregando}>
             <RefreshCw size={14} className={cn("mr-1", carregando && "animate-spin")} /> Atualizar
           </Button>
+          {config?.pode_reprocessar && (
+            <Button variant="outline" size="sm" onClick={() => { setReprocessoData(reprocessarDe ?? config.hoje); setReprocessoAberto((v) => !v); }}>
+              <History size={14} className="mr-1" /> Reprocessar período
+            </Button>
+          )}
         </div>
+        {reprocessoAberto && config?.pode_reprocessar && (
+          <div className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-muted/30 p-3" data-testid="lms-reprocessar-periodo">
+            <label className="space-y-1">
+              <span className="block text-xs font-medium text-muted-foreground">Recalcular a partir de</span>
+              <input type="date" aria-label="Recalcular a partir de" value={reprocessoData} max={config.hoje}
+                onChange={(e) => setReprocessoData(e.target.value)}
+                className="h-9 rounded-md border border-border bg-background px-2 text-sm" />
+            </label>
+            <p className="flex-1 min-w-[220px] text-xs text-muted-foreground">
+              Recalcula os números de todos os operadores de cada dia, da data escolhida até hoje, com as regras em vigor em cada dia.
+              Use depois de mudar uma regra com data no passado.
+            </p>
+            <Button size="sm" onClick={() => reprocessar(reprocessoData)} disabled={reprocessando || !reprocessoData}>
+              {reprocessando && <Loader2 size={14} className="mr-1 animate-spin" />} Reprocessar
+            </Button>
+          </div>
+        )}
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <Info size={14} className="mt-0.5 shrink-0" />
           {nivelTela === "EMPRESA"
@@ -228,12 +291,16 @@ export function LmsConfiguracaoPage() {
         )}
       </section>
 
+      {tenantId && empresaId && config && (
+        <PrimeirosPassosPanel tenantId={tenantId} empresaId={empresaId} armazemId={armazemId} versao={versaoSaude} onNavigate={onNavigate} />
+      )}
+
       {reprocessarDe && (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           <span>A regra vale desde {formatDate(reprocessarDe)}. Reprocessar os dias a partir dessa data para os números refletirem a mudança?</span>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => setReprocessarDe(null)} disabled={reprocessando}>Agora não</Button>
-            <Button size="sm" onClick={reprocessar} disabled={reprocessando}>
+            <Button size="sm" onClick={() => reprocessar()} disabled={reprocessando}>
               {reprocessando && <Loader2 size={14} className="mr-1 animate-spin" />} Reprocessar
             </Button>
           </div>
@@ -266,7 +333,7 @@ export function LmsConfiguracaoPage() {
           )}
 
           {/* Faixas de classificação */}
-          <section className="rounded-lg border border-border bg-card" data-testid="lms-faixas">
+          <section id="lms-faixas" className="scroll-mt-20 rounded-lg border border-border bg-card" data-testid="lms-faixas">
             <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Classificação</h2>
@@ -308,9 +375,9 @@ export function LmsConfiguracaoPage() {
             )}
           </section>
 
-          {/* Parâmetros por grupo */}
+          {/* Parâmetros por grupo (dia a dia) */}
           {GRUPOS.map((g) => {
-            const itens = parametrosPorGrupo.get(g) ?? [];
+            const itens = basicosPorGrupo.get(g) ?? [];
             if (itens.length === 0) return null;
             return (
               <section key={g} className="rounded-lg border border-border bg-card">
@@ -318,42 +385,34 @@ export function LmsConfiguracaoPage() {
                   <h2 className="text-sm font-semibold text-foreground">{ROTULO_GRUPO[g].titulo}</h2>
                   <p className="text-xs text-muted-foreground">{ROTULO_GRUPO[g].descricao}</p>
                 </header>
-                <ul>
-                  {itens.map((p) => (
-                    <li key={p.codigo} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-0">
-                      <div className="min-w-[240px] flex-1">
-                        <p className="text-sm text-foreground">{p.rotulo}</p>
-                        <p className="text-xs text-muted-foreground">{p.ajuda}</p>
-                        <Agendados itens={p.agendados} unidade={p.unidade} podeEditar={podeEditar}
-                          onExcluir={(id) => excluirAgendada("PARAMETRO", id)} />
-                      </div>
-                      <span className="w-28 text-right text-sm font-semibold tabular-nums text-foreground">
-                        {formatarValor(p.efetivo.valor, p.unidade)}
-                      </span>
-                      <span className="w-44"><OrigemBadge nivel={p.efetivo.nivel} nivelTela={nivelTela} /></span>
-                      <span className="w-9 text-right">
-                        {podeEditar && p.editavel_neste_nivel && (
-                          <Button size="sm" variant="ghost" aria-label={`Alterar ${p.rotulo}`}
-                            onClick={() => setEdicao({
-                              tipo: "PARAMETRO", chave: p.codigo, rotulo: p.rotulo, ajuda: p.ajuda, unidade: p.unidade,
-                              minimo: p.minimo, maximo: p.maximo,
-                              valorEfetivo: p.efetivo.valor, nivelEfetivo: p.efetivo.nivel,
-                              valorHerdado: p.herdado.valor, nivelHerdado: p.herdado.nivel,
-                              temProprio: p.efetivo.nivel === nivelTela,
-                            })}>
-                            <Pencil size={14} />
-                          </Button>
-                        )}
-                        {podeEditar && !p.editavel_neste_nivel && (
-                          <span title="Esta regra só é definida no nível da empresa." className="inline-flex text-muted-foreground"><Lock size={13} /></span>
-                        )}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <ul>{itens.map(linhaParametro)}</ul>
               </section>
             );
           })}
+
+          {/* Fase 10.20 (P11): parâmetros avançados, recolhidos */}
+          {totalAvancados > 0 && (
+            <details className="rounded-lg border border-border bg-card" data-testid="lms-parametros-avancados">
+              <summary className="flex cursor-pointer items-center gap-2 p-4 text-sm font-semibold text-foreground">
+                <SlidersHorizontal size={16} className="text-muted-foreground" /> Avançado · {totalAvancados} parâmetro(s)
+              </summary>
+              <p className="mx-4 mb-3 flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                Estes valores mudam como o sistema calcula os números e decide se o dado é confiável. O padrão do sistema serve para
+                a maioria das operações: só altere com orientação do suporte.
+              </p>
+              {GRUPOS.map((g) => {
+                const itens = avancadosPorGrupo.get(g) ?? [];
+                if (itens.length === 0) return null;
+                return (
+                  <div key={g} className="border-t border-border">
+                    <p className="px-4 pt-3 text-xs font-semibold text-muted-foreground">{ROTULO_GRUPO[g].titulo}</p>
+                    <ul>{itens.map(linhaParametro)}</ul>
+                  </div>
+                );
+              })}
+            </details>
+          )}
 
           {/* Histórico */}
           <details className="rounded-lg border border-border bg-card">

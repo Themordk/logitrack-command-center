@@ -20,6 +20,7 @@ import {
   fetchCapturaPeriodo, textoSemCaptura, type CapturaPeriodo,
   type LmsLinha, type LmsTotal, type LmsTipoLinha, type ProdutividadeFilters, type QualidadeDado, type TrocasDono,
 } from "./produtividade.service";
+import { TermoAjuda, definicaoTermo, type TermoLms } from "@/modules/lms/glossario";
 import { TrocasDonoPanel } from "./TrocasDonoPanel";
 import {
   FAIXAS_PADRAO, LIMITE_AUDITAR_SET, classeFaixa, corFaixa, nomeFaixa, dominioEixo,
@@ -342,20 +343,20 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <Kpi label="Score da equipe" value={formatarPct(total?.score_medio)} colorClass={classeFaixa(total?.score_medio, faixas)}
-            dica="Média do score global dos operadores com metas no período (média ponderada do atingimento das metas de cada um)"
-            sub={total ? `${total.operadores_com_score ?? 0} de ${porOperador.length} com score · esperado ${faixas.bom}%` : undefined} />
-          <Kpi label="Utilização" value={formatarPct(total?.utilizacao_pct)}
-            dica="Tempo direto ÷ tempo disponível" sub={total ? `${formatarTempo(total.tempo_direto)} de ${formatarTempo(total.tempo_disponivel)}` : undefined} />
+          {/* Fase 10.20 (P20): o score é das metas; não usa as faixas de performance */}
+          <Kpi label="Score das metas" value={formatarPct(total?.score_medio)} termo="score"
+            sub={total ? `média de ${total.operadores_com_score ?? 0} de ${porOperador.length} operador(es) com metas` : undefined} />
+          <Kpi label="Utilização" value={formatarPct(total?.utilizacao_pct)} termo="utilizacao"
+            sub={total ? `${formatarTempo(total.tempo_direto)} de ${formatarTempo(total.tempo_disponivel)}` : undefined} />
           <Kpi label="Performance" value={formatarPct(total?.performance_pct)} colorClass={classeFaixa(total?.performance_pct, faixas)}
-            dica="Horas-padrão ganhas ÷ tempo direto" sub={nomeFaixa(total?.performance_pct, faixas)} />
+            termo="performance" sub={nomeFaixa(total?.performance_pct, faixas) ? `Faixa: ${nomeFaixa(total?.performance_pct, faixas)}` : undefined} />
           <Kpi label="Eficiência" value={formatarPct(total?.eficiencia_pct)} colorClass={classeFaixa(total?.eficiencia_pct, faixas)}
-            dica="Horas-padrão ganhas ÷ tempo disponível" sub={`Meta ${faixas.bom}%`} />
+            termo="eficiencia" sub={`Meta ${faixas.bom}%`} />
           <Kpi label="Tarefas" value={numero(total?.tarefas || 0)}
             sub={total?.canceladas ? `${numero(total.canceladas)} canceladas` : "Nenhuma cancelada"} />
           <Kpi label={dominante ? `UPH · ${dominante.codigo}` : "UPH"}
             value={dominante?.uph != null ? dominante.uph.toFixed(1).replace(".", ",") : "—"}
-            dica="Quantidade ÷ hora direta do tipo com mais tempo no período (unidades diferentes não se somam)"
+            termo="uph"
             sub={dominante ? "un/h direta" : undefined} />
           <Kpi label="Qualidade" value={formatarPct(qualidadeKpi)} dica="Tarefas concluídas sem ocorrência registrada"
             sub={total?.cortes ? `${numero(total.cortes)} cortes` : "Sem cortes"} />
@@ -486,14 +487,14 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                     <Th k="tarefas" s={sortKey} d={sortDir} on={toggleSort} align="center">Tarefas</Th>
                     <Th k="canceladas" s={sortKey} d={sortDir} on={toggleSort} align="center">Cancel.</Th>
                     <Th k="quantidade" s={sortKey} d={sortDir} on={toggleSort} align="right">Qtd.</Th>
-                    <Th k="tempo_disponivel" s={sortKey} d={sortDir} on={toggleSort} align="right" title="Tempo logado no coletor dentro do turno, menos o intervalo">Disponível</Th>
-                    <Th k="tempo_direto" s={sortKey} d={sortDir} on={toggleSort} align="right">Direto</Th>
-                    <Th k="tempo_indireto" s={sortKey} d={sortDir} on={toggleSort} align="right">Indireto</Th>
-                    <Th k="tempo_ocioso" s={sortKey} d={sortDir} on={toggleSort} align="right">Ocioso</Th>
-                    <Th k="utilizacao_pct" s={sortKey} d={sortDir} on={toggleSort} align="center">Utilização</Th>
-                    <Th k="performance_pct" s={sortKey} d={sortDir} on={toggleSort} align="center">Performance</Th>
-                    <Th k="eficiencia_pct" s={sortKey} d={sortDir} on={toggleSort} align="center">Eficiência</Th>
-                    <Th k="score" s={sortKey} d={sortDir} on={toggleSort} align="center" title="Score global das metas no dia">Score</Th>
+                    <Th k="tempo_disponivel" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_disponivel")}>Disponível</Th>
+                    <Th k="tempo_direto" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_direto")}>Direto</Th>
+                    <Th k="tempo_indireto" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_indireto")}>Indireto</Th>
+                    <Th k="tempo_ocioso" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_ocioso")}>Ocioso</Th>
+                    <Th k="utilizacao_pct" s={sortKey} d={sortDir} on={toggleSort} align="center" title={definicaoTermo("utilizacao")}>Utilização</Th>
+                    <Th k="performance_pct" s={sortKey} d={sortDir} on={toggleSort} align="center" title={definicaoTermo("performance")}>Performance</Th>
+                    <Th k="eficiencia_pct" s={sortKey} d={sortDir} on={toggleSort} align="center" title={definicaoTermo("eficiencia")}>Eficiência</Th>
+                    <Th k="score" s={sortKey} d={sortDir} on={toggleSort} align="center" title={definicaoTermo("score")}>Score das metas</Th>
                     <th className="px-3 py-2.5 font-medium text-center">Origem</th>
                     <th className="px-2 py-2.5" aria-label="Ações" />
                   </tr>
@@ -514,7 +515,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(r.utilizacao_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.performance_pct, faixas)}`}>{formatarPct(r.performance_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.eficiencia_pct, faixas)}`}>{formatarPct(r.eficiencia_pct)}</td>
-                      <td className={`px-3 py-2.5 text-center font-mono ${r.score != null ? classeFaixa(r.score, faixas) : "text-muted-foreground text-xs"}`}
+                      <td className={`px-3 py-2.5 text-center font-mono ${r.score != null ? "text-foreground" : "text-muted-foreground text-xs"}`}
                         title={r.score != null ? `${r.score_metas_contadas ?? 0} de ${r.score_metas_total ?? 0} metas contam` : undefined}>
                         {r.score != null ? formatarPct(r.score) : textoSemScore(r.score_situacao)}
                       </td>
@@ -543,7 +544,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(total.utilizacao_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.performance_pct, faixas)}`}>{formatarPct(total.performance_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.eficiencia_pct, faixas)}`}>{formatarPct(total.eficiencia_pct)}</td>
-                      <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.score_medio, faixas)}`} title="Média do score dos operadores no período">{formatarPct(total.score_medio)}</td>
+                      <td className="px-3 py-2.5 text-center font-mono text-foreground" title="Média do score das metas dos operadores no período">{formatarPct(total.score_medio)}</td>
                       <td className="px-3 py-2.5 text-center"><OrigemBadge origem={total.origem} pct={total.pct_inicio_real} /></td>
                       <td />
                     </tr>
@@ -633,11 +634,14 @@ function IconBtn({ children, onClick, disabled, label }: { children: React.React
   );
 }
 
-function Kpi({ label, value, colorClass, sub, dica }: { label: string; value: string; colorClass?: string; sub?: string; dica?: string }) {
+function Kpi({ label, value, colorClass, sub, dica, termo }: {
+  label: string; value: string; colorClass?: string; sub?: string; dica?: string; termo?: TermoLms;
+}) {
   return (
-    <div className="bg-card border border-border rounded-lg p-4" title={dica}>
+    <div className="bg-card border border-border rounded-lg p-4" title={termo ? undefined : dica}>
       <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-        {label}{dica && <Info size={11} className="text-muted-foreground/60" aria-hidden />}
+        {label}
+        {termo ? <TermoAjuda termo={termo} /> : dica && <Info size={11} className="text-muted-foreground/60" aria-hidden />}
       </div>
       <div className={`text-2xl font-bold font-mono mt-1 ${colorClass || "text-foreground"}`}>{value}</div>
       {sub && <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{sub}</div>}

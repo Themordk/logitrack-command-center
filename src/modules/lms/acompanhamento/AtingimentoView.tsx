@@ -19,6 +19,12 @@ const COR_FAIXA: Record<string, string> = {
   ABAIXO: "bg-red-500/80 text-white", SEM_DADOS: "bg-muted text-muted-foreground", ESTIMADO: "bg-muted text-muted-foreground",
 };
 
+// Fase 10.21 (P15): por que o período não entra na conta
+const MOTIVO_FAIXA: Record<string, string> = {
+  SEM_DADOS: "sem amostra: o tempo em tarefas do período ficou abaixo do mínimo para a meta valer",
+  ESTIMADO: "estimado: poucos inícios de tarefa registrados no coletor",
+};
+
 interface Props {
   tenantId: string;
   empresaId: string;
@@ -108,7 +114,7 @@ export function AtingimentoView({ tenantId, empresaId, armazens, dataIni, dataFi
                       <div className="flex flex-wrap gap-1">
                         {m.periodos.map((p) => (
                           <span key={p.periodo_ref} className={cn("rounded px-1.5 py-0.5 text-[10px] font-mono", COR_FAIXA[p.faixa] ?? COR_FAIXA.SEM_DADOS)}
-                            title={`${formatDate(p.periodo_ini)}${p.periodo_fim !== p.periodo_ini ? ` a ${formatDate(p.periodo_fim)}` : ""}: ${formatarValorMeta(p.realizado, m.unidade)} de ${formatarValorMeta(p.alvo, m.unidade)}${p.parcial ? " (parcial)" : ""}`}>
+                            title={`${formatDate(p.periodo_ini)}${p.periodo_fim !== p.periodo_ini ? ` a ${formatDate(p.periodo_fim)}` : ""}: ${formatarValorMeta(p.realizado, m.unidade)} de ${formatarValorMeta(p.alvo, m.unidade)}${p.parcial ? " (parcial)" : ""}${MOTIVO_FAIXA[p.faixa] ? ` · ${MOTIVO_FAIXA[p.faixa]}` : ""}`}>
                             {p.periodo_ref.slice(8, 10)}/{p.periodo_ref.slice(5, 7)} {p.atingimento_pct != null ? `${Math.round(Number(p.atingimento_pct))}%` : "—"}
                           </span>
                         ))}
@@ -189,7 +195,7 @@ function DecomposicaoDialog({ tenantId, meta, dataIni, dataFim, onFechar, onNavi
                 </p>
                 <Lista titulo="Puxaram para cima (100% ou mais)" itens={d.acima} unidade={meta?.unidade} onNavigate={onNavigate} />
                 <Lista titulo="Puxaram para baixo" itens={d.abaixo} unidade={meta?.unidade} onNavigate={onNavigate} />
-                {d.sem_dados.length > 0 && <p className="text-xs text-muted-foreground">Sem dados suficientes: {d.sem_dados.map((i) => i.nome).join(", ")}</p>}
+                {d.sem_dados.length > 0 && <p className="text-xs text-muted-foreground">Sem amostra suficiente (pouco tempo em tarefas no período ou início não registrado no coletor): {d.sem_dados.map((i) => i.nome).join(", ")}</p>}
               </>
             )}
           </div>

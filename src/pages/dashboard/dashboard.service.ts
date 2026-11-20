@@ -48,6 +48,7 @@ export interface KpisResult {
     total: number;
   };
   lms: {
+    /** @deprecated nome histórico: é a performance da equipe (use performance_pct). O banco mantém a chave por compatibilidade. */
     score_medio_equipe: number;
     taxa_ocupacao_media: number;
     produtividade_hora_media: number;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   descreverOrigem, ehRetroativa, formatarSegundos, formatarValor, validarValor,
 } from "../configuracao/lmsConfig.service";
@@ -85,6 +85,8 @@ vi.mock("../configuracao/lmsConfig.service", async (orig) => {
   return {
     ...real,
     listarEmpresas: vi.fn().mockResolvedValue([{ id: "e1", nome: "Empresa Um" }]),
+    obterSaudeConfig: vi.fn().mockResolvedValue({ pronto: true, passos: [] }),
+    reprocessarLms: vi.fn().mockResolvedValue({ dias: 3, linhas: 5 }),
     listarArmazens: vi.fn().mockResolvedValue([{ id: "a1", nome: "CD Fortaleza" }]),
     listarTiposTarefaLms: vi.fn().mockResolvedValue({ pode_editar: true, historico: [], tipos: [{
       id: "tt1", codigo: "SEP", descricao: "SEPARAÇÃO", ativo: true, categoria: "SEPARACAO", tipo_movimento: 2, unidade_medida: "Unidade",
@@ -98,7 +100,7 @@ vi.mock("../configuracao/lmsConfig.service", async (orig) => {
       sucesso: true, nivel: "EMPRESA", empresa_id: "e1", armazem_id: null, data: "2026-11-18", hoje: "2026-11-18",
       pode_editar: true, pode_reprocessar: true,
       parametros: [{
-        codigo: "pct_inicio_real_min", grupo: "QUALIDADE", rotulo: "Início real mínimo", ajuda: "ajuda", unidade: "PERCENTUAL",
+        codigo: "pct_inicio_real_min", grupo: "QUALIDADE", rotulo: "Início real mínimo", ajuda: "ajuda", unidade: "PERCENTUAL", avancado: true,
         padrao_sistema: 95, minimo: 50, maximo: 100, niveis: ["EMPRESA"], editavel_neste_nivel: true,
         efetivo: { valor: 95, nivel: "SISTEMA", vigente_desde: null }, herdado: { valor: 95, nivel: "SISTEMA" },
         proprio: null, agendados: [{ id: "x", valor: 90, vigente_desde: "2026-12-01" }],
@@ -144,10 +146,26 @@ describe("Fase 7 · painel de configurações", () => {
     fireEvent.mouseDown(aba, { button: 0 });
     fireEvent.click(aba);
     expect(await screen.findByLabelText("Por tarefa (s)")).toHaveValue("90");
-    expect(screen.getByLabelText("Folga PFD (%)")).toHaveValue("0");
+    expect(screen.getByLabelText("Tolerância PFD (%)")).toHaveValue("0");
     expect(screen.getByTestId("lms-regra-sistema")).toHaveTextContent("Início: abertura");
     // Fase 8: catálogo de atividades indiretas e paradas
     expect(await screen.findByText("Limpeza e organização (5S)")).toBeInTheDocument();
     expect(screen.getByText("Parada fora do controle do operador")).toBeInTheDocument();
+  });
+
+  it("Fase 10.20: parâmetro avançado fica recolhido, padrão migrado tem selo e reprocessar fica sempre à mão", async () => {
+    const svc = await import("../configuracao/lmsConfig.service");
+    const { LmsConfiguracaoPage } = await import("../configuracao/LmsConfiguracaoPage");
+    render(<LmsConfiguracaoPage />);
+    expect(await screen.findByText("SEPARAÇÃO")).toBeInTheDocument();
+    const avancado = screen.getByTestId("lms-parametros-avancados");
+    expect(avancado).toHaveTextContent("Início real mínimo");
+    expect(avancado).toHaveTextContent("só altere com orientação");
+    expect(avancado).not.toHaveAttribute("open");
+    expect(screen.getByText("Não calibrado")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Reprocessar período/ }));
+    fireEvent.change(screen.getByLabelText("Recalcular a partir de"), { target: { value: "2026-11-10" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Reprocessar$/ }));
+    await waitFor(() => expect(svc.reprocessarLms).toHaveBeenCalledWith("t1", "2026-11-10"));
   });
 });

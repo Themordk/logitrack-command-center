@@ -21,6 +21,7 @@ import {
   formatarTempoEspera, KpisResult, OperadorRanking, OcorrenciasResult, TendenciaItem,
   DashboardFilters as DF,
 } from "./dashboard/dashboard.service";
+import { TermoAjuda } from "@/modules/lms/glossario";
 
 const REFRESH_INTERVAL = 60_000;
 
@@ -365,6 +366,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICardPro
                 title="Utilização da Equipe"
+                ajuda={<TermoAjuda termo="utilizacao" />}
                 value={fmtPctLms(kpis.lms.utilizacao_pct ?? kpis.lms.taxa_ocupacao_media)}
                 subtitle="Tempo direto ÷ tempo disponível"
                 icon={<Gauge size={20} />}
@@ -374,7 +376,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
               />
               <KPICardPro
                 title="Performance da Equipe"
-                value={fmtPctLms(kpis.lms.performance_pct ?? kpis.lms.score_medio_equipe)}
+                ajuda={<TermoAjuda termo="performance" />}
+                value={fmtPctLms(kpis.lms.performance_pct)}
                 subtitle={kpis.lms.origem === "ESTIMADO" ? "Horas-padrão ÷ tempo direto · estimado" : "Horas-padrão ÷ tempo direto"}
                 icon={<Target size={20} />}
                 severity={(kpis.lms.performance_pct ?? 0) >= 90 ? "good" : (kpis.lms.performance_pct ?? 0) >= 70 ? "warn" : "bad"}
@@ -383,6 +386,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
               />
               <KPICardPro
                 title="Eficiência da Equipe"
+                ajuda={<TermoAjuda termo="eficiencia" />}
                 value={fmtPctLms(kpis.lms.eficiencia_pct)}
                 subtitle="Horas-padrão ÷ tempo disponível"
                 icon={<Layers size={20} />}

@@ -60,6 +60,10 @@ describe("Fase 10 · acompanhamento (regras de exibição)", () => {
     expect(mensagemMeta({ metrica: "UPH", unidade: "POR_HORA", direcao: "MAIOR", ultimo: ult(80, 100) })).toBe("Ritmo 80/h · meta 100/h.");
     expect(mensagemMeta({ metrica: "TEMPO_INDIRETO_PCT", unidade: "PCT", direcao: "MENOR", ultimo: ult(8, 10) })).toBe("Dentro da meta.");
     expect(mensagemMeta({ ...base, ultimo: ult(null, 2000) })).toMatch("sem dados");
+    // Fase 10.21 (P15): meta fora do score mostra o motivo do banco
+    expect(mensagemMeta({ ...base, ultimo: ult(1200, 2000), conta: false,
+      motivo: "Faltam 56 min de trabalho em tarefas para a meta valer (mínimo 1 h; feito 4 min)." })).toMatch(/^Faltam 56 min/);
+    expect(mensagemMeta({ ...base, ultimo: ult(1200, 2000), conta: true, motivo: null })).toBe("Faltam 800 para a meta.");
   });
   it("painel chama a RPC e repassa a recusa do banco", async () => {
     rpc.mockResolvedValueOnce({ data: { sucesso: false, mensagem: "Seu perfil não tem acesso ao acompanhamento do LMS." }, error: null });

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { classificar, estiloCor } from "@/modules/lms/faixas";
 import { formatarScore } from "@/modules/lms/score/score.service";
 import { obterVisaoEmpresa, type VisaoEmpresa } from "./acompanhamento.service";
+import { TermoAjuda } from "@/modules/lms/glossario";
 
 const pct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
 const horas = (s: number) => `${(Number(s) / 3600).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h`;
@@ -35,12 +36,12 @@ export function VisaoEmpresaView({ tenantId, empresaId, dataIni, dataFim }: Prop
           <thead><tr className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
             <th className="px-3 py-2 text-left font-medium">Armazém</th>
             <th className="px-3 py-2 text-right font-medium">Operadores</th>
-            <th className="px-3 py-2 text-right font-medium">Performance</th>
-            <th className="px-3 py-2 text-right font-medium">Eficiência</th>
-            <th className="px-3 py-2 text-right font-medium">Utilização</th>
-            <th className="px-3 py-2 text-right font-medium">Score médio</th>
+            <th className="px-3 py-2 text-right font-medium"><span className="inline-flex items-center gap-1">Performance <TermoAjuda termo="performance" /></span></th>
+            <th className="px-3 py-2 text-right font-medium"><span className="inline-flex items-center gap-1">Eficiência <TermoAjuda termo="eficiencia" /></span></th>
+            <th className="px-3 py-2 text-right font-medium"><span className="inline-flex items-center gap-1">Utilização <TermoAjuda termo="utilizacao" /></span></th>
+            <th className="px-3 py-2 text-right font-medium"><span className="inline-flex items-center gap-1">Score das metas <TermoAjuda termo="score" /></span></th>
             <th className="px-3 py-2 text-right font-medium">Metas (média)</th>
-            <th className="px-3 py-2 text-right font-medium">Tempo em tarefa</th>
+            <th className="px-3 py-2 text-right font-medium"><span className="inline-flex items-center gap-1">Tempo direto <TermoAjuda termo="tempo_direto" /></span></th>
             <th className="px-3 py-2 text-right font-medium">Tarefas</th>
           </tr></thead>
           <tbody>

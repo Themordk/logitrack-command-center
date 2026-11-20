@@ -162,7 +162,7 @@ describe("Fase 10.11 · tipo de tarefa e tempo padrão numa tela só", () => {
     await abrirAba(/Tempo padrão/);
     fireEvent.change(await screen.findByLabelText("Por tarefa (s)"), { target: { value: "30" } });
     fireEvent.change(screen.getByLabelText("Por un (s)"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Folga PFD (%)"), { target: { value: "10" } });
+    fireEvent.change(screen.getByLabelText("Tolerância PFD (%)"), { target: { value: "10" } });
     expect(screen.getByTestId("lms-padrao-previa")).toHaveTextContent("10 un = 1 min 6 s");
     expect(screen.getByTestId("lms-regra-sistema")).toHaveTextContent("teto de ciclo");
     fireEvent.click(screen.getByRole("button", { name: /Salvar/ }));

@@ -55,7 +55,7 @@ export function LmsModuloPage({ area, onNavigate }: Props) {
       </nav>
 
       <LmsGate area={area} onNavigate={onNavigate}>
-        {area === "configuracao" ? <LmsConfiguracaoPage />
+        {area === "configuracao" ? <LmsConfiguracaoPage onNavigate={onNavigate} />
           : area === "metas" ? <LmsMetasPage />
           : <LmsAcompanhamentoPage onNavigate={onNavigate} />}
       </LmsGate>

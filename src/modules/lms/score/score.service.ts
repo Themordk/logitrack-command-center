@@ -137,7 +137,9 @@ export function descreverRegraScore(teto: number): string {
  * Fase 10.7 · mensagem curta do coletor para uma meta (último período).
  * Volume: quanto falta. Taxas: ritmo atual contra o alvo. "Menor é melhor": dentro ou acima do limite.
  */
-export function mensagemMeta(m: Pick<MetricaScore, "metrica" | "unidade" | "direcao" | "ultimo">): string {
+export function mensagemMeta(m: Pick<MetricaScore, "metrica" | "unidade" | "direcao" | "ultimo"> & Partial<Pick<MetricaScore, "conta" | "motivo">>): string {
+  // Fase 10.21 (P15): meta fora do score mostra o motivo do banco (o que falta para valer)
+  if (m.conta === false && m.motivo) return m.motivo;
   const r = m.ultimo?.realizado;
   const alvo = m.ultimo?.alvo;
   const u = m.unidade ?? undefined;
