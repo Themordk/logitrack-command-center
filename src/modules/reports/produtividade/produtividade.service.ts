@@ -2,7 +2,6 @@ import { FAIXAS_PADRAO, type FaixasArmazem } from "./produtividadeCalculo";
 import { supabase } from "@/integrations/supabase/client";
 import type { ClassificacaoScore, SituacaoScore } from "@/modules/lms/score/score.service";
 import { fetchAllRpcRows } from "../utils/fetchAllRpcRows";
-import { fetchAllSelectRows } from "../utils/fetchAllSelectRows";
 
 const sb = supabase as any;
 
@@ -14,115 +13,6 @@ export interface ProdutividadeFilters {
   dataFim: string;    // ISO date
   usuarioId: string | null;
   turnoId: string | null;
-}
-
-export interface MetricaDiariaRow {
-  id: string;
-  tenant_id: string;
-  empresa_id: string | null;
-  armazem_id: string | null;
-  usuario_id: string;
-  data_referencia: string;
-  turno_id: string | null;
-  tempo_produtivo: number;
-  tempo_ocioso: number;
-  tempo_auxiliar: number;
-  tempo_jornada: number;
-  tarefas_concluidas: number;
-  tarefas_canceladas: number;
-  quantidade_total: number;
-  peso_total: number;
-  documentos_processados: number;
-  skus_distintos: number;
-  taxa_ocupacao: number;
-  produtividade_hora: number;
-  score_dia?: number | null;
-  tempo_transito?: number | null;
-  // v3 (Fase 3/4)
-  tempo_disponivel?: number | null;
-  tempo_direto?: number | null;
-  tempo_indireto?: number | null;
-  horas_padrao_seg?: number | null;
-  utilizacao_pct?: number | null;
-  performance_pct?: number | null;
-  eficiencia_pct?: number | null;
-  estimado?: boolean | null;
-  versao_regra?: number | null;
-  usuario?: { id: string; nome: string } | null;
-  turno?: { descricao: string } | null;
-}
-
-export interface DetalheTipoTarefaRow {
-  id: string;
-  usuario_id: string;
-  data_referencia: string;
-  tipo_tarefa_id: string;
-  tempo_medio_segundos: number;
-  tempo_total_segundos: number;
-  tarefas_concluidas: number;
-  quantidade_total: number;
-  usuario?: { id: string; nome: string } | null;
-  tipo_tarefa?: {
-    codigo: string;
-    descricao: string;
-    tempo_estimado_segundos: number | null;
-    categoria: string | null;
-    meta_unidades_hora: number | null;
-    meta_tarefas_hora: number | null;
-    peso_produtividade: number | null;
-    cor_interface: string | null;
-    unidade_medida: string | null;
-  } | null;
-}
-
-export async function fetchProdutividadeDiaria(
-  filters: ProdutividadeFilters,
-): Promise<MetricaDiariaRow[]> {
-  const data = await fetchAllSelectRows(
-    "lms_metrica_diaria",
-    `
-      *,
-      usuario:usuario_id ( id, nome ),
-      turno:turno_id ( descricao )
-    `,
-    (q) => {
-      q = q
-        .eq("tenant_id", filters.tenantId)
-        .gte("data_referencia", filters.dataInicio)
-        .lte("data_referencia", filters.dataFim)
-        .order("data_referencia", { ascending: false });
-
-      if (filters.empresaId) q = q.eq("empresa_id", filters.empresaId);
-      if (filters.armazemId) q = q.eq("armazem_id", filters.armazemId);
-      if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
-      if (filters.turnoId) q = q.eq("turno_id", filters.turnoId);
-      return q;
-    },
-  );
-  return data as MetricaDiariaRow[];
-}
-
-export async function fetchDetalheTipoTarefa(
-  filters: ProdutividadeFilters,
-): Promise<DetalheTipoTarefaRow[]> {
-  const data = await fetchAllSelectRows(
-    "lms_metrica_tipo_tarefa",
-    `
-      *,
-      usuario:usuario_id ( id, nome ),
-      tipo_tarefa:tipo_tarefa_id ( codigo, descricao, tempo_estimado_segundos, categoria, meta_unidades_hora, meta_tarefas_hora, peso_produtividade, cor_interface, unidade_medida )
-    `,
-    (q) => {
-      q = q
-        .eq("tenant_id", filters.tenantId)
-        .gte("data_referencia", filters.dataInicio)
-        .lte("data_referencia", filters.dataFim)
-        .order("data_referencia", { ascending: false });
-      if (filters.usuarioId) q = q.eq("usuario_id", filters.usuarioId);
-      return q;
-    },
-  );
-  return data as DetalheTipoTarefaRow[];
 }
 
 // ----------------------------------------------------------------------------
@@ -423,11 +313,11 @@ export async function fetchExecucoesOperador(
   const num = (v: unknown) => Number(v ?? 0) || 0;
   return {
     fuso: data?.fuso ?? null,
-    linhas: ((data?.linhas as any[]) || []).map((d) => ({
-      execucao_id: d.execucao_id, tarefa_id: d.tarefa_id, dia: d.dia,
-      tipo_tarefa_codigo: d.tipo_tarefa_codigo, tipo_tarefa_descricao: d.tipo_tarefa_descricao,
+    linhas: ((data?.linhas as Record<string, string | null>[] | undefined) || []).map((d) => ({
+      execucao_id: String(d.execucao_id), tarefa_id: String(d.tarefa_id), dia: String(d.dia),
+      tipo_tarefa_codigo: String(d.tipo_tarefa_codigo ?? ""), tipo_tarefa_descricao: String(d.tipo_tarefa_descricao ?? ""),
       tipo_tarefa_categoria: d.tipo_tarefa_categoria ?? null, cor_interface: d.cor_interface ?? null,
-      inicio_local: d.inicio_local, fim_local: d.fim_local, inicio_real: !!d.inicio_real,
+      inicio_local: d.inicio_local ?? "", fim_local: d.fim_local ?? "", inicio_real: !!d.inicio_real,
       pausa_seg: num(d.pausa_seg), duracao_bruta_seg: num(d.duracao_bruta_seg), sobreposicao_seg: num(d.sobreposicao_seg),
       duracao_efetiva_seg: num(d.duracao_efetiva_seg), tempo_padrao_seg: num(d.tempo_padrao_seg),
       quantidade: num(d.quantidade), quantidade_requerida: num(d.quantidade_requerida), quantidade_cortada: num(d.quantidade_cortada),
