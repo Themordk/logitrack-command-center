@@ -17,6 +17,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   fetchLmsMetricas, fetchFaixasArmazem, fetchOperadores, fetchTurnos, fetchQualidadeDado, fetchTrocasDono,
+  fetchCapturaPeriodo, textoSemCaptura, type CapturaPeriodo,
   type LmsLinha, type LmsTotal, type LmsTipoLinha, type ProdutividadeFilters, type QualidadeDado, type TrocasDono,
 } from "./produtividade.service";
 import { TrocasDonoPanel } from "./TrocasDonoPanel";
@@ -83,6 +84,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
   const [trocas, setTrocas] = useState<TrocasDono | null>(null);
   const [loading, setLoading] = useState(false);
   const [carregado, setCarregado] = useState(false);
+  const [captura, setCaptura] = useState<CapturaPeriodo | null>(null);
 
   const [metricaRanking, setMetricaRanking] = useState<MetricaRanking>("score");
   const [sortKey, setSortKey] = useState<SortKey>("data");
@@ -132,6 +134,8 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
         fetchQualidadeDado(f).catch(() => null),
         fetchTrocasDono(f).catch(() => null),
       ]);
+      // Fase 10.19: aviso de dias sem captura (não trava a tela se falhar)
+      fetchCapturaPeriodo(tenantId, f.dataInicio, f.dataFim, f.usuarioId ? [f.usuarioId] : null).then(setCaptura).catch(() => setCaptura(null));
       setLinhasDia(dia.linhas);
       setPorOperador(op.linhas.filter((l) => l.tempo_disponivel > 0 || l.tempo_direto > 0));
       setTotal(op.total);
@@ -308,8 +312,13 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
       </div>
 
       {/* Avisos de leitura */}
-      {carregado && total && (estimado || tiposAuditar.length > 0) && (
+      {carregado && total && (estimado || tiposAuditar.length > 0 || !!textoSemCaptura(captura)) && (
         <div className="space-y-2">
+          {textoSemCaptura(captura) && (
+            <Aviso cor="amber" icone={<Info size={14} />}>
+              <b>Período sem captura de tempo.</b> {textoSemCaptura(captura)}
+            </Aviso>
+          )}
           {estimado && (
             <Aviso cor="amber" icone={<Info size={14} />}>
               <b>Números estimados.</b> Só {formatarPct(total.pct_inicio_real)} das execuções do período têm início real

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/dateTime";
 import { FaixaMetaBadge } from "@/modules/lms/metas/ResultadosMetaDialog";
+import { fetchCapturaPeriodo, textoSemCaptura, type CapturaPeriodo } from "@/modules/reports/produtividade/produtividade.service";
 import {
   ROTULO_PERIODICIDADE, formatarValorMeta, resultadosMeta, type Periodicidade, type PeriodoResultado,
 } from "@/modules/lms/metas/metas.service";
@@ -30,6 +31,12 @@ interface Props {
 /** Atingimento das metas por período, com a decomposição por operador. */
 export function AtingimentoView({ tenantId, empresaId, armazens, dataIni, dataFim, onNavigate }: Props) {
   const [filtros, setFiltros] = useState<FiltrosAtingimento>({});
+  const [captura, setCaptura] = useState<CapturaPeriodo | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetchCapturaPeriodo(tenantId, dataIni, dataFim).then((c) => { if (vivo) setCaptura(c); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [tenantId, dataIni, dataFim]);
   const [metas, setMetas] = useState<MetaAtingimento[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -60,6 +67,11 @@ export function AtingimentoView({ tenantId, empresaId, armazens, dataIni, dataFi
         <Button variant="outline" size="sm" onClick={carregar} disabled={carregando}>
           <RefreshCw size={14} className={cn("mr-1", carregando && "animate-spin")} /> Atualizar
         </Button>
+        {textoSemCaptura(captura) && (
+          <div className="w-full rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground" role="status">
+            <b>Período sem captura de tempo.</b> {textoSemCaptura(captura)}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground">Resultado coletivo de cada período que começa entre {formatDate(dataIni)} e {formatDate(dataFim)}. Clique na meta para ver quem puxou para cima e para baixo.</p>
       </div>
       {erro && <p className="text-sm text-red-400">{erro}</p>}

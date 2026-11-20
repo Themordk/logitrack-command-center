@@ -425,3 +425,44 @@ export async function fetchTarefasColaborador(params: {
   );
   return data as TarefaColaboradorRow[];
 }
+
+// ----------------------------------------------------------------------------
+// Fase 10.19 (P8): dias do período sem captura de tempo (antes do coletor
+// registrar o início das tarefas). A regra fica no banco (rpc_lms_captura_periodo);
+// a tela só mostra o aviso com textoSemCaptura.
+// ----------------------------------------------------------------------------
+
+export interface CapturaPeriodo {
+  captura_desde: string | null;
+  dias_sem_captura: number;
+  dias_periodo: number;
+  dias_estimados: number;
+  dias_operador: number;
+}
+
+export async function fetchCapturaPeriodo(
+  tenantId: string, dataInicio: string, dataFim: string, usuarioIds?: string[] | null,
+): Promise<CapturaPeriodo | null> {
+  const { data, error } = await sb.rpc("rpc_lms_captura_periodo", {
+    p_tenant_id: tenantId, p_data_ini: dataInicio, p_data_fim: dataFim, p_usuario_ids: usuarioIds?.length ? usuarioIds : null,
+  });
+  if (error || data?.sucesso === false) return null;  // aviso é complementar: sem ele a tela segue
+  return {
+    captura_desde: data?.captura_desde ?? null,
+    dias_sem_captura: Number(data?.dias_sem_captura ?? 0),
+    dias_periodo: Number(data?.dias_periodo ?? 0),
+    dias_estimados: Number(data?.dias_estimados ?? 0),
+    dias_operador: Number(data?.dias_operador ?? 0),
+  };
+}
+
+/** Frase do aviso, ou null quando o período inteiro tem captura. */
+export function textoSemCaptura(c: CapturaPeriodo | null | undefined): string | null {
+  if (!c || c.dias_sem_captura <= 0) return null;
+  const desde = c.captura_desde ? c.captura_desde.split("-").reverse().join("/") : null;
+  const parte = c.dias_sem_captura >= c.dias_periodo
+    ? "Todo o período é anterior à captura de tempo"
+    : `${c.dias_sem_captura} de ${c.dias_periodo} dias do período são anteriores à captura de tempo`;
+  return `${parte}${desde ? ` (começou em ${desde})` : " (ainda não há execução com início registrado)"}. `
+    + "Nesses dias a duração das tarefas é zero e os indicadores são estimados: não use esses dias para avaliar o operador.";
+}

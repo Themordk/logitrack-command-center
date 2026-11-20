@@ -11,6 +11,9 @@ import {
   formatSegundos,
   formatarLocalCurto,
   minutosDoDiaLocal,
+  fetchCapturaPeriodo,
+  textoSemCaptura,
+  type CapturaPeriodo,
   type ExecucaoOperador,
   type LmsLinha,
   type LmsTipoLinha,
@@ -59,6 +62,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   // Fase 4: números do período vêm da fonte única (rpc_lms_metricas), iguais ao relatório e ao Scorecard
   const [resumo, setResumo] = useState<LmsLinha | null>(null);
   const [tipos, setTipos] = useState<LmsTipoLinha[]>([]);
+  const [captura, setCaptura] = useState<CapturaPeriodo | null>(null);
 
   const inicio = dataInicio || dataLocalISO();
   const fim = dataFim || dataLocalISO();
@@ -100,6 +104,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         tenantId ? fetchLmsMetricas<LmsTipoLinha>(filtros, "TIPO") : Promise.resolve({ linhas: [], total: null }),
       ]);
       setTimeline(data.linhas);
+      if (tenantId) fetchCapturaPeriodo(tenantId, inicio, fim, [usuarioId]).then(setCaptura).catch(() => setCaptura(null));
       setResumo(op.linhas.find((l) => l.usuario_id === usuarioId) ?? null);
       setTipos(tp.linhas);
       setGeneratedAt(nowDisplay());
@@ -193,6 +198,12 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
         </div>
       ) : (
         <>
+          {textoSemCaptura(captura) && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground" role="status">
+              <b>Período sem captura de tempo.</b> {textoSemCaptura(captura)}
+            </div>
+          )}
+
           {/* KPIs (fonte única) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <OpKpi icon={<CheckCircle size={16} />} label="Tarefas Concluídas" value={String(resumo?.tarefas ?? 0)} />
