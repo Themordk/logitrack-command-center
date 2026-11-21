@@ -3,7 +3,10 @@
  * Abrir, manter (heartbeat) e encerrar passam pelo servidor:
  *  - abrir encerra as sessões anteriores do operador (uma ativa por vez);
  *  - o servidor encerra a sessão sem heartbeat há 15 min no último sinal;
- *  - heartbeat de sessão já encerrada abre outra e devolve o novo id.
+ *  - heartbeat de sessão já encerrada abre outra e devolve o novo id;
+ *  - sem sessão guardada neste navegador (outro endereço, dados limpos) ou com uma
+ *    sessão que não existe mais no servidor, manterSessaoColetor abre uma nova
+ *    (Fase 10.25: sem isso o tempo no coletor ficava sem sessão e a utilização em 100%).
  */
 import { supabase } from "@/integrations/supabase/client";
 
@@ -33,6 +36,31 @@ export async function heartbeatSessaoColetor(sessaoId: string): Promise<string> 
     const { data, error } = await supabase.rpc("rpc_sessao_heartbeat" as any, { p_sessao_id: sessaoId } as any);
     if (error) return sessaoId;
     const novo = (data as RetornoSessao | null)?.dados?.sessao_id;
+    if (novo && novo !== sessaoId) {
+      localStorage.setItem(CHAVE_SESSAO, novo);
+      return novo;
+    }
+  } catch {
+    /* sem rede: tenta no próximo ciclo */
+  }
+  return sessaoId;
+}
+
+/**
+ * Garante uma sessão viva para o operador logado: heartbeat na sessão guardada ou,
+ * se não houver uma válida, abre outra. Devolve o id em uso (null sem rede ou sem login).
+ */
+export async function manterSessaoColetor(
+  sessaoId: string | null, tenantId: string | null, usuarioId: string | null,
+): Promise<string | null> {
+  if (!tenantId || !usuarioId) return sessaoId;
+  if (!sessaoId) return abrirSessaoColetor(tenantId, usuarioId);
+  try {
+    const { data, error } = await supabase.rpc("rpc_sessao_heartbeat" as any, { p_sessao_id: sessaoId } as any);
+    if (error) return sessaoId;
+    const r = data as RetornoSessao | null;
+    if (r?.codigo === "SESSAO_INEXISTENTE") return abrirSessaoColetor(tenantId, usuarioId);
+    const novo = r?.dados?.sessao_id;
     if (novo && novo !== sessaoId) {
       localStorage.setItem(CHAVE_SESSAO, novo);
       return novo;
