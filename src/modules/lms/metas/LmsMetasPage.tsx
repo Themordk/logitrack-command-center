@@ -13,9 +13,10 @@ import { formatDate } from "@/utils/dateTime";
 import { listarEmpresas } from "../configuracao/lmsConfig.service";
 import { EditarMetaDialog, type ModoEdicao } from "./EditarMetaDialog";
 import { EquipesSection } from "./EquipesSection";
+import { NovaMetaGuiadaDialog } from "./NovaMetaGuiadaDialog";
 import { FaixaMetaBadge, ResultadosMetaDialog } from "./ResultadosMetaDialog";
 import {
-  ROTULO_PERIODICIDADE, ROTULO_STATUS, acaoMeta, copiarMetas, descreverAtividade, descreverQuem, formatarValorMeta,
+  ROTULO_PERIODICIDADE, ROTULO_STATUS, acaoMeta, copiarMetas, descreverAtividade, descreverQuem, estaMedindo, formatarValorMeta,
   infoMetrica, listarMetas, obterCatalogoMetas, salvarMeta, type AcaoMeta, type CatalogoMetas, type Meta, type MetaEntrada,
   type ModeloMeta, type StatusMeta,
 } from "./metas.service";
@@ -47,6 +48,8 @@ export function LmsMetasPage() {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [copiando, setCopiando] = useState(false);
   const [modeloAberto, setModeloAberto] = useState(false);
+  /** Fase 10.28: assistente guiado (nova meta ou rascunho criado por ele). */
+  const [guiada, setGuiada] = useState<{ meta: Meta | null } | null>(null);
 
   useEffect(() => { if (!empresaId && empresaSessao) setEmpresaId(empresaSessao); }, [empresaSessao, empresaId]);
   useEffect(() => { if (tenantId) listarEmpresas(tenantId).then(setEmpresas); }, [tenantId]);
@@ -155,7 +158,7 @@ export function LmsMetasPage() {
         {podeCriar && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setModeloAberto(true)}><LayoutTemplate size={14} className="mr-1" /> Usar modelo</Button>
-            <Button size="sm" onClick={() => setEdicao({ modo: "NOVA", meta: null })}><Plus size={14} className="mr-1" /> Nova meta</Button>
+            <Button size="sm" onClick={() => setGuiada({ meta: null })}><Plus size={14} className="mr-1" /> Nova meta</Button>
           </div>
         )}
         {catalogo && !podeCriar && (
@@ -229,7 +232,14 @@ export function LmsMetasPage() {
                         </td>
                         <td className="px-3 py-2 text-xs text-foreground">{descreverQuem(m)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">
-                          <span className="font-semibold">{formatarValorMeta(m.alvo, info?.unidade)}</span>
+                          {estaMedindo(m) ? (
+                            <span className="block text-xs font-medium text-foreground">Medindo até {formatDate(m.medir_ate!)}</span>
+                          ) : (
+                            <span className="font-semibold">{formatarValorMeta(m.alvo, info?.unidade)}</span>
+                          )}
+                          {m.linha_base != null && (
+                            <span className="block text-[11px] text-muted-foreground">partiu de {formatarValorMeta(m.linha_base, info?.unidade)}</span>
+                          )}
                           {(m.minimo != null || m.excelencia != null) && (
                             <span className="block text-[11px] text-muted-foreground">
                               mín. {formatarValorMeta(m.minimo, info?.unidade)} · exc. {formatarValorMeta(m.excelencia, info?.unidade)}
@@ -263,10 +273,15 @@ export function LmsMetasPage() {
                             )}
                             {catalogo.pode_editar && (m.status === "RASCUNHO" || m.status === "REJEITADA") && (
                               <>
-                                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label={`Editar ${m.nome}`} onClick={() => setEdicao({ modo: "EDITAR", meta: m })}><Pencil size={14} /></Button>
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => executar(m, "ATIVAR")}>
-                                  {catalogo.exige_aprovacao && !catalogo.pode_aprovar ? "Enviar" : "Ativar"}
-                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label={`Editar ${m.nome}`}
+                                  onClick={() => (m.objetivo ? setGuiada({ meta: m }) : setEdicao({ modo: "EDITAR", meta: m }))}><Pencil size={14} /></Button>
+                                {estaMedindo(m) ? (
+                                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setGuiada({ meta: m })}>Definir alvo</Button>
+                                ) : (
+                                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => executar(m, "ATIVAR")}>
+                                    {catalogo.exige_aprovacao && !catalogo.pode_aprovar ? "Enviar" : "Ativar"}
+                                  </Button>
+                                )}
                               </>
                             )}
                             {catalogo.pode_excluir && (m.status === "RASCUNHO" || m.status === "REJEITADA") && (
@@ -309,6 +324,24 @@ export function LmsMetasPage() {
           salvando={salvando}
           onCancelar={() => setEdicao(null)}
           onSalvar={salvar}
+        />
+      )}
+
+      {catalogo && tenantId && empresaId && (
+        <NovaMetaGuiadaDialog
+          aberto={!!guiada}
+          inicial={guiada?.meta ?? null}
+          catalogo={catalogo}
+          tenantId={tenantId}
+          empresaId={empresaId}
+          onCancelar={() => setGuiada(null)}
+          onSalvo={async (r) => {
+            toast.success(r.mensagem);
+            setGuiada(null);
+            setFiltro(r.status === "ATIVA" ? "ATIVAS" : r.status === "EM_APROVACAO" ? "PENDENTES" : "RASCUNHOS");
+            await carregar();
+          }}
+          onModoAvancado={() => { const m = guiada?.meta ?? null; setGuiada(null); setEdicao(m ? { modo: "EDITAR", meta: m } : { modo: "NOVA", meta: null }); }}
         />
       )}
 

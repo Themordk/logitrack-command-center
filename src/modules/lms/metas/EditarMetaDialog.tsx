@@ -70,7 +70,7 @@ export function EditarMetaDialog({ aberto, modo, inicial, catalogo, tenantId, em
     setCategoria(m?.categoria ?? "");
     setArmazens(m?.armazem_id ? [m.armazem_id] : []);
     setPeriodicidade(m?.periodicidade ?? "DIARIO");
-    setAlvo(m ? String(m.alvo) : "");
+    setAlvo(m?.alvo != null ? String(m.alvo) : "");
     setMinimo(m?.minimo != null ? String(m.minimo) : "");
     setExcelencia(m?.excelencia != null ? String(m.excelencia) : "");
     setPeso(m?.peso != null ? String(m.peso).replace(".", ",") : "1");

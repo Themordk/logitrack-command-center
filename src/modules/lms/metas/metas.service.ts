@@ -75,7 +75,7 @@ export interface Meta {
   id: string; nome: string; metrica: Metrica; atividade: Atividade;
   tipo_tarefa_id: string | null; tipo_codigo: string | null; categoria: string | null;
   armazem_id: string | null; armazem_nome: string | null;
-  periodicidade: Periodicidade; alvo: number; minimo: number | null; excelencia: number | null;
+  periodicidade: Periodicidade; alvo: number | null; minimo: number | null; excelencia: number | null;
   /** Fase 10: peso da meta no score global do operador (0,1 a 10; padrão 1). */
   peso?: number;
   vigente_desde: string; vigente_ate: string | null; status: StatusMeta; origem: string;
@@ -83,6 +83,106 @@ export interface Meta {
   versao_anterior_id: string | null; criado_por: string | null; criado_em: string;
   aprovado_por: string | null; aprovado_em: string | null;
   escopo: EscopoItem[]; rampa: DegrauRampa[]; ultimo: ResultadoResumo | null;
+  /** Fase 10.28 (meta guiada): objetivo escolhido, nível, foto do resultado da equipe e "medindo até". */
+  objetivo?: ObjetivoCodigo | null; nivel_ambicao?: NivelAmbicao | null;
+  linha_base?: number | null; linha_base_em?: string | null; medir_ate?: string | null;
+}
+
+// ---------------------------------------------------------------- meta guiada (Fase 10.28)
+
+export type ObjetivoCodigo = "RITMO" | "TURNO" | "PARADO" | "UNIDADES_HORA" | "TAREFAS_HORA" | "VOLUME" | "INICIO" | "INDIRETO";
+export type NivelAmbicao = "MANTER" | "EVOLUIR" | "DESAFIAR" | "PERSONALIZADO";
+export type Realismo = "ALCANCAVEL" | "DESAFIADOR" | "ACIMA_DO_MELHOR" | "SEM_BASE";
+
+export interface ObjetivoMeta {
+  codigo: ObjetivoCodigo; ordem: number; metrica: Metrica; rotulo: string; pergunta: string; verbo: string;
+  unidade: UnidadeMetrica; menor_melhor: boolean; suficiente: boolean; hoje: number | null; motivo: string | null;
+  permite_atividade: boolean;
+}
+
+export interface ObjetivosMeta { sucesso: true; recomendado: ObjetivoCodigo | null; janela: { de: string; ate: string }; objetivos: ObjetivoMeta[] }
+
+export interface LinhaBase {
+  suficiente: boolean; motivo?: string; participantes: number; com_dado: number;
+  janela: { de: string; ate: string }; menor_melhor: boolean; unidade: UnidadeMetrica;
+  mediana?: number; p10?: number; p25?: number; p75?: number; p90?: number; valores?: number[];
+  pct_inicio_real?: number | null;
+  tendencia?: { antes: number; depois: number; variacao: number; direcao: "MELHORANDO" | "PIORANDO" | "ESTAVEL" } | null;
+}
+
+export interface AvaliacaoAlvo { alvo: number; atingem: number; realismo: Realismo }
+export interface NivelPrevia extends AvaliacaoAlvo { codigo: Exclude<NivelAmbicao, "PERSONALIZADO">; pct: number; recomendado?: boolean; limitado?: boolean }
+
+export interface PreviaMeta {
+  sucesso: true; metrica: Metrica; unidade: UnidadeMetrica; menor_melhor: boolean; periodicidade: Periodicidade;
+  objetivo: Pick<ObjetivoMeta, "codigo" | "rotulo" | "pergunta" | "verbo">;
+  linha_base: LinhaBase; niveis: NivelPrevia[]; personalizado: AvaliacaoAlvo | null; medir_dias: number;
+  avisos: Array<{ codigo: "INICIO_BAIXO" | "PADRAO_SEM_CALIBRAR" | "SOBREPOSICAO"; mensagem: string }>;
+}
+
+export interface MetaGuiadaEntrada {
+  id?: string | null;
+  empresa_id: string;
+  armazem_id: string | null;
+  objetivo: ObjetivoCodigo;
+  atividade: Atividade;
+  tipo_tarefa_id?: string | null;
+  categoria?: string | null;
+  periodicidade: Periodicidade;
+  escopo: EscopoItem[];
+  nivel?: NivelAmbicao;
+  alvo?: number | null;
+  medir_primeiro?: boolean;
+  nome?: string;
+  vigente_desde?: string;
+  vigente_ate?: string | null;
+  peso?: number | null;
+  rampa?: DegrauRampa[];
+  ativar?: boolean;
+}
+
+export interface SalvarGuiadaResultado extends SalvarMetaResultado { alvo?: number; minimo?: number; excelencia?: number; medir_ate?: string }
+
+export async function objetivosMeta(tenantId: string, empresaId: string, armazemId: string | null): Promise<ObjetivosMeta> {
+  const { data, error } = await sb.rpc("rpc_lms_meta_objetivos", { p_tenant_id: tenantId, p_empresa_id: empresaId, p_armazem_id: armazemId });
+  return exigir<ObjetivosMeta>(data, error);
+}
+
+export async function previaMeta(tenantId: string, dados: Omit<MetaGuiadaEntrada, "nivel" | "medir_primeiro" | "ativar">): Promise<PreviaMeta> {
+  const { data, error } = await sb.rpc("rpc_lms_meta_previa", { p_tenant_id: tenantId, p_dados: dados });
+  return exigir<PreviaMeta>(data, error);
+}
+
+export async function salvarMetaGuiada(tenantId: string, dados: MetaGuiadaEntrada): Promise<SalvarGuiadaResultado> {
+  const { data, error } = await sb.rpc("rpc_lms_meta_salvar_guiada", { p_tenant_id: tenantId, p_dados: dados });
+  return exigir<SalvarGuiadaResultado>(data, error);
+}
+
+export const ROTULO_NIVEL: Record<NivelAmbicao, { titulo: string; frase: string }> = {
+  MANTER: { titulo: "Manter", frase: "Segurar o resultado de hoje" },
+  EVOLUIR: { titulo: "Evoluir", frase: "Um passo acima do que a equipe já faz" },
+  DESAFIAR: { titulo: "Desafiar", frase: "Puxar para perto dos melhores da equipe" },
+  PERSONALIZADO: { titulo: "Outro valor", frase: "Você escolhe o alvo" },
+};
+
+export const ROTULO_REALISMO: Record<Realismo, { texto: string; classe: string }> = {
+  ALCANCAVEL: { texto: "Alcançável", classe: "border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-400" },
+  DESAFIADOR: { texto: "Desafiador", classe: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  ACIMA_DO_MELHOR: { texto: "Acima do melhor de hoje", classe: "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400" },
+  SEM_BASE: { texto: "Sem histórico para comparar", classe: "border-border bg-muted/40 text-muted-foreground" },
+};
+
+/** "2 de 5 operadores já chegam lá hoje". */
+export function frasePessoasAtingem(atingem: number, comDado: number): string {
+  if (!comDado) return "Ainda não dá para dizer quantos chegam lá.";
+  if (atingem === 0) return `Ninguém dos ${comDado} operadores medidos chega lá hoje.`;
+  if (atingem === comDado) return comDado === 1 ? "O operador medido já chega lá hoje." : `Todos os ${comDado} operadores medidos já chegam lá hoje.`;
+  return `${atingem} de ${comDado} operadores já chegam lá hoje.`;
+}
+
+/** Meta guiada salva em "Medir primeiro": rascunho sem alvo. */
+export function estaMedindo(m: Pick<Meta, "alvo" | "medir_ate" | "status">): boolean {
+  return m.status === "RASCUNHO" && (m.alvo === null || m.alvo === undefined) && !!m.medir_ate;
 }
 
 export interface MetaEntrada {
