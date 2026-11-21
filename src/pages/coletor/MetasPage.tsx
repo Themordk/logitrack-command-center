@@ -10,6 +10,7 @@ import { MetasRankingTab } from "@/pages/coletor/metas/MetasRankingTab";
 import { MetasResumoTab } from "@/pages/coletor/metas/MetasResumoTab";
 import { MetasScoreRing } from "@/pages/coletor/metas/MetasScoreRing";
 import { MetasStreakBadge } from "@/pages/coletor/metas/MetasStreakBadge";
+import { MetasEngajamento, type Engajamento } from "@/pages/coletor/metas/MetasEngajamento";
 import { abasDisponiveis, type Tab } from "@/pages/coletor/metas/metasAbas";
 import { estiloFaixa, type FaixaLms } from "@/modules/lms/faixas";
 import { estiloClassificacao, textoSemScore, type FichaScore } from "@/modules/lms/score/score.service";
@@ -30,6 +31,8 @@ interface MetasData {
   streak_score?: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
   // Fase 10.7 · progresso do turno e gamificação (sequência de dias) desligável na Configuração
   gamificacao?: boolean;
+  // Fase 10.29 · sequência que volta um degrau, selos e desafio da equipe (com trava de qualidade)
+  engajamento?: Engajamento | null;
   turno_progresso?: { descricao: string; inicio: string; fim: string; fracao_decorrida: number } | null;
   evolucao: Array<{ data: string; score: number; tarefas: number; taxa_ocupacao: number }>;
   detalhamento_tipo: Array<{ tipo: string; codigo: string; tarefas: number; quantidade_total: number; tempo_medio_seg: number; performance_pct: number | null }>;
@@ -95,7 +98,8 @@ export function MetasPage({ onNavigate }: Props) {
     const e = estiloClassificacao(ficha?.classificacao);
     return { bg: e.fundo, text: e.texto, border: e.borda, ring: e.hex, label: e.nome };
   })();
-  const streak = data?.gamificacao ? data?.streak_score ?? null : null;
+  const engajamento = data?.gamificacao ? data?.engajamento ?? null : null;
+  const streak = data?.gamificacao && !engajamento ? data?.streak_score ?? null : null;
   const turno = data?.turno_progresso ?? null;
   const fracTurno = turno ? Math.round(Number(turno.fracao_decorrida) * 100) : null;
   const horaCurta = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -157,6 +161,8 @@ export function MetasPage({ onNavigate }: Props) {
             )}
             {streak && streak.dias_consecutivos > 0 && <div className="mt-3"><MetasStreakBadge diasConsecutivos={streak.dias_consecutivos} melhorStreak={streak.melhor_streak} /></div>}
           </section>
+
+          {engajamento && <MetasEngajamento engajamento={engajamento} />}
 
           <div className="grid grid-cols-2 gap-2">
             <MetasKpiCard label="Tarefas" value={String(ind.total_tarefas || 0)} subtitle="concluídas no período" icon="tasks" />

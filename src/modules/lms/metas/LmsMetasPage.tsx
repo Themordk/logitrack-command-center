@@ -49,7 +49,7 @@ export function LmsMetasPage() {
   const [copiando, setCopiando] = useState(false);
   const [modeloAberto, setModeloAberto] = useState(false);
   /** Fase 10.28: assistente guiado (nova meta ou rascunho criado por ele). */
-  const [guiada, setGuiada] = useState<{ meta: Meta | null } | null>(null);
+  const [guiada, setGuiada] = useState<{ meta: Meta | null; versaoDe?: Meta | null } | null>(null);
 
   useEffect(() => { if (!empresaId && empresaSessao) setEmpresaId(empresaSessao); }, [empresaSessao, empresaId]);
   useEffect(() => { if (tenantId) listarEmpresas(tenantId).then(setEmpresas); }, [tenantId]);
@@ -229,6 +229,25 @@ export function LmsMetasPage() {
                           </p>
                           <span className={cn("mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium", st.classe)}>{st.texto}</span>
                           {m.motivo_status && <p className="mt-1 text-[11px] text-muted-foreground">{m.motivo_status}</p>}
+                          {m.status === "ATIVA" && m.linha_base != null && m.alvo != null && (
+                            <p className="mt-1 text-[11px] text-foreground" data-testid="partiu-de">
+                              Partiu de {formatarValorMeta(m.linha_base, info?.unidade)} · alvo {formatarValorMeta(m.alvo, info?.unidade)}
+                              {m.ultimo?.realizado != null && <> · hoje <b>{formatarValorMeta(m.ultimo.realizado, info?.unidade)}</b></>}
+                            </p>
+                          )}
+                          {m.proximo_degrau && (
+                            <div className={cn("mt-1.5 flex flex-wrap items-center gap-2 rounded-md border px-2 py-1 text-[11px]",
+                              m.proximo_degrau.acao === "SUBIR" ? "border-green-500/40 bg-green-500/10" : m.proximo_degrau.acao === "REVER" ? "border-amber-500/40 bg-amber-500/10" : "border-border bg-muted/30")}
+                              data-testid="proximo-degrau">
+                              <span className="text-foreground">{m.proximo_degrau.mensagem}</span>
+                              {catalogo.pode_editar && m.proximo_degrau.acao !== "MANTER" && (
+                                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]"
+                                  onClick={() => (m.objetivo ? setGuiada({ meta: null, versaoDe: m }) : setEdicao({ modo: "NOVA_VERSAO", meta: m }))}>
+                                  {m.proximo_degrau.acao === "SUBIR" ? "Subir um degrau" : "Rever o alvo"}
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-xs text-foreground">{descreverQuem(m)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">
@@ -261,6 +280,7 @@ export function LmsMetasPage() {
                               {m.ultimo.atingimento_pct != null && <span className="ml-1 text-muted-foreground">({m.ultimo.atingimento_pct}%)</span>}
                               <div><FaixaMetaBadge faixa={m.ultimo.faixa} /></div>
                               <span className="text-[11px] text-muted-foreground">{formatDate(m.ultimo.periodo_ini)}{m.ultimo.parcial ? " · em andamento" : ""}</span>
+                              {m.serie && m.serie.length > 1 && <SerieMeta serie={m.serie} alvo={m.alvo} />}
                             </div>
                           ) : <span className="text-muted-foreground">—</span>}
                         </td>
@@ -331,6 +351,7 @@ export function LmsMetasPage() {
         <NovaMetaGuiadaDialog
           aberto={!!guiada}
           inicial={guiada?.meta ?? null}
+          versaoDe={guiada?.versaoDe ?? null}
           catalogo={catalogo}
           tenantId={tenantId}
           empresaId={empresaId}
@@ -341,7 +362,11 @@ export function LmsMetasPage() {
             setFiltro(r.status === "ATIVA" ? "ATIVAS" : r.status === "EM_APROVACAO" ? "PENDENTES" : "RASCUNHOS");
             await carregar();
           }}
-          onModoAvancado={() => { const m = guiada?.meta ?? null; setGuiada(null); setEdicao(m ? { modo: "EDITAR", meta: m } : { modo: "NOVA", meta: null }); }}
+          onModoAvancado={() => {
+            const m = guiada?.meta ?? null; const v = guiada?.versaoDe ?? null;
+            setGuiada(null);
+            setEdicao(v ? { modo: "NOVA_VERSAO", meta: v } : m ? { modo: "EDITAR", meta: m } : { modo: "NOVA", meta: null });
+          }}
         />
       )}
 
@@ -357,6 +382,23 @@ export function LmsMetasPage() {
 
       {modeloAberto && catalogo && <ModeloDialog catalogo={catalogo} onCancelar={() => setModeloAberto(false)} onAplicar={aplicarModelo} />}
     </div>
+  );
+}
+
+/** Fase 10.29 · desenho dos últimos períodos (equipe) com a linha do alvo. */
+function SerieMeta({ serie, alvo }: { serie: NonNullable<Meta["serie"]>; alvo: number | null }) {
+  const vals = serie.map((p) => p.realizado).filter((v): v is number => v != null).map(Number);
+  if (vals.length < 2) return null;
+  const todos = alvo != null ? [...vals, Number(alvo)] : vals;
+  const min = Math.min(...todos); const max = Math.max(...todos);
+  const W = 96; const H = 24;
+  const y = (v: number) => (max === min ? H / 2 : H - 2 - ((v - min) / (max - min)) * (H - 4));
+  const pts = serie.map((p, i) => (p.realizado == null ? null : `${(i / (serie.length - 1)) * W},${y(Number(p.realizado))}`)).filter(Boolean).join(" ");
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block text-primary" role="img" aria-label={`Últimos ${serie.length} períodos da equipe`}>
+      {alvo != null && <line x1={0} x2={W} y1={y(Number(alvo))} y2={y(Number(alvo))} className="stroke-muted-foreground" strokeDasharray="2 2" strokeWidth={1} />}
+      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth={1.5} />
+    </svg>
   );
 }
 

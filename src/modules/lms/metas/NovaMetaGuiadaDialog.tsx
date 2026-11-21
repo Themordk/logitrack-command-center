@@ -24,6 +24,8 @@ interface Props {
   aberto: boolean;
   /** Rascunho criado por este assistente (ex.: em "Medir primeiro") para completar; null = nova meta. */
   inicial: Meta | null;
+  /** Fase 10.29: nova versão (próximo degrau) de uma meta ativa criada pelo assistente. */
+  versaoDe?: Meta | null;
   catalogo: CatalogoMetas;
   tenantId: string;
   empresaId: string;
@@ -40,6 +42,11 @@ const sel = "h-9 w-full rounded-md border border-border bg-background px-2 text-
 const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 const ACOMPANHAR: Periodicidade[] = ["DIARIO", "SEMANAL", "MENSAL"];
 
+function maisUmDia(iso: string): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
 /** "Aumentar o ritmo de 92,5% para 101,8%". */
 export function fraseMeta(o: { verbo: string; menor_melhor: boolean }, unidade: UnidadeMetrica, base: number | null | undefined, alvo: number | null | undefined): string {
   if (alvo == null) return `Medir ${o.verbo} da equipe antes de definir o alvo`;
@@ -51,7 +58,7 @@ export function fraseMeta(o: { verbo: string; menor_melhor: boolean }, unidade: 
   return `${sobe ? "Aumentar" : "Reduzir"} ${o.verbo} da equipe de ${b} para ${a}`;
 }
 
-export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empresaId, onCancelar, onSalvo, onModoAvancado }: Props) {
+export function NovaMetaGuiadaDialog({ aberto, inicial, versaoDe = null, catalogo, tenantId, empresaId, onCancelar, onSalvo, onModoAvancado }: Props) {
   const [passo, setPasso] = useState<Passo>(1);
   const [armazemId, setArmazemId] = useState<string | null>(null);
   const [objetivos, setObjetivos] = useState<ObjetivosMeta | null>(null);
@@ -81,7 +88,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
   // abrir: limpa ou carrega o rascunho guiado
   useEffect(() => {
     if (!aberto) return;
-    const m = inicial;
+    const m = inicial ?? versaoDe;
     setPasso(m?.objetivo ? 3 : 1);
     setArmazemId(m ? m.armazem_id : catalogo.armazens.length === 1 ? catalogo.armazens[0].id : null);
     setObjetivo(m?.objetivo ?? null);
@@ -96,11 +103,11 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
     setMedir(false);
     setAvancado(false);
     setNome(m?.nome ?? "");
-    setDesde(catalogo.hoje);
+    setDesde(versaoDe ? [maisUmDia(catalogo.hoje), maisUmDia(versaoDe.vigente_desde)].sort()[1] : catalogo.hoje);
     setAte("");
     setPeso(m?.peso != null ? String(m.peso).replace(".", ",") : "1");
     setErroSalvar(null);
-  }, [aberto, inicial, catalogo.hoje, catalogo.armazens]);
+  }, [aberto, inicial, versaoDe, catalogo.hoje, catalogo.armazens]);
 
   // passo 1: objetivos com o número de hoje do lugar escolhido
   useEffect(() => {
@@ -124,6 +131,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
 
   const dadosBase = useMemo<Omit<MetaGuiadaEntrada, "nivel" | "medir_primeiro" | "ativar">>(() => ({
     id: inicial?.id ?? null,
+    versao_anterior_id: versaoDe?.id ?? null,
     empresa_id: empresaId,
     armazem_id: armazemId,
     objetivo: (objetivo ?? "RITMO") as ObjetivoCodigo,
@@ -132,7 +140,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
     categoria: atividade === "CATEGORIA" ? categoria || null : null,
     periodicidade,
     escopo: escopo.map(({ tipo, ref_id }) => ({ tipo, ref_id })),
-  }), [inicial?.id, empresaId, armazemId, objetivo, atividade, tipoId, categoria, periodicidade, escopo]);
+  }), [inicial?.id, versaoDe?.id, empresaId, armazemId, objetivo, atividade, tipoId, categoria, periodicidade, escopo]);
 
   // passos 3 e 4: prévia (espera 400 ms ao digitar outro valor)
   useEffect(() => {
@@ -146,7 +154,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
           if (!vivo) return;
           setPrevia(r);
           setNivel((n) => n ?? (r.linha_base.suficiente ? "EVOLUIR" : null));
-          setMedir((m) => m || (!r.linha_base.suficiente && alvoPersNum === null && !nivel));
+          if (!versaoDe) setMedir((m) => m || (!r.linha_base.suficiente && alvoPersNum === null && !nivel));
         })
         .catch((e) => { if (vivo) setErroPrevia(e instanceof Error ? e.message : "Não foi possível calcular a prévia."); })
         .finally(() => { if (vivo) setCarregandoPrevia(false); });
@@ -232,8 +240,12 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
     <Dialog open onOpenChange={(o) => { if (!o && !salvando) onCancelar(); }}>
       <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto" data-testid="meta-guiada">
         <DialogHeader>
-          <DialogTitle>{inicial ? "Completar meta" : "Nova meta"}</DialogTitle>
-          <DialogDescription>Responda quatro perguntas; o sistema calcula o alvo a partir do que a equipe já faz.</DialogDescription>
+          <DialogTitle>{versaoDe ? "Próximo degrau" : inicial ? "Completar meta" : "Nova meta"}</DialogTitle>
+          <DialogDescription>
+            {versaoDe
+              ? `Nova versão de "${versaoDe.nome}": a atual vale até a véspera do início desta e o histórico fica preservado.`
+              : "Responda quatro perguntas; o sistema calcula o alvo a partir do que a equipe já faz."}
+          </DialogDescription>
         </DialogHeader>
 
         <ol className="flex gap-1" aria-label="Passos">
@@ -372,6 +384,9 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
               ) : (
                 <>
                   <LinhaBaseCard previa={previa} rotulo={obj.rotulo} />
+                  {versaoDe?.alvo != null && (
+                    <p className="text-xs text-muted-foreground" data-testid="alvo-atual">Alvo atual: <b className="text-foreground">{formatarValorMeta(versaoDe.alvo, unidade)}</b></p>
+                  )}
                   {previa.avisos.map((a) => (
                     <p key={a.codigo} className="flex items-start gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300" role="status">
                       <TriangleAlert size={13} className="mt-0.5 shrink-0" /> {a.mensagem}
@@ -409,7 +424,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
                       )}
                     </div>
                   </div>
-                  <label className={cn("flex cursor-pointer items-start gap-2 rounded-lg border p-3", medir ? "border-primary bg-primary/5" : "border-dashed border-border")}>
+                  {!versaoDe && <label className={cn("flex cursor-pointer items-start gap-2 rounded-lg border p-3", medir ? "border-primary bg-primary/5" : "border-dashed border-border")}>
                     <input type="radio" className="mt-1" name="medir" checked={medir} onChange={() => { setMedir(true); setNivel(null); }} />
                     <span>
                       <b className="text-foreground">Medir primeiro</b>
@@ -417,7 +432,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
                         A meta fica medindo a equipe por {previa.medir_dias} dias, sem valer no score. Depois o sistema sugere o alvo e você ativa.
                       </span>
                     </span>
-                  </label>
+                  </label>}
                 </>
               )}
             </section>
@@ -509,7 +524,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, catalogo, tenantId, empr
               <>
                 <Button variant="outline" onClick={() => salvar(false)} disabled={!!bloqueio || salvando}>Salvar rascunho</Button>
                 <Button onClick={() => salvar(true)} disabled={!!bloqueio || salvando}>
-                  {salvando && <Loader2 size={14} className="mr-1 animate-spin" />}{exigeAprovacao ? "Enviar para aprovação" : "Ativar meta"}
+                  {salvando && <Loader2 size={14} className="mr-1 animate-spin" />}{exigeAprovacao ? "Enviar para aprovação" : versaoDe ? "Ativar nova versão" : "Ativar meta"}
                 </Button>
               </>
             )}

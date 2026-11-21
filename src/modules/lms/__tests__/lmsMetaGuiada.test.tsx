@@ -132,3 +132,57 @@ describe("Fase 10.28 · assistente de 4 passos", () => {
     expect(onModoAvancado).toHaveBeenCalled();
   });
 });
+
+import { MetasEngajamento } from "@/pages/coletor/metas/MetasEngajamento";
+import type { Meta } from "../metas/metas.service";
+
+describe("Fase 10.29 · próximo degrau (nova versão pelo assistente)", () => {
+  beforeEach(() => { rpc.mockReset(); responder(); });
+
+  it("abre no passo 3 com o alvo atual, sem Medir primeiro, e envia a versão anterior", async () => {
+    const ativa = {
+      id: "m0", nome: "Ritmo certo · CD 1", metrica: "PERFORMANCE", atividade: "TODAS", tipo_tarefa_id: null, tipo_codigo: null, categoria: null,
+      armazem_id: "a1", armazem_nome: "CD 1", periodicidade: "DIARIO", alvo: 92.5, minimo: 88, excelencia: 97, peso: 1,
+      vigente_desde: "2026-10-25", vigente_ate: null, status: "ATIVA", origem: "ASSISTENTE", rampa_base: "PRIMEIRA_EXECUCAO",
+      observacao: null, motivo_status: null, versao_anterior_id: null, criado_por: null, criado_em: "", aprovado_por: null, aprovado_em: null,
+      escopo: [], rampa: [], ultimo: null, objetivo: "RITMO", nivel_ambicao: "MANTER", linha_base: 92.5,
+    } as unknown as Meta;
+    const onSalvo = vi.fn();
+    render(<NovaMetaGuiadaDialog aberto inicial={null} versaoDe={ativa} catalogo={catalogo} tenantId="t" empresaId="e"
+      onCancelar={() => {}} onSalvo={onSalvo} onModoAvancado={() => {}} />);
+    expect(screen.getByText("Próximo degrau")).toBeInTheDocument();
+    expect(await screen.findByTestId("alvo-atual")).toHaveTextContent("92,5%");
+    expect(screen.queryByRole("radio", { name: /Medir primeiro/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Evoluir/ })).toHaveAttribute("aria-checked", "true"));
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Ativar nova versão" }));
+    await waitFor(() => expect(onSalvo).toHaveBeenCalled());
+    const d = (rpc.mock.calls.find((c) => c[0] === "rpc_lms_meta_salvar_guiada")![1] as { p_dados: Record<string, unknown> }).p_dados;
+    expect(d).toMatchObject({ versao_anterior_id: "m0", id: null, nivel: "EVOLUIR", vigente_desde: "2026-11-22" });
+  });
+});
+
+describe("Fase 10.29 · engajamento no coletor", () => {
+  it("sem meta de qualidade: só o motivo, sem sequência nem selos", () => {
+    render(<MetasEngajamento engajamento={{ liberado: false, codigo: "SEM_META_QUALIDADE", motivo: "Sequência, selos e desafios aparecem quando…" }} />);
+    expect(screen.getByTestId("engajamento-bloqueado")).toHaveTextContent("Sequência, selos e desafios");
+    expect(screen.queryByLabelText("Selos")).not.toBeInTheDocument();
+  });
+  it("mostra a sequência com o próximo degrau, os selos e o desafio da equipe", () => {
+    render(<MetasEngajamento engajamento={{
+      liberado: true,
+      sequencia: { atual: 4, melhor: 5, degrau: 3, proximo_marco: 5, regra: "Dia fora da meta volta um degrau (3, 5, 10, 20, 30, 60 dias), não zera." },
+      selos: [
+        { codigo: "PRIMEIRO_DIA", nome: "Primeiro dia na meta", descricao: "x", conquistado: true, quando: "2026-10-25" },
+        { codigo: "MELHOR_SEMANA", nome: "Melhor semana", descricao: "A semana mais recente é a melhor.", conquistado: false, quando: null },
+      ],
+      desafios_equipe: [{ meta_id: "d1", nome: "Mais tarefas por hora · Equipe A", objetivo: "Mais tarefas por hora", equipe: "Equipe A",
+        unidade: "POR_HORA", menor_melhor: false, alvo: 8, resultado: { realizado: 6, atingimento_pct: 75, faixa: "ACEITAVEL", parcial: true, participantes: 2 } }],
+    }} />);
+    expect(screen.getByText("4 dias na meta")).toBeInTheDocument();
+    expect(screen.getByText(/Faltam 1 para o degrau de 5 dias/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Primeiro dia na meta (conquistado)")).toHaveTextContent("25/10/2026");
+    expect(screen.getByLabelText("Melhor semana")).toBeInTheDocument();
+    expect(screen.getByLabelText("Desafio da equipe Equipe A")).toHaveTextContent("75% do alvo · em andamento");
+  });
+});

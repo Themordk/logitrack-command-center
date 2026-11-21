@@ -86,7 +86,13 @@ export interface Meta {
   /** Fase 10.28 (meta guiada): objetivo escolhido, nível, foto do resultado da equipe e "medindo até". */
   objetivo?: ObjetivoCodigo | null; nivel_ambicao?: NivelAmbicao | null;
   linha_base?: number | null; linha_base_em?: string | null; medir_ate?: string | null;
+  /** Fase 10.29: último período fechado com resultado, série curta e próximo degrau sugerido. */
+  ultimo_fechado?: Omit<ResultadoResumo, "participantes" | "parcial"> | null;
+  serie?: Array<{ periodo_ini: string; realizado: number | null; faixa: FaixaMeta; parcial: boolean }>;
+  proximo_degrau?: ProximoDegrau | null;
 }
+
+export interface ProximoDegrau { acao: "SUBIR" | "MANTER" | "REVER"; mensagem: string; periodo_ini: string }
 
 // ---------------------------------------------------------------- meta guiada (Fase 10.28)
 
@@ -122,6 +128,8 @@ export interface PreviaMeta {
 
 export interface MetaGuiadaEntrada {
   id?: string | null;
+  /** Fase 10.29: nova versão de uma meta ativa (próximo degrau). */
+  versao_anterior_id?: string | null;
   empresa_id: string;
   armazem_id: string | null;
   objetivo: ObjetivoCodigo;
