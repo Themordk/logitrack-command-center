@@ -13,12 +13,12 @@ import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext";
-import { MovimentoEntradaChips } from "@/components/coletor/MovimentoEntradaChips";
-import {
-  armazenagemEmParalelo,
-  recebimentoStatusColor,
-  recebimentoStatusLabel,
-} from "@/lib/recebimentoStatus";
+import { MovimentoEntradaCard } from "@/components/coletor/MovimentoEntradaCard";
+import { armazenagemEmParalelo } from "@/lib/recebimentoStatus";
+import { useOffline } from "@/contexts/OfflineContext";
+import { buscarAtribuicoesEntrada, type AtribuicaoEntrada } from "@/lib/entradaAtribuicoes";
+import { useSairEtapaColetor } from "@/hooks/useSairEtapaColetor";
+import type { ParamsSair, ResultadoSair } from "@/lib/sairEtapaService";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -98,7 +98,34 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
     if (error) result.showWarning(error === "Empresa não identificada." ? error : "Erro ao carregar movimentos.");
   }, [error]);
 
-  const loadMovimentos = refetch;
+  // "Com você / Com" no card e o botão Sair, como na separação (regra no banco)
+  const { isOnline } = useOffline();
+  const [atribuicoes, setAtribuicoes] = useState<Record<string, AtribuicaoEntrada>>({});
+  const carregarAtribuicoes = useCallback(async () => {
+    if (!isOnline || !tenantId || !usuarioId || movimentos.length === 0) { setAtribuicoes({}); return; }
+    try {
+      setAtribuicoes(await buscarAtribuicoesEntrada(tenantId, usuarioId, movimentos.map((m) => m.id), "ENTR-CONF"));
+    } catch { setAtribuicoes({}); }
+  }, [isOnline, tenantId, usuarioId, data]);
+  useEffect(() => { void carregarAtribuicoes(); }, [carregarAtribuicoes]);
+
+  const loadMovimentos = async () => { await refetch(); };
+
+  const empresaIdLs = localStorage.getItem("core_empresa_id");
+  const atribSel = selectedId ? atribuicoes[selectedId] : undefined;
+  const paramsSair: ParamsSair | null = selectedId && tenantId && usuarioId && empresaIdLs
+    ? { tenantId, empresaId: empresaIdLs, usuarioId, contextoTipo: "MOVIMENTO_ENTRADA", contextoId: selectedId, etapa: "ENTR-CONF" }
+    : null;
+  const sairEtapa = useSairEtapaColetor(paramsSair, {
+    onSaiu: (r: ResultadoSair) => {
+      if (sessionStorage.getItem("coletor_movimento_id") === selectedId) sessionStorage.removeItem("coletor_recebimento_tarefas");
+      result.showSuccess(r.mensagem || "Você saiu da conferência. As tarefas voltaram para a fila.");
+      setSelectedId(null);
+      void refetch();
+      void carregarAtribuicoes();
+    },
+    onErro: (e) => result.showError(e, { context: "recebimento-sair" }),
+  });
 
   const handleConfirmStart = async () => {
     if (!selectedId || !tenantId || !usuarioId) return;
@@ -197,86 +224,50 @@ export function RecebimentoIniciarPage({ onNavigate }: Props) {
             </button>
           </div>
         ) : (
-          <>
-            <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
-              {movimentosFiltrados.map((m) => (
-                <button
+          <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
+            {movimentosFiltrados.map((m) => {
+              const at = atribuicoes[m.id];
+              return (
+                <MovimentoEntradaCard
                   key={m.id}
+                  numero={m.numero_movimento}
+                  status={m.status}
+                  prioridade={m.prioridade}
+                  tipoEntrada={m.tipo_entrada}
+                  parceiro={m.parceiro}
+                  notas={m.notas}
+                  qtdDocumentos={m.qtd_documentos}
+                  box={m.box}
+                  placa={m.placa_veiculo}
+                  itensPendentes={m.qtd_itens_pendentes}
+                  itensTotal={m.qtd_itens}
+                  volume={m.total_volume}
+                  devolucao={m.devolucao}
+                  crossdocking={m.crossdocking}
+                  operadorNome={at?.operador_nome ?? null}
+                  atribuidoAoUsuario={at?.atribuido_ao_usuario === true}
+                  selecionado={selectedId === m.id}
                   onClick={() => setSelectedId(m.id === selectedId ? null : m.id)}
-                  className={`w-full text-left p-3 rounded-xl border transition-all shrink-0 ${
-                    selectedId === m.id
-                      ? "bg-[hsl(217,91%,50%)]/15 border-[hsl(217,91%,50%)]"
-                      : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono font-bold text-lg text-white">#{m.numero_movimento}</span>
-                    <span className={`text-xs font-bold uppercase ${recebimentoStatusColor(m.status)}`}>{recebimentoStatusLabel(m.status)}</span>
-                  </div>
-
-                  <MovimentoEntradaChips
-                    tipoEntrada={m.tipo_entrada}
-                    prioridade={m.prioridade}
-                    devolucao={m.devolucao}
-                    crossdocking={m.crossdocking}
-                  />
-
-                  <p className="text-sm text-[hsl(213,31%,70%)] truncate">{m.parceiro || "—"}</p>
-
-                  {m.notas && (
-                    <p className="text-xs text-[hsl(213,31%,55%)] truncate mt-0.5">
-                      NF: {m.notas}
-                      {m.qtd_documentos > 1 && <span> (+{m.qtd_documentos} docs)</span>}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-[hsl(213,31%,50%)] flex-wrap">
-                    <span>Box: {m.box || "—"}</span>
-                    <span>·</span>
-                    <span>Itens: {m.qtd_itens_pendentes}/{m.qtd_itens} pend.</span>
-                    {m.total_volume != null && (
-                      <>
-                        <span>·</span>
-                        <span>Vol: {m.total_volume}</span>
-                      </>
-                    )}
-                    {m.placa_veiculo && (
-                      <>
-                        <span>·</span>
-                        <span>Placa: {m.placa_veiculo}</span>
-                      </>
-                    )}
-                  </div>
-
-                  {m.status === "EM_CONFERENCIA" && m.conferente_nome && (
-                    <p className={`text-xs mt-1 ${m.iniciado_pelo_usuario ? "text-[hsl(217,91%,60%)]" : "text-[hsl(213,31%,55%)]"}`}>
-                      {m.iniciado_pelo_usuario
-                        ? "Você iniciou esta conferência"
-                        : `Em conferência por ${m.conferente_nome}`}
-                    </p>
-                  )}
-
-                  {armazenagemEmParalelo(m.status) && (
-                    <p className="text-xs mt-1 text-[#A78BFA]">
-                      Armazenagem em andamento — conferência dos itens pendentes liberada
-                    </p>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {selectedId && (
-              <div className="pt-2 space-y-2 shrink-0">
-                <ActionButton onClick={handleConfirmStart} loading={confirming} variant="success">
-                  INICIAR CONFERÊNCIA
-                </ActionButton>
-                <ActionButton onClick={() => setSelectedId(null)} variant="secondary">
-                  CANCELAR
-                </ActionButton>
-              </div>
-            )}
-          </>
+                  rodape={armazenagemEmParalelo(m.status) ? (
+                    <p className="text-xs text-violet-300">Armazenagem em andamento — conferência dos itens pendentes liberada</p>
+                  ) : undefined}
+                />
+              );
+            })}
+          </div>
         )}
+
+        <div className="shrink-0 pt-1 flex flex-col gap-2">
+          {isOnline && atribSel?.atribuido_ao_usuario && (
+            <ActionButton variant="secondary" onClick={sairEtapa.sair} loading={sairEtapa.saindo} disabled={confirming}>
+              Sair da etapa
+            </ActionButton>
+          )}
+          {sairEtapa.folha}
+          <ActionButton onClick={handleConfirmStart} loading={confirming} disabled={!selectedId || sairEtapa.saindo}>
+            {atribSel?.atribuido_ao_usuario ? "Continuar conferência" : "Assumir e iniciar conferência"}
+          </ActionButton>
+        </div>
       </div>
 
       <FiltroRecebimentoSheet

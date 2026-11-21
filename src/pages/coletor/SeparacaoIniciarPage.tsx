@@ -18,7 +18,7 @@ import { deveExibirNomeColetor } from "@/lib/exibicaoColetor";
 import { useResumoEtapaColetor } from "@/hooks/useResumoEtapaColetor";
 import { ResumoEtapaPainel } from "@/components/coletor/ResumoEtapaPainel";
 import { acaoColetor, assumirEtapaColetor } from "@/lib/responsaveisOndaService";
-import { SairEtapaSheet } from "@/components/coletor/SairEtapaSheet";
+import { useSairEtapaColetor } from "@/hooks/useSairEtapaColetor";
 import type { ParamsSair, ResultadoSair } from "@/lib/sairEtapaService";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -161,14 +161,11 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
   };
 
   // Fase 5.3: a folha "Sair da etapa" mostra a prévia do banco e deixa escolher o que devolver
-  const [sairAberto, setSairAberto] = useState(false);
   const paramsSair: ParamsSair | null = etapaInfo.contexto
     ? { tenantId: etapaInfo.contexto.tenantId, empresaId: etapaInfo.contexto.empresaId, usuarioId: etapaInfo.contexto.usuarioId,
         contextoTipo: "ONDA", contextoId: etapaInfo.contexto.movimentoSaidaId, etapa: etapaInfo.contexto.etapa }
     : null;
-  const handleSair = () => { if (etapaInfo.contexto) setSairAberto(true); };
   const aposSair = async (r: ResultadoSair) => {
-    setSairAberto(false);
     setSaindo(true);
     try {
       // Tarefas devolvidas não podem continuar no cache offline deste aparelho
@@ -180,6 +177,11 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
       setSaindo(false);
     }
   };
+  // Sair com um toque; a folha de opções só aparece quando há o que decidir
+  const sairEtapa = useSairEtapaColetor(paramsSair, {
+    onSaiu: (r) => { void aposSair(r); },
+    onErro: (e) => result.showError(e, { context: "sair-etapa" }),
+  });
 
   const irParaEntregaCancelados = (movimentoSaidaId: string, resultado: any) => {
     sessionStorage.setItem("coletor_separacao_cancel_itens", JSON.stringify(resultado.itens || []));
@@ -407,11 +409,11 @@ export function SeparacaoIniciarPage({ onNavigate }: Props) {
 
         <div className="shrink-0 pt-1 flex flex-col gap-2">
           {acao?.podeSair && (
-            <ActionButton variant="secondary" onClick={handleSair} loading={saindo} disabled={starting}>
+            <ActionButton variant="secondary" onClick={sairEtapa.sair} loading={saindo || sairEtapa.saindo} disabled={starting}>
               Sair da etapa
             </ActionButton>
           )}
-          <SairEtapaSheet open={sairAberto} params={paramsSair} onClose={() => setSairAberto(false)} onSaiu={aposSair} />
+          {sairEtapa.folha}
           <ActionButton
             onClick={handlePrincipal}
             disabled={!selectedId || acao?.tipo === "BLOQUEADA" || (isOnline && etapaInfo.loading)}

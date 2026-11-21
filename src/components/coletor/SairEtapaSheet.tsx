@@ -18,9 +18,11 @@ interface Props {
   onClose: () => void;
   /** Chamado depois de devolver tarefas (a tela recarrega a lista / volta). */
   onSaiu: (r: ResultadoSair) => void;
+  /** Prévia já consultada (useSairEtapaColetor): evita perguntar ao banco de novo. */
+  previaInicial?: ResultadoSair | null;
 }
 
-export function SairEtapaSheet({ open, params, onClose, onSaiu }: Props) {
+export function SairEtapaSheet({ open, params, onClose, onSaiu, previaInicial }: Props) {
   const [previa, setPrevia] = useState<ResultadoSair | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -32,12 +34,13 @@ export function SairEtapaSheet({ open, params, onClose, onSaiu }: Props) {
   useEffect(() => {
     if (!open || !params) return;
     setPrevia(null); setErro(null); setAviso(null); setMotivo(null);
+    if (previaInicial) { setPrevia(previaInicial); setModo(modoPadrao(previaInicial.resumo)); return; }
     setCarregando(true);
     simularSairEtapa(params)
       .then((r) => { setPrevia(r); setModo(modoPadrao(r.resumo)); })
       .catch((e) => setErro(parseError(e, "sair-etapa").title))
       .finally(() => setCarregando(false));
-  }, [open, params]);
+  }, [open, params, previaInicial]);
 
   if (!open || !params) return null;
 

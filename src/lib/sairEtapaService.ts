@@ -134,3 +134,16 @@ export function modoPadrao(r: ResumoSair | undefined): ModoSair {
   if (todas?.disponivel) return "TODAS";
   return "NAO_INICIADAS";
 }
+
+/**
+ * Coletor · padrão de "Sair da etapa" nas listas (separação, conferência, recebimento,
+ * armazenagem): sai direto, com um toque, quando não há escolha a fazer. Só pede a
+ * folha de opções quando há tarefa em execução ou com progresso, produto em mãos ou
+ * designação do gestor (aí é preciso pedir liberação).
+ */
+export function precisaEscolherAoSair(r: ResultadoSair): boolean {
+  if (r.codigo === "ATRIBUICAO_DO_GESTOR") return true;
+  const s = r.resumo;
+  if (!s) return false;
+  return s.em_execucao > 0 || s.com_progresso > 0 || s.produto_em_maos > 0;
+}

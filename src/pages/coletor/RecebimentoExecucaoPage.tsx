@@ -20,7 +20,6 @@ import { useOcorrenciaColetorContext } from "@/contexts/OcorrenciaColetorContext
 import { CancelamentoOverlay } from "@/components/coletor/CancelamentoOverlay";
 import { useCancelamentoListener, documentoEntradaCancelado } from "@/hooks/useCancelamentoListener";
 import { useFeedback } from "@/hooks/useFeedback";
-import { SairEtapaCabecalho } from "@/components/coletor/SairEtapaSheet";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -491,11 +490,7 @@ export function RecebimentoExecucaoPage({ onNavigate }: Props) {
   };
 
   return (
-    <ColetorLayout title="Conferência" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/iniciar"
-      titleBadge={<SairEtapaCabecalho online={isOnline}
-        params={{ tenantId: tenantId ?? "", empresaId: empresaId ?? "", usuarioId: usuarioId ?? "",
-                  contextoTipo: "MOVIMENTO_ENTRADA", contextoId: movimentoId, etapa: "ENTR-CONF" }}
-        onSaiu={() => { sessionStorage.removeItem("coletor_recebimento_tarefas"); onNavigate("/coletor/recebimento/iniciar"); }} />}>
+    <ColetorLayout title="Conferência" onNavigate={onNavigate} showBack backPath="/coletor/recebimento/iniciar">
       <StatusOverlay type={overlay} message={overlayMsg} onDone={() => setOverlay(null)} />
       <ResultDialog {...result.dialogProps} />
 
