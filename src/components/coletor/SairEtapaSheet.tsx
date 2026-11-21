@@ -181,31 +181,3 @@ function MotivoChips({ motivo, onChange }: { motivo: MotivoSair | null; onChange
     </div>
   );
 }
-
-/** Botão de cabeçalho (ícone) que abre a folha. Use no titleBadge do ColetorLayout. */
-export function SairEtapaBotaoCabecalho({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} aria-label="Sair da etapa" title="Sair da etapa"
-      className="ml-1 h-9 px-2.5 rounded-lg bg-white/15 text-white text-xs font-semibold flex items-center gap-1 disabled:opacity-40">
-      <LogOut size={14} /> Sair
-    </button>
-  );
-}
-
-/**
- * Botão "Sair" do cabeçalho + folha, para as telas de execução (recebimento,
- * armazenagem, inventário, embarque). Some quando falta contexto ou está offline.
- */
-export function SairEtapaCabecalho({ params, online = true, onSaiu }: {
-  params: ParamsSair | null; online?: boolean; onSaiu: (r: ResultadoSair) => void;
-}) {
-  const [aberto, setAberto] = useState(false);
-  if (!params || !params.contextoId || !params.tenantId || !params.usuarioId) return null;
-  return (
-    <>
-      <SairEtapaBotaoCabecalho onClick={() => setAberto(true)} disabled={!online} />
-      <SairEtapaSheet open={aberto} params={params} onClose={() => setAberto(false)}
-        onSaiu={(r) => { setAberto(false); onSaiu(r); }} />
-    </>
-  );
-}

@@ -8,6 +8,8 @@ import { FiltroCargasSheet } from "@/components/coletor/FiltroCargasSheet";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
+import { useSairEtapaColetor } from "@/hooks/useSairEtapaColetor";
+import type { ParamsSair, ResultadoSair } from "@/lib/sairEtapaService";
 import { cargaService, type CargaColetor } from "@/lib/cargaService";
 import {
   CARGA_STATUS_LABEL, FILTROS_CARGA_COLETOR_VAZIOS, PRIORIDADE_TOM, UNIDADE_EMBARQUE_LABEL, contarFiltrosCarga, descreverResponsavelCarga,
@@ -32,6 +34,7 @@ export function EmbarqueCargasPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id") ?? "";
   const empresaId = localStorage.getItem("core_empresa_id") ?? "";
   const usuarioId = localStorage.getItem("core_usuario_id") ?? "";
+  const meuNome = localStorage.getItem("core_usuario_nome");
   const bloqueado = useOnlineOnlyBlocked();
   const result = useResultDialog({ coletorMode: true });
   const { showError } = result;
@@ -67,6 +70,20 @@ export function EmbarqueCargasPage({ onNavigate }: Props) {
   }, [tenantId, empresaId, usuarioId, bloqueado, showError]);
 
   useEffect(() => { void carregar(); }, [carregar]);
+
+  const cargaSel = selecionada ? cargas.find((c) => c.id === selecionada) ?? null : null;
+  const comVoce = !!cargaSel && descreverResponsavelCarga(cargaSel).tom === "VOCE";
+  const paramsSair: ParamsSair | null = selecionada && tenantId && empresaId && usuarioId
+    ? { tenantId, empresaId, usuarioId, contextoTipo: "CARGA", contextoId: selecionada, etapa: "EMB" }
+    : null;
+  const sairEtapa = useSairEtapaColetor(paramsSair, {
+    onSaiu: (r: ResultadoSair) => {
+      result.showSuccess(r.mensagem || "Você saiu do embarque. Outro operador pode continuar.");
+      setSelecionada(null);
+      void carregar();
+    },
+    onErro: (e) => showError(e, { context: "embarque-sair" }),
+  });
 
   const iniciar = () => {
     if (!selecionada) return;
@@ -114,7 +131,7 @@ export function EmbarqueCargasPage({ onNavigate }: Props) {
             {visiveis.map((c) => {
               const ativa = c.id === selecionada;
               const pct = c.unidades_total > 0 ? Math.round((c.unidades_embarcadas / c.unidades_total) * 100) : 0;
-              const resp = descreverResponsavelCarga(c);
+              const resp = descreverResponsavelCarga(c, meuNome);
               return (
                 <button
                   key={c.id}
@@ -181,8 +198,16 @@ export function EmbarqueCargasPage({ onNavigate }: Props) {
           </div>
         )}
 
-        <div className="shrink-0 pt-1">
-          <ActionButton onClick={iniciar} disabled={!selecionada || bloqueado}>Iniciar embarque</ActionButton>
+        <div className="shrink-0 pt-1 flex flex-col gap-2">
+          {comVoce && !bloqueado && (
+            <ActionButton variant="secondary" onClick={sairEtapa.sair} loading={sairEtapa.saindo}>
+              Sair da etapa
+            </ActionButton>
+          )}
+          {sairEtapa.folha}
+          <ActionButton onClick={iniciar} disabled={!selecionada || bloqueado || sairEtapa.saindo}>
+            {comVoce ? "Continuar embarque" : "Iniciar embarque"}
+          </ActionButton>
         </div>
       </div>
 
