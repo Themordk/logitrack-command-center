@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrimeirosPassosPanel, resumoSaude } from "../configuracao/PrimeirosPassosPanel";
-import { obterSaudeConfig, padraoCalibrado, type SaudeConfig } from "../configuracao/lmsConfig.service";
+import { obterSaudeConfig, padraoCalibrado, padraoRevisado, type SaudeConfig } from "../configuracao/lmsConfig.service";
 import { GLOSSARIO, TermoAjuda, definicaoTermo } from "../glossario";
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: vi.fn(), from: vi.fn() } }));
@@ -63,6 +63,11 @@ describe("Fase 10.20 · selo de não calibrado (P12) e glossário (P10)", () => 
     expect(padraoCalibrado("MIGRADO")).toBe(false);
     expect(padraoCalibrado("MANUAL")).toBe(false);
     expect(padraoCalibrado(null)).toBe(false);
+    // Fase 10.27: valor salvo pelo gestor conta como revisado (sai dos primeiros passos)
+    expect(padraoRevisado("MANUAL")).toBe(true);
+    expect(padraoRevisado("CALIBRADO")).toBe(true);
+    expect(padraoRevisado("MIGRADO")).toBe(false);
+    expect(padraoRevisado(null)).toBe(false);
   });
 
   it("cada termo tem nome e texto, e o score não se confunde com performance", () => {

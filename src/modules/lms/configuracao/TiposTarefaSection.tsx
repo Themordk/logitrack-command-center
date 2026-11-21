@@ -15,6 +15,7 @@ import {
   rotuloMovimento, salvarTipoTarefaCompleto, type DadosTipoTarefa, type HistoricoTipoTarefa, type PadraoParaSalvar, type PadraoTempoConfig,
   type RegraSistema, type ReservaAcaoTipo, type TipoTarefaLms,
   padraoCalibrado,
+  padraoRevisado,
 } from "./lmsConfig.service";
 import { PadraoTempoCampos, edicaoPadraoInicial, partesDaEdicao, validarEdicaoPadrao, type EdicaoPadrao } from "./PadraoTempoCampos";
 
@@ -151,13 +152,25 @@ function OrigemPadrao({ p, nivelTela }: { p: PadraoTempoConfig; nivelTela: "EMPR
   );
 }
 
-/** Fase 10.20 (P12): o padrão migrado ou digitado ainda não foi conferido com a operação real. */
+/**
+ * Fase 10.27: selo do tempo padrão, na mesma regra dos primeiros passos (fn_lms_padrao_revisado).
+ * Migrado/sem registro = "Não revisado" (alerta); digitado pelo gestor = "Manual" (neutro, sugere calibrar);
+ * calibrado pelo histórico ou engenharia = sem selo.
+ */
 function SeloNaoCalibrado({ origem }: { origem: string | null | undefined }) {
   if (padraoCalibrado(origem)) return null;
+  if (padraoRevisado(origem)) {
+    return (
+      <span className="ml-1.5 inline-flex rounded-full border border-border bg-muted/40 px-1.5 text-[10px] text-muted-foreground"
+        title="Tempo padrão definido manualmente. Quando houver execuções reais, abra o tipo e use &quot;Sugerir pelo histórico&quot; para calibrar.">
+        Manual
+      </span>
+    );
+  }
   return (
     <span className="ml-1.5 inline-flex rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-600 dark:text-amber-400"
-      title="Este tempo padrão ainda não foi conferido com execuções reais. Abra o tipo e use &quot;Sugerir pelo histórico&quot;.">
-      Não calibrado
+      title="Este tempo padrão veio do cadastro antigo e ninguém revisou. Abra o tipo, confira o tempo e salve.">
+      Não revisado
     </span>
   );
 }

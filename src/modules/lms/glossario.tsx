@@ -74,7 +74,7 @@ export const GLOSSARIO = {
   },
   calibrado: {
     nome: "Calibrado",
-    texto: "Tempo padrão conferido com execuções reais (Sugerir pelo histórico) ou definido por estudo de tempos. \"Não calibrado\" = migrado ou digitado sem conferência.",
+    texto: "Tempo padrão conferido com execuções reais (Sugerir pelo histórico) ou definido por estudo de tempos. \"Manual\" = digitado pelo gestor, ainda sem conferência com o histórico; \"Não revisado\" = veio do cadastro antigo e ninguém conferiu.",
   },
 } as const;
 

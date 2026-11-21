@@ -568,6 +568,11 @@ export async function obterSaudeConfig(tenantId: string, empresaId: string, arma
   return { pronto: !!r.pronto, passos: [...(r.passos ?? [])].sort((a, b) => a.ordem - b.ordem) };
 }
 
+/** Fase 10.27: mesma regra do banco (fn_lms_padrao_revisado) — salvo por alguém: manual, calibrado ou engenharia. */
+export function padraoRevisado(origem: string | null | undefined): boolean {
+  return origem === "MANUAL" || origem === "CALIBRADO" || origem === "ENGENHARIA";
+}
+
 /** P12: mesma regra do banco (fn_lms_padrao_calibrado). */
 export function padraoCalibrado(origem: string | null | undefined): boolean {
   return origem === "CALIBRADO" || origem === "ENGENHARIA";

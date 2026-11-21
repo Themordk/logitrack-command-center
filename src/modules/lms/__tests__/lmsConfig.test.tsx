@@ -162,7 +162,7 @@ describe("Fase 7 · painel de configurações", () => {
     expect(avancado).toHaveTextContent("Início real mínimo");
     expect(avancado).toHaveTextContent("só altere com orientação");
     expect(avancado).not.toHaveAttribute("open");
-    expect(screen.getByText("Não calibrado")).toBeInTheDocument();
+    expect(screen.getByText("Não revisado")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Reprocessar período/ }));
     fireEvent.change(screen.getByLabelText("Recalcular a partir de"), { target: { value: "2026-11-10" } });
     fireEvent.click(screen.getByRole("button", { name: /^Reprocessar$/ }));
