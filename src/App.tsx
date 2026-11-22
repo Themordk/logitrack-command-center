@@ -14,11 +14,13 @@ const queryClient = new QueryClient({
   },
 });
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
-import { PermissionsProvider } from "./contexts/PermissionsContext";
+import { PermissionsProvider, usePermissions } from "./contexts/PermissionsContext";
+import { getModuleForRoute } from "./hooks/useRoutePermission";
+import { filtrarMenu, localizarItem } from "./lib/menuRegistry";
+import { AcessoNegado } from "./components/AcessoNegado";
 import { TenantBootProvider, useTenantBoot } from "./contexts/TenantBootContext";
 import { TenantBootSplash, TenantBootError, TenantPickerPage } from "./components/tenant/TenantBootScreens";
 import { UpdatePrompt } from "./components/pwa/UpdatePrompt";
-import { useIsMobile } from "./hooks/use-mobile";
 import { LoginPage } from "./pages/LoginPage";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
@@ -572,7 +574,7 @@ function getInitialPath() {
 function AppContent() {
   const { tenantId, empresaId, loading, authenticated, login } = useTenant();
   const boot = useTenantBoot();
-  const isMobile = useIsMobile();
+  const { can, loading: permissoesCarregando } = usePermissions();
   const [currentPath, setCurrentPath] = useState(getInitialPath);
   const pathOnly = currentPath.split("?")[0] || "/";
 
@@ -720,21 +722,29 @@ function AppContent() {
     );
   }
 
-  // ===== Gate mobile: painel admin só permite Dashboard na Fase 1 =====
-  if (isMobile && pathOnly !== "/") {
-    Promise.resolve().then(() => navigate("/"));
-    return <TenantBootSplash />;
-  }
+  // Mobile: o painel admin navega por todas as telas liberadas (menu em drawer no TopNav).
 
-
-  const bc = breadcrumbs[pathOnly] ?? getDynamicBreadcrumb(pathOnly) ?? [
+  // Breadcrumb das telas do menu vem do menuRegistry (mesmos nomes do TopNav).
+  const itemMenu = localizarItem(pathOnly);
+  const bc = (itemMenu && [{ label: "CORE LogiTrack" }, { label: itemMenu.grupo.label }, { label: itemMenu.label }])
+    ?? breadcrumbs[pathOnly] ?? getDynamicBreadcrumb(pathOnly) ?? [
     { label: "CORE LogiTrack" },
     { label: pathOnly.split("/").pop()?.replace(/-/g, " ") ?? "Página" },
   ];
 
+  // Guard de rota: link direto/favorito para tela sem Visualizar (ou com o menu oculto no perfil).
+  const moduloDaRota = getModuleForRoute(pathOnly);
+  const semAcesso = !!moduloDaRota && !permissoesCarregando && !can(moduloDaRota, "READ");
+  // Sem Dashboard no perfil: a página inicial passa a ser a primeira tela liberada do menu.
+  const primeiraTelaLiberada = semAcesso ? filtrarMenu(can).flatMap((g) => g.itens)[0]?.path : undefined;
+  if (semAcesso && pathOnly === "/" && primeiraTelaLiberada && primeiraTelaLiberada !== "/") {
+    Promise.resolve().then(() => navigate(primeiraTelaLiberada));
+    return <TenantBootSplash />;
+  }
+
   return (
     <Layout currentPath={pathOnly} breadcrumb={bc} onNavigate={navigate}>
-      {renderPage(currentPath, navigate)}
+      {semAcesso ? <AcessoNegado onNavigate={navigate} destino={primeiraTelaLiberada} /> : renderPage(currentPath, navigate)}
     </Layout>
   );
 }

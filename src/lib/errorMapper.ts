@@ -106,6 +106,16 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   // === Motor de Retorno ao ERP (códigos mais longos antes dos prefixos) ===
   DOC_EVENTOS_SEM_PERMISSAO: { title: "Você não tem permissão para ver os eventos de integração deste documento.", instruction: "Peça acesso à tela de documentos ao administrador." },
   DOC_EVENTOS_ACESSO_NEGADO: { title: "Acesso negado a esta empresa.", instruction: "Confira a empresa selecionada." },
+  // === Perfis de Acesso (rpc_perfil_salvar / rpc_perfil_excluir) ===
+  PERFIL_ACESSO_NEGADO: { title: "Você não tem permissão para alterar perfis de acesso.", instruction: "Peça a um administrador." },
+  PERFIL_NAO_ENCONTRADO: { title: "Perfil não encontrado.", instruction: "Atualize a lista de perfis." },
+  PERFIL_NOME_OBRIGATORIO: { title: "Informe o nome do perfil.", instruction: "Preencha o nome e salve de novo." },
+  PERFIL_SISTEMA_SOMENTE_LEITURA: { title: "Perfis do sistema não podem ser alterados.", instruction: "Duplique o perfil para personalizar." },
+  PERFIL_ACESSO_TOTAL_MENU: { title: "Perfis de acesso total sempre veem todos os menus.", instruction: "Use outro perfil para restringir menus." },
+  PERFIL_PERMISSAO_INVALIDA: { title: "Algumas permissões não pertencem a esta empresa.", instruction: "Recarregue a tela e tente de novo." },
+  PERFIL_MENU_INVALIDO: { title: "Menu inválido.", instruction: "Recarregue a tela e tente de novo." },
+  PERFIL_AUTOBLOQUEIO: { title: "Essa alteração tiraria o seu próprio acesso a Perfis de Acesso.", instruction: "Mantenha Configurações visível e Perfis de Acesso com Editar." },
+  PERFIL_COM_USUARIOS: { title: "Este perfil ainda tem usuários.", instruction: "Troque o perfil desses usuários em Usuários antes de excluir." },
   DOC_EVENTOS_NAO_AUTENTICADO: { title: "Sua sessão expirou.", instruction: "Entre novamente." },
   DOC_EVENTOS_EMPRESA_INVALIDA: { title: "Empresa inválida para este tenant.", instruction: "Selecione outra empresa." },
   DOC_EVENTOS_PARAMETROS: { title: "Parâmetros inválidos na consulta de eventos.", instruction: "Recarregue a página." },
