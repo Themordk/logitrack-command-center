@@ -7,6 +7,7 @@ interface PermissionsContextType {
   loading: boolean;
   can: (modulo: string, acao: string) => boolean;
   canAny: (modulo: string) => boolean;
+  /** Recarrega do banco, ignorando o cache (ex.: depois de salvar um perfil). */
   refresh: () => Promise<void>;
 }
 
@@ -18,74 +19,94 @@ const PermissionsContext = createContext<PermissionsContextType>({
   refresh: async () => {},
 });
 
-const CACHE_KEY = "core_rbac_permissions";
+// v2: o cache passou a guardar se o usuário tem perfil (semPerfil).
+const CACHE_KEY = "core_rbac_permissions_v2";
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
+const SEM_PERMISSOES = new Map<string, Set<string>>();
 
-function loadFromCache(): Map<string, Set<string>> | null {
+interface PermissoesCarregadas {
+  usuarioId: string;
+  map: Map<string, Set<string>>;
+  /** Usuário sem nenhum perfil (legado, antes do RBAC): mantém acesso total. */
+  semPerfil: boolean;
+}
+
+function loadFromCache(usuarioId: string): PermissoesCarregadas | null {
   try {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Date.now() - parsed.ts > CACHE_TTL) {
+    const parsed = JSON.parse(raw) as { ts: number; usuarioId: string; semPerfil: boolean; data: Record<string, string[]> };
+    if (Date.now() - parsed.ts > CACHE_TTL || parsed.usuarioId !== usuarioId) {
       sessionStorage.removeItem(CACHE_KEY);
       return null;
     }
     const map = new Map<string, Set<string>>();
-    for (const [k, v] of Object.entries(parsed.data)) {
-      map.set(k, new Set(v as string[]));
-    }
-    return map;
+    for (const [k, v] of Object.entries(parsed.data)) map.set(k, new Set(v));
+    return { usuarioId, map, semPerfil: parsed.semPerfil };
   } catch {
     return null;
   }
 }
 
-function saveToCache(map: Map<string, Set<string>>) {
-  const data: Record<string, string[]> = {};
-  map.forEach((v, k) => { data[k] = Array.from(v); });
-  sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+function saveToCache(p: PermissoesCarregadas) {
+  try {
+    const data: Record<string, string[]> = {};
+    p.map.forEach((v, k) => { data[k] = Array.from(v); });
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), usuarioId: p.usuarioId, semPerfil: p.semPerfil, data }));
+  } catch {
+    // sessionStorage indisponível: segue sem cache
+  }
+}
+
+function clearCache() {
+  try { sessionStorage.removeItem(CACHE_KEY); } catch { /* sem storage */ }
 }
 
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const { usuarioId, authenticated, loading: tenantLoading } = useTenant();
-  const [permissions, setPermissions] = useState<Map<string, Set<string>>>(new Map());
+  const [carregadas, setCarregadas] = useState<PermissoesCarregadas | null>(null);
   const [loading, setLoading] = useState(true);
-  const [resolvedUsuarioId, setResolvedUsuarioId] = useState<string | null>(null);
 
-  const fetchPermissions = useCallback(async () => {
+  const fetchPermissions = useCallback(async (ignorarCache = false) => {
     if (!usuarioId) {
-      setPermissions(new Map());
-      setResolvedUsuarioId(null);
+      setCarregadas(null);
       setLoading(false);
       return;
     }
 
-    // Try cache first
-    const cached = loadFromCache();
+    const cached = ignorarCache ? null : loadFromCache(usuarioId);
     if (cached) {
-      setPermissions(cached);
-      setResolvedUsuarioId(usuarioId);
+      setCarregadas(cached);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    const { data, error } = await (supabase as any).rpc("fn_usuario_permissoes", {
-      p_usuario_id: usuarioId,
-    });
+    const [permRes, perfilRes] = await Promise.all([
+      supabase.rpc("fn_usuario_permissoes", { p_usuario_id: usuarioId }),
+      supabase.from("usuario_perfil").select("id", { count: "exact", head: true }).eq("usuario_id", usuarioId),
+    ]);
 
     const map = new Map<string, Set<string>>();
-    if (!error && data) {
-      for (const row of data) {
-        const existing = map.get(row.modulo_codigo) || new Set<string>();
-        existing.add(row.acao);
-        map.set(row.modulo_codigo, existing);
-      }
+    for (const row of permRes.data ?? []) {
+      const existing = map.get(row.modulo_codigo) || new Set<string>();
+      existing.add(row.acao);
+      map.set(row.modulo_codigo, existing);
     }
 
-    setPermissions(map);
-    saveToCache(map);
-    setResolvedUsuarioId(usuarioId);
+    // Só quem realmente não tem perfil mantém o acesso total legado. Um perfil com
+    // todos os menus ocultos devolve lista vazia e NÃO pode virar acesso total.
+    // Em erro de leitura, nega (não grava cache, para tentar de novo no próximo carregamento).
+    const falhou = !!permRes.error || !!perfilRes.error;
+    const resultado: PermissoesCarregadas = {
+      usuarioId,
+      map,
+      semPerfil: !falhou && (perfilRes.count ?? 0) === 0,
+    };
+    if (falhou) console.error("[RBAC] falha ao carregar permissões", permRes.error ?? perfilRes.error);
+    else saveToCache(resultado);
+
+    setCarregadas(resultado);
     setLoading(false);
   }, [usuarioId]);
 
@@ -98,47 +119,53 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     if (authenticated && usuarioId) {
       fetchPermissions();
     } else if (authenticated) {
-      setPermissions(new Map());
-      setResolvedUsuarioId(null);
+      setCarregadas(null);
       setLoading(true);
     } else {
-      setPermissions(new Map());
-      setResolvedUsuarioId(null);
-      sessionStorage.removeItem(CACHE_KEY);
+      setCarregadas(null);
+      clearCache();
       setLoading(false);
     }
   }, [authenticated, usuarioId, fetchPermissions, tenantLoading]);
 
-  const permissionsLoading = tenantLoading || (authenticated && (!usuarioId || resolvedUsuarioId !== usuarioId || loading));
+  const permissionsLoading =
+    tenantLoading || (authenticated && (!usuarioId || carregadas?.usuarioId !== usuarioId || loading));
+  // Permissões já resolvidas para este usuário (inclusive durante um refresh).
+  const pronto = !!carregadas && carregadas.usuarioId === usuarioId;
+  const permissions = pronto ? carregadas.map : SEM_PERMISSOES;
+  const semPerfil = pronto && carregadas.semPerfil;
 
   const can = useCallback(
     (modulo: string, acao: string) => {
-      // If no permissions loaded yet (and user is authenticated), allow by default
-      // This prevents blocking while loading
-      if (permissions.size === 0 && permissionsLoading) return true;
-      // If user has NO permissions at all (no profile assigned), grant full access
-      // This is a safety fallback for existing users without RBAC setup
-      if (permissions.size === 0 && !permissionsLoading) return true;
+      // Antes do primeiro carregamento não bloqueia a tela (o guard de rota espera o loading).
+      if (!pronto) return true;
+      if (semPerfil) return true;
       return permissions.get(modulo)?.has(acao) ?? false;
     },
-    [permissions, permissionsLoading],
+    [permissions, pronto, semPerfil],
   );
 
   const canAny = useCallback(
     (modulo: string) => {
-      if (permissions.size === 0) return true;
+      if (!pronto || semPerfil) return true;
       return permissions.has(modulo);
     },
-    [permissions],
+    [permissions, pronto, semPerfil],
   );
 
+  const refresh = useCallback(async () => {
+    clearCache();
+    await fetchPermissions(true);
+  }, [fetchPermissions]);
+
   return (
-    <PermissionsContext.Provider value={{ permissions, loading: permissionsLoading, can, canAny, refresh: fetchPermissions }}>
+    <PermissionsContext.Provider value={{ permissions, loading: permissionsLoading, can, canAny, refresh }}>
       {children}
     </PermissionsContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook do contexto, padrão do projeto
 export function usePermissions() {
   return useContext(PermissionsContext);
 }
