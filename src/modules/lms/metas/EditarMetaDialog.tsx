@@ -317,7 +317,7 @@ export function EditarMetaDialog({ aberto, modo, inicial, catalogo, tenantId, em
             </div>
             <p className="text-xs text-muted-foreground">
               {info?.direcao === "MENOR" ? "Nesta métrica menor é melhor." : "Faixas do resultado: abaixo do mínimo, aceitável, na meta e excelente."}
-              {info ? ` Valores em ${info.unidade === "PCT" ? "%" : info.unidade === "POR_HORA" ? "por hora" : "quantidade no período"}.` : ""}
+              {info ? ` Valores em ${info.unidade === "PCT" ? "%" : info.unidade === "POR_HORA" ? "por hora" : info.unidade === "MIN" ? "minutos" : "quantidade no período"}.` : ""}
             </p>
 
             <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" data-testid="meta-assistente">

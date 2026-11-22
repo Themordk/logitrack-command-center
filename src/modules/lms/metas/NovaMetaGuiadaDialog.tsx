@@ -417,7 +417,7 @@ export function NovaMetaGuiadaDialog({ aberto, inicial, versaoDe = null, catalog
                         <Input aria-label="Outro valor" className="h-8 w-28" inputMode="decimal" value={alvoPers}
                           onFocus={() => { setNivel("PERSONALIZADO"); setMedir(false); }}
                           onChange={(e) => setAlvoPers(e.target.value)} />
-                        <span className="text-xs text-muted-foreground">{unidade === "PCT" ? "%" : unidade === "POR_HORA" ? "por hora" : "unidades"}</span>
+                        <span className="text-xs text-muted-foreground">{unidade === "PCT" ? "%" : unidade === "POR_HORA" ? "por hora" : unidade === "MIN" ? "minutos" : "unidades"}</span>
                       </div>
                       {previa.personalizado && alvoPersNum !== null && (
                         <AvaliacaoLinha atingem={previa.personalizado.atingem} comDado={previa.linha_base.com_dado} realismo={previa.personalizado.realismo} />

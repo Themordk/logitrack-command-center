@@ -186,3 +186,18 @@ describe("Fase 10.29 · engajamento no coletor", () => {
     expect(screen.getByLabelText("Desafio da equipe Equipe A")).toHaveTextContent("75% do alvo · em andamento");
   });
 });
+
+import { formatarValorMeta } from "../metas/metas.service";
+
+describe("Fase 10.30 · tempo entre tarefas", () => {
+  it("formata minutos e escreve a meta como redução", () => {
+    expect(formatarValorMeta(2.5, "MIN")).toBe("2,5 min");
+    expect(fraseMeta({ verbo: "o tempo entre tarefas", menor_melhor: true }, "MIN", 2, 1.8)).toBe("Reduzir o tempo entre tarefas da equipe de 2 min para 1,8 min");
+  });
+  it("coletor mostra o selo Sem pausas longas", () => {
+    render(<MetasEngajamento engajamento={{ liberado: true, selos: [
+      { codigo: "SEM_PAUSA_LONGA", nome: "Sem pausas longas", descricao: "No último dia trabalhado, nenhum intervalo de mais de 10 min entre tarefas.", conquistado: true, quando: "2026-11-21" },
+    ] }} />);
+    expect(screen.getByLabelText("Sem pausas longas (conquistado)")).toHaveTextContent("21/11/2026");
+  });
+});

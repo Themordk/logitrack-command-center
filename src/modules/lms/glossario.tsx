@@ -52,6 +52,10 @@ export const GLOSSARIO = {
     nome: "UPH",
     texto: "Unidades por hora de tempo direto.",
   },
+  tempo_entre_tarefas: {
+    nome: "Tempo entre tarefas",
+    texto: "Minutos, em média, entre o fim de uma atividade (tarefa ou apontamento) e o início da próxima. Pausas acima de 30 min, como intervalo e almoço, não contam.",
+  },
   inicio_real: {
     nome: "Início real",
     texto: "Percentual de tarefas em que o coletor registrou o início (bipe ou abertura). Abaixo do mínimo configurado, os números do dia ficam estimados.",

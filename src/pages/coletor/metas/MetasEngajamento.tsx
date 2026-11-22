@@ -1,4 +1,4 @@
-import { Award, CalendarCheck, Flame, Lock, ScanLine, Star, Users } from "lucide-react";
+import { Award, CalendarCheck, Flame, Lock, Star, Timer, Users } from "lucide-react";
 import { formatarValorMeta, type UnidadeMetrica } from "@/modules/lms/metas/metas.service";
 import { formatDate } from "@/utils/dateTime";
 
@@ -19,7 +19,7 @@ export interface Engajamento {
   desafios_equipe?: DesafioEquipe[];
 }
 
-const ICONE_SELO: Record<string, typeof Award> = { PRIMEIRO_DIA: Star, CINCO_SEGUIDOS: Flame, MELHOR_SEMANA: CalendarCheck, INICIO_100: ScanLine };
+const ICONE_SELO: Record<string, typeof Award> = { PRIMEIRO_DIA: Star, CINCO_SEGUIDOS: Flame, MELHOR_SEMANA: CalendarCheck, SEM_PAUSA_LONGA: Timer };
 const caixa = "rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-3";
 const apagado = "text-[hsl(213,31%,55%)]";
 

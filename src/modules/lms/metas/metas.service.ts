@@ -24,8 +24,10 @@ function exigir<T>(data: unknown, error: { message: string } | null): T {
 // ---------------------------------------------------------------- tipos
 
 export type Metrica = "PERFORMANCE" | "EFICIENCIA" | "UTILIZACAO" | "UPH" | "TAREFAS_HORA"
-  | "VOLUME_UNIDADES" | "VOLUME_TAREFAS" | "PCT_INICIO_REAL" | "TEMPO_INDIRETO_PCT";
-export type UnidadeMetrica = "PCT" | "POR_HORA" | "QTD";
+  | "VOLUME_UNIDADES" | "VOLUME_TAREFAS" | "TEMPO_ENTRE_TAREFAS" | "TEMPO_INDIRETO_PCT"
+  /** Fora do catálogo desde a 10.30; só aparece em metas antigas. */
+  | "PCT_INICIO_REAL";
+export type UnidadeMetrica = "PCT" | "POR_HORA" | "QTD" | "MIN";
 export type Periodicidade = "DIARIO" | "SEMANAL" | "MENSAL" | "PERSONALIZADO";
 export type StatusMeta = "RASCUNHO" | "EM_APROVACAO" | "ATIVA" | "ENCERRADA" | "REJEITADA";
 export type Atividade = "TODAS" | "TIPO" | "CATEGORIA";
@@ -96,7 +98,7 @@ export interface ProximoDegrau { acao: "SUBIR" | "MANTER" | "REVER"; mensagem: s
 
 // ---------------------------------------------------------------- meta guiada (Fase 10.28)
 
-export type ObjetivoCodigo = "RITMO" | "TURNO" | "PARADO" | "UNIDADES_HORA" | "TAREFAS_HORA" | "VOLUME" | "INICIO" | "INDIRETO";
+export type ObjetivoCodigo = "RITMO" | "TURNO" | "PARADO" | "UNIDADES_HORA" | "TAREFAS_HORA" | "VOLUME" | "ENTRE_TAREFAS" | "INDIRETO";
 export type NivelAmbicao = "MANTER" | "EVOLUIR" | "DESAFIAR" | "PERSONALIZADO";
 export type Realismo = "ALCANCAVEL" | "DESAFIADOR" | "ACIMA_DO_MELHOR" | "SEM_BASE";
 
@@ -328,13 +330,14 @@ export function infoMetrica(catalogo: Pick<CatalogoMetas, "metricas"> | null, me
   return catalogo?.metricas.find((m) => m.codigo === metrica);
 }
 
-/** "95%", "120 un/h", "1.200" conforme a unidade da métrica. */
+/** "95%", "120 un/h", "1.200", "2,5 min" conforme a unidade da métrica. */
 export function formatarValorMeta(valor: number | null | undefined, unidade: UnidadeMetrica | undefined): string {
   if (valor === null || valor === undefined || Number.isNaN(Number(valor))) return "—";
   const v = Number(valor);
   const n = v.toLocaleString("pt-BR", { maximumFractionDigits: unidade === "QTD" ? 0 : 1 });
   if (unidade === "PCT") return `${n}%`;
   if (unidade === "POR_HORA") return `${n}/h`;
+  if (unidade === "MIN") return `${n} min`;
   return n;
 }
 
