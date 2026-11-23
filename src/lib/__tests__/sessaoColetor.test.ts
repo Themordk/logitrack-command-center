@@ -43,6 +43,20 @@ describe("sessaoColetor — sessão pelo servidor (Fase 3.1)", () => {
     expect(rpc).toHaveBeenNthCalledWith(2, "rpc_sessao_abrir", { p_tenant_id: "t1", p_usuario_id: "u1" });
   });
 
+  it("sessão guardada de outro operador (42501): abre a do operador logado", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: "42501", message: "permission denied" } })
+       .mockResolvedValueOnce({ data: { sucesso: true, dados: { sessao_id: "s4" } }, error: null });
+    expect(await manterSessaoColetor("de-outro", "t1", "u2")).toBe("s4");
+    expect(rpc).toHaveBeenNthCalledWith(2, "rpc_sessao_abrir", { p_tenant_id: "t1", p_usuario_id: "u2" });
+    expect(localStorage.getItem(CHAVE_SESSAO)).toBe("s4");
+  });
+
+  it("outro erro do servidor mantém a sessão atual e não abre outra", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "57014", message: "timeout" } });
+    expect(await manterSessaoColetor("s1", "t1", "u1")).toBe("s1");
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
   it("sessão ativa só recebe o sinal; sem login não faz nada", async () => {
     rpc.mockResolvedValue({ data: { sucesso: true, codigo: "SESSAO_ATIVA", dados: { sessao_id: "s1" } }, error: null });
     expect(await manterSessaoColetor("s1", "t1", "u1")).toBe("s1");
