@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { EntregaPedidoBadge } from "@/components/situacao/SituacaoPedidoBadges";
+import { IntegracaoDocumentoStatus } from "@/components/integracao/IntegracaoDocumentoStatus";
 import { ENTREGAS_ORDEM, VISUAL_ENTREGA, textoResumoEntregaOnda } from "@/lib/situacaoPedido";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/contexts/PermissionsContext";
@@ -88,6 +89,7 @@ interface MovSaida {
   entrega_resumo?: string | null;
   entrega_total?: number;
   entrega_entregues?: number;
+  integracao_docs_erro?: number;
   numero_onda: number;
   status: string;
   data_emissao: string;
@@ -408,6 +410,7 @@ export function MovimentoSaidaPage() {
         entrega_resumo: r.entrega_resumo,
         entrega_total: r.entrega_total,
         entrega_entregues: r.entrega_entregues,
+        integracao_docs_erro: r.integracao_docs_erro,
       };
     });
   }, [listRows, empresaId, selectedId, cabecalhoAoVivo]);
@@ -1051,7 +1054,7 @@ export function MovimentoSaidaPage() {
                         </div>
                       </div>
                     </div>
-                    {(hasErp || (mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica") || mov.docs_sem_nf != null || semSaldo > 0) && (
+                    {(hasErp || (mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica") || mov.docs_sem_nf != null || semSaldo > 0 || (mov.integracao_docs_erro ?? 0) > 0) && (
                       <div className="flex flex-wrap items-center gap-1 mt-1.5">
                         {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
                         {mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica" && (
@@ -1068,6 +1071,14 @@ export function MovimentoSaidaPage() {
                           </span>
                         )}
                         {semSaldo > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-destructive/30 bg-destructive/15 text-destructive whitespace-nowrap">{semSaldo} sem saldo</span>}
+                        {(mov.integracao_docs_erro ?? 0) > 0 && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded-full border border-destructive/30 bg-destructive/15 text-destructive whitespace-nowrap"
+                            title={`${mov.integracao_docs_erro} pedido(s) desta onda com erro de integração no ERP. Veja quais em Informações › Documentos vinculados.`}
+                          >
+                            {mov.integracao_docs_erro} com erro ERP
+                          </span>
+                        )}
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>{truncate(mov.parceiro_nome, 35)}</p>
@@ -1358,6 +1369,7 @@ export function MovimentoSaidaPage() {
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Vendedor</th>
                             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Integração</th>
                             <th className={cn("px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase", podeRemoverDoc ? "w-20" : "w-12")}>Ações</th>
                           </tr>
                         </thead>
@@ -1396,6 +1408,7 @@ export function MovimentoSaidaPage() {
                                 {doc.vendedor || "—"}
                               </td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-foreground">{doc.valor_pedido ? Number(doc.valor_pedido).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>
+                              <td className="px-3 py-2"><IntegracaoDocumentoStatus integracao={doc.integracao} /></td>
                               <td className="px-3 py-1 text-center">
                                 <Button
                                   variant="ghost"
@@ -1436,7 +1449,7 @@ export function MovimentoSaidaPage() {
                             );
                           })}
                           {tabDocs.length === 0 && (
-                            <tr><td colSpan={8} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
+                            <tr><td colSpan={9} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
                           )}
                         </tbody>
                       </table>

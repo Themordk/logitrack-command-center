@@ -133,3 +133,5 @@ END
 $conf$;
 
 COMMIT;
+
+-- Se a S2.6 estiver aplicada, rode antes supabase/rollback/20261123_status_s2_6_reverter.sql.

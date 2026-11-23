@@ -55,6 +55,8 @@ export interface OndaListaRow {
   entrega_total: number;
   entrega_entregues: number;
   entrega_nao_entregues: number;
+  /** Pedidos da onda com erro de integração no ERP (documento_saida.integracao_estado = 'erro'). */
+  integracao_docs_erro: number;
 }
 
 export interface FiltrosListaOndas {
@@ -145,6 +147,7 @@ export function normalizarLinhaLista(r: Record<string, unknown>): OndaListaRow {
     entrega_total: num((r as { entrega_total?: unknown }).entrega_total),
     entrega_entregues: num((r as { entrega_entregues?: unknown }).entrega_entregues),
     entrega_nao_entregues: num((r as { entrega_nao_entregues?: unknown }).entrega_nao_entregues),
+    integracao_docs_erro: num((r as { integracao_docs_erro?: unknown }).integracao_docs_erro),
   };
 }
 
