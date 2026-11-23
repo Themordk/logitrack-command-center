@@ -1073,22 +1073,21 @@ export function MovimentoSaidaPage() {
               <p className="text-sm">Selecione uma onda para ver os detalhes</p>
             </div>
           ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
-              <div className="mx-3 mt-3 shrink-0 flex items-center gap-2">
-                <TabsList>
-                  <TabsTrigger value="itens">Itens</TabsTrigger>
-                  <TabsTrigger value="separacao">
-                    Separação{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.separacao})</span> : null}
-                  </TabsTrigger>
-                  <TabsTrigger value="conferencia">
-                    Conferência{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.conferencia})</span> : null}
-                  </TabsTrigger>
-                  <TabsTrigger value="info">Informações</TabsTrigger>
-                </TabsList>
-                <span className="w-5 flex items-center justify-center" title={abaAtualizando ? "Atualizando com os dados mais recentes…" : undefined}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Mesmo padrão visual das abas de Movimentos de Entrada */}
+              <TabsList className="w-full shrink-0 border-b border-border rounded-none bg-transparent px-3 pt-2">
+                <TabsTrigger value="itens" className="flex-1">Itens</TabsTrigger>
+                <TabsTrigger value="separacao" className="flex-1">
+                  Separação{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.separacao})</span> : null}
+                </TabsTrigger>
+                <TabsTrigger value="conferencia" className="flex-1">
+                  Conferência{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.conferencia})</span> : null}
+                </TabsTrigger>
+                <TabsTrigger value="info" className="flex-1">Informações</TabsTrigger>
+                <span className="w-5 shrink-0 flex items-center justify-center" title={abaAtualizando ? "Atualizando com os dados mais recentes…" : undefined}>
                   {abaAtualizando && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
                 </span>
-              </div>
+              </TabsList>
 
               <TabsContent value="itens" className="flex-1 overflow-auto m-0 px-1">
                 {itensQuery.isLoading ? (
