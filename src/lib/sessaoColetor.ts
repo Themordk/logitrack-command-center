@@ -6,7 +6,9 @@
  *  - heartbeat de sessão já encerrada abre outra e devolve o novo id;
  *  - sem sessão guardada neste navegador (outro endereço, dados limpos) ou com uma
  *    sessão que não existe mais no servidor, manterSessaoColetor abre uma nova
- *    (Fase 10.25: sem isso o tempo no coletor ficava sem sessão e a utilização em 100%).
+ *    (Fase 10.25: sem isso o tempo no coletor ficava sem sessão e a utilização em 100%);
+ *  - sessão guardada de outro operador (troca de login no aparelho: o servidor recusa
+ *    com 42501) também abre uma nova, senão o heartbeat falharia até o próximo login.
  */
 import { supabase } from "@/integrations/supabase/client";
 
@@ -57,7 +59,8 @@ export async function manterSessaoColetor(
   if (!sessaoId) return abrirSessaoColetor(tenantId, usuarioId);
   try {
     const { data, error } = await supabase.rpc("rpc_sessao_heartbeat" as any, { p_sessao_id: sessaoId } as any);
-    if (error) return sessaoId;
+    // 42501: a sessão guardada é de outro operador (troca de login no mesmo aparelho); abre a deste
+    if (error) return (error as { code?: string }).code === "42501" ? abrirSessaoColetor(tenantId, usuarioId) : sessaoId;
     const r = data as RetornoSessao | null;
     if (r?.codigo === "SESSAO_INEXISTENTE") return abrirSessaoColetor(tenantId, usuarioId);
     const novo = r?.dados?.sessao_id;
