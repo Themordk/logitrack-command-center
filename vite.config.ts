@@ -69,22 +69,13 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         globIgnores: ["developers/**"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // API do Supabase fica fora do service worker (ver public/sw-supabase-bypass.js):
+        // sem rota aqui e, nos navegadores com Static Routing (Chrome/Edge 123+), a
+        // requisição nem acorda o SW. Antes havia NetworkFirst para /rest/v1, que gravava
+        // dados de negócio no Cache Storage por 1 h e somava o tempo de subida do SW a cada
+        // clique. O offline do coletor usa IndexedDB (OfflineStore / useOfflineCache).
+        importScripts: ["sw-supabase-bypass.js"],
         runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/dcpmykhxysvxnpgmlyli\.supabase\.co\/rest\/v1\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-api",
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60, // 1 hour
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",

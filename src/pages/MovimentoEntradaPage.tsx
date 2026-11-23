@@ -29,6 +29,19 @@ import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 import { DescricaoCell } from "@/components/DescricaoCell";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortableTh } from "@/components/tabela/SortableTh";
+import {
+  DETALHE_ABAS_STALE_MS,
+  DETALHE_ITENS_STALE_MS,
+  detalheEntradaKeys,
+  fetchArmazenagemDetalheEntrada,
+  fetchConferenciaDetalheEntrada,
+  fetchInformacoesDetalheEntrada,
+  fetchItensDetalheEntrada,
+  invalidarDetalheEntrada,
+  invalidarTodosDetalhesEntrada,
+  prefetchItensDetalheEntrada,
+  revalidarSeAntigo,
+} from "@/lib/movimentoEntradaDetalheService";
 
 interface MovimentoEntradaListItem {
   id: string;
@@ -43,18 +56,6 @@ interface MovimentoEntradaListItem {
   total_conferido: number;
   total_armazenado: number;
   total_registros: number;
-}
-
-interface MovimentoEntradaItem {
-  id: string;
-  movimento_item_id: string;
-  sku: string;
-  descricao: string;
-  qtd_esperada: number;
-  qtd_conferida: number;
-  qtd_armazenada: number;
-  qtd_ocorrencia: number;
-  status_item_movimento: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
@@ -105,9 +106,9 @@ interface ResumoItem {
   qtd_conferida: number;
   qtd_armazenada: number;
   status_item_movimento: string;
-  // Alert flags (populated client-side)
-  sem_picking?: boolean;
-  sem_ean?: boolean;
+  // Alertas decididos no banco (rpc_movimento_entrada_detalhe, seção itens)
+  sem_picking: boolean;
+  sem_ean: boolean;
 }
 
 interface ConferenciaItem {
@@ -175,19 +176,12 @@ export function MovimentoEntradaPage() {
   const [selectedMovStatus, setSelectedMovStatus] = useState<string | null>(null);
   const [itemTab, setItemTab] = useState("itens");
 
-  // View data
-  const [resumoItems, setResumoItems] = useState<ResumoItem[]>([]);
-  const [conferenciaItems, setConferenciaItems] = useState<ConferenciaItem[]>([]);
-  const [armazenagemItems, setArmazenagemItems] = useState<ArmazenagemItem[]>([]);
-  const [movimentoInfo, setMovimentoInfo] = useState<MovimentoInfo | null>(null);
   // Fase 5.1: responsáveis do movimento (conferência e armazenagem)
   const [responsaveisMov, setResponsaveisMov] = useState<{ id: string; numero: number | null } | null>(null);
-  const [docsVinculados, setDocsVinculados] = useState<DocVinculado[]>([]);
   const { can } = usePermissions();
   const queryClient = useQueryClient();
   const podeRemoverDoc = can("web.atividades.movimentos.remover-documento", "EXECUTE");
   const [remocaoDoc, setRemocaoDoc] = useState<DocVinculado | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
 
   // Liberar erro transporte modal
   const [showErroModal, setShowErroModal] = useState(false);
@@ -226,6 +220,138 @@ export function MovimentoEntradaPage() {
   const debouncedSku = useDebounce(filterSku, 400);
   const skuFiltro = debouncedSku.trim().toLowerCase();
   const isSkuHit = (sku: string | null | undefined) => !!skuFiltro && (sku || "").trim().toLowerCase() === skuFiltro;
+  // Detalhe do movimento: uma chamada por aba (rpc_movimento_entrada_detalhe).
+  // Itens carrega ao selecionar (traz status e contagens das outras abas);
+  // as demais só quando abertas. O cache por movimento deixa voltar a um
+  // movimento/aba já vistos sem nova chamada por 30 s.
+  const detalheHabilitado = !!tenantId && !!selectedMov;
+  const itensQuery = useQuery({
+    queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "itens"),
+    queryFn: () => fetchItensDetalheEntrada(selectedMov!),
+    enabled: detalheHabilitado,
+    staleTime: DETALHE_ITENS_STALE_MS,
+  });
+  const conferenciaQuery = useQuery({
+    queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "conferencia"),
+    queryFn: () => fetchConferenciaDetalheEntrada(selectedMov!),
+    enabled: detalheHabilitado && itemTab === "conferencia",
+    staleTime: DETALHE_ABAS_STALE_MS,
+  });
+  const armazenagemQuery = useQuery({
+    queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "armazenagem"),
+    queryFn: () => fetchArmazenagemDetalheEntrada(selectedMov!),
+    enabled: detalheHabilitado && itemTab === "armazenagem",
+    staleTime: DETALHE_ABAS_STALE_MS,
+  });
+  const informacoesQuery = useQuery({
+    queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "informacoes"),
+    queryFn: () => fetchInformacoesDetalheEntrada(selectedMov!),
+    enabled: detalheHabilitado && itemTab === "informacoes",
+    staleTime: DETALHE_ABAS_STALE_MS,
+  });
+
+  const resumoItems: ResumoItem[] = useMemo(
+    () => (itensQuery.data?.itens ?? []).map((it) => ({
+      movimento_id: selectedMov!,
+      movimento_item_id: it.movimento_item_id,
+      sku: it.sku,
+      descricao: it.descricao,
+      qtd_esperada: it.qtd_esperada,
+      qtd_conferida: it.qtd_conferida,
+      qtd_armazenada: it.qtd_armazenada,
+      status_item_movimento: it.status_item_movimento,
+      sem_picking: it.sem_picking,
+      sem_ean: it.sem_ean,
+    })),
+    [itensQuery.data, selectedMov],
+  );
+  const conferenciaItems: ConferenciaItem[] = useMemo(
+    () => (conferenciaQuery.data ?? []).map((c) => ({
+      movimento_id: selectedMov!,
+      sku: c.sku,
+      descricao: c.descricao,
+      operador: c.operador ?? "",
+      codigo_hu: c.codigo_hu ?? "",
+      validade: c.validade,
+      fabricacao: c.fabricacao,
+      serie: c.serie,
+      quantidade_executada: c.quantidade_executada,
+      iniciado_em: c.iniciado_em,
+      concluido_em: c.concluido_em,
+      status: c.status,
+      lote: c.lote,
+    })),
+    [conferenciaQuery.data, selectedMov],
+  );
+  const armazenagemItems: ArmazenagemItem[] = useMemo(
+    () => (armazenagemQuery.data ?? []).map((a) => ({
+      movimento_entrada_id: selectedMov!,
+      sku: a.sku ?? "",
+      descricao_sku: a.descricao_sku ?? "",
+      login: a.login ?? "",
+      codigo_hu: a.codigo_hu ?? "",
+      endereco: a.endereco ?? "",
+      quantidade_executada: a.quantidade_executada,
+      lote: a.lote,
+      fabricacao: a.fabricacao,
+      validade: a.validade,
+      iniciado_em: a.iniciado_em,
+      concluido_em: a.concluido_em,
+    })),
+    [armazenagemQuery.data, selectedMov],
+  );
+  const movimentoInfo: MovimentoInfo | null = useMemo(() => {
+    const i = informacoesQuery.data?.informacoes;
+    if (!i) return null;
+    return {
+      numero_movimento: i.numero_movimento,
+      status: i.status,
+      created_at: i.created_at,
+      // A view antiga não tinha updated_at (sempre nulo); mantido nulo para não mudar a tela.
+      updated_at: null,
+      tipo_entrada_descricao: i.tipo_entrada_descricao,
+      confirma_volume: i.confirma_volume,
+      total_volume: i.total_volume,
+      total_volume_conferido: i.total_volume_conferido,
+      armazem_descricao: i.armazem_descricao || "—",
+      box_descricao: i.box_descricao || "—",
+      placa_veiculo: i.placa_veiculo,
+      valor_descarga: i.valor_descarga,
+      crossdocking: i.crossdocking,
+      observacao: i.observacao,
+    };
+  }, [informacoesQuery.data]);
+  const docsVinculados: DocVinculado[] = useMemo(
+    () => (informacoesQuery.data?.documentos ?? []).map((d) => ({
+      numero_nota: d.numero_nota,
+      razaosocial: d.razaosocial || "—",
+      total_skus: d.total_skus,
+      valor_total_nota: d.valor_total_nota,
+      qtd_volume: d.qtd_volume,
+      documento_entrada_id: d.documento_entrada_id ?? null,
+    })),
+    [informacoesQuery.data],
+  );
+  const contagensAbas = itensQuery.data?.contagens ?? null;
+  /** Status lido agora do banco (seção itens); a lista pode estar até 30 s atrás. */
+  const statusAoVivo = itensQuery.data?.cabecalho.status ?? null;
+  const queryDaAba =
+    itemTab === "conferencia" ? conferenciaQuery
+      : itemTab === "armazenagem" ? armazenagemQuery
+        : itemTab === "informacoes" ? informacoesQuery
+          : itensQuery;
+  const abaCarregando = !!selectedMov && queryDaAba.isLoading;
+  /** Buscando de novo com dados já na tela (mostra o indicador "atualizando"). */
+  const abaAtualizando = !!selectedMov && queryDaAba.isFetching && !queryDaAba.isLoading;
+
+  // Ao trocar de aba (ou de movimento), a aba que aparece revalida se os dados dela
+  // tiverem mais de 5 s: conferência/armazenagem mudam pelo coletor o tempo todo.
+  useEffect(() => {
+    if (!selectedMov) return;
+    revalidarSeAntigo(queryDaAba);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemTab, selectedMov]);
+
   const sortItens = useTableSort(resumoItems, "sku", {
     status_item_movimento: (r: ResumoItem) => STATUS_ITEM_MAP[r.status_item_movimento]?.label ?? r.status_item_movimento,
   }, selectedMov);
@@ -346,13 +472,14 @@ export function MovimentoEntradaPage() {
     }));
   }, [listRows, opsQuery.data, integracaoQuery.data]);
 
-  // Mantém o status do movimento selecionado em sincronia com a lista recarregada
-  // (controla as ações disponíveis; antes ficava com o valor fixo passado após cada ação).
+  // Mantém o status do movimento selecionado em sincronia (controla as ações disponíveis):
+  // o status lido agora pela seção itens vence o da lista, que pode estar até 30 s atrás.
   useEffect(() => {
     if (!selectedMov) return;
+    if (statusAoVivo) { setSelectedMovStatus(statusAoVivo); return; }
     const atual = movements.find((m) => m.id === selectedMov);
     if (atual) setSelectedMovStatus(atual.status);
-  }, [movements, selectedMov]);
+  }, [movements, selectedMov, statusAoVivo]);
 
   const hasErp = useTenantHasErp(tenantId);
   const resumoSelecionado = movements.find((m) => m.id === selectedMov)?.integracao_resumo ?? null;
@@ -367,125 +494,38 @@ export function MovimentoEntradaPage() {
     opsQuery.refetch();
   }, [listQuery, opsQuery]);
 
-  // Items tab data via RPC (lazy, enabled by selectedMov + tab)
-  const itemsQuery = useQuery({
-    queryKey: ["movimento-entrada-itens-rpc", tenantId, selectedMov],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("buscar_itens_movimento_entrada", {
-        p_tenant_id: tenantId,
-        p_movimento_entrada_id: selectedMov,
-      });
-      if (error) throw error;
-      const items = (data || []) as MovimentoEntradaItem[];
-
-      // Alert enrichment (sem_picking / sem_ean) — preservar UI atual
-      const { data: meiData } = await (supabase as any)
-        .from("movimento_entrada_item")
-        .select("id, produto_id")
-        .eq("movimento_entrada_id", selectedMov);
-      const meiMap = new Map<string, string>((meiData || []).map((m: any) => [m.id, m.produto_id]));
-      const produtoIds = Array.from(new Set((meiData || []).map((m: any) => m.produto_id))).filter(Boolean);
-
-      let pickingSet = new Set<string>();
-      let eanSet = new Set<string>();
-      if (produtoIds.length > 0) {
-        const [pickRes, eanRes] = await Promise.all([
-          (supabase as any).from("picking_produto").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
-          (supabase as any).from("produto_embalagem").select("produto_id").in("produto_id", produtoIds).eq("ativo", true),
-        ]);
-        pickingSet = new Set((pickRes.data || []).map((p: any) => p.produto_id));
-        eanSet = new Set((eanRes.data || []).map((p: any) => p.produto_id));
-      }
-
-      return items.map((it) => {
-        const prodId = meiMap.get(it.movimento_item_id);
-        return {
-          movimento_id: selectedMov!,
-          movimento_item_id: it.movimento_item_id,
-          sku: it.sku,
-          descricao: it.descricao,
-          qtd_esperada: Number(it.qtd_esperada) || 0,
-          qtd_conferida: Number(it.qtd_conferida) || 0,
-          qtd_armazenada: Number(it.qtd_armazenada) || 0,
-          status_item_movimento: it.status_item_movimento,
-          sem_picking: prodId ? !pickingSet.has(prodId) : false,
-          sem_ean: prodId ? !eanSet.has(prodId) : false,
-        } as ResumoItem;
-      });
-    },
-    enabled: !!tenantId && !!selectedMov && itemTab === "itens",
-    staleTime: 30_000,
-  });
-
-  // Sync items query result into the existing state slot used by the table
-  useEffect(() => {
-    if (itemsQuery.data) setResumoItems(itemsQuery.data);
-  }, [itemsQuery.data]);
-
-  const loadDetails = async (movId: string, movStatus: string) => {
+  const selecionarMovimento = (movId: string, movStatus: string) => {
+    if (movId === selectedMov) {
+      // Clicar de novo no movimento aberto = "quero ver o atual": busca a aba visível agora.
+      void queryDaAba.refetch();
+      return;
+    }
     setSelectedMov(movId);
     setSelectedMovStatus(movStatus);
     setItemTab("itens");
-    setDetailLoading(true);
-    // O grid "Itens" vem de cache do React Query (staleTime 30s): invalida junto com as
-    // demais abas para refletir na hora o resultado de liberações, conferência e armazenagem.
-    void queryClient.invalidateQueries({ queryKey: ["movimento-entrada-itens-rpc"] });
-    try {
-      const [r2, r3] = await Promise.all([
-        (supabase as any).from("vw_movimento_entrada_conferencia_detalhe").select("*").eq("movimento_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
-        (supabase as any).from("vw_movimento_entrada_armazenagem_detalhe").select("*").eq("movimento_entrada_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
-      ]);
-
-      setConferenciaItems(r2.data || []);
-      setArmazenagemItems(r3.data || []);
-
-
-      // Load info tab data using consolidated view
-      const { data: infoData } = await (supabase as any)
-        .from("vw_movimento_entrada_info")
-        .select("*")
-        .eq("movimento_id", movId)
-        .single();
-
-      if (infoData) {
-        setMovimentoInfo({
-          numero_movimento: infoData.numero_movimento ?? null,
-          status: infoData.status ?? null,
-          created_at: infoData.created_at ?? null,
-          updated_at: infoData.updated_at ?? null,
-          tipo_entrada_descricao: infoData.tipo_entrada_descricao ?? null,
-          confirma_volume: infoData.confirma_volume,
-          total_volume: infoData.total_volume,
-          total_volume_conferido: infoData.total_volume_conferido,
-          armazem_descricao: infoData.armazem_descricao || "—",
-          box_descricao: infoData.box_descricao || "—",
-          placa_veiculo: infoData.placa_veiculo,
-          valor_descarga: infoData.valor_descarga,
-          crossdocking: infoData.crossdocking,
-          observacao: infoData.observacao,
-        });
-      }
-
-      // Load linked documents using consolidated view
-      const { data: docsData } = await (supabase as any)
-        .from("vw_movimento_entrada_docs_vinculados")
-        .select("*")
-        .eq("movimento_entrada_id", movId);
-
-      setDocsVinculados((docsData || []).map((d: any) => ({
-        numero_nota: d.numero_nota,
-        razaosocial: d.razaosocial || "—",
-        total_skus: Number(d.total_skus) || 0,
-        valor_total_nota: d.valor_total_nota,
-        qtd_volume: d.qtd_volume,
-        documento_entrada_id: d.documento_entrada_id ?? null,
-      })));
-    } catch (err: any) {
-      toast.error(parseError(err, "movimento-entrada-page").title);
-    } finally {
-      setDetailLoading(false);
-    }
   };
+
+  /**
+   * Depois de uma ação no movimento: invalida o detalhe DELE (todas as abas), esteja ou
+   * não selecionado — a aba aberta busca na hora e as outras ao serem abertas.
+   */
+  const recarregarDetalhe = (movId: string, novoStatus?: string | null) => {
+    if (novoStatus && selectedMov === movId) setSelectedMovStatus(novoStatus);
+    void invalidarDetalheEntrada(queryClient, tenantId, movId);
+  };
+
+  // Pré-carrega a aba Itens ao parar o mouse (ou o foco) sobre o card: o clique
+  // costuma chegar 150–400 ms depois e o grid já abre preenchido.
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agendarPrefetch = (movId: string) => {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = setTimeout(() => prefetchItensDetalheEntrada(queryClient, tenantId, movId), 120);
+  };
+  const cancelarPrefetch = () => {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = null;
+  };
+  useEffect(() => cancelarPrefetch, []);
 
   const handleLiberarConferencia = async (movId: string, status: string) => {
     if (status !== "GERADO") {
@@ -509,7 +549,7 @@ export function MovimentoEntradaPage() {
 
       toast.success(rpcData.mensagem || "Movimento liberado para conferência.");
       fetchMovements();
-      if (selectedMov === movId) loadDetails(movId, "LIBERADO");
+      recarregarDetalhe(movId, "LIBERADO");
     } catch (err: any) {
       toast.error(parseError(err, "gerar-tarefas-conferencia-entrada").title);
     }
@@ -528,7 +568,7 @@ export function MovimentoEntradaPage() {
       if (error) throw error;
       toast.success("Movimento retirado da conferência com sucesso.");
       fetchMovements();
-      if (selectedMov === movId) loadDetails(movId, "GERADO");
+      recarregarDetalhe(movId, "GERADO");
     } catch (err: any) {
       toast.error(parseError(err, "movimento-entrada-page").title);
     }
@@ -617,6 +657,7 @@ export function MovimentoEntradaPage() {
           setSelectedMov(null);
           setSelectedMovStatus(null);
         }
+        recarregarDetalhe(cancelMovId);
         fetchMovements();
       }
     } catch (err: any) {
@@ -655,13 +696,14 @@ export function MovimentoEntradaPage() {
     const mov = movements.find((m) => m.id === pendingMovId);
     if (!mov) return;
     setPendingMovId(null);
-    Promise.resolve(loadDetails(mov.id, mov.status)).then(() => setItemTab("informacoes"));
+    selecionarMovimento(mov.id, mov.status);
+    setItemTab("informacoes");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingMovId, movements]);
 
   // Rolar até a primeira linha com o SKU filtrado (uma vez por movimento/SKU/aba)
   useEffect(() => {
-    if (!skuFiltro || !selectedMov || detailLoading) return;
+    if (!skuFiltro || !selectedMov || abaCarregando) return;
     const chave = `${selectedMov}|${skuFiltro}|${itemTab}`;
     if (skuScrollRef.current === chave) return;
     const t = setTimeout(() => {
@@ -672,11 +714,13 @@ export function MovimentoEntradaPage() {
       }
     }, 50);
     return () => clearTimeout(t);
-  }, [skuFiltro, selectedMov, itemTab, detailLoading, resumoItems, conferenciaItems, armazenagemItems]);
+  }, [skuFiltro, selectedMov, itemTab, abaCarregando, resumoItems, conferenciaItems, armazenagemItems]);
 
+  /** Filtrar = atualizar: lista de novo e nenhum detalhe em cache continua valendo. */
   const handleSearch = () => {
     setPage(1);
     fetchMovements();
+    void invalidarTodosDetalhesEntrada(queryClient, tenantId);
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -777,10 +821,18 @@ export function MovimentoEntradaPage() {
               <p className="text-xs text-muted-foreground text-center py-8 px-3">{debouncedSku.trim() ? `Nenhum movimento com o SKU ${debouncedSku.trim()} no período selecionado. Ajuste as datas para ampliar a busca.` : "Nenhum movimento encontrado."}</p>
             ) : (
               filteredMovements.map((mov) => {
-                const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
+                // No movimento aberto, o status lido agora pelo detalhe vence o da lista (até 30 s atrás).
+                const statusMov = mov.id === selectedMov && statusAoVivo ? statusAoVivo : mov.status;
+                const info = STATUS_MAP[statusMov] || { label: statusMov, class: "" };
                 return (
                   <div key={mov.id} className={cn("w-full text-left px-3 py-3 border-b border-border/50 hover:bg-secondary/50 transition-colors flex items-start gap-2", selectedMov === mov.id && "bg-secondary/70")}>
-                    <button onClick={() => loadDetails(mov.id, mov.status)} className="flex-1 text-left">
+                    <button
+                      onClick={() => { cancelarPrefetch(); selecionarMovimento(mov.id, statusMov); }}
+                      onMouseEnter={() => agendarPrefetch(mov.id)}
+                      onMouseLeave={cancelarPrefetch}
+                      onFocus={() => agendarPrefetch(mov.id)}
+                      className="flex-1 text-left"
+                    >
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-xs font-mono font-bold text-foreground">
                           MOV-{mov.numero_movimento ?? "—"}
@@ -804,26 +856,26 @@ export function MovimentoEntradaPage() {
                         <button className="p-1 rounded hover:bg-secondary text-muted-foreground mt-0.5"><MoreVertical size={14} /></button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id, mov.status)}>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_conferencia", mov.id, statusMov)}>
                           <Unlock size={14} className="mr-2" /> Liberar para conferência
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, mov.status)}>
+                        <DropdownMenuItem onClick={() => handleMenuAction("retirar_conferencia", mov.id, statusMov)}>
                           <Lock size={14} className="mr-2" /> Retirar de conferência
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, mov.status)}>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_armazenagem", mov.id, statusMov)}>
                           <Package size={14} className="mr-2" /> Liberar armazenagem
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, mov.status)}>
+                        <DropdownMenuItem onClick={() => handleMenuAction("liberar_erro_transporte", mov.id, statusMov)}>
                           <Truck size={14} className="mr-2" /> Liberar recebimento com erro no transporte
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setResponsaveisMov({ id: mov.id, numero: mov.numero_movimento ?? null })}>
                           <UserCog size={14} className="mr-2" /> Responsáveis
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, mov.status)}>
+                        <DropdownMenuItem onClick={() => handleMenuAction("atualizar_erp", mov.id, statusMov)}>
                           <RefreshCw size={14} className="mr-2" /> Atualizar ERP
                         </DropdownMenuItem>
                         
-                        <DropdownMenuItem onClick={() => handleMenuAction("cancelar_movimento", mov.id, mov.status)} className="text-destructive focus:text-destructive">
+                        <DropdownMenuItem onClick={() => handleMenuAction("cancelar_movimento", mov.id, statusMov)} className="text-destructive focus:text-destructive">
                           <Ban size={14} className="mr-2" /> Cancelar movimento
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -853,15 +905,24 @@ export function MovimentoEntradaPage() {
             <Tabs value={itemTab} onValueChange={setItemTab} className="flex flex-col flex-1 min-h-0 overflow-hidden">
               <TabsList className="w-full shrink-0 border-b border-border rounded-none bg-transparent px-3 pt-2">
                 <TabsTrigger value="itens" className="flex-1">Itens</TabsTrigger>
-                <TabsTrigger value="conferencia" className="flex-1">Conferência</TabsTrigger>
-                <TabsTrigger value="armazenagem" className="flex-1">Armazenagem</TabsTrigger>
+                <TabsTrigger value="conferencia" className="flex-1">
+                  Conferência{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.conferencias})</span> : null}
+                </TabsTrigger>
+                <TabsTrigger value="armazenagem" className="flex-1">
+                  Armazenagem{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.armazenagens})</span> : null}
+                </TabsTrigger>
                 <TabsTrigger value="informacoes" className="flex-1">Informações</TabsTrigger>
+                <span className="w-5 shrink-0 flex items-center justify-center" title={abaAtualizando ? "Atualizando com os dados mais recentes…" : undefined}>
+                  {abaAtualizando && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+                </span>
               </TabsList>
 
               {/* Aba Itens */}
               <TabsContent value="itens" className="flex-1 overflow-auto m-0">
-                {detailLoading ? (
+                {itensQuery.isLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : itensQuery.isError ? (
+                  <ErroAbaDetalhe erro={itensQuery.error} onTentar={() => itensQuery.refetch()} />
                 ) : (
                   <TooltipProvider>
                   <table className="w-full text-sm">
@@ -921,8 +982,10 @@ export function MovimentoEntradaPage() {
 
               {/* Aba Conferência */}
               <TabsContent value="conferencia" className="flex-1 overflow-auto m-0">
-                {detailLoading ? (
+                {conferenciaQuery.isLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : conferenciaQuery.isError ? (
+                  <ErroAbaDetalhe erro={conferenciaQuery.error} onTentar={() => conferenciaQuery.refetch()} />
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
@@ -970,8 +1033,10 @@ export function MovimentoEntradaPage() {
 
               {/* Aba Armazenagem */}
               <TabsContent value="armazenagem" className="flex-1 overflow-auto m-0">
-                {detailLoading ? (
+                {armazenagemQuery.isLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : armazenagemQuery.isError ? (
+                  <ErroAbaDetalhe erro={armazenagemQuery.error} onTentar={() => armazenagemQuery.refetch()} />
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
@@ -1007,8 +1072,10 @@ export function MovimentoEntradaPage() {
 
               {/* Aba Informações */}
               <TabsContent value="informacoes" className="flex-1 overflow-auto m-0 p-4 min-h-0">
-                {detailLoading ? (
+                {informacoesQuery.isLoading ? (
                   <div className="flex-1 flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : informacoesQuery.isError ? (
+                  <ErroAbaDetalhe erro={informacoesQuery.error} onTentar={() => informacoesQuery.refetch()} />
                 ) : movimentoInfo ? (
                   <div className="space-y-6">
                     {/* Identificação */}
@@ -1193,8 +1260,8 @@ export function MovimentoEntradaPage() {
           empresaId={empresaId ?? ""}
           documento={{ id: remocaoDoc.documento_entrada_id, numero: remocaoDoc.numero_nota, parceiro: remocaoDoc.razaosocial }}
           onSuccess={(res) => {
-            loadDetails(selectedMov, res?.status_atual ?? selectedMovStatus ?? "");
-            ["movimentos-entrada-rpc", "movimento-entrada-itens-rpc", "movimentos-entrada-ops", "entradas-lista", "movimento-documento-remocao"].forEach((k) =>
+            recarregarDetalhe(selectedMov, res?.status_atual ?? null);
+            ["movimentos-entrada-rpc", "movimentos-entrada-ops", "entradas-lista", "movimento-documento-remocao"].forEach((k) =>
               queryClient.invalidateQueries({ queryKey: [k] }));
           }}
         />
@@ -1208,7 +1275,7 @@ export function MovimentoEntradaPage() {
           movimentoEntradaId={erroMovId}
           onSuccess={() => {
             fetchMovements();
-            if (selectedMov === erroMovId) loadDetails(erroMovId, "LIBERADO");
+            recarregarDetalhe(erroMovId, "LIBERADO");
           }}
         />
       )}
@@ -1222,7 +1289,7 @@ export function MovimentoEntradaPage() {
           statusMovimento={liberarMovStatus}
           onSuccess={() => {
             fetchMovements();
-            if (selectedMov === liberarMovId) loadDetails(liberarMovId, "LIB_ARMAZENAGEM");
+            recarregarDetalhe(liberarMovId, "LIB_ARMAZENAGEM");
           }}
         />
       )}
@@ -1277,8 +1344,23 @@ export function MovimentoEntradaPage() {
         movimentoSaidaId={responsaveisMov?.id || null}
         numeroOnda={responsaveisMov?.numero ?? null}
         onClose={() => setResponsaveisMov(null)}
-        onSuccess={() => { listQuery.refetch(); opsQuery.refetch(); }}
+        onSuccess={() => { listQuery.refetch(); opsQuery.refetch(); if (responsaveisMov) recarregarDetalhe(responsaveisMov.id); }}
       />
+    </div>
+  );
+}
+
+/** Erro ao carregar uma aba do detalhe: mensagem amigável + tentar de novo (antes a falha virava lista vazia). */
+function ErroAbaDetalhe({ erro, onTentar }: { erro: unknown; onTentar: () => void }) {
+  const parsed = parseError(erro, "movimento-entrada-detalhe");
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center">
+      <AlertTriangle size={20} className="text-orange-400" />
+      <p className="text-sm text-foreground">{parsed.title}</p>
+      {parsed.instruction && <p className="text-xs text-muted-foreground">{parsed.instruction}</p>}
+      <Button variant="outline" size="sm" onClick={onTentar} className="mt-1 h-7 text-xs">
+        <RefreshCw size={12} className="mr-1" /> Tentar novamente
+      </Button>
     </div>
   );
 }

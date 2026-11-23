@@ -17,42 +17,34 @@ import { getRouteParam, clearRouteParam } from "@/lib/deepLinkParam";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { fetchOperadoresAtribuidos } from "@/lib/operadoresAtribuidos";
 import { OperadoresAtribuidos } from "@/components/movimentos/OperadoresAtribuidos";
 import { ResponsaveisOndaModal } from "@/components/movimentos/ResponsaveisOndaModal";
 import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { parseError, parseRpcResult } from "@/lib/errorMapper";
 import { ErpStatusBadge, erpBadgeApplies, atendeFiltroErp, OPCOES_FILTRO_ERP, type FiltroErp } from "@/components/movimentos/ErpStatusBadge";
-import { useIntegracaoResumo } from "@/hooks/useIntegracaoResumo";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 import { ChipPendenciaPicking } from "@/components/movimentos/ChipPendenciaPicking";
-import { listarPendenciasPicking, quantidadeAbastecimento } from "@/lib/pendenciasPickingService";
-import type { AvisoLiberacao } from "@/lib/pendenciasPicking.types";
+import { quantidadeAbastecimento } from "@/lib/pendenciasPickingService";
+import {
+  DETALHE_ONDA_ABAS_STALE_MS,
+  DETALHE_ONDA_ITENS_STALE_MS,
+  LISTA_ONDAS_STALE_MS,
+  fetchConferenciaDetalheOnda,
+  fetchDocumentosDetalheOnda,
+  fetchItensDetalheOnda,
+  fetchListaOndas,
+  fetchSeparacaoDetalheOnda,
+  invalidarOnda,
+  invalidarTodasOndas,
+  ondasKeys,
+  prefetchItensDetalheOnda,
+  revalidarSeAntigo,
+  type FiltrosListaOndas,
+} from "@/lib/ondaCarregamentoService";import type { AvisoLiberacao } from "@/lib/pendenciasPicking.types";
 import { DescricaoCell } from "@/components/DescricaoCell";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortableTh } from "@/components/tabela/SortableTh";
 import { useCorteAcesso } from "@/hooks/useCorteAcesso";
-
-interface OndaCarregamentoListItem {
-  id: string;
-  numero_onda: number;
-  status: string;
-  prioridade: string;
-  data_emissao: string;
-  parceiro_nome: string | null;
-  operador_nome: string | null;
-  box_descricao: string | null;
-  rota_descricao: string | null;
-  veiculo_placa: string | null;
-  motorista: string | null;
-  total_pedidos: number | null;
-  total_itens: number;
-  total_esperado: number;
-  total_separado: number;
-  total_conferido: number;
-  total_cortado: number;
-  total_registros: number;
-}
 
 interface OndaCarregamentoItem {
   id: string;
@@ -118,6 +110,8 @@ interface MovSaida {
   total_conferido?: number;
   total_cortado?: number;
   updated_at?: string | null;
+  docs_sem_nf?: number | null;
+  qtd_sem_saldo?: number;
 }
 
 const truncate = (s: string | null | undefined, n = 35) =>
@@ -187,7 +181,7 @@ const isEnderecoBloqueado = (tipo?: string | null) => normalizeOccurrenceType(ti
 const isShelfLifeInsuficiente = (tipo?: string | null) => normalizeOccurrenceType(tipo) === "SHELF_LIFE_INSUFICIENTE";
 
 export function MovimentoSaidaPage() {
-  const { tenantId, empresaId, armazemId, usuarioId, empresaVersion } = useTenant();
+  const { tenantId, empresaId, armazemId, usuarioId } = useTenant();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedMov, setSelectedMov] = useState<MovSaida | null>(null);
   const [page, setPage] = useState(1);
@@ -220,14 +214,10 @@ export function MovimentoSaidaPage() {
   const [retirandoId, setRetirandoId] = useState<string | null>(null);
   const [retirarConfirm, setRetirarConfirm] = useState<{ id: string; numero: number } | null>(null);
 
-  const [tabSeparacao, setTabSeparacao] = useState<any[]>([]);
-  const [tabConferencia, setTabConferencia] = useState<any[]>([]);
-  const [tabDocs, setTabDocs] = useState<any[]>([]);
   const { can: canRemover } = usePermissions();
   const queryClientRemocao = useQueryClient();
   const podeRemoverDoc = canRemover("web.atividades.mov-saida.remover-documento", "EXECUTE");
   const [remocaoDoc, setRemocaoDoc] = useState<{ id: string; numero: string; parceiro?: string } | null>(null);
-  const [tabLoading, setTabLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("itens");
 
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
@@ -290,84 +280,35 @@ export function MovimentoSaidaPage() {
     staleTime: 60_000,
   });
 
-  // List via RPC (server-side pagination)
+  // Lista: uma chamada (rpc_ondas_carregamento_lista) já com tipo de saída do movimento,
+  // integração ERP, operadores, aguardando NF e "sem saldo".
+  const filtrosLista: FiltrosListaOndas = useMemo(() => ({
+    empresaId: empresaId || null,
+    status: filterStatus || null,
+    dataDe: filterDateFrom || null,
+    dataAte: filterDateTo || null,
+    numeroOnda: debouncedOnda ? Number(debouncedOnda) : null,
+    numeroDocumento: debouncedNumeroDocumento ? Number(debouncedNumeroDocumento) : null,
+    numeroNf: debouncedNumeroNf.trim() || null,
+    tipoSaidaId: filterTipoSaidaId || null,
+    parceiroCodigoErp: debouncedParceiroCodigoErp || null,
+    vendedor: debouncedVendedor || null,
+    transportador: debouncedTransportador || null,
+    sku: debouncedSku.trim() || null,
+    page,
+    pageSize,
+  }), [empresaId, filterStatus, filterDateFrom, filterDateTo, debouncedOnda, debouncedNumeroDocumento, debouncedNumeroNf, filterTipoSaidaId, debouncedParceiroCodigoErp, debouncedVendedor, debouncedTransportador, debouncedSku, page]);
+
   const listQuery = useQuery({
-    queryKey: [
-      "ondas-carregamento-rpc",
-      tenantId,
-      empresaId,
-      filterStatus,
-      filterDateFrom,
-      filterDateTo,
-      debouncedOnda,
-      debouncedNumeroDocumento,
-      debouncedNumeroNf,
-      debouncedSku,
-      filterTipoSaidaId,
-      debouncedParceiroCodigoErp,
-      debouncedVendedor,
-      debouncedTransportador,
-      page,
-    ],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("listar_ondas_carregamento", {
-        p_tenant_id: tenantId,
-        p_empresa_id: empresaId || null,
-        p_status: filterStatus || null,
-        p_data_de: filterDateFrom || null,
-        p_data_ate: filterDateTo || null,
-        p_numero_onda: debouncedOnda ? Number(debouncedOnda) : null,
-        p_numero_documento: debouncedNumeroDocumento ? Number(debouncedNumeroDocumento) : null,
-        p_numero_nf: debouncedNumeroNf.trim() || null,
-        p_tipo_saida_id: filterTipoSaidaId || null,
-        p_parceiro_codigo_erp: debouncedParceiroCodigoErp || null,
-        p_vendedor: debouncedVendedor || null,
-        p_transportador: debouncedTransportador || null,
-        p_sku: debouncedSku.trim() || null,
-        p_page: page,
-        p_page_size: pageSize,
-      });
-      if (error) throw error;
-      return (data || []) as OndaCarregamentoListItem[];
-    },
+    queryKey: ondasKeys.lista(tenantId, filtrosLista),
+    queryFn: () => fetchListaOndas(filtrosLista),
     enabled: !!tenantId && !!empresaId,
-    staleTime: 30_000,
+    staleTime: LISTA_ONDAS_STALE_MS,
   });
 
-  const listRows = listQuery.data ?? [];
+  const listRows = useMemo(() => listQuery.data ?? [], [listQuery.data]);
   const total = listRows[0]?.total_registros ?? 0;
   const loading = listQuery.isLoading;
-  const movIdsKey = useMemo(() => listRows.map((r) => r.id).join(","), [listRows]);
-  const ondasPendentesIds = useMemo(() => [...new Set([
-    ...listRows.filter(r => ["LIBERADO", "EM_PICKING"].includes(r.status)).map(r => r.id),
-    ...(selectedMov && ["LIBERADO", "EM_PICKING"].includes(selectedMov.status) ? [selectedMov.id] : []),
-  ])].sort(), [listRows, selectedMov]);
-  const pendenciasQuery = useQuery({
-    queryKey: ["onda-pendencias-picking", tenantId, empresaId, empresaVersion, ondasPendentesIds],
-    queryFn: () => tenantId ? listarPendenciasPicking(tenantId, ondasPendentesIds) : Promise.resolve([]),
-    enabled: !!tenantId && !!empresaId && ondasPendentesIds.length > 0,
-    staleTime: 30_000,
-  });
-  const pendencias = pendenciasQuery.data || [];
-  // Modo de conferência pós-faturamento: ondas separadas aguardando NF autorizada (1 chamada por página)
-  const ondasConferenciaIds = useMemo(() => [...new Set([
-    ...(listQuery.data ?? []).filter(r => ["SEPARADO", "EM_CONFERENCIA"].includes(r.status)).map(r => r.id),
-    ...(selectedMov && ["SEPARADO", "EM_CONFERENCIA"].includes(selectedMov.status) ? [selectedMov.id] : []),
-  ])].sort(), [listQuery.data, selectedMov]);
-  const aguardandoNfQuery = useQuery({
-    queryKey: ["ondas-aguardando-nf", tenantId, empresaId, ondasConferenciaIds],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("conferencia_ondas_aguardando_nf", {
-        p_tenant_id: tenantId!,
-        p_movimento_ids: ondasConferenciaIds,
-      });
-      if (error) throw error;
-      return new Map<string, number>((data ?? []).map((r) => [r.movimento_saida_id, Number(r.docs_sem_nf) || 0]));
-    },
-    enabled: !!tenantId && !!empresaId && ondasConferenciaIds.length > 0,
-    staleTime: 30_000,
-  });
-  const aguardandoNf = aguardandoNfQuery.data ?? new Map<string, number>();
   const [abastecimentosGerados, setAbastecimentosGerados] = useState<Set<string>>(new Set());
   const abrirDialogAvisos = (resultado: LiberarResult, movId: string) => {
     setLiberarResult(resultado); setLiberarMovId(movId); setLiberarDialogOpen(true);
@@ -376,76 +317,90 @@ export function MovimentoSaidaPage() {
     window.location.hash = `#/dados-mestres/produtos?produto=${encodeURIComponent(produtoId)}&aba=picking`;
   };
 
-  const opsQuery = useQuery({
-    queryKey: ["ondas-carregamento-ops", tenantId, movIdsKey],
-    queryFn: async () => {
-      const ids = movIdsKey ? movIdsKey.split(",") : [];
-      if (ids.length === 0) return new Map<string, string[]>();
-      return await fetchOperadoresAtribuidos(tenantId!, ids, "MOVIMENTO_SAIDA_ITEM");
-    },
-    enabled: !!tenantId && listRows.length > 0,
-    staleTime: 30_000,
+  // Detalhe da onda: uma chamada por aba (rpc_onda_carregamento_detalhe). Itens ao
+  // selecionar (traz status atual, pendências de saldo e contagens); as outras só quando
+  // abertas. Separação/conferência mudam pelo coletor: as abas revalidam ao abrir.
+  const detalheHabilitado = !!tenantId && !!selectedId;
+  const itensQuery = useQuery({
+    queryKey: ondasKeys.secao(tenantId, selectedId, "itens"),
+    queryFn: () => fetchItensDetalheOnda(selectedId!),
+    enabled: detalheHabilitado,
+    staleTime: DETALHE_ONDA_ITENS_STALE_MS,
   });
-
-  const tipoSaidaMapQuery = useQuery({
-    queryKey: ["ondas-tipo-saida-map", tenantId, movIdsKey],
-    queryFn: async () => {
-      const ids = movIdsKey ? movIdsKey.split(",") : [];
-      if (ids.length === 0) return new Map<string, string>();
-      const { data, error } = await (supabase as any)
-        .from("movimento_saida_documento")
-        .select("movimento_saida_id, documento_saida:documento_saida_id(tipo_saida:tipo_pedido_id(descricao))")
-        .in("movimento_saida_id", ids);
-      if (error) throw error;
-      const map = new Map<string, string>();
-      for (const row of (data || []) as any[]) {
-        const desc = row?.documento_saida?.tipo_saida?.descricao;
-        if (desc && !map.has(row.movimento_saida_id)) map.set(row.movimento_saida_id, desc);
-      }
-      return map;
-    },
-    enabled: !!tenantId && listRows.length > 0,
-    staleTime: 30_000,
+  const separacaoQuery = useQuery({
+    queryKey: ondasKeys.secao(tenantId, selectedId, "separacao"),
+    queryFn: () => fetchSeparacaoDetalheOnda(selectedId!),
+    enabled: detalheHabilitado && activeTab === "separacao",
+    staleTime: DETALHE_ONDA_ABAS_STALE_MS,
   });
+  const conferenciaQuery = useQuery({
+    queryKey: ondasKeys.secao(tenantId, selectedId, "conferencia"),
+    queryFn: () => fetchConferenciaDetalheOnda(selectedId!),
+    enabled: detalheHabilitado && activeTab === "conferencia",
+    staleTime: DETALHE_ONDA_ABAS_STALE_MS,
+  });
+  const documentosQuery = useQuery({
+    queryKey: ondasKeys.secao(tenantId, selectedId, "informacoes"),
+    queryFn: () => fetchDocumentosDetalheOnda(selectedId!),
+    enabled: detalheHabilitado && activeTab === "info",
+    staleTime: DETALHE_ONDA_ABAS_STALE_MS,
+  });
+  const queryDaAba =
+    activeTab === "separacao" ? separacaoQuery
+      : activeTab === "conferencia" ? conferenciaQuery
+        : activeTab === "info" ? documentosQuery
+          : itensQuery;
+  const abaAtualizando = !!selectedId && queryDaAba.isFetching && !queryDaAba.isLoading;
+  const cabecalhoAoVivo = itensQuery.data?.cabecalho ?? null;
+  const contagensAbas = itensQuery.data?.contagens ?? null;
+  const pendencias = itensQuery.data?.pendencias ?? [];
 
-  const integracaoQuery = useIntegracaoResumo("movimento_saida", tenantId, movIdsKey ? movIdsKey.split(",") : []);
+  // Ao trocar de aba (ou de onda), a aba visível revalida se os dados tiverem mais de 5 s.
+  useEffect(() => {
+    if (!selectedId) return;
+    revalidarSeAntigo(queryDaAba);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedId]);
 
   const movimentos: MovSaida[] = useMemo(() => {
-    const opsMap = opsQuery.data || new Map<string, string[]>();
-    const intMap = integracaoQuery.data || new Map<string, string>();
-    const tsMap = tipoSaidaMapQuery.data || new Map<string, string>();
-    return listRows.map((r) => ({
-      id: r.id,
-      numero_onda: r.numero_onda,
-      status: r.status,
-      data_emissao: r.data_emissao,
-      destino_carga: "",
-      motorista: r.motorista || "",
-      total_pedidos: r.total_pedidos,
-      peso_total: null,
-      m3: null,
-      prioridade: r.prioridade || null,
-      total_volume: 0,
-      observacao: null,
-      box_id: "",
-      rota_id: "",
-      veiculo_id: "",
-      empresa_id: empresaId || "",
-      parceiro_nome: r.parceiro_nome || "—",
-      box_nome: r.box_descricao || "—",
-      operadores_atribuidos: opsMap.get(r.id) || [],
-      tipo_saida_descricao: tsMap.get(r.id) || "",
-      rota_descricao: r.rota_descricao || null,
-      veiculo_placa: r.veiculo_placa || null,
-      operador_nome: r.operador_nome || null,
-      total_itens: Number(r.total_itens || 0),
-      total_esperado: Number(r.total_esperado || 0),
-      total_separado: Number(r.total_separado || 0),
-      total_conferido: Number(r.total_conferido || 0),
-      total_cortado: Number(r.total_cortado || 0),
-      integracao_resumo: intMap.get(r.id) ?? null,
-    }));
-  }, [listRows, opsQuery.data, tipoSaidaMapQuery.data, integracaoQuery.data, empresaId]);
+    return listRows.map((r) => {
+      // Na onda aberta, o cabeçalho lido agora pelo detalhe vence a lista (até 15 s atrás).
+      const vivo = r.id === selectedId && cabecalhoAoVivo ? cabecalhoAoVivo : null;
+      return {
+        id: r.id,
+        numero_onda: r.numero_onda,
+        status: vivo?.status ?? r.status,
+        data_emissao: r.data_emissao,
+        destino_carga: "",
+        motorista: r.motorista || "",
+        total_pedidos: r.total_pedidos,
+        peso_total: null,
+        m3: null,
+        prioridade: vivo?.prioridade ?? (r.prioridade || null),
+        total_volume: 0,
+        observacao: null,
+        box_id: "",
+        rota_id: "",
+        veiculo_id: "",
+        empresa_id: empresaId || "",
+        parceiro_nome: r.parceiro_nome || "—",
+        box_nome: r.box_descricao || "—",
+        operadores_atribuidos: r.operadores,
+        tipo_saida_descricao: vivo?.tipo_saida_descricao ?? r.tipo_saida_descricao ?? "",
+        rota_descricao: r.rota_descricao || null,
+        veiculo_placa: r.veiculo_placa || null,
+        operador_nome: r.operador_nome || null,
+        total_itens: r.total_itens,
+        total_esperado: r.total_esperado,
+        total_separado: r.total_separado,
+        total_conferido: r.total_conferido,
+        total_cortado: r.total_cortado,
+        integracao_resumo: vivo?.integracao_resumo ?? r.integracao_resumo ?? null,
+        docs_sem_nf: r.docs_sem_nf,
+        qtd_sem_saldo: r.qtd_sem_saldo,
+      };
+    });
+  }, [listRows, empresaId, selectedId, cabecalhoAoVivo]);
 
   // Mantém o cabeçalho/aba Informações da onda selecionada em sincronia com a lista
   // recarregada (status e totais mudam após limpezas, liberação, corte etc.).
@@ -462,64 +417,52 @@ export function MovimentoSaidaPage() {
     return movimentos.filter((m) => atendeFiltroErp(m.integracao_resumo, filterErp));
   }, [movimentos, filterErp]);
 
+  /**
+   * Depois de qualquer ação (e no botão Filtrar): nenhuma lista nem detalhe em cache
+   * continua valendo. O que está na tela (lista + aba aberta) busca na hora; o resto
+   * só quando for aberto. Garante que limpezas de separação/conferência, cortes,
+   * liberações etc. apareçam sem dado antigo.
+   */
   const fetchMovimentos = useCallback(() => {
-    void queryClientRemocao.invalidateQueries({ queryKey: ["onda-pendencias-picking"] });
-    listQuery.refetch();
-    opsQuery.refetch();
-    tipoSaidaMapQuery.refetch();
-  }, [listQuery, opsQuery, tipoSaidaMapQuery, queryClientRemocao]);
+    void invalidarTodasOndas(queryClientRemocao, tenantId);
+  }, [queryClientRemocao, tenantId]);
 
-  // Items tab via RPC (lazy)
-  const itemsQuery = useQuery({
-    queryKey: ["onda-itens-rpc", tenantId, selectedId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("buscar_itens_onda_carregamento", {
-        p_tenant_id: tenantId,
-        p_movimento_saida_id: selectedId,
-      });
-      if (error) throw error;
-      return (data || []) as OndaCarregamentoItem[];
-    },
-    enabled: !!tenantId && !!selectedId && activeTab === "itens",
-    staleTime: 30_000,
-  });
-
-  const tabItens = itemsQuery.data ?? [];
+  const tabItens = itensQuery.data?.itens ?? [];
+  const tabSeparacao = separacaoQuery.data ?? [];
+  const tabConferencia = conferenciaQuery.data ?? [];
+  const tabDocs = useMemo(() => (documentosQuery.data ?? []).map((d) => ({ ...d, parceiro: d.parceiro || "—" })), [documentosQuery.data]);
   const sortItens = useTableSort(tabItens, "sku", undefined, selectedId);
   const sortSep = useTableSort(tabSeparacao, "sku", {
     operador: (r: { auto_separacao?: boolean; operador?: string | null }) => (r.auto_separacao ? "Auto PDV" : r.operador),
   }, selectedId);
   const sortConf = useTableSort(tabConferencia, "sku", undefined, selectedId);
 
-  const loadTabData = useCallback(async (movId: string) => {
-    setTabLoading(true);
-    // O grid "Itens" vem de cache do React Query (staleTime 30s): invalida junto com as
-    // demais abas para refletir na hora o resultado de limpezas, cortes e liberações.
-    void queryClientRemocao.invalidateQueries({ queryKey: ["onda-itens-rpc"] });
-    try {
-      const [sepRes, confRes, docsRes] = await Promise.all([
-        (supabase as any).from("vw_movimento_saida_separacao_detalhe").select("*").eq("movimento_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
-        (supabase as any).from("vw_movimento_saida_conferencia_detalhe").select("*").eq("movimento_saida_id", movId).order("concluido_em", { ascending: true, nullsFirst: false }),
-        (supabase as any).from("vw_movimento_saida_docs_vinculados").select("*").eq("movimento_saida_id", movId).order("ordem"),
-      ]);
-      setTabSeparacao(sepRes.data || []);
-      setTabConferencia(confRes.data || []);
-      setTabDocs((docsRes.data || []).map((d: any) => ({
-        ...d,
-        parceiro: d.parceiro || "—",
-      })));
-    } catch (err: any) {
-      toast.error(parseError(err, "movimento-saida-page").title);
-    } finally {
-      setTabLoading(false);
-    }
-  }, [queryClientRemocao]);
+  /** Ação numa onda específica: lista + detalhe dela (esteja ou não selecionada). */
+  const loadTabData = useCallback((movId: string) => {
+    void invalidarOnda(queryClientRemocao, tenantId, movId);
+  }, [queryClientRemocao, tenantId]);
 
-  const selectMov =(mov: MovSaida) => {
+  const selectMov = (mov: MovSaida) => {
+    if (mov.id === selectedId) {
+      // Clicar de novo na onda aberta = "quero ver o atual": busca a aba visível agora.
+      void queryDaAba.refetch();
+      return;
+    }
     setSelectedId(mov.id);
     setSelectedMov(mov);
-    loadTabData(mov.id);
   };
+
+  // Pré-carrega a aba Itens ao parar o mouse (ou o foco) sobre o card.
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const agendarPrefetch = (movId: string) => {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = setTimeout(() => prefetchItensDetalheOnda(queryClientRemocao, tenantId, movId), 120);
+  };
+  const cancelarPrefetch = () => {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current);
+    prefetchTimer.current = null;
+  };
+  useEffect(() => cancelarPrefetch, []);
 
   // Deep link de volta do detalhe do documento: ?onda=<movimento_saida_id>
   useEffect(() => {
@@ -652,7 +595,6 @@ export function MovimentoSaidaPage() {
         setRetirarConfirm(null);
         fetchMovimentos();
         if (selectedId === movId) {
-          loadTabData(movId);
           setSelectedMov((prev) => prev ? { ...prev, status: "CRIADA" } : null);
         }
       } else {
@@ -718,6 +660,7 @@ export function MovimentoSaidaPage() {
 
       toast.success(rpcData.mensagem || "Abastecimento preventivo gerado!");
       setLiberarDialogOpen(false);
+      fetchMovimentos();
     } catch (err: any) {
       toast.error(parseError(err, "gerar-abastecimento-preventivo").title);
     }
@@ -792,7 +735,7 @@ export function MovimentoSaidaPage() {
       }
       toast.success(data.mensagem || "Abastecimento gerado para o item!");
       setAbastecimentosGerados(prev => new Set(prev).add(`${liberarMovId}:${item.produto_id}`));
-      void queryClientRemocao.invalidateQueries({ queryKey: ["onda-pendencias-picking"] });
+      void invalidarTodasOndas(queryClientRemocao, tenantId);
       // Refresh saldo
       if (liberarResult?.itens) fetchSaldoPulmao(liberarResult.itens, "itens");
       if (liberarResult?.ocorrencias) {
@@ -848,7 +791,7 @@ export function MovimentoSaidaPage() {
       }
 
       toast.success(r.mensagem ?? "Item cortado com sucesso!");
-      void queryClientRemocao.invalidateQueries({ queryKey: ["onda-pendencias-picking"] });
+      void invalidarTodasOndas(queryClientRemocao, tenantId);
       setCorteItem(null);
       // Remove item from list
       setLiberarResult(prev => {
@@ -997,26 +940,30 @@ export function MovimentoSaidaPage() {
             ) : (
               filteredMovimentos.map((mov) => {
                 const info = STATUS_MAP[mov.status] || { label: mov.status, class: "" };
+                // Onda aberta: contagem ao vivo do detalhe; demais: a da lista.
+                const semSaldo = mov.id === selectedId && itensQuery.data ? pendencias.length : (mov.qtd_sem_saldo ?? 0);
                 return (
                   <div
                     key={mov.id}
                     className={cn("relative w-full text-left px-3 py-3 border-b border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer", selectedId === mov.id && "bg-secondary/70")}
-                    onClick={() => selectMov(mov)}
+                    onClick={() => { cancelarPrefetch(); selectMov(mov); }}
+                    onMouseEnter={() => agendarPrefetch(mov.id)}
+                    onMouseLeave={cancelarPrefetch}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-mono font-semibold text-foreground">Onda #{mov.numero_onda}</span>
                       <div className="flex items-center gap-1">
                         {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
                         <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
-                        {aguardandoNf.has(mov.id) && (
+                        {mov.docs_sem_nf != null && (
                           <span
                             className="text-[10px] px-1 py-0.5 rounded border border-amber-500/30 bg-amber-500/15 text-amber-500 whitespace-nowrap"
-                            title={`Modo de conferência pós-faturamento: ${aguardandoNf.get(mov.id)} pedido(s) sem NF autorizada. A onda não aparece na conferência do coletor até o ERP enviar a NF.`}
+                            title={`Modo de conferência pós-faturamento: ${mov.docs_sem_nf} pedido(s) sem NF autorizada. A onda não aparece na conferência do coletor até o ERP enviar a NF.`}
                           >
                             Aguardando NF
                           </span>
                         )}
-                        {pendencias.some(p => p.movimento_saida_id === mov.id) && <span className="text-[10px] px-1 py-0.5 rounded border border-destructive/30 bg-destructive/15 text-destructive">{pendencias.filter(p => p.movimento_saida_id === mov.id).length} sem saldo</span>}
+                        {semSaldo > 0 && <span className="text-[10px] px-1 py-0.5 rounded border border-destructive/30 bg-destructive/15 text-destructive">{semSaldo} sem saldo</span>}
                         <div className="relative">
                           <button
                             onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === mov.id ? null : mov.id); }}
@@ -1125,18 +1072,30 @@ export function MovimentoSaidaPage() {
               <Package size={32} className="mb-2 opacity-40" />
               <p className="text-sm">Selecione uma onda para ver os detalhes</p>
             </div>
-          ) : tabLoading ? (
-            <div className="flex-1 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
           ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
-              <TabsList className="mx-3 mt-3 shrink-0">
-                <TabsTrigger value="itens">Itens</TabsTrigger>
-                <TabsTrigger value="separacao">Separação</TabsTrigger>
-                <TabsTrigger value="conferencia">Conferência</TabsTrigger>
-                <TabsTrigger value="info">Informações</TabsTrigger>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Mesmo padrão visual das abas de Movimentos de Entrada */}
+              <TabsList className="w-full shrink-0 border-b border-border rounded-none bg-transparent px-3 pt-2">
+                <TabsTrigger value="itens" className="flex-1">Itens</TabsTrigger>
+                <TabsTrigger value="separacao" className="flex-1">
+                  Separação{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.separacao})</span> : null}
+                </TabsTrigger>
+                <TabsTrigger value="conferencia" className="flex-1">
+                  Conferência{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.conferencia})</span> : null}
+                </TabsTrigger>
+                <TabsTrigger value="info" className="flex-1">Informações</TabsTrigger>
+                <span className="w-5 shrink-0 flex items-center justify-center" title={abaAtualizando ? "Atualizando com os dados mais recentes…" : undefined}>
+                  {abaAtualizando && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+                </span>
               </TabsList>
 
-              <TabsContent value="itens" className="flex-1 overflow-auto m-0 px-1">
+              <TabsContent value="itens" className="flex-1 overflow-auto m-0">
+                {itensQuery.isLoading ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : itensQuery.isError ? (
+                  <ErroAbaDetalhe erro={itensQuery.error} onTentar={() => itensQuery.refetch()} />
+                ) : (
+                  <>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30 sticky top-0">
@@ -1212,9 +1171,17 @@ export function MovimentoSaidaPage() {
                     )}
                   </tbody>
                 </table>
+                  </>
+                )}
               </TabsContent>
 
-              <TabsContent value="separacao" className="flex-1 overflow-auto m-0 px-1">
+              <TabsContent value="separacao" className="flex-1 overflow-auto m-0">
+                {separacaoQuery.isLoading ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : separacaoQuery.isError ? (
+                  <ErroAbaDetalhe erro={separacaoQuery.error} onTentar={() => separacaoQuery.refetch()} />
+                ) : (
+                  <>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30 sticky top-0">
@@ -1252,9 +1219,17 @@ export function MovimentoSaidaPage() {
                     )}
                   </tbody>
                 </table>
+                  </>
+                )}
               </TabsContent>
 
-              <TabsContent value="conferencia" className="flex-1 overflow-auto m-0 px-1">
+              <TabsContent value="conferencia" className="flex-1 overflow-auto m-0">
+                {conferenciaQuery.isLoading ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : conferenciaQuery.isError ? (
+                  <ErroAbaDetalhe erro={conferenciaQuery.error} onTentar={() => conferenciaQuery.refetch()} />
+                ) : (
+                  <>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/30 sticky top-0">
@@ -1284,9 +1259,17 @@ export function MovimentoSaidaPage() {
                     )}
                   </tbody>
                 </table>
+                  </>
+                )}
               </TabsContent>
 
               <TabsContent value="info" className="flex-1 overflow-auto m-0 p-4 space-y-4">
+                {documentosQuery.isLoading ? (
+                  <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                ) : documentosQuery.isError ? (
+                  <ErroAbaDetalhe erro={documentosQuery.error} onTentar={() => documentosQuery.refetch()} />
+                ) : (
+                  <>
                 {selectedMov && (
                   <>
                     <div>
@@ -1443,11 +1426,13 @@ export function MovimentoSaidaPage() {
                         onSuccess={() => {
                           const id = (selectedMov?.id ?? selectedId) as string;
                           loadTabData(id);
-                          ["ondas-carregamento-rpc", "onda-itens-rpc", "ondas-carregamento-ops", "saidas-lista", "movimento-documento-remocao"].forEach((q) =>
+                          ["saidas-lista", "movimento-documento-remocao"].forEach((q) =>
                             queryClientRemocao.invalidateQueries({ queryKey: [q] }));
                         }}
                       />
                     )}
+                  </>
+                )}
                   </>
                 )}
               </TabsContent>
@@ -1929,7 +1914,6 @@ export function MovimentoSaidaPage() {
                   }
                   toast.success(rpcResult.mensagem || "Separação da onda limpa com sucesso!");
                   setLimparSepDialog(null);
-                  if (selectedId) loadTabData(selectedId);
                   fetchMovimentos();
                 } catch (err) {
                   toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar separação da onda." : p.title; })());
@@ -1976,7 +1960,6 @@ export function MovimentoSaidaPage() {
                   }
                   toast.success(rpcResult.mensagem || "Conferência da onda limpa com sucesso!");
                   setLimparConfDialog(null);
-                  if (selectedId) loadTabData(selectedId);
                   fetchMovimentos();
                 } catch (err) {
                   toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar conferência da onda." : p.title; })());
@@ -2023,7 +2006,6 @@ export function MovimentoSaidaPage() {
                   }
                   toast.success(data.mensagem || "Separação do item limpa com sucesso!");
                   setLimparSepItemDialog(null);
-                  if (selectedId) loadTabData(selectedId);
                   fetchMovimentos();
                 } catch (err: any) {
                   toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar separação do item." : p.title; })());
@@ -2070,7 +2052,6 @@ export function MovimentoSaidaPage() {
                   }
                   toast.success("Conferência do item limpa com sucesso!");
                   setLimparConfItemDialog(null);
-                  if (selectedId) loadTabData(selectedId);
                   fetchMovimentos();
                 } catch (err: any) {
                   toast.error((() => { const p = parseError(err, "movimento-saida-page"); return (!p.errorCode && p.title === "Ocorreu um erro inesperado.") ? "Erro ao limpar conferência do item." : p.title; })());
@@ -2092,8 +2073,21 @@ export function MovimentoSaidaPage() {
         movimentoSaidaId={responsaveisMov?.id || null}
         numeroOnda={responsaveisMov?.numero || null}
         onClose={() => setResponsaveisMov(null)}
-        onSuccess={() => { fetchMovimentos(); void opsQuery.refetch(); }}
+        onSuccess={() => { fetchMovimentos(); }}
       />
+    </div>
+  );
+}
+
+/** Erro ao carregar uma aba do detalhe: mensagem amigável + tentar de novo (antes a falha virava lista vazia). */
+function ErroAbaDetalhe({ erro, onTentar }: { erro: unknown; onTentar: () => void }) {
+  const parsed = parseError(erro, "onda-carregamento-detalhe");
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center">
+      <AlertTriangle size={20} className="text-orange-400" />
+      <p className="text-sm text-foreground">{parsed.title}</p>
+      {parsed.instruction && <p className="text-xs text-muted-foreground">{parsed.instruction}</p>}
+      <Button variant="outline" size="sm" onClick={onTentar} className="mt-1 h-7 text-xs">Tentar novamente</Button>
     </div>
   );
 }
