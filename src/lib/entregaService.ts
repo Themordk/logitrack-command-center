@@ -107,11 +107,44 @@ export interface EntregaEvento {
   ocorrido_em: string;
   usuario: string | null;
   parada_id: string | null;
+  entrega_id: string;
+  /** 1 = primeira saída da carga. */
+  numero_saida: number;
+  sequencia_parada: number | null;
   dados: Record<string, unknown>;
 }
 
+/** Tentativa na porta do cliente (entrega_tentativa): nunca some; o estorno só a marca. */
+export interface EntregaTentativa {
+  id: string;
+  entrega_id: string;
+  parada_id: string;
+  numero_tentativa: number;
+  resultado: "ENTREGUE" | "NAO_ENTREGUE";
+  registrada_em: string;
+  entregador: string | null;
+  cliente: string | null;
+  numero_pedido: string | null;
+  motivo: string | null;
+  ocorrencia_numero: number | null;
+  ressalvas: { ocorrencia_id: string; numero: number | null; motivo_id: string; motivo: string }[];
+  foto_path: string | null;
+  recebedor_nome: string | null;
+  fora_de_ordem: boolean;
+  estornada_em: string | null;
+  estornada_por: string | null;
+  motivo_estorno: string | null;
+  origem: "APP" | "RECONSTRUIDA";
+}
+
+export type EntregaSaida = EntregaDetalhe & { numero_saida: number };
+
 export interface EntregaDaCarga {
+  /** Saída atual (a ativa ou, sem ativa, a mais recente). */
   entrega: EntregaDetalhe | null;
+  /** Todas as saídas da carga, da primeira à última (canceladas incluídas). */
+  saidas: EntregaSaida[];
+  tentativas: EntregaTentativa[];
   veiculo_entregador: string | null;
   motivo_sem_entrega: string | null;
   pode_gerar: boolean;

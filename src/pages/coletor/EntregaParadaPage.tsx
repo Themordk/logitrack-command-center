@@ -20,7 +20,8 @@ import {
   PARADA_STATUS_LABEL, caminhoFotoEntrega, descreverDocumento, efeitoMotivo, enderecoLinha1, enderecoLinha2,
   formatarHora, linkMapa, linkTelefone,
 } from "@/lib/entregaExibicao";
-import { ENTREGA_ID_KEY } from "@/pages/coletor/EntregasListPage";
+import { ENTREGA_CACHE_MIN, ENTREGA_ID_KEY, chaveCacheEntrega } from "@/pages/coletor/EntregasListPage";
+import { useOffline } from "@/contexts/OfflineContext";
 import { ENTREGA_PARADA_ID_KEY } from "@/pages/coletor/EntregaParadasPage";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -48,6 +49,7 @@ export function EntregaParadaPage({ onNavigate }: Props) {
   const result = useResultDialog({ coletorMode: true });
   const { showError } = result;
   const feedback = useFeedback();
+  const { cacheData, getCachedData } = useOffline();
 
   const [entrega, setEntrega] = useState<EntregaDetalhe | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,15 +71,22 @@ export function EntregaParadaPage({ onNavigate }: Props) {
 
   const carregar = useCallback(async () => {
     if (!entregaId || !paradaId) { onNavigate("/coletor/entregas"); return; }
-    if (bloqueado) { setLoading(false); return; }
+    if (bloqueado) {
+      const cache = await getCachedData<EntregaDetalhe>(chaveCacheEntrega(entregaId));
+      if (cache) setEntrega(cache);
+      setLoading(false);
+      return;
+    }
     try {
-      setEntrega(await entregaService.detalhe(tenantId, usuarioId, entregaId));
+      const d = await entregaService.detalhe(tenantId, usuarioId, entregaId);
+      setEntrega(d);
+      void cacheData(chaveCacheEntrega(entregaId), d, ENTREGA_CACHE_MIN);
     } catch (e) {
       showError(e, { context: "entregas-parada", onClose: () => onNavigate("/coletor/entregas/paradas") });
     } finally {
       setLoading(false);
     }
-  }, [tenantId, usuarioId, entregaId, paradaId, bloqueado, showError, onNavigate]);
+  }, [tenantId, usuarioId, entregaId, paradaId, bloqueado, showError, onNavigate, cacheData, getCachedData]);
 
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => () => { if (foto) URL.revokeObjectURL(foto.url); }, [foto]);
@@ -124,7 +133,7 @@ export function EntregaParadaPage({ onNavigate }: Props) {
     feedback.success();
     setOverlayMsg(mensagem);
     setOverlay("success");
-    if (dados) setEntrega(dados);
+    if (dados) { setEntrega(dados); void cacheData(chaveCacheEntrega(dados.id), dados, ENTREGA_CACHE_MIN); }
     setTimeout(() => onNavigate("/coletor/entregas/paradas"), 1000);
   };
 
@@ -191,7 +200,7 @@ export function EntregaParadaPage({ onNavigate }: Props) {
   return (
     <ColetorLayout title={titulo} onNavigate={(p) => (modo !== "detalhe" && p === "/coletor/entregas/paradas" ? setModo("detalhe") : onNavigate(p))}
       showBack backPath="/coletor/entregas/paradas">
-      <OnlineOnlyNotice flow="As entregas" />
+      <OnlineOnlyNotice flow="Aceitar, confirmar entrega ou registrar ocorrência" />
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" aria-label="Carregando parada" />

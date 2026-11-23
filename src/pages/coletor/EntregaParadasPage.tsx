@@ -12,7 +12,8 @@ import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { entregaService, type EntregaDetalhe } from "@/lib/entregaService";
 import { ENTREGA_STATUS_LABEL, PARADA_STATUS_LABEL, enderecoLinha1, enderecoLinha2, formatarHora } from "@/lib/entregaExibicao";
-import { ENTREGA_ID_KEY } from "@/pages/coletor/EntregasListPage";
+import { ENTREGA_CACHE_MIN, ENTREGA_ID_KEY, chaveCacheEntrega } from "@/pages/coletor/EntregasListPage";
+import { useOffline } from "@/contexts/OfflineContext";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -25,21 +26,29 @@ export function EntregaParadasPage({ onNavigate }: Props) {
   const bloqueado = useOnlineOnlyBlocked();
   const result = useResultDialog({ coletorMode: true });
   const { showError } = result;
+  const { cacheData, getCachedData } = useOffline();
 
   const [entrega, setEntrega] = useState<EntregaDetalhe | null>(null);
   const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(async () => {
     if (!entregaId) { onNavigate("/coletor/entregas"); return; }
-    if (bloqueado) { setLoading(false); return; }
+    if (bloqueado) {
+      const cache = await getCachedData<EntregaDetalhe>(chaveCacheEntrega(entregaId));
+      if (cache) setEntrega(cache);
+      setLoading(false);
+      return;
+    }
     try {
-      setEntrega(await entregaService.detalhe(tenantId, usuarioId, entregaId));
+      const d = await entregaService.detalhe(tenantId, usuarioId, entregaId);
+      setEntrega(d);
+      void cacheData(chaveCacheEntrega(entregaId), d, ENTREGA_CACHE_MIN);
     } catch (e) {
       showError(e, { context: "entregas-paradas", onClose: () => onNavigate("/coletor/entregas") });
     } finally {
       setLoading(false);
     }
-  }, [tenantId, usuarioId, entregaId, bloqueado, showError, onNavigate]);
+  }, [tenantId, usuarioId, entregaId, bloqueado, showError, onNavigate, cacheData, getCachedData]);
 
   useEffect(() => { void carregar(); }, [carregar]);
 
@@ -53,7 +62,7 @@ export function EntregaParadasPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title={entrega ? `Carga #${entrega.numero_carga}` : "Paradas"} onNavigate={onNavigate} showBack backPath="/coletor/entregas">
-      <OnlineOnlyNotice flow="As entregas" />
+      <OnlineOnlyNotice flow="Aceitar, confirmar entrega ou registrar ocorrência" />
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={24} className="animate-spin text-[hsl(217,91%,60%)]" aria-label="Carregando paradas" />

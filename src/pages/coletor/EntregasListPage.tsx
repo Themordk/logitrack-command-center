@@ -12,6 +12,7 @@ import { StatusOverlay, type OverlayType } from "@/components/coletor/StatusOver
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useFeedback } from "@/hooks/useFeedback";
+import { useOffline } from "@/contexts/OfflineContext";
 import { avisarEntregasAtualizadas } from "@/hooks/useEntregaPendenteAlerta";
 import { entregaService, type EntregaResumo } from "@/lib/entregaService";
 import { obterPosicao } from "@/lib/entregaFoto";
@@ -20,6 +21,10 @@ import { ENTREGA_STATUS_LABEL, formatarHora } from "@/lib/entregaExibicao";
 interface Props { onNavigate: (path: string) => void; }
 
 export const ENTREGA_ID_KEY = "coletor_entrega_id";
+/** Cache local (12 h) para abrir a lista e os endereços sem sinal; ações continuam exigindo conexão. */
+export const ENTREGA_CACHE_MIN = 720;
+export const chaveCacheEntregas = (usuarioId: string) => `entregas:minhas:${usuarioId}`;
+export const chaveCacheEntrega = (entregaId: string) => `entregas:detalhe:${entregaId}`;
 
 export function EntregasListPage({ onNavigate }: Props) {
   const tenantId = localStorage.getItem("core_tenant_id") ?? "";
@@ -28,6 +33,7 @@ export function EntregasListPage({ onNavigate }: Props) {
   const result = useResultDialog({ coletorMode: true });
   const { showError } = result;
   const feedback = useFeedback();
+  const { cacheData, getCachedData } = useOffline();
 
   const [entregas, setEntregas] = useState<EntregaResumo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,15 +44,28 @@ export function EntregasListPage({ onNavigate }: Props) {
   const limparOverlay = useCallback(() => setOverlay(null), []);
 
   const carregar = useCallback(async () => {
-    if (bloqueado) { setLoading(false); return; }
+    if (bloqueado) {
+      const cache = await getCachedData<EntregaResumo[]>(chaveCacheEntregas(usuarioId));
+      if (cache) setEntregas(cache);
+      setLoading(false);
+      return;
+    }
     try {
-      setEntregas(await entregaService.minhas(tenantId, usuarioId));
+      const lista = await entregaService.minhas(tenantId, usuarioId);
+      setEntregas(lista);
+      void cacheData(chaveCacheEntregas(usuarioId), lista, ENTREGA_CACHE_MIN);
+      // guarda também as paradas das cargas em rota, para os endereços abrirem sem sinal
+      lista.filter((e) => e.status === "EM_ROTA").forEach((e) => {
+        entregaService.detalhe(tenantId, usuarioId, e.id)
+          .then((d) => cacheData(chaveCacheEntrega(e.id), d, ENTREGA_CACHE_MIN))
+          .catch(() => { /* cache é só conveniência */ });
+      });
     } catch (e) {
       showError(e, { context: "entregas-lista" });
     } finally {
       setLoading(false);
     }
-  }, [tenantId, usuarioId, bloqueado, showError]);
+  }, [tenantId, usuarioId, bloqueado, showError, cacheData, getCachedData]);
 
   useEffect(() => { void carregar(); }, [carregar]);
   // Mantém a lista viva enquanto aberta (nova carga atribuída aparece sozinha).
@@ -88,7 +107,7 @@ export function EntregasListPage({ onNavigate }: Props) {
 
   return (
     <ColetorLayout title="Minhas entregas" onNavigate={onNavigate} showBack backPath="/coletor/home">
-      <OnlineOnlyNotice flow="As entregas" />
+      <OnlineOnlyNotice flow="Aceitar, confirmar entrega ou registrar ocorrência" />
       <div className="flex flex-col gap-3 flex-1 min-h-0">
         <div className="flex items-center justify-between gap-2 shrink-0">
           <p className="text-xs text-[hsl(213,31%,55%)] truncate min-w-0">Cargas atribuídas a você</p>
