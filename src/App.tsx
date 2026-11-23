@@ -37,6 +37,7 @@ import { RotasPage } from "./pages/RotasPage";
 import { VeiculosPage } from "./pages/VeiculosPage";
 import { HUsPage } from "./pages/HUsPage";
 import { VolumesPage } from "./pages/VolumesPage";
+import { AcompanhamentoPedidosPage } from "./pages/AcompanhamentoPedidosPage";
 import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
 import { EtiquetaTemplatesPage } from "./pages/EtiquetaTemplatesPage";
@@ -224,6 +225,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
+  "/atividades/acompanhamento-pedidos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Acompanhamento de Pedidos" }],
   "/atividades/abastecimento": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento" }],
   "/atividades/abastecimento/gerar": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento", path: "/atividades/abastecimento" }, { label: "Geração" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
@@ -380,6 +382,7 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage onNavigate={onNavigate} />;
+    case "/atividades/acompanhamento-pedidos": return <AcompanhamentoPedidosPage onNavigate={onNavigate} />;
     case "/atividades/abastecimento": return <AbastecimentoPage onNavigate={onNavigate} />;
     case "/dados-mestres/produtos": return <ProdutosPage onNavigate={onNavigate} />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;

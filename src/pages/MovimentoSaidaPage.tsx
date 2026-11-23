@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { EntregaPedidoBadge } from "@/components/situacao/SituacaoPedidoBadges";
+import { ENTREGAS_ORDEM, VISUAL_ENTREGA, textoResumoEntregaOnda } from "@/lib/situacaoPedido";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { RemoverDocumentoMovimentoModal } from "@/components/movimentos/RemoverDocumentoMovimentoModal";
@@ -82,6 +84,10 @@ interface MovSaida {
   id: string;
   /** S1: pior estado de integração dos pedidos da onda (movimento_saida.integracao_resumo). */
   integracao_resumo?: string | null;
+  /** S2: pior situação de entrega dos pedidos e contadores (movimento_saida.entrega_*). */
+  entrega_resumo?: string | null;
+  entrega_total?: number;
+  entrega_entregues?: number;
   numero_onda: number;
   status: string;
   data_emissao: string;
@@ -192,6 +198,7 @@ export function MovimentoSaidaPage() {
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterErp, setFilterErp] = useState<FiltroErp>("");
+  const [filterEntrega, setFilterEntrega] = useState<string>("");
   const [filterNumeroDocumento, setFilterNumeroDocumento] = useState("");
   const [filterTipoSaidaId, setFilterTipoSaidaId] = useState("");
   const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
@@ -398,6 +405,9 @@ export function MovimentoSaidaPage() {
         integracao_resumo: vivo?.integracao_resumo ?? r.integracao_resumo ?? null,
         docs_sem_nf: r.docs_sem_nf,
         qtd_sem_saldo: r.qtd_sem_saldo,
+        entrega_resumo: r.entrega_resumo,
+        entrega_total: r.entrega_total,
+        entrega_entregues: r.entrega_entregues,
       };
     });
   }, [listRows, empresaId, selectedId, cabecalhoAoVivo]);
@@ -413,9 +423,10 @@ export function MovimentoSaidaPage() {
   const hasErp = useTenantHasErp(tenantId);
 
   const filteredMovimentos = useMemo(() => {
-    if (!filterErp) return movimentos;
-    return movimentos.filter((m) => atendeFiltroErp(m.integracao_resumo, filterErp));
-  }, [movimentos, filterErp]);
+    if (!filterErp && !filterEntrega) return movimentos;
+    return movimentos.filter((m) =>
+      atendeFiltroErp(m.integracao_resumo, filterErp) && (!filterEntrega || m.entrega_resumo === filterEntrega));
+  }, [movimentos, filterErp, filterEntrega]);
 
   /**
    * Depois de qualquer ação (e no botão Filtrar): nenhuma lista nem detalhe em cache
@@ -876,6 +887,13 @@ export function MovimentoSaidaPage() {
           </div>
         )}
         <div>
+          <label htmlFor="filtro-entrega-onda" className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Entrega</label>
+          <select id="filtro-entrega-onda" value={filterEntrega} onChange={(e) => setFilterEntrega(e.target.value)} className={cn(inputClass, "w-44")}>
+            <option value="">Todas</option>
+            {ENTREGAS_ORDEM.filter((e) => e !== "nao_se_aplica").map((e) => <option key={e} value={e}>{VISUAL_ENTREGA[e].rotulo}</option>)}
+          </select>
+        </div>
+        <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
           <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
         </div>
@@ -954,6 +972,11 @@ export function MovimentoSaidaPage() {
                       <span className="text-xs font-mono font-semibold text-foreground">Onda #{mov.numero_onda}</span>
                       <div className="flex items-center gap-1">
                         {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
+                        {mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica" && (
+                          <EntregaPedidoBadge entrega={mov.entrega_resumo}
+                            className="rounded-full"
+                            complemento={textoResumoEntregaOnda(mov.entrega_total, mov.entrega_entregues)} />
+                        )}
                         <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
                         {mov.docs_sem_nf != null && (
                           <span

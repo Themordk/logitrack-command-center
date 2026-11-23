@@ -110,7 +110,7 @@ BEGIN
     SELECT integracao_estado INTO v_txt FROM documento_saida WHERE id = doc_b;
     v_res := v_res || jsonb_build_object('caso', '08 nó declara Integrado → Integrado', 'ok', v_txt = 'integrado', 'obtido', v_txt);
     SELECT status::text || '|' || integracao_resumo INTO v_txt FROM movimento_saida WHERE id = onda;
-    v_res := v_res || jsonb_build_object('caso', '09 todos integrados + marcar exportado → EXPORTADA_ERP', 'ok', v_txt = 'EXPORTADA_ERP|integrado', 'obtido', v_txt);
+    v_res := v_res || jsonb_build_object('caso', '09 todos integrados + marcar exportado → onda continua CONCLUIDA (S2)', 'ok', v_txt = 'CONCLUIDA|integrado', 'obtido', v_txt);
 
     -- 5) Outra regra (separação) passa pelo caminho "bloqueado": nó declara Ignorado → A continua Integrado (Expedição)
     INSERT INTO integracao.retorno_execucao (tenant_id, empresa_id, fluxo_id, evento, entidade, documento_id, modo, status)
@@ -221,7 +221,7 @@ BEGIN
       UPDATE integracao.retorno_execucao SET finalizado_em = clock_timestamp() WHERE id = x AND finalizado_em IS NOT NULL; SET CONSTRAINTS ALL IMMEDIATE; SET CONSTRAINTS ALL DEFERRED;
       SELECT d.integracao_estado || '|' || m.status::text || '|' || m.integracao_resumo INTO v_txt
         FROM documento_entrada d, movimento_entrada m WHERE d.id = de AND m.id = me;
-      v_res := v_res || jsonb_build_object('caso', '21 entrada integrada → recebimento EXPORTADO', 'ok', v_txt = 'integrado|EXPORTADO|integrado', 'obtido', v_txt);
+      v_res := v_res || jsonb_build_object('caso', '21 entrada integrada → recebimento continua ARMAZENADO (S2)', 'ok', v_txt = 'integrado|ARMAZENADO|integrado', 'obtido', v_txt);
     ELSE
       v_res := v_res || jsonb_build_object('caso', '21 entrada integrada → recebimento EXPORTADO', 'ok', false, 'obtido', 'sem massa');
     END IF;

@@ -20,6 +20,7 @@ import {
   ENTREGA_EVENTO_LABEL, ENTREGA_STATUS_LABEL, PARADA_STATUS_LABEL, formatarDiaHora, formatarDuracao, formatarHora,
 } from "@/lib/entregaExibicao";
 import { SeletorBusca } from "@/components/carga/SeletorBusca";
+import { IntegracaoDocumentoStatus } from "@/components/integracao/IntegracaoDocumentoStatus";
 
 interface Props {
   tenantId: string;
@@ -190,6 +191,7 @@ export function CargaEntregaSecao({ tenantId, usuarioId, cargaId }: Props) {
                     <td className="py-2 pr-2">
                       <span className="block text-foreground">{p.parceiro_nome ?? "—"}</span>
                       <span className="block text-xs text-muted-foreground">{[p.numero_nf ? `NF ${p.numero_nf}` : null, p.numero_pedido ? `Pedido ${p.numero_pedido}` : null].filter(Boolean).join(" · ")}</span>
+                      {p.integracao && <span className="mt-1 inline-block"><IntegracaoDocumentoStatus integracao={p.integracao} /></span>}
                     </td>
                     <td className="py-2 pr-2">{[p.cidade, p.estado].filter(Boolean).join("/") || "—"}</td>
                     <td className="py-2 pr-2 whitespace-nowrap">

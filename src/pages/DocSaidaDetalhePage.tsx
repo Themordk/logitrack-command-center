@@ -11,6 +11,7 @@ import { formatDateTime, formatDate } from "@/utils/dateTime";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DocSaidaNfTab } from "./DocSaidaNfTab";
 import { DescricaoCell } from "@/components/DescricaoCell";
+import { SituacaoPedidoCard } from "@/components/situacao/SituacaoPedidoCard";
 
 interface Props {
   documentoId: string;
@@ -50,7 +51,7 @@ interface ItemRow {
 const STATUS_MAP: Record<number, { label: string; cls: string }> = {
   0: { label: "Pendente", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
   1: { label: "Em Onda", cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
-  2: { label: "Concluído", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  9: { label: "Cancelado", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
   99: { label: "Excluído", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
 };
 
@@ -237,6 +238,9 @@ export function DocSaidaDetalhePage({ documentoId, onBack, backLabel }: Props) {
           </CardContent>
         </Card>
       )}
+
+      {/* Situação: etapa, entrega e integração (S2) */}
+      <SituacaoPedidoCard documentoId={documentoId} />
 
       {/* Card 1: Dados do Documento */}
       <Card>

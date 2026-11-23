@@ -1,3 +1,4 @@
+import type { IntegracaoDocumento } from "@/lib/integracaoStatus";
 /**
  * Módulo de Entregas — camada de acesso às RPCs entrega_*.
  *
@@ -63,6 +64,10 @@ export interface EntregaParada {
   foto_canhoto_path: string | null;
   finalizada_em: string | null;
   ocorrencia: ParadaOcorrencia | null;
+  /** Integração do pedido no ERP (plano de status · S1). */
+  integracao?: IntegracaoDocumento | null;
+  /** Situação do pedido calculada no banco (plano de status · S2). */
+  situacao?: { etapa: string | null; entrega_status: string | null; entrega_motivo: string | null } | null;
   /** Entrega garantida: exige ler os volumes do pedido antes de confirmar (tipo_saida.entrega_confere_volume). */
   confere_volume?: boolean;
   volumes_total?: number;

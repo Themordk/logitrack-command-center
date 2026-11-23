@@ -49,6 +49,12 @@ export interface OndaListaRow {
   docs_sem_nf: number | null;
   /** Tarefas de separação sem saldo/sem picking (só ondas LIBERADO/EM_PICKING). */
   qtd_sem_saldo: number;
+  /** S2: pior situação de entrega dos pedidos da onda (movimento_saida.entrega_resumo). */
+  entrega_resumo: string | null;
+  /** S2: pedidos com entrega própria / entregues / não entregues. */
+  entrega_total: number;
+  entrega_entregues: number;
+  entrega_nao_entregues: number;
 }
 
 export interface FiltrosListaOndas {
@@ -135,6 +141,10 @@ export function normalizarLinhaLista(r: Record<string, unknown>): OndaListaRow {
     operadores: rotulosOperadores(Array.isArray(ops) ? ops : []),
     docs_sem_nf: r.docs_sem_nf === null || r.docs_sem_nf === undefined ? null : num(r.docs_sem_nf),
     qtd_sem_saldo: num(r.qtd_sem_saldo),
+    entrega_resumo: (r as { entrega_resumo?: string | null }).entrega_resumo ?? null,
+    entrega_total: num((r as { entrega_total?: unknown }).entrega_total),
+    entrega_entregues: num((r as { entrega_entregues?: unknown }).entrega_entregues),
+    entrega_nao_entregues: num((r as { entrega_nao_entregues?: unknown }).entrega_nao_entregues),
   };
 }
 

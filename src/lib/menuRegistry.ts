@@ -64,6 +64,7 @@ export const MENU_GRUPOS: MenuGrupo[] = [
       { label: "Ondas de Carregamento", path: "/atividades/mov-saida", secao: "Saída", palavrasChave: ["onda", "separação"] },
       { label: "Volumes", path: "/atividades/volumes", secao: "Saída", palavrasChave: ["etiqueta"] },
       { label: "Montagem de Carga", path: "/atividades/montagem-carga", secao: "Saída", palavrasChave: ["embarque", "carga"] },
+      { label: "Acompanhamento de Pedidos", path: "/atividades/acompanhamento-pedidos", secao: "Saída", palavrasChave: ["entrega", "entregue", "status", "situação", "pedido", "supervisor"] },
       { label: "Abastecimento", path: "/atividades/abastecimento", secao: "Estoque", palavrasChave: ["reposição", "picking"] },
       { label: "Inventário", path: "/atividades/inventario", secao: "Estoque", palavrasChave: ["contagem"] },
       { label: "Ocorrências", path: "/atividades/ocorrencias", secao: "Estoque" },
