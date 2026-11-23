@@ -51,3 +51,12 @@ describe("selo e filtro ERP das listas", () => {
     expect(atendeFiltroErp("pendente", "")).toBe(true);
   });
 });
+
+describe("eventos de embarque e entrega", () => {
+  it("têm nome curto próprio", async () => {
+    const { nomeEventoCurto } = await import("../integracaoStatus");
+    expect(nomeEventoCurto("saida.entregue")).toBe("Entregue");
+    expect(nomeEventoCurto("saida.carga_fechada")).toBe("Carga fechada");
+    expect(nomeEventoCurto("saida.entrega_estornada")).toBe("Entrega estornada");
+  });
+});
