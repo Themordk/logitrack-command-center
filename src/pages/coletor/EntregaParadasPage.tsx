@@ -111,6 +111,12 @@ export function EntregaParadasPage({ onNavigate }: Props) {
                       {!entregue && !nao && enderecoLinha2(p) && (
                         <span className="block text-[11px] text-[hsl(213,31%,48%)] truncate">{enderecoLinha2(p)}</span>
                       )}
+                      {!entregue && !nao && (p.numero_nf || p.observacao_pedido) && (
+                        <span className="block text-[11px] text-[hsl(213,31%,48%)] truncate">
+                          {p.numero_nf ? `NF ${p.numero_nf}` : ""}{p.numero_nf && p.observacao_pedido ? " · " : ""}
+                          {p.observacao_pedido && <span className="text-amber-300">Tem observação</span>}
+                        </span>
+                      )}
                     </span>
                     <span className="sr-only">{PARADA_STATUS_LABEL[p.status]}</span>
                   </button>

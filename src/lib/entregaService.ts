@@ -56,6 +56,8 @@ export interface EntregaParada {
   numero_pedido: string | null;
   numero_nf: string | null;
   serie_nf: string | null;
+  /** Observação do pedido (documento_saida.observacao, vinda do ERP). */
+  observacao_pedido: string | null;
   entregue_em: string | null;
   recebedor_nome: string | null;
   foto_canhoto_path: string | null;

@@ -42,6 +42,10 @@ export function ParceirosPage() {
     { name: "bairro", label: "Bairro", type: "text", required: true, placeholder: "Bairro" },
     { name: "cidade", label: "Cidade", type: "text", required: true, placeholder: "Cidade" },
     { name: "estado", label: "Estado", type: "text", required: true, placeholder: "UF" },
+    // Contato do cliente: usado no coletor de entregas (botão Ligar). Também chega do ERP pela Integration Gateway.
+    { name: "telefone", label: "Telefone", type: "text", placeholder: "(85) 99999-0000" },
+    { name: "contato", label: "Contato", type: "text", placeholder: "Nome de quem recebe" },
+    { name: "email", label: "E-mail", type: "text", placeholder: "contato@cliente.com.br" },
     { name: "rota_id", label: "Rota", type: "select", options: rotaOptions, placeholder: "Opcional" },
     { name: "dias_shelf", label: "Dias Shelf", type: "number", placeholder: "Ex: 30" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },

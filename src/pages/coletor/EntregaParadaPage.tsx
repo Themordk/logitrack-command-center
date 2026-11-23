@@ -6,7 +6,7 @@
  * Quem decide se pode (aceite, parada pendente, dono, motivo, observação, foto) é o servidor.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, FileText, Loader2, MapPin, Navigation, Phone, RotateCcw, User } from "lucide-react";
+import { Camera, FileText, Loader2, MapPin, MessageSquareText, Navigation, Phone, RotateCcw, User } from "lucide-react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
@@ -220,6 +220,15 @@ export function EntregaParadaPage({ onNavigate }: Props) {
                 </p>
               )}
             </div>
+
+            {parada.observacao_pedido && (
+              <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3">
+                <p className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 mb-1">
+                  <MessageSquareText size={14} aria-hidden="true" /> Observação do pedido
+                </p>
+                <p className="text-sm text-white whitespace-pre-line break-words">{parada.observacao_pedido}</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               {linkMapa(parada) ? (
