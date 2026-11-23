@@ -25,6 +25,8 @@ export const ENTREGA_EVENTO_LABEL: Record<string, string> = {
   OCORRENCIA: "Ocorrência registrada",
   PARADA_ESTORNADA: "Parada estornada",
   REATRIBUIDA: "Reatribuída",
+  PARADAS_ATUALIZADAS: "Paradas atualizadas (pedidos da carga alterados)",
+  VOLUME_CONFERIDO: "Volume conferido no cliente",
   CANCELADA: "Entrega cancelada",
   CONCLUIDA: "Entrega concluída",
   REABERTA: "Entrega reaberta",
@@ -130,4 +132,23 @@ export function avisoSemEntregador(veiculos: Pick<VeiculoOpcao, "id" | "usuario_
   if (!veiculoId || !veiculos.some((v) => v.usuario_id)) return false;
   const v = veiculos.find((x) => x.id === veiculoId);
   return !!v && !v.usuario_id;
+}
+
+/** Situação da conferência de volumes na entrega (entrega garantida). O servidor decide; aqui só exibe. */
+export function situacaoVolumesParada(p: Pick<EntregaParada, "confere_volume" | "volumes_total" | "volumes_conferidos" | "ocorrencia">) {
+  const exige = !!p.confere_volume;
+  const total = p.volumes_total ?? 0;
+  const conferidos = p.volumes_conferidos ?? 0;
+  const completo = !exige || conferidos >= total;
+  // ocorrência informativa registrada (ex.: falta de volume) permite confirmar com volume faltando
+  const comRessalva = exige && !completo && !!p.ocorrencia && p.ocorrencia.impede_entrega === false;
+  return { exige, total, conferidos, faltam: Math.max(0, total - conferidos), completo, comRessalva, podeSeguir: completo || comRessalva };
+}
+
+/** Entrega gerada com a carga montada: avisa enquanto o carregamento não foi concluído. */
+export function avisoCargaNaoFechada(e: { carga_status?: string; status: string } | null | undefined): string | null {
+  if (!e || !e.carga_status || e.carga_status === "FECHADA" || e.status === "CONCLUIDA" || e.status === "CANCELADA") return null;
+  return e.carga_status === "EM_CARREGAMENTO"
+    ? "O carregamento desta carga ainda está em andamento."
+    : "Carga montada: o carregamento ainda não começou.";
 }

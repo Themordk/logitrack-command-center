@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ENTREGA_GERAR_EM_OPCOES, ENTREGA_PADRAO, normalizarEntregaTipoSaida, resumoEntregaTipoSaida } from "@/lib/entregaTipoSaida";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
@@ -54,6 +55,12 @@ export function TiposSaidaPage() {
     { key: "codigo_erp", label: "Código ERP" },
     { key: "realiza_conferencia", label: "Realiza Conferência", type: "custom", render: (row) => boolBadge(row.realiza_conferencia) },
     { key: "realiza_embarque", label: "Realiza Embarque", type: "custom", render: (row) => boolBadge(row.realiza_embarque) },
+    { key: "realiza_entrega", label: "Entrega", type: "custom", render: (row) => {
+      const txt = resumoEntregaTipoSaida(row);
+      return txt === "Não" ? boolBadge(false) : (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500">{txt}</span>
+      );
+    } },
     { key: "etapa_conclusao", label: "Conclui em", type: "custom", render: (row) => (
       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-green-500">
         {ETAPA_CONCLUSAO_LABEL[etapaConclusao(row)]}
@@ -95,7 +102,8 @@ export function TiposSaidaPage() {
 
   const openModal = (item: any | null) => {
     setEditItem(item);
-    setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...item } : {
+    setForm(item ? { libera_sem_saldo_picking: false, ...PADRAO_EXIBICAO_COLETOR, ...ENTREGA_PADRAO, ...item } : {
+      ...ENTREGA_PADRAO,
       descricao: "", codigo_erp: "", prioridade: "NORMAL",
       realiza_conferencia: true, conferencia_checkout: false, conferencia_cega: false, realiza_embarque: false, exige_confirmacao_veiculo: false, reserva_embarque_carga: false, permite_mesmo_operador_conf_emb: true, libera_embarque_automatico: false,
       momento_conferencia: "PRE_FATURAMENTO",
@@ -116,7 +124,7 @@ export function TiposSaidaPage() {
   const handleSave = async () => {
     if (!form.descricao) return;
     setSaving(true);
-    const payload: any = { ...PADRAO_EXIBICAO_COLETOR, ...form, empresa_id: empresaId };
+    const payload: any = normalizarEntregaTipoSaida<Record<string, any>>({ ...PADRAO_EXIBICAO_COLETOR, ...form, empresa_id: empresaId });
     delete payload.etapa_conclusao; // calculada no banco (gatilho) a partir das etapas ligadas
     if (!payload.realiza_conferencia) {
       payload.conferencia_checkout = false;
@@ -468,6 +476,83 @@ export function TiposSaidaPage() {
                         : form.permite_mesmo_operador_conf_emb !== false
                         ? "Quem conferiu a onda também pode embarcá-la"
                         : "Quem conferiu a onda não pode embarcar a carga dela"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Entrega ── */}
+            <div className={sectionClass}>
+              <p className={sectionTitleClass}>Entrega</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                {form.realiza_embarque
+                  ? "Define se os pedidos deste tipo geram demanda para o menu Entregas do coletor (carga de veículo próprio com entregador vinculado)."
+                  : "Disponível quando o tipo realiza embarque: só pedidos que entram em carga podem ir para entrega."}
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="realiza-entrega"
+                    checked={!!form.realiza_entrega && !!form.realiza_embarque}
+                    onCheckedChange={(v) => set("realiza_entrega", v)}
+                    disabled={!form.realiza_embarque}
+                    className={!form.realiza_embarque ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="realiza-entrega" className={`text-sm ${!form.realiza_embarque ? "text-muted-foreground opacity-50" : "text-foreground"}`}>Realiza entrega</label>
+                    <p className={`text-xs ${!form.realiza_embarque ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque
+                        ? "Disponível quando o tipo realiza embarque"
+                        : form.realiza_entrega
+                        ? "Os pedidos deste tipo vão para o entregador do veículo da carga"
+                        : "Nenhuma demanda de entrega é enviada para pedidos deste tipo"}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className={`text-sm ${!form.realiza_embarque || !form.realiza_entrega ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                    Gerar entrega quando a carga estiver
+                  </label>
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Gerar entrega quando a carga estiver">
+                    {ENTREGA_GERAR_EM_OPCOES.map((o) => {
+                      const ativo = (form.entrega_gerar_em || "FECHADA") === o.value;
+                      const desab = !form.realiza_embarque || !form.realiza_entrega;
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={ativo}
+                          disabled={desab}
+                          onClick={() => set("entrega_gerar_em", o.value)}
+                          className={`text-left rounded-md border px-3 py-2 transition-colors ${desab ? "opacity-50 cursor-not-allowed" : "hover:bg-secondary/50"} ${ativo ? "border-primary bg-primary/10" : "border-border"}`}
+                        >
+                          <span className="block text-sm text-foreground">{o.label}</span>
+                          <span className="block text-[11px] text-muted-foreground leading-snug">{o.descricao}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="entrega-confere-volume"
+                    checked={!!form.entrega_confere_volume && !!form.realiza_entrega && !!form.realiza_embarque}
+                    onCheckedChange={(v) => set("entrega_confere_volume", v)}
+                    disabled={!form.realiza_embarque || !form.realiza_entrega}
+                    className={!form.realiza_embarque || !form.realiza_entrega ? "opacity-50" : ""}
+                  />
+                  <div>
+                    <label htmlFor="entrega-confere-volume" className={`text-sm ${!form.realiza_embarque || !form.realiza_entrega ? "text-muted-foreground opacity-50" : "text-foreground"}`}>
+                      Confere volume na entrega
+                    </label>
+                    <p className={`text-xs ${!form.realiza_embarque || !form.realiza_entrega ? "text-muted-foreground opacity-30" : "text-muted-foreground"}`}>
+                      {!form.realiza_embarque || !form.realiza_entrega
+                        ? "Disponível quando o tipo realiza entrega"
+                        : form.entrega_confere_volume
+                        ? "Entrega garantida: o entregador lê cada volume do pedido no cliente antes de confirmar (falta só com ocorrência registrada)"
+                        : "O entregador confirma a entrega sem ler os volumes"}
                     </p>
                   </div>
                 </div>

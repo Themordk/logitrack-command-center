@@ -1,14 +1,15 @@
 /**
  * Módulo de Entregas — detalhe de uma parada, confirmação com foto do canhoto e ocorrência com foto.
  *
- * Três telas na mesma página (modo): detalhe → confirmar | ocorrência.
+ * Telas na mesma página (modo): detalhe → volumes (entrega garantida) → confirmar | ocorrência.
  * A foto é enviada ao bucket antes da RPC; se a RPC falhar, o reenvio reaproveita a foto já enviada.
  * Quem decide se pode (aceite, parada pendente, dono, motivo, observação, foto) é o servidor.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, FileText, Loader2, MapPin, MessageSquareText, Navigation, Phone, RotateCcw, User } from "lucide-react";
+import { Camera, CheckCircle2, Circle, FileText, Keyboard, Loader2, MapPin, MessageSquareText, Navigation, Package, Phone, RotateCcw, User } from "lucide-react";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
+import { ScanField } from "@/components/coletor/ScanField";
 import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/OnlineOnlyNotice";
 import { StatusOverlay, type OverlayType } from "@/components/coletor/StatusOverlay";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
@@ -18,7 +19,7 @@ import { entregaService, type EntregaDetalhe, type MotivoEntrega } from "@/lib/e
 import { comprimirFoto, enviarFoto, obterPosicao } from "@/lib/entregaFoto";
 import {
   PARADA_STATUS_LABEL, caminhoFotoEntrega, descreverDocumento, efeitoMotivo, enderecoLinha1, enderecoLinha2,
-  formatarHora, linkMapa, linkTelefone,
+  formatarHora, linkMapa, linkTelefone, situacaoVolumesParada,
 } from "@/lib/entregaExibicao";
 import { ENTREGA_CACHE_MIN, ENTREGA_ID_KEY, chaveCacheEntrega } from "@/pages/coletor/EntregasListPage";
 import { useOffline } from "@/contexts/OfflineContext";
@@ -26,7 +27,7 @@ import { ENTREGA_PARADA_ID_KEY } from "@/pages/coletor/EntregaParadasPage";
 
 interface Props { onNavigate: (path: string) => void; }
 
-type Modo = "detalhe" | "confirmar" | "ocorrencia";
+type Modo = "detalhe" | "volumes" | "confirmar" | "ocorrencia";
 
 interface FotoTirada {
   blob: Blob;
@@ -64,10 +65,15 @@ export function EntregaParadaPage({ onNavigate }: Props) {
   const [overlay, setOverlay] = useState<OverlayType>(null);
   const [overlayMsg, setOverlayMsg] = useState<string>();
   const inputFoto = useRef<HTMLInputElement>(null);
+  const [lendo, setLendo] = useState(false);
+  const [ultimoLido, setUltimoLido] = useState<string>();
+  const [digitarAberto, setDigitarAberto] = useState(false);
+  const [codigoDigitado, setCodigoDigitado] = useState("");
   const limparOverlay = useCallback(() => setOverlay(null), []);
 
   const parada = entrega?.paradas.find((p) => p.id === paradaId) ?? null;
   const motivo = useMemo(() => motivos?.find((m) => m.id === motivoId) ?? null, [motivos, motivoId]);
+  const vol = parada ? situacaoVolumesParada(parada) : null;
 
   const carregar = useCallback(async () => {
     if (!entregaId || !paradaId) { onNavigate("/coletor/entregas"); return; }
@@ -137,6 +143,27 @@ export function EntregaParadaPage({ onNavigate }: Props) {
     setTimeout(() => onNavigate("/coletor/entregas/paradas"), 1000);
   };
 
+  /** Entrega garantida: com volume faltando, a confirmação passa antes pela leitura dos volumes. */
+  const iniciarConfirmacao = () => trocarModo(vol && vol.exige && !vol.podeSeguir ? "volumes" : "confirmar");
+
+  const conferirVolume = async (codigo: string, digitado = false) => {
+    if (!parada || !codigo.trim()) return;
+    setLendo(true);
+    try {
+      // sem GPS por leitura: a localização fica na confirmação da parada (leitura rápida em sequência)
+      const r = await entregaService.conferirVolume(tenantId, usuarioId, parada.id, codigo, digitado);
+      setUltimoLido(r.dados?.codigo ?? codigo);
+      if (r.dados?.entrega) { setEntrega(r.dados.entrega); void cacheData(chaveCacheEntrega(r.dados.entrega.id), r.dados.entrega, ENTREGA_CACHE_MIN); }
+      feedback.success();
+      if (r.codigo === "ENTREGA_VOLUMES_COMPLETOS") { setOverlayMsg("Volumes conferidos"); setOverlay("success"); }
+    } catch (e) {
+      feedback.error();
+      showError(e, { context: "entregas-volume" });
+    } finally {
+      setLendo(false);
+    }
+  };
+
   const confirmar = async () => {
     if (!parada || !foto) return;
     setGravando(true);
@@ -172,6 +199,7 @@ export function EntregaParadaPage({ onNavigate }: Props) {
   const podeGravarOcorrencia = !!motivo && !!foto && (!obsObrigatoria || observacao.trim().length >= 3);
 
   const titulo = modo === "confirmar" ? "Confirmar entrega" : modo === "ocorrencia" ? "Registrar ocorrência"
+    : modo === "volumes" ? "Conferir volumes"
     : parada && entrega ? `Parada ${parada.sequencia} de ${entrega.total_paradas}` : "Parada";
 
   const blocoFoto = (rotuloFoto: string) => (
@@ -254,6 +282,18 @@ export function EntregaParadaPage({ onNavigate }: Props) {
               ) : <span className="h-12 rounded-xl border border-[hsl(222,35%,22%)] text-xs text-[hsl(213,31%,45%)] flex items-center justify-center">Sem telefone</span>}
             </div>
 
+            {vol?.exige && (
+              <div className={`${cartao} p-3 flex items-center gap-3`}>
+                <Package size={20} className={vol.completo ? "text-green-400" : "text-[hsl(217,91%,65%)]"} aria-hidden="true" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-white">Volumes: {vol.conferidos} de {vol.total} lidos</p>
+                  <p className="text-xs text-[hsl(213,31%,60%)]">
+                    {vol.total === 0 ? "Pedido sem volume na carga." : vol.completo ? "Todos conferidos." : "Leia cada volume no cliente antes de confirmar."}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {parada.status !== "PENDENTE" && (
               <div className={`rounded-xl border px-3 py-2 text-sm ${parada.status === "ENTREGUE"
                 ? "border-green-500/40 bg-green-500/10 text-green-300" : "border-red-500/40 bg-red-500/10 text-red-300"}`}>
@@ -276,8 +316,67 @@ export function EntregaParadaPage({ onNavigate }: Props) {
 
           {parada.status === "PENDENTE" && (
             <div className="shrink-0 flex flex-col gap-2 pt-1">
-              <ActionButton variant="success" onClick={() => trocarModo("confirmar")} disabled={!podeAgir}>CONFIRMAR ENTREGA</ActionButton>
+              <ActionButton variant="success" onClick={iniciarConfirmacao} disabled={!podeAgir}>
+                {vol && vol.exige && !vol.podeSeguir ? "LER VOLUMES E CONFIRMAR" : "CONFIRMAR ENTREGA"}
+              </ActionButton>
               <ActionButton variant="danger" onClick={() => trocarModo("ocorrencia")} disabled={!podeAgir}>OCORRÊNCIA</ActionButton>
+            </div>
+          )}
+        </div>
+      ) : modo === "volumes" ? (
+        <div className="flex flex-col gap-3 flex-1 min-h-0">
+          <p className="text-xs text-[hsl(213,31%,60%)]">{parada.parceiro_nome} · {descreverDocumento(parada)}</p>
+          <ScanField label="Bipe a etiqueta do volume" lastScanned={ultimoLido} onScan={(c) => void conferirVolume(c)}
+            disabled={lendo || !podeAgir} />
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-white" aria-live="polite">{vol?.conferidos ?? 0} de {vol?.total ?? 0} volumes</p>
+            <button type="button" onClick={() => { setCodigoDigitado(""); setDigitarAberto(true); }} disabled={lendo || !podeAgir}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[hsl(217,91%,70%)] py-2 disabled:opacity-40">
+              <Keyboard size={16} aria-hidden="true" /> Digitar código
+            </button>
+          </div>
+          <ul className="flex flex-col gap-1.5 flex-1 min-h-0 overflow-y-auto" aria-label="Volumes do pedido">
+            {(parada.volumes ?? []).map((v) => (
+              <li key={v.id} className={`${cartao} px-3 py-2 flex items-center gap-3`}>
+                {v.conferido_em
+                  ? <CheckCircle2 size={18} className="text-green-400 shrink-0" aria-label="Conferido" />
+                  : <Circle size={18} className="text-[hsl(213,31%,45%)] shrink-0" aria-label="Pendente" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-mono text-white truncate">{v.codigo}</p>
+                  {v.descricao && <p className="text-[11px] text-[hsl(213,31%,60%)] truncate">{v.descricao}</p>}
+                </div>
+                {v.conferido_em && <span className="text-[11px] text-[hsl(213,31%,60%)]">{formatarHora(v.conferido_em)}{v.digitado ? " · dig." : ""}</span>}
+              </li>
+            ))}
+          </ul>
+          {vol && !vol.completo && (
+            <p className="text-xs text-amber-200">
+              {vol.comRessalva
+                ? "Ocorrência registrada: a entrega pode ser confirmada com volume faltando (fica como ressalva)."
+                : "Falta volume? Registre uma ocorrência (ex.: falta de volume) para poder confirmar com ressalva."}
+            </p>
+          )}
+          <div className="shrink-0 flex flex-col gap-2 pt-1">
+            <ActionButton variant="success" onClick={() => trocarModo("confirmar")} disabled={!podeAgir || !vol?.podeSeguir || lendo}>
+              CONTINUAR PARA O CANHOTO
+            </ActionButton>
+            {vol && !vol.completo && !vol.comRessalva && (
+              <ActionButton variant="danger" onClick={() => trocarModo("ocorrencia")} disabled={!podeAgir || lendo}>OCORRÊNCIA</ActionButton>
+            )}
+            <ActionButton variant="secondary" onClick={() => setModo("detalhe")} disabled={lendo}>Voltar</ActionButton>
+          </div>
+          {digitarAberto && (
+            <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="digitar-volume-titulo">
+              <div className={`${cartao} w-full max-w-sm p-4 flex flex-col gap-3`}>
+                <h3 id="digitar-volume-titulo" className="text-base font-bold text-white">Digitar código do volume</h3>
+                <label htmlFor="codigo-volume-digitado" className="sr-only">Código do volume</label>
+                <input id="codigo-volume-digitado" value={codigoDigitado} autoFocus autoCapitalize="characters" placeholder="VOL-000000"
+                  onChange={(e) => setCodigoDigitado(e.target.value)} className={`${campo} h-12 font-mono`} autoComplete="off" />
+                <p className="text-[11px] text-[hsl(213,31%,60%)]">A digitação fica registrada no histórico da entrega.</p>
+                <ActionButton variant="success" disabled={!codigoDigitado.trim() || lendo}
+                  onClick={() => { setDigitarAberto(false); void conferirVolume(codigoDigitado.trim(), true); }}>CONFERIR</ActionButton>
+                <ActionButton variant="secondary" onClick={() => setDigitarAberto(false)}>Cancelar</ActionButton>
+              </div>
             </div>
           )}
         </div>
@@ -285,6 +384,11 @@ export function EntregaParadaPage({ onNavigate }: Props) {
         <div className="flex flex-col gap-3 flex-1 min-h-0">
           <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto">
             <p className="text-xs text-[hsl(213,31%,60%)]">{parada.parceiro_nome} · {descreverDocumento(parada)}</p>
+            {vol?.exige && (
+              <p className={`text-xs ${vol.completo ? "text-green-300" : "text-amber-200"}`}>
+                Volumes: {vol.conferidos} de {vol.total} lidos{vol.completo ? "" : " · entrega com ressalva"}
+              </p>
+            )}
             {blocoFoto("Foto do canhoto assinado")}
             <label className="flex flex-col gap-1.5">
               <span className={rotulo}>Recebido por (opcional)</span>
@@ -294,7 +398,7 @@ export function EntregaParadaPage({ onNavigate }: Props) {
           </div>
           <div className="shrink-0 flex flex-col gap-2 pt-1">
             <ActionButton variant="success" onClick={confirmar} loading={gravando} disabled={!foto || !podeAgir}>CONFIRMAR</ActionButton>
-            <ActionButton variant="secondary" onClick={() => setModo("detalhe")} disabled={gravando}>Voltar</ActionButton>
+            <ActionButton variant="secondary" onClick={() => setModo(vol?.exige ? "volumes" : "detalhe")} disabled={gravando}>Voltar</ActionButton>
           </div>
         </div>
       ) : (

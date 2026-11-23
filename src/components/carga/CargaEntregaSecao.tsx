@@ -196,6 +196,12 @@ export function CargaEntregaSecao({ tenantId, usuarioId, cargaId }: Props) {
                       <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${PARADA_COR[p.status]}`} aria-hidden="true" />
                       {PARADA_STATUS_LABEL[p.status]}
                       {p.status === "PENDENTE" && p.ocorrencia && <span className="block text-xs text-amber-400">com ocorrência</span>}
+                      {p.confere_volume && (
+                        <span className={`block text-xs ${(p.volumes_conferidos ?? 0) >= (p.volumes_total ?? 0) ? "text-emerald-500" : "text-muted-foreground"}`}
+                          title="Entrega garantida: volumes lidos pelo entregador no cliente">
+                          Volumes {p.volumes_conferidos ?? 0}/{p.volumes_total ?? 0}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 pr-2 font-mono">{p.entregue_em ? formatarHora(p.entregue_em) : p.finalizada_em ? formatarHora(p.finalizada_em) : "—"}</td>
                     <td className="py-2 pr-2">

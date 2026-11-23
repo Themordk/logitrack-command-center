@@ -63,6 +63,30 @@ export interface EntregaParada {
   foto_canhoto_path: string | null;
   finalizada_em: string | null;
   ocorrencia: ParadaOcorrencia | null;
+  /** Entrega garantida: exige ler os volumes do pedido antes de confirmar (tipo_saida.entrega_confere_volume). */
+  confere_volume?: boolean;
+  volumes_total?: number;
+  volumes_conferidos?: number;
+  /** Volumes do pedido na carga (só quando confere_volume). */
+  volumes?: EntregaVolume[];
+}
+
+export interface EntregaVolume {
+  id: string;
+  codigo: string;
+  descricao: string | null;
+  tipo: string;
+  sequencia: number;
+  embarcada: boolean;
+  conferido_em: string | null;
+  digitado: boolean | null;
+}
+
+export interface ConferenciaVolumeResultado {
+  total: number;
+  conferidos: number;
+  codigo: string;
+  entrega: EntregaDetalhe;
 }
 
 export interface EntregaDetalhe {
@@ -82,6 +106,8 @@ export interface EntregaDetalhe {
   cancelada_em: string | null;
   motivo_cancelamento: string | null;
   carga_fechada_em: string | null;
+  /** Status atual da carga (entrega gerada com a carga montada pode chegar antes do fim do carregamento). */
+  carga_status?: string;
   total_paradas: number;
   paradas_entregues: number;
   paradas_nao_entregues: number;
@@ -140,6 +166,7 @@ export interface EntregaTentativa {
 export type EntregaSaida = EntregaDetalhe & { numero_saida: number };
 
 export interface EntregaDaCarga {
+  carga_status?: string;
   /** Saída atual (a ativa ou, sem ativa, a mais recente). */
   entrega: EntregaDetalhe | null;
   /** Todas as saídas da carga, da primeira à última (canceladas incluídas). */
@@ -202,6 +229,11 @@ export const entregaService = {
       p_tenant_id: tenantId, p_usuario_id: usuarioId, p_parada_id: paradaId, p_foto_path: fotoPath,
       p_recebedor_nome: recebedor.trim() || null, ...pos(posicao),
       p_precisao_m: posicao ? Math.round(posicao.precisao) : null,
+    }),
+
+  conferirVolume: (tenantId: string, usuarioId: string, paradaId: string, codigo: string, digitado: boolean, posicao?: Posicao | null) =>
+    chamar<ConferenciaVolumeResultado>("entrega_parada_conferir_volume", {
+      p_tenant_id: tenantId, p_usuario_id: usuarioId, p_parada_id: paradaId, p_codigo: codigo.trim(), p_digitado: digitado, ...pos(posicao),
     }),
 
   motivos: (tenantId: string, usuarioId: string) =>

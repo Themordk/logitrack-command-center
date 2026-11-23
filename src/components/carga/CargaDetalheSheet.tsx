@@ -257,8 +257,8 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                 </div>
               )}
 
-              {/* Entrega (veículo próprio): gerada quando a carga fecha */}
-              {carga.modalidade === "PROPRIA" && carga.status === "FECHADA" && (
+              {/* Entrega (veículo próprio): gerada na carga montada ou fechada, conforme o tipo de saída dos pedidos */}
+              {carga.modalidade === "PROPRIA" && ["LIBERADA", "EM_CARREGAMENTO", "FECHADA"].includes(carga.status) && (
                 <CargaEntregaSecao tenantId={tenantId} usuarioId={usuarioId} cargaId={carga.id} />
               )}
 

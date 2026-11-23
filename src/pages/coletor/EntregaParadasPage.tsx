@@ -11,7 +11,7 @@ import { OnlineOnlyNotice, useOnlineOnlyBlocked } from "@/components/coletor/Onl
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { entregaService, type EntregaDetalhe } from "@/lib/entregaService";
-import { ENTREGA_STATUS_LABEL, PARADA_STATUS_LABEL, enderecoLinha1, enderecoLinha2, formatarHora } from "@/lib/entregaExibicao";
+import { ENTREGA_STATUS_LABEL, PARADA_STATUS_LABEL, avisoCargaNaoFechada, enderecoLinha1, enderecoLinha2, formatarHora } from "@/lib/entregaExibicao";
 import { ENTREGA_CACHE_MIN, ENTREGA_ID_KEY, chaveCacheEntrega } from "@/pages/coletor/EntregasListPage";
 import { useOffline } from "@/contexts/OfflineContext";
 
@@ -81,6 +81,12 @@ export function EntregaParadasPage({ onNavigate }: Props) {
               <div className="h-full bg-[hsl(217,91%,55%)]" style={{ width: `${pct}%` }} />
             </div>
           </div>
+
+          {avisoCargaNaoFechada(entrega) && (
+            <div className="shrink-0 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-200">
+              {avisoCargaNaoFechada(entrega)} Confira com a expedição antes de sair.
+            </div>
+          )}
 
           {entrega.status === "AGUARDANDO_ACEITE" && (
             <div className="shrink-0 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
