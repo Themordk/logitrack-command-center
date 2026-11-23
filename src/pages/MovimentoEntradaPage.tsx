@@ -30,14 +30,17 @@ import { DescricaoCell } from "@/components/DescricaoCell";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortableTh } from "@/components/tabela/SortableTh";
 import {
-  DETALHE_ENTRADA_STALE_MS,
+  DETALHE_ABAS_STALE_MS,
+  DETALHE_ITENS_STALE_MS,
   detalheEntradaKeys,
   fetchArmazenagemDetalheEntrada,
   fetchConferenciaDetalheEntrada,
   fetchInformacoesDetalheEntrada,
   fetchItensDetalheEntrada,
   invalidarDetalheEntrada,
+  invalidarTodosDetalhesEntrada,
   prefetchItensDetalheEntrada,
+  revalidarSeAntigo,
 } from "@/lib/movimentoEntradaDetalheService";
 
 interface MovimentoEntradaListItem {
@@ -226,25 +229,25 @@ export function MovimentoEntradaPage() {
     queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "itens"),
     queryFn: () => fetchItensDetalheEntrada(selectedMov!),
     enabled: detalheHabilitado,
-    staleTime: DETALHE_ENTRADA_STALE_MS,
+    staleTime: DETALHE_ITENS_STALE_MS,
   });
   const conferenciaQuery = useQuery({
     queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "conferencia"),
     queryFn: () => fetchConferenciaDetalheEntrada(selectedMov!),
     enabled: detalheHabilitado && itemTab === "conferencia",
-    staleTime: DETALHE_ENTRADA_STALE_MS,
+    staleTime: DETALHE_ABAS_STALE_MS,
   });
   const armazenagemQuery = useQuery({
     queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "armazenagem"),
     queryFn: () => fetchArmazenagemDetalheEntrada(selectedMov!),
     enabled: detalheHabilitado && itemTab === "armazenagem",
-    staleTime: DETALHE_ENTRADA_STALE_MS,
+    staleTime: DETALHE_ABAS_STALE_MS,
   });
   const informacoesQuery = useQuery({
     queryKey: detalheEntradaKeys.secao(tenantId, selectedMov, "informacoes"),
     queryFn: () => fetchInformacoesDetalheEntrada(selectedMov!),
     enabled: detalheHabilitado && itemTab === "informacoes",
-    staleTime: DETALHE_ENTRADA_STALE_MS,
+    staleTime: DETALHE_ABAS_STALE_MS,
   });
 
   const resumoItems: ResumoItem[] = useMemo(
@@ -338,6 +341,16 @@ export function MovimentoEntradaPage() {
         : itemTab === "informacoes" ? informacoesQuery
           : itensQuery;
   const abaCarregando = !!selectedMov && queryDaAba.isLoading;
+  /** Buscando de novo com dados já na tela (mostra o indicador "atualizando"). */
+  const abaAtualizando = !!selectedMov && queryDaAba.isFetching && !queryDaAba.isLoading;
+
+  // Ao trocar de aba (ou de movimento), a aba que aparece revalida se os dados dela
+  // tiverem mais de 5 s: conferência/armazenagem mudam pelo coletor o tempo todo.
+  useEffect(() => {
+    if (!selectedMov) return;
+    revalidarSeAntigo(queryDaAba);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemTab, selectedMov]);
 
   const sortItens = useTableSort(resumoItems, "sku", {
     status_item_movimento: (r: ResumoItem) => STATUS_ITEM_MAP[r.status_item_movimento]?.label ?? r.status_item_movimento,
@@ -482,15 +495,22 @@ export function MovimentoEntradaPage() {
   }, [listQuery, opsQuery]);
 
   const selecionarMovimento = (movId: string, movStatus: string) => {
+    if (movId === selectedMov) {
+      // Clicar de novo no movimento aberto = "quero ver o atual": busca a aba visível agora.
+      void queryDaAba.refetch();
+      return;
+    }
     setSelectedMov(movId);
     setSelectedMovStatus(movStatus);
     setItemTab("itens");
   };
 
-  /** Depois de uma ação no movimento: recarrega só o detalhe dele (todas as abas). */
+  /**
+   * Depois de uma ação no movimento: invalida o detalhe DELE (todas as abas), esteja ou
+   * não selecionado — a aba aberta busca na hora e as outras ao serem abertas.
+   */
   const recarregarDetalhe = (movId: string, novoStatus?: string | null) => {
-    if (selectedMov !== movId) return;
-    if (novoStatus) setSelectedMovStatus(novoStatus);
+    if (novoStatus && selectedMov === movId) setSelectedMovStatus(novoStatus);
     void invalidarDetalheEntrada(queryClient, tenantId, movId);
   };
 
@@ -637,6 +657,7 @@ export function MovimentoEntradaPage() {
           setSelectedMov(null);
           setSelectedMovStatus(null);
         }
+        recarregarDetalhe(cancelMovId);
         fetchMovements();
       }
     } catch (err: any) {
@@ -677,6 +698,7 @@ export function MovimentoEntradaPage() {
     setPendingMovId(null);
     selecionarMovimento(mov.id, mov.status);
     setItemTab("informacoes");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingMovId, movements]);
 
   // Rolar até a primeira linha com o SKU filtrado (uma vez por movimento/SKU/aba)
@@ -694,9 +716,11 @@ export function MovimentoEntradaPage() {
     return () => clearTimeout(t);
   }, [skuFiltro, selectedMov, itemTab, abaCarregando, resumoItems, conferenciaItems, armazenagemItems]);
 
+  /** Filtrar = atualizar: lista de novo e nenhum detalhe em cache continua valendo. */
   const handleSearch = () => {
     setPage(1);
     fetchMovements();
+    void invalidarTodosDetalhesEntrada(queryClient, tenantId);
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -888,6 +912,9 @@ export function MovimentoEntradaPage() {
                   Armazenagem{contagensAbas ? <span className="ml-1 text-xs text-muted-foreground">({contagensAbas.armazenagens})</span> : null}
                 </TabsTrigger>
                 <TabsTrigger value="informacoes" className="flex-1">Informações</TabsTrigger>
+                <span className="w-5 shrink-0 flex items-center justify-center" title={abaAtualizando ? "Atualizando com os dados mais recentes…" : undefined}>
+                  {abaAtualizando && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+                </span>
               </TabsList>
 
               {/* Aba Itens */}
@@ -1317,7 +1344,7 @@ export function MovimentoEntradaPage() {
         movimentoSaidaId={responsaveisMov?.id || null}
         numeroOnda={responsaveisMov?.numero ?? null}
         onClose={() => setResponsaveisMov(null)}
-        onSuccess={() => { listQuery.refetch(); opsQuery.refetch(); }}
+        onSuccess={() => { listQuery.refetch(); opsQuery.refetch(); if (responsaveisMov) recarregarDetalhe(responsaveisMov.id); }}
       />
     </div>
   );

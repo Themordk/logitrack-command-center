@@ -182,7 +182,25 @@ export async function fetchInformacoesDetalheEntrada(movimentoId: string): Promi
 
 /* ---------------------------------------------------------------- cache */
 
-export const DETALHE_ENTRADA_STALE_MS = 30_000;
+/**
+ * Frescor do detalhe. Conferência e armazenagem mudam pelo coletor a qualquer momento,
+ * então o detalhe nunca fica 30 s em cache como o resto do app:
+ *  - Itens: 5 s, só para o pré-carregamento do hover servir ao clique logo em seguida.
+ *  - Demais abas: 0 — ao abrir, mostram o que já tinham e buscam de novo na hora.
+ * Trocar de aba ou clicar de novo no movimento aberto revalida a aba visível
+ * (ver revalidarSeAntigo) e o botão Filtrar invalida todos os detalhes.
+ */
+export const DETALHE_ITENS_STALE_MS = 5_000;
+export const DETALHE_ABAS_STALE_MS = 0;
+
+/** Revalida uma query de aba quando os dados exibidos têm mais de `maxIdadeMs`. */
+export function revalidarSeAntigo(
+  q: { data: unknown; dataUpdatedAt: number; isFetching: boolean; refetch: () => unknown },
+  maxIdadeMs = DETALHE_ITENS_STALE_MS,
+) {
+  if (q.data === undefined || q.isFetching) return;
+  if (Date.now() - q.dataUpdatedAt > maxIdadeMs) void q.refetch();
+}
 
 export const detalheEntradaKeys = {
   /** Prefixo de tudo do detalhe de um movimento (invalidar depois de ações). */
@@ -198,11 +216,22 @@ export function prefetchItensDetalheEntrada(qc: QueryClient, tenantId: string | 
   void qc.prefetchQuery({
     queryKey: detalheEntradaKeys.secao(tenantId, movimentoId, "itens"),
     queryFn: () => fetchItensDetalheEntrada(movimentoId),
-    staleTime: DETALHE_ENTRADA_STALE_MS,
+    staleTime: DETALHE_ITENS_STALE_MS,
   });
 }
 
+/**
+ * Depois de qualquer ação no movimento (liberar, retirar, cancelar, remover documento…):
+ * a aba aberta busca de novo na hora e as outras ficam marcadas para buscar ao abrir.
+ * Vale também para movimento que não está selecionado — senão, ao abri-lo em seguida,
+ * a tela mostraria o cache de antes da ação.
+ */
 export function invalidarDetalheEntrada(qc: QueryClient, tenantId: string | null | undefined, movimentoId: string | null | undefined) {
   if (!movimentoId) return Promise.resolve();
   return qc.invalidateQueries({ queryKey: detalheEntradaKeys.movimento(tenantId, movimentoId) });
+}
+
+/** Botão Filtrar/atualizar: nenhum detalhe em cache continua valendo. */
+export function invalidarTodosDetalhesEntrada(qc: QueryClient, tenantId: string | null | undefined) {
+  return qc.invalidateQueries({ queryKey: ["mov-entrada-detalhe", tenantId ?? null] });
 }

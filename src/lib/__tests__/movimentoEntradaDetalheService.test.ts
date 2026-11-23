@@ -68,3 +68,18 @@ describe("movimentoEntradaDetalheService", () => {
     expect(r.contagens).toEqual({ conferencias: 0, armazenagens: 0, documentos: 0 });
   });
 });
+
+describe("movimentoEntradaDetalheService · cache sempre atual", () => {
+  it("ação invalida o detalhe do movimento mesmo não selecionado; Filtrar invalida todos", async () => {
+    const { QueryClient } = await import("@tanstack/react-query");
+    const { invalidarDetalheEntrada, invalidarTodosDetalhesEntrada } = await import("@/lib/movimentoEntradaDetalheService");
+    const qc = new QueryClient();
+    qc.setQueryData(detalheEntradaKeys.secao("t", "m1", "conferencia"), []);
+    qc.setQueryData(detalheEntradaKeys.secao("t", "m2", "armazenagem"), []);
+    await invalidarDetalheEntrada(qc, "t", "m1");
+    expect(qc.getQueryState(detalheEntradaKeys.secao("t", "m1", "conferencia"))?.isInvalidated).toBe(true);
+    expect(qc.getQueryState(detalheEntradaKeys.secao("t", "m2", "armazenagem"))?.isInvalidated).toBe(false);
+    await invalidarTodosDetalhesEntrada(qc, "t");
+    expect(qc.getQueryState(detalheEntradaKeys.secao("t", "m2", "armazenagem"))?.isInvalidated).toBe(true);
+  });
+});
