@@ -4,6 +4,7 @@ import { useOffline } from "@/contexts/OfflineContext";
 import { OfflineBanner } from "@/components/coletor/OfflineBanner";
 import { OcorrenciaFAB } from "@/components/ocorrencia/OcorrenciaFAB";
 import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
+import { EntregaPendenteFaixa } from "@/components/coletor/EntregaPendenteFaixa";
 
 import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
 import { CHAVE_SESSAO, encerrarSessaoColetor, manterSessaoColetor } from "@/lib/sessaoColetor";
@@ -92,6 +93,7 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
         </header>
 
         <OfflineBanner onNavigate={onNavigate} />
+        <EntregaPendenteFaixa onNavigate={onNavigate} />
 
 
         {/* Body */}

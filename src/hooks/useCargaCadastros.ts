@@ -9,6 +9,8 @@ export interface VeiculoOpcao {
   peso_total: number | null;
   m3: number | null;
   total_pallet: number | null;
+  /** Entregas: usuário entregador vinculado (carga fechada gera a entrega para ele). */
+  usuario_id: string | null;
 }
 
 export interface BoxOpcao {
@@ -26,7 +28,7 @@ export function useCargaCadastros(tenantId: string | null, empresaId: string | n
     queryFn: async (): Promise<VeiculoOpcao[]> => {
       let q = supabase
         .from("veiculos")
-        .select("id, descricao, placa, peso_total, m3, total_pallet, empresa_id")
+        .select("id, descricao, placa, peso_total, m3, total_pallet, usuario_id, empresa_id")
         .eq("tenant_id", tenantId as string)
         .eq("ativo", true)
         .order("descricao");

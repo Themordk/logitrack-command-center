@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
@@ -14,6 +15,7 @@ import { cargaService } from "@/lib/cargaService";
 import { imprimirEtiquetaVeiculo } from "@/lib/etiquetaVeiculoPdf";
 import { abrirJanelaImpressao } from "@/modules/reports/utils/exporters";
 import { parseError } from "@/lib/errorMapper";
+import { entregaService } from "@/lib/entregaService";
 
 interface VeiculoLinha { id: string; descricao: string; placa: string | null; tipo_veiculo: string | null; codigo_identificacao: string }
 
@@ -26,6 +28,18 @@ export function VeiculosPage() {
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
   const [novoCodigoItem, setNovoCodigoItem] = useState<VeiculoLinha | null>(null);
+
+  // Entregas: usuários que podem ser vinculados ao veículo (ativos com coletor.entregas).
+  const entregadores = useQuery({
+    queryKey: ["entregadores", tenantId],
+    enabled: !!tenantId,
+    queryFn: () => entregaService.entregadores(tenantId as string),
+    staleTime: 60_000,
+  });
+  const nomeEntregador = useMemo(
+    () => new Map((entregadores.data ?? []).map((u) => [u.id, u.nome])),
+    [entregadores.data],
+  );
 
   const imprimirEtiqueta = (row: VeiculoLinha) => {
     const janela = abrirJanelaImpressao(); // reservada no clique para não ser bloqueada
@@ -56,6 +70,9 @@ export function VeiculosPage() {
     { key: "peso_total", label: "Peso Total", type: "number" },
     { key: "m3", label: "M³", type: "number" },
     { key: "total_pallet", label: "Pallets", type: "number" },
+    { key: "usuario_id", label: "Entregador", render: (row) => (
+      <span className="text-xs">{row.usuario_id ? (nomeEntregador.get(row.usuario_id) ?? "Usuário sem permissão de entregas") : "—"}</span>
+    )},
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -67,11 +84,21 @@ export function VeiculosPage() {
     { name: "peso_total", label: "Peso Total (kg)", type: "number", placeholder: "25000" },
     { name: "m3", label: "Capacidade M³", type: "number", placeholder: "90" },
     { name: "total_pallet", label: "Total Pallets", type: "number", placeholder: "30" },
+    {
+      name: "usuario_id", label: "Usuário entregador", type: "select",
+      placeholder: "Sem entregador (não gera entrega)",
+      options: [
+        ...(entregadores.data ?? []).map((u) => ({ value: u.id, label: `${u.nome} (${u.login})` })),
+        ...(editItem?.usuario_id && !nomeEntregador.has(editItem.usuario_id)
+          ? [{ value: editItem.usuario_id as string, label: "Usuário atual (sem permissão de entregas)" }] : []),
+      ],
+    },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
   const handleSave = async (data: Record<string, any>) => {
     if (empresaId) data.empresa_id = empresaId;
+    data.usuario_id = data.usuario_id || null;
     if (editItem) return crud.update(editItem.id, data);
     return crud.create(data);
   };

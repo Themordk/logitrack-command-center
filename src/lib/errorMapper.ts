@@ -87,6 +87,13 @@ const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }>
   EMBARQUE_UNIDADE_OUTRA_CARGA: { title: "Esta unidade é de outra carga!", instruction: "Não coloque no veículo. Separe a unidade e avise o supervisor." },
   EMBARQUE_CODIGO_NAO_ENCONTRADO: { title: "Código não pertence a esta carga.", instruction: "Confira a etiqueta e bipe de novo." },
   EMBARQUE_JA_EMBARCADA: { title: "Esta unidade já foi embarcada.", instruction: "Siga para a próxima unidade." },
+  // Módulo de Entregas
+  VEICULO_ENTREGADOR_INVALIDO: { title: "Usuário não pode ser entregador.", instruction: "Escolha um usuário ativo com a permissão Entregas no coletor (Perfis de Acesso)." },
+  ENTREGA_NAO_ACEITA: { title: "Carga ainda não aceita.", instruction: "Aceite a carga na lista de entregas para liberar as confirmações." },
+  ENTREGA_DE_OUTRO_USUARIO: { title: "Entrega de outro entregador.", instruction: "Atualize a lista: esta carga foi atribuída a outra pessoa." },
+  ENTREGA_PARADA_FINALIZADA: { title: "Parada já registrada.", instruction: "Atualize a lista de paradas." },
+  ENTREGA_FOTO_NAO_ENVIADA: { title: "A foto não chegou ao servidor.", instruction: "Verifique a conexão e toque em gravar de novo; a foto continua na tela." },
+  ENTREGA_OBSERVACAO_OBRIGATORIA: { title: "Observação obrigatória.", instruction: "Descreva o que aconteceu para este motivo." },
   EMBARQUE_PENDENTE: { title: "Ainda há unidades para embarcar.", instruction: "Bipe as unidades pendentes antes de concluir o carregamento." },
   EMBARQUE_CARGA_INDISPONIVEL: { title: "Esta carga não está liberada para embarque.", instruction: "Volte para a lista de cargas e atualize." },
   MOTIVO_INVALIDO: { title: "Motivo de corte inválido.", instruction: "Escolha outro motivo." },

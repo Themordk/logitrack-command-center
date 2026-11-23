@@ -60,6 +60,7 @@ export const ETAPA_LABEL: Record<string, string> = {
   MOVIMENTACAO: "Movimentação",
   SEPARACAO: "Separação",
   EXPEDICAO: "Expedição",
+  ENTREGA: "Entrega",
   INVENTARIO: "Inventário",
   AUDITORIA: "Auditoria",
   CONFERENCIA: "Conferência",
