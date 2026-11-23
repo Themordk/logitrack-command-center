@@ -1089,7 +1089,7 @@ export function MovimentoSaidaPage() {
                 </span>
               </TabsList>
 
-              <TabsContent value="itens" className="flex-1 overflow-auto m-0 px-1">
+              <TabsContent value="itens" className="flex-1 overflow-auto m-0">
                 {itensQuery.isLoading ? (
                   <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : itensQuery.isError ? (
@@ -1175,7 +1175,7 @@ export function MovimentoSaidaPage() {
                 )}
               </TabsContent>
 
-              <TabsContent value="separacao" className="flex-1 overflow-auto m-0 px-1">
+              <TabsContent value="separacao" className="flex-1 overflow-auto m-0">
                 {separacaoQuery.isLoading ? (
                   <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : separacaoQuery.isError ? (
@@ -1223,7 +1223,7 @@ export function MovimentoSaidaPage() {
                 )}
               </TabsContent>
 
-              <TabsContent value="conferencia" className="flex-1 overflow-auto m-0 px-1">
+              <TabsContent value="conferencia" className="flex-1 overflow-auto m-0">
                 {conferenciaQuery.isLoading ? (
                   <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                 ) : conferenciaQuery.isError ? (
