@@ -968,25 +968,10 @@ export function MovimentoSaidaPage() {
                     onMouseEnter={() => agendarPrefetch(mov.id)}
                     onMouseLeave={cancelarPrefetch}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-semibold text-foreground">Onda #{mov.numero_onda}</span>
-                      <div className="flex items-center gap-1">
-                        {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
-                        {mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica" && (
-                          <EntregaPedidoBadge entrega={mov.entrega_resumo}
-                            className="rounded-full"
-                            complemento={textoResumoEntregaOnda(mov.entrega_total, mov.entrega_entregues)} />
-                        )}
-                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
-                        {mov.docs_sem_nf != null && (
-                          <span
-                            className="text-[10px] px-1 py-0.5 rounded border border-amber-500/30 bg-amber-500/15 text-amber-500 whitespace-nowrap"
-                            title={`Modo de conferência pós-faturamento: ${mov.docs_sem_nf} pedido(s) sem NF autorizada. A onda não aparece na conferência do coletor até o ERP enviar a NF.`}
-                          >
-                            Aguardando NF
-                          </span>
-                        )}
-                        {semSaldo > 0 && <span className="text-[10px] px-1 py-0.5 rounded border border-destructive/30 bg-destructive/15 text-destructive">{semSaldo} sem saldo</span>}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono font-semibold text-foreground whitespace-nowrap">Onda #{mov.numero_onda}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap", info.class)}>{info.label}</span>
                         <div className="relative">
                           <button
                             onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === mov.id ? null : mov.id); }}
@@ -1066,6 +1051,25 @@ export function MovimentoSaidaPage() {
                         </div>
                       </div>
                     </div>
+                    {(hasErp || (mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica") || mov.docs_sem_nf != null || semSaldo > 0) && (
+                      <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                        {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
+                        {mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica" && (
+                          <EntregaPedidoBadge entrega={mov.entrega_resumo}
+                            className="rounded-full"
+                            complemento={textoResumoEntregaOnda(mov.entrega_total, mov.entrega_entregues)} />
+                        )}
+                        {mov.docs_sem_nf != null && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/15 text-amber-500 whitespace-nowrap"
+                            title={`Modo de conferência pós-faturamento: ${mov.docs_sem_nf} pedido(s) sem NF autorizada. A onda não aparece na conferência do coletor até o ERP enviar a NF.`}
+                          >
+                            Aguardando NF
+                          </span>
+                        )}
+                        {semSaldo > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-destructive/30 bg-destructive/15 text-destructive whitespace-nowrap">{semSaldo} sem saldo</span>}
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>{truncate(mov.parceiro_nome, 35)}</p>
                     <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
                     <div className="flex items-center justify-between mt-0.5 gap-2">
