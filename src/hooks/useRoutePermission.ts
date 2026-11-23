@@ -48,6 +48,8 @@ const routeToModuleMap: Record<string, string> = {
   "/relatorios/inventario": "web.relatorios.inventario",
   "/relatorios/recebimento": "web.relatorios.recebimento",
   "/relatorios/ciclo-pedido": "web.relatorios.ciclo-pedido",
+  "/relatorios/entregas": "web.relatorios.entregas",
+  "/relatorios/entregas-motivos": "web.relatorios.entregas-motivos",
   "/relatorios/cancelamentos": "web.relatorios.cancelamentos",
   "/lms/acompanhamento": "web.lms.acompanhamento",
   "/lms/metas": "web.lms.metas",

@@ -81,6 +81,8 @@ import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/Movimen
 import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhePage";
 import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
 import { ProdutosMapeadosReportPage } from "./modules/reports/produtos-mapeados/ProdutosMapeadosReportPage";
+import { EntregasReportPage } from "./modules/reports/entregas/EntregasReportPage";
+import { EntregasMotivosReportPage } from "./modules/reports/entregas/EntregasMotivosReportPage";
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 import { TarefasColaboradorPage } from "./modules/reports/produtividade/TarefasColaboradorPage";
@@ -254,6 +256,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/inventario": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Acuracidade de Inventário" }],
   "/relatorios/recebimento": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Recebimento (Dock-to-Stock)" }],
   "/relatorios/ciclo-pedido": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Tempo de Ciclo de Pedido" }],
+  "/relatorios/entregas": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Saídas e Tentativas de Entrega" }],
+  "/relatorios/entregas-motivos": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Entregas por Motivo" }],
   "/relatorios/cancelamentos": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cancelamentos de Tarefas" }],
   "/relatorios/documentos-cancelados": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Documentos Cancelados" }],
   "/relatorios/picking-nao-cadastrado": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada", path: "/atividades/movimentos" }, { label: "Itens sem Picking" }],
@@ -408,6 +412,8 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/relatorios/inventario": return <InventarioReportPage />;
     case "/relatorios/recebimento": return <RecebimentoReportPage />;
     case "/relatorios/ciclo-pedido": return <CicloPedidoReportPage />;
+    case "/relatorios/entregas": return <EntregasReportPage onNavigate={onNavigate} />;
+    case "/relatorios/entregas-motivos": return <EntregasMotivosReportPage onNavigate={onNavigate} />;
     case "/relatorios/cancelamentos": return <CancelamentosPage />;
     case "/relatorios/documentos-cancelados": return <DocumentosCanceladosPage />;
     case "/relatorios/picking-nao-cadastrado": return <PickingNaoCadastradoReportPage onNavigate={onNavigate} />;

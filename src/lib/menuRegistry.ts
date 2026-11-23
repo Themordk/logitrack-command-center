@@ -117,6 +117,8 @@ export const MENU_GRUPOS: MenuGrupo[] = [
       { label: "Cortes de Separação", path: "/relatorios/cortes", secao: "Operação" },
       { label: "Expedições", path: "/relatorios/expedicoes", secao: "Operação" },
       { label: "Tempo de Ciclo de Pedido", path: "/relatorios/ciclo-pedido", secao: "Operação" },
+      { label: "Saídas e Tentativas de Entrega", path: "/relatorios/entregas", secao: "Entregas", palavrasChave: ["entrega", "tentativa", "canhoto", "entregador"] },
+      { label: "Entregas por Motivo", path: "/relatorios/entregas-motivos", secao: "Entregas", palavrasChave: ["entrega", "ocorrência", "motivo", "sucesso"] },
       { label: "Inventário", path: "/relatorios/inventario", secao: "Operação", palavrasChave: ["acuracidade"] },
       { label: "Produtividade Operacional", path: "/relatorios/produtividade", secao: "Operação" },
       { label: "Cancelamentos de Tarefas", path: "/relatorios/cancelamentos", secao: "Cancelamentos" },
