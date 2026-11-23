@@ -6,6 +6,7 @@ import { OcorrenciaFAB } from "@/components/ocorrencia/OcorrenciaFAB";
 import { OcorrenciaColetorProvider } from "@/contexts/OcorrenciaColetorContext";
 
 import { Wifi, WifiOff, LogOut, RefreshCw } from "lucide-react";
+import { CHAVE_SESSAO, encerrarSessaoColetor, manterSessaoColetor } from "@/lib/sessaoColetor";
 
 
 interface ColetorLayoutProps {
@@ -24,24 +25,25 @@ export function ColetorLayout({ children, title = "CORE Coletor", titleBadge, on
   const onlineRef = useRef(online);
   onlineRef.current = online;
 
-  // Heartbeat every 30s (pausa quando offline)
+  // Sessão do LMS: sinal ao abrir a tela e a cada 30 s (pausa quando offline). Sem sessão válida
+  // neste navegador (ou apagada no servidor), abre uma nova — Fase 10.25.
   useEffect(() => {
-    const sid = sessionIdRef.current;
-    if (!sid) return;
-    const iv = setInterval(async () => {
+    let ativo = true;
+    const manter = async () => {
       if (!onlineRef.current) return;
-      await (supabase as any).from("log_sessao_usuario").update({ ultimo_heartbeat: new Date().toISOString() }).eq("id", sid);
-    }, 30000);
-    return () => clearInterval(iv);
+      const atual = localStorage.getItem(CHAVE_SESSAO) ?? sessionIdRef.current;
+      const id = await manterSessaoColetor(atual, localStorage.getItem("core_tenant_id"), localStorage.getItem("core_usuario_id"));
+      if (ativo) sessionIdRef.current = id;
+    };
+    void manter();
+    const iv = setInterval(() => { void manter(); }, 30000);
+    return () => { ativo = false; clearInterval(iv); };
   }, []);
 
 
   const handleLogout = async () => {
     const sid = sessionIdRef.current;
-    if (sid) {
-      await (supabase as any).from("log_sessao_usuario").update({ fim_sessao: new Date().toISOString() }).eq("id", sid);
-      localStorage.removeItem("coletor_session_id");
-    }
+    if (sid) await encerrarSessaoColetor(sid);
     await supabase.auth.signOut();
     localStorage.removeItem("core_tenant_id");
     localStorage.removeItem("core_empresa_id");

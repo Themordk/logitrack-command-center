@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { listarOperadoresElegiveis } from "@/lib/responsaveisOndaService";
-import type { EtapaOnda } from "@/lib/responsaveisOnda.types";
+import type { EtapaOnda, OperadorElegivel } from "@/lib/responsaveisOnda.types";
 
 interface Props {
   movimentoSaidaId: string;
@@ -15,6 +15,9 @@ interface Props {
   nomesConhecidos: Record<string, string>;
   disabled?: boolean;
   onChange: (usuarios: string[], nomes: Record<string, string>) => void;
+  /** Fase 5.1: lista de elegíveis de outra fonte (movimento de entrada). Padrão: onda. */
+  listar?: (id: string, tipoTarefaId: string) => Promise<OperadorElegivel[]>;
+  chaveFonte?: string;
 }
 
 const LIVRE = "__livre__";
@@ -25,13 +28,13 @@ const LIVRE = "__livre__";
  * "Livre (autoconvocação)" limpa a convocação: qualquer habilitado pode assumir pelo coletor.
  * Quem não pode ser convocado aparece desabilitado com o motivo devolvido pelo banco.
  */
-export function SeletorConvocados({ movimentoSaidaId, etapa, selecionados, nomesConhecidos, disabled, onChange }: Props) {
+export function SeletorConvocados({ movimentoSaidaId, etapa, selecionados, nomesConhecidos, disabled, onChange, listar, chaveFonte = "onda" }: Props) {
   const [open, setOpen] = useState(false);
   const exclusiva = etapa.modo === "EXCLUSIVA";
 
   const elegiveisQuery = useQuery({
-    queryKey: ["onda-elegiveis", movimentoSaidaId, etapa.tipo_tarefa_id],
-    queryFn: () => listarOperadoresElegiveis(movimentoSaidaId, etapa.tipo_tarefa_id),
+    queryKey: [`${chaveFonte}-elegiveis`, movimentoSaidaId, etapa.tipo_tarefa_id],
+    queryFn: () => (listar ?? listarOperadoresElegiveis)(movimentoSaidaId, etapa.tipo_tarefa_id),
     enabled: open,
     staleTime: 30_000,
   });

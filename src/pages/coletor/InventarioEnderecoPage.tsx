@@ -9,6 +9,7 @@ import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/Regist
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useOffline } from "@/contexts/OfflineContext";
+import { iniciarTarefas } from "@/lib/lmsTimestamp";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -140,6 +141,12 @@ export function InventarioEnderecoPage({ onNavigate }: Props) {
       }
 
       // Inventário pode contar endereços BLOQUEADO/BLOQUEADO_INVENTARIO — sem validação de situação aqui.
+
+      // LMS (Fase 2): bipe do endereço = início de todas as tarefas deste endereço
+      void iniciarTarefas(
+        tarefas.filter((t) => (t.endereco_id || t.id_local_origem) === expectedId).map((t) => t.tarefa_id || t.id),
+        "BIPE_ENDERECO",
+      );
 
 
 

@@ -11,6 +11,7 @@ import { RegistrarOcorrenciaColetorButton } from "@/components/ocorrencia/Regist
 import { useOfflineAction } from "@/hooks/useOfflineAction";
 import { parseRpcResult } from "@/lib/errorMapper";
 import { toast } from "sonner";
+import { iniciarTarefas } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -61,6 +62,8 @@ export function AbastecimentoColetaPage({ onNavigate }: Props) {
 
     setEnderecoConfirmado(true);
     setEnderecoScannedDesc(data[0].descricao);
+    // LMS (Fase 2): bipe do endereço de origem (pulmão) = início da retirada
+    void iniciarTarefas([tarefaId], "BIPE_ORIGEM", usuarioId);
     setOverlay("success"); setOverlayMsg(`Endereço: ${data[0].descricao}`);
   };
 

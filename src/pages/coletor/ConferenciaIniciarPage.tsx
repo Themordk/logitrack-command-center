@@ -16,7 +16,9 @@ import { parseError } from "@/lib/errorMapper";
 import { deveExibirNomeColetor } from "@/lib/exibicaoColetor";
 import { useResumoEtapaColetor } from "@/hooks/useResumoEtapaColetor";
 import { ResumoEtapaPainel } from "@/components/coletor/ResumoEtapaPainel";
-import { acaoColetor, assumirEtapaColetor, sairEtapaColetor } from "@/lib/responsaveisOndaService";
+import { acaoColetor, assumirEtapaColetor } from "@/lib/responsaveisOndaService";
+import { useSairEtapaColetor } from "@/hooks/useSairEtapaColetor";
+import type { ParamsSair, ResultadoSair } from "@/lib/sairEtapaService";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -134,26 +136,28 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
     await handleIniciar();
   };
 
-  const handleSair = async () => {
-    if (!etapaInfo.contexto) return;
+  // Fase 5.3: a folha "Sair da etapa" mostra a prévia do banco e deixa escolher o que devolver
+  const paramsSair: ParamsSair | null = etapaInfo.contexto
+    ? { tenantId: etapaInfo.contexto.tenantId, empresaId: etapaInfo.contexto.empresaId, usuarioId: etapaInfo.contexto.usuarioId,
+        contextoTipo: "ONDA", contextoId: etapaInfo.contexto.movimentoSaidaId, etapa: etapaInfo.contexto.etapa }
+    : null;
+  const aposSair = async (r: ResultadoSair) => {
     setSaindo(true);
     try {
-      const r = await sairEtapaColetor(etapaInfo.contexto);
-      if (!r.sucesso) {
-        result.showError(r, { context: "conferencia-sair" });
-        return;
-      }
       // Tarefas devolvidas não podem continuar no cache offline deste aparelho
-      await cacheData(`tarefas_conferencia_${selectedId}`, [], 1).catch(() => {});
+      if (!r.tarefas_mantidas) await cacheData(`tarefas_conferencia_${selectedId}`, [], 1).catch(() => {});
       result.showSuccess(r.mensagem || "Etapa devolvida para a fila.");
-      setSelectedId(null);
+      if (!r.tarefas_mantidas) setSelectedId(null);
       void refetch();
-    } catch (err: unknown) {
-      result.showError(err, { context: "conferencia-sair" });
     } finally {
       setSaindo(false);
     }
   };
+  // Sair com um toque; a folha de opções só aparece quando há o que decidir
+  const sairEtapa = useSairEtapaColetor(paramsSair, {
+    onSaiu: (r) => { void aposSair(r); },
+    onErro: (e) => result.showError(e, { context: "sair-etapa" }),
+  });
 
   const handleIniciar = async () => {
     if (!selectedId) return;
@@ -361,10 +365,11 @@ export function ConferenciaIniciarPage({ onNavigate }: Props) {
 
         <div className="shrink-0 pt-1 flex flex-col gap-2">
           {acao?.podeSair && (
-            <ActionButton variant="secondary" onClick={handleSair} loading={saindo} disabled={starting}>
+            <ActionButton variant="secondary" onClick={sairEtapa.sair} loading={saindo || sairEtapa.saindo} disabled={starting}>
               Sair da etapa
             </ActionButton>
           )}
+          {sairEtapa.folha}
           <ActionButton
             onClick={handlePrincipal}
             disabled={!selectedId || acao?.tipo === "BLOQUEADA" || (isOnline && etapaInfo.loading)}

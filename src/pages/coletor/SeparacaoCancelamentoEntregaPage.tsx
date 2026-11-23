@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
@@ -6,6 +6,7 @@ import { ScanField } from "@/components/coletor/ScanField";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { useFeedback } from "@/hooks/useFeedback";
+import { iniciarTarefas } from "@/lib/lmsTimestamp";
 import { Ban, MapPin, AlertTriangle, CheckCircle2, ArrowRight, XCircle, ClipboardList } from "lucide-react";
 
 interface Props { onNavigate: (path: string) => void; }
@@ -49,6 +50,12 @@ export function SeparacaoCancelamentoEntregaPage({ onNavigate }: Props) {
   const usuarioId = localStorage.getItem("core_usuario_id");
 
   const totalUnidades = itens.reduce((acc, i) => acc + Number(i.quantidade || 0), 0);
+
+  // LMS (Fase 2): abrir a entrega é o início de todas as tarefas do pedido (uma confirmação fecha todas)
+  useEffect(() => {
+    void iniciarTarefas(itens.map((i) => i.tarefa_id), "ABERTURA_ENTREGA", usuarioId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const limparSessao = () => {
     [

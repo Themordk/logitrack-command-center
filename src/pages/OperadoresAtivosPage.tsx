@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatarTempoEspera, corFaixaPerformance } from "@/pages/dashboard/dashboard.service";
+import { definicaoTermo } from "@/modules/lms/glossario";
 
 const sb = supabase as any;
 const REFRESH_INTERVAL = 30_000;
@@ -49,6 +50,8 @@ interface OperadorAtivo {
   // LMS
   score_dia: number;
   faixa_performance: string;
+  faixa_nome?: string;
+  faixa_cor?: string;
   taxa_ocupacao: number;
   produtividade_hora: number;
   lms_faixa_excelente_pct: number;
@@ -194,7 +197,7 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                 <tr className="border-b border-border/50 text-xs text-muted-foreground uppercase tracking-wide">
                   <th className="text-left px-4 py-2.5 font-medium">Operador</th>
                   <th className="text-left px-4 py-2.5 font-medium">Status / Tempo</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Score</th>
+                  <th className="text-right px-4 py-2.5 font-medium" title={definicaoTermo("performance")}>Performance</th>
                   <th className="text-left px-4 py-2.5 font-medium">Ocupação</th>
                   <th className="text-right px-4 py-2.5 font-medium">Prod/h</th>
                   <th className="text-right px-4 py-2.5 font-medium">Concluídas</th>
@@ -310,10 +313,10 @@ export function OperadoresAtivosPage({ onNavigate }: { onNavigate: (p: string) =
                           )}
                         </div>
                       </td>
-                      {/* ── COL 3: Score LMS ── */}
+                      {/* ── COL 3: performance do dia (score_dia da consolidação = performance; não é o score das metas) ── */}
                       <td className="px-4 py-3 text-right tabular-nums">
                         {o.score_dia > 0 ? (
-                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corFaixaPerformance(o.faixa_performance).bg, corFaixaPerformance(o.faixa_performance).text, corFaixaPerformance(o.faixa_performance).border)}>
+                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corFaixaPerformance(o.faixa_performance, o.faixa_cor, o.faixa_nome).bg, corFaixaPerformance(o.faixa_performance, o.faixa_cor, o.faixa_nome).text, corFaixaPerformance(o.faixa_performance, o.faixa_cor, o.faixa_nome).border)}>
                             {o.score_dia.toFixed(0)}%
                           </span>
                         ) : (

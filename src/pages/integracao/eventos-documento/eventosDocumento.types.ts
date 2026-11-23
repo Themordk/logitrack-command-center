@@ -1,3 +1,5 @@
+import type { IntegracaoDocumento } from "@/lib/integracaoStatus";
+
 export type EntidadeDocumentoEvento = "documento_saida" | "documento_entrada";
 export type DirecaoEvento = "ERP_WMS" | "WMS" | "WMS_ERP";
 export type OrdemEventos = "asc" | "desc";
@@ -48,7 +50,11 @@ export interface ResumoEventos {
 }
 
 export interface EventosDocumentoResposta {
-  documento: { id: string; entidade: EntidadeDocumentoEvento; codigo_erp: string | null; numero: string | null; status_integracao: string | null };
+  documento: {
+    id: string; entidade: EntidadeDocumentoEvento; codigo_erp: string | null; numero: string | null; status_integracao: string | null;
+    /** S1: status de integração calculado no banco (ausente em bancos sem o S1). */
+    integracao?: IntegracaoDocumento | null;
+  };
   resumo: ResumoEventos;
   total_filtrado: number;
   limite: number;

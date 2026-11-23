@@ -70,7 +70,6 @@ import { InventarioItensPage } from "./pages/InventarioItensPage";
 import { InventarioExecucaoPage } from "./pages/InventarioExecucaoPage";
 import { NovoInventarioPage } from "./pages/NovoInventarioPage";
 import { PerfisAcessoPage } from "./pages/PerfisAcessoPage";
-import { TiposTarefaPage } from "./pages/TiposTarefaPage";
 
 import { AbastecimentoPage } from "./pages/AbastecimentoPage";
 import { AbastecimentoGeracaoPage } from "./pages/AbastecimentoGeracaoPage";
@@ -85,6 +84,8 @@ import { ProdutosMapeadosReportPage } from "./modules/reports/produtos-mapeados/
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 import { TarefasColaboradorPage } from "./modules/reports/produtividade/TarefasColaboradorPage";
+import { LmsModuloPage } from "./modules/lms/LmsModuloPage";
+import { LmsGate } from "./modules/lms/LmsGate";
 import { CortesReportPage } from "./modules/reports/cortes/CortesReportPage";
 import { CurvaAbcReportPage } from "./modules/reports/curva-abc/CurvaAbcReportPage";
 import { ValidadeLoteReportPage } from "./modules/reports/validade-lote/ValidadeLoteReportPage";
@@ -120,6 +121,7 @@ import { ConsultaHUPage } from "./pages/coletor/ConsultaHUPage";
 import { MapearPickingPage } from "./pages/coletor/MapearPickingPage";
 import { ConsultaProdutoDetalhePage } from "./pages/coletor/ConsultaProdutoDetalhePage";
 import { MetasPage } from "./pages/coletor/MetasPage";
+import { AtividadesIndiretasPage } from "./pages/coletor/atividades/AtividadesIndiretasPage";
 import { ConfiguracoesPage } from "./pages/coletor/ConfiguracoesPage";
 const OfflineStatusPage = lazy(() =>
   import("./pages/coletor/OfflineStatusPage").then((m) => ({ default: m.OfflineStatusPage })),
@@ -231,7 +233,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/config/integracao": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Integração" }],
   "/integracao/padroes-produto": [{ label: "CORE LogiTrack" }, { label: "Integração" }, { label: "Padrões de cadastro de produto" }],
   "/config/perfis": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Perfis de Acesso" }],
-  "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Tipos de Tarefa" }],
+  "/config/tipos-tarefa": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Configurações" }],
   "/config/motivos-ocorrencia": [{ label: "CORE LogiTrack" }, { label: "Configurações" }, { label: "Motivos de Ocorrência" }],
 
   "/relatorios/estoque": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Posição de Estoque" }],
@@ -239,6 +241,9 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/ocupacao": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Ocupação de Endereços" }],
   "/relatorios/produtos-mapeados": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtos Mapeados em Picking" }],
   "/relatorios/produtividade": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Produtividade Operacional" }],
+  "/lms/acompanhamento": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Acompanhamento" }],
+  "/lms/metas": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Metas" }],
+  "/lms/configuracao": [{ label: "CORE LogiTrack" }, { label: "Produtividade (LMS)" }, { label: "Configurações" }],
   "/relatorios/cortes": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cortes de Separação" }],
   "/relatorios/curva-abc": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Curva ABC" }],
   "/relatorios/validade-lote": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Validade & Lote" }],
@@ -381,7 +386,8 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/config/integracao": return <IntegracaoPage onNavigate={onNavigate} />;
     case "/integracao/padroes-produto": return <ProdutoPadroesPage onNavigate={onNavigate} />;
     case "/config/perfis": return <PerfisAcessoPage />;
-    case "/config/tipos-tarefa": return <TiposTarefaPage />;
+    case "/config/tipos-tarefa": // Fase 10.10: o cadastro mudou para Produtividade (LMS) › Configurações
+      return <LmsModuloPage area="configuracao" onNavigate={onNavigate} />;
     
 
     case "/relatorios/estoque": return <EstoqueReportPage />;
@@ -389,6 +395,9 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/relatorios/ocupacao": return <OcupacaoReportPage />;
     case "/relatorios/produtos-mapeados": return <ProdutosMapeadosReportPage onNavigate={onNavigate} />;
     case "/relatorios/produtividade": return <ProdutividadeDashboardPage onNavigate={onNavigate} />;
+    case "/lms/acompanhamento": return <LmsModuloPage area="acompanhamento" onNavigate={onNavigate} />;
+    case "/lms/metas": return <LmsModuloPage area="metas" onNavigate={onNavigate} />;
+    case "/lms/configuracao": return <LmsModuloPage area="configuracao" onNavigate={onNavigate} />;
     case "/relatorios/cortes": return <CortesReportPage />;
     case "/relatorios/curva-abc": return <CurvaAbcReportPage />;
     case "/relatorios/validade-lote": return <ValidadeLoteReportPage />;
@@ -524,7 +533,8 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/consulta/mapear-picking": return <MapearPickingPage onNavigate={onNavigate} />;
     
     case "/coletor/consulta/produto/detalhe": return <ConsultaProdutoDetalhePage onNavigate={onNavigate} />;
-    case "/coletor/metas": return <MetasPage onNavigate={onNavigate} />;
+    case "/coletor/metas": return <LmsGate area="coletor" onNavigate={onNavigate} voltarPara="/coletor/home"><MetasPage onNavigate={onNavigate} /></LmsGate>;
+    case "/coletor/atividades": return <LmsGate area="atividades" onNavigate={onNavigate} voltarPara="/coletor/home"><AtividadesIndiretasPage onNavigate={onNavigate} /></LmsGate>;
     case "/coletor/configuracoes": return <ConfiguracoesPage onNavigate={onNavigate} />;
     case "/coletor/offline-status": return (
       <Suspense fallback={null}>

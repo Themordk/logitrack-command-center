@@ -233,13 +233,15 @@ export type TomResponsavel = "VOCE" | "OUTROS" | "LIVRE";
 /** Linha "com quem está a carga" do card — mesma leitura do "Disponível para assumir / Com: X" da separação. */
 export function descreverResponsavelCarga(c: {
   convocado?: boolean; responsaveis?: string[] | null; operadores?: string[] | null;
-}): { tom: TomResponsavel; prefixo: string; nomes: string } {
+}, meuNome?: string | null): { tom: TomResponsavel; prefixo: string; nomes: string } {
   const resp = c.responsaveis ?? [];
   const ops = c.operadores ?? [];
   if (resp.length > 0) {
     if (c.convocado) {
+      // "Com você: <nome>" como na separação; o nome vem da sessão (core_usuario_nome).
       const outros = resp.length - 1;
-      return { tom: "VOCE", prefixo: "Com você", nomes: outros > 0 ? `+ ${resp.length - 1} operador(es)` : "" };
+      const nomes = [meuNome?.trim() || "", outros > 0 ? `+ ${outros} operador(es)` : ""].filter(Boolean).join(" ");
+      return { tom: "VOCE", prefixo: nomes ? "Com você:" : "Com você", nomes };
     }
     return { tom: "OUTROS", prefixo: "Com:", nomes: resp.join(", ") };
   }

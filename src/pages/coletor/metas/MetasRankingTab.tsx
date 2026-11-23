@@ -1,8 +1,11 @@
+import { PALETA, classificar, type FaixaLms } from "@/modules/lms/faixas";
 import { Award, Medal, Trophy } from "lucide-react";
 
 interface RankingEntry {
   iniciais: string;
   score: number;
+  /** Fase 10: score global das metas (ordem do ranking). */
+  score_global?: number | null;
   posicao: number;
   sou_eu: boolean;
 }
@@ -10,14 +13,12 @@ interface RankingEntry {
 interface Props {
   ranking: { posicao: number; total_operadores: number; top: RankingEntry[] } | null;
   faixas: { excelente: number; bom: number; atencao: number };
+  lista?: FaixaLms[];
 }
 
-function faixaCorScore(score: number, faixas: Props["faixas"]) {
-  if (score >= faixas.excelente) return "text-green-400";
-  if (score >= faixas.bom) return "text-blue-400";
-  if (score >= faixas.atencao) return "text-yellow-400";
-  if (score > 0) return "text-red-400";
-  return "text-[hsl(213,31%,55%)]";
+function faixaCorScore(score: number, lista?: FaixaLms[]) {
+  if (!(score > 0)) return "text-[hsl(213,31%,55%)]";
+  return PALETA[classificar(score, lista).cor].texto;
 }
 
 function PosicaoIcon({ posicao }: { posicao: number }) {
@@ -27,7 +28,7 @@ function PosicaoIcon({ posicao }: { posicao: number }) {
   return <span className="w-[18px] text-center text-xs font-bold tabular-nums text-[hsl(213,31%,55%)]">{posicao}º</span>;
 }
 
-export function MetasRankingTab({ ranking, faixas }: Props) {
+export function MetasRankingTab({ ranking, lista }: Props) {
   if (!ranking || ranking.top.length === 0) {
     return <div className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] px-4 py-10 text-center text-sm text-[hsl(213,31%,55%)]">Ranking indisponível para o período selecionado.</div>;
   }
@@ -52,7 +53,9 @@ export function MetasRankingTab({ ranking, faixas }: Props) {
               <PosicaoIcon posicao={operador.posicao} />
               <span className={`flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold ${operador.sou_eu ? "bg-blue-500 text-white" : "bg-[hsl(222,35%,22%)] text-[hsl(213,31%,75%)]"}`}>{operador.iniciais}</span>
               <span className="flex-1 text-sm font-semibold text-white">{operador.sou_eu ? "Você" : operador.iniciais}</span>
-              <span className={`text-sm font-bold tabular-nums ${faixaCorScore(operador.score, faixas)}`}>{operador.score.toFixed(0)}</span>
+              <span className={`text-sm font-bold tabular-nums ${operador.score_global != null ? faixaCorScore(operador.score_global, lista) : "text-[hsl(213,31%,55%)]"}`}>
+                {operador.score_global != null ? `${operador.score_global.toFixed(0)}%` : "—"}
+              </span>
             </div>
           ))}
         </div>

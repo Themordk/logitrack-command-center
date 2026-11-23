@@ -21,6 +21,7 @@ import {
   formatarTempoEspera, KpisResult, OperadorRanking, OcorrenciasResult, TendenciaItem,
   DashboardFilters as DF,
 } from "./dashboard/dashboard.service";
+import { TermoAjuda } from "@/modules/lms/glossario";
 
 const REFRESH_INTERVAL = 60_000;
 
@@ -58,6 +59,9 @@ function SectionHeader({
     </button>
   );
 }
+
+
+const fmtPctLms = (v: number | null | undefined) => (v == null ? "—" : `${Number(v).toFixed(1).replace(".", ",")}%`);
 
 export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
   const { tenantId, empresaId, empresaVersion, armazemId } = useTenant();
@@ -195,7 +199,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
             <KPICardPro
               title="Produtividade"
               value={pr ? `${pr.valor}` : "—"}
-              subtitle={pr ? (pr.tarefas > 0 ? `${pr.tarefas} tarefas em ${pr.horas}h` : "Sem atividade no período") : "Carregando..."}
+              subtitle={pr ? (pr.tarefas > 0 ? `${pr.tarefas} tarefas em ${pr.horas}h de tempo direto` : "Sem atividade no período") : "Carregando..."}
               icon={<Activity size={20} />}
               severity={sevProd}
               trend={trendProd}
@@ -361,36 +365,41 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           <CollapsibleContent className="collapsible-content space-y-4 pt-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICardPro
-                title="Score Médio da Equipe"
-                value={`${kpis.lms.score_medio_equipe}%`}
-                subtitle={`${kpis.lms.operadores_avaliados} operadores avaliados`}
-                icon={<Target size={20} />}
-                severity={kpis.lms.score_medio_equipe >= 90 ? "good" : kpis.lms.score_medio_equipe >= 70 ? "warn" : "bad"}
-                progress={kpis.lms.score_medio_equipe}
-                onClick={() => onNavigate("/atividades/operadores-ativos")}
-              />
-              <KPICardPro
-                title="Taxa de Ocupação Média"
-                value={`${kpis.lms.taxa_ocupacao_media}%`}
-                subtitle="Tempo produtivo sobre tempo logado"
+                title="Utilização da Equipe"
+                ajuda={<TermoAjuda termo="utilizacao" />}
+                value={fmtPctLms(kpis.lms.utilizacao_pct ?? kpis.lms.taxa_ocupacao_media)}
+                subtitle="Tempo direto ÷ tempo disponível"
                 icon={<Gauge size={20} />}
-                severity={kpis.lms.taxa_ocupacao_media >= 70 ? "good" : kpis.lms.taxa_ocupacao_media >= 40 ? "warn" : "bad"}
-                progress={kpis.lms.taxa_ocupacao_media}
-                onClick={() => onNavigate("/atividades/operadores-ativos")}
+                severity={(kpis.lms.utilizacao_pct ?? 0) >= 85 ? "good" : (kpis.lms.utilizacao_pct ?? 0) >= 60 ? "warn" : "bad"}
+                progress={Math.min(100, Number(kpis.lms.utilizacao_pct ?? 0))}
+                onClick={() => onNavigate("/relatorios/produtividade")}
               />
               <KPICardPro
-                title="Produtividade Média"
-                value={`${kpis.lms.produtividade_hora_media}`}
-                subtitle="Tarefas por hora trabalhada"
+                title="Performance da Equipe"
+                ajuda={<TermoAjuda termo="performance" />}
+                value={fmtPctLms(kpis.lms.performance_pct)}
+                subtitle={kpis.lms.origem === "ESTIMADO" ? "Horas-padrão ÷ tempo direto · estimado" : "Horas-padrão ÷ tempo direto"}
+                icon={<Target size={20} />}
+                severity={(kpis.lms.performance_pct ?? 0) >= 90 ? "good" : (kpis.lms.performance_pct ?? 0) >= 70 ? "warn" : "bad"}
+                progress={Math.min(100, Number(kpis.lms.performance_pct ?? 0))}
+                onClick={() => onNavigate("/relatorios/produtividade")}
+              />
+              <KPICardPro
+                title="Eficiência da Equipe"
+                ajuda={<TermoAjuda termo="eficiencia" />}
+                value={fmtPctLms(kpis.lms.eficiencia_pct)}
+                subtitle="Horas-padrão ÷ tempo disponível"
                 icon={<Layers size={20} />}
-                severity="neutral"
-                unit="tarefas/h"
+                severity={(kpis.lms.eficiencia_pct ?? 0) >= 90 ? "good" : (kpis.lms.eficiencia_pct ?? 0) >= 70 ? "warn" : "bad"}
+                progress={Math.min(100, Number(kpis.lms.eficiencia_pct ?? 0))}
                 onClick={() => onNavigate("/relatorios/produtividade")}
               />
               <KPICardPro
                 title="Distribuição de Faixas"
                 value={`${kpis.lms.operadores_avaliados}`}
-                subtitle={`${kpis.lms.distribuicao_faixas.excelente}★ ${kpis.lms.distribuicao_faixas.bom}✓ ${kpis.lms.distribuicao_faixas.atencao}⚠ ${kpis.lms.distribuicao_faixas.critico}✗`}
+                subtitle={kpis.lms.faixas_distribuicao
+                  ? kpis.lms.faixas_distribuicao.map((f) => `${f.nome} ${f.quantidade}`).join(" · ") || "Sem operadores avaliados"
+                  : `${kpis.lms.distribuicao_faixas.excelente}★ ${kpis.lms.distribuicao_faixas.bom}✓ ${kpis.lms.distribuicao_faixas.atencao}⚠ ${kpis.lms.distribuicao_faixas.critico}✗`}
                 icon={<Users size={20} />}
                 severity="neutral"
                 unit="operadores"

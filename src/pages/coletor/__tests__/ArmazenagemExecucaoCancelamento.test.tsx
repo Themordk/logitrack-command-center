@@ -22,7 +22,7 @@ vi.mock("@/components/coletor/StatusOverlay", () => ({ StatusOverlay: () => null
 vi.mock("@/components/coletor/CancelamentoOverlay", () => ({ CancelamentoOverlay: () => null }));
 vi.mock("@/components/feedback/ResultDialog", () => ({ ResultDialog: () => null }));
 vi.mock("@/components/coletor/ScanField", () => ({ ScanField: ({ onScan }: { onScan: (v: string) => void }) => <button onClick={() => onScan("101")}>Bipar destino</button> }));
-vi.mock("@/lib/lmsTimestamp", () => ({ markTarefaIniciadaByTarefa: vi.fn() }));
+vi.mock("@/lib/lmsTimestamp", () => ({ markTarefaIniciadaByTarefa: vi.fn(), iniciarTarefas: vi.fn() }));
 vi.mock("@/lib/offlineEnderecoCache", () => ({ getEnderecoFromCache: () => Promise.resolve({ id: m.destinoId, descricao: "DESTINO", situacao: "LIVRE", tipo_endereco: m.tipo }), saveEnderecoToCache: () => Promise.resolve() }));
 vi.mock("@/hooks/useFeedback", () => ({ useFeedback: () => ({ error: vi.fn() }) }));
 import { ArmazenagemExecucaoPage } from "../ArmazenagemExecucaoPage";

@@ -77,7 +77,7 @@ describe("Selecionar Movimento com armazenagem em paralelo", () => {
     mocks.movimentos = [mov({ status: "ARMAZENAGEM_PARCIAL", conferencia_iniciada_em: "2026-10-23T13:00:00Z" })];
     await montar();
     await act(async () => { botao(/#374/)?.click(); });
-    await act(async () => { botao(/INICIAR CONFERÊNCIA/)?.click(); });
+    await act(async () => { botao(/iniciar conferência/i)?.click(); });
 
     expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ conferencia_iniciada_por: "u2" }));
     expect(mocks.updateChain.eq).toHaveBeenCalledWith("id", "m1");

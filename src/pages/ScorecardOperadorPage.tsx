@@ -7,24 +7,20 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   fetchScorecardOperador,
+  ehRecusaScorecard,
   formatarTempoEspera,
   corFaixaPerformance,
   type ScorecardOperador,
 } from "@/pages/dashboard/dashboard.service";
+import { PALETA, classificar, type FaixaLms } from "@/modules/lms/faixas";
+import { ScoreOperadorCard } from "@/modules/lms/score/ScoreOperadorCard";
+import { estiloClassificacao, formatarScore, textoSemScore } from "@/modules/lms/score/score.service";
 
-function faixaPorScore(score: number): string {
-  if (score >= 95) return "EXCELENTE";
-  if (score >= 80) return "BOM";
-  if (score >= 60) return "ATENCAO";
-  return "CRITICO";
-}
 
-function corPerformance(pct: number | null): string {
+function corPerformance(pct: number | null, lista?: FaixaLms[]): string {
   if (pct === null || pct === undefined) return "bg-secondary/30 text-muted-foreground border-border/50";
-  if (pct >= 110) return "bg-green-500/15 text-green-400 border-green-500/30";
-  if (pct >= 90) return "bg-blue-500/15 text-blue-400 border-blue-500/30";
-  if (pct >= 70) return "bg-yellow-500/15 text-yellow-400 border-yellow-500/30";
-  return "bg-red-500/15 text-red-400 border-red-500/30";
+  const e = PALETA[classificar(pct, lista).cor];
+  return `${e.fundo} ${e.texto} ${e.borda}`;
 }
 
 function fmtData(d: string) {
@@ -46,6 +42,7 @@ export function ScorecardOperadorPage({
   const { tenantId, empresaVersion } = useTenant();
   const [dias, setDias] = useState("0");
   const [data, setData] = useState<ScorecardOperador | null>(null);
+  const [recusa, setRecusa] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(async () => {
@@ -62,7 +59,13 @@ export function ScorecardOperadorPage({
       format(ini, "yyyy-MM-dd"),
       format(fim, "yyyy-MM-dd"),
     );
-    setData(res);
+    if (ehRecusaScorecard(res)) {
+      setData(null);
+      setRecusa(res.mensagem);
+    } else {
+      setData(res);
+      setRecusa(null);
+    }
     setLoading(false);
   }, [tenantId, usuarioId, dias]);
 
@@ -70,20 +73,26 @@ export function ScorecardOperadorPage({
 
   const op = data?.operador;
   const m = data?.metricas_periodo;
-  const faixa = corFaixaPerformance(m?.faixa_performance || "");
 
   const evolucao = data?.evolucao_diaria || [];
   const maxScore = Math.max(1, ...evolucao.map((e) => e.score_dia || 0));
 
+  // Fase 4: direto + indireto + ocioso = tempo disponível (o gap já está dentro do ocioso)
   const tempos = {
-    produtivo: m?.tempo_produtivo_total || 0,
-    transito: m?.tempo_transito_total || 0,
+    produtivo: m?.tempo_direto_total ?? m?.tempo_produtivo_total ?? 0,
+    transito: m?.tempo_indireto_total ?? 0,
     ocioso: m?.tempo_ocioso_total || 0,
   };
   const totalTempo = tempos.produtivo + tempos.transito + tempos.ocioso;
   const pctT = (v: number) => (totalTempo > 0 ? (v / totalTempo) * 100 : 0);
 
   const comp = data?.comparativo_equipe;
+  // Fase 10: a classificação do operador é a do score global das metas
+  const score = data?.score;
+  const posScore = data?.posicao_score;
+  const estiloScore = estiloClassificacao(score?.classificacao);
+  const temScore = score?.score !== null && score?.score !== undefined;
+  const periodoIni = score?.periodo?.inicio;
   const range = comp ? Math.max(1, comp.score_equipe_max - comp.score_equipe_min) : 1;
   const posRel = comp && m ? ((m.score_medio - comp.score_equipe_min) / range) * 100 : 0;
 
@@ -107,10 +116,10 @@ export function ScorecardOperadorPage({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {m && (
-            <div className={cn("px-4 py-2 rounded-xl border text-center", faixa.bg, faixa.border)}>
-              <div className={cn("text-2xl font-bold tabular-nums", faixa.text)}>{(m.score_medio || 0).toFixed(0)}%</div>
-              <div className={cn("text-[11px]", faixa.text)}>{faixa.label}</div>
+          {score && (
+            <div className={cn("px-4 py-2 rounded-xl border text-center", estiloScore.fundo, estiloScore.borda)} title="Score global das metas do período">
+              <div className={cn("text-2xl font-bold tabular-nums", estiloScore.texto)}>{temScore ? formatarScore(score.score) : "—"}</div>
+              <div className={cn("text-[11px]", estiloScore.texto)}>{temScore ? estiloScore.nome : textoSemScore(score.situacao)}</div>
             </div>
           )}
           <Select value={dias} onValueChange={setDias}>
@@ -134,22 +143,46 @@ export function ScorecardOperadorPage({
       ) : !data || !m ? (
         <div className="card-surface flex flex-col items-center justify-center py-16 text-muted-foreground">
           <BarChart3 size={40} className="mb-3 opacity-40" />
-          <p className="text-sm">Nenhum dado de performance encontrado para este operador no período.</p>
+          <p className="text-sm">{recusa ?? "Nenhum dado de performance encontrado para este operador no período."}</p>
         </div>
       ) : (
         <>
           {/* Resumo */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Mini label="Score Médio" value={`${(m.score_medio || 0).toFixed(0)}%`} />
-            <Mini label="Taxa Ocupação Média" value={`${(m.taxa_ocupacao_media || 0).toFixed(0)}%`} />
-            <Mini label="Produtividade Média" value={`${(m.produtividade_hora_media || 0).toFixed(1)} un/h`} />
+            <Mini label="Performance" value={`${(m.score_medio || 0).toFixed(0)}%`} />
+            <Mini label="Utilização" value={`${(m.taxa_ocupacao_media || 0).toFixed(0)}%`} />
+            <Mini label="Eficiência" value={m.eficiencia_pct != null ? `${Number(m.eficiencia_pct).toFixed(0)}%` : "—"} />
             <Mini label="Total de Tarefas" value={String(m.total_tarefas || 0)} />
             <Mini label="Dias Trabalhados" value={String(m.dias_trabalhados || 0)} />
             <Mini
-              label="Posição na Equipe"
-              value={comp ? `${comp.posicao}º de ${comp.total_operadores}` : "—"}
+              label={posScore ? "Posição na Equipe (score)" : "Posição na Equipe (eficiência)"}
+              value={posScore ? (posScore.posicao ? `${posScore.posicao}º de ${posScore.total_com_score}` : "Sem score")
+                : comp ? `${comp.posicao}º de ${comp.total_operadores}` : "—"}
             />
           </div>
+
+          {score && periodoIni && (
+            <ScoreOperadorCard tenantId={tenantId} usuarioId={usuarioId} dataIni={periodoIni} dataFim={score.periodo.fim} ficha={score} />
+          )}
+
+          {(data.metas_periodo?.length ?? 0) > 0 && <EvolucaoMetas metas={data.metas_periodo ?? []} />}
+
+          {((data.indiretas?.length ?? 0) > 0 || (data.tempo_excecao_total ?? 0) > 0) && (
+            <div className="card-surface p-5" data-testid="ficha-indiretas">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Atividades indiretas e exceções</h3>
+              <ul className="divide-y divide-border/50 text-sm">
+                {(data.indiretas ?? []).map((i) => (
+                  <li key={`${i.tipo}-${i.atividade}`} className="flex items-center justify-between py-1.5">
+                    <span>{i.atividade} <span className="text-[11px] text-muted-foreground">· {i.tipo === "EXCECAO" ? "exceção (sai do tempo disponível)" : "indireta"} · {i.vezes}x</span></span>
+                    <span className="font-mono">{formatarTempoEspera(i.segundos)}</span>
+                  </li>
+                ))}
+              </ul>
+              {(data.tempo_excecao_total ?? 0) > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">Exceções no período: {formatarTempoEspera(data.tempo_excecao_total ?? 0)} fora do tempo disponível.</p>
+              )}
+            </div>
+          )}
 
           {/* Evolução diária */}
           <div className="card-surface p-5">
@@ -160,7 +193,8 @@ export function ScorecardOperadorPage({
               <div className="overflow-x-auto">
                 <div className="flex items-end gap-2 min-w-max h-44">
                   {evolucao.map((e) => {
-                    const f = corFaixaPerformance(faixaPorScore(e.score_dia || 0));
+                    const fx = classificar(e.score_dia || 0, m?.faixas_lista);
+                    const f = corFaixaPerformance(fx.codigo, fx.cor, fx.nome);
                     const h = Math.max(4, Math.round(((e.score_dia || 0) / maxScore) * 140));
                     return (
                       <div key={e.data} className="flex flex-col items-center justify-end gap-1 w-12">
@@ -210,7 +244,7 @@ export function ScorecardOperadorPage({
                         <td className="px-4 py-3 text-right tabular-nums">{formatarTempoEspera(t.tempo_medio_seg || 0)}</td>
                         <td className="px-4 py-3 text-right tabular-nums">{formatarTempoEspera(t.tempo_estimado_seg || 0)}</td>
                         <td className="px-4 py-3 text-right">
-                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corPerformance(t.performance_pct))}>
+                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border", corPerformance(t.performance_pct, m?.faixas_lista))}>
                             {t.performance_pct !== null && t.performance_pct !== undefined ? `${t.performance_pct.toFixed(0)}%` : "—"}
                           </span>
                         </td>
@@ -231,8 +265,8 @@ export function ScorecardOperadorPage({
               <div className="bg-red-500/70 h-full" style={{ width: `${pctT(tempos.ocioso)}%` }} />
             </div>
             <div className="flex flex-wrap gap-5 mt-3 text-xs">
-              <Legenda cor="bg-green-500/70" label="Produtivo" valor={formatarTempoEspera(tempos.produtivo)} pct={pctT(tempos.produtivo)} />
-              <Legenda cor="bg-yellow-500/70" label="Trânsito" valor={formatarTempoEspera(tempos.transito)} pct={pctT(tempos.transito)} />
+              <Legenda cor="bg-green-500/70" label="Direto" valor={formatarTempoEspera(tempos.produtivo)} pct={pctT(tempos.produtivo)} />
+              <Legenda cor="bg-yellow-500/70" label="Indireto" valor={formatarTempoEspera(tempos.transito)} pct={pctT(tempos.transito)} />
               <Legenda cor="bg-red-500/70" label="Ocioso" valor={formatarTempoEspera(tempos.ocioso)} pct={pctT(tempos.ocioso)} />
             </div>
           </div>
@@ -252,7 +286,7 @@ export function ScorecardOperadorPage({
                 />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                <Mini label="Score do Operador" value={`${(m.score_medio || 0).toFixed(0)}%`} />
+                <Mini label="Performance do Operador" value={`${(m.score_medio || 0).toFixed(0)}%`} />
                 <Mini label="Média da Equipe" value={`${(comp.score_equipe_media || 0).toFixed(0)}%`} />
                 <Mini label="Maior da Equipe" value={`${(comp.score_equipe_max || 0).toFixed(0)}%`} />
                 <Mini label="Menor da Equipe" value={`${(comp.score_equipe_min || 0).toFixed(0)}%`} />
@@ -281,6 +315,38 @@ function Legenda({ cor, label, valor, pct }: { cor: string; label: string; valor
       <span className="text-muted-foreground">{label}</span>
       <span className="text-foreground tabular-nums">{valor}</span>
       <span className="text-muted-foreground tabular-nums">({pct.toFixed(0)}%)</span>
+    </div>
+  );
+}
+
+const COR_FAIXA_META: Record<string, string> = {
+  EXCELENTE: "bg-green-500/80", NA_META: "bg-blue-500/80", ACEITAVEL: "bg-amber-500/80", ABAIXO: "bg-red-500/80",
+  SEM_DADOS: "bg-secondary/60", ESTIMADO: "bg-secondary/60",
+};
+
+/** Fase 10.7: evolução de cada meta no período (um quadrado por período, na cor da faixa). */
+function EvolucaoMetas({ metas }: { metas: NonNullable<ScorecardOperador["metas_periodo"]> }) {
+  return (
+    <div className="card-surface p-5" data-testid="ficha-evolucao-metas">
+      <h3 className="text-sm font-semibold text-foreground mb-3">Evolução das metas</h3>
+      <div className="space-y-2">
+        {metas.map((m) => (
+          <div key={m.meta_id} className="flex flex-wrap items-center gap-3">
+            <div className="w-64 min-w-0">
+              <p className="truncate text-sm text-foreground">{m.nome}</p>
+              <p className="text-[11px] text-muted-foreground">{m.na_meta} de {m.periodos} período(s) na meta{m.contados < m.periodos ? ` · ${m.periodos - m.contados} sem dados` : ""}</p>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {m.serie.map((p) => (
+                <span key={p.data} className={cn("h-5 min-w-[36px] rounded px-1 text-center text-[10px] leading-5 text-white", COR_FAIXA_META[p.faixa] ?? COR_FAIXA_META.SEM_DADOS)}
+                  title={`${fmtData(p.data)}: ${p.atingimento_pct != null ? `${Math.round(Number(p.atingimento_pct))}% do alvo` : "sem dados"}`}>
+                  {p.atingimento_pct != null ? `${Math.round(Number(p.atingimento_pct))}%` : "—"}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

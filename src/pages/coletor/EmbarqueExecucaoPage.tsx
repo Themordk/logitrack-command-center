@@ -23,6 +23,7 @@ import {
 } from "@/lib/cargaService";
 import { descreverTransporte, nomeTransportadora, proximoPedidoEmbarque, resumoImpressaoVolumes, situacaoPedidoEmbarque } from "@/lib/cargaExibicao";
 import { EMBARQUE_CARGA_KEY } from "@/pages/coletor/EmbarqueCargasPage";
+import { iniciarContexto } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -72,6 +73,12 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
   }, [cargaId, tenantId, usuarioId, onNavigate, showError]);
 
   useEffect(() => { void carregar(); }, [carregar]);
+
+  // LMS (Fase 2): abrir a carga é o início da 1ª unidade; as seguintes começam no bipe
+  // anterior do mesmo operador (ciclo). A tarefa de embarque nasce em cada bipe.
+  useEffect(() => {
+    if (carga?.id) void iniciarContexto("EMBARQUE", carga.id, usuarioId);
+  }, [carga?.id]);
 
   const pendentes = useMemo(() => (carga?.unidades ?? []).filter((u) => u.status === "PENDENTE"), [carga]);
   const embarcadas = useMemo(() => (carga?.unidades ?? []).filter((u) => u.status === "EMBARCADA"), [carga]);
@@ -302,7 +309,9 @@ export function EmbarqueExecucaoPage({ onNavigate }: Props) {
   return (
     <ColetorLayout
       title="Embarque"
-      titleBadge={carga ? <span className="text-sm font-mono font-bold text-white/90">#{carga.numero_carga}</span> : undefined}
+      titleBadge={carga ? (
+        <span className="text-sm font-mono font-bold text-white/90">#{carga.numero_carga}</span>
+      ) : undefined}
       onNavigate={onNavigate}
       showBack
       backPath="/coletor/embarque"

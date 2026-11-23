@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { AUTOMATICO, OPCOES_RESULTADO_INTEGRACAO, valorResultadoIntegracao } from "@/lib/integracaoStatus";
 import { obterCaminho, renderTemplate } from "../avaliacao";
 import type { Destino, MetodoHttp } from "../../retornos.types";
 import { BlocoCodigo, Campo, Secao } from "../campos/Campo";
@@ -272,18 +273,41 @@ export function ResultadoProvedor(p: FormNoProps) {
 
 // ---------- Atualizar documento ----------
 export function ParametrosAtualizar(p: FormNoProps) {
+  const resultado = valorResultadoIntegracao(p.config.resultado_integracao);
+  const opcao = OPCOES_RESULTADO_INTEGRACAO.find((o) => o.valor === resultado)!;
+  const mensagem = (p.config.mensagem_erro as string) ?? "";
   return (
     <div className="flex flex-col gap-5">
-      <Campo rotulo="Status de integração" htmlFor="at-status">
+      <Campo rotulo="Resultado da integração" htmlFor="at-resultado">
+        <Select value={resultado} disabled={p.somenteLeitura}
+          onValueChange={(v) => {
+            const { resultado_integracao: _r, mensagem_erro: _m, ...resto } = p.config;
+            p.alterar(v === AUTOMATICO ? resto : { ...resto, resultado_integracao: v, ...(v === "erro" ? { mensagem_erro: mensagem } : {}) });
+          }}>
+          <SelectTrigger id="at-resultado" className="h-10 rounded-lg bg-secondary/40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {OPCOES_RESULTADO_INTEGRACAO.map((o) => <SelectItem key={o.valor} value={o.valor}>{o.rotulo}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">{opcao.ajuda}</p>
+      </Campo>
+      {resultado === "erro" && (
+        <Campo rotulo="Mensagem do erro *" htmlFor="at-msg">
+          <TemplateInput id="at-msg" value={mensagem} onChange={(v) => p.alterar({ ...p.config, mensagem_erro: v })} />
+          {!mensagem.trim() && <p className="text-xs text-rose-400">Diga o que aconteceu (ex.: Pedido bloqueado no ERP).</p>}
+        </Campo>
+      )}
+      <Campo rotulo="Marcador da regra" htmlFor="at-status">
         <TemplateInput id="at-status" value={(p.config.status_integracao as string) ?? ""} sugestoes={["retornado", "retornado_erp", "retorno_erro"]}
           onChange={(v) => p.alterar({ ...p.config, status_integracao: v })} />
+        <p className="text-xs text-muted-foreground">Texto livre gravado no documento (campo status_integracao, devolvido pela API). Não define o status de integração.</p>
       </Campo>
       <div className="flex items-start gap-3">
         <Switch id="at-exp" checked={!!p.config.marcar_exportado} disabled={p.somenteLeitura}
           onCheckedChange={(v) => p.alterar({ ...p.config, marcar_exportado: v })} />
         <label htmlFor="at-exp" className="flex flex-col gap-0.5 text-sm">
-          Marcar como exportado ao ERP
-          <span className="text-xs text-muted-foreground">Muda a situação do documento para exportado, como o retorno legado faz.</span>
+          Marcar onda/recebimento como exportado ao ERP
+          <span className="text-xs text-muted-foreground">Quando a execução termina com sucesso, a onda vira "Exportada ERP" (ou o recebimento "Exportado") — só quando nenhum documento dela está com erro ou aguardando envio.</span>
         </label>
       </div>
     </div>
@@ -292,13 +316,20 @@ export function ParametrosAtualizar(p: FormNoProps) {
 
 export function ResultadoAtualizar(p: FormNoProps) {
   const numero = obterCaminho(p.contexto, "documento.numero") ?? p.amostra?.numero ?? "—";
+  const resultado = valorResultadoIntegracao(p.config.resultado_integracao);
+  const estado = resultado === AUTOMATICO
+    ? "Integrado se algum envio deste caminho deu certo; senão Não enviado"
+    : OPCOES_RESULTADO_INTEGRACAO.find((o) => o.valor === resultado)!.estado;
+  const mensagem = resultado === "erro" ? renderTemplate((p.config.mensagem_erro as string) ?? "", p.contexto) : "";
   return (
     <div className="flex flex-col gap-2 text-sm">
       <BlocoCodigo>
-        {`No documento ${String(numero)}:\nstatus_integracao = ${renderTemplate((p.config.status_integracao as string) ?? "", p.contexto) || "(vazio)"}`}
-        {p.config.marcar_exportado ? "\nsituação = exportado" : ""}
+        {`No documento ${String(numero)}, ao terminar a execução:\nintegração = ${estado}`}
+        {mensagem ? `\nerro = ${mensagem}` : ""}
+        {`\nmarcador = ${renderTemplate((p.config.status_integracao as string) ?? "", p.contexto) || "(sem alteração)"}`}
+        {p.config.marcar_exportado ? "\nonda/recebimento = exportado (se todos os documentos estiverem integrados)" : ""}
       </BlocoCodigo>
-      <p className="text-xs text-muted-foreground">Em Testar/Simular nada é gravado.</p>
+      <p className="text-xs text-muted-foreground">Se a execução terminar com erro, o documento fica com Erro de qualquer forma. Em Testar/Simular nada é gravado.</p>
     </div>
   );
 }

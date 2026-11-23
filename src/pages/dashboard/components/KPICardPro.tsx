@@ -5,6 +5,8 @@ export type KPISeverity = "good" | "warn" | "bad" | "neutral";
 
 interface Props {
   title: string;
+  /** ajuda ao lado do título (ex.: <TermoAjuda/> do glossário do LMS) */
+  ajuda?: React.ReactNode;
   value: string | number;
   subtitle?: string;
   icon: React.ReactNode;
@@ -24,7 +26,7 @@ const severityMap: Record<KPISeverity, { iconBg: string; bar: string; valueColor
   neutral: { iconBg: "bg-blue-500/15 text-blue-400", bar: "bg-blue-500", valueColor: "text-foreground" },
 };
 
-export function KPICardPro({ title, value, subtitle, icon, severity = "neutral", trend, trendGoodWhen = "up", onClick, tooltip, progress, unit }: Props) {
+export function KPICardPro({ title, ajuda, value, subtitle, icon, severity = "neutral", trend, trendGoodWhen = "up", onClick, tooltip, progress, unit }: Props) {
   const sev = severityMap[severity];
   const goodTrend =
     trend?.dir === "flat" ? null :
@@ -47,7 +49,7 @@ export function KPICardPro({ title, value, subtitle, icon, severity = "neutral",
         <div className={cn("flex items-center justify-center w-11 h-11 rounded-xl shrink-0", sev.iconBg)}>{icon}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
+            <p className="flex items-center gap-1 text-xs text-muted-foreground font-medium truncate">{title}{ajuda}</p>
             {trend && (
               <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-medium", trendColor)}>
                 <TrendIcon size={12} />

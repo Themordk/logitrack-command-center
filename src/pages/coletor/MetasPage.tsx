@@ -5,45 +5,57 @@ import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { MetasEvolucaoTab } from "@/pages/coletor/metas/MetasEvolucaoTab";
 import { MetasKpiCard } from "@/pages/coletor/metas/MetasKpiCard";
+import { MetasListaTab } from "@/pages/coletor/metas/MetasListaTab";
 import { MetasRankingTab } from "@/pages/coletor/metas/MetasRankingTab";
 import { MetasResumoTab } from "@/pages/coletor/metas/MetasResumoTab";
 import { MetasScoreRing } from "@/pages/coletor/metas/MetasScoreRing";
 import { MetasStreakBadge } from "@/pages/coletor/metas/MetasStreakBadge";
+import { MetasEngajamento, type Engajamento } from "@/pages/coletor/metas/MetasEngajamento";
+import { abasDisponiveis, type Tab } from "@/pages/coletor/metas/metasAbas";
+import { estiloFaixa, type FaixaLms } from "@/modules/lms/faixas";
+import { estiloClassificacao, textoSemScore, type FichaScore } from "@/modules/lms/score/score.service";
 
 const sb = supabase as any;
 
 interface Props { onNavigate: (path: string) => void; }
 type Periodo = "hoje" | "7d" | "30d";
-type Tab = "resumo" | "ranking" | "evolucao";
 
 interface MetasData {
   erro?: string;
-  operador: { nome: string; habilidade: string | null; turno: string; faixa_performance: string };
-  indicadores: { score_medio: number; total_tarefas: number; taxa_ocupacao: number; produtividade_hora: number; tempo_produtivo: number; tempo_transito: number; tempo_ocioso: number; dias_trabalhados: number };
-  ranking: { posicao: number; total_operadores: number; top: Array<{ iniciais: string; score: number; posicao: number; sou_eu: boolean }> } | null;
+  operador: { nome: string; habilidade: string | null; turno: string; faixa_performance: string; faixa_nome?: string; faixa_cor?: string };
+  indicadores: { eficiencia_pct?: number | null; utilizacao_pct?: number | null; performance_pct?: number | null; origem?: "REAL" | "ESTIMADO"; score_medio: number; total_tarefas: number; taxa_ocupacao: number; produtividade_hora: number; tempo_produtivo: number; tempo_transito: number; tempo_ocioso: number; dias_trabalhados: number };
+  ranking: { posicao: number; total_operadores: number; top: Array<{ iniciais: string; score: number; score_global?: number | null; posicao: number; sou_eu: boolean }> } | null;
   streak: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
+  // Fase 10 · score global das metas do operador e a sequência de dias com score na meta
+  metas?: FichaScore | null;
+  streak_score?: { dias_consecutivos: number; melhor_streak: number; meta_score: number } | null;
+  // Fase 10.7 · progresso do turno e gamificação (sequência de dias) desligável na Configuração
+  gamificacao?: boolean;
+  // Fase 10.29 · sequência que volta um degrau, selos e desafio da equipe (com trava de qualidade)
+  engajamento?: Engajamento | null;
+  turno_progresso?: { descricao: string; inicio: string; fim: string; fracao_decorrida: number } | null;
   evolucao: Array<{ data: string; score: number; tarefas: number; taxa_ocupacao: number }>;
   detalhamento_tipo: Array<{ tipo: string; codigo: string; tarefas: number; quantidade_total: number; tempo_medio_seg: number; performance_pct: number | null }>;
   variacao_vs_anterior: number | null;
   faixas: { excelente: number; bom: number; atencao: number };
+  faixas_lista?: FaixaLms[];
 }
 
 const PERIODO_LABELS: Record<Periodo, string> = { hoje: "Hoje", "7d": "7 dias", "30d": "30 dias" };
-const TAB_LABELS: Record<Tab, string> = { resumo: "Resumo", ranking: "Ranking", evolucao: "Evolução" };
+const TAB_LABELS: Record<Tab, string> = { metas: "Metas", resumo: "Resumo", ranking: "Ranking", evolucao: "Evolução" };
 
-function faixaColor(faixa: string) {
-  switch (faixa) {
-    case "EXCELENTE": return { bg: "bg-green-500/15", text: "text-green-400", border: "border-green-500/30", ring: "hsl(142 71% 45%)", label: "Excelente" };
-    case "BOM": return { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/30", ring: "hsl(217 91% 60%)", label: "Bom" };
-    case "ATENCAO": return { bg: "bg-yellow-500/15", text: "text-yellow-400", border: "border-yellow-500/30", ring: "hsl(48 96% 53%)", label: "Atenção" };
-    case "CRITICO": return { bg: "bg-red-500/15", text: "text-red-400", border: "border-red-500/30", ring: "hsl(0 84% 60%)", label: "Crítico" };
-    default: return { bg: "bg-[hsl(222,35%,18%)]/50", text: "text-[hsl(213,31%,55%)]", border: "border-[hsl(222,35%,22%)]", ring: "hsl(215 16% 47%)", label: "Sem dados" };
+// Fase 7.5: nome e cor da faixa vêm do conjunto configurado no LMS
+function faixaColor(faixa: string, cor?: string | null, nome?: string | null) {
+  if (!faixa || faixa === "SEM_DADOS") {
+    return { bg: "bg-[hsl(222,35%,18%)]/50", text: "text-[hsl(213,31%,55%)]", border: "border-[hsl(222,35%,22%)]", ring: "hsl(215 16% 47%)", label: "Sem dados" };
   }
+  const e = estiloFaixa(faixa, cor, nome);
+  return { bg: e.fundo, text: e.texto, border: e.borda, ring: e.hex, label: e.nome };
 }
 
 export function MetasPage({ onNavigate }: Props) {
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
-  const [tab, setTab] = useState<Tab>("resumo");
+  const [tab, setTab] = useState<Tab>("metas");
   const [data, setData] = useState<MetasData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -75,8 +87,22 @@ export function MetasPage({ onNavigate }: Props) {
   useEffect(() => { carregar(); }, [carregar]);
 
   const ind = data?.indicadores;
+  // Fase 6 (decisão 5): o operador vê só os próprios números; o banco só manda ranking para quem gere a equipe.
+  const abas = abasDisponiveis(Boolean(data?.ranking));
   const variacao = data?.variacao_vs_anterior;
-  const faixa = faixaColor(data?.operador?.faixa_performance || "");
+  // Fase 10: o anel e a classificação mostram o score global das metas (não mais a performance)
+  const ficha = data?.metas ?? null;
+  const scoreGlobal = ficha?.score ?? null;
+  const faixa = (() => {
+    if (scoreGlobal === null) return { ...faixaColor(""), label: textoSemScore(ficha?.situacao) };
+    const e = estiloClassificacao(ficha?.classificacao);
+    return { bg: e.fundo, text: e.texto, border: e.borda, ring: e.hex, label: e.nome };
+  })();
+  const engajamento = data?.gamificacao ? data?.engajamento ?? null : null;
+  const streak = data?.gamificacao && !engajamento ? data?.streak_score ?? null : null;
+  const turno = data?.turno_progresso ?? null;
+  const fracTurno = turno ? Math.round(Number(turno.fracao_decorrida) * 100) : null;
+  const horaCurta = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
     <ColetorLayout title="Metas & Resultados" onNavigate={onNavigate} showBack backPath="/coletor/home">
@@ -107,7 +133,7 @@ export function MetasPage({ onNavigate }: Props) {
 
           <section className="rounded-2xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,12%)] p-3">
             <div className="flex items-center gap-3">
-              <MetasScoreRing score={ind.score_medio || 0} maxScore={Math.max(data.faixas.excelente, 120)} faixa={faixa} />
+              <MetasScoreRing score={scoreGlobal} maxScore={Math.max(data.faixas.excelente, ficha?.teto_pct ?? 120)} faixa={faixa} />
               <div className="min-w-0 flex-1 space-y-2">
                 <div>
                   <p className="truncate text-sm font-bold text-white">{data.operador.nome}</p>
@@ -117,32 +143,50 @@ export function MetasPage({ onNavigate }: Props) {
                 {variacao !== null && variacao !== undefined && (
                   <div className={`flex items-center gap-1 text-xs font-semibold tabular-nums ${variacao > 0 ? "text-green-400" : variacao < 0 ? "text-red-400" : "text-[hsl(213,31%,55%)]"}`}>
                     {variacao > 0 ? <TrendingUp size={14} /> : variacao < 0 ? <TrendingDown size={14} /> : <Minus size={14} />}
-                    {variacao > 0 ? "+" : ""}{variacao.toFixed(1)} vs anterior
+                    {variacao > 0 ? "+" : ""}{variacao.toFixed(1)} de performance vs anterior
                   </div>
                 )}
               </div>
             </div>
-            {data.streak && data.streak.dias_consecutivos > 0 && <div className="mt-3"><MetasStreakBadge diasConsecutivos={data.streak.dias_consecutivos} melhorStreak={data.streak.melhor_streak} /></div>}
+            {turno && fracTurno !== null && (
+              <div className="mt-3" data-testid="coletor-turno">
+                <div className="flex justify-between text-[10px] text-[hsl(213,31%,55%)]">
+                  <span>{turno.descricao} · {horaCurta(turno.inicio)}–{horaCurta(turno.fim)}</span>
+                  <span>{fracTurno}% do turno</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[hsl(222,35%,18%)]" role="progressbar" aria-valuenow={fracTurno} aria-valuemin={0} aria-valuemax={100}>
+                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${fracTurno}%` }} />
+                </div>
+              </div>
+            )}
+            {streak && streak.dias_consecutivos > 0 && <div className="mt-3"><MetasStreakBadge diasConsecutivos={streak.dias_consecutivos} melhorStreak={streak.melhor_streak} /></div>}
           </section>
+
+          {engajamento && <MetasEngajamento engajamento={engajamento} />}
 
           <div className="grid grid-cols-2 gap-2">
             <MetasKpiCard label="Tarefas" value={String(ind.total_tarefas || 0)} subtitle="concluídas no período" icon="tasks" />
-            <MetasKpiCard label="Ocupação" value={`${(ind.taxa_ocupacao || 0).toFixed(0)}%`} subtitle="tempo em operação" icon="clock" />
-            <MetasKpiCard label="Produtividade" value={(ind.produtividade_hora || 0).toFixed(1)} subtitle="unidades por hora" icon="speed" />
-            <MetasKpiCard label="Na equipe" value={data.ranking?.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={data.ranking ? `entre ${data.ranking.total_operadores}` : "sem ranking"} icon="trophy" />
+            <MetasKpiCard label="Utilização" value={`${(ind.taxa_ocupacao || 0).toFixed(0)}%`} subtitle="tempo em tarefa" icon="clock" />
+            <MetasKpiCard label="Eficiência" value={ind.eficiencia_pct != null ? `${Number(ind.eficiencia_pct).toFixed(0)}%` : "—"} subtitle="horas-padrão ÷ tempo disponível" icon="speed" />
+            {data.ranking ? (
+              <MetasKpiCard label="Na equipe" value={data.ranking.posicao ? `${data.ranking.posicao}º` : "—"} subtitle={`entre ${data.ranking.total_operadores} · score`} icon="trophy" />
+            ) : (
+              <MetasKpiCard label="Performance" value={ind.performance_pct != null ? `${Number(ind.performance_pct).toFixed(0)}%` : "—"} subtitle="horas-padrão ÷ tempo em tarefa" icon="trophy" />
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-1 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-1" role="tablist">
-            {(Object.keys(TAB_LABELS) as Tab[]).map((item) => (
+          <div className={`grid ${abas.length === 4 ? "grid-cols-4" : "grid-cols-3"} gap-1 rounded-xl border border-[hsl(222,35%,22%)] bg-[hsl(222,40%,10%)] p-1`} role="tablist">
+            {abas.map((item) => (
               <Button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)} className={`h-9 rounded-lg px-1 text-xs font-semibold ${tab === item ? "bg-[hsl(222,40%,18%)] text-white hover:bg-[hsl(222,40%,18%)]" : "bg-transparent text-[hsl(213,31%,55%)] hover:bg-transparent"}`}>
                 {TAB_LABELS[item]}
               </Button>
             ))}
           </div>
 
-          {tab === "resumo" && <MetasResumoTab indicadores={ind} detalhamento={data.detalhamento_tipo || []} faixas={data.faixas} />}
-          {tab === "ranking" && <MetasRankingTab ranking={data.ranking} faixas={data.faixas} />}
-          {tab === "evolucao" && <MetasEvolucaoTab evolucao={data.evolucao || []} faixas={data.faixas} />}
+          {tab === "metas" && <MetasListaTab ficha={ficha} />}
+          {tab === "resumo" && <MetasResumoTab indicadores={ind} detalhamento={data.detalhamento_tipo || []} faixas={data.faixas} lista={data.faixas_lista} />}
+          {tab === "ranking" && data.ranking && <MetasRankingTab ranking={data.ranking} faixas={data.faixas} lista={data.faixas_lista} />}
+          {tab === "evolucao" && <MetasEvolucaoTab evolucao={data.evolucao || []} faixas={data.faixas} lista={data.faixas_lista} />}
         </div>
       )}
     </ColetorLayout>

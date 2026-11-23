@@ -1,5 +1,7 @@
 /**
  * Expiração de reserva por tipo de tarefa (tipo_tarefa.reserva_acao / reserva_expira_min).
+ * Desde a Fase 10.9 vale para todos os tipos; o cadastro fica em Produtividade (LMS) ›
+ * Configurações (rpc_lms_tipos_tarefa / rpc_lms_tipo_tarefa_salvar).
  *
  * As ações PERMITIDAS por tipo vêm do banco (rpc fn_tipo_tarefa_reserva_acoes),
  * que também valida no trigger; aqui ficam só rótulos e textos de tela.
@@ -21,7 +23,7 @@ export const RESERVA_ACAO_AJUDA: Record<ReservaAcao, string> = {
   LIBERAR:
     "Sem atividade do operador no prazo, a tarefa volta para a fila e outro operador continua de onde parou. Tarefas designadas pelo gestor só geram aviso.",
   LIBERAR_SEM_EXECUCAO:
-    "Libera só se o operador ainda não executou nada. Se já houve coleta, avisa o supervisor (o produto pode estar com o operador).",
+    "Libera só se o operador ainda não executou nada desde que pegou a tarefa. Se já executou, avisa o supervisor (o produto pode estar com o operador).",
   ALERTAR:
     "Não libera sozinho: avisa o supervisor no painel de notificações para ele verificar com o operador.",
   NUNCA: "A reserva só termina quando o operador conclui ou alguém cancela a tarefa.",

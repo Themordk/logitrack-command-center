@@ -57,7 +57,7 @@ export function configInicial(tipo: TipoNo, nodes: FluxoNode[], catalogo?: Catal
       const op = ops.find((o) => o.entidade === ent) ?? ops[0];
       return { provedor: "omie", operacao: op?.operacao ?? "", parametros: { ...(op?.parametros ?? {}) } };
     }
-    case "acao.atualizar_documento": return { status_integracao: "retornado", marcar_exportado: false };
+    case "acao.atualizar_documento": return { resultado_integracao: "integrado", status_integracao: "retornado", marcar_exportado: false };
     case "acao.notificar":
       return { titulo: "Falha no retorno ao ERP", mensagem: "Documento {{documento.numero}}: {{erro.mensagem}}", cor: "red" };
     case "gatilho.evento": return { evento: null, modo: "imediato", filtros: [] };

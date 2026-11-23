@@ -127,7 +127,16 @@ export type ConfigPayload =
 export interface ConfigHttp { destino_id: string; metodo?: MetodoHttp; caminho?: string; corpo_de?: string; headers?: Record<string, string> }
 export interface ConfigWebhook { destino_id: string; caminho?: string }
 export interface ConfigProvedor { provedor: "omie"; operacao: string; parametros: { etapa?: string } & Record<string, string | undefined> }
-export interface ConfigAtualizarDocumento { status_integracao: string; marcar_exportado: boolean }
+export interface ConfigAtualizarDocumento {
+  /** Marcador livre gravado em status_integracao (a API devolve). */
+  status_integracao: string;
+  /** Onda/recebimento vira exportado na conclusão, com todos os documentos integrados. */
+  marcar_exportado: boolean;
+  /** Resultado declarado (S1). Ausente = automático (integrado se algum envio deu certo). */
+  resultado_integracao?: "integrado" | "ignorado" | "erro" | "nao_alterar";
+  /** Mensagem quando resultado_integracao = erro (aceita {{variáveis}}). */
+  mensagem_erro?: string;
+}
 export interface ConfigNotificar { titulo: string; mensagem: string; cor: "red" | "orange" | "blue" | "green" }
 export type ConfigDividirItens = Record<string, unknown>;
 

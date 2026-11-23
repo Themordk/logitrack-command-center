@@ -16,6 +16,7 @@ import {
   Activity,
   BarChart3,
   Building2,
+  Gauge,
   LayoutDashboard,
   Package,
   PlugZap,
@@ -123,6 +124,17 @@ export const MENU_GRUPOS: MenuGrupo[] = [
     ],
   },
   {
+    id: "produtividade",
+    label: "Produtividade (LMS)",
+    labelCurto: "LMS",
+    icon: Gauge,
+    itens: [
+      { label: "Acompanhamento", path: "/lms/acompanhamento", palavrasChave: ["lms", "painel do turno", "produtividade"] },
+      { label: "Metas", path: "/lms/metas", palavrasChave: ["lms", "meta"] },
+      { label: "Configurações", path: "/lms/configuracao", palavrasChave: ["lms", "tempo padrão", "tipos de tarefa"] },
+    ],
+  },
+  {
     id: "integracoes",
     label: "Integrações",
     labelCurto: "Integrações",
@@ -142,7 +154,6 @@ export const MENU_GRUPOS: MenuGrupo[] = [
       { label: "Empresas", path: "/config/empresas" },
       { label: "Usuários", path: "/config/usuarios" },
       { label: "Perfis de Acesso", path: "/config/perfis", palavrasChave: ["permissão", "rbac"] },
-      { label: "Tipos de Tarefa", path: "/config/tipos-tarefa", palavrasChave: ["lms", "tempo padrão"] },
       { label: "Motivos de Ocorrência", path: "/config/motivos-ocorrencia" },
       { label: "Templates de Etiqueta", path: "/config/etiquetas" },
       { label: "Impressão", path: "/config/impressao", palavrasChave: ["impressora"] },

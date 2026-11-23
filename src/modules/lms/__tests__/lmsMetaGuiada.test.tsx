@@ -1,0 +1,203 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+const rpc = vi.fn();
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a), from: vi.fn() } }));
+
+import { estaMedindo, frasePessoasAtingem, type CatalogoMetas, type ObjetivosMeta, type PreviaMeta } from "../metas/metas.service";
+import { NovaMetaGuiadaDialog, fraseMeta } from "../metas/NovaMetaGuiadaDialog";
+
+const catalogo: CatalogoMetas = {
+  sucesso: true, metricas: [],
+  tipos_tarefa: [{ id: "t1", codigo: "SEP", descricao: "Separação", categoria: "SEPARACAO", unidade_medida: "UN" }],
+  categorias: [], armazens: [{ id: "a1", nome: "CD 1" }], turnos: [{ id: "tu1", nome: "Diurno" }], equipes: [{ id: "eq1", nome: "Equipe A" }],
+  operadores: [{ id: "u1", nome: "Ana" }], perfis: [], modelos: [], hoje: "2026-11-21",
+  exige_aprovacao: false, pode_criar: true, pode_editar: true, pode_excluir: true, pode_aprovar: true,
+};
+
+const objetivos: ObjetivosMeta = {
+  sucesso: true, recomendado: "RITMO", janela: { de: "2026-10-24", ate: "2026-11-20" },
+  objetivos: [
+    { codigo: "RITMO", ordem: 1, metrica: "PERFORMANCE", rotulo: "Ritmo certo", pergunta: "Minha equipe faz as tarefas no tempo esperado?", verbo: "o ritmo",
+      unidade: "PCT", menor_melhor: false, suficiente: true, hoje: 92.5, motivo: null, permite_atividade: true },
+    { codigo: "INDIRETO", ordem: 8, metrica: "TEMPO_INDIRETO_PCT", rotulo: "Menos tempo indireto", pergunta: "Quanto do turno vai para reunião?", verbo: "o tempo indireto",
+      unidade: "PCT", menor_melhor: true, suficiente: false, hoje: null, motivo: "Sem dado.", permite_atividade: false },
+  ],
+};
+
+const previa: PreviaMeta = {
+  sucesso: true, metrica: "PERFORMANCE", unidade: "PCT", menor_melhor: false, periodicidade: "DIARIO",
+  objetivo: { codigo: "RITMO", rotulo: "Ritmo certo", pergunta: "", verbo: "o ritmo" },
+  linha_base: {
+    suficiente: true, participantes: 5, com_dado: 4, janela: { de: "2026-10-24", ate: "2026-11-20" }, menor_melhor: false, unidade: "PCT",
+    mediana: 92.5, p10: 83, p25: 87.5, p75: 97.5, p90: 102, valores: [80, 90, 95, 105], pct_inicio_real: 100,
+    tendencia: { antes: 92.5, depois: 92.5, variacao: 0, direcao: "ESTAVEL" },
+  },
+  niveis: [
+    { codigo: "MANTER", pct: 0, alvo: 92.5, atingem: 2, realismo: "ALCANCAVEL" },
+    { codigo: "EVOLUIR", pct: 10, alvo: 101.8, atingem: 1, realismo: "DESAFIADOR", recomendado: true },
+    { codigo: "DESAFIAR", pct: 15, alvo: 102, atingem: 1, realismo: "DESAFIADOR", limitado: true },
+  ],
+  personalizado: null, medir_dias: 14,
+  avisos: [{ codigo: "PADRAO_SEM_CALIBRAR", mensagem: "O tempo padrão de Separação ainda não foi calibrado." }],
+};
+
+function responder(prev: PreviaMeta = previa) {
+  rpc.mockImplementation((fn: string) => {
+    if (fn === "rpc_lms_meta_objetivos") return Promise.resolve({ data: objetivos, error: null });
+    if (fn === "rpc_lms_meta_previa") return Promise.resolve({ data: prev, error: null });
+    if (fn === "rpc_lms_meta_salvar_guiada") return Promise.resolve({ data: { sucesso: true, ids: ["m1"], quantidade: 1, status: "ATIVA", mensagem: "ok" }, error: null });
+    return Promise.resolve({ data: null, error: { message: fn } });
+  });
+}
+
+function abrir(onSalvo = vi.fn(), onModoAvancado = vi.fn()) {
+  render(<NovaMetaGuiadaDialog aberto inicial={null} catalogo={catalogo} tenantId="t" empresaId="e"
+    onCancelar={() => {}} onSalvo={onSalvo} onModoAvancado={onModoAvancado} />);
+  return { onSalvo, onModoAvancado };
+}
+
+describe("Fase 10.28 · frases da meta guiada", () => {
+  it("escreve a meta como frase", () => {
+    expect(fraseMeta({ verbo: "o ritmo", menor_melhor: false }, "PCT", 92.5, 101.8)).toBe("Aumentar o ritmo da equipe de 92,5% para 101,8%");
+    expect(fraseMeta({ verbo: "o tempo indireto", menor_melhor: true }, "PCT", 6.3, 5.7)).toBe("Reduzir o tempo indireto da equipe de 6,3% para 5,7%");
+    expect(fraseMeta({ verbo: "o ritmo", menor_melhor: false }, "PCT", 92.5, 92.5)).toBe("Manter o ritmo da equipe em 92,5%");
+    expect(fraseMeta({ verbo: "o registro do início", menor_melhor: false }, "PCT", null, null)).toMatch(/^Medir o registro do início/);
+  });
+  it("conta quem chega lá e reconhece o rascunho medindo", () => {
+    expect(frasePessoasAtingem(2, 5)).toBe("2 de 5 operadores já chegam lá hoje.");
+    expect(frasePessoasAtingem(0, 4)).toMatch(/^Ninguém/);
+    expect(estaMedindo({ status: "RASCUNHO", alvo: null, medir_ate: "2026-12-05" })).toBe(true);
+    expect(estaMedindo({ status: "RASCUNHO", alvo: 90, medir_ate: null })).toBe(false);
+  });
+});
+
+describe("Fase 10.28 · assistente de 4 passos", () => {
+  beforeEach(() => { rpc.mockReset(); responder(); });
+
+  it("objetivo → para quem → nível Evoluir recomendado → ativa com os dados do assistente", async () => {
+    const { onSalvo } = abrir();
+    expect(await screen.findByText("Ritmo certo")).toBeInTheDocument();
+    expect(screen.getByText("Recomendado")).toBeInTheDocument();
+    expect(screen.getByText("92,5%")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continuar/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("radio", { name: /Ritmo certo/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+
+    fireEvent.change(screen.getByLabelText("Adicionar"), { target: { value: "eq1" } });
+    expect(screen.getByText(/Vale para equipe Equipe A/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+
+    expect(await screen.findByTestId("linha-base")).toHaveTextContent("92,5%");
+    expect(screen.getByText(/ainda não foi calibrado/)).toBeInTheDocument();
+    const evoluir = screen.getByRole("radio", { name: /Evoluir/ });
+    await waitFor(() => expect(evoluir).toHaveAttribute("aria-checked", "true"));
+    expect(screen.getByText("Limitado ao que os melhores da equipe já sustentam.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+
+    expect(screen.getByTestId("frase-meta")).toHaveTextContent("Aumentar o ritmo da equipe de 92,5% para 101,8%");
+    fireEvent.click(screen.getByRole("button", { name: "Ativar meta" }));
+    await waitFor(() => expect(onSalvo).toHaveBeenCalled());
+    const [, args] = rpc.mock.calls.find((c) => c[0] === "rpc_lms_meta_salvar_guiada")!;
+    const d = (args as { p_dados: Record<string, unknown> }).p_dados;
+    expect(d).toMatchObject({ objetivo: "RITMO", nivel: "EVOLUIR", ativar: true, medir_primeiro: false, armazem_id: "a1",
+      escopo: [{ tipo: "EQUIPE", ref_id: "eq1" }] });
+  });
+
+  it("sem histórico: oferece Medir primeiro e salva sem alvo", async () => {
+    responder({ ...previa, linha_base: { ...previa.linha_base, suficiente: false, motivo: "Ainda não há trabalho suficiente.", com_dado: 0 }, niveis: [], avisos: [] });
+    abrir();
+    fireEvent.click(await screen.findByRole("radio", { name: /Ritmo certo/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    expect(await screen.findByText("Ainda não há trabalho suficiente.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Medir primeiro/ })).toBeChecked());
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar e começar a medir" }));
+    await waitFor(() => expect(rpc.mock.calls.some((c) => c[0] === "rpc_lms_meta_salvar_guiada")).toBe(true));
+    const d = (rpc.mock.calls.find((c) => c[0] === "rpc_lms_meta_salvar_guiada")![1] as { p_dados: Record<string, unknown> }).p_dados;
+    expect(d).toMatchObject({ medir_primeiro: true, ativar: false });
+    expect(d.nivel).toBeUndefined();
+  });
+
+  it("outro valor consulta a prévia com o alvo digitado; modo avançado abre o formulário antigo", async () => {
+    const { onModoAvancado } = abrir();
+    fireEvent.click(await screen.findByRole("radio", { name: /Ritmo certo/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    fireEvent.change(await screen.findByLabelText("Outro valor"), { target: { value: "110" } });
+    await waitFor(() => expect(rpc.mock.calls.some((c) => c[0] === "rpc_lms_meta_previa"
+      && (c[1] as { p_dados: { alvo: number } }).p_dados.alvo === 110)).toBe(true), { timeout: 2000 });
+    fireEvent.click(screen.getByRole("button", { name: /Modo avançado/ }));
+    expect(onModoAvancado).toHaveBeenCalled();
+  });
+});
+
+import { MetasEngajamento } from "@/pages/coletor/metas/MetasEngajamento";
+import type { Meta } from "../metas/metas.service";
+
+describe("Fase 10.29 · próximo degrau (nova versão pelo assistente)", () => {
+  beforeEach(() => { rpc.mockReset(); responder(); });
+
+  it("abre no passo 3 com o alvo atual, sem Medir primeiro, e envia a versão anterior", async () => {
+    const ativa = {
+      id: "m0", nome: "Ritmo certo · CD 1", metrica: "PERFORMANCE", atividade: "TODAS", tipo_tarefa_id: null, tipo_codigo: null, categoria: null,
+      armazem_id: "a1", armazem_nome: "CD 1", periodicidade: "DIARIO", alvo: 92.5, minimo: 88, excelencia: 97, peso: 1,
+      vigente_desde: "2026-10-25", vigente_ate: null, status: "ATIVA", origem: "ASSISTENTE", rampa_base: "PRIMEIRA_EXECUCAO",
+      observacao: null, motivo_status: null, versao_anterior_id: null, criado_por: null, criado_em: "", aprovado_por: null, aprovado_em: null,
+      escopo: [], rampa: [], ultimo: null, objetivo: "RITMO", nivel_ambicao: "MANTER", linha_base: 92.5,
+    } as unknown as Meta;
+    const onSalvo = vi.fn();
+    render(<NovaMetaGuiadaDialog aberto inicial={null} versaoDe={ativa} catalogo={catalogo} tenantId="t" empresaId="e"
+      onCancelar={() => {}} onSalvo={onSalvo} onModoAvancado={() => {}} />);
+    expect(screen.getByText("Próximo degrau")).toBeInTheDocument();
+    expect(await screen.findByTestId("alvo-atual")).toHaveTextContent("92,5%");
+    expect(screen.queryByRole("radio", { name: /Medir primeiro/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("radio", { name: /Evoluir/ })).toHaveAttribute("aria-checked", "true"));
+    fireEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Ativar nova versão" }));
+    await waitFor(() => expect(onSalvo).toHaveBeenCalled());
+    const d = (rpc.mock.calls.find((c) => c[0] === "rpc_lms_meta_salvar_guiada")![1] as { p_dados: Record<string, unknown> }).p_dados;
+    expect(d).toMatchObject({ versao_anterior_id: "m0", id: null, nivel: "EVOLUIR", vigente_desde: "2026-11-22" });
+  });
+});
+
+describe("Fase 10.29 · engajamento no coletor", () => {
+  it("sem meta de qualidade: só o motivo, sem sequência nem selos", () => {
+    render(<MetasEngajamento engajamento={{ liberado: false, codigo: "SEM_META_QUALIDADE", motivo: "Sequência, selos e desafios aparecem quando…" }} />);
+    expect(screen.getByTestId("engajamento-bloqueado")).toHaveTextContent("Sequência, selos e desafios");
+    expect(screen.queryByLabelText("Selos")).not.toBeInTheDocument();
+  });
+  it("mostra a sequência com o próximo degrau, os selos e o desafio da equipe", () => {
+    render(<MetasEngajamento engajamento={{
+      liberado: true,
+      sequencia: { atual: 4, melhor: 5, degrau: 3, proximo_marco: 5, regra: "Dia fora da meta volta um degrau (3, 5, 10, 20, 30, 60 dias), não zera." },
+      selos: [
+        { codigo: "PRIMEIRO_DIA", nome: "Primeiro dia na meta", descricao: "x", conquistado: true, quando: "2026-10-25" },
+        { codigo: "MELHOR_SEMANA", nome: "Melhor semana", descricao: "A semana mais recente é a melhor.", conquistado: false, quando: null },
+      ],
+      desafios_equipe: [{ meta_id: "d1", nome: "Mais tarefas por hora · Equipe A", objetivo: "Mais tarefas por hora", equipe: "Equipe A",
+        unidade: "POR_HORA", menor_melhor: false, alvo: 8, resultado: { realizado: 6, atingimento_pct: 75, faixa: "ACEITAVEL", parcial: true, participantes: 2 } }],
+    }} />);
+    expect(screen.getByText("4 dias na meta")).toBeInTheDocument();
+    expect(screen.getByText(/Faltam 1 para o degrau de 5 dias/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Primeiro dia na meta (conquistado)")).toHaveTextContent("25/10/2026");
+    expect(screen.getByLabelText("Melhor semana")).toBeInTheDocument();
+    expect(screen.getByLabelText("Desafio da equipe Equipe A")).toHaveTextContent("75% do alvo · em andamento");
+  });
+});
+
+import { formatarValorMeta } from "../metas/metas.service";
+
+describe("Fase 10.30 · tempo entre tarefas", () => {
+  it("formata minutos e escreve a meta como redução", () => {
+    expect(formatarValorMeta(2.5, "MIN")).toBe("2,5 min");
+    expect(fraseMeta({ verbo: "o tempo entre tarefas", menor_melhor: true }, "MIN", 2, 1.8)).toBe("Reduzir o tempo entre tarefas da equipe de 2 min para 1,8 min");
+  });
+  it("coletor mostra o selo Sem pausas longas", () => {
+    render(<MetasEngajamento engajamento={{ liberado: true, selos: [
+      { codigo: "SEM_PAUSA_LONGA", nome: "Sem pausas longas", descricao: "No último dia trabalhado, nenhum intervalo de mais de 10 min entre tarefas.", conquistado: true, quando: "2026-11-21" },
+    ] }} />);
+    expect(screen.getByLabelText("Sem pausas longas (conquistado)")).toHaveTextContent("21/11/2026");
+  });
+});

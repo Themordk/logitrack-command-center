@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { IntegracaoDocumentoStatus } from "@/components/integracao/IntegracaoDocumentoStatus";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowUpDown, CornerDownRight, History, Info, Link2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -98,9 +99,13 @@ function Conteudo({ entidade, documentoId, tenantId, empresaId }: Props & { tena
       <div className="px-4 py-2.5 border-b border-border bg-secondary/30 flex flex-wrap items-center gap-2">
         <History size={14} className="text-primary" aria-hidden />
         <h3 className="text-sm font-semibold text-foreground">Eventos de integração</h3>
-        <Badge variant="outline" className="text-[10px] bg-sky-500/15 text-sky-400 border-sky-500/30">
-          Integração: {documento?.status_integracao || "—"}
-        </Badge>
+        {documento?.integracao ? (
+          <IntegracaoDocumentoStatus integracao={documento.integracao} />
+        ) : (
+          <Badge variant="outline" className="text-[10px] bg-sky-500/15 text-sky-400 border-sky-500/30">
+            Marcador: {documento?.status_integracao || "—"}
+          </Badge>
+        )}
         {resumo && <span className="text-[11px] text-muted-foreground">{resumo.total.toLocaleString("pt-BR")} eventos</span>}
         {resumo && resumo.problemas > 0 && (
           <Badge variant="outline" className="text-[10px] gap-1 bg-rose-500/15 text-rose-400 border-rose-500/30">

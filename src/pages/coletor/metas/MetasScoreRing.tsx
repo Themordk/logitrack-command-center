@@ -1,5 +1,6 @@
 interface Props {
-  score: number;
+  /** null = sem score (sem metas ou sem amostra): o anel fica vazio e mostra "—". */
+  score: number | null;
   maxScore: number;
   faixa: {
     ring: string;
@@ -8,7 +9,8 @@ interface Props {
   };
 }
 
-export function MetasScoreRing({ score, maxScore, faixa }: Props) {
+export function MetasScoreRing({ score: valor, maxScore, faixa }: Props) {
+  const score = valor ?? 0;
   const size = 96;
   const stroke = 7;
   const radius = (size - stroke) / 2;
@@ -17,7 +19,7 @@ export function MetasScoreRing({ score, maxScore, faixa }: Props) {
   const offset = circumference * (1 - pct);
 
   return (
-    <div className="relative h-24 w-24 shrink-0" aria-label={`Score ${score.toFixed(0)}, faixa ${faixa.label}`}>
+    <div className="relative h-24 w-24 shrink-0" aria-label={valor === null ? `Sem score, ${faixa.label}` : `Score ${score.toFixed(0)}, faixa ${faixa.label}`}>
       <svg className="h-24 w-24 -rotate-90" viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle
           cx={size / 2}
@@ -41,7 +43,7 @@ export function MetasScoreRing({ score, maxScore, faixa }: Props) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold tabular-nums text-white">{score.toFixed(0)}</span>
+        <span className="text-2xl font-bold tabular-nums text-white">{valor === null ? "—" : score.toFixed(0)}</span>
         <span className="text-[9px] font-semibold uppercase text-[hsl(213,31%,55%)]">Score</span>
       </div>
     </div>

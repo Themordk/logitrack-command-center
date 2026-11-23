@@ -112,6 +112,8 @@ describe("lista de cargas do coletor", () => {
   it("descreve com quem está a carga", () => {
     expect(descreverResponsavelCarga({ convocado: false, responsaveis: [], operadores: [] }).tom).toBe("LIVRE");
     expect(descreverResponsavelCarga({ convocado: true, responsaveis: ["Izaias"] })).toEqual({ tom: "VOCE", prefixo: "Com você", nomes: "" });
+    expect(descreverResponsavelCarga({ convocado: true, responsaveis: ["Izaias"] }, "Izaias")).toEqual({ tom: "VOCE", prefixo: "Com você:", nomes: "Izaias" });
+    expect(descreverResponsavelCarga({ convocado: true, responsaveis: ["Izaias", "Ana"] }, "Izaias").nomes).toBe("Izaias + 1 operador(es)");
     expect(descreverResponsavelCarga({ convocado: false, responsaveis: [], operadores: ["Paulo", "Ana"] }).nomes).toBe("Paulo, Ana");
   });
 });

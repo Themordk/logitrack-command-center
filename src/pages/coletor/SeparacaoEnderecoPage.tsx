@@ -17,6 +17,7 @@ import { TarjaPendenciaPicking } from "@/components/coletor/TarjaPendenciaPickin
 import { listarEnderecosAlternativos, ordenarTarefasPicking, recarregarTarefasPicking, situacaoTarefa, trocarEnderecoTarefa } from "@/lib/pendenciasPickingService";
 import type { CamposPendenciaPicking, EnderecoAlternativoPicking } from "@/lib/pendenciasPicking.types";
 import { Button } from "@/components/ui/button";
+import { iniciarTarefas } from "@/lib/lmsTimestamp";
 
 
 
@@ -146,6 +147,12 @@ export function SeparacaoEnderecoPage({ onNavigate }: Props) {
   const textoCorte = corteAcesso.precisaSupervisor ? "registre o corte (com supervisor, se necessário)" : "registre o corte";
   const situacao = tarefa ? situacaoTarefa(tarefa) : "OK";
   const pendente = situacao !== "OK";
+
+  // LMS (Fase 2): a tarefa aberta como a próxima marca o início — inclui o deslocamento
+  // até o endereço, como no padrão de picking. Não bloqueia; o servidor é idempotente.
+  useEffect(() => {
+    if (tarefa?.tarefa_id && !pendente) void iniciarTarefas([tarefa.tarefa_id], "ABERTURA_TAREFA", usuarioIdAtual);
+  }, [tarefa?.tarefa_id, pendente]);
   const recarregar = async (tarefaId?: string, aviso?: "atualizar" | "alternativo") => {
     const tenant = localStorage.getItem("core_tenant_id");
     const empresa = localStorage.getItem("core_empresa_id");

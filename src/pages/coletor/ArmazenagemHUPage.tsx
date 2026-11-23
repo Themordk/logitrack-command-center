@@ -16,6 +16,7 @@ import { useFeedback } from "@/hooks/useFeedback";
 import { Archive, MapPin, Loader2, CircleCheck, AlertTriangle, WifiOff } from "lucide-react";
 import { huService, type ResumoHUArmazenagem } from "@/lib/huService";
 import { rotaListaItens } from "@/lib/armazenagemOrigem";
+import { iniciarHU } from "@/lib/lmsTimestamp";
 
 interface Props { onNavigate: (path: string) => void; }
 
@@ -41,7 +42,10 @@ export function ArmazenagemHUPage({ onNavigate }: Props) {
     if (!codigo) { setCarregando(false); return; }
     setCarregando(true);
     try {
-      setResumo(await huService.armazenagemResumo(codigo));
+      const r = await huService.armazenagemResumo(codigo);
+      setResumo(r);
+      // LMS (Fase 2): o bipe da HU na doca é o início das tarefas de armazenagem dela
+      if (r?.pode_armazenar) void iniciarHU(r.hu?.hu_id);
     } catch (err) {
       result.showError(err, { context: "armazenagem-hu" });
     } finally {

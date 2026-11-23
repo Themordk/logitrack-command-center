@@ -77,7 +77,15 @@ describe("ReportTable — rolagem virtual", () => {
   const offH = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
   const offW = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
   const gbcr = Element.prototype.getBoundingClientRect;
+  // @tanstack/virtual-core 3.19+ mede a área visível por clientHeight/clientWidth
+  const cliH = Object.getOwnPropertyDescriptor(Element.prototype, "clientHeight");
+  const cliW = Object.getOwnPropertyDescriptor(Element.prototype, "clientWidth");
   beforeAll(() => {
+    Object.defineProperty(Element.prototype, "clientHeight", {
+      configurable: true,
+      get() { return (this as HTMLElement).dataset?.testid === "report-table-scroll" ? 600 : 44; },
+    });
+    Object.defineProperty(Element.prototype, "clientWidth", { configurable: true, get: () => 1280 });
     Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
       configurable: true,
       get() { return this.dataset?.testid === "report-table-scroll" ? 600 : 44; },
@@ -89,6 +97,8 @@ describe("ReportTable — rolagem virtual", () => {
     };
   });
   afterAll(() => {
+    if (cliH) Object.defineProperty(Element.prototype, "clientHeight", cliH);
+    if (cliW) Object.defineProperty(Element.prototype, "clientWidth", cliW);
     if (offH) Object.defineProperty(HTMLElement.prototype, "offsetHeight", offH);
     if (offW) Object.defineProperty(HTMLElement.prototype, "offsetWidth", offW);
     Element.prototype.getBoundingClientRect = gbcr;

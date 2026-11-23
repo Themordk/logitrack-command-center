@@ -25,7 +25,21 @@ export interface OperadorEtapa {
   nome: string;
   tarefas: number;
   com_progresso: number;
+  /** Fase 5: tarefas com início aberto agora (operador executando). */
+  em_execucao?: number;
   origem: OrigemAtribuicao;
+}
+
+/** Fase 5: prévia, por operador que perde tarefas, do que a troca de dono atinge. */
+export interface PreviaOperador {
+  usuario_id: string;
+  nome: string;
+  tarefas: number;
+  em_execucao: number;
+  minutos_em_execucao: number | null;
+  com_progresso: number;
+  so_atribuidas: number;
+  produto_em_maos: number;
 }
 
 export interface TotaisEtapa {
@@ -99,7 +113,9 @@ export interface ResumoAlteracaoEtapa {
   tarefas_devolvidas?: number;
   com_progresso?: number;
   bloqueadas_por_progresso?: number;
+  em_execucao?: number;
   de?: Array<{ usuario_id: string; nome: string; tarefas: number }>;
+  por_operador?: PreviaOperador[];
 }
 
 export interface SalvarResponsaveisResult {
@@ -108,6 +124,10 @@ export interface SalvarResponsaveisResult {
   mensagem: string;
   simulado?: boolean;
   com_progresso?: number;
+  em_execucao?: number;
+  produto_em_maos?: number;
+  /** Há tarefa em execução ou com progresso mudando de dono: motivo obrigatório. */
+  motivo_obrigatorio?: boolean;
   resumo?: ResumoAlteracaoEtapa[];
   erros?: Array<{ tipo_tarefa_id?: string; usuario_id?: string; codigo: string; mensagem: string }>;
 }

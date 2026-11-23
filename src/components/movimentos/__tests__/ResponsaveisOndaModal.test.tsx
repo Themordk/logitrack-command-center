@@ -96,10 +96,18 @@ describe("ResponsaveisOndaModal", () => {
 
     const confirma = document.body.querySelector("button[role=checkbox]") as HTMLButtonElement;
     await act(async () => { confirma.click(); });
+    // Fase 5: com progresso ou execução o motivo é obrigatório
+    expect(botao(/^Aplicar$/)?.disabled).toBe(true);
+    const motivo = document.body.querySelector("input[aria-label='Motivo da alteração']") as HTMLInputElement;
+    expect(motivo.placeholder).toMatch(/obrigatório/);
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(motivo, "Operador foi para a doca");
+      motivo.dispatchEvent(new Event("input", { bubbles: true }));
+    });
     expect(botao(/^Aplicar$/)?.disabled).toBe(false);
 
     await clicar(/^Aplicar$/);
-    expect(mocks.salvar).toHaveBeenLastCalledWith(expect.objectContaining({ confirmarProgresso: true, alteracoes: [{ tipo_tarefa_id: "sep", usuarios: ["joao"] }] }));
+    expect(mocks.salvar).toHaveBeenLastCalledWith(expect.objectContaining({ confirmarProgresso: true, motivo: "Operador foi para a doca", alteracoes: [{ tipo_tarefa_id: "sep", usuarios: ["joao"] }] }));
     expect(mocks.salvar.mock.lastCall?.[0].simular).toBeUndefined();
     expect(mocks.onSuccess).toHaveBeenCalled();
   });

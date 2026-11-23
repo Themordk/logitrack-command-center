@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ColetorLayout } from "@/components/coletor/ColetorLayout";
 import { ActionButton } from "@/components/coletor/ActionButton";
-import { Loader2, Database } from "lucide-react";
+import { Loader2, Database, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useOffline } from "@/contexts/OfflineContext";
@@ -11,6 +11,9 @@ import { RefreshListButton } from "@/components/coletor/RefreshListButton";
 import { useResultDialog } from "@/hooks/useResultDialog";
 import { ResultDialog } from "@/components/feedback/ResultDialog";
 import { CRITERIO_LABELS } from "@/modules/inventario/criterios";
+import { buscarAtribuicoesInventario, type AtribuicaoInventario } from "@/lib/inventarioAtribuicoes";
+import { useSairEtapaColetor } from "@/hooks/useSairEtapaColetor";
+import type { ParamsSair, ResultadoSair } from "@/lib/sairEtapaService";
 
 
 interface Props { onNavigate: (path: string) => void; }
@@ -65,7 +68,32 @@ export function InventarioListPage({ onNavigate }: Props) {
     if (error) result.showWarning("Não foi possível carregar os inventários.");
   }, [error]);
 
-  const loadInventarios = refetch;
+  const [atribuicoes, setAtribuicoes] = useState<Record<string, AtribuicaoInventario>>({});
+  const carregarAtribuicoes = useCallback(async () => {
+    const lista = data ?? [];
+    if (!isOnline || !tenantId || !usuarioId || lista.length === 0) { setAtribuicoes({}); return; }
+    try {
+      setAtribuicoes(await buscarAtribuicoesInventario(tenantId, usuarioId, lista.map((i) => i.id)));
+    } catch { setAtribuicoes({}); }
+  }, [isOnline, tenantId, usuarioId, data]);
+  useEffect(() => { void carregarAtribuicoes(); }, [carregarAtribuicoes]);
+
+  const loadInventarios = async () => { await refetch(); await carregarAtribuicoes(); };
+
+  const atribSel = selectedId ? atribuicoes[selectedId] : undefined;
+  const paramsSair: ParamsSair | null = selectedId && tenantId && empresaId && usuarioId
+    ? { tenantId, empresaId, usuarioId, contextoTipo: "INVENTARIO", contextoId: selectedId, etapa: null }
+    : null;
+  const sairEtapa = useSairEtapaColetor(paramsSair, {
+    onSaiu: (r: ResultadoSair) => {
+      if (sessionStorage.getItem("coletor_inventario_id") === selectedId) sessionStorage.removeItem("coletor_inventario_tarefas");
+      result.showSuccess(r.mensagem || "Você saiu do inventário. As tarefas voltaram para a fila.");
+      setSelectedId(null);
+      void refetch();
+      void carregarAtribuicoes();
+    },
+    onErro: (e) => result.showError(e, { context: "inventario-sair" }),
+  });
 
   const [showContagemPopup, setShowContagemPopup] = useState(false);
 
@@ -206,13 +234,20 @@ export function InventarioListPage({ onNavigate }: Props) {
           </div>
         ) : (
           <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto">
-            {inventarios.map((inv) => (
+            {inventarios.map((inv) => {
+              const at = atribuicoes[inv.id];
+              const comVoce = !!at?.atribuido_ao_usuario;
+              return (
               <button
                 key={inv.id}
-                onClick={() => setSelectedId(inv.id)}
+                type="button"
+                aria-pressed={selectedId === inv.id}
+                onClick={() => setSelectedId(selectedId === inv.id ? null : inv.id)}
                 className={`flex flex-col gap-1.5 p-4 rounded-2xl border transition-all text-left shrink-0 ${
                   selectedId === inv.id
                     ? "bg-[hsl(217,91%,50%)]/10 border-[hsl(217,91%,50%)]"
+                    : comVoce
+                    ? "bg-[hsl(222,40%,12%)] border-emerald-500/40"
                     : "bg-[hsl(222,40%,12%)] border-[hsl(222,35%,22%)]"
                 }`}
               >
@@ -222,21 +257,42 @@ export function InventarioListPage({ onNavigate }: Props) {
                     {STATUS_LABEL[inv.status] || inv.status}
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Tipo: <span className="font-bold text-foreground">{inv.tipo_inventario === "ROTATIVO" ? "Rotativo" : inv.tipo_inventario}</span>
+                {at?.operador_nome ? (
+                  <div className={`flex items-center gap-1.5 text-xs min-w-0 ${comVoce ? "text-emerald-400" : "text-[hsl(213,31%,55%)]"}`}>
+                    <UserRound size={12} className="shrink-0" aria-hidden="true" />
+                    <span className="truncate" title={at.operador_nome}>
+                      {comVoce ? "Com você: " : "Com: "}
+                      <span className={`font-bold ${comVoce ? "" : "text-[hsl(213,31%,91%)]"}`}>{at.operador_nome}</span>
+                    </span>
+                  </div>
+                ) : isOnline ? (
+                  <div className="flex items-center gap-1.5 text-xs text-blue-400 min-w-0">
+                    <UserRound size={12} className="shrink-0" aria-hidden="true" />
+                    <span>Disponível para assumir</span>
+                  </div>
+                ) : null}
+                <div className="text-xs text-[hsl(213,31%,55%)]">
+                  Tipo: <span className="font-bold text-[hsl(213,31%,91%)]">{inv.tipo_inventario === "ROTATIVO" ? "Rotativo" : inv.tipo_inventario}</span>
                   {inv.tipo_inventario === "ROTATIVO" && inv.criterio_selecao && <span> · {CRITERIO_LABELS[inv.criterio_selecao] || inv.criterio_selecao}</span>}
                 </div>
                 <div className="text-xs text-[hsl(213,31%,45%)]">
                   Origem: <span className="font-medium text-[hsl(213,31%,70%)]">{inv.origem}</span>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        <div className="shrink-0 pt-1">
-          <ActionButton onClick={handleIniciarClick} disabled={!selectedId} loading={starting}>
-            Início de Contagem
+        <div className="shrink-0 pt-1 flex flex-col gap-2">
+          {isOnline && atribSel?.atribuido_ao_usuario && (
+            <ActionButton variant="secondary" onClick={sairEtapa.sair} loading={sairEtapa.saindo}>
+              Sair da etapa
+            </ActionButton>
+          )}
+          {sairEtapa.folha}
+          <ActionButton onClick={handleIniciarClick} disabled={!selectedId || sairEtapa.saindo} loading={starting}>
+            {atribSel?.atribuido_ao_usuario ? "Continuar contagem" : "Início de Contagem"}
           </ActionButton>
         </div>
       </div>
