@@ -83,3 +83,25 @@ Bloco C + D + E (Status S2 e correções):
 - Pacote de correções do gateway (`_bkp`, cancelamento de entrada via RPC).
 - S3 — o que fazer depois de "Não entregue".
 - Diferenças antigas entre QA e produção: ~108 funções diferem e não são tocadas por este pacote (ex.: relatórios, LMS). Não bloqueiam, mas valem um saneamento depois.
+
+## Registro do deploy em produção — 24/11/2026
+
+- **Banco (dcpmykhxysvxnpgmlyli):** as 19 migrations aplicadas na ordem acima. Os blocos DO exclusivos de QA ficaram de fora:
+  - reconstrução do histórico de tentativas (`entregas_tentativas`);
+  - acerto de carga (`entregas_fechamento_carga`).
+- **Carga inicial S2:** cerca de 8.060 pedidos recalculados.
+- **Verificação (`98_verificacao_pos_deploy.sql`):**
+  - 19 migrations;
+  - 6 tabelas de entrega;
+  - 9 gatilhos `trg_zz_situacao_*`;
+  - 8 eventos no catálogo;
+  - `fix_conferencia` = true.
+- **Equivalência com QA:** as 70 funções da release têm o mesmo hash em produção e em QA quando se ignoram comentários e espaços.
+  - Sem essa normalização, 11 diferem, só por linhas de comentário.
+  - `fn_cancelar_documento_entrada` partiu de uma base diferente antes do splice.
+  - `fn_coletor_menu_badges__sem_checagem` tem CRLF de antes e não foi tocada.
+- **Advisors:** nada novo além do aviso esperado de SECURITY DEFINER executável por `authenticated` nas RPCs `entrega_*`, `rpc_pedido_situacao` e `rpc_pedidos_acompanhamento`. Nenhuma tabela nova sem RLS e nada exposto para `anon`.
+- **Ondas destravadas:**
+  - 1970 (tenant ba39e14e…), via `fn_gerar_conferencia_saida`: resposta `CONFERENCIA_JA_CONCLUIDA`, onda → CONCLUIDA, pedido → expedido;
+  - 4273 tem o mesmo sintoma e ficou para decisão do responsável.
+- **Frontend:** PR `feat/armazenagem-fluxo` → `main`. A Vercel publica pela `main`. Rollback do front: promover `dpl_GRQb8mYAUKzxFJ8acR8BF8czsh5F` (main @ 1a922e50).
