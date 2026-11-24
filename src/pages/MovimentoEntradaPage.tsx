@@ -24,7 +24,8 @@ import { LiberarArmazenagemModal } from "@/components/movimento-entrada/LiberarA
 import { LiberarErroTransporteModal } from "@/components/movimento-entrada/LiberarErroTransporteModal";
 import { parseError } from "@/lib/errorMapper";
 import { ErpStatusBadge, erpBadgeApplies, atendeFiltroErp, OPCOES_FILTRO_ERP, type FiltroErp } from "@/components/movimentos/ErpStatusBadge";
-import { useIntegracaoResumo } from "@/hooks/useIntegracaoResumo";
+import { IntegracaoDocumentoStatus } from "@/components/integracao/IntegracaoDocumentoStatus";
+import type { IntegracaoDocumento } from "@/lib/integracaoStatus";
 import { useTenantHasErp } from "@/hooks/useTenantHasErp";
 import { DescricaoCell } from "@/components/DescricaoCell";
 import { useTableSort } from "@/hooks/useTableSort";
@@ -56,6 +57,10 @@ interface MovimentoEntradaListItem {
   total_conferido: number;
   total_armazenado: number;
   total_registros: number;
+  /** S1: pior estado de integração das NFs do recebimento. */
+  integracao_resumo?: string | null;
+  /** S2.7: NFs do recebimento com erro de integração no ERP. */
+  integracao_docs_erro?: number | null;
 }
 
 const STATUS_MAP: Record<string, { label: string; class: string }> = {
@@ -88,6 +93,8 @@ interface MovEntry {
   id: string;
   /** S1: pior estado de integração das NFs do recebimento (movimento_entrada.integracao_resumo). */
   integracao_resumo?: string | null;
+  /** NFs do recebimento com erro de integração no ERP (listar_movimentos_entrada). */
+  integracao_docs_erro?: number;
   numero_movimento: number | null;
   status: string;
   created_at: string;
@@ -166,6 +173,7 @@ interface DocVinculado {
   valor_total_nota: number;
   qtd_volume: number | null;
   documento_entrada_id: string | null;
+  integracao?: IntegracaoDocumento | null;
 }
 
 export function MovimentoEntradaPage() {
@@ -329,6 +337,7 @@ export function MovimentoEntradaPage() {
       valor_total_nota: d.valor_total_nota,
       qtd_volume: d.qtd_volume,
       documento_entrada_id: d.documento_entrada_id ?? null,
+      integracao: d.integracao ?? null,
     })),
     [informacoesQuery.data],
   );
@@ -454,11 +463,8 @@ export function MovimentoEntradaPage() {
     staleTime: 30_000,
   });
 
-  const integracaoQuery = useIntegracaoResumo("movimento_entrada", tenantId, movIdsKey ? movIdsKey.split(",") : []);
-
   const movements: MovEntry[] = useMemo(() => {
     const opsMap = opsQuery.data || new Map<string, string[]>();
-    const intMap = integracaoQuery.data || new Map<string, string>();
     return listRows.map((r) => ({
       id: r.id,
       numero_movimento: r.numero_movimento,
@@ -468,9 +474,10 @@ export function MovimentoEntradaPage() {
       parceiro_nome: r.parceiro_nome || "—",
       tipo_entrada_descricao: (r as any).tipo_entrada_descricao || "—",
       operadores_atribuidos: opsMap.get(r.id) || [],
-      integracao_resumo: intMap.get(r.id) ?? null,
+      integracao_resumo: r.integracao_resumo ?? "nao_integra",
+      integracao_docs_erro: Number(r.integracao_docs_erro ?? 0),
     }));
-  }, [listRows, opsQuery.data, integracaoQuery.data]);
+  }, [listRows, opsQuery.data]);
 
   // Mantém o status do movimento selecionado em sincronia (controla as ações disponíveis):
   // o status lido agora pela seção itens vence o da lista, que pode estar até 30 s atrás.
@@ -834,14 +841,24 @@ export function MovimentoEntradaPage() {
                       className="flex-1 text-left"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-mono font-bold text-foreground">
+                        <span className="text-xs font-mono font-bold text-foreground whitespace-nowrap">
                           MOV-{mov.numero_movimento ?? "—"}
                         </span>
-                        <div className="flex items-center gap-1">
-                          {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
-                          <span className={cn("text-xs px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
-                        </div>
+                        <span className={cn("text-xs px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0", info.class)}>{info.label}</span>
                       </div>
+                      {(hasErp || (mov.integracao_docs_erro ?? 0) > 0) && (
+                        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                          {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
+                          {(mov.integracao_docs_erro ?? 0) > 0 && (
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 rounded-full border border-destructive/30 bg-destructive/15 text-destructive whitespace-nowrap"
+                              title={`${mov.integracao_docs_erro} NF(s) deste recebimento com erro de integração no ERP. Veja quais em Informações › Documentos vinculados.`}
+                            >
+                              {mov.integracao_docs_erro} com erro ERP
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>
                         {(mov.parceiro_nome || "").length > 35 ? `${(mov.parceiro_nome || "").slice(0, 35)}…` : mov.parceiro_nome}
                       </p>
@@ -1183,6 +1200,7 @@ export function MovimentoEntradaPage() {
                               <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">SKUs</th>
                               <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase">Volumes</th>
                               <th className="px-2 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                              <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Integração</th>
                               <th className={cn("px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase", podeRemoverDoc ? "w-20" : "w-12")}>Ações</th>
                             </tr>
                           </thead>
@@ -1196,6 +1214,7 @@ export function MovimentoEntradaPage() {
                                 <td className="px-2 py-2 text-right font-mono text-xs text-foreground">
                                   {Number(doc.valor_total_nota).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                                 </td>
+                                <td className="px-2 py-2"><IntegracaoDocumentoStatus integracao={doc.integracao} /></td>
                                 <td className="px-2 py-2 text-center">
                                   <Button
                                     variant="ghost"

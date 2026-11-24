@@ -1,3 +1,4 @@
+import type { IntegracaoDocumento } from "@/lib/integracaoStatus";
 import type { QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -92,6 +93,8 @@ export interface DocumentoVinculadoEntrada {
   valor_total_nota: number;
   qtd_volume: number | null;
   total_skus: number;
+  /** Integração da NF com o ERP (plano de status · S2.7, fn_documento_integracao_json). */
+  integracao?: IntegracaoDocumento | null;
 }
 
 export interface InformacoesDetalheEntrada {
