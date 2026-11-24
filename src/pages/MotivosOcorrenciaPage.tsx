@@ -67,14 +67,17 @@ export function MotivosOcorrenciaPage() {
       <span className="text-xs">{row.etapa_ocorrencia === "SEPARACAO" ? (row.permite_corte ? "Sim" : "Não") : "—"}</span>
     )},
     { key: "exige_observacao", label: "Exige observação", render: (row) => (
-      <span className="text-xs">{row.etapa_ocorrencia === "SEPARACAO" ? (row.exige_observacao ? "Sim" : "Não") : "—"}</span>
+      <span className="text-xs">{row.etapa_ocorrencia === "SEPARACAO" || row.etapa_ocorrencia === "ENTREGA" ? (row.exige_observacao ? "Sim" : "Não") : "—"}</span>
+    )},
+    { key: "impede_entrega", label: "Impede entrega", render: (row) => (
+      <span className="text-xs">{row.etapa_ocorrencia === "ENTREGA" ? (row.impede_entrega ? "Sim" : "Não") : "—"}</span>
     )},
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
   const fields: FieldSpec[] = [
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Descrição do motivo" },
-    { name: "etapa_ocorrencia", label: "Etapa Ocorrência", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "INVENTARIO", "AUDITORIA", "OUTROS"] },
+    { name: "etapa_ocorrencia", label: "Etapa Ocorrência", type: "enum", required: true, enumValues: ["RECEBIMENTO", "ARMAZENAGEM", "ABASTECIMENTO", "MOVIMENTACAO", "SEPARACAO", "CONFERENCIA", "EXPEDICAO", "ENTREGA", "INVENTARIO", "AUDITORIA", "OUTROS"] },
     { name: "tipo_ocorrencia_padrao", label: "Tipo de Ocorrência Padrão", type: "enum", enumValues: ["FALTA", "SOBRA", "AVARIA", "DIVERGENCIA_INVENTARIO", "EXTRAVIO", "PRODUTO_INCORRETO", "VALIDADE_INCORRETA", "LOTE_INCORRETO", "EXCLUSAO_DOCUMENTO", "OUTROS"] },
 
     { name: "categoria_padrao", label: "Categoria padrão", type: "enum", required: true, defaultValue: "CORRETIVA", enumValues: ["PREVENTIVA", "CORRETIVA"] },
@@ -83,7 +86,9 @@ export function MotivosOcorrenciaPage() {
     { name: "sla_horas", label: "SLA (horas)", type: "number", placeholder: "Ex: 24" },
     { name: "sla_notificar_percentual", label: "Alerta em (% do SLA)", type: "number", placeholder: "Ex: 80", defaultValue: 80 },
     { name: "permite_corte", label: "Permite corte", type: "switch", defaultValue: false, visibleWhen: (f) => f.etapa_ocorrencia === "SEPARACAO" },
-    { name: "exige_observacao", label: "Exige observação", type: "switch", defaultValue: false, visibleWhen: (f) => f.etapa_ocorrencia === "SEPARACAO" },
+    { name: "exige_observacao", label: "Exige observação", type: "switch", defaultValue: false, visibleWhen: (f) => f.etapa_ocorrencia === "SEPARACAO" || f.etapa_ocorrencia === "ENTREGA" },
+    // Entregas: true = a parada fica "não entregue"; false = ocorrência informativa (parada segue pendente).
+    { name: "impede_entrega", label: "Impede a entrega (parada fica não entregue)", type: "switch", defaultValue: true, visibleWhen: (f) => f.etapa_ocorrencia === "ENTREGA" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ];
 
@@ -113,6 +118,7 @@ export function MotivosOcorrenciaPage() {
           <option value="SEPARACAO">Separação</option>
           <option value="CONFERENCIA">Conferência</option>
           <option value="EXPEDICAO">Expedição</option>
+          <option value="ENTREGA">Entrega</option>
           <option value="INVENTARIO">Inventário</option>
           <option value="AUDITORIA">Auditoria</option>
           <option value="OUTROS">Outros</option>

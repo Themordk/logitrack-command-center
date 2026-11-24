@@ -23,6 +23,7 @@ import { CapacidadeVeiculo } from "@/components/carga/CapacidadeVeiculo";
 import type { BoxOpcao, VeiculoOpcao } from "@/hooks/useCargaCadastros";
 import { TransporteCampos } from "@/components/carga/TransporteCampos";
 import { SeletorBusca } from "@/components/carga/SeletorBusca";
+import { CargaEntregaSecao } from "@/components/carga/CargaEntregaSecao";
 
 interface Props {
   cargaId: string | null;
@@ -254,6 +255,11 @@ export function CargaDetalheSheet({ cargaId, onClose, tenantId, empresaId, usuar
                       : carga.iniciada_em ? `Carregamento iniciado em ${dataHora(carga.iniciada_em)}.` : "Aguardando o primeiro bip no coletor."}
                   </p>
                 </div>
+              )}
+
+              {/* Entrega (veículo próprio): gerada na carga montada ou fechada, conforme o tipo de saída dos pedidos */}
+              {carga.modalidade === "PROPRIA" && ["LIBERADA", "EM_CARREGAMENTO", "FECHADA"].includes(carga.status) && (
+                <CargaEntregaSecao tenantId={tenantId} usuarioId={usuarioId} cargaId={carga.id} />
               )}
 
               {/* Pendências para fechar (carga de transportadora) */}

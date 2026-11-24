@@ -37,6 +37,7 @@ import { RotasPage } from "./pages/RotasPage";
 import { VeiculosPage } from "./pages/VeiculosPage";
 import { HUsPage } from "./pages/HUsPage";
 import { VolumesPage } from "./pages/VolumesPage";
+import { AcompanhamentoPedidosPage } from "./pages/AcompanhamentoPedidosPage";
 import { EmpresasPage } from "./pages/EmpresasPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
 import { EtiquetaTemplatesPage } from "./pages/EtiquetaTemplatesPage";
@@ -81,6 +82,8 @@ import { MovimentacoesReportPage } from "./modules/reports/movimentacoes/Movimen
 import { TarefaDetalhePage } from "./modules/reports/movimentacoes/TarefaDetalhePage";
 import { OcupacaoReportPage } from "./modules/reports/ocupacao/OcupacaoReportPage";
 import { ProdutosMapeadosReportPage } from "./modules/reports/produtos-mapeados/ProdutosMapeadosReportPage";
+import { EntregasReportPage } from "./modules/reports/entregas/EntregasReportPage";
+import { EntregasMotivosReportPage } from "./modules/reports/entregas/EntregasMotivosReportPage";
 import { ProdutividadeDashboardPage } from "./modules/reports/produtividade/ProdutividadeDashboardPage";
 import { ProdutividadeOperadorPage } from "./modules/reports/produtividade/ProdutividadeOperadorPage";
 import { TarefasColaboradorPage } from "./modules/reports/produtividade/TarefasColaboradorPage";
@@ -154,6 +157,9 @@ import { ConferenciaProdutoPage } from "./pages/coletor/ConferenciaProdutoPage";
 import { ConferenciaItensPage } from "./pages/coletor/ConferenciaItensPage";
 import { EmbarqueCargasPage } from "./pages/coletor/EmbarqueCargasPage";
 import { EmbarqueExecucaoPage } from "./pages/coletor/EmbarqueExecucaoPage";
+import { EntregasListPage } from "./pages/coletor/EntregasListPage";
+import { EntregaParadasPage } from "./pages/coletor/EntregaParadasPage";
+import { EntregaParadaPage } from "./pages/coletor/EntregaParadaPage";
 import { InventarioListPage } from "./pages/coletor/InventarioListPage";
 import { InventarioEnderecoPage } from "./pages/coletor/InventarioEnderecoPage";
 import { InventarioProdutoPage } from "./pages/coletor/InventarioProdutoPage";
@@ -219,6 +225,7 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/atividades/inventario": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário" }],
   "/atividades/inventario/novo": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Inventário", path: "/atividades/inventario" }, { label: "Novo Inventário" }],
   "/atividades/volumes": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Volumes" }],
+  "/atividades/acompanhamento-pedidos": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Acompanhamento de Pedidos" }],
   "/atividades/abastecimento": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento" }],
   "/atividades/abastecimento/gerar": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Abastecimento", path: "/atividades/abastecimento" }, { label: "Geração" }],
   "/dados-mestres/produtos": [{ label: "CORE LogiTrack" }, { label: "Dados Mestres" }, { label: "Produtos" }],
@@ -251,6 +258,8 @@ const breadcrumbs: Record<string, { label: string; path?: string }[]> = {
   "/relatorios/inventario": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Acuracidade de Inventário" }],
   "/relatorios/recebimento": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Recebimento (Dock-to-Stock)" }],
   "/relatorios/ciclo-pedido": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Tempo de Ciclo de Pedido" }],
+  "/relatorios/entregas": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Saídas e Tentativas de Entrega" }],
+  "/relatorios/entregas-motivos": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Entregas por Motivo" }],
   "/relatorios/cancelamentos": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Cancelamentos de Tarefas" }],
   "/relatorios/documentos-cancelados": [{ label: "CORE LogiTrack" }, { label: "Relatórios" }, { label: "Documentos Cancelados" }],
   "/relatorios/picking-nao-cadastrado": [{ label: "CORE LogiTrack" }, { label: "Atividades" }, { label: "Movimentos de Entrada", path: "/atividades/movimentos" }, { label: "Itens sem Picking" }],
@@ -373,6 +382,7 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/atividades/inventario": return <InventarioPage onNavigate={onNavigate} />;
     case "/atividades/inventario/novo": return <NovoInventarioPage onNavigate={onNavigate} />;
     case "/atividades/volumes": return <VolumesPage onNavigate={onNavigate} />;
+    case "/atividades/acompanhamento-pedidos": return <AcompanhamentoPedidosPage onNavigate={onNavigate} />;
     case "/atividades/abastecimento": return <AbastecimentoPage onNavigate={onNavigate} />;
     case "/dados-mestres/produtos": return <ProdutosPage onNavigate={onNavigate} />;
     case "/dados-mestres/grupos": return <GruposProdutoPage />;
@@ -405,6 +415,8 @@ function renderPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/relatorios/inventario": return <InventarioReportPage />;
     case "/relatorios/recebimento": return <RecebimentoReportPage />;
     case "/relatorios/ciclo-pedido": return <CicloPedidoReportPage />;
+    case "/relatorios/entregas": return <EntregasReportPage onNavigate={onNavigate} />;
+    case "/relatorios/entregas-motivos": return <EntregasMotivosReportPage onNavigate={onNavigate} />;
     case "/relatorios/cancelamentos": return <CancelamentosPage />;
     case "/relatorios/documentos-cancelados": return <DocumentosCanceladosPage />;
     case "/relatorios/picking-nao-cadastrado": return <PickingNaoCadastradoReportPage onNavigate={onNavigate} />;
@@ -567,6 +579,9 @@ function renderColetorPage(fullPath: string, onNavigate: (p: string) => void) {
     case "/coletor/conferencia/itens": return <ConferenciaItensPage onNavigate={onNavigate} />;
     case "/coletor/embarque": return <EmbarqueCargasPage onNavigate={onNavigate} />;
     case "/coletor/embarque/carga": return <EmbarqueExecucaoPage onNavigate={onNavigate} />;
+    case "/coletor/entregas": return <EntregasListPage onNavigate={onNavigate} />;
+    case "/coletor/entregas/paradas": return <EntregaParadasPage onNavigate={onNavigate} />;
+    case "/coletor/entregas/parada": return <EntregaParadaPage onNavigate={onNavigate} />;
     case "/coletor/inventario": return <InventarioListPage onNavigate={onNavigate} />;
     case "/coletor/inventario/endereco": return <InventarioEnderecoPage onNavigate={onNavigate} />;
     case "/coletor/inventario/produto": return <InventarioProdutoPage onNavigate={onNavigate} />;

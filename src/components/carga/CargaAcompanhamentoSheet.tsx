@@ -33,8 +33,15 @@ const EVENTO_LABEL: Record<string, string> = {
   RESERVA_EMBARQUE: "Carga reservada para o operador",
   ONDA_STATUS_DEVOLVIDO: "Onda devolvida para a montagem",
   LIBERADA_AUTOMATICA: "Carga liberada automaticamente",
+  ENTREGA_GERADA: "Entrega gerada para o entregador",
+  VOLUME_CONFIRMADO_NA_ENTREGA: "Volume confirmado na entrega (lido no cliente)",
+  CARGA_FECHADA_PELA_ENTREGA: "Carga fechada pela entrega (1ª parada registrada)",
+  FECHAMENTO_PELA_ENTREGA_PENDENTE: "Há pedidos que exigem embarque no coletor",
+  ENTREGA_FALHA_GERACAO: "Falha ao gerar a entrega",
+  ENTREGA_FALHA_FECHAMENTO: "Falha ao fechar a carga pela entrega",
 };
-const EVENTO_ALERTA = new Set(["VEICULO_DIVERGENTE", "VEICULO_CODIGO_INVALIDO", "VOLUME_DIGITADO", "CONFERENCIA_LIMPA"]);
+const EVENTO_ALERTA = new Set(["VEICULO_DIVERGENTE", "VEICULO_CODIGO_INVALIDO", "VOLUME_DIGITADO", "CONFERENCIA_LIMPA",
+  "FECHAMENTO_PELA_ENTREGA_PENDENTE", "ENTREGA_FALHA_GERACAO", "ENTREGA_FALHA_FECHAMENTO"]);
 
 const th = "px-3 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase bg-secondary whitespace-nowrap";
 const pilula = (ativo: boolean) => `px-3 py-1 rounded-full text-xs font-medium border transition-colors ${

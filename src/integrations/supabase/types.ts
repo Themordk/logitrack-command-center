@@ -3873,6 +3873,7 @@ export type Database = {
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           exige_observacao: boolean
           id: string
+          impede_entrega: boolean
           permite_corte: boolean
           prioridade_padrao:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
@@ -3898,6 +3899,7 @@ export type Database = {
           etapa_ocorrencia: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           exige_observacao?: boolean
           id?: string
+          impede_entrega?: boolean
           permite_corte?: boolean
           prioridade_padrao?:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
@@ -3923,6 +3925,7 @@ export type Database = {
           etapa_ocorrencia?: Database["public"]["Enums"]["enum_etapa_ocorrencia"]
           exige_observacao?: boolean
           id?: string
+          impede_entrega?: boolean
           permite_corte?: boolean
           prioridade_padrao?:
             | Database["public"]["Enums"]["enum_prioridade_ocorrencia"]
@@ -8880,6 +8883,7 @@ export type Database = {
           tenant_id: string
           tipo_veiculo: Database["public"]["Enums"]["enum_tipo_veiculo"]
           total_pallet: number | null
+          usuario_id: string | null
         }
         Insert: {
           ano: number
@@ -8895,6 +8899,7 @@ export type Database = {
           tenant_id: string
           tipo_veiculo: Database["public"]["Enums"]["enum_tipo_veiculo"]
           total_pallet?: number | null
+          usuario_id?: string | null
         }
         Update: {
           ano?: number
@@ -8910,6 +8915,7 @@ export type Database = {
           tenant_id?: string
           tipo_veiculo?: Database["public"]["Enums"]["enum_tipo_veiculo"]
           total_pallet?: number | null
+          usuario_id?: string | null
         }
         Relationships: [
           {
@@ -15289,6 +15295,7 @@ export type Database = {
         | "OUTROS"
         | "EXCLUSAO"
         | "CANCELAMENTO"
+        | "ENTREGA"
       enum_execucao_inventario: "AUDITORIA" | "ATUALIZACAO"
       enum_habilidade: "TREINANDO" | "BASICO" | "BOM" | "ESPECIALISTA"
       enum_lado: "PAR" | "IMPAR"
@@ -15705,6 +15712,7 @@ export const Constants = {
         "OUTROS",
         "EXCLUSAO",
         "CANCELAMENTO",
+        "ENTREGA",
       ],
       enum_execucao_inventario: ["AUDITORIA", "ATUALIZACAO"],
       enum_habilidade: ["TREINANDO", "BASICO", "BOM", "ESPECIALISTA"],

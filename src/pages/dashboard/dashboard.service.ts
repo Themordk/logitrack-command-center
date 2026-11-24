@@ -269,6 +269,7 @@ export const LABELS_ETAPA_OCORRENCIA: Record<string, string> = {
   MOVIMENTACAO: "Movimentação",
   SEPARACAO: "Separação",
   EXPEDICAO: "Expedição",
+  ENTREGA: "Entrega",
   INVENTARIO: "Inventário",
   AUDITORIA: "Auditoria",
 };

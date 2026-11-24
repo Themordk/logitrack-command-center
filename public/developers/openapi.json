@@ -792,11 +792,15 @@
 },
 "telefone": {
 "type": "string",
-"description": "Telefone de contato."
+"description": "Opcional. Telefone de contato do cliente (botão Ligar do coletor de entregas)."
 },
 "email": {
 "type": "string",
 "description": "E-mail de contato."
+},
+"contato": {
+"type": "string",
+"description": "Opcional. Nome da pessoa de contato do cliente (exibido no coletor de entregas junto com o telefone)."
 }
 },
 "required": [
@@ -1116,6 +1120,10 @@
 "email": {
 "type": "string",
 "description": "E-mail."
+},
+"contato": {
+"type": "string",
+"description": "Opcional. Nome da pessoa de contato."
 },
 "tipo_parceiro": {
 "type": "string",

@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { EntregaPedidoBadge } from "@/components/situacao/SituacaoPedidoBadges";
+import { IntegracaoDocumentoStatus } from "@/components/integracao/IntegracaoDocumentoStatus";
+import { ENTREGAS_ORDEM, VISUAL_ENTREGA, textoResumoEntregaOnda } from "@/lib/situacaoPedido";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/contexts/PermissionsContext";
 import { RemoverDocumentoMovimentoModal } from "@/components/movimentos/RemoverDocumentoMovimentoModal";
@@ -82,6 +85,11 @@ interface MovSaida {
   id: string;
   /** S1: pior estado de integração dos pedidos da onda (movimento_saida.integracao_resumo). */
   integracao_resumo?: string | null;
+  /** S2: pior situação de entrega dos pedidos e contadores (movimento_saida.entrega_*). */
+  entrega_resumo?: string | null;
+  entrega_total?: number;
+  entrega_entregues?: number;
+  integracao_docs_erro?: number;
   numero_onda: number;
   status: string;
   data_emissao: string;
@@ -192,6 +200,7 @@ export function MovimentoSaidaPage() {
   const [filterOnda, setFilterOnda] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterErp, setFilterErp] = useState<FiltroErp>("");
+  const [filterEntrega, setFilterEntrega] = useState<string>("");
   const [filterNumeroDocumento, setFilterNumeroDocumento] = useState("");
   const [filterTipoSaidaId, setFilterTipoSaidaId] = useState("");
   const [filterParceiroCodigoErp, setFilterParceiroCodigoErp] = useState("");
@@ -398,6 +407,10 @@ export function MovimentoSaidaPage() {
         integracao_resumo: vivo?.integracao_resumo ?? r.integracao_resumo ?? null,
         docs_sem_nf: r.docs_sem_nf,
         qtd_sem_saldo: r.qtd_sem_saldo,
+        entrega_resumo: r.entrega_resumo,
+        entrega_total: r.entrega_total,
+        entrega_entregues: r.entrega_entregues,
+        integracao_docs_erro: r.integracao_docs_erro,
       };
     });
   }, [listRows, empresaId, selectedId, cabecalhoAoVivo]);
@@ -413,9 +426,10 @@ export function MovimentoSaidaPage() {
   const hasErp = useTenantHasErp(tenantId);
 
   const filteredMovimentos = useMemo(() => {
-    if (!filterErp) return movimentos;
-    return movimentos.filter((m) => atendeFiltroErp(m.integracao_resumo, filterErp));
-  }, [movimentos, filterErp]);
+    if (!filterErp && !filterEntrega) return movimentos;
+    return movimentos.filter((m) =>
+      atendeFiltroErp(m.integracao_resumo, filterErp) && (!filterEntrega || m.entrega_resumo === filterEntrega));
+  }, [movimentos, filterErp, filterEntrega]);
 
   /**
    * Depois de qualquer ação (e no botão Filtrar): nenhuma lista nem detalhe em cache
@@ -876,6 +890,13 @@ export function MovimentoSaidaPage() {
           </div>
         )}
         <div>
+          <label htmlFor="filtro-entrega-onda" className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Entrega</label>
+          <select id="filtro-entrega-onda" value={filterEntrega} onChange={(e) => setFilterEntrega(e.target.value)} className={cn(inputClass, "w-44")}>
+            <option value="">Todas</option>
+            {ENTREGAS_ORDEM.filter((e) => e !== "nao_se_aplica").map((e) => <option key={e} value={e}>{VISUAL_ENTREGA[e].rotulo}</option>)}
+          </select>
+        </div>
+        <div>
           <label className="block text-[10px] font-medium text-muted-foreground mb-1 uppercase">Nº Documento</label>
           <input type="number" value={filterNumeroDocumento} onChange={(e) => setFilterNumeroDocumento(e.target.value)} placeholder="Nº" className={cn(inputClass, "w-24")} />
         </div>
@@ -950,20 +971,10 @@ export function MovimentoSaidaPage() {
                     onMouseEnter={() => agendarPrefetch(mov.id)}
                     onMouseLeave={cancelarPrefetch}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-semibold text-foreground">Onda #{mov.numero_onda}</span>
-                      <div className="flex items-center gap-1">
-                        {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
-                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", info.class)}>{info.label}</span>
-                        {mov.docs_sem_nf != null && (
-                          <span
-                            className="text-[10px] px-1 py-0.5 rounded border border-amber-500/30 bg-amber-500/15 text-amber-500 whitespace-nowrap"
-                            title={`Modo de conferência pós-faturamento: ${mov.docs_sem_nf} pedido(s) sem NF autorizada. A onda não aparece na conferência do coletor até o ERP enviar a NF.`}
-                          >
-                            Aguardando NF
-                          </span>
-                        )}
-                        {semSaldo > 0 && <span className="text-[10px] px-1 py-0.5 rounded border border-destructive/30 bg-destructive/15 text-destructive">{semSaldo} sem saldo</span>}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-mono font-semibold text-foreground whitespace-nowrap">Onda #{mov.numero_onda}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap", info.class)}>{info.label}</span>
                         <div className="relative">
                           <button
                             onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === mov.id ? null : mov.id); }}
@@ -1043,6 +1054,33 @@ export function MovimentoSaidaPage() {
                         </div>
                       </div>
                     </div>
+                    {(hasErp || (mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica") || mov.docs_sem_nf != null || semSaldo > 0 || (mov.integracao_docs_erro ?? 0) > 0) && (
+                      <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                        {hasErp && <ErpStatusBadge resumo={mov.integracao_resumo} compact />}
+                        {mov.entrega_resumo && mov.entrega_resumo !== "nao_se_aplica" && (
+                          <EntregaPedidoBadge entrega={mov.entrega_resumo}
+                            className="rounded-full"
+                            complemento={textoResumoEntregaOnda(mov.entrega_total, mov.entrega_entregues)} />
+                        )}
+                        {mov.docs_sem_nf != null && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/15 text-amber-500 whitespace-nowrap"
+                            title={`Modo de conferência pós-faturamento: ${mov.docs_sem_nf} pedido(s) sem NF autorizada. A onda não aparece na conferência do coletor até o ERP enviar a NF.`}
+                          >
+                            Aguardando NF
+                          </span>
+                        )}
+                        {semSaldo > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-destructive/30 bg-destructive/15 text-destructive whitespace-nowrap">{semSaldo} sem saldo</span>}
+                        {(mov.integracao_docs_erro ?? 0) > 0 && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded-full border border-destructive/30 bg-destructive/15 text-destructive whitespace-nowrap"
+                            title={`${mov.integracao_docs_erro} pedido(s) desta onda com erro de integração no ERP. Veja quais em Informações › Documentos vinculados.`}
+                          >
+                            {mov.integracao_docs_erro} com erro ERP
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1 truncate" title={mov.parceiro_nome}>{truncate(mov.parceiro_nome, 35)}</p>
                     <OperadoresAtribuidos operadores={mov.operadores_atribuidos || []} />
                     <div className="flex items-center justify-between mt-0.5 gap-2">
@@ -1331,6 +1369,7 @@ export function MovimentoSaidaPage() {
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Parceiro</th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Vendedor</th>
                             <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground uppercase">Valor</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase">Integração</th>
                             <th className={cn("px-3 py-2 text-center text-xs font-medium text-muted-foreground uppercase", podeRemoverDoc ? "w-20" : "w-12")}>Ações</th>
                           </tr>
                         </thead>
@@ -1369,6 +1408,7 @@ export function MovimentoSaidaPage() {
                                 {doc.vendedor || "—"}
                               </td>
                               <td className="px-3 py-2 text-right font-mono text-xs text-foreground">{doc.valor_pedido ? Number(doc.valor_pedido).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</td>
+                              <td className="px-3 py-2"><IntegracaoDocumentoStatus integracao={doc.integracao} /></td>
                               <td className="px-3 py-1 text-center">
                                 <Button
                                   variant="ghost"
@@ -1409,7 +1449,7 @@ export function MovimentoSaidaPage() {
                             );
                           })}
                           {tabDocs.length === 0 && (
-                            <tr><td colSpan={8} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
+                            <tr><td colSpan={9} className="text-center py-8 text-xs text-muted-foreground">Sem documentos vinculados</td></tr>
                           )}
                         </tbody>
                       </table>

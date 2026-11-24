@@ -7,6 +7,7 @@ import type { ModalidadeTransporte, TransportadoraOpcao } from "@/lib/cargaServi
 import { MODALIDADE_LABEL, nomeTransportadora, placaValida, type TransporteValor } from "@/lib/cargaExibicao";
 import type { VeiculoOpcao } from "@/hooks/useCargaCadastros";
 import { SeletorBusca } from "@/components/carga/SeletorBusca";
+import { avisoSemEntregador } from "@/lib/entregaExibicao";
 
 interface Props {
   idPrefixo: string;
@@ -80,6 +81,11 @@ export function TransporteCampos({
           />
           {veiculos.length === 0 && (
             <p className="text-xs text-muted-foreground mt-1">Nenhum veículo próprio ativo cadastrado para esta empresa.</p>
+          )}
+          {avisoSemEntregador(veiculos, valor.veiculoId) && (
+            <p className="text-xs text-yellow-400 mt-1" role="status">
+              Este veículo não tem usuário entregador: a entrega não será gerada no fechamento. Vincule em Dados Mestres › Veículos.
+            </p>
           )}
         </div>
       ) : (
