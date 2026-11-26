@@ -109,15 +109,53 @@ export function tipoDominante<T extends TipoLinha>(tipos: T[]): T | null {
   return melhor;
 }
 
-/** Composição do tempo disponível em horas (F1): direto + indireto + ocioso = disponível. */
-export function composicaoHoras(l: { tempo_direto: number; tempo_indireto: number; tempo_ocioso: number; tempo_disponivel: number }) {
-  const h = (s: number) => Math.round(((s || 0) / 3600) * 100) / 100;
+/**
+ * Fase 10.35: divisão do tempo disponível em segundos, sem sobreposição:
+ * direto + indireto + entre tarefas + ocioso = disponível. "Entre tarefas" é a parte do
+ * ocioso que foi intervalo curto entre atividades (o banco já limita ao ocioso do dia).
+ */
+export function divisaoTempo(l: {
+  tempo_direto: number; tempo_indireto: number; tempo_ocioso: number; tempo_disponivel: number;
+  tempo_entre_tarefas?: number | null;
+}) {
+  const ocioso = Math.max(l.tempo_ocioso || 0, 0);
+  const entre = Math.min(Math.max(l.tempo_entre_tarefas || 0, 0), ocioso);
   return {
-    direto: h(l.tempo_direto),
-    indireto: h(l.tempo_indireto),
-    ocioso: h(l.tempo_ocioso),
-    disponivel: h(l.tempo_disponivel),
+    direto: l.tempo_direto || 0,
+    indireto: l.tempo_indireto || 0,
+    entre,
+    parado: ocioso - entre,
+    disponivel: l.tempo_disponivel || 0,
   };
+}
+
+/** Composição do tempo disponível em horas (F1 / Fase 10.35): direto + indireto + entre tarefas + ocioso = disponível. */
+export function composicaoHoras(l: {
+  tempo_direto: number; tempo_indireto: number; tempo_ocioso: number; tempo_disponivel: number;
+  tempo_entre_tarefas?: number | null; indireto_apontado?: number | null; indireto_cancelada?: number | null; indireto_esquecida?: number | null;
+}) {
+  const h = (s: number) => Math.round(((s || 0) / 3600) * 100) / 100;
+  const d = divisaoTempo(l);
+  return {
+    direto: h(d.direto),
+    indireto: h(d.indireto),
+    entre: h(d.entre),
+    ocioso: h(d.parado),
+    disponivel: h(d.disponivel),
+    indireto_apontado: h(l.indireto_apontado || 0),
+    indireto_cancelada: h(l.indireto_cancelada || 0),
+    indireto_esquecida: h(l.indireto_esquecida || 0),
+  };
+}
+
+/** "Calculado às 17:45" a partir do calculado_em da consolidação (timestamptz). */
+export function textoCalculadoEm(iso: string | null | undefined, agora: Date = new Date()): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const mesmoDia = d.toDateString() === agora.toDateString();
+  return mesmoDia ? `Calculado às ${hm}` : `Calculado em ${d.toLocaleDateString("pt-BR")} às ${hm}`;
 }
 
 export function formatarPct(v: number | null | undefined, casas = 1): string {

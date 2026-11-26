@@ -10,10 +10,15 @@ import { DescricaoCell } from "@/components/DescricaoCell";
 import {
   fetchTarefasColaborador,
   fetchLmsMetricas,
+  fetchIndiretoDetalhe,
+  formatarLocalCurto,
+  formatSegundos,
   type TarefaColaboradorRow,
   type LmsLinha,
+  type IndiretoDetalhe,
 } from "./produtividade.service";
-import { formatarPct, formatarTempo } from "./produtividadeCalculo";
+import { formatarPct, formatarTempo, divisaoTempo, textoCalculadoEm } from "./produtividadeCalculo";
+import { definicaoTermo } from "@/modules/lms/glossario";
 import {
   exportToExcel,
   exportToPdf,
@@ -97,6 +102,7 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
   const [page, setPage] = useState(1);
   // Fase 4: consolidado do operador no período, da fonte única (igual ao relatório e ao Scorecard)
   const [consolidado, setConsolidado] = useState<LmsLinha | null>(null);
+  const [indireto, setIndireto] = useState<IndiretoDetalhe | null>(null);
 
   // Carrega tipos de tarefa
   useEffect(() => {
@@ -138,6 +144,11 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
       }, "OPERADOR")
         .then((r) => setConsolidado(r.linhas.find((l) => l.usuario_id === usuarioId) ?? null))
         .catch(() => setConsolidado(null));
+      // Fase 10.35: de onde veio o tempo indireto (até 31 dias)
+      setIndireto(null);
+      if (tenantId && diasEntre(dataInicio, dataFim) <= 31) {
+        fetchIndiretoDetalhe(tenantId, usuarioId, dataInicio, dataFim).then(setIndireto).catch(() => setIndireto(null));
+      }
     } catch (e: any) {
       const parsed = parseError(e, "carregar tarefas-colaborador");
       const fallbackToRaw = !parsed.errorCode && parsed.title === "Ocorreu um erro inesperado.";
@@ -337,12 +348,17 @@ export function TarefasColaboradorPage({ usuarioId, onNavigate, dataInicio: prop
           <span className="font-semibold text-foreground">Consolidado LMS</span>
           <span>Disponível <b className="text-foreground font-mono">{formatarTempo(consolidado.tempo_disponivel)}</b></span>
           <span>Direto <b className="text-foreground font-mono">{formatarTempo(consolidado.tempo_direto)}</b></span>
+          <span title={definicaoTermo("tempo_indireto")}>Indireto <b className="text-foreground font-mono">{formatarTempo(consolidado.tempo_indireto)}</b></span>
+          <span title={definicaoTermo("entre_tarefas")}>Entre tarefas <b className="text-foreground font-mono">{formatarTempo(divisaoTempo(consolidado).entre)}</b></span>
+          <span title={definicaoTermo("tempo_ocioso")}>Ocioso <b className="text-foreground font-mono">{formatarTempo(divisaoTempo(consolidado).parado)}</b></span>
           <span>Utilização <b className="text-foreground font-mono">{formatarPct(consolidado.utilizacao_pct)}</b></span>
           <span>Performance <b className="text-foreground font-mono">{formatarPct(consolidado.performance_pct)}</b></span>
           <span>Eficiência <b className="text-foreground font-mono">{formatarPct(consolidado.eficiencia_pct)}</b></span>
           <span className={consolidado.origem === "REAL" ? "text-green-400" : "text-amber-400"}>{consolidado.origem === "REAL" ? "Real" : "Estimado"}</span>
+          {textoCalculadoEm(consolidado.calculado_em) && <span className="ml-auto">{textoCalculadoEm(consolidado.calculado_em)}</span>}
         </div>
       )}
+      {indireto && indireto.consolidado.tempo_indireto > 0 && <PainelIndireto dados={indireto} />}
 
       {/* Tabela */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -507,5 +523,65 @@ function Th({
         <Icon size={10} className={active ? "text-primary" : "text-muted-foreground/60"} />
       </button>
     </th>
+  );
+}
+
+function diasEntre(ini: string, fim: string): number {
+  const a = Date.parse(`${ini}T00:00:00Z`); const b = Date.parse(`${fim}T00:00:00Z`);
+  return Number.isNaN(a) || Number.isNaN(b) ? 999 : Math.round((b - a) / 86400000);
+}
+
+const ROTULO_INDIRETO: Record<string, { nome: string; cor: string }> = {
+  APONTADO: { nome: "Atividade apontada", cor: "text-purple-300 border-purple-500/30 bg-purple-500/10" },
+  CANCELADA: { nome: "Tarefa cancelada", cor: "text-red-300 border-red-500/30 bg-red-500/10" },
+  ESQUECIDA: { nome: "Tarefa esquecida aberta", cor: "text-amber-300 border-amber-500/30 bg-amber-500/10" },
+};
+
+/** Fase 10.35: de onde veio o tempo indireto do operador no período. */
+function PainelIndireto({ dados }: { dados: IndiretoDetalhe }) {
+  const c = dados.consolidado;
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-hidden" data-testid="painel-indireto">
+      <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-x-4 gap-y-1">
+        <h3 className="text-sm font-semibold text-foreground">De onde veio o tempo indireto</h3>
+        <span className="text-xs text-muted-foreground">
+          Total <b className="text-foreground font-mono">{formatarTempo(c.tempo_indireto)}</b>
+          {c.indireto_apontado > 0 && <> · atividade apontada <b className="font-mono">{formatarTempo(c.indireto_apontado)}</b></>}
+          {c.indireto_cancelada > 0 && <> · tarefa cancelada <b className="font-mono">{formatarTempo(c.indireto_cancelada)}</b></>}
+          {c.indireto_esquecida > 0 && <> · tarefa esquecida aberta <b className="font-mono">{formatarTempo(c.indireto_esquecida)}</b></>}
+        </span>
+      </div>
+      <p className="px-4 pt-2 text-[11px] text-muted-foreground">
+        Cada trecho só conta a parte que não coincide com tarefas nem com outro trecho já contado (prioridade: apontada, cancelada, esquecida).
+        Sair da etapa ou ter a tarefa devolvida não gera indireto; o tempo de deslocamento entre tarefas aparece em "Entre tarefas".
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs mt-2">
+          <thead>
+            <tr className="bg-muted/50 text-muted-foreground uppercase tracking-wider">
+              <th className="px-3 py-2 text-left font-medium">Tipo</th>
+              <th className="px-3 py-2 text-left font-medium">O quê</th>
+              <th className="px-3 py-2 text-left font-medium">Trecho</th>
+              <th className="px-3 py-2 text-right font-medium">Duração</th>
+              <th className="px-3 py-2 text-right font-medium" title="Parte do trecho que entrou no tempo indireto">Contou</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dados.linhas.map((l, i) => {
+              const r = ROTULO_INDIRETO[l.tipo] ?? { nome: l.tipo, cor: "text-muted-foreground border-border" };
+              return (
+                <tr key={`${l.tipo}-${l.inicio_local}-${i}`} className="border-b border-border">
+                  <td className="px-3 py-2"><span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-medium ${r.cor}`}>{r.nome}</span></td>
+                  <td className="px-3 py-2 text-foreground">{l.descricao}{l.detalhe && <span className="text-muted-foreground"> · {l.detalhe}</span>}</td>
+                  <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">{formatarLocalCurto(l.inicio_local)} → {formatarLocalCurto(l.fim_local).slice(-5)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{formatSegundos(l.duracao_seg)}</td>
+                  <td className={`px-3 py-2 text-right font-mono ${l.considerado_seg < l.duracao_seg ? "text-muted-foreground" : "text-foreground"}`}>{formatSegundos(l.considerado_seg)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
