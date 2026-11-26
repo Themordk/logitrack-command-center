@@ -54,11 +54,13 @@ function descreverPeriodo(f: FiltersState, hoje: string) {
 }
 
 export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
-  const { tenantId, empresaId, empresaVersion, armazemId } = useTenant();
+  const { tenantId, empresaId, empresaVersion } = useTenant();
   const today = format(new Date(), "yyyy-MM-dd");
 
+  // A Torre de Controle abre com todos os armazéns da empresa (visão consolidada);
+  // o gestor escolhe um armazém no filtro quando quiser olhar só ele.
   const [filters, setFilters] = useState<FiltersState>({
-    armazemId: armazemId || null,
+    armazemId: null,
     dataIni: today,
     dataFim: today,
     turnoId: null,
@@ -159,7 +161,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (p: string) => void }) {
           }
         />
         {tenantId && (
-          <DashboardFilters tenantId={tenantId} empresaId={empresaId} defaultArmazemId={armazemId} value={filters} onChange={setFilters} />
+          <DashboardFilters tenantId={tenantId} empresaId={empresaId} value={filters} onChange={setFilters} />
         )}
         {falhou && !loading && (
           <div role="alert" className="mt-4 rounded-lg border border-danger/25 bg-danger/10 px-4 py-3 text-body-sm text-danger">
