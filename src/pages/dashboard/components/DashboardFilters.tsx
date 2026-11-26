@@ -27,13 +27,11 @@ interface Opcao {
 export function DashboardFilters({
   tenantId,
   empresaId,
-  defaultArmazemId,
   value,
   onChange,
 }: {
   tenantId: string;
   empresaId?: string | null;
-  defaultArmazemId: string | null;
   value: FiltersState;
   onChange: (v: FiltersState) => void;
 }) {
@@ -70,7 +68,7 @@ export function DashboardFilters({
   const limpar = () => {
     const today = format(new Date(), "yyyy-MM-dd");
     setRange({ from: new Date(), to: new Date() });
-    onChange({ armazemId: defaultArmazemId, dataIni: today, dataFim: today, turnoId: null });
+    onChange({ armazemId: null, dataIni: today, dataFim: today, turnoId: null });
   };
 
   const triggerCls = isMobile ? "w-full h-9" : "h-9";
