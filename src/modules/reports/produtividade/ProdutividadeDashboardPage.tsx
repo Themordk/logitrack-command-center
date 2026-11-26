@@ -20,11 +20,11 @@ import {
   fetchCapturaPeriodo, textoSemCaptura, type CapturaPeriodo,
   type LmsLinha, type LmsTotal, type LmsTipoLinha, type ProdutividadeFilters, type QualidadeDado, type TrocasDono,
 } from "./produtividade.service";
-import { TermoAjuda, definicaoTermo, type TermoLms } from "@/modules/lms/glossario";
+import { TermoAjuda, definicaoTermo, GLOSSARIO, type TermoLms } from "@/modules/lms/glossario";
 import { TrocasDonoPanel } from "./TrocasDonoPanel";
 import {
   FAIXAS_PADRAO, LIMITE_AUDITAR_SET, classeFaixa, corFaixa, nomeFaixa, dominioEixo,
-  janelaPaginas, qualidadePct, tipoDominante, composicaoHoras, formatarPct, formatarTempo, type FaixasArmazem,
+  janelaPaginas, qualidadePct, tipoDominante, composicaoHoras, divisaoTempo, textoCalculadoEm, formatarPct, formatarTempo, type FaixasArmazem,
 } from "./produtividadeCalculo";
 import { QualidadeDadoPanel } from "./QualidadeDadoPanel";
 import { PALETA, intervalos } from "@/modules/lms/faixas";
@@ -42,6 +42,7 @@ const AXIS_FILL = "#8b8fa3";
 const COR_DIRETO = "#3b82f6";
 const COR_INDIRETO = "#a855f7";
 const COR_OCIOSO = "#6b7280";
+const COR_ENTRE = "#14b8a6";
 const PAGE_SIZE = 20;
 
 const hoje = () => dataLocalISO();
@@ -59,7 +60,7 @@ const numero = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n
 
 type SortKey =
   | "data" | "nome" | "tarefas" | "canceladas" | "quantidade" | "tempo_disponivel" | "tempo_direto"
-  | "tempo_indireto" | "tempo_ocioso" | "utilizacao_pct" | "performance_pct" | "eficiencia_pct" | "score";
+  | "tempo_indireto" | "tempo_entre_tarefas" | "tempo_ocioso" | "utilizacao_pct" | "performance_pct" | "eficiencia_pct" | "score";
 type MetricaRanking = "score" | "eficiencia_pct" | "performance_pct";
 const ROTULO_RANKING: Record<MetricaRanking, string> = { score: "Score", eficiencia_pct: "Eficiência", performance_pct: "Performance" };
 
@@ -222,7 +223,11 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
     "Data": dataBR(d.data), "Operador": d.nome || "—",
     "Tarefas": d.tarefas, "Canceladas": d.canceladas, "Quantidade": Number(d.quantidade),
     "Disponível (min)": Math.round(d.tempo_disponivel / 60), "Direto (min)": Math.round(d.tempo_direto / 60),
-    "Indireto (min)": Math.round(d.tempo_indireto / 60), "Ocioso (min)": Math.round(d.tempo_ocioso / 60),
+    "Indireto (min)": Math.round(d.tempo_indireto / 60),
+    "Indireto · apontado (min)": Math.round((d.indireto_apontado || 0) / 60),
+    "Indireto · tarefa cancelada (min)": Math.round((d.indireto_cancelada || 0) / 60),
+    "Indireto · tarefa esquecida (min)": Math.round((d.indireto_esquecida || 0) / 60),
+    "Entre tarefas (min)": Math.round(divisaoTempo(d).entre / 60), "Ocioso (min)": Math.round(divisaoTempo(d).parado / 60),
     "Utilização (%)": d.utilizacao_pct, "Performance (%)": d.performance_pct, "Eficiência (%)": d.eficiencia_pct,
     "Score (%)": d.score ?? null,
     "Origem": d.origem === "REAL" ? "Real" : "Estimado",
@@ -423,7 +428,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
             <div className="flex items-center gap-2 mb-3">
               <Clock size={16} className="text-primary" />
               <h3 className="text-sm font-semibold text-foreground">Composição do tempo disponível</h3>
-              <span className="ml-auto text-[11px] text-muted-foreground">horas · direto + indireto + ocioso = disponível</span>
+              <span className="ml-auto text-[11px] text-muted-foreground">horas · direto + indireto + entre tarefas + ocioso = disponível</span>
             </div>
             {composicao.length === 0 ? <EmptyMini>Nenhum tempo disponível no período</EmptyMini> : (
               <ResponsiveContainer width="100%" height={Math.max(240, composicao.length * 30 + 60)}>
@@ -440,6 +445,14 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                         <div>Disponível: <span className="font-mono">{formatarTempo(it.disponivel * 3600)}</span></div>
                         <div style={{ color: COR_DIRETO }}>Direto: <span className="font-mono">{formatarTempo(it.direto * 3600)}</span></div>
                         <div style={{ color: COR_INDIRETO }}>Indireto: <span className="font-mono">{formatarTempo(it.indireto * 3600)}</span></div>
+                        {it.indireto > 0 && (
+                          <div className="pl-3 text-[11px] text-muted-foreground space-y-0.5">
+                            {it.indireto_apontado > 0 && <div>Atividade apontada: <span className="font-mono">{formatarTempo(it.indireto_apontado * 3600)}</span></div>}
+                            {it.indireto_cancelada > 0 && <div>Tarefa cancelada: <span className="font-mono">{formatarTempo(it.indireto_cancelada * 3600)}</span></div>}
+                            {it.indireto_esquecida > 0 && <div>Tarefa esquecida aberta: <span className="font-mono">{formatarTempo(it.indireto_esquecida * 3600)}</span></div>}
+                          </div>
+                        )}
+                        <div style={{ color: COR_ENTRE }}>Entre tarefas: <span className="font-mono">{formatarTempo(it.entre * 3600)}</span></div>
                         <div className="text-muted-foreground">Ocioso: <span className="font-mono">{formatarTempo(it.ocioso * 3600)}</span></div>
                         <div>Utilização: <span className="font-mono">{formatarPct(it.utilizacao)}</span></div>
                       </div>
@@ -448,12 +461,14 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="direto" name="Direto" stackId="t" fill={COR_DIRETO} />
                   <Bar dataKey="indireto" name="Indireto" stackId="t" fill={COR_INDIRETO} />
+                  <Bar dataKey="entre" name="Entre tarefas" stackId="t" fill={COR_ENTRE} />
                   <Bar dataKey="ocioso" name="Ocioso" stackId="t" fill={COR_OCIOSO} radius={[0, 4, 4, 0]}>
                     <LabelList dataKey="utilizacao" position="right" formatter={(v: number) => formatarPct(v, 0)} style={{ fill: "#e5e7eb", fontSize: 11 }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
+            <LegendaComposicao />
           </div>
         </div>
       )}
@@ -463,7 +478,14 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
           <TableIcon size={16} className="text-primary" />
           <h3 className="text-sm font-semibold text-foreground">Operador por dia</h3>
-          <span className="text-xs text-muted-foreground ml-auto">{linhasDia.length} registros · clique na linha para ver as tarefas do dia</span>
+          <span className="text-xs text-muted-foreground ml-auto">
+            {textoCalculadoEm(total?.calculado_em) && (
+              <span title="Os números vêm da consolidação, que roda a cada 15 minutos. Tarefas concluídas depois desse horário entram no próximo cálculo.">
+                {textoCalculadoEm(total?.calculado_em)} (atualiza a cada 15 min) ·{" "}
+              </span>
+            )}
+            {linhasDia.length} registros · clique na linha para ver as tarefas do dia
+          </span>
         </div>
         {loading && !carregado ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -490,6 +512,7 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                     <Th k="tempo_disponivel" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_disponivel")}>Disponível</Th>
                     <Th k="tempo_direto" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_direto")}>Direto</Th>
                     <Th k="tempo_indireto" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_indireto")}>Indireto</Th>
+                    <Th k="tempo_entre_tarefas" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("entre_tarefas")}>Entre tarefas</Th>
                     <Th k="tempo_ocioso" s={sortKey} d={sortDir} on={toggleSort} align="right" title={definicaoTermo("tempo_ocioso")}>Ocioso</Th>
                     <Th k="utilizacao_pct" s={sortKey} d={sortDir} on={toggleSort} align="center" title={definicaoTermo("utilizacao")}>Utilização</Th>
                     <Th k="performance_pct" s={sortKey} d={sortDir} on={toggleSort} align="center" title={definicaoTermo("performance")}>Performance</Th>
@@ -510,8 +533,9 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-right font-mono">{numero(r.quantidade)}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{formatarTempo(r.tempo_disponivel)}</td>
                       <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(r.tempo_direto)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(r.tempo_indireto)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{formatarTempo(r.tempo_ocioso)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono" title={textoIndireto(r)}>{formatarTempo(r.tempo_indireto)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{formatarTempo(divisaoTempo(r).entre)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">{formatarTempo(divisaoTempo(r).parado)}</td>
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(r.utilizacao_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.performance_pct, faixas)}`}>{formatarPct(r.performance_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(r.eficiencia_pct, faixas)}`}>{formatarPct(r.eficiencia_pct)}</td>
@@ -539,8 +563,9 @@ export function ProdutividadeDashboardPage({ onNavigate }: Props) {
                       <td className="px-3 py-2.5 text-right font-mono">{numero(total.quantidade)}</td>
                       <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(total.tempo_disponivel)}</td>
                       <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(total.tempo_direto)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(total.tempo_indireto)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(total.tempo_ocioso)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono" title={textoIndireto(total)}>{formatarTempo(total.tempo_indireto)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(divisaoTempo(total).entre)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono">{formatarTempo(divisaoTempo(total).parado)}</td>
                       <td className="px-3 py-2.5 text-center font-mono">{formatarPct(total.utilizacao_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.performance_pct, faixas)}`}>{formatarPct(total.performance_pct)}</td>
                       <td className={`px-3 py-2.5 text-center font-mono ${classeFaixa(total.eficiencia_pct, faixas)}`}>{formatarPct(total.eficiencia_pct)}</td>
@@ -696,5 +721,39 @@ function Th({ k, s, d, on, children, align = "left", title }: {
         <Icon size={11} className={active ? "text-primary" : "text-muted-foreground/60"} />
       </button>
     </th>
+  );
+}
+
+/** Fase 10.35: de que é feito o indireto (título da célula). */
+function textoIndireto(l: { tempo_indireto: number; indireto_apontado?: number; indireto_cancelada?: number; indireto_esquecida?: number }): string {
+  if (!l.tempo_indireto) return "Sem tempo indireto";
+  const partes = [
+    l.indireto_apontado ? `atividade apontada ${formatarTempo(l.indireto_apontado)}` : null,
+    l.indireto_cancelada ? `tarefa cancelada ${formatarTempo(l.indireto_cancelada)}` : null,
+    l.indireto_esquecida ? `tarefa esquecida aberta ${formatarTempo(l.indireto_esquecida)}` : null,
+  ].filter(Boolean);
+  return `Indireto: ${partes.join(" · ")}. Clique na linha para ver de onde veio.`;
+}
+
+/** Fase 10.35: o que é cada cor da composição, com os textos do glossário. */
+function LegendaComposicao() {
+  const itens: { cor: string; termo: TermoLms }[] = [
+    { cor: COR_DIRETO, termo: "tempo_direto" },
+    { cor: COR_INDIRETO, termo: "tempo_indireto" },
+    { cor: COR_ENTRE, termo: "entre_tarefas" },
+    { cor: COR_OCIOSO, termo: "tempo_ocioso" },
+  ];
+  return (
+    <details className="mt-2 text-[11px] text-muted-foreground" data-testid="legenda-composicao">
+      <summary className="cursor-pointer select-none hover:text-foreground">O que entra em cada parte?</summary>
+      <ul className="mt-2 space-y-1.5">
+        {itens.map((i) => (
+          <li key={i.termo} className="flex gap-2">
+            <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: i.cor }} />
+            <span><b className="text-foreground">{GLOSSARIO[i.termo].nome}:</b> {GLOSSARIO[i.termo].texto}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

@@ -151,7 +151,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
   const exportColumns: ExportColumn[] = [
     { key: "tipo_tarefa_descricao", label: "Tipo" },
     { key: "quantidade", label: "Qtd Exec.", align: "right" },
-    { key: "duracao_efetiva_seg", label: "Tempo na conta", align: "right", format: (r) => formatSegundos(r.duracao_efetiva_seg) },
+    { key: "duracao_efetiva_seg", label: "Tempo na conta", align: "right", format: (r) => `${formatSegundos(r.duracao_efetiva_seg)}${r.esquecida ? " (esquecida aberta: foi para indireto)" : ""}` },
     { key: "tempo_padrao_seg", label: "Tempo padrão", align: "right", format: (r) => formatSegundos(r.tempo_padrao_seg) },
     { key: "inicio_real", label: "Início", format: (r) => `${formatarLocalCurto(r.inicio_local)}${r.inicio_real ? "" : " (estimado)"}` },
     { key: "fim_local", label: "Conclusão", format: (r) => formatarLocalCurto(r.fim_local) },
@@ -305,6 +305,7 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
               <p className="text-xs text-muted-foreground mt-0.5">
                 "Tempo na conta" é o tempo direto de cada execução: sem pausas e sem contar duas vezes o tempo em que
                 duas tarefas correram juntas. A soma ({formatSegundos(somaEfetiva)}) é o Tempo Direto do cartão.
+                Tarefa "esquecida aberta" fica com 0 aqui: o tempo dela foi para o indireto.
                 Horários na hora local do armazém.
               </p>
             </div>
@@ -337,6 +338,12 @@ export function ProdutividadeOperadorPage({ usuarioId, onNavigate, dataInicio, d
                          t.sobreposicao_seg > 0 ? `${formatSegundos(t.sobreposicao_seg)} junto com outra tarefa` : ""].filter(Boolean).join(" · ") || undefined
                       }>
                         {formatSegundos(t.duracao_efetiva_seg)}
+                        {t.esquecida && (
+                          <span className="ml-1.5 inline-flex px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300 text-[10px]"
+                            title={`${definicaoTermo("indireto_esquecida")} Ficou aberta ${formatSegundos(t.duracao_bruta_seg)}.`}>
+                            esquecida aberta
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-right text-muted-foreground">{formatSegundos(t.tempo_padrao_seg)}</td>
                       <td className="p-3 text-muted-foreground text-xs">

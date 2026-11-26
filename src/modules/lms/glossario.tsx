@@ -14,7 +14,23 @@ export const GLOSSARIO = {
   },
   tempo_indireto: {
     nome: "Tempo indireto",
-    texto: "Tempo em atividades que não são tarefas do sistema (reunião, limpeza, ajuda a um colega) apontadas no coletor, mais as interrupções de tarefa.",
+    texto: "Tempo gasto em algo que não virou tarefa concluída, contado uma vez só e fora do tempo das tarefas: atividade apontada no coletor (reunião, limpeza, carregar bateria), trecho trabalhado numa tarefa que depois foi cancelada e tarefa esquecida aberta. Sair da etapa ou ter a tarefa devolvida não gera indireto.",
+  },
+  indireto_apontado: {
+    nome: "Atividade apontada",
+    texto: "Indireto registrado pelo operador no coletor (reunião, limpeza, carregar bateria...). Só conta o tempo que não coincide com tarefas.",
+  },
+  indireto_cancelada: {
+    nome: "Tarefa cancelada",
+    texto: "Indireto do trecho trabalhado numa tarefa que depois foi cancelada ou estornada (até o teto do ciclo do tipo, a partir do início do turno). Tarefas canceladas ao mesmo tempo contam uma vez.",
+  },
+  indireto_esquecida: {
+    nome: "Tarefa esquecida aberta",
+    texto: "Indireto de uma tarefa que ficou aberta muito além do normal (acima de 4 h ou de 30 × o tempo padrão e 30 min). O tempo dela sai do direto e o tempo padrão dela não entra no desempenho.",
+  },
+  entre_tarefas: {
+    nome: "Entre tarefas",
+    texto: "Intervalos curtos (até 30 min) entre o fim de uma atividade e o início da próxima: deslocamento até o próximo endereço, preparar o equipamento, esperar a próxima tarefa. Não é indireto e não entra na utilização.",
   },
   tempo_disponivel: {
     nome: "Tempo disponível",
@@ -22,7 +38,7 @@ export const GLOSSARIO = {
   },
   tempo_ocioso: {
     nome: "Tempo ocioso",
-    texto: "Parte do tempo disponível que não foi direto nem indireto.",
+    texto: "Parte do tempo disponível que não foi direto, indireto nem intervalo curto entre tarefas: pausas longas e tempo parado sem tarefa.",
   },
   tempo_padrao: {
     nome: "Tempo padrão",

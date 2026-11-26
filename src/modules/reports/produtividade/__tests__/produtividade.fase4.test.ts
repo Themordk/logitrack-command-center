@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchLmsMetricas, fetchQualidadeDado } from "../produtividade.service";
 import {
-  faixaDe, dominioEixo, janelaPaginas, qualidadePct, tipoDominante, composicaoHoras, formatarPct, FAIXAS_PADRAO,
+  faixaDe, dominioEixo, janelaPaginas, qualidadePct, tipoDominante, composicaoHoras, divisaoTempo, textoCalculadoEm, formatarPct, FAIXAS_PADRAO,
 } from "../produtividadeCalculo";
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: vi.fn(), from: vi.fn() } }));
@@ -95,7 +95,24 @@ describe("regras de apresentação", () => {
 
   it("composição soma o disponível (F1)", () => {
     const c = composicaoHoras({ tempo_direto: 7200, tempo_indireto: 1800, tempo_ocioso: 5400, tempo_disponivel: 14400 });
-    expect(c.direto + c.indireto + c.ocioso).toBeCloseTo(c.disponivel, 2);
+    expect(c.direto + c.indireto + c.entre + c.ocioso).toBeCloseTo(c.disponivel, 2);
+  });
+
+  it("entre tarefas sai do ocioso e nunca passa dele (Fase 10.35)", () => {
+    const c = composicaoHoras({ tempo_direto: 3600, tempo_indireto: 600, tempo_ocioso: 3000, tempo_disponivel: 7200, tempo_entre_tarefas: 1800 });
+    expect(c.entre).toBe(0.5);
+    expect(c.ocioso).toBeCloseTo(0.33, 2);
+    expect(c.direto + c.indireto + c.entre + c.ocioso).toBeCloseTo(c.disponivel, 1);
+    const d = divisaoTempo({ tempo_direto: 0, tempo_indireto: 0, tempo_ocioso: 1000, tempo_disponivel: 1000, tempo_entre_tarefas: 5000 });
+    expect(d.entre).toBe(1000);
+    expect(d.parado).toBe(0);
+  });
+
+  it("horário do cálculo: hoje mostra só a hora, outro dia mostra a data", () => {
+    const agora = new Date(2026, 10, 26, 18, 0);
+    expect(textoCalculadoEm(new Date(2026, 10, 26, 17, 45).toISOString(), agora)).toBe("Calculado às 17:45");
+    expect(textoCalculadoEm(new Date(2026, 10, 25, 6, 7).toISOString(), agora)).toBe("Calculado em 25/11/2026 às 06:07");
+    expect(textoCalculadoEm(null, agora)).toBeNull();
   });
 
   it("formata percentual em pt-BR e trata vazio", () => {

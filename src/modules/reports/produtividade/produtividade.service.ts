@@ -33,6 +33,12 @@ export interface LmsLinha {
   tempo_direto: number;
   tempo_indireto: number;
   tempo_ocioso: number;
+  // Fase 10.35: indireto por tipo e intervalos curtos entre tarefas (parte do ocioso)
+  indireto_apontado: number;
+  indireto_cancelada: number;
+  indireto_esquecida: number;
+  tempo_entre_tarefas: number;
+  calculado_em?: string | null;
   tempo_gap: number;
   maior_gap: number;
   tempo_espera: number;
@@ -67,6 +73,12 @@ export interface LmsTotal {
   tempo_direto: number;
   tempo_indireto: number;
   tempo_ocioso: number;
+  indireto_apontado: number;
+  indireto_cancelada: number;
+  indireto_esquecida: number;
+  tempo_entre_tarefas: number;
+  /** Fase 10.35: horário do cálculo mais antigo do recorte (consolidação a cada 15 min). */
+  calculado_em?: string | null;
   horas_padrao_seg: number;
   tarefas: number;
   quantidade: number;
@@ -106,6 +118,7 @@ export interface LmsResultado<L> {
 
 const NUM_LINHA = [
   "operadores", "dias", "tempo_disponivel", "tempo_direto", "tempo_indireto", "tempo_ocioso", "tempo_gap",
+  "indireto_apontado", "indireto_cancelada", "indireto_esquecida", "tempo_entre_tarefas",
   "maior_gap", "tempo_espera", "horas_padrao_seg", "tarefas", "canceladas", "quantidade", "cortes",
   "ocorrencias", "execucoes", "execucoes_inicio_real", "dias_estimados",
 ] as const;
@@ -297,6 +310,8 @@ export interface ExecucaoOperador {
   quantidade: number;
   quantidade_requerida: number;
   quantidade_cortada: number;
+  /** Fase 10.35: tarefa esquecida aberta — o tempo foi para indireto e não conta no direto nem no padrão. */
+  esquecida: boolean;
 }
 
 export async function fetchExecucoesOperador(
@@ -321,6 +336,7 @@ export async function fetchExecucoesOperador(
       pausa_seg: num(d.pausa_seg), duracao_bruta_seg: num(d.duracao_bruta_seg), sobreposicao_seg: num(d.sobreposicao_seg),
       duracao_efetiva_seg: num(d.duracao_efetiva_seg), tempo_padrao_seg: num(d.tempo_padrao_seg),
       quantidade: num(d.quantidade), quantidade_requerida: num(d.quantidade_requerida), quantidade_cortada: num(d.quantidade_cortada),
+      esquecida: String(d.esquecida) === "true",
     })),
   };
 }
@@ -465,4 +481,53 @@ export function textoSemCaptura(c: CapturaPeriodo | null | undefined): string | 
     : `${c.dias_sem_captura} de ${c.dias_periodo} dias do período são anteriores à captura de tempo`;
   return `${parte}${desde ? ` (começou em ${desde})` : " (ainda não há execução com início registrado)"}. `
     + "Nesses dias a duração das tarefas é zero e os indicadores são estimados: não use esses dias para avaliar o operador.";
+}
+
+// ----------------------------------------------------------------------------
+// Fase 10.35: de onde veio o tempo indireto do operador (rpc_lms_indireto_detalhe).
+// Cada item mostra o trecho e quanto dele entrou no indireto (sem o que coincide
+// com tarefas ou com um item de prioridade maior: apontado > cancelada > esquecida).
+// O total que vale é o "consolidado", o mesmo do relatório.
+// ----------------------------------------------------------------------------
+
+export type TipoIndireto = "APONTADO" | "CANCELADA" | "ESQUECIDA";
+
+export interface ItemIndireto {
+  tipo: TipoIndireto;
+  dia: string;
+  descricao: string;
+  detalhe: string | null;
+  inicio_local: string;
+  fim_local: string;
+  duracao_seg: number;
+  considerado_seg: number;
+}
+
+export interface IndiretoDetalhe {
+  linhas: ItemIndireto[];
+  consolidado: { tempo_indireto: number; indireto_apontado: number; indireto_cancelada: number; indireto_esquecida: number };
+}
+
+export async function fetchIndiretoDetalhe(
+  tenantId: string, usuarioId: string, dataInicio: string, dataFim: string,
+): Promise<IndiretoDetalhe> {
+  const { data, error } = await sb.rpc("rpc_lms_indireto_detalhe", {
+    p_tenant_id: tenantId, p_usuario_id: usuarioId, p_data_ini: dataInicio, p_data_fim: dataFim,
+  });
+  if (error) throw new Error(error.message);
+  if (data?.sucesso === false) throw new Error(data.mensagem || "Não foi possível carregar o tempo indireto.");
+  const num = (v: unknown) => Number(v ?? 0) || 0;
+  const c = data?.consolidado ?? {};
+  return {
+    linhas: ((data?.linhas as Record<string, unknown>[] | undefined) || []).map((d) => ({
+      tipo: String(d.tipo) as TipoIndireto, dia: String(d.dia ?? ""), descricao: String(d.descricao ?? ""),
+      detalhe: d.detalhe == null ? null : String(d.detalhe),
+      inicio_local: String(d.inicio_local ?? ""), fim_local: String(d.fim_local ?? ""),
+      duracao_seg: num(d.duracao_seg), considerado_seg: num(d.considerado_seg),
+    })),
+    consolidado: {
+      tempo_indireto: num(c.tempo_indireto), indireto_apontado: num(c.indireto_apontado),
+      indireto_cancelada: num(c.indireto_cancelada), indireto_esquecida: num(c.indireto_esquecida),
+    },
+  };
 }
