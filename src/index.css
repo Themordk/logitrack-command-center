@@ -50,6 +50,34 @@
     --status-discarded-bg: 215 20% 45% / 0.12;
     --armazenagem-cancelamento: 25 95% 53%;
 
+    /* ── Design system: tons semânticos (fonte única; ver src/AGENTS.md) ──
+       Uso: text-success · bg-success/10 · border-success/30. Um tom = um significado. */
+    --success: 152 55% 48%;
+    --success-foreground: 152 60% 8%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 38 90% 10%;
+    --danger: 0 72% 60%;
+    --danger-foreground: 0 0% 100%;
+    --info: 213 80% 62%;
+    --info-foreground: 222 47% 7%;
+    --neutral: 215 16% 58%;
+    --neutral-foreground: 222 47% 7%;
+
+    /* Tons de domínio (só para tipo de endereço) */
+    --zona-pulmao: 213 80% 62%;
+    --zona-picking: 262 52% 68%;
+
+    /* Gráficos: sequência fixa, sóbria */
+    --chart-1: 213 80% 62%;
+    --chart-2: 174 45% 50%;
+    --chart-3: 38 80% 58%;
+    --chart-4: 262 40% 66%;
+    --chart-5: 340 45% 62%;
+    --chart-6: 215 16% 58%;
+
+    /* Elevação: só sobreposições (menu, popover, diálogo) têm sombra */
+    --shadow-overlay: 0 8px 24px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.3);
+
     /* Surface hierarchy */
     --surface-1: 222 47% 7%;
     --surface-2: 222 40% 10%;
@@ -96,6 +124,21 @@
     --surface-3: 215 20% 96%;
     --topbar-bg: 0 0% 100%;
     --topbar-border: 215 20% 88%;
+
+    /* Tons semânticos no tema claro: mais escuros para manter contraste AA sobre branco */
+    --success: 152 65% 30%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 90% 38%;
+    --warning-foreground: 0 0% 100%;
+    --danger: 0 70% 46%;
+    --danger-foreground: 0 0% 100%;
+    --info: 213 75% 45%;
+    --info-foreground: 0 0% 100%;
+    --neutral: 215 16% 42%;
+    --neutral-foreground: 0 0% 100%;
+    --zona-pulmao: 213 75% 45%;
+    --zona-picking: 262 45% 48%;
+    --shadow-overlay: 0 8px 24px rgb(15 23 42 / 0.12), 0 1px 2px rgb(15 23 42 / 0.08);
   }
 }
 

@@ -51,6 +51,21 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        /* Design system: tons semânticos (ver src/AGENTS.md). Use estes, não red-400/amber-400/etc. */
+        success: { DEFAULT: "hsl(var(--success))", foreground: "hsl(var(--success-foreground))" },
+        warning: { DEFAULT: "hsl(var(--warning))", foreground: "hsl(var(--warning-foreground))" },
+        danger: { DEFAULT: "hsl(var(--danger))", foreground: "hsl(var(--danger-foreground))" },
+        info: { DEFAULT: "hsl(var(--info))", foreground: "hsl(var(--info-foreground))" },
+        neutral: { DEFAULT: "hsl(var(--neutral))", foreground: "hsl(var(--neutral-foreground))" },
+        zona: { pulmao: "hsl(var(--zona-pulmao))", picking: "hsl(var(--zona-picking))" },
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+          5: "hsl(var(--chart-5))",
+          6: "hsl(var(--chart-6))",
+        },
         surface: {
           1: "hsl(var(--surface-1))",
           2: "hsl(var(--surface-2))",
@@ -73,9 +88,19 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      /* Escala tipográfica do design system. Nada abaixo de 12px na web, 14px no coletor. */
+      fontSize: {
+        caption: ["12px", { lineHeight: "16px" }],
+        "body-sm": ["13px", { lineHeight: "20px" }],
+        body: ["14px", { lineHeight: "20px" }],
+        "heading-sm": ["16px", { lineHeight: "24px", fontWeight: "600" }],
+        heading: ["20px", { lineHeight: "28px", fontWeight: "600" }],
+        metric: ["28px", { lineHeight: "32px", fontWeight: "600" }],
+      },
       boxShadow: {
         card: "var(--shadow-card)",
         elevated: "var(--shadow-elevated)",
+        overlay: "var(--shadow-overlay)",
       },
       keyframes: {
         "accordion-down": {
