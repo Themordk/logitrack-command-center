@@ -1,4 +1,10 @@
- # Frontend rules
+# Regras do projeto CORE LogiTrack
+
+## Interface — design system (definido pelo dono do produto em 26/11/2026; não remover)
+- Toda alteração de tela segue `src/AGENTS.md`: tokens de cor e tipografia, componentes de `@/components/ds`, lista do que é proibido.
+- Antes de entregar alteração de interface, `npm run design:check` não pode piorar nenhum número.
+
+# Frontend rules
 - Storage origin and deadline helpers are shared by the existing collector pages; cancellation RPC casts stay in armazenagemService, so entry execution and offline behavior remain isolated.
 
 - Mudança de Picking blocking reasons are normalized by montarMotivosBloqueio in its service, preserving legacy previews while blocked lists render only a single summary and session-clearing navigation.
