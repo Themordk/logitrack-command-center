@@ -355,3 +355,76 @@ Erros da Edge Function (`supabase.functions.invoke`) chegam como `FunctionsHttpE
 - Publicar: salva rascunho pendente, `PublicarFluxoDialog` (avisos, `MOTOR_LEGADO_ATIVO` em destaque) → `publicar_fluxo(id, ativar)`.
 - Ativo: `ativar_fluxo`; pausar pede confirmação. Versões: `VersoesSheet` + visualização somente leitura + `restaurar_versao` (recarrega o canvas).
 - Link de execução: `/config/integracao/retornos?aba=execucoes&fluxo=<id>&execucao=<execucao_id>`.
+
+---
+
+## 6. Novos eventos (26/11/2026) — movimentação interna e "Importar do ERP"
+
+### 6.1 Entidades, modo e status novos
+- `entidade`: + `movimentacao_interna`, `cadastro_importacao` (catálogo, execuções, documentos recentes).
+- `modo`: + `interativo` (execução do botão Importar do ERP).
+- `status`: + `aguardando_confirmacao` (pausa do nó "Confirmar com o usuário").
+
+### 6.2 Eventos novos no catálogo
+- `estoque.estrutura_alterada` (entidade `movimentacao_interna`): transferência ou mudança de picking cujo destino
+  tem armazém, setor ou tipo de estoque diferente da origem. Filtre no gatilho por
+  `movimentacao.muda_armazem` / `muda_setor` / `muda_tipo_estoque` (= `true`) ou `movimentacao.rotina`
+  (`TRANSFERENCIA` | `MUDANCA_PICKING`).
+  Contexto: `movimentacao { id, numero 'MI-000123', rotina, ocorrida_em, mudancas[], muda_* }`,
+  `origem`/`destino { endereco, armazem, setor, tipo_estoque }` (cada um com `id, codigo_erp, descricao`),
+  `itens[] { produto { sku, codigo_erp, descricao, referencia }, lote, validade, fabricacao, numero_serie, hu, quantidade,
+  saldo_origem_apos, saldo_destino_apos }`, `totais`, `documento { id, numero }` (= número da movimentação).
+- `importar.produto`, `importar.parceiro`, `importar.grupo_produto`, `importar.subgrupo_produto`, `importar.rota`,
+  `importar.tipo_entrada`, `importar.tipo_saida`, `importar.documento_entrada`, `importar.documento_saida`
+  (entidade `cadastro_importacao`). Contexto: `importacao { id, evento, entidade, tela, rota, valor, tipo_busca, parametros, teste }`.
+  Só modo imediato.
+
+### 6.3 Nós novos (só em fluxos `importar.*`)
+| tipo | config | saídas | `saidas.<id>` |
+|---|---|---|---|
+| `logica.confirmar_usuario` | `{ titulo?, mensagem?, previa_de?: id de payload/HTTP, expira_minutos?: 1–60 (15) }` | `principal` | — |
+| `acao.gravar_logitrack` | `{ corpo_de?: id do nó payload }` | `sucesso`, `erro` | registro devolvido pela API (`{ id, status, codigo_erp, … }`) |
+
+Validação nova: `NO_SO_IMPORTACAO`, `IMPORTACAO_GRAVAR_UNICO`, `IMPORTACAO_CONFIRMAR_UNICO`, `IMPORTACAO_CONFIRMAR_DEPOIS`,
+`IMPORTACAO_SEM_AGUARDAR`, `IMPORTACAO_MODO`, `CONFIRMAR_INVALIDO`, `CORPO_DE_INVALIDO`; aviso `IMPORTACAO_SEM_DOCUMENTO`.
+"Gravar no LogiTrack" entra na lista de nós que geram saída (`saidasAnteriores.ts` precisa do mesmo).
+Em teste/simulação o Confirmar não pausa e o Gravar não grava (passo `simulado`).
+
+### 6.4 RPCs do botão (permissão da TELA: CREATE no módulo do cadastro/documento)
+| RPC | Parâmetros | Retorno |
+|---|---|---|
+| `integracao_retorno_importacao_disponivel` | `p_tenant_id, p_empresa_id, p_evento?` | `[{ evento, entidade, tela, fluxos_ativos, disponivel, fluxo_id, fluxo_nome, tem_confirmacao }]` |
+| `integracao_retorno_importacao_iniciar` | `p_tenant_id, p_empresa_id, p_evento, p_parametros { valor, tipo_busca?, ... }` | `{ execucao_id, importacao_id, status: 'pendente'\|'filtrado', fluxo_id, fluxo_nome, tem_confirmacao }` |
+| `integracao_retorno_importacao_obter` | `p_execucao_id` | `Importacao` (abaixo) |
+| `integracao_retorno_importacao_confirmar` | `p_execucao_id` | `Importacao` (status volta a `pendente`) |
+| `integracao_retorno_importacao_cancelar` | `p_execucao_id` | `Importacao` (`descartado`) |
+| `integracao_retorno_importacao_testar` | `p_fluxo_id, p_parametros, p_modo 'teste'\|'simulacao', p_usar_rascunho` | `{ execucao_id, importacao_id, status, modo, evento }` — depois `retorno-dispatcher {acao:"executar"}` |
+
+```ts
+type Importacao = { execucao_id; importacao_id; evento; entidade; tela; modo; status: StatusExecucao; finalizado: boolean;
+  valor; parametros; fluxo_id; fluxo_nome; aguardando_confirmacao: boolean;
+  confirmacao: { no_id; titulo; mensagem; expira_em } | null; previa: unknown | null;
+  registro: { id: string|null; status: string|null; gravado_em; dados } | null;
+  erro: string|null; erro_http_status: number|null; created_at; finalizado_em;
+  passos: { no_id; no_tipo; status; saida; erro; http_status; duracao_ms }[] };
+```
+
+Fluxo do botão:
+1. `disponivel` (uma vez por tela). `disponivel=false` → caminho antigo (`sync-entidade`).
+2. `iniciar` → `retorno-dispatcher { acao: "executar_interativo", execucao_id }` (espere até ~60 s).
+   Resposta: `{ executado, status, importacao: Importacao }`.
+3. `status = 'aguardando_confirmacao'` → mostre `confirmacao` + `previa`; Confirmar → `confirmar` e de novo
+   `executar_interativo`; Cancelar → `cancelar`. A prévia expira (cron a cada 5 min).
+4. `sucesso` → `registro.id` para "Ver registro"; `erro` → `erro` + passos.
+
+Erros novos para o `errorMapper` (códigos mais longos antes dos prefixos):
+`RETORNO_IMPORTACAO_SEM_PERMISSAO`, `RETORNO_IMPORTACAO_SEM_FLUXO`, `RETORNO_IMPORTACAO_AMBIGUA`,
+`RETORNO_IMPORTACAO_VALOR`, `RETORNO_IMPORTACAO_EVENTO_INVALIDO`, `RETORNO_IMPORTACAO_SEM_PREVIA`,
+`RETORNO_IMPORTACAO_PREVIA_EXPIRADA`, `RETORNO_IMPORTACAO_REPROCESSAR`, `RETORNO_IMPORTACAO_EXECUTAR`.
+
+### 6.5 Movimentação interna
+- Tabela `public.movimentacao_interna` (+ `_item`), leitura por RLS do tenant; `integracao_status`
+  `nao_enviado | pendente | integrado | erro | ignorado` calculado no banco.
+- "Enviar ao ERP" e `verificar_envio` aceitam `movimentacao_interna`; `documentos_recentes` lista as movimentações
+  (busca por `MI-000123`).
+- `setor.codigo_erp` novo: campo no cadastro de Setores.

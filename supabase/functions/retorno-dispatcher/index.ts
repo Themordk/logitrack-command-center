@@ -5,6 +5,8 @@
 //   {acao:"tick"}                          → agendamento (header x-retorno-token)
 //   {acao:"executar", execucao_id}          → roda agora uma execução (JWT do usuário)
 //   {acao:"testar_destino", destino_id}     → envia um ping ao destino (JWT, permissão UPDATE)
+//   {acao:"executar_interativo", execucao_id} → botão "Importar do ERP": roda a execução interativa
+//                                              na própria requisição e devolve o resultado (JWT de quem pediu)
 //
 // Segurança: verify_jwt=false porque o agendamento usa token próprio (Vault);
 // chamadas de usuário validam o JWT e a permissão via RPC no banco.
@@ -29,7 +31,12 @@ const PRAZO_PACOTE_MS = 120_000;
 const PRAZO_REQUISICAO_MS = 140_000;
 const FOLGA_MS = 5_000;
 const TIMEOUT_PROVEDOR_MS = 30_000;
-const NOS_EXTERNOS = new Set(["acao.http", "acao.webhook", "acao.provedor"]);
+const NOS_EXTERNOS = new Set(["acao.http", "acao.webhook", "acao.provedor", "acao.gravar_logitrack"]);
+// Botão "Importar do ERP": o usuário está esperando. Sem retry agendado e sem pausa por orçamento:
+// o que não couber no prazo vira erro "Tempo esgotado" (o navegador espera até ~60 s).
+const PRAZO_INTERATIVO_MS = 55_000;
+const TIMEOUT_GRAVAR_MS = 20_000;
+const GATEWAY_SLUG = Deno.env.get("RETORNO_GATEWAY_SLUG") ?? "integration-gateway";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -57,7 +64,7 @@ interface Pacote {
   entidade: string;
   documento_id: string | null;
   documento_numero: string | null;
-  modo: "automatico" | "manual" | "teste" | "simulacao" | "lote";
+  modo: "automatico" | "manual" | "teste" | "simulacao" | "lote" | "interativo";
   proximo_no: string | null;
   estado: Obj;
   tentativas_no: number;
@@ -84,7 +91,7 @@ interface Passo {
 
 type ResultadoNo =
   | { tipo: "seguir"; saida: string; passo: Passo; saidaDados?: unknown }
-  | { tipo: "pausar"; status: "aguardando_retry" | "pendente"; processar_apos: Date; proximo_no: string; tentativas_no: number; passo: Passo; erro?: string; http?: number | null };
+  | { tipo: "pausar"; status: "aguardando_retry" | "pendente" | "aguardando_confirmacao"; processar_apos: Date; proximo_no: string; tentativas_no: number; passo: Passo; erro?: string; http?: number | null };
 
 // ---------------------------------------------------------------------------
 // Execução de um pacote (um fluxo para um documento ou lote)
@@ -117,8 +124,15 @@ async function executarPacote(sb: SupabaseClient, p: Pacote, prazo: number): Pro
     }
     // Orçamento de tempo: só pausa se já houve progresso nesta rodada (evita laço sem avanço).
     if (!simulacao && contador > 1 && NOS_EXTERNOS.has(no.tipo)) {
-      const dest = no.tipo === "acao.provedor" ? null : p.destinos?.[String((no.config as Obj | undefined)?.destino_id ?? "")];
-      const custo = (dest?.timeout_ms || (no.tipo === "acao.provedor" ? TIMEOUT_PROVEDOR_MS : 15000)) + FOLGA_MS;
+      const dest = no.tipo === "acao.provedor" || no.tipo === "acao.gravar_logitrack" ? null : p.destinos?.[String((no.config as Obj | undefined)?.destino_id ?? "")];
+      const custo = (dest?.timeout_ms || (no.tipo === "acao.provedor" ? TIMEOUT_PROVEDOR_MS : no.tipo === "acao.gravar_logitrack" ? TIMEOUT_GRAVAR_MS : 15000)) + FOLGA_MS;
+      if (Date.now() + custo > prazo && p.modo === "interativo") {
+        houveErro = true;
+        erroFinal = "Tempo esgotado: o ERP demorou para responder e a importação foi interrompida. Tente de novo.";
+        passos.push({ no_id: no.id, no_tipo: no.tipo, tentativa: tentativas + 1, status: "erro", erro: erroFinal });
+        estado.erro = { no_id: no.id, mensagem: erroFinal, http_status: null };
+        break;
+      }
       if (Date.now() + custo > prazo) {
         await sb.rpc("integracao_retorno_svc_concluir", {
           p_execucao_id: p.id,
@@ -136,6 +150,11 @@ async function executarPacote(sb: SupabaseClient, p: Pacote, prazo: number): Pro
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       r = { tipo: "seguir", saida: "erro", passo: { no_id: no.id, no_tipo: no.tipo, tentativa: tentativas + 1, status: "erro", erro: msg } };
+    }
+    if (r.tipo === "pausar" && r.status === "aguardando_retry" && p.modo === "interativo") {
+      // Ninguém vai esperar o próximo retry: a falha volta na hora para o usuário.
+      const erroMsg = r.erro ?? r.passo.erro ?? "Falha";
+      r = { tipo: "seguir", saida: "erro", passo: { ...r.passo, status: "erro", saida: "erro", erro: erroMsg } };
     }
     passos.push(r.passo);
 
@@ -229,6 +248,34 @@ async function executarNo(
     case "acao.provedor":
       return await executarProvedor(sb, p, no, cfg, entrada, tentativas, simulacao, base);
 
+    case "logica.confirmar_usuario": {
+      const confirmados = (estado.confirmados as Record<string, boolean>) ?? {};
+      if (semEfeitosNoWms || p.modo !== "interativo" || confirmados[no.id]) {
+        return {
+          tipo: "seguir", saida: "principal",
+          passo: base({ status: semEfeitosNoWms ? "simulado" : "sucesso", resultado: { confirmado: Boolean(confirmados[no.id]), observacao: semEfeitosNoWms ? `sem pausa no modo ${p.modo}` : undefined } }),
+        };
+      }
+      const minutos = Math.min(Math.max(Number(cfg.expira_minutos ?? 15) || 15, 1), 60);
+      const ate = new Date(Date.now() + minutos * 60_000);
+      const previaDe = String(cfg.previa_de ?? "");
+      const saidasObj = (estado.saidas as Obj) ?? {};
+      const previa = previaDe ? saidasObj[previaDe] : estado.ultimo_payload;
+      estado.previa = previa ?? null;
+      estado.confirmacao = {
+        no_id: no.id,
+        titulo: renderTemplate(String(cfg.titulo ?? "Confirme a importação"), entrada),
+        mensagem: renderTemplate(String(cfg.mensagem ?? ""), entrada),
+      };
+      return {
+        tipo: "pausar", status: "aguardando_confirmacao", processar_apos: ate, proximo_no: no.id, tentativas_no: 0,
+        passo: base({ resultado: { aguardando_confirmacao_ate: ate.toISOString() } }),
+      };
+    }
+
+    case "acao.gravar_logitrack":
+      return await executarGravar(sb, p, no, cfg, estado, semEfeitosNoWms, base);
+
     case "acao.atualizar_documento": {
       // S1: o nó declara o resultado da integração deste caminho; sem declaração, o banco deduz pelos envios.
       const resultado = resultadoIntegracao(cfg.resultado_integracao);
@@ -258,6 +305,71 @@ async function executarNo(
     default:
       return { tipo: "seguir", saida: "erro", passo: base({ status: "erro", erro: `Tipo de nó não suportado: ${no.tipo}` }) };
   }
+}
+
+// ---------------------------------------------------------------------------
+// "Gravar no LogiTrack": POST na própria API (integration-gateway) com a chave da conexão ERP
+// da empresa. Mesmo contrato, validação, idempotência e log da API pública.
+// ---------------------------------------------------------------------------
+async function executarGravar(
+  sb: SupabaseClient, p: Pacote, no: No, cfg: Obj, estado: Obj, semEfeitosNoWms: boolean,
+  base: (extra: Partial<Passo>) => Passo,
+): Promise<ResultadoNo> {
+  const imp = (p.contexto?.importacao ?? {}) as Obj;
+  const rota = String(imp.rota ?? "").replace(/^\/+/, "");
+  if (!rota) return { tipo: "seguir", saida: "erro", passo: base({ status: "erro", saida: "erro", erro: "Este fluxo não é de um botão Importar do ERP (sem rota de gravação)." }) };
+  const saidasObj = (estado.saidas as Obj) ?? {};
+  const corpo = cfg.corpo_de ? saidasObj[String(cfg.corpo_de)] : estado.ultimo_payload;
+  const url = `${SUPABASE_URL}/functions/v1/${GATEWAY_SLUG}/${rota}`;
+  const corpoTxt = JSON.stringify(corpo ?? null);
+  const idem = `${p.id}:${no.id}`.slice(0, 100);
+  const requestLog = { metodo: "POST", url, headers: { "Content-Type": "application/json", "x-api-key": "***", "Idempotency-Key": idem, "X-Request-Id": p.id }, corpo: truncar(corpoTxt, 20000) };
+  if (corpo === null || corpo === undefined || typeof corpo !== "object") {
+    return { tipo: "seguir", saida: "erro", passo: base({ status: "erro", saida: "erro", request: requestLog, erro: "Nada para gravar: monte o registro com um nó Montar payload antes de Gravar no LogiTrack." }) };
+  }
+  if (semEfeitosNoWms) {
+    return {
+      tipo: "seguir", saida: "sucesso", saidaDados: { simulado: true, rota, corpo },
+      passo: base({ status: "simulado", saida: "sucesso", request: requestLog, resultado: { observacao: `não gravado no modo ${p.modo}` } }),
+    };
+  }
+  const { data: ch, error: errCh } = await sb.rpc("integracao_retorno_svc_chave_api", { p_execucao_id: p.id });
+  const chave = (ch as Obj | null)?.chave as string | undefined;
+  if (errCh || !chave) {
+    return { tipo: "seguir", saida: "erro", passo: base({ status: "erro", saida: "erro", request: requestLog, erro: "A empresa não tem a API do LogiTrack ativa (chave da conexão ERP). Ative-a em Integração › Conexão ERP para o fluxo conseguir gravar." }) };
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_GRAVAR_MS);
+  const t0 = Date.now();
+  let status = 0;
+  let texto = "";
+  let falha: string | null = null;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": chave, "Idempotency-Key": idem, "X-Request-Id": p.id, "User-Agent": "LogiTrack-Retorno/1.0 (importacao)" },
+      body: corpoTxt, signal: ctrl.signal,
+    });
+    status = res.status;
+    texto = await res.text();
+  } catch (e) {
+    falha = e instanceof DOMException && e.name === "AbortError" ? `Timeout após ${TIMEOUT_GRAVAR_MS} ms na API do LogiTrack` : `Falha ao chamar a API do LogiTrack: ${e instanceof Error ? e.message : String(e)}`;
+  } finally {
+    clearTimeout(timer);
+  }
+  const duracao = Date.now() - t0;
+  const json = lerJsonSeguro(texto) as Obj | null;
+  const respLog = { status, corpo: truncar(texto, 20000), json };
+  if (!falha && status >= 200 && status < 300 && json?.success !== false) {
+    const dados = (json?.data ?? json ?? {}) as Obj;
+    const reg = Array.isArray(dados) ? (dados[0] as Obj) ?? {} : dados;
+    await sb.rpc("integracao_retorno_svc_importacao_registrar", { p_execucao_id: p.id, p_resposta: reg });
+    return { tipo: "seguir", saida: "sucesso", saidaDados: reg, passo: base({ saida: "sucesso", request: requestLog, response: respLog, http_status: status, duracao_ms: duracao, resultado: reg }) };
+  }
+  const errObj = (json?.error ?? {}) as Obj;
+  const detalhes = Array.isArray(errObj.details) ? ` (${(errObj.details as unknown[]).map((d) => typeof d === "string" ? d : JSON.stringify(d)).join("; ").slice(0, 500)})` : "";
+  const msg = falha ?? `API LogiTrack ${status}${errObj.code ? ` ${errObj.code}` : ""}: ${String(errObj.message ?? texto.slice(0, 300))}${detalhes}`;
+  return { tipo: "seguir", saida: "erro", passo: base({ status: "erro", saida: "erro", request: requestLog, response: respLog, http_status: status || null, duracao_ms: duracao, erro: msg }) };
 }
 
 async function executarHttp(
@@ -510,6 +622,23 @@ Deno.serve(async (req) => {
       const r = await executarPacote(sb, pacote, Math.min(Date.now() + PRAZO_PACOTE_MS, t0 + PRAZO_REQUISICAO_MS));
       const { data: detalhe } = await usuario.rpc("integracao_retorno_obter_execucao", { p_execucao_id: execucaoId });
       return json({ execucao_id: execucaoId, executado: true, ...r, detalhe });
+    }
+
+    if (acao === "executar_interativo") {
+      const execucaoId = String(body.execucao_id ?? "");
+      // Autorização: quem pediu a importação (ou suporte / leitura de retornos) — validado no banco
+      const { data: info, error: errAut } = await usuario.rpc("integracao_retorno_importacao_obter", { p_execucao_id: execucaoId });
+      if (errAut || !info) return json({ erro: errAut?.message ?? "Execução não encontrada", codigo: "SEM_ACESSO" }, 403);
+      const inf = info as Obj;
+      if (inf.modo !== "interativo") return json({ erro: "Esta execução não é de um botão Importar do ERP", codigo: "MODO" }, 400);
+      if (inf.status !== "pendente") return json({ execucao_id: execucaoId, executado: false, motivo: `Execução em ${inf.status}`, importacao: inf });
+      const { data: lote, error } = await sb.rpc("integracao_retorno_svc_reservar", { p_limite: 1, p_execucao_id: execucaoId });
+      if (error) throw error;
+      const pacote = ((lote ?? []) as Pacote[])[0];
+      if (!pacote) return json({ execucao_id: execucaoId, executado: false, motivo: "Execução já está em andamento", importacao: inf });
+      const r = await executarPacote(sb, pacote, Date.now() + PRAZO_INTERATIVO_MS);
+      const { data: final } = await usuario.rpc("integracao_retorno_importacao_obter", { p_execucao_id: execucaoId });
+      return json({ execucao_id: execucaoId, executado: true, ...r, importacao: final });
     }
 
     if (acao === "testar_destino") {
