@@ -87,7 +87,10 @@ export function useSaidasAnteriores(p: Params): { saidas: Record<string, unknown
           lista.push({ ...a, valor: saidasExecucao[a.id], origem: "ultima_execucao" });
           continue;
         }
-        const modelo = a.tipo === "acao.provedor" ? {} : { status: 200, corpo: null };
+        const modelo = a.tipo === "acao.provedor" ? {}
+          // Gravar no LogiTrack devolve o registro gravado pela API (§6.3).
+          : a.tipo === "acao.gravar_logitrack" ? { id: null, status: null, codigo_erp: null }
+          : { status: 200, corpo: null };
         acumulado[a.id] = modelo;
         lista.push({ ...a, valor: modelo, origem: "modelo" });
       }

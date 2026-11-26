@@ -13,6 +13,7 @@ import { retornosKeys } from "../../retornosKeys";
 import { documentosRecentes } from "../../retornosService";
 import type { Combinador, EntidadeDocumento, Regra } from "../../retornos.types";
 import { Campo, Secao } from "../campos/Campo";
+import { agruparEventos, ehEntidadeImportacao, termoRegistro } from "../eventosCatalogo";
 import { RegraBuilder } from "../campos/RegraBuilder";
 import { descreverRegra } from "../campos/regras";
 import type { FormNoProps } from "./formTypes";
@@ -30,9 +31,24 @@ export function ParametrosGatilho(p: FormNoProps) {
   const modo: Modo = manual ? "manual" : ((c.modo as Modo) ?? "imediato");
   const filtros = (c.filtros as Regra[]) ?? [];
   const combinador = (c.combinador as Combinador) ?? "e";
-  const eventos = (catalogo?.eventos ?? []).filter((e) => !e.manual);
+  const grupos = agruparEventos(catalogo?.eventos);
+  const entidade = catalogo?.eventos.find((e) => e.codigo === c.evento)?.entidade ?? null;
+  // Importar do ERP: o usuário está esperando na tela, então só existe o modo imediato (IMPORTACAO_MODO).
+  const importacao = !manual && ehEntidadeImportacao(entidade);
+  const termo = termoRegistro(entidade);
   const agr = (c.agrupamento as { intervalo_minutos?: number; max_documentos?: number } | undefined) ?? {};
   const semAgrupamento = modo === "agrupado" && !agr.intervalo_minutos && !agr.max_documentos;
+
+  const trocarEvento = (ev: string) => {
+    const ent = catalogo?.eventos.find((e) => e.codigo === ev)?.entidade;
+    if (ehEntidadeImportacao(ent) && modo !== "imediato") {
+      const { agrupamento: _a, ...resto } = c;
+      void _a;
+      alterar({ ...resto, evento: ev, modo: "imediato" });
+      return;
+    }
+    alterar({ ...c, evento: ev });
+  };
 
   const trocarModo = (m: Modo) => {
     if (m === modo) return;
@@ -68,13 +84,13 @@ export function ParametrosGatilho(p: FormNoProps) {
           </Campo>
         ) : (
           <Campo rotulo="Evento" htmlFor="g-evento">
-            <Select value={(c.evento as string) ?? ""} disabled={somenteLeitura} onValueChange={(v) => alterar({ ...c, evento: v })}>
+            <Select value={(c.evento as string) ?? ""} disabled={somenteLeitura} onValueChange={trocarEvento}>
               <SelectTrigger id="g-evento" className="h-10 rounded-lg bg-secondary/40"><SelectValue placeholder="Escolha o evento" /></SelectTrigger>
               <SelectContent>
-                {(["documento_entrada", "documento_saida"] as const).map((ent) => (
-                  <SelectGroup key={ent}>
-                    <SelectLabel>{ent === "documento_entrada" ? "Entrada" : "Saída"}</SelectLabel>
-                    {eventos.filter((e) => e.entidade === ent).map((e) => (
+                {grupos.map((g) => (
+                  <SelectGroup key={g.entidade}>
+                    <SelectLabel>{g.rotulo}</SelectLabel>
+                    {g.eventos.map((e) => (
                       <SelectItem key={e.codigo} value={e.codigo}>{e.nome} <span className="text-muted-foreground">({e.codigo})</span></SelectItem>
                     ))}
                   </SelectGroup>
@@ -85,17 +101,22 @@ export function ParametrosGatilho(p: FormNoProps) {
         )}
       </Secao>
 
-      <Secao titulo="Quais documentos">
+      <Secao titulo={`Quais ${termo.plural}`}>
         <RegraBuilder
           regras={filtros}
           combinador={combinador}
           catalogo={catalogo}
-          textoVazio="Sem filtros: todos os documentos do evento entram."
+          textoVazio={`Sem filtros: ${termo.todos} do evento entram.`}
           onChange={(r, cb) => alterar({ ...c, filtros: r, combinador: cb })}
         />
       </Secao>
 
       <Secao titulo="Como enviar">
+        {importacao ? (
+          <p className="text-body-sm text-muted-foreground">
+            Imediato: cada clique em Importar do ERP roda o fluxo na hora e a tela espera o resultado.
+          </p>
+        ) : (
         <RadioGroup value={modo} onValueChange={(v) => trocarModo(v as Modo)} disabled={somenteLeitura} className="grid grid-cols-3 gap-2">
           {([
             ["imediato", "Imediato", "Cada evento gera um envio."],
@@ -109,7 +130,8 @@ export function ParametrosGatilho(p: FormNoProps) {
             </Label>
           ))}
         </RadioGroup>
-        {modo === "agrupado" && (
+        )}
+        {modo === "agrupado" && !importacao && (
           <div className="flex flex-wrap items-end gap-3">
             <Campo rotulo="Enviar a cada" htmlFor="g-intervalo">
               <Select value={agr.intervalo_minutos ? String(agr.intervalo_minutos) : "0"} disabled={somenteLeitura}
@@ -128,7 +150,7 @@ export function ParametrosGatilho(p: FormNoProps) {
             </Campo>
           </div>
         )}
-        {semAgrupamento && <p className="text-xs text-rose-400" role="alert">Informe o intervalo ou a quantidade de documentos.</p>}
+        {semAgrupamento && <p className="text-caption text-danger" role="alert">Informe o intervalo ou a quantidade de documentos.</p>}
       </Secao>
     </div>
   );
@@ -150,9 +172,10 @@ export function ResultadoGatilho(p: FormNoProps) {
 
   if (!evento) return <p className="text-xs text-muted-foreground">Escolha o evento para ver quais documentos passariam.</p>;
   if (q.isLoading) return <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 size={13} className="animate-spin" /> Carregando…</p>;
-  if (q.error) return <p className="text-xs text-rose-400">Não foi possível testar os filtros.</p>;
+  if (q.error) return <p className="text-caption text-danger">Não foi possível testar os filtros. Tente de novo.</p>;
   const docs = q.data ?? [];
-  if (!docs.length) return <p className="text-xs text-muted-foreground">Nenhum documento recente para este evento.</p>;
+  const entidadeEvento = p.catalogo?.eventos.find((e) => e.codigo === evento)?.entidade ?? null;
+  if (!docs.length) return <p className="text-caption text-muted-foreground">{termoRegistro(entidadeEvento).vazio}</p>;
   const passam = docs.filter((d) => d.passa_filtro !== false).length;
   const regraDe = (campo: string | null) => {
     const r = filtros.find((x) => x.campo === campo);

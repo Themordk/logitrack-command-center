@@ -32,7 +32,7 @@ import { AdicionarNoPopover } from "./AdicionarNoPopover";
 import { NodePalette, MIME_NO } from "./NodePalette";
 import { NoContextMenu, type MenuContexto } from "./NoContextMenu";
 import { dependentesDe, geraSaida, indexarGrafo } from "./saidasAnteriores";
-import { alinhar, criarNo, ehGatilho, nomeUnico, posicaoLivre } from "./novoNo";
+import { NOS_SO_IMPORTACAO, alinhar, criarNo, ehGatilho, fluxoDeImportacao, motivoNoIndisponivel, nomeUnico, posicaoLivre } from "./novoNo";
 import { motivoBloqueio, saidasDoTipo, saidasLivres } from "./regrasConexao";
 import { useHistoricoFluxo, type Instantaneo } from "./useHistoricoFluxo";
 import { EditorDinamicoContext, EditorEstaticoContext, type EditorDinamicoValor, type EditorEstaticoValor } from "./editorContext";
@@ -574,6 +574,14 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
     : ((gatilhoNo.data.config.evento as string | null) ?? null);
   // Trocar o evento descarta a amostra (ela é de outro evento).
   useEffect(() => { setAmostra(null); }, [eventoAmostra]);
+  // Fluxo do botão Importar do ERP: libera Confirmar/Gravar e tira o Aguardar (mesma regra da validação do backend).
+  const importacao = fluxoDeImportacao(nodes);
+  // Assinatura só dos nós de importação presentes: muda quando um deles entra ou sai, não a cada arrasto.
+  const nosImportacao = nodes.filter((n) => NOS_SO_IMPORTACAO.includes(n.data.tipo)).map((n) => n.data.tipo).join(",");
+  const motivoIndisponivel = useCallback(
+    (tipo: TipoNo) => motivoNoIndisponivel(tipo, importacao, nosImportacao.split(",").filter(Boolean) as TipoNo[]),
+    [importacao, nosImportacao],
+  );
 
   const ligacoesDialogo = useMemo(() => edges.map((e) => ({ de: e.source, para: e.target, saida: e.sourceHandle ?? "principal" })), [edges]);
   const nosMin = useMemo(() => nodes.map((n) => ({ id: n.id, tipo: n.data.tipo, nome: n.data.nome })), [nodes]);
@@ -733,6 +741,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
             totalLigacoes={edges.length}
             temGatilho={nodes.some((n) => ehGatilho(n.data.tipo))}
             onAdicionar={adicionarPelaPaleta}
+            motivoIndisponivel={motivoIndisponivel}
           />
         )}
         <FlowCanvas
@@ -786,6 +795,7 @@ function EditorConteudo({ fluxo: inicial, catalogo, destinos, tenantId, empresaI
             titulo={adicionarEm?.saida ? `Adicionar ao ramo ${({ verdadeiro: "sim", falso: "não" } as Record<string, string>)[adicionarEm.saida] ?? adicionarEm.saida}` : "Adicionar nó"}
             catalogo={catalogo}
             limiteAtingido={limiteAtingido}
+            motivoIndisponivel={motivoIndisponivel}
             onEscolher={(tipo) => {
               if (!adicionarEm) return;
               const p = screenToFlowPosition({ x: adicionarEm.x, y: adicionarEm.y });

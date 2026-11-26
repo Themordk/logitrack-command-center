@@ -1,7 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
   Catalogo, Combinador, Contexto, Definicao, Destino, DestinoEntrada, DispatcherBody,
-  DispatcherExecutarResposta, DispatcherTestarResposta, DocumentoRecente, EntidadeDocumento,
+  DispatcherExecutarResposta, DispatcherInterativoResposta, DispatcherTestarResposta, DocumentoRecente,
+  EntidadeRetorno, EventoImportacao, Importacao, ImportacaoDisponivel, ImportacaoIniciada, ImportacaoTesteIniciado,
   ExecucaoDetalhe, ExecucaoResumo, FiltrosExecucao, FluxoCompleto, FluxoEntrada, FluxoResumo,
   ListaExecucoes, MapaItem, MotorRetorno, Regra, ResultadoExecutar, RetornoConfig, Validacao, VerificacaoEnvio, VersaoFluxo,
 } from "./retornos.types";
@@ -78,7 +79,7 @@ export const documentosRecentes = (params: {
   p_busca: params.busca || null,
 });
 export const contextoDocumento = (
-  tenantId: string, empresaId: string, entidade: EntidadeDocumento, documentoId: string, evento: string | null,
+  tenantId: string, empresaId: string, entidade: EntidadeRetorno, documentoId: string, evento: string | null,
 ) => rpc<Contexto>("integracao_retorno_contexto_documento", {
   p_tenant_id: tenantId, p_empresa_id: empresaId, p_entidade: entidade, p_documento_id: documentoId, p_evento: evento,
 });
@@ -91,7 +92,7 @@ export const listarExecucoes = (
 });
 export const obterExecucao = (execucaoId: string) =>
   rpc<ExecucaoDetalhe>("integracao_retorno_obter_execucao", { p_execucao_id: execucaoId });
-export const execucoesDocumento = (tenantId: string, empresaId: string, entidade: EntidadeDocumento, documentoId: string) =>
+export const execucoesDocumento = (tenantId: string, empresaId: string, entidade: EntidadeRetorno, documentoId: string) =>
   rpc<ExecucaoResumo[]>("integracao_retorno_execucoes_documento", {
     p_tenant_id: tenantId, p_empresa_id: empresaId, p_entidade: entidade, p_documento_id: documentoId,
   });
@@ -109,10 +110,36 @@ export const reprocessar = (execucaoId: string, aPartirNo: string | null = null)
 export const descartar = (execucaoId: string, motivo: string) =>
   rpc<ExecucaoResumo>("integracao_retorno_descartar", { p_execucao_id: execucaoId, p_motivo: motivo });
 
+// ---- Importar do ERP via fluxo (§6.4) ----
+/** Parâmetros do botão: o valor digitado e, quando a tela tem mais de um jeito de buscar, o tipo de busca. */
+export interface ParametrosImportacao { valor: string; tipo_busca?: string; [chave: string]: unknown }
+
+export const importacaoDisponivel = (tenantId: string, empresaId: string, evento: EventoImportacao | null = null) =>
+  rpc<ImportacaoDisponivel[]>("integracao_retorno_importacao_disponivel", {
+    p_tenant_id: tenantId, p_empresa_id: empresaId, p_evento: evento,
+  });
+export const iniciarImportacao = (tenantId: string, empresaId: string, evento: EventoImportacao, parametros: ParametrosImportacao) =>
+  rpc<ImportacaoIniciada>("integracao_retorno_importacao_iniciar", {
+    p_tenant_id: tenantId, p_empresa_id: empresaId, p_evento: evento, p_parametros: parametros,
+  });
+export const obterImportacao = (execucaoId: string) =>
+  rpc<Importacao>("integracao_retorno_importacao_obter", { p_execucao_id: execucaoId });
+export const confirmarImportacao = (execucaoId: string) =>
+  rpc<Importacao>("integracao_retorno_importacao_confirmar", { p_execucao_id: execucaoId });
+export const cancelarImportacao = (execucaoId: string) =>
+  rpc<Importacao>("integracao_retorno_importacao_cancelar", { p_execucao_id: execucaoId });
+/** Teste do editor: cria a execução de teste/simulação; depois chame invokeDispatcher({acao:"executar"}). */
+export const testarImportacao = (
+  fluxoId: string, parametros: ParametrosImportacao, modo: "teste" | "simulacao", usarRascunho = true,
+) => rpc<ImportacaoTesteIniciado>("integracao_retorno_importacao_testar", {
+  p_fluxo_id: fluxoId, p_parametros: parametros, p_modo: modo, p_usar_rascunho: usarRascunho,
+});
+
 // ---- Edge Function ----
 export async function invokeDispatcher(body: { acao: "executar"; execucao_id: string }): Promise<DispatcherExecutarResposta>;
 export async function invokeDispatcher(body: { acao: "testar_destino"; destino_id: string }): Promise<DispatcherTestarResposta>;
-export async function invokeDispatcher(body: DispatcherBody): Promise<DispatcherExecutarResposta | DispatcherTestarResposta> {
+export async function invokeDispatcher(body: { acao: "executar_interativo"; execucao_id: string }): Promise<DispatcherInterativoResposta>;
+export async function invokeDispatcher(body: DispatcherBody): Promise<DispatcherExecutarResposta | DispatcherTestarResposta | DispatcherInterativoResposta> {
   const { data, error } = await supabase.functions.invoke("retorno-dispatcher", { body });
   if (error) {
     let msg = error.message;
@@ -125,5 +152,5 @@ export async function invokeDispatcher(body: DispatcherBody): Promise<Dispatcher
     }
     throw new Error(msg);
   }
-  return data as DispatcherExecutarResposta | DispatcherTestarResposta;
+  return data as DispatcherExecutarResposta | DispatcherTestarResposta | DispatcherInterativoResposta;
 }

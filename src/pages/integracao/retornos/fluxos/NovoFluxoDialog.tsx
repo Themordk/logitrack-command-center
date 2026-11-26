@@ -13,12 +13,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useErpGallery } from "../../useErpGallery";
 import { salvarFluxo } from "../retornosService";
 import { useCatalogoRetorno } from "../useRetornos";
+import { agruparEventos } from "../editor/eventosCatalogo";
 import type { Definicao, EntidadeDocumento, No } from "../retornos.types";
 
 const MANUAL = "__manual__";
 const NENHUM = "__nenhum__";
-const rotuloCls = "text-xs uppercase tracking-wide text-muted-foreground";
-const inputCls = "h-10 rounded-lg bg-secondary/40";
+const rotuloCls = "text-body-sm font-medium text-foreground";
+const inputCls = "h-9 rounded-md bg-secondary/40";
 
 interface Props {
   open: boolean;
@@ -39,12 +40,10 @@ export function NovoFluxoDialog({ open, onOpenChange, onCriado }: Props) {
   const [erp, setErp] = useState(NENHUM);
   const [salvando, setSalvando] = useState(false);
 
-  const eventos = useMemo(
-    () => (catalogo.data?.eventos ?? []).filter((e) => !e.manual && !e.codigo.startsWith("manual.")),
-    [catalogo.data],
-  );
-  const entrada = eventos.filter((e) => e.entidade === "documento_entrada");
-  const saida = eventos.filter((e) => e.entidade === "documento_saida");
+  const grupos = useMemo(() => agruparEventos(catalogo.data?.eventos), [catalogo.data]);
+  const eventos = useMemo(() => grupos.flatMap((g) => g.eventos), [grupos]);
+  const eventoEscolhido = eventos.find((e) => e.codigo === evento);
+  const importacao = eventoEscolhido?.entidade === "cadastro_importacao";
   const conectados = erps.filter((e) => e.integracao);
 
   const valido = nome.trim().length > 0 && !!evento;
@@ -114,24 +113,27 @@ export function NovoFluxoDialog({ open, onOpenChange, onCriado }: Props) {
                 <SelectValue placeholder={catalogo.isLoading ? "Carregando…" : "Escolha o evento"} />
               </SelectTrigger>
               <SelectContent>
-                {entrada.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>Entrada</SelectLabel>
-                    {entrada.map((e) => <SelectItem key={e.codigo} value={e.codigo}>{e.nome}</SelectItem>)}
+                {grupos.map((g) => (
+                  <SelectGroup key={g.entidade}>
+                    <SelectLabel>{g.rotulo}</SelectLabel>
+                    {g.eventos.map((e) => <SelectItem key={e.codigo} value={e.codigo}>{e.nome}</SelectItem>)}
                   </SelectGroup>
-                )}
-                {saida.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>Saída</SelectLabel>
-                    {saida.map((e) => <SelectItem key={e.codigo} value={e.codigo}>{e.nome}</SelectItem>)}
-                  </SelectGroup>
-                )}
+                ))}
                 <SelectGroup>
                   <SelectLabel>Outros</SelectLabel>
                   <SelectItem value={MANUAL}>Manualmente, pelo documento</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {importacao && (
+              <p className="text-caption text-muted-foreground">
+                Com este fluxo ativo, o botão Importar do ERP da tela busca no ERP pelos passos do fluxo e grava pelo nó
+                Gravar no LogiTrack. Sem fluxo ativo, o botão continua com a importação padrão.
+              </p>
+            )}
+            {eventoEscolhido?.entidade === "movimentacao_interna" && eventoEscolhido.descricao && (
+              <p className="text-caption text-muted-foreground">{eventoEscolhido.descricao}</p>
+            )}
           </div>
           {evento === MANUAL && (
             <div className="flex flex-col gap-1.5">

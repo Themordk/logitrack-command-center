@@ -1,11 +1,14 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { EventoImportacao } from "@/pages/integracao/retornos/retornos.types";
+import { ImportarViaFluxoConteudo } from "./ImportarViaFluxoConteudo";
+import { useImportacaoFluxo } from "./useImportacaoFluxo";
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -24,7 +27,9 @@ export type ImportEntidade =
   | "nota_entrada"
   | "pedido_saida"
   | "grupo_produto"
-  | "redirect_sync";
+  | "redirect_sync"
+  /** Sem importação padrão: só funciona com um fluxo ativo no Retorno ao ERP. */
+  | "somente_fluxo";
 
 export interface ImportarDoERPConfig {
   titulo: string;
@@ -42,6 +47,13 @@ export interface ImportarDoERPConfig {
   empresaLabel?: string;
   /** Aviso adicional renderizado na tela de prévia */
   avisoConfirmacao?: string;
+  /**
+   * Evento do Retorno ao ERP desta tela (importar.*). Com um fluxo ativo para ele, o botão segue o
+   * fluxo (busca, prévia e gravação configuradas pelo suporte/cliente); sem fluxo, o caminho padrão acima.
+   */
+  evento?: EventoImportacao;
+  /** Texto para 'somente_fluxo' quando não há fluxo ativo. */
+  mensagemSemFluxo?: string;
 }
 
 interface Props {
@@ -62,6 +74,9 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
   const [valor, setValor] = useState("");
   const [registro, setRegistro] = useState<any>(null);
   const [erro, setErro] = useState<string>("");
+  const fluxo = useImportacaoFluxo(config.evento ?? null, isOpen);
+  const usaFluxo = !!config.evento && (fluxo.carregando || fluxo.disponivel || fluxo.ambiguo);
+  const reiniciarFluxo = fluxo.reiniciar;
 
   useEffect(() => {
     if (!isOpen) {
@@ -70,9 +85,10 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
         setValor("");
         setRegistro(null);
         setErro("");
+        reiniciarFluxo();
       }, 200);
     }
-  }, [isOpen]);
+  }, [isOpen, reiniciarFluxo]);
 
   const handleClose = () => {
     onClose();
@@ -387,10 +403,41 @@ export function ImportarDoERPModal({ isOpen, onClose, onSuccess, config }: Props
     </>
   );
 
+  const renderSemFluxo = () => (
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-heading-sm">{config.titulo}</DialogTitle>
+        <DialogDescription className="text-body-sm">
+          {config.mensagemSemFluxo ||
+            "Esta tela importa do ERP por um fluxo do Retorno ao ERP. Ative um fluxo com o gatilho Importar do ERP desta tela em Integração › Retorno ao ERP."}
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" onClick={handleClose}>Fechar</Button>
+        <Button onClick={() => { window.location.hash = "#/config/integracao/retornos"; handleClose(); }}>Abrir Retorno ao ERP</Button>
+      </DialogFooter>
+    </>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-md">
-        {config.entidade === "redirect_sync"
+        {usaFluxo
+          ? (
+            <ImportarViaFluxoConteudo
+              fluxo={fluxo}
+              titulo={config.titulo}
+              labelCampo={config.labelCampo.charAt(0).toUpperCase() + config.labelCampo.slice(1)}
+              placeholder={config.placeholderCampo}
+              inputMode={config.tipoCampo === "number" ? "numeric" : "text"}
+              verRegistroPath={config.verRegistroPath}
+              onSucesso={(r) => onSuccess({ ...(typeof r.dados === "object" && r.dados ? r.dados : {}), id: r.id, status: r.status })}
+              onFechar={handleClose}
+            />
+          )
+          : config.entidade === "somente_fluxo"
+          ? renderSemFluxo()
+          : config.entidade === "redirect_sync"
           ? renderRedirect()
           : estado === "BUSCA"
           ? renderBusca()
@@ -415,12 +462,9 @@ interface BotaoProps {
 
 export function BotaoImportarERP({ onClick, label = "Importar do ERP" }: BotaoProps) {
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-secondary transition-colors"
-    >
-      <ArrowDownToLine size={14} />
+    <Button variant="outline" size="sm" onClick={onClick}>
+      <ArrowDownToLine className="h-4 w-4" aria-hidden />
       {label}
-    </button>
+    </Button>
   );
 }

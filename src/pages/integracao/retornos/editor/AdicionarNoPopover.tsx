@@ -15,12 +15,17 @@ interface Props {
   limiteAtingido: boolean;
   onEscolher: (tipo: TipoNo) => void;
   children: ReactNode;
+  /** Mesmo critério da paleta: nós que não cabem neste fluxo nem aparecem aqui. */
+  motivoIndisponivel?: (tipo: TipoNo) => string | null;
 }
 
-export function AdicionarNoPopover({ open, onOpenChange, titulo, catalogo, limiteAtingido, onEscolher, children }: Props) {
+export function AdicionarNoPopover({ open, onOpenChange, titulo, catalogo, limiteAtingido, onEscolher, children, motivoIndisponivel }: Props) {
   const [busca, setBusca] = useState("");
   const [ativo, setAtivo] = useState(0);
-  const lista = useMemo(() => filtrarNos(catalogo, busca, true).filter((n) => n.disponivel), [catalogo, busca]);
+  const lista = useMemo(
+    () => filtrarNos(catalogo, busca, true).filter((n) => n.disponivel && !motivoIndisponivel?.(n.tipo)),
+    [catalogo, busca, motivoIndisponivel],
+  );
 
   const escolher = (tipo: TipoNo) => { onEscolher(tipo); onOpenChange(false); setBusca(""); };
 

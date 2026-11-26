@@ -50,6 +50,10 @@ export function resumoNo(
       return `${rotuloResultadoIntegracao(c.resultado_integracao)} · marcador ${String(c.status_integracao || "—")}`;
     case "acao.notificar":
       return String(c.titulo ?? "Sem título");
+    case "logica.confirmar_usuario":
+      return `${String(c.titulo || "Confirmar importação")} · expira em ${Number(c.expira_minutos) || 15} min`;
+    case "acao.gravar_logitrack":
+      return c.corpo_de ? `Corpo de ${String(c.corpo_de)}` : "Corpo do último payload";
     default:
       return "";
   }

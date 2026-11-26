@@ -49,6 +49,7 @@ export function RotasPage() {
         onClose={() => setImportOpen(false)}
         onSuccess={() => crud.refresh()}
         config={{
+          evento: "importar.rota",
           titulo: "Importar Rota do ERP",
           labelCampo: "código da rota no ERP",
           placeholderCampo: "Ex: 3001",

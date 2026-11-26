@@ -75,6 +75,7 @@ export function SubgruposPage() {
         onClose={() => setImportOpen(false)}
         onSuccess={() => crud.refresh()}
         config={{
+          evento: "importar.subgrupo_produto",
           titulo: "Importar Subgrupo de Produto do ERP",
           labelCampo: "código do subgrupo no ERP",
           placeholderCampo: "Ex: 2001",

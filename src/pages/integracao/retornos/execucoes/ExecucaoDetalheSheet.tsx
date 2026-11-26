@@ -263,7 +263,8 @@ export function ExecucaoDetalheSheet({ execucaoId, podeEditar, onFechar, onAbrir
     refetchInterval: (query) => {
       const s = query.state.data?.status;
       if (!s) return false;
-      if (s === "aguardando_retry") return 15_000;
+      // Esperando o tempo da nova tentativa ou o usuário confirmar a importação: consulta mais espaçada.
+      if (s === "aguardando_retry" || s === "aguardando_confirmacao") return 15_000;
       return STATUS_FINAIS_DETALHE.includes(s) ? false : 3_000;
     },
   });

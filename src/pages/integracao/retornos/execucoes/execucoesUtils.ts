@@ -2,10 +2,10 @@ import { formatTime } from "@/utils/dateTime";
 import type { ExecucaoResumo, FiltrosExecucao, ModoExecucao, StatusExecucao } from "../retornos.types";
 
 export const STATUS_FILTRAVEIS: StatusExecucao[] = [
-  "sucesso", "erro", "pendente", "aguardando_retry", "executando", "agrupando", "filtrado", "descartado",
+  "sucesso", "erro", "pendente", "aguardando_retry", "aguardando_confirmacao", "executando", "agrupando", "filtrado", "descartado",
 ];
 export const STATUS_PADRAO: StatusExecucao[] = STATUS_FILTRAVEIS.filter((s) => s !== "filtrado");
-export const STATUS_PENDENTES: StatusExecucao[] = ["pendente", "executando", "aguardando_retry", "agrupando"];
+export const STATUS_PENDENTES: StatusExecucao[] = ["pendente", "executando", "aguardando_retry", "aguardando_confirmacao", "agrupando"];
 export const STATUS_FINAIS_DETALHE: StatusExecucao[] = ["sucesso", "erro", "filtrado", "descartado", "agrupado"];
 
 export const PODE_REPROCESSAR: StatusExecucao[] = ["erro", "descartado", "sucesso"];
@@ -30,7 +30,7 @@ export interface FiltrosTela {
   pagina: number;
 }
 
-const MODOS: ModoExecucao[] = ["automatico", "manual", "teste", "simulacao", "lote"];
+const MODOS: ModoExecucao[] = ["automatico", "manual", "teste", "simulacao", "lote", "interativo"];
 
 export function lerFiltros(params: URLSearchParams): FiltrosTela {
   const st = params.get("status");

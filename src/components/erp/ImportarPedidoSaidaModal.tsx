@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ImportarViaFluxoConteudo } from "./ImportarViaFluxoConteudo";
+import { useImportacaoFluxo } from "./useImportacaoFluxo";
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -38,6 +40,11 @@ interface Resultado {
 }
 
 export function ImportarPedidoSaidaModal({ isOpen, onClose, onSuccess }: Props) {
+  // Com um fluxo ativo no Retorno ao ERP, o botão segue o fluxo; sem ele, a importação padrão abaixo.
+  const fluxo = useImportacaoFluxo("importar.documento_saida", isOpen);
+  const usaFluxo = fluxo.carregando || fluxo.disponivel || fluxo.ambiguo;
+  const reiniciarFluxo = fluxo.reiniciar;
+  useEffect(() => { if (!isOpen) setTimeout(reiniciarFluxo, 200); }, [isOpen, reiniciarFluxo]);
   const { tenantId, empresaId } = useTenant();
   const [estado, setEstado] = useState<Estado>("IDLE");
   const [valor, setValor] = useState("");
@@ -297,12 +304,28 @@ export function ImportarPedidoSaidaModal({ isOpen, onClose, onSuccess }: Props) 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
+        {usaFluxo ? (
+          <ImportarViaFluxoConteudo
+            fluxo={fluxo}
+            titulo="Importar pedido de venda do ERP"
+            labelCampo="Número do pedido"
+            placeholder="Ex: 12345"
+            parametros={() => ({ tipo_busca: "numero_pedido" })}
+            verRegistroPath={(id) => `/atividades/saidas?documento_id=${id}`}
+            rotuloVerRegistro="Ver documento"
+            onSucesso={() => onSuccess()}
+            onFechar={onClose}
+          />
+        ) : (
+          <>
         {estado === "IDLE" && renderIdle()}
         {estado === "BUSCANDO" && renderBuscando()}
         {estado === "SUCESSO" && renderSucesso()}
         {estado === "JA_IMPORTADA" && renderJaImportada()}
         {estado === "NAO_ENCONTRADO" && renderNaoEncontrado()}
         {estado === "ERRO" && renderErro()}
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

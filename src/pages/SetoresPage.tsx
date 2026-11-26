@@ -24,6 +24,7 @@ export function SetoresPage() {
   const columns: ColumnSpec[] = [
     { key: "descricao", label: "Descrição" },
     { key: "tipo", label: "Tipo" },
+    { key: "codigo_erp", label: "Código ERP", type: "mono" },
     { key: "ativo", label: "Status", type: "badge" },
   ];
 
@@ -39,6 +40,8 @@ export function SetoresPage() {
     },
     { name: "descricao", label: "Descrição", type: "text", required: true, placeholder: "Ex: Setor A – Recebimento" },
     { name: "tipo", label: "Tipo", type: "enum", enumValues: ["PICKING", "PULMAO", "RECEBIMENTO", "QUARENTENA", "EXPEDICAO"] },
+    // Opcional: vai no retorno ao ERP das movimentações internas (origem.setor / destino.setor.codigo_erp).
+    { name: "codigo_erp", label: "Código ERP", type: "text", placeholder: "Opcional. Ex: SET-01" },
     { name: "ativo", label: "Ativo", type: "switch", defaultValue: true },
   ], [armazemOptions, armazemId]);
 

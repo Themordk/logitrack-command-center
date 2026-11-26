@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 export function Campo({ rotulo, htmlFor, children, dica }: { rotulo: string; htmlFor?: string; children: ReactNode; dica?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-xs uppercase tracking-wide text-muted-foreground">{rotulo}</label>
+      <label htmlFor={htmlFor} className="text-body-sm font-medium text-foreground">{rotulo}</label>
       {children}
-      {dica && <p className="text-[11px] text-muted-foreground">{dica}</p>}
+      {dica && <p className="text-caption text-muted-foreground">{dica}</p>}
     </div>
   );
 }

@@ -26,6 +26,8 @@ import { ParametrosAtualizar, ParametrosHttp, ParametrosNotificar, ParametrosPro
 import { ParametrosPayload, ResultadoPayload } from "./forms/FormPayload";
 import { contextoLote } from "./avaliacao";
 import { ParametrosGatilho, ResultadoGatilho } from "./forms/FormGatilho";
+import { ParametrosConfirmar, ParametrosGravar, ResultadoConfirmar, ResultadoGravar } from "./forms/FormImportacao";
+import { contextoVazio } from "./contextoVazio";
 import { ParametrosAguardar, ParametrosCondicao, ResultadoAguardar, ResultadoCondicao } from "./forms/FormLogica";
 import type { FormNoProps } from "./forms/formTypes";
 import type { Ligacao } from "../retornos.types";
@@ -42,18 +44,10 @@ const FORMS: Partial<Record<TipoNo, [ComponentType<FormNoProps>, ComponentType<F
   "acao.provedor": [ParametrosProvedor, ResultadoProvedor],
   "acao.atualizar_documento": [ParametrosAtualizar, ResultadoAtualizar],
   "acao.notificar": [ParametrosNotificar, ResultadoNotificar],
+  "logica.confirmar_usuario": [ParametrosConfirmar, ResultadoConfirmar],
+  "acao.gravar_logitrack": [ParametrosGravar, ResultadoGravar],
 };
 
-const CONTEXTO_VAZIO: Record<string, unknown> = {
-  evento: null, evento_nome: null, ocorrido_em: null,
-  empresa: { id: null, codigo: null, cnpj: null, razao_social: null },
-  operador: { id: null, nome: null, login: null },
-  documento: { id: null, numero: null, codigo_erp: null, sistema_origem: null, status_wms: null, status_integracao: null, tipo: { id: null, descricao: null, codigo_erp: null } },
-  parceiro: { id: null, codigo_erp: null, documento: null, razao_social: null },
-  movimento: { id: null, numero: null, status: null },
-  itens: [{ produto: { sku: null, codigo_erp: null, descricao: null }, qtd_solicitada: null, qtd_atendida: null, qtd_cortada: null }],
-  erro: { mensagem: null, http_status: null },
-};
 
 interface Props {
   no: FluxoNode | null;
@@ -259,7 +253,9 @@ export function NodeConfigDialog(p: Props) {
   }, [noId]);
 
   const agrupado = p.nos.some((n) => n.data.tipo === "gatilho.evento" && n.data.config.modo === "agrupado");
-  const contextoBase = (p.amostra?.contexto as Record<string, unknown> | undefined) ?? CONTEXTO_VAZIO;
+  const entidadeEvento = p.catalogo?.eventos.find((e) => e.codigo === p.evento)?.entidade ?? null;
+  const vazio = useMemo(() => contextoVazio(entidadeEvento), [entidadeEvento]);
+  const contextoBase = (p.amostra?.contexto as Record<string, unknown> | undefined) ?? vazio;
   const contexto = useMemo(() => (agrupado ? contextoLote(contextoBase) : contextoBase), [agrupado, contextoBase]);
   const anteriores = useSaidasAnteriores({
     noId: noId ?? null, nos: p.nos, ligacoes: p.ligacoes, contexto, tenantId: p.tenantId, empresaId: p.empresaId,

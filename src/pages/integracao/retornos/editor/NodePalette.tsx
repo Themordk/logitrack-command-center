@@ -17,9 +17,11 @@ interface Props {
   totalLigacoes: number;
   temGatilho: boolean;
   onAdicionar: (tipo: TipoNo) => void;
+  /** Motivo para o nó não caber neste fluxo (ex.: nós do Importar do ERP); null = pode. */
+  motivoIndisponivel?: (tipo: TipoNo) => string | null;
 }
 
-export function NodePalette({ catalogo, totalNos, totalLigacoes, temGatilho, onAdicionar }: Props) {
+export function NodePalette({ catalogo, totalNos, totalLigacoes, temGatilho, onAdicionar, motivoIndisponivel }: Props) {
   const [busca, setBusca] = useState("");
   const max = catalogo?.limites.max_nos ?? 0;
   const maxLig = catalogo?.limites.max_ligacoes ?? max * 2;
@@ -42,13 +44,14 @@ export function NodePalette({ catalogo, totalNos, totalLigacoes, temGatilho, onA
           if (!itens.length) return null;
           return (
             <div key={g}>
-              <p className="px-1 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground">{GRUPO_NO_UI[g].rotulo}</p>
+              <p className="px-1 pb-1 text-caption font-medium text-muted-foreground">{GRUPO_NO_UI[g].rotulo}</p>
               <ul className="space-y-0.5">
                 {itens.map((n) => {
                   const Icone = TIPO_NO_UI[n.tipo]?.icone ?? AlertTriangle;
                   const bloqueioGatilho = ehGatilho(n.tipo) && temGatilho;
-                  const desabilitado = !n.disponivel || limite || bloqueioGatilho;
-                  const dica = limite ? `Limite de ${max} nós atingido` : bloqueioGatilho ? "O fluxo só pode ter um gatilho" : n.descricao;
+                  const motivo = motivoIndisponivel?.(n.tipo) ?? null;
+                  const desabilitado = !n.disponivel || limite || bloqueioGatilho || !!motivo;
+                  const dica = limite ? `Limite de ${max} nós atingido` : bloqueioGatilho ? "O fluxo só pode ter um gatilho" : motivo ?? n.descricao;
                   return (
                     <li key={n.tipo}>
                       <Tooltip>
@@ -66,7 +69,7 @@ export function NodePalette({ catalogo, totalNos, totalLigacoes, temGatilho, onA
                           >
                             <Icone size={14} className={GRUPO_NO_UI[g].icone} aria-hidden />
                             <span className="flex-1 truncate">{n.nome}</span>
-                            {!n.disponivel && <Badge variant="outline" className="px-1 py-0 text-[10px]">Em breve</Badge>}
+                            {!n.disponivel && <Badge variant="outline" className="px-1 py-0 text-caption">Em breve</Badge>}
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs text-xs">{dica}</TooltipContent>

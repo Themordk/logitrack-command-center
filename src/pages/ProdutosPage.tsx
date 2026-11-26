@@ -1228,6 +1228,7 @@ export function ProdutosPage({ onNavigate }: { onNavigate?: (path: string) => vo
         onClose={() => setImportOpen(false)}
         onSuccess={() => lista.refresh()}
         config={{
+          evento: "importar.produto",
           titulo: "Importar Produto do ERP",
           labelCampo: "código do produto (SKU)",
           placeholderCampo: "Ex: 4400619",

@@ -51,6 +51,7 @@ export function GruposProdutoPage() {
         onClose={() => setImportOpen(false)}
         onSuccess={() => crud.refresh()}
         config={{
+          evento: "importar.grupo_produto",
           titulo: "Importar Grupo de Produto do ERP",
           labelCampo: "código do grupo no Omie",
           placeholderCampo: "Ex: 11209768439",

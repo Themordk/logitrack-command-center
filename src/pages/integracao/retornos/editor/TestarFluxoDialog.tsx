@@ -14,7 +14,7 @@ import { parseError } from "@/lib/errorMapper";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/dateTime";
 import { retornosKeys } from "../retornosKeys";
-import { documentosRecentes, executar, invokeDispatcher, obterExecucao } from "../retornosService";
+import { documentosRecentes, executar, invokeDispatcher, obterExecucao, testarImportacao } from "../retornosService";
 import type { Catalogo, Combinador, DocumentoRecente, ExecucaoDetalhe, Regra } from "../retornos.types";
 import { ehStatusFinal } from "./execucaoVisual";
 import { descreverRegra } from "./campos/regras";
@@ -49,11 +49,16 @@ export function TestarFluxoDialog(p: Props) {
   const [confirmado, setConfirmado] = useState(false);
   const [executando, setExecutando] = useState(false);
   const [barrado, setBarrado] = useState<string | null>(null);
+  // Fluxo do botão Importar do ERP: o teste parte do código digitado, não de um documento.
+  const importacao = p.catalogo?.eventos.find((e) => e.codigo === p.evento)?.entidade === "cadastro_importacao";
+  const [valor, setValor] = useState("");
   const cancelado = useRef(false);
 
   useEffect(() => {
     if (p.aberto) {
       setDoc(p.amostra); setBarrado(null); setConfirmado(false); setModo("simulacao"); setVersao("rascunho"); setTexto(""); setBusca("");
+      const amostraValor = (p.amostra?.contexto as { importacao?: { valor?: unknown } } | undefined)?.importacao?.valor;
+      setValor(typeof amostraValor === "string" ? amostraValor : "");
     }
   }, [p.aberto, p.amostra]);
 
@@ -64,7 +69,7 @@ export function TestarFluxoDialog(p: Props) {
       tenantId: p.tenantId, empresaId: p.empresaId, evento: p.evento as string,
       filtros: p.filtros, combinador: p.combinador, limite: 20, busca: busca || null,
     }),
-    enabled: p.aberto && !!p.evento,
+    enabled: p.aberto && !!p.evento && !importacao,
   });
   const docs = useMemo(() => {
     const q = texto.trim().toLowerCase();
@@ -76,11 +81,13 @@ export function TestarFluxoDialog(p: Props) {
   const docInfo = doc ? (docsQ.data ?? []).find((d) => d.documento_id === doc.documento_id) ?? doc : null;
 
   const rodar = async () => {
-    if (!doc) return;
+    if (importacao ? !valor.trim() : !doc) return;
     setExecutando(true); setBarrado(null); cancelado.current = false;
     try {
       if (versao === "rascunho" && !(await p.antesDeExecutar())) return;
-      const r = await executar(p.fluxoId, doc.documento_id, modo, versao === "rascunho");
+      const r = importacao
+        ? await testarImportacao(p.fluxoId, { valor: valor.trim() }, modo, versao === "rascunho")
+        : await executar(p.fluxoId, (doc as DocumentoRecente).documento_id, modo, versao === "rascunho");
       if (r.status === "filtrado") {
         const campoBarrado = docInfo?.barrado_por;
         const regraBarrada = campoBarrado ? p.filtros.find((regra) => regra.campo === campoBarrado) : undefined;
@@ -112,19 +119,33 @@ export function TestarFluxoDialog(p: Props) {
     }
   };
 
-  const podeRodar = !!doc && !executando && (modo === "simulacao" || (p.podeEnviar && confirmado));
+  const temEntrada = importacao ? !!valor.trim() : !!doc;
+  const podeRodar = temEntrada && !executando && (modo === "simulacao" || (p.podeEnviar && confirmado));
+  const rotuloCls = "text-body-sm font-medium text-foreground";
 
   return (
     <Dialog open={p.aberto} onOpenChange={(v) => { if (!v && !executando) p.onFechar(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Testar fluxo</DialogTitle>
-          <DialogDescription>Rode o fluxo com um documento real e veja o caminho no canvas.</DialogDescription>
+          <DialogDescription>
+            {importacao
+              ? "Rode o fluxo com um código do ERP, como o botão Importar do ERP faria, e veja o caminho no canvas."
+              : "Rode o fluxo com um documento real e veja o caminho no canvas."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {importacao ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="testar-valor" className={rotuloCls}>Código no ERP</Label>
+              <Input id="testar-valor" value={valor} maxLength={200} onChange={(e) => setValor(e.target.value)}
+                placeholder="O que o usuário digitaria no botão" className="h-9 rounded-md bg-secondary/40 font-mono" />
+              <p className="text-caption text-muted-foreground">Fica em importacao.valor no contexto do fluxo.</p>
+            </div>
+          ) : (
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Documento</Label>
+            <Label className={rotuloCls}>Documento</Label>
             {!p.evento ? (
               <p className="text-xs text-muted-foreground">Escolha o evento do gatilho antes de testar.</p>
             ) : (
@@ -165,9 +186,10 @@ export function TestarFluxoDialog(p: Props) {
               </Popover>
             )}
           </div>
+          )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="testar-versao" className="text-xs uppercase tracking-wide text-muted-foreground">Versão</Label>
+            <Label htmlFor="testar-versao" className={rotuloCls}>Versão</Label>
             <Select value={versao} onValueChange={(v) => setVersao(v as "rascunho" | "publicada")}>
               <SelectTrigger id="testar-versao" className="h-10 rounded-lg bg-secondary/40"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -178,24 +200,30 @@ export function TestarFluxoDialog(p: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">Modo</span>
+            <span className={rotuloCls}>Modo</span>
             <RadioGroup value={modo} onValueChange={(v) => setModo(v as "simulacao" | "teste")} className="gap-2">
               <label htmlFor="modo-sim" className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-2.5 hover:bg-secondary/30">
                 <RadioGroupItem id="modo-sim" value="simulacao" className="mt-0.5" />
                 <span><span className="block text-sm font-medium text-foreground">Simular</span>
-                  <span className="text-xs text-muted-foreground">Monta tudo e mostra o que seria enviado. Nada sai do WMS.</span></span>
+                  <span className="text-xs text-muted-foreground">
+                    {importacao
+                      ? "Monta tudo sem chamar o ERP nem gravar no LogiTrack."
+                      : "Monta tudo e mostra o que seria enviado. Nada sai do WMS."}
+                  </span></span>
               </label>
               <label htmlFor="modo-teste" className={cn("flex items-start gap-2 rounded-lg border border-border p-2.5", p.podeEnviar ? "cursor-pointer hover:bg-secondary/30" : "opacity-60")}>
                 <RadioGroupItem id="modo-teste" value="teste" disabled={!p.podeEnviar} className="mt-0.5" />
                 <span><span className="block text-sm font-medium text-foreground">Enviar teste</span>
                   <span className="text-xs text-muted-foreground">
-                    Envia DE VERDADE ao ERP, marcado como teste. Não altera o documento nem cria notificações.
+                    {importacao
+                      ? "Chama o ERP de verdade, marcado como teste. Não pausa para confirmar e não grava no LogiTrack."
+                      : "Envia de verdade ao ERP, marcado como teste. Não altera o documento nem cria notificações."}
                     {!p.podeEnviar && " Você não tem permissão para enviar."}
                   </span></span>
               </label>
             </RadioGroup>
             {modo === "teste" && (
-              <label className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-400">
+              <label className="flex items-center gap-2 rounded-md border border-warning/25 bg-warning/10 px-2.5 py-2 text-caption text-warning">
                 <Checkbox checked={confirmado} onCheckedChange={(v) => setConfirmado(v === true)} aria-label="Confirmar envio real" />
                 Entendo que o ERP vai receber esta requisição
               </label>
@@ -204,7 +232,7 @@ export function TestarFluxoDialog(p: Props) {
 
           {barrado !== null && (
             <div className="rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-3 py-2 text-xs text-foreground">
-              <p className="font-medium">O documento não passa nos filtros do gatilho</p>
+              <p className="font-medium">{importacao ? "A busca não passa nos filtros do gatilho" : "O documento não passa nos filtros do gatilho"}</p>
               {barrado && <p className="mt-0.5 text-muted-foreground">{barrado}</p>}
             </div>
           )}

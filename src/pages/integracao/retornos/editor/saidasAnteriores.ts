@@ -4,7 +4,7 @@ import type { Ligacao } from "../retornos.types";
 
 export type { Ligacao };
 
-export const TIPOS_COM_SAIDA = ["dados.payload", "acao.http", "acao.webhook", "acao.provedor"] as const;
+export const TIPOS_COM_SAIDA = ["dados.payload", "acao.http", "acao.webhook", "acao.provedor", "acao.gravar_logitrack"] as const;
 export const geraSaida = (tipo: string) => (TIPOS_COM_SAIDA as readonly string[]).includes(tipo);
 
 export interface NoMin { id: string; tipo: string; nome?: string }

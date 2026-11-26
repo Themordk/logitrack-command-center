@@ -4,7 +4,9 @@ export type TipoNo =
   | "gatilho.evento" | "gatilho.manual"
   | "logica.condicao" | "logica.aguardar" | "logica.dividir_itens"
   | "dados.payload"
-  | "acao.http" | "acao.webhook" | "acao.provedor" | "acao.atualizar_documento" | "acao.notificar";
+  | "acao.http" | "acao.webhook" | "acao.provedor" | "acao.atualizar_documento" | "acao.notificar"
+  // Só em fluxos "Importar do ERP" (importar.*), §6.3.
+  | "logica.confirmar_usuario" | "acao.gravar_logitrack";
 
 export type GrupoNo = "gatilho" | "logica" | "dados" | "acao";
 
@@ -13,13 +15,15 @@ export type Operador =
   | "maior" | "maior_igual" | "menor" | "menor_igual" | "existe" | "nao_existe";
 
 export type EntidadeDocumento = "documento_entrada" | "documento_saida";
+/** Tudo o que pode disparar um fluxo: documentos, movimentação interna (estoque.*) e o botão Importar do ERP (importar.*). */
+export type EntidadeRetorno = EntidadeDocumento | "movimentacao_interna" | "cadastro_importacao";
 export type AuthTipo = "nenhuma" | "api_key" | "bearer" | "basic" | "hmac";
 export type MetodoHttp = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type Combinador = "e" | "ou";
 export type ModoAtivacao = "imediato" | "agrupado" | "manual";
 
 export interface Catalogo {
-  eventos: { codigo: string; entidade: EntidadeDocumento; nome: string; descricao: string | null; manual: boolean }[];
+  eventos: { codigo: string; entidade: EntidadeRetorno; nome: string; descricao: string | null; manual: boolean }[];
   nos: { tipo: TipoNo; grupo: GrupoNo; nome: string; descricao: string; saidas: string[]; config_exemplo: Record<string, unknown>; disponivel: boolean }[];
   operadores: { codigo: Operador; nome: string }[];
   operacoes_provedor: { provedor: "omie"; operacao: string; entidade: string; nome: string; parametros: Record<string, string> }[];
@@ -29,8 +33,8 @@ export interface Catalogo {
 
 export type StatusExecucao =
   | "agrupando" | "agrupado" | "pendente" | "executando" | "aguardando_retry"
-  | "sucesso" | "erro" | "filtrado" | "descartado";
-export type ModoExecucao = "automatico" | "manual" | "teste" | "simulacao" | "lote";
+  | "sucesso" | "erro" | "filtrado" | "descartado" | "aguardando_confirmacao";
+export type ModoExecucao = "automatico" | "manual" | "teste" | "simulacao" | "lote" | "interativo";
 export type StatusPasso = "sucesso" | "erro" | "retry" | "simulado" | "filtrado";
 export type StatusFluxo = "rascunho" | "publicado" | "pausado" | "arquivado";
 export type MotorRetorno = "legado" | "fluxos";
@@ -139,6 +143,18 @@ export interface ConfigAtualizarDocumento {
 }
 export interface ConfigNotificar { titulo: string; mensagem: string; cor: "red" | "orange" | "blue" | "green" }
 export type ConfigDividirItens = Record<string, unknown>;
+export interface ConfigConfirmarUsuario {
+  titulo?: string;
+  mensagem?: string;
+  /** Id do nó (payload ou requisição) cuja saída aparece como prévia para o usuário. */
+  previa_de?: string;
+  /** 1–60 minutos; padrão 15. */
+  expira_minutos?: number;
+}
+export interface ConfigGravarLogitrack {
+  /** Id do nó payload que monta o corpo enviado à API do LogiTrack. */
+  corpo_de?: string;
+}
 
 export interface ConfigPorTipo {
   "gatilho.evento": ConfigGatilhoEvento;
@@ -152,6 +168,8 @@ export interface ConfigPorTipo {
   "acao.provedor": ConfigProvedor;
   "acao.atualizar_documento": ConfigAtualizarDocumento;
   "acao.notificar": ConfigNotificar;
+  "logica.confirmar_usuario": ConfigConfirmarUsuario;
+  "acao.gravar_logitrack": ConfigGravarLogitrack;
 }
 
 export interface No<T extends TipoNo = TipoNo> {
@@ -173,7 +191,7 @@ export interface Validacao {
   erros: Aviso[];
   avisos: Aviso[];
   gatilho: {
-    id: string; tipo: TipoNo; evento: string | null; entidade: EntidadeDocumento | null;
+    id: string; tipo: TipoNo; evento: string | null; entidade: EntidadeRetorno | null;
     modo: ModoAtivacao; agrupamento: { intervalo_minutos?: number; max_documentos?: number } | null;
   } | null;
 }
@@ -228,7 +246,7 @@ export type Contexto = Record<string, unknown>;
 export interface DocumentoRecente {
   documento_id: string;
   movimento_id: string | null;
-  entidade: EntidadeDocumento;
+  entidade: EntidadeRetorno;
   numero: string;
   tipo: string | null;
   codigo_erp: string | null;
@@ -247,7 +265,7 @@ export interface ExecucaoResumo {
   fluxo_nome: string;
   fluxo_versao: number | null;
   evento: string;
-  entidade: EntidadeDocumento;
+  entidade: EntidadeRetorno;
   documento_id: string | null;
   documento_numero: string;
   modo: ModoExecucao;
@@ -331,7 +349,7 @@ export interface VerificacaoEnvio {
   fluxo_id: string;
   fluxo_versao: number | null;
   evento: string;
-  entidade: EntidadeDocumento;
+  entidade: EntidadeRetorno;
   movimento_status: string | null;
   documento_status_wms: string | null;
   bloqueios: BloqueioEnvio[];
@@ -340,7 +358,8 @@ export interface VerificacaoEnvio {
 
 export type DispatcherBody =
   | { acao: "executar"; execucao_id: string }
-  | { acao: "testar_destino"; destino_id: string };
+  | { acao: "testar_destino"; destino_id: string }
+  | { acao: "executar_interativo"; execucao_id: string };
 
 export interface DispatcherExecutarResposta {
   execucao_id: string;
@@ -359,4 +378,79 @@ export interface DispatcherTestarResposta {
   resposta?: unknown;
   erro?: string;
   request?: unknown;
+}
+
+// ---- Importar do ERP via fluxo (§6.4) ----
+export type EventoImportacao =
+  | "importar.produto" | "importar.parceiro" | "importar.grupo_produto" | "importar.subgrupo_produto"
+  | "importar.rota" | "importar.tipo_entrada" | "importar.tipo_saida"
+  | "importar.documento_entrada" | "importar.documento_saida";
+
+export interface ImportacaoDisponivel {
+  evento: EventoImportacao;
+  entidade: string;
+  tela: string;
+  fluxos_ativos: number;
+  disponivel: boolean;
+  fluxo_id: string | null;
+  fluxo_nome: string | null;
+  tem_confirmacao: boolean;
+}
+
+export interface ImportacaoIniciada {
+  execucao_id: string;
+  importacao_id: string;
+  status: Extract<StatusExecucao, "pendente" | "filtrado">;
+  fluxo_id: string;
+  fluxo_nome: string;
+  tem_confirmacao: boolean;
+}
+
+export interface ImportacaoPasso {
+  no_id: string;
+  no_tipo: TipoNo;
+  status: StatusPasso;
+  saida: string | null;
+  erro: string | null;
+  http_status: number | null;
+  duracao_ms: number | null;
+}
+
+export interface Importacao {
+  execucao_id: string;
+  importacao_id: string;
+  evento: EventoImportacao;
+  entidade: string;
+  tela: string;
+  modo: ModoExecucao;
+  status: StatusExecucao;
+  finalizado: boolean;
+  valor: string;
+  parametros: Record<string, unknown>;
+  fluxo_id: string;
+  fluxo_nome: string;
+  aguardando_confirmacao: boolean;
+  confirmacao: { no_id: string; titulo: string | null; mensagem: string | null; expira_em: string | null } | null;
+  previa: unknown | null;
+  registro: { id: string | null; status: string | null; gravado_em: string | null; dados: unknown } | null;
+  erro: string | null;
+  erro_http_status: number | null;
+  created_at: string;
+  finalizado_em: string | null;
+  passos: ImportacaoPasso[];
+}
+
+export interface ImportacaoTesteIniciado {
+  execucao_id: string;
+  importacao_id: string;
+  status: StatusExecucao;
+  modo: Extract<ModoExecucao, "teste" | "simulacao">;
+  evento: EventoImportacao;
+}
+
+export interface DispatcherInterativoResposta {
+  executado: boolean;
+  status?: StatusExecucao;
+  erro?: string;
+  importacao?: Importacao;
 }

@@ -1,4 +1,4 @@
-import type { Catalogo, EntidadeDocumento, TipoNo } from "../retornos.types";
+import type { Catalogo, EntidadeRetorno, TipoNo } from "../retornos.types";
 import type { FluxoNode } from "./definicaoRf";
 
 const PREFIXO: Record<TipoNo, string> = {
@@ -13,7 +13,16 @@ const PREFIXO: Record<TipoNo, string> = {
   "acao.provedor": "erp",
   "acao.atualizar_documento": "atualizar",
   "acao.notificar": "notificar",
+  "logica.confirmar_usuario": "confirmar",
+  "acao.gravar_logitrack": "gravar",
 };
+
+/** Nós que só fazem sentido no botão Importar do ERP (backend: NO_SO_IMPORTACAO). */
+export const NOS_SO_IMPORTACAO: readonly TipoNo[] = ["logica.confirmar_usuario", "acao.gravar_logitrack"];
+/** Nós que o fluxo de importação não aceita: o usuário está esperando na tela (IMPORTACAO_SEM_AGUARDAR). */
+export const NOS_FORA_DA_IMPORTACAO: readonly TipoNo[] = ["logica.aguardar"];
+
+export const ehEventoImportacao = (evento: string | null | undefined) => !!evento && evento.startsWith("importar.");
 
 export const ehGatilho = (tipo: string) => tipo.startsWith("gatilho.");
 
@@ -36,12 +45,30 @@ export function nomeUnico(base: string, existentes: FluxoNode[]): string {
   return `${base} ${i}`;
 }
 
-export function entidadeDoGatilho(nodes: FluxoNode[], catalogo?: Catalogo): EntidadeDocumento | null {
+export function entidadeDoGatilho(nodes: FluxoNode[], catalogo?: Catalogo): EntidadeRetorno | null {
   const g = nodes.find((n) => ehGatilho(n.data.tipo));
   if (!g) return null;
-  if (g.data.tipo === "gatilho.manual") return (g.data.config.entidade as EntidadeDocumento) ?? null;
+  if (g.data.tipo === "gatilho.manual") return (g.data.config.entidade as EntidadeRetorno) ?? null;
   const ev = g.data.config.evento;
   return catalogo?.eventos.find((e) => e.codigo === ev)?.entidade ?? null;
+}
+
+/** O fluxo é de um botão Importar do ERP (gatilho com evento importar.*). */
+export function fluxoDeImportacao(nodes: FluxoNode[]): boolean {
+  const g = nodes.find((n) => n.data.tipo === "gatilho.evento");
+  return ehEventoImportacao(g?.data.config.evento as string | null | undefined);
+}
+
+/**
+ * Motivo para um nó não poder entrar neste fluxo (null = pode). Espelha a validação do backend
+ * (NO_SO_IMPORTACAO, IMPORTACAO_SEM_AGUARDAR, IMPORTACAO_GRAVAR_UNICO, IMPORTACAO_CONFIRMAR_UNICO).
+ * `presentes` = tipos de nó já no fluxo.
+ */
+export function motivoNoIndisponivel(tipo: TipoNo, importacao: boolean, presentes: readonly TipoNo[]): string | null {
+  if (!importacao && NOS_SO_IMPORTACAO.includes(tipo)) return "Só em fluxos do botão Importar do ERP.";
+  if (importacao && NOS_FORA_DA_IMPORTACAO.includes(tipo)) return "O botão Importar do ERP não espera: o usuário está na tela.";
+  if (importacao && NOS_SO_IMPORTACAO.includes(tipo) && presentes.includes(tipo)) return "Este fluxo já tem este nó.";
+  return null;
 }
 
 export function configInicial(tipo: TipoNo, nodes: FluxoNode[], catalogo?: Catalogo): Record<string, unknown> {
@@ -60,6 +87,9 @@ export function configInicial(tipo: TipoNo, nodes: FluxoNode[], catalogo?: Catal
     case "acao.atualizar_documento": return { resultado_integracao: "integrado", status_integracao: "retornado", marcar_exportado: false };
     case "acao.notificar":
       return { titulo: "Falha no retorno ao ERP", mensagem: "Documento {{documento.numero}}: {{erro.mensagem}}", cor: "red" };
+    case "logica.confirmar_usuario":
+      return { titulo: "Confirmar importação", mensagem: "Confira os dados antes de gravar no LogiTrack.", expira_minutos: 15 };
+    case "acao.gravar_logitrack": return {};
     case "gatilho.evento": return { evento: null, modo: "imediato", filtros: [] };
     case "gatilho.manual": return { entidade: "documento_saida", filtros: [] };
     default: return {};

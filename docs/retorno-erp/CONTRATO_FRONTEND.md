@@ -428,3 +428,9 @@ Erros novos para o `errorMapper` (códigos mais longos antes dos prefixos):
 - "Enviar ao ERP" e `verificar_envio` aceitam `movimentacao_interna`; `documentos_recentes` lista as movimentações
   (busca por `MI-000123`).
 - `setor.codigo_erp` novo: campo no cadastro de Setores.
+
+### 6.6 Frontend (feito em 26/11/2026)
+- Tipos: `EntidadeRetorno`, modo `interativo`, status `aguardando_confirmacao`, nós `logica.confirmar_usuario` / `acao.gravar_logitrack`, `Importacao*` (retornos.types.ts); RPCs e `executar_interativo` em retornosService.
+- Botão: `useImportacaoFluxo(evento, aberto)` + `ImportarViaFluxoConteudo` dentro de `ImportarDoERPModal` (config `evento`), `ImportarNfeChaveModal` e `ImportarPedidoSaidaModal`. Tipos de Entrada e Tipos de Saída ganharam o botão (`entidade: "somente_fluxo"`); Subgrupos e Rotas só redirecionam quando não há fluxo.
+- Editor: grupos Estoque e Importar do ERP (Novo fluxo e gatilho; importação só imediato), formulários `FormImportacao`, Testar com "Código no ERP" (`importacao_testar`), contexto vazio por entidade, saída do Gravar em `saidasAnteriores`.
+- Cadastro de Setores: campo `codigo_erp`.

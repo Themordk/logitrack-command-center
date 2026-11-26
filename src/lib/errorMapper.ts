@@ -8,6 +8,16 @@ export interface ParsedError {
 }
 
 const BUSINESS_ERROR_MAP: Record<string, { title: string; instruction: string }> = {
+  // === Importar do ERP via fluxo (Retorno ao ERP, §6.4) — no topo: contêm SEM_PERMISSAO e outros códigos curtos ===
+  RETORNO_IMPORTACAO_SEM_PERMISSAO: { title: "Você não tem permissão para importar nesta tela.", instruction: "Peça ao administrador permissão de inclusão neste cadastro." },
+  RETORNO_IMPORTACAO_SEM_FLUXO: { title: "Nenhum fluxo de importação ativo para esta tela.", instruction: "Ative um fluxo em Integração › Retorno ao ERP ou use a importação padrão." },
+  RETORNO_IMPORTACAO_AMBIGUA: { title: "Há mais de um fluxo de importação ativo para esta tela.", instruction: "Deixe só um ativo em Integração › Retorno ao ERP." },
+  RETORNO_IMPORTACAO_VALOR: { title: "Informe o código a buscar no ERP.", instruction: "Use até 200 caracteres." },
+  RETORNO_IMPORTACAO_EVENTO_INVALIDO: { title: "Este fluxo não é de um botão Importar do ERP.", instruction: "Escolha um gatilho Importar do ERP." },
+  RETORNO_IMPORTACAO_SEM_PREVIA: { title: "Esta importação não está mais aguardando confirmação.", instruction: "Busque o registro de novo." },
+  RETORNO_IMPORTACAO_PREVIA_EXPIRADA: { title: "A prévia expirou.", instruction: "Busque o registro de novo no ERP." },
+  RETORNO_IMPORTACAO_REPROCESSAR: { title: "Importações não podem ser reprocessadas.", instruction: "Busque o registro de novo pela tela do cadastro." },
+  RETORNO_IMPORTACAO_EXECUTAR: { title: "Importações começam pelo botão Importar do ERP.", instruction: "Use o botão na tela do cadastro ou o Testar do editor." },
   // === Conferência de saída (fn_conferencia_validar_onda) ===
   // Ficam no topo: findBusinessError usa includes() na ordem do mapa e
   // CONF_ONDA_NAO_ENCONTRADA contém ONDA_NAO_ENCONTRADA.

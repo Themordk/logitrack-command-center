@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTenant } from "@/contexts/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ImportarViaFluxoConteudo } from "./ImportarViaFluxoConteudo";
+import { useImportacaoFluxo } from "./useImportacaoFluxo";
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -35,6 +37,11 @@ interface Resultado {
 }
 
 export function ImportarNfeChaveModal({ isOpen, onClose, onSuccess }: Props) {
+  // Com um fluxo ativo no Retorno ao ERP, o botão segue o fluxo; sem ele, a importação padrão abaixo.
+  const fluxo = useImportacaoFluxo("importar.documento_entrada", isOpen);
+  const usaFluxo = fluxo.carregando || fluxo.disponivel || fluxo.ambiguo;
+  const reiniciarFluxo = fluxo.reiniciar;
+  useEffect(() => { if (!isOpen) setTimeout(reiniciarFluxo, 200); }, [isOpen, reiniciarFluxo]);
   const { tenantId, empresaId } = useTenant();
   const [estado, setEstado] = useState<Estado>("IDLE");
   const [chave, setChave] = useState("");
@@ -249,11 +256,29 @@ export function ImportarNfeChaveModal({ isOpen, onClose, onSuccess }: Props) {
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
+        {usaFluxo ? (
+          <ImportarViaFluxoConteudo
+            fluxo={fluxo}
+            titulo="Importar NF-e do ERP"
+            labelCampo="Chave de acesso ou número da NF-e"
+            placeholder="44 dígitos da chave ou o número da nota"
+            inputMode="numeric"
+            normalizar={(v) => v.replace(/\s/g, "")}
+            parametros={(v) => ({ tipo_busca: /^\d{44}$/.test(v) ? "chave_nfe" : "numero_nota" })}
+            verRegistroPath={(id) => `/atividades/entradas?documento_id=${id}`}
+            rotuloVerRegistro="Ver documento"
+            onSucesso={() => onSuccess()}
+            onFechar={onClose}
+          />
+        ) : (
+          <>
         {estado === "IDLE" && renderIdle()}
         {estado === "BUSCANDO" && renderBuscando()}
         {estado === "SUCESSO" && renderSucesso()}
         {estado === "JA_IMPORTADA" && renderJaImportada()}
         {estado === "ERRO" && renderErro()}
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

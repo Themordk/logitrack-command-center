@@ -3,6 +3,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useCrud } from "@/hooks/useCrud";
 import { CrudTable, type ColumnSpec } from "@/components/crud/CrudTable";
 import { DeleteConfirmDialog } from "@/components/crud/DeleteConfirmDialog";
+import { ImportarDoERPModal, BotaoImportarERP } from "@/components/erp/ImportarDoERPModal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Save, Loader2 } from "lucide-react";
@@ -13,6 +14,7 @@ export function TiposEntradaPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
 
@@ -85,7 +87,24 @@ export function TiposEntradaPage() {
         onNew={() => openModal(null)}
         onEdit={(row) => openModal(row)}
         onDelete={(row) => setDeleteItem(row)}
+        headerActions={<BotaoImportarERP onClick={() => setImportOpen(true)} />}
         newLabel="Novo Tipo de Entrada"
+      />
+
+      <ImportarDoERPModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSuccess={() => crud.refresh()}
+        config={{
+          evento: "importar.tipo_entrada",
+          titulo: "Importar tipo de entrada do ERP",
+          labelCampo: "código do tipo de entrada no ERP",
+          placeholderCampo: "Ex: 1.01",
+          tipoCampo: "text",
+          entidade: "somente_fluxo",
+          mensagemSemFluxo:
+            "A importação de tipos de entrada usa um fluxo do Retorno ao ERP. Peça ao suporte ou ao administrador para ativar um fluxo com o gatilho Importar do ERP desta tela.",
+        }}
       />
 
       <Sheet open={modalOpen} onOpenChange={(v) => !v && setModalOpen(false)}>

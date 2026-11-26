@@ -77,6 +77,7 @@ export function ParceirosPage() {
         onClose={() => setImportOpen(false)}
         onSuccess={() => crud.refresh()}
         config={{
+          evento: "importar.parceiro",
           titulo: "Importar Parceiro do ERP",
           labelCampo: "código do cliente/fornecedor no Omie",
           placeholderCampo: "Ex: 11192937501",
