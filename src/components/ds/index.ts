@@ -4,7 +4,9 @@
  */
 export { PageHeader } from "./PageHeader";
 export { SectionCard } from "./SectionCard";
+export { PageSection } from "./PageSection";
 export { KpiCard } from "./KpiCard";
 export { StatusPill } from "./StatusPill";
 export { EmptyState } from "./EmptyState";
 export { toneSubtle, toneDot, toneText, type Tone } from "./tones";
+export { chartColor, toneColor, chartAxis, chartGrid, chartTooltip, fmtNumero } from "./chart";

@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { parseDataPura } from "@/utils/dateTime";
 import type { DateRange } from "react-day-picker";
 
 export interface FiltersState {
@@ -18,7 +19,10 @@ export interface FiltersState {
   turnoId: string | null;
 }
 
-const sb = supabase as any;
+interface Opcao {
+  id: string;
+  descricao: string;
+}
 
 export function DashboardFilters({
   tenantId,
@@ -33,26 +37,27 @@ export function DashboardFilters({
   value: FiltersState;
   onChange: (v: FiltersState) => void;
 }) {
-  const [armazens, setArmazens] = useState<any[]>([]);
-  const [turnos, setTurnos] = useState<any[]>([]);
+  const [armazens, setArmazens] = useState<Opcao[]>([]);
+  const [turnos, setTurnos] = useState<Opcao[]>([]);
   const [range, setRange] = useState<DateRange | undefined>({
-    from: new Date(value.dataIni),
-    to: new Date(value.dataFim),
+    // Data pura (AAAA-MM-DD): new Date("AAAA-MM-DD") vira o dia anterior em UTC-3.
+    from: parseDataPura(value.dataIni) ?? new Date(),
+    to: parseDataPura(value.dataFim) ?? new Date(),
   });
   const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!tenantId) return;
-    let q = sb.from("armazem").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    let q = supabase.from("armazem").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
     if (empresaId) q = q.eq("empresa_id", empresaId);
-    q.then(({ data }: any) => setArmazens(data || []));
+    q.then(({ data }) => setArmazens((data as Opcao[] | null) || []));
   }, [tenantId, empresaId]);
 
   useEffect(() => {
     if (!tenantId) return;
-    let q = sb.from("turnos").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
+    let q = supabase.from("turnos").select("id,descricao").eq("tenant_id", tenantId).eq("ativo", true).order("descricao");
     if (value.armazemId) q = q.eq("armazem_id", value.armazemId);
-    q.then(({ data }: any) => setTurnos(data || []));
+    q.then(({ data }) => setTurnos((data as Opcao[] | null) || []));
   }, [tenantId, value.armazemId]);
 
   const applyRange = (r: DateRange | undefined) => {
@@ -68,7 +73,7 @@ export function DashboardFilters({
     onChange({ armazemId: defaultArmazemId, dataIni: today, dataFim: today, turnoId: null });
   };
 
-  const triggerCls = isMobile ? "w-full h-9 bg-secondary/40 border-border/50" : "h-9 bg-secondary/40 border-border/50";
+  const triggerCls = isMobile ? "w-full h-9" : "h-9";
 
   const filtrosAtivos =
     !!value.armazemId || !!value.turnoId || value.dataIni !== format(new Date(), "yyyy-MM-dd");
@@ -91,12 +96,12 @@ export function DashboardFilters({
           <Button
             variant="outline"
             className={cn(
-              "h-9 justify-start text-left font-normal bg-secondary/40 border-border/50",
+              "h-9 justify-start text-left font-normal",
               isMobile && "w-full",
               !range && "text-muted-foreground",
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
             {range?.from ? (range.to ? `${format(range.from, "dd/MM/yyyy")} – ${format(range.to, "dd/MM/yyyy")}` : format(range.from, "dd/MM/yyyy")) : "Período"}
           </Button>
         </PopoverTrigger>
@@ -113,14 +118,11 @@ export function DashboardFilters({
         </SelectContent>
       </Select>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn("h-9 text-xs text-muted-foreground", isMobile && "w-full")}
-        onClick={limpar}
-      >
-        Limpar
-      </Button>
+      {filtrosAtivos && (
+        <Button variant="ghost" size="sm" className={cn(isMobile && "w-full")} onClick={limpar}>
+          Limpar filtros
+        </Button>
+      )}
     </>
   );
 
@@ -128,10 +130,10 @@ export function DashboardFilters({
     return (
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="outline" className="w-full h-9 justify-start bg-secondary/40 border-border/50">
-            <Filter className="mr-2 h-4 w-4" />
+          <Button variant="outline" size="sm" className="w-full justify-start">
+            <Filter className="mr-2 h-4 w-4" aria-hidden="true" />
             Filtros
-            {filtrosAtivos && <span className="ml-2 w-1.5 h-1.5 rounded-full bg-primary" />}
+            {filtrosAtivos && <span className="ml-auto text-caption text-muted-foreground">aplicados</span>}
           </Button>
         </SheetTrigger>
         <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
@@ -144,5 +146,5 @@ export function DashboardFilters({
     );
   }
 
-  return <div className="card-surface p-3 flex flex-wrap items-center gap-2">{campos}</div>;
+  return <div className="flex flex-wrap items-center gap-2">{campos}</div>;
 }
