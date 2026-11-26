@@ -90,7 +90,8 @@ describe("Fase 10 · telas do score", () => {
       { usuario_id: "b", nome: "Bruno Reis", tarefas: 5, produtividade: 1, score: null, score_situacao: "SEM_METAS",
         classificacao: { codigo: "SEM_METAS", nome: "Sem metas", cor: "cinza" }, eficiencia_pct: 90 },
     ]} />);
-    expect(screen.getByText("Ranking LMS · score das metas")).toBeInTheDocument();
+    expect(screen.getByText("Ranking da equipe")).toBeInTheDocument();
+    expect(screen.getByText(/Ordenado pelo score global das metas/)).toBeInTheDocument();
     expect(screen.getByText("112,5%")).toBeInTheDocument();
     expect(screen.getByText("Excelente")).toBeInTheDocument();
     expect(screen.getAllByText("Sem metas").length).toBeGreaterThan(0);

@@ -91,6 +91,7 @@ Atualizar `RefreshCw`, Filtrar `Filter`, menu `MoreHorizontal`). Nunca em fundo 
 |---|---|---|
 | Título da tela + ações | `PageHeader` | `@/components/ds` |
 | Bloco de conteúdo | `SectionCard` | `@/components/ds` |
+| Grupo de cartões numa página (dashboards), com recolher | `PageSection` | `@/components/ds` |
 | Indicador | `KpiCard` | `@/components/ds` |
 | Status | `StatusPill` (ou um selo de domínio que use `StatusPill` por dentro) | `@/components/ds` |
 | Lista vazia | `EmptyState` | `@/components/ds` |
@@ -104,6 +105,9 @@ Atualizar `RefreshCw`, Filtrar `Filter`, menu `MoreHorizontal`). Nunca em fundo 
 Não crie um novo "card de KPI", "badge de status" ou "cabeçalho" local. Se o canônico não
 atende, estenda o canônico (em `src/components/ds/`) e avise na entrega.
 `KPICardPro` e as classes `badge-*` são legado: não use em código novo.
+
+Referência pronta: a Torre de Controle (`src/pages/Dashboard.tsx` e `src/pages/dashboard/components/`)
+foi a primeira tela migrada; copie a estrutura dela em dashboards e painéis.
 
 ## Estrutura de tela (web)
 
@@ -131,6 +135,7 @@ erro abaixo em `text-danger` dizendo como corrigir. Campos `h-9`. Diálogo: tít
 corpo, rodapé com ações à direita (secundária, depois primária). Validação de regra vem do servidor (`errorMapper`).
 
 ### Gráficos (Recharts)
+Use as props prontas de `@/components/ds` (`chartAxis`, `chartGrid`, `chartTooltip`, `chartColor(n)`, `toneColor`, `fmtNumero`).
 Cores `chart-1…6` em ordem; grade `hsl(var(--border))`; eixos `12px` `text-muted-foreground`;
 legenda só com 2+ séries; tooltip com números pt-BR. Barras ou linhas; pizza só com até 4 fatias.
 Sem 3D, sem gradiente, sem animação longa.

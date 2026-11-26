@@ -1,13 +1,13 @@
 {
   "gerado_em": "2026-11-26",
   "totais": {
-    "cores_de_paleta": 2523,
+    "cores_de_paleta": 2497,
     "cor_fixa_em_classe": 1864,
-    "texto_minusculo": 897,
+    "texto_minusculo": 894,
     "cantos_exagerados": 90,
-    "emoji_na_interface": 30,
-    "efeito_decorativo": 16,
-    "titulo_solto": 50
+    "emoji_na_interface": 23,
+    "efeito_decorativo": 15,
+    "titulo_solto": 49
   },
   "por_arquivo": {
     "cores_de_paleta": {
@@ -107,7 +107,6 @@
       "src/pages/AbastecimentoDetalhePage.tsx": 15,
       "src/pages/AbastecimentoPage.tsx": 9,
       "src/pages/AcompanhamentoPedidosPage.tsx": 10,
-      "src/pages/Dashboard.tsx": 4,
       "src/pages/DocEntradaDetalhePage.tsx": 18,
       "src/pages/DocSaidaDetalhePage.tsx": 18,
       "src/pages/DocSaidaNfTab.tsx": 12,
@@ -183,9 +182,6 @@
       "src/pages/coletor/metas/MetasResumoTab.tsx": 9,
       "src/pages/coletor/metas/MetasStreakBadge.tsx": 5,
       "src/pages/dashboard/components/KPICardPro.tsx": 17,
-      "src/pages/dashboard/components/OcorrenciasChart.tsx": 6,
-      "src/pages/dashboard/components/OcupacaoTipoEnderecoChart.tsx": 6,
-      "src/pages/dashboard/components/RankingOperadores.tsx": 10,
       "src/pages/dashboard/dashboard.service.ts": 2,
       "src/pages/integracao/ApiKeySection.tsx": 4,
       "src/pages/integracao/CredenciaisDinamicasTab.tsx": 6,
@@ -456,7 +452,6 @@
       "src/pages/AcompanhamentoPedidosPage.tsx": 10,
       "src/pages/CadastroDocEntradaPage.tsx": 1,
       "src/pages/CadastroDocSaidaPage.tsx": 1,
-      "src/pages/Dashboard.tsx": 1,
       "src/pages/DocEntradaDetalhePage.tsx": 5,
       "src/pages/DocSaidaDetalhePage.tsx": 5,
       "src/pages/DocSaidaNfTab.tsx": 3,
@@ -533,7 +528,6 @@
       "src/pages/coletor/metas/MetasScoreRing.tsx": 1,
       "src/pages/coletor/metas/MetasStreakBadge.tsx": 1,
       "src/pages/dashboard/components/KPICardPro.tsx": 1,
-      "src/pages/dashboard/components/RankingOperadores.tsx": 2,
       "src/pages/integracao/FilasPanel.tsx": 1,
       "src/pages/integracao/PadraoCampoIndicador.tsx": 1,
       "src/pages/integracao/ProdutoPadroesPage.tsx": 5,
@@ -623,7 +617,6 @@
       "src/components/ProtectedRoute.tsx": 1,
       "src/components/impressao/ImpressoraSelect.tsx": 2,
       "src/components/impressao/ImpressorasTab.tsx": 1,
-      "src/pages/Dashboard.tsx": 6,
       "src/pages/EtiquetaTemplatesPage.tsx": 1,
       "src/pages/MovimentoEntradaPage.tsx": 1,
       "src/pages/OperadoresAtivosPage.tsx": 1,
@@ -632,7 +625,6 @@
       "src/pages/coletor/ConsultaProdutoPage.tsx": 1,
       "src/pages/coletor/RecebimentoExecucaoPage.tsx": 2,
       "src/pages/coletor/SeparacaoEnderecoPage.tsx": 1,
-      "src/pages/dashboard/components/OcorrenciasChart.tsx": 1,
       "src/pages/integracao/retornos/destinos/DestinosTab.tsx": 2,
       "src/pages/tv/PainelTvOperacional.tsx": 5,
       "src/pages/tv/PainelTvVendas.tsx": 1
@@ -648,7 +640,6 @@
       "src/pages/SaidasPage.tsx": 1,
       "src/pages/coletor/ConferenciaProdutoPage.tsx": 1,
       "src/pages/dashboard/components/KPICardPro.tsx": 1,
-      "src/pages/dashboard/components/RankingOperadores.tsx": 1,
       "src/pages/integracao/FilasPanel.tsx": 1,
       "src/pages/integracao/LogsPanel.tsx": 1,
       "src/pages/integracao/retornos/execucoes/ExecucoesTab.tsx": 1
@@ -667,7 +658,6 @@
       "src/pages/AcompanhamentoPedidosPage.tsx": 1,
       "src/pages/CadastroDocEntradaPage.tsx": 1,
       "src/pages/CadastroDocSaidaPage.tsx": 1,
-      "src/pages/Dashboard.tsx": 1,
       "src/pages/EntradasPage.tsx": 1,
       "src/pages/EtiquetaTemplatesPage.tsx": 1,
       "src/pages/FluxoExpedicaoPage.tsx": 1,
