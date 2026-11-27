@@ -152,7 +152,7 @@ function EditarAtividadeDialog({ edicao, salvando, onCancelar, onSalvar }: {
 }) {
   const [e, setE] = useState(edicao);
   const dur = Number(e.duracao);
-  const erro = e.nome.trim().length < 2 ? "Informe o nome." : !Number.isInteger(dur) || dur < 5 || dur > 720 ? "A duração máxima deve ficar entre 5 e 720 minutos." : null;
+  const erro = e.nome.trim().length < 2 ? "Informe o nome." : !Number.isInteger(dur) || dur < 1 || dur > 720 ? "A duração máxima deve ficar entre 1 e 720 minutos." : null;
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o && !salvando) onCancelar(); }}>

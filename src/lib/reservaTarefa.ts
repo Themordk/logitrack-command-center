@@ -29,8 +29,9 @@ export const RESERVA_ACAO_AJUDA: Record<ReservaAcao, string> = {
   NUNCA: "A reserva só termina quando o operador conclui ou alguém cancela a tarefa.",
 };
 
-export const RESERVA_EXPIRA_MIN_HORAS = 0.25; // 15 min
-export const RESERVA_EXPIRA_MAX_HORAS = 168; // 7 dias
+/** Prazo da reserva em minutos (mesmos limites do banco: rpc_lms_tipo_tarefa_salvar e ck_tipo_tarefa_reserva_expira_min). */
+export const RESERVA_EXPIRA_MIN_MINUTOS = 5;
+export const RESERVA_EXPIRA_MAX_MINUTOS = 10080; // 7 dias
 
 export function reservaAcaoLabel(acao?: string | null): string {
   return RESERVA_ACAO_LABEL[(acao as ReservaAcao) ?? "NUNCA"] ?? acao ?? "—";
@@ -38,6 +39,8 @@ export function reservaAcaoLabel(acao?: string | null): string {
 
 export function formatarHoras(minutos?: number | null): string {
   if (minutos == null) return "—";
-  const h = minutos / 60;
-  return Number.isInteger(h) ? `${h}h` : `${h.toFixed(2).replace(/\.?0+$/, "")}h`;
+  if (minutos < 60) return `${minutos}min`;
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
 }
