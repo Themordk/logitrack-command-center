@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate, formatDateTime } from "@/utils/dateTime";
 import {
-  RESERVA_ACAO_AJUDA, RESERVA_EXPIRA_MAX_HORAS, RESERVA_EXPIRA_MIN_HORAS, formatarHoras, reservaAcaoLabel,
+  RESERVA_ACAO_AJUDA, RESERVA_EXPIRA_MAX_MINUTOS, RESERVA_EXPIRA_MIN_MINUTOS, formatarHoras, reservaAcaoLabel,
 } from "@/lib/reservaTarefa";
 import {
   CATEGORIAS_TIPO_TAREFA, LmsConfigErro, TIPOS_MOVIMENTO, descreverHistoricoTipo, descreverOrigem, descreverPadrao, listarTiposTarefaLms,
@@ -48,7 +48,7 @@ interface FormCadastro {
   cor_interface: string;
   somente_sistema: boolean;
   reserva_acao: ReservaAcaoTipo;
-  reserva_horas: string;
+  reserva_minutos: string;
 }
 
 type Aba = "cadastro" | "tempo" | "reserva" | "historico";
@@ -64,7 +64,7 @@ function paraForm(t: TipoTarefaLms): FormCadastro {
     cor_interface: t.cor_interface ?? "",
     somente_sistema: !!t.somente_sistema,
     reserva_acao: t.reserva_acao,
-    reserva_horas: String((t.reserva_expira_min ?? 240) / 60),
+    reserva_minutos: String(t.reserva_expira_min ?? 240),
   };
 }
 
@@ -77,7 +77,7 @@ function dadosDoForm(f: FormCadastro, t: TipoTarefaLms): DadosTipoTarefa {
     cor_interface: f.cor_interface || null,
     somente_sistema: f.somente_sistema,
     reserva_acao: f.reserva_acao,
-    reserva_expira_min: f.reserva_acao === "NUNCA" ? t.reserva_expira_min : Math.round(Number(f.reserva_horas) * 60),
+    reserva_expira_min: f.reserva_acao === "NUNCA" ? t.reserva_expira_min : Math.round(Number(f.reserva_minutos)),
   };
 }
 
@@ -90,14 +90,14 @@ export function cadastroAlterado(f: FormCadastro, t: TipoTarefaLms): boolean {
 }
 
 /** Valida o cadastro antes de enviar; o banco valida de novo. */
-export function validarFormTipo(f: Pick<FormCadastro, "peso_produtividade" | "reserva_acao" | "reserva_horas" | "cor_interface">): string | null {
+export function validarFormTipo(f: Pick<FormCadastro, "peso_produtividade" | "reserva_acao" | "reserva_minutos" | "cor_interface">): string | null {
   const peso = Number(f.peso_produtividade);
   if (!Number.isFinite(peso) || peso < 0.1 || peso > 10) return "O peso de produtividade vai de 0,1 a 10.";
   if (f.cor_interface && !/^#[0-9a-fA-F]{6}$/.test(f.cor_interface)) return "Cor inválida.";
   if (f.reserva_acao !== "NUNCA") {
-    const h = Number(f.reserva_horas);
-    if (!Number.isFinite(h) || h < RESERVA_EXPIRA_MIN_HORAS || h > RESERVA_EXPIRA_MAX_HORAS) {
-      return `O prazo sem atividade deve ficar entre 15 minutos e ${RESERVA_EXPIRA_MAX_HORAS} horas.`;
+    const m = Number(f.reserva_minutos);
+    if (!Number.isInteger(m) || m < RESERVA_EXPIRA_MIN_MINUTOS || m > RESERVA_EXPIRA_MAX_MINUTOS) {
+      return `O prazo sem atividade deve ficar entre ${RESERVA_EXPIRA_MIN_MINUTOS} minutos e 7 dias (${RESERVA_EXPIRA_MAX_MINUTOS} minutos).`;
     }
   }
   return null;
@@ -473,12 +473,15 @@ export function TiposTarefaSection({
                     </select>
                   </label>
                   <label>
-                    <span className={labelClass}>Prazo sem atividade (horas)</span>
-                    <input className={inputClass} type="number" step={0.25} min={RESERVA_EXPIRA_MIN_HORAS} max={RESERVA_EXPIRA_MAX_HORAS}
-                      value={form.reserva_horas} disabled={form.reserva_acao === "NUNCA"}
-                      onChange={(e) => set("reserva_horas", e.target.value)} />
+                    <span className={labelClass}>Prazo sem atividade (minutos)</span>
+                    <input className={inputClass} type="number" step={1} min={RESERVA_EXPIRA_MIN_MINUTOS} max={RESERVA_EXPIRA_MAX_MINUTOS}
+                      value={form.reserva_minutos} disabled={form.reserva_acao === "NUNCA"}
+                      onChange={(e) => set("reserva_minutos", e.target.value)} />
                   </label>
                   <p className="text-xs text-muted-foreground md:col-span-2">
+                    {form.reserva_acao !== "NUNCA" && Number(form.reserva_minutos) >= 60 && (
+                      <b className="text-foreground">Prazo: {formatarHoras(Number(form.reserva_minutos))}. </b>
+                    )}
                     {RESERVA_ACAO_AJUDA[form.reserva_acao]} Atividade = atribuição, último bip ou execução do operador em tarefas
                     deste tipo no mesmo documento. Verificado a cada 10 minutos; designações feitas pelo gestor e coletas pendentes
                     nunca são liberadas sozinhas (geram aviso ao supervisor).

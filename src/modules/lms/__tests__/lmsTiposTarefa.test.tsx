@@ -55,15 +55,17 @@ beforeEach(() => {
 
 describe("Fase 10.11 · regras do painel", () => {
   it("validação do cadastro e detecção de mudança", () => {
-    const ok = { peso_produtividade: "1", reserva_acao: "LIBERAR_SEM_EXECUCAO" as const, reserva_horas: "4", cor_interface: "#112233" };
+    const ok = { peso_produtividade: "1", reserva_acao: "LIBERAR_SEM_EXECUCAO" as const, reserva_minutos: "240", cor_interface: "#112233" };
     expect(validarFormTipo(ok)).toBeNull();
     expect(validarFormTipo({ ...ok, peso_produtividade: "0" })).toMatch("peso");
-    expect(validarFormTipo({ ...ok, reserva_horas: "0.1" })).toMatch("15 minutos");
-    expect(validarFormTipo({ ...ok, reserva_acao: "NUNCA", reserva_horas: "0" })).toBeNull();
+    expect(validarFormTipo({ ...ok, reserva_minutos: "4" })).toMatch("5 minutos");
+    expect(validarFormTipo({ ...ok, reserva_minutos: "5" })).toBeNull();
+    expect(validarFormTipo({ ...ok, reserva_minutos: "10081" })).toMatch("7 dias");
+    expect(validarFormTipo({ ...ok, reserva_acao: "NUNCA", reserva_minutos: "0" })).toBeNull();
     const f = { ativo: true, categoria: "ARMAZENAGEM", tipo_movimento: "1", peso_produtividade: "1.1",
-      cor_interface: "#0004ff", somente_sistema: false, reserva_acao: "LIBERAR_SEM_EXECUCAO" as const, reserva_horas: "4" };
+      cor_interface: "#0004ff", somente_sistema: false, reserva_acao: "LIBERAR_SEM_EXECUCAO" as const, reserva_minutos: "240" };
     expect(cadastroAlterado(f, ARMZ)).toBe(false);
-    expect(cadastroAlterado({ ...f, reserva_horas: "1" }, ARMZ)).toBe(true);
+    expect(cadastroAlterado({ ...f, reserva_minutos: "60" }, ARMZ)).toBe(true);
     expect(cadastroAlterado({ ...f, somente_sistema: true }, ARMZ)).toBe(true);
   });
 
@@ -134,7 +136,7 @@ describe("Fase 10.11 · tipo de tarefa e tempo padrão numa tela só", () => {
     montar();
     fireEvent.click(await screen.findByLabelText("Editar ENTR-ARMZ"));
     await abrirAba(/Sem atividade/);
-    fireEvent.change(await screen.findByLabelText("Prazo sem atividade (horas)"), { target: { value: "1" } });
+    fireEvent.change(await screen.findByLabelText("Prazo sem atividade (minutos)"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: /Salvar/ }));
     await waitFor(() => expect(salvar).toHaveBeenCalled());
     const arg = salvar.mock.calls[0][0];
