@@ -26,11 +26,11 @@ export const GLOSSARIO = {
   },
   indireto_esquecida: {
     nome: "Tarefa esquecida aberta",
-    texto: "Indireto de uma tarefa que ficou aberta muito além do normal (acima de 4 h ou de 30 × o tempo padrão e 30 min). O tempo dela sai do direto e o tempo padrão dela não entra no desempenho.",
+    texto: "Indireto de uma tarefa que ficou aberta muito além do normal, pelos limites de Configurações do LMS › Qualidade do dado (\"Tarefa esquecida aberta\": acima de um tempo fixo, ou de N vezes o tempo padrão com uma duração mínima). O tempo dela sai do direto e o tempo padrão dela não entra no desempenho.",
   },
   entre_tarefas: {
     nome: "Entre tarefas",
-    texto: "Intervalos curtos (até 30 min) entre o fim de uma atividade e o início da próxima: deslocamento até o próximo endereço, preparar o equipamento, esperar a próxima tarefa. Não é indireto e não entra na utilização.",
+    texto: "Intervalos curtos entre o fim de uma atividade e o início da próxima: deslocamento até o próximo endereço, preparar o equipamento, esperar a próxima tarefa. Só conta o intervalo até o limite de Configurações do LMS › \"Tempo entre tarefas: maior intervalo que conta\"; intervalo maior que isso inteiro vai para o ocioso. Não é indireto e não entra na utilização.",
   },
   tempo_disponivel: {
     nome: "Tempo disponível",
@@ -38,7 +38,7 @@ export const GLOSSARIO = {
   },
   tempo_ocioso: {
     nome: "Tempo ocioso",
-    texto: "Parte do tempo disponível que não foi direto, indireto nem intervalo curto entre tarefas: pausas longas e tempo parado sem tarefa.",
+    texto: "Parte do tempo disponível que não foi direto, indireto nem intervalo curto entre tarefas: intervalos acima do limite configurado, pausas longas e tempo parado sem tarefa.",
   },
   tempo_padrao: {
     nome: "Tempo padrão",
@@ -70,7 +70,7 @@ export const GLOSSARIO = {
   },
   tempo_entre_tarefas: {
     nome: "Tempo entre tarefas",
-    texto: "Minutos, em média, entre o fim de uma atividade (tarefa ou apontamento) e o início da próxima. Pausas acima de 30 min, como intervalo e almoço, não contam.",
+    texto: "Minutos, em média, entre o fim de uma atividade (tarefa ou apontamento) e o início da próxima. Intervalos acima do limite de Configurações do LMS › \"Tempo entre tarefas: maior intervalo que conta\" (como intervalo e almoço) não contam.",
   },
   inicio_real: {
     nome: "Início real",
