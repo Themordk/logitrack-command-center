@@ -30,9 +30,9 @@ Os três commits foram reaplicados sobre a `main` (cherry-pick) no branch `relea
 | Aprovação do dono | "Vamos subir apenas o painel de dashboard… pode fazer o merge para o main" (28/11/2026 12:19) |
 | Banco | Sem alteração; nada a aplicar |
 | `tsc --noEmit -p tsconfig.app.json` | 0 erros |
-| `vitest run` | 98 arquivos, 649 testes ok |
+| `vitest run` | 99 arquivos, 655 testes ok (sobre a `main` com #55–#57) |
 | `vite build` | ok |
-| `npm run design:check` | nenhum número subiu |
+| `npm run design:check` | Linha de base medida sobre a `main` de 28/11: as correções de LMS #55–#57, já em produção, trouxeram 12 cores de paleta e 5 textos de 10–11px em `reports/produtividade` (TarefasColaborador, ProdutividadeOperador, ProdutividadeDashboard). Entram como código existente; nenhum número sobe com esta release |
 | Validação visual | Preview da Vercel em `feat/armazenagem-fluxo` (26/11/2026) |
 
 ## Reversão
