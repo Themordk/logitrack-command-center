@@ -1,6 +1,7 @@
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
-import { Layers } from "lucide-react";
-import { LABELS_CATEGORIA_TAREFA, CORES_CATEGORIA_TAREFA, formatarTempoEspera } from "../dashboard.service";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { SectionCard, EmptyState, chartAxis, chartColor, chartGrid, chartTooltip, fmtNumero } from "@/components/ds";
+import { Skeleton } from "@/components/ui/skeleton";
+import { LABELS_CATEGORIA_TAREFA, formatarTempoEspera } from "../dashboard.service";
 
 interface BreakdownItem {
   categoria: string;
@@ -13,9 +14,11 @@ interface BreakdownItem {
 interface Props {
   data: BreakdownItem[];
   loading?: boolean;
+  className?: string;
 }
 
-export function ComposicaoTipoChart({ data, loading }: Props) {
+/** Tarefas concluídas por tipo. Uma série = uma cor (o nome do tipo está no eixo). */
+export function ComposicaoTipoChart({ data, loading, className }: Props) {
   const safeData = Array.isArray(data) ? data : [];
   const totalTarefas = safeData.reduce((s, d) => s + (d.concluidas || 0), 0);
 
@@ -24,62 +27,45 @@ export function ComposicaoTipoChart({ data, loading }: Props) {
     .sort((a, b) => b.concluidas - a.concluidas)
     .map((d) => ({
       nome: LABELS_CATEGORIA_TAREFA[d.categoria] || d.descricao || d.categoria,
-      categoria: d.categoria,
       concluidas: d.concluidas,
       tempo_medio: d.tempo_medio_seg,
-      cor: d.cor || CORES_CATEGORIA_TAREFA[d.categoria] || CORES_CATEGORIA_TAREFA.OUTROS,
     }));
 
   const temDados = chartData.length > 0;
 
   return (
-    <div className="card-surface p-4">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
-          <Layers size={16} className="text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Composição de Tarefas</h3>
-        </div>
-        {temDados && <span className="text-xs text-muted-foreground">{totalTarefas} tarefas concluídas</span>}
-      </div>
-
-      {loading ? (
-        <div className="h-[220px] rounded-lg bg-secondary/30 animate-pulse" />
+    <SectionCard
+      className={className}
+      title="Tarefas concluídas por tipo"
+      description={temDados ? `${fmtNumero(totalTarefas)} tarefas no período` : "Quantidade e tempo médio por tipo de tarefa"}
+    >
+      {loading && !temDados ? (
+        <Skeleton className="h-[220px] w-full" />
       ) : !temDados ? (
-        <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground text-center px-4">
-          Sem tarefas concluídas no período.
-        </div>
+        <EmptyState
+          className="h-[220px] py-0"
+          title="Nenhuma tarefa concluída no período"
+          description="O gráfico aparece quando houver tarefas concluídas nos filtros escolhidos."
+        />
       ) : (
         <div className="h-[220px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 12, bottom: 4, left: 8 }}>
-              <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="nome" width={100} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+            <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 0 }} barCategoryGap={6}>
+              <CartesianGrid {...chartGrid} vertical horizontal={false} />
+              <XAxis type="number" {...chartAxis} allowDecimals={false} tickFormatter={(v: number) => fmtNumero(v)} />
+              <YAxis type="category" dataKey="nome" width={110} {...chartAxis} />
               <Tooltip
-                cursor={{ fill: "hsl(var(--secondary) / 0.3)" }}
-                contentStyle={{
-                  background: "hsl(var(--popover))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  color: "hsl(var(--popover-foreground))",
-                }}
-                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
-                labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-                formatter={(value: number, _name: string, props: any) => [
-                  `${value} tarefas (Tempo médio: ${formatarTempoEspera(props?.payload?.tempo_medio ?? 0)})`,
+                {...chartTooltip}
+                formatter={(value: number, _name: string, props: { payload?: { tempo_medio?: number } }) => [
+                  `${fmtNumero(value)} tarefas · tempo médio ${formatarTempoEspera(props?.payload?.tempo_medio ?? 0)}`,
                   "Concluídas",
                 ]}
-                labelFormatter={(label: string) => label}
               />
-              <Bar dataKey="concluidas" radius={[0, 4, 4, 0]}>
-                {chartData.map((item, i) => (
-                  <Cell key={i} fill={item.cor} />
-                ))}
-              </Bar>
+              <Bar dataKey="concluidas" fill={chartColor(1)} radius={[0, 3, 3, 0]} maxBarSize={22} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }

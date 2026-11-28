@@ -1,129 +1,83 @@
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
-import { AlertTriangle, ShieldAlert } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SectionCard, EmptyState, StatusPill, chartAxis, chartColor, chartGrid, chartTooltip, fmtNumero } from "@/components/ds";
 import { LABELS_TIPO_OCORRENCIA, OcorrenciasResult } from "../dashboard.service";
 
 interface Props {
   data: OcorrenciasResult | null;
   loading?: boolean;
   onNavigate?: (path: string) => void;
+  className?: string;
 }
 
-const CORES_TIPO: Record<string, string> = {
-  FALTA: "hsl(0 72% 55%)",
-  SOBRA: "hsl(45 90% 50%)",
-  AVARIA: "hsl(15 85% 55%)",
-  EXTRAVIO: "hsl(340 75% 55%)",
-  DIVERGENCIA_INVENTARIO: "hsl(260 60% 55%)",
-  PRODUTO_INCORRETO: "hsl(200 70% 55%)",
-  VALIDADE_INCORRETA: "hsl(30 80% 55%)",
-  LOTE_INCORRETO: "hsl(170 60% 45%)",
-  OUTROS: "hsl(220 15% 55%)",
-};
+const plural = (n: number, um: string, varios: string) => `${fmtNumero(n)} ${n === 1 ? um : varios}`;
 
-export function OcorrenciasChart({ data, loading, onNavigate }: Props) {
+/** Os rótulos do service vêm em Title Case ("Produto Incorreto"); a interface usa caixa de frase. */
+const caixaDeFrase = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : t);
+
+/** Ocorrências do período por tipo, com o resumo de tratamento acima do gráfico. */
+export function OcorrenciasChart({ data, loading, onNavigate, className }: Props) {
   const resumo = data?.resumo;
   const porTipoRaw = Array.isArray(data?.por_tipo) ? data!.por_tipo : [];
-  const porTipo = porTipoRaw.map((item) => ({
-    nome: LABELS_TIPO_OCORRENCIA[item.tipo] || item.tipo,
-    tipo: item.tipo,
-    quantidade: item.quantidade,
-    pendentes: item.pendentes,
-  }));
+  const porTipo = porTipoRaw
+    .map((item) => ({
+      nome: caixaDeFrase(LABELS_TIPO_OCORRENCIA[item.tipo] || item.tipo),
+      quantidade: item.quantidade,
+      pendentes: item.pendentes,
+    }))
+    .sort((a, b) => b.quantidade - a.quantidade);
   const temDados = !!resumo && resumo.total > 0;
 
   return (
-    <div className="card-surface p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3
-          className={cn(
-            "text-sm font-semibold text-foreground flex items-center gap-2",
-            onNavigate && "cursor-pointer hover:text-primary transition-colors"
-          )}
-          onClick={() => onNavigate?.("/atividades/ocorrencias")}
-        >
-          <AlertTriangle size={14} className="text-red-400" />
-          Ocorrências Operacionais
-        </h3>
-        <div className="flex items-center gap-3">
+    <SectionCard
+      className={className}
+      title="Ocorrências operacionais"
+      description={
+        temDados && resumo
+          ? `${plural(resumo.total, "ocorrência", "ocorrências")} · ${plural(resumo.pendentes, "pendente", "pendentes")} · ${fmtNumero(resumo.em_investigacao)} em investigação · ${plural(resumo.resolvidas, "resolvida", "resolvidas")}`
+          : "Faltas, sobras, avarias e divergências registradas na operação"
+      }
+      actions={
+        <>
           {resumo && resumo.criticas > 0 && (
-            <span className="flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">
-              <ShieldAlert size={12} />
-              {resumo.criticas} crítica{resumo.criticas !== 1 ? "s" : ""}
-            </span>
+            <StatusPill tone="danger">{plural(resumo.criticas, "crítica", "críticas")}</StatusPill>
           )}
-          <span className="text-xs text-muted-foreground">
-            {resumo?.total || 0} no período
-          </span>
           {onNavigate && (
-            <button
-              onClick={() => onNavigate("/atividades/ocorrencias")}
-              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
-            >
-              Ver todas →
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate("/atividades/ocorrencias")}>
+              Ver ocorrências
+            </Button>
           )}
-        </div>
-      </div>
-
-
-      {temDados && resumo && (
-        <div className="flex gap-4 mb-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            <span className="text-muted-foreground">
-              {resumo.pendentes} pendente{resumo.pendentes !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-yellow-400" />
-            <span className="text-muted-foreground">
-              {resumo.em_investigacao} em investigação
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-400" />
-            <span className="text-muted-foreground">
-              {resumo.resolvidas} resolvida{resumo.resolvidas !== 1 ? "s" : ""}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="h-[240px] rounded-lg bg-secondary/30 animate-pulse" />
+        </>
+      }
+    >
+      {loading && !temDados ? (
+        <Skeleton className="h-[240px] w-full" />
       ) : !temDados ? (
-        <div className="text-center py-12 text-sm text-muted-foreground">
-          Nenhuma ocorrência no período ✓
-        </div>
+        <EmptyState
+          className="h-[240px] py-0"
+          title="Nenhuma ocorrência no período"
+          description="Faltas, sobras e avarias registradas no coletor aparecem aqui."
+        />
       ) : (
-        <div style={{ height: 240 }}>
+        <div className="h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={porTipo} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-              <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
-              <YAxis dataKey="nome" type="category" stroke="hsl(var(--muted-foreground))" fontSize={11} width={150} tick={{ fill: "hsl(var(--muted-foreground))" }} />
+            <BarChart data={porTipo} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }} barCategoryGap={6}>
+              <CartesianGrid {...chartGrid} vertical horizontal={false} />
+              <XAxis type="number" {...chartAxis} allowDecimals={false} tickFormatter={(v: number) => fmtNumero(v)} />
+              <YAxis dataKey="nome" type="category" width={150} {...chartAxis} />
               <Tooltip
-                cursor={{ fill: "hsl(var(--secondary) / 0.3)" }}
-                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12, color: "hsl(var(--popover-foreground))" }}
-                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
-                labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-                formatter={(value: number, _name: string, props: any) => {
-                  const pendentes = props.payload.pendentes;
-                  return [
-                    `${value} ocorrência${value !== 1 ? "s" : ""} (${pendentes} pendente${pendentes !== 1 ? "s" : ""})`,
-                    "Total",
-                  ];
+                {...chartTooltip}
+                formatter={(value: number, _name: string, props: { payload?: { pendentes?: number } }) => {
+                  const pendentes = props?.payload?.pendentes ?? 0;
+                  return [`${plural(value, "ocorrência", "ocorrências")} · ${plural(pendentes, "pendente", "pendentes")}`, "Total"];
                 }}
               />
-              <Bar dataKey="quantidade" radius={[0, 4, 4, 0]}>
-                {porTipo.map((item, i) => (
-                  <Cell key={i} fill={CORES_TIPO[item.tipo] || CORES_TIPO.OUTROS} />
-                ))}
-              </Bar>
+              <Bar dataKey="quantidade" fill={chartColor(1)} radius={[0, 3, 3, 0]} maxBarSize={22} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }

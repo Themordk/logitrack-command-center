@@ -1,6 +1,8 @@
-import { Trophy, Medal, Award } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { iconeTendencia } from "@/pages/dashboard/dashboard.service";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SectionCard, EmptyState } from "@/components/ds";
 import { ScoreBadge } from "@/modules/lms/score/ScoreDetalhe";
 import { estiloClassificacao, formatarScore, textoSemScore, type ClassificacaoScore, type SituacaoScore } from "@/modules/lms/score/score.service";
 
@@ -28,101 +30,119 @@ interface Operador {
   classificacao?: ClassificacaoScore;
 }
 
-const fmtPct = (v: number | null | undefined) => (v == null ? "—" : `${Number(v).toFixed(1).replace(".", ",")}%`);
+const fmtPct = (v: number | null | undefined) =>
+  v == null ? "—" : `${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
-function initials(nome: string) {
-  const parts = (nome || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "—";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+const TENDENCIA = {
+  SUBINDO: { Icone: ArrowUpRight, cls: "text-success", rotulo: "Score subindo nos últimos 5 dias" },
+  CAINDO: { Icone: ArrowDownRight, cls: "text-danger", rotulo: "Score caindo nos últimos 5 dias" },
+  ESTAVEL: { Icone: ArrowRight, cls: "text-muted-foreground", rotulo: "Score estável nos últimos 5 dias" },
+} as const;
 
-export function RankingOperadores({ data, loading, onNavigate }: { data: Operador[]; loading?: boolean; onNavigate?: (path: string) => void }) {
+/**
+ * Ranking da equipe pelo score global das metas (ordem vem do banco).
+ * A barra é proporcional ao score; a cor vem da classificação do LMS.
+ */
+export function RankingOperadores({
+  data,
+  loading,
+  onNavigate,
+  className,
+}: {
+  data: Operador[];
+  loading?: boolean;
+  onNavigate?: (path: string) => void;
+  className?: string;
+}) {
   const safeData: Operador[] = Array.isArray(data) ? data : [];
-  const podio = [
-    "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-    "bg-slate-300/10 text-slate-300 border-slate-300/30",
-    "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  ];
-  const podioIcon = [Trophy, Medal, Award];
-  // Fase 10: ordem (do banco) e barra = score global das metas; quem não tem metas vem por último.
   const valor = (d: Operador) => d.score ?? 0;
   const max = Math.max(1, ...safeData.map(valor));
 
   return (
-    <div className="card-surface p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground" title="Ordenado pelo score global: média ponderada do atingimento das metas do operador">Ranking LMS · score das metas</h3>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">{safeData.length} operadores</span>
-          {onNavigate && safeData.length > 0 && (
-            <button
-              onClick={() => onNavigate("/relatorios/produtividade")}
-              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
-            >
-              Ver relatório →
-            </button>
-          )}
+    <SectionCard
+      flush
+      className={className}
+      title="Ranking da equipe"
+      description="Ordenado pelo score global das metas de cada operador"
+      actions={
+        onNavigate &&
+        safeData.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={() => onNavigate("/relatorios/produtividade")}>
+            Ver relatório
+          </Button>
+        )
+      }
+    >
+      {loading && safeData.length === 0 ? (
+        <div className="space-y-2 p-4">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
         </div>
-      </div>
-      {loading ? (
-        <div className="space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-12 rounded-lg bg-secondary/30 animate-pulse" />)}</div>
       ) : safeData.length === 0 ? (
-        <div className="text-center py-8 text-sm text-muted-foreground">Nenhum operador concluiu tarefas no período. Verifique se há tarefas atribuídas.</div>
+        <EmptyState
+          title="Nenhum operador concluiu tarefas no período"
+          description="O ranking aparece quando os operadores com metas concluem tarefas nos filtros escolhidos."
+        />
       ) : (
-        <div className="space-y-1.5">
+        <ol className="divide-y divide-border">
           {safeData.map((op, idx) => {
-            const isPodio = idx < 3;
-            const Icon = isPodio ? podioIcon[idx] : null;
-            const pct = Math.max(6, Math.round((valor(op) / max) * 100));
+            const pct = Math.max(4, Math.round((valor(op) / max) * 100));
+            const tendencia = op.tendencia ? TENDENCIA[op.tendencia as keyof typeof TENDENCIA] : undefined;
+            const metas = op.score_metas_total ? `${op.score_metas_contadas ?? 0}/${op.score_metas_total} metas` : null;
             return (
-              <button
-                key={op.usuario_id}
-                onClick={() => onNavigate?.(`/atividades/scorecard/${op.usuario_id}`)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors w-full text-left",
-                  isPodio ? podio[idx] : "bg-secondary/30 border-transparent text-foreground hover:bg-secondary/50",
-                  onNavigate && "cursor-pointer hover:scale-[1.01]",
-                )}
-              >
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/15 text-primary text-[11px] font-bold shrink-0">
-                  {Icon ? <Icon size={14} /> : initials(op.nome)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">{op.nome}</p>
-                    <ScoreBadge classificacao={op.classificacao} situacao={op.score_situacao} />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    {op.tarefas} tarefas · perf. {fmtPct(op.performance_pct ?? op.score_composto)} · efic. {fmtPct(op.eficiencia_pct)}
-                    {op.score_metas_total ? ` · ${op.score_metas_contadas ?? 0}/${op.score_metas_total} metas` : ""}
-                    {op.origem === "ESTIMADO" && <span className="ml-1.5 text-amber-400" title="Menos de 95% das execuções com início real">estimado</span>}
-                    {op.amostra_suficiente === false && <span className="ml-1.5 text-muted-foreground" title="Menos de 8 h diretas no período">· amostra pequena</span>}
-                    {op.tendencia && op.tendencia !== "SEM_HISTORICO" && (
-                      <span className={cn("ml-1.5 font-medium", iconeTendencia(op.tendencia).color)}>
-                        {iconeTendencia(op.tendencia).icon}
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 w-[200px] shrink-0">
-                  <span className={cn("text-xs tabular-nums whitespace-nowrap ml-auto font-semibold", op.score != null ? estiloClassificacao(op.classificacao).texto : "text-muted-foreground font-normal")}>
-                    {op.score != null ? formatarScore(op.score) : textoSemScore(op.score_situacao)}
+              <li key={op.usuario_id}>
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.(`/atividades/scorecard/${op.usuario_id}`)}
+                  className="grid w-full grid-cols-[2rem_1fr_auto] items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+                >
+                  <span className="font-mono text-body-sm tabular-nums text-muted-foreground">{idx + 1}</span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-body font-medium text-foreground">{op.nome}</span>
+                      <ScoreBadge classificacao={op.classificacao} situacao={op.score_situacao} />
+                    </span>
+                    <span className="mt-0.5 block truncate text-caption text-muted-foreground">
+                      {op.tarefas.toLocaleString("pt-BR")} tarefas · performance {fmtPct(op.performance_pct ?? op.score_composto)} · eficiência{" "}
+                      {fmtPct(op.eficiencia_pct)}
+                      {metas && ` · ${metas}`}
+                      {op.origem === "ESTIMADO" && (
+                        <span className="text-warning" title="Menos de 95% das execuções com início real">
+                          {" "}
+                          · estimado
+                        </span>
+                      )}
+                      {op.amostra_suficiente === false && <span title="Menos de 8 h diretas no período"> · amostra pequena</span>}
+                    </span>
                   </span>
-                  <div className="w-24 h-1.5 rounded-full bg-secondary/60 overflow-hidden">
-                    {op.score != null && (
-                      <div
-                        className={cn("h-full rounded-full transition-all", estiloClassificacao(op.classificacao).barra)}
-                        style={{ width: `${pct}%` }}
-                      />
+                  <span className="flex w-[180px] items-center justify-end gap-3">
+                    {tendencia && (
+                      <tendencia.Icone className={cn("h-4 w-4 shrink-0", tendencia.cls)} aria-label={tendencia.rotulo} />
                     )}
-                  </div>
-                </div>
-              </button>
+                    <span
+                      className={cn(
+                        "whitespace-nowrap text-body-sm tabular-nums",
+                        op.score != null ? "font-semibold text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {op.score != null ? formatarScore(op.score) : textoSemScore(op.score_situacao)}
+                    </span>
+                    <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                      {op.score != null && (
+                        <span
+                          className={cn("block h-full rounded-full", estiloClassificacao(op.classificacao).barra)}
+                          style={{ width: `${pct}%` }}
+                        />
+                      )}
+                    </span>
+                  </span>
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ol>
       )}
-    </div>
+    </SectionCard>
   );
 }
